@@ -1,0 +1,31 @@
+# ESP-IDF build output
+build/
+sdkconfig
+sdkconfig.old
+
+# Managed components (fetched during build)
+managed_components/
+dependencies.lock
+
+# SPIFFS built assets (generated from web_ui)
+spiffs_data/www/
+
+# Web UI
+web_ui/node_modules/
+web_ui/dist/
+
+# macOS
+.DS_Store
+
+# IDE / tools
+.vscode/
+.idea/
+.cache/
+.claude/
+*.swp
+*.swo
+
+# Generated / stray
+partition_table/
+package-lock.json
+.python-version

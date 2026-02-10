@@ -1,0 +1,99 @@
+menu "Bisque Configuration"
+
+    menu "Wi-Fi Settings"
+        config KILN_WIFI_STA_SSID
+            string "WiFi Station SSID"
+            default ""
+            help
+                SSID of the Wi-Fi network to connect to.
+
+        config KILN_WIFI_STA_PASS
+            string "WiFi Station Password"
+            default ""
+            help
+                Password of the Wi-Fi network.
+
+        config KILN_WIFI_AP_SSID
+            string "WiFi AP SSID"
+            default "Bisque"
+            help
+                SSID for the fallback Access Point.
+
+        config KILN_WIFI_AP_PASS
+            string "WiFi AP Password"
+            default "bisquesetup"
+            help
+                Password for the fallback AP (min 8 chars).
+    endmenu
+
+    menu "GPIO Pin Assignments"
+        config KILN_PIN_SPI_MOSI
+            int "SPI MOSI GPIO"
+            default 11
+
+        config KILN_PIN_SPI_MISO
+            int "SPI MISO GPIO"
+            default 13
+
+        config KILN_PIN_SPI_SCLK
+            int "SPI SCLK GPIO"
+            default 12
+
+        config KILN_PIN_TC_CS
+            int "Thermocouple CS GPIO"
+            default 10
+
+        config KILN_PIN_SSR
+            int "SSR Output GPIO"
+            default 17
+
+        config KILN_PIN_LCD_CS
+            int "LCD CS GPIO"
+            default 9
+
+        config KILN_PIN_LCD_DC
+            int "LCD DC GPIO"
+            default 46
+
+        config KILN_PIN_LCD_RST
+            int "LCD RST GPIO"
+            default 3
+
+        config KILN_PIN_LCD_BL
+            int "LCD Backlight GPIO"
+            default 8
+    endmenu
+
+    menu "PID Defaults"
+        config KILN_PID_KP
+            int "Default Kp x1000"
+            default 2000
+            help
+                Proportional gain multiplied by 1000 (e.g. 2000 = 2.0).
+
+        config KILN_PID_KI
+            int "Default Ki x1000"
+            default 10
+            help
+                Integral gain multiplied by 1000 (e.g. 10 = 0.01).
+
+        config KILN_PID_KD
+            int "Default Kd x1000"
+            default 50000
+            help
+                Derivative gain multiplied by 1000 (e.g. 50000 = 50.0).
+    endmenu
+
+    menu "Safety Limits"
+        config KILN_MAX_SAFE_TEMP
+            int "Default Max Safe Temperature (C)"
+            default 1300
+
+        config KILN_HARDWARE_MAX_TEMP
+            int "Absolute Hardware Max Temperature (C)"
+            default 1400
+            help
+                Cannot be overridden via settings. Emergency stop above this.
+    endmenu
+
+endmenu
