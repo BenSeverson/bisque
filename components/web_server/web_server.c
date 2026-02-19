@@ -160,8 +160,8 @@ esp_err_t web_server_start(void)
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.uri_match_fn = httpd_uri_match_wildcard;
-    config.max_uri_handlers = 20;
-    config.stack_size = 8192;
+    config.max_uri_handlers = 36;   /* bumped for new endpoints */
+    config.stack_size = 12288;
     config.lru_purge_enable = true;
     config.max_open_sockets = 7;
 

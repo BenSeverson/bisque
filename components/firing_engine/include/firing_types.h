@@ -60,11 +60,16 @@ typedef struct {
 
 /* Matches KilnSettings */
 typedef struct {
-    char    temp_unit;         /* 'C' or 'F' */
-    float   max_safe_temp;     /* °C */
+    char    temp_unit;                  /* 'C' or 'F' */
+    float   max_safe_temp;              /* °C */
     bool    alarm_enabled;
     bool    auto_shutdown;
     bool    notifications_enabled;
+    float   tc_offset_c;               /* Thermocouple calibration offset in °C */
+    char    webhook_url[128];          /* Webhook URL for push notifications (empty = disabled) */
+    char    api_token[64];             /* API bearer token (empty = auth disabled) */
+    float   element_watts;            /* Kiln element power for cost estimation */
+    float   electricity_cost_kwh;     /* Electricity cost per kWh */
 } kiln_settings_t;
 
 /* Commands sent from web API to firing_task */
@@ -73,6 +78,7 @@ typedef enum {
     FIRING_CMD_STOP,
     FIRING_CMD_PAUSE,
     FIRING_CMD_RESUME,
+    FIRING_CMD_SKIP_SEGMENT,
     FIRING_CMD_AUTOTUNE_START,
     FIRING_CMD_AUTOTUNE_STOP,
 } firing_cmd_type_t;
@@ -82,6 +88,7 @@ typedef struct {
     union {
         struct {
             firing_profile_t profile;   /* For START */
+            uint32_t delay_minutes;     /* Delay before firing begins (0 = immediate) */
         } start;
         struct {
             float setpoint;             /* For AUTOTUNE_START */
@@ -89,6 +96,16 @@ typedef struct {
         } autotune;
     };
 } firing_cmd_t;
+
+/* Error codes for firing errors */
+typedef enum {
+    FIRING_ERR_NONE = 0,
+    FIRING_ERR_TC_FAULT,         /* Thermocouple fault */
+    FIRING_ERR_OVER_TEMP,        /* Over-temperature */
+    FIRING_ERR_NOT_RISING,       /* Kiln not rising: <10°C in 15 min while heating */
+    FIRING_ERR_RUNAWAY,          /* Rate-of-rise runaway: temp rising >2x programmed rate */
+    FIRING_ERR_EMERGENCY_STOP,   /* Emergency stop */
+} firing_error_code_t;
 
 #ifdef __cplusplus
 }

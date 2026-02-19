@@ -5,6 +5,8 @@
 #include "esp_timer.h"
 #include "nvs_flash.h"
 #include "driver/spi_master.h"
+#include "mdns.h"
+#include "esp_sntp.h"
 
 #include "app_config.h"
 #include "thermocouple.h"
@@ -14,6 +16,7 @@
 #include "wifi_manager.h"
 #include "web_server.h"
 #include "display.h"
+#include "firing_history.h"
 
 static const char *TAG = "main";
 
@@ -52,6 +55,7 @@ void app_main(void)
 
     /* ── Safety Init ───────────────────────────────── */
     ESP_ERROR_CHECK(safety_init(APP_PIN_SSR, APP_DEFAULT_MAX_SAFE_TEMP));
+    safety_init_io(APP_PIN_ALARM, APP_PIN_VENT);
 
     /* ── Firing Engine Init ────────────────────────── */
     ESP_ERROR_CHECK(firing_engine_init());
@@ -88,8 +92,33 @@ void app_main(void)
         ESP_LOGW(TAG, "Wi-Fi connection timed out");
     }
 
+    /* ── mDNS ─────────────────────────────────────── */
+    {
+        esp_err_t mdns_err = mdns_init();
+        if (mdns_err == ESP_OK) {
+            mdns_hostname_set("bisque");
+            mdns_instance_name_set("Bisque Kiln Controller");
+            mdns_service_add(NULL, "_http", "_tcp", 80, NULL, 0);
+            ESP_LOGI(TAG, "mDNS: http://bisque.local/");
+        } else {
+            ESP_LOGW(TAG, "mDNS init failed: %s", esp_err_to_name(mdns_err));
+        }
+    }
+
+    /* ── NTP Time Sync ─────────────────────────────── */
+    if (!wifi_manager_is_ap_mode()) {
+        esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
+        esp_sntp_setservername(0, "pool.ntp.org");
+        esp_sntp_init();
+        ESP_LOGI(TAG, "NTP sync started");
+    }
+
+    /* ── History Init (after SPIFFS, before web server) ── */
+    /* Web server mounts SPIFFS; we call history_init after it */
+
     /* ── Web Server Init ───────────────────────────── */
     ESP_ERROR_CHECK(web_server_start());
+    history_init();  /* SPIFFS must be mounted first (done inside web_server_start) */
     ESP_LOGI(TAG, "Web server started at http://%s/", wifi_manager_get_ip());
 
     /* ── Create FreeRTOS Tasks ─────────────────────── */

@@ -1,14 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import { FiringProfile, FiringSegment } from '../types/kiln';
-import { Plus, Trash2, Save, MoveUp, MoveDown } from 'lucide-react';
+import { Switch } from './ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { FiringProfile, FiringSegment, ConeEntry } from '../types/kiln';
+import { Plus, Trash2, Save, MoveUp, MoveDown, Flame } from 'lucide-react';
+import { api } from '../services/api';
 import { toast } from 'sonner';
 
-// Generate UUID - works in non-secure contexts (HTTP) unlike generateId()
+// Generate UUID - works in non-secure contexts (HTTP) unlike crypto.randomUUID()
 function generateId(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
@@ -24,12 +27,26 @@ interface ProfileBuilderProps {
 }
 
 export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: ProfileBuilderProps) {
+  const [mode, setMode] = useState<'manual' | 'cone'>('manual');
   const [editingProfile, setEditingProfile] = useState<FiringProfile | null>(null);
   const [profileName, setProfileName] = useState('');
   const [profileDescription, setProfileDescription] = useState('');
   const [segments, setSegments] = useState<FiringSegment[]>([]);
 
+  // Cone fire state
+  const [coneEntries, setConeEntries] = useState<ConeEntry[]>([]);
+  const [selectedConeId, setSelectedConeId] = useState<number | null>(null);
+  const [coneSpeed, setConeSpeed] = useState<0 | 1 | 2>(1); // 0=slow, 1=medium, 2=fast
+  const [preheat, setPreheat] = useState(true);
+  const [slowCool, setSlowCool] = useState(false);
+  const [coneGenerating, setConeGenerating] = useState(false);
+
+  useEffect(() => {
+    api.getConeTable().then(setConeEntries).catch(() => {});
+  }, []);
+
   const createNewProfile = () => {
+    setMode('manual');
     setEditingProfile(null);
     setProfileName('');
     setProfileDescription('');
@@ -47,10 +64,38 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
   const loadProfile = (profileId: string) => {
     const profile = profiles.find((p) => p.id === profileId);
     if (profile) {
+      setMode('manual');
       setEditingProfile(profile);
       setProfileName(profile.name);
       setProfileDescription(profile.description);
       setSegments([...profile.segments]);
+    }
+  };
+
+  const handleGenerateConeFire = async () => {
+    if (selectedConeId === null) {
+      toast.error('Please select a cone');
+      return;
+    }
+    setConeGenerating(true);
+    try {
+      const profile = await api.generateConeFire({
+        coneId: selectedConeId,
+        speed: coneSpeed,
+        preheat,
+        slowCool,
+        save: false,
+      });
+      setMode('manual');
+      setEditingProfile(null);
+      setProfileName(profile.name);
+      setProfileDescription(profile.description);
+      setSegments([...profile.segments]);
+      toast.success('Cone fire profile generated — review and save below');
+    } catch (e) {
+      toast.error(`Failed to generate: ${e instanceof Error ? e.message : 'Unknown error'}`);
+    } finally {
+      setConeGenerating(false);
     }
   };
 
@@ -80,17 +125,14 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
   const moveSegment = (index: number, direction: 'up' | 'down') => {
     const newSegments = [...segments];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    
     if (targetIndex < 0 || targetIndex >= segments.length) return;
-    
     [newSegments[index], newSegments[targetIndex]] = [newSegments[targetIndex], newSegments[index]];
     setSegments(newSegments);
   };
 
   const calculateEstimatedDuration = (): number => {
     let totalMinutes = 0;
-    let currentTemp = 20; // Starting room temperature
-
+    let currentTemp = 20;
     segments.forEach((segment) => {
       const tempDifference = Math.abs(segment.targetTemp - currentTemp);
       const rampTimeHours = tempDifference / Math.abs(segment.rampRate);
@@ -98,7 +140,6 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
       totalMinutes += rampTimeMinutes + segment.holdTime;
       currentTemp = segment.targetTemp;
     });
-
     return Math.round(totalMinutes);
   };
 
@@ -112,12 +153,10 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
       toast.error('Please enter a profile name');
       return;
     }
-
     if (segments.length === 0) {
       toast.error('Please add at least one segment');
       return;
     }
-
     const profile: FiringProfile = {
       id: editingProfile?.id || generateId(),
       name: profileName,
@@ -126,16 +165,25 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
       maxTemp: calculateMaxTemp(),
       estimatedDuration: calculateEstimatedDuration(),
     };
-
     onSaveProfile(profile);
     toast.success(`Profile "${profileName}" saved successfully`);
-    
-    // Reset form
     setEditingProfile(null);
     setProfileName('');
     setProfileDescription('');
     setSegments([]);
   };
+
+  const speedLabel = (s: 0 | 1 | 2) => {
+    if (s === 0) return 'Slow';
+    if (s === 1) return 'Medium';
+    return 'Fast';
+  };
+
+  const selectedCone = coneEntries.find((c) => c.id === selectedConeId);
+  const coneTargetTemp =
+    selectedCone
+      ? [selectedCone.slowTempC, selectedCone.mediumTempC, selectedCone.fastTempC][coneSpeed]
+      : null;
 
   return (
     <div className="space-y-6">
@@ -143,17 +191,122 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
         <div>
           <h2 className="text-2xl font-semibold mb-2">Profile Builder</h2>
           <p className="text-muted-foreground">
-            Create and edit firing profiles with custom temperature segments.
+            Create firing profiles manually or use the Cone Fire Wizard.
           </p>
         </div>
-        <Button onClick={createNewProfile} className="gap-2">
-          <Plus className="h-4 w-4" />
-          New Profile
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant={mode === 'cone' ? 'default' : 'outline'}
+            onClick={() => setMode('cone')}
+            className="gap-2"
+          >
+            <Flame className="h-4 w-4" />
+            Cone Fire Wizard
+          </Button>
+          <Button
+            variant={mode === 'manual' ? 'default' : 'outline'}
+            onClick={createNewProfile}
+            className="gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            New Profile
+          </Button>
+        </div>
       </div>
 
+      {/* Cone Fire Wizard */}
+      {mode === 'cone' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Flame className="h-5 w-5 text-orange-500" />
+              Cone Fire Wizard
+            </CardTitle>
+            <CardDescription>
+              Generate an Orton-standard firing schedule for a target cone and speed.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Target Cone</Label>
+                <Select
+                  value={selectedConeId !== null ? String(selectedConeId) : ''}
+                  onValueChange={(v) => setSelectedConeId(Number(v))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select cone..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {coneEntries.map((c) => (
+                      <SelectItem key={c.id} value={String(c.id)}>
+                        Cone {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Firing Speed</Label>
+                <Select
+                  value={String(coneSpeed)}
+                  onValueChange={(v) => setConeSpeed(Number(v) as 0 | 1 | 2)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">Slow</SelectItem>
+                    <SelectItem value="1">Medium</SelectItem>
+                    <SelectItem value="2">Fast</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {coneTargetTemp !== null && (
+              <div className="p-3 bg-muted/50 rounded-lg text-sm">
+                Cone {selectedCone?.name} @ {speedLabel(coneSpeed)}: target{' '}
+                <span className="font-semibold">{coneTargetTemp}°C</span>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Preheat Segment</Label>
+                  <p className="text-xs text-muted-foreground">
+                    80°C/hr to 120°C with 30-min moisture hold
+                  </p>
+                </div>
+                <Switch checked={preheat} onCheckedChange={setPreheat} />
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Slow Cool</Label>
+                  <p className="text-xs text-muted-foreground">
+                    −150°C/hr through quartz inversion (573°C)
+                  </p>
+                </div>
+                <Switch checked={slowCool} onCheckedChange={setSlowCool} />
+              </div>
+            </div>
+
+            <Button
+              onClick={handleGenerateConeFire}
+              disabled={selectedConeId === null || coneGenerating}
+              className="w-full gap-2"
+            >
+              <Flame className="h-4 w-4" />
+              {coneGenerating ? 'Generating...' : 'Generate Profile'}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Load existing profile */}
-      {profiles.length > 0 && (
+      {mode === 'manual' && profiles.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Load Existing Profile</CardTitle>
@@ -225,7 +378,7 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
               <div className="flex justify-between items-center">
                 <div>
                   <CardTitle>Firing Segments</CardTitle>
-                  <CardDescription>Define temperature ramps and holds</CardDescription>
+                  <CardDescription>Define temperature ramps and holds. Set hold time to 0 for infinite hold.</CardDescription>
                 </div>
                 <Button onClick={addSegment} variant="outline" size="sm" className="gap-2">
                   <Plus className="h-4 w-4" />
@@ -303,6 +456,9 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
                         onChange={(e) => updateSegment(segment.id, 'holdTime', parseFloat(e.target.value))}
                         min="0"
                       />
+                      <p className="text-xs text-muted-foreground">
+                        0 = hold until skip
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -337,10 +493,12 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
         </>
       )}
 
-      {segments.length === 0 && !profileName && (
+      {segments.length === 0 && !profileName && mode === 'manual' && (
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">Click "New Profile" to start creating a firing profile.</p>
+            <p className="text-muted-foreground">
+              Click "New Profile" to start building, or use the Cone Fire Wizard to generate a schedule.
+            </p>
           </CardContent>
         </Card>
       )}

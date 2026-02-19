@@ -4,9 +4,10 @@ import { FiringDashboard } from './components/FiringDashboard';
 import { FiringProfiles } from './components/FiringProfiles';
 import { ProfileBuilder } from './components/ProfileBuilder';
 import { Settings } from './components/Settings';
+import { FiringHistory } from './components/FiringHistory';
 import { FiringProfile, KilnSettings } from './types/kiln';
 import { mockProfiles } from './data/mockProfiles';
-import { Flame, FileText, Wrench, Settings as SettingsIcon } from 'lucide-react';
+import { Flame, FileText, Wrench, Settings as SettingsIcon, History } from 'lucide-react';
 import { Toaster } from './components/ui/sonner';
 import { api } from './services/api';
 import { kilnWS } from './services/websocket';
@@ -20,6 +21,10 @@ export default function App() {
     alarmEnabled: true,
     autoShutdown: true,
     notificationsEnabled: true,
+    tcOffsetC: 0,
+    webhookUrl: '',
+    elementWatts: 0,
+    electricityCostKwh: 0,
   });
   const [connected, setConnected] = useState(false);
 
@@ -119,7 +124,7 @@ export default function App() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
             <TabsTrigger value="dashboard" className="gap-2">
               <Flame className="h-4 w-4" />
               Dashboard
@@ -136,6 +141,10 @@ export default function App() {
               <SettingsIcon className="h-4 w-4" />
               Settings
             </TabsTrigger>
+            <TabsTrigger value="history" className="gap-2">
+              <History className="h-4 w-4" />
+              History
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="dashboard" className="space-y-4">
@@ -151,6 +160,7 @@ export default function App() {
               profiles={profiles}
               selectedProfile={selectedProfile}
               onSelectProfile={handleSelectProfile}
+              onRefreshProfiles={fetchProfiles}
             />
           </TabsContent>
 
@@ -164,6 +174,10 @@ export default function App() {
 
           <TabsContent value="settings" className="space-y-4">
             <Settings settings={settings} onUpdateSettings={handleUpdateSettings} />
+          </TabsContent>
+
+          <TabsContent value="history" className="space-y-4">
+            <FiringHistory />
           </TabsContent>
         </Tabs>
       </main>

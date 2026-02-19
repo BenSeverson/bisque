@@ -59,6 +59,16 @@ esp_err_t firing_engine_delete_profile(const char *id);
 int firing_engine_list_profiles(char ids_out[][FIRING_ID_LEN], int max_count);
 
 /**
+ * Get the last firing error code.
+ */
+firing_error_code_t firing_engine_get_error_code(void);
+
+/**
+ * Get accumulated element-on time in seconds (for wear tracking).
+ */
+uint32_t firing_engine_get_element_hours_s(void);
+
+/**
  * FreeRTOS task: runs the firing state machine, PID control, SSR output.
  * Pass NULL as parameter.
  */

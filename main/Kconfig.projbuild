@@ -62,6 +62,27 @@ menu "Bisque Configuration"
         config KILN_PIN_LCD_BL
             int "LCD Backlight GPIO"
             default 8
+
+        config KILN_PIN_ALARM
+            int "Alarm output GPIO (-1 = disabled)"
+            default -1
+            help
+                GPIO for buzzer or relay triggered on firing complete or error.
+                Set to -1 to disable.
+
+        config KILN_PIN_VENT
+            int "Vent relay GPIO (-1 = disabled)"
+            default -1
+            help
+                GPIO for downdraft vent relay. Active during early firing stages
+                below 700°C to exhaust combustion gases. Set to -1 to disable.
+
+        config KILN_PIN_LID_SWITCH
+            int "Lid/door switch GPIO (-1 = disabled)"
+            default -1
+            help
+                GPIO input for lid/door interlock switch. If kiln is opened
+                above safe temperature during firing, a warning is triggered.
     endmenu
 
     menu "PID Defaults"

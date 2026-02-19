@@ -16,10 +16,32 @@ extern "C" {
 
 /**
  * Initialize the safety system.
- * @param ssr_pin  GPIO that drives the SSR (set LOW on emergency stop)
- * @param max_safe_temp  User-configurable max temp (must be <= hardware max)
+ * @param ssr_pin       GPIO that drives the SSR (set LOW on emergency stop)
+ * @param max_safe_temp User-configurable max temp (must be <= hardware max)
  */
 esp_err_t safety_init(int ssr_pin, float max_safe_temp);
+
+/**
+ * Configure optional alarm and vent GPIO outputs.
+ * Pass -1 to disable either GPIO.
+ * @param alarm_gpio  GPIO for buzzer/relay on error or complete.
+ * @param vent_gpio   GPIO for downdraft vent relay (active when firing at <700°C).
+ */
+void safety_init_io(int alarm_gpio, int vent_gpio);
+
+/**
+ * Trigger alarm output (call on firing complete or error if alarm_enabled).
+ * @param pattern 0 = short beep, 1 = long beep, 2 = error pattern.
+ */
+void safety_trigger_alarm(int pattern);
+
+/**
+ * Update the vent relay GPIO based on current temperature and firing state.
+ * Call from firing_task on each tick.
+ * @param is_firing  true if firing is active.
+ * @param current_temp_c  Current kiln temperature.
+ */
+void safety_update_vent(bool is_firing, float current_temp_c);
 
 /**
  * Get the global event group for safety/firing events.

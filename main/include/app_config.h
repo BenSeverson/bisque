@@ -62,5 +62,18 @@
 #define APP_TASK_FIRING_STACK    8192
 #define APP_TASK_DISPLAY_STACK   4096
 
+/* --- Alarm / Vent GPIO (optional, -1 = disabled) --- */
+#ifdef CONFIG_KILN_PIN_ALARM
+#define APP_PIN_ALARM        CONFIG_KILN_PIN_ALARM
+#else
+#define APP_PIN_ALARM        (-1)
+#endif
+
+#ifdef CONFIG_KILN_PIN_VENT
+#define APP_PIN_VENT         CONFIG_KILN_PIN_VENT
+#else
+#define APP_PIN_VENT         (-1)
+#endif
+
 /* --- Firmware Info --- */
-#define APP_FIRMWARE_VERSION "1.0.0"
+#define APP_FIRMWARE_VERSION "2.0.0"

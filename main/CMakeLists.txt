@@ -9,4 +9,8 @@ idf_component_register(
         display
         safety
         wifi_manager
+        history
+        mdns
+        esp_netif
+        lwip
 )

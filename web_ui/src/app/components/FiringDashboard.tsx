@@ -5,8 +5,9 @@ import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Label } from './ui/label';
+import { Input } from './ui/input';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Play, Pause, Square, Flame, ThermometerSun, Clock } from 'lucide-react';
+import { Play, Pause, Square, Flame, ThermometerSun, Clock, SkipForward, Timer } from 'lucide-react';
 import { FiringProfile, FiringProgress, TemperatureDataPoint } from '../types/kiln';
 import { api } from '../services/api';
 import { kilnWS, WSMessage } from '../services/websocket';
@@ -26,11 +27,14 @@ export function FiringDashboard({ profiles, selectedProfile, onSelectProfile }: 
     currentTemp: 20,
     targetTemp: 20,
     currentSegment: 0,
+    totalSegments: 0,
     elapsedTime: 0,
     estimatedTimeRemaining: 0,
+    status: 'idle',
   });
 
   const [status, setStatus] = useState<string>('idle');
+  const [delayMinutes, setDelayMinutes] = useState<number>(0);
 
   const [currentTempData, setCurrentTempData] = useState<TemperatureDataPoint[]>([
     { time: 0, temp: 20, target: 20 },
@@ -48,8 +52,10 @@ export function FiringDashboard({ profiles, selectedProfile, onSelectProfile }: 
         currentTemp: s.currentTemp,
         targetTemp: s.targetTemp,
         currentSegment: s.currentSegment,
+        totalSegments: s.totalSegments,
         elapsedTime: s.elapsedTime,
         estimatedTimeRemaining: s.estimatedTimeRemaining,
+        status: s.status,
       });
       setStatus(s.status);
     }).catch(() => {
@@ -68,8 +74,10 @@ export function FiringDashboard({ profiles, selectedProfile, onSelectProfile }: 
           currentTemp: d.currentTemp,
           targetTemp: d.targetTemp,
           currentSegment: d.currentSegment,
+          totalSegments: d.totalSegments,
           elapsedTime: d.elapsedTime,
           estimatedTimeRemaining: d.estimatedTimeRemaining,
+          status: d.status,
         }));
         setStatus(d.status);
 
@@ -131,13 +139,22 @@ export function FiringDashboard({ profiles, selectedProfile, onSelectProfile }: 
   const handleStart = useCallback(async () => {
     if (!selectedProfile) return;
     try {
-      await api.startFiring(selectedProfile.id);
+      await api.startFiring(selectedProfile.id, delayMinutes);
       setCurrentTempData([{ time: 0, temp: 20, target: selectedProfile.segments[0].targetTemp }]);
-      toast.success('Firing started');
+      toast.success(delayMinutes > 0 ? `Firing scheduled in ${delayMinutes} min` : 'Firing started');
     } catch (e) {
       toast.error(`Failed to start: ${e instanceof Error ? e.message : 'Unknown error'}`);
     }
-  }, [selectedProfile]);
+  }, [selectedProfile, delayMinutes]);
+
+  const handleSkipSegment = useCallback(async () => {
+    try {
+      await api.skipSegment();
+      toast.success('Skipped to next segment');
+    } catch (e) {
+      toast.error(`Failed to skip: ${e instanceof Error ? e.message : 'Unknown error'}`);
+    }
+  }, []);
 
   const handlePause = useCallback(async () => {
     try {
@@ -267,6 +284,30 @@ export function FiringDashboard({ profiles, selectedProfile, onSelectProfile }: 
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {!firingProgress.isActive && status !== 'paused' && (
+            <div className="flex items-end gap-3">
+              <div className="space-y-2 w-36">
+                <Label htmlFor="delay-start" className="flex items-center gap-1">
+                  <Timer className="h-3 w-3" />
+                  Delay Start (min)
+                </Label>
+                <Input
+                  id="delay-start"
+                  type="number"
+                  min="0"
+                  max="1440"
+                  value={delayMinutes}
+                  onChange={(e) => setDelayMinutes(Math.max(0, parseInt(e.target.value) || 0))}
+                />
+              </div>
+              {delayMinutes > 0 && (
+                <p className="text-xs text-muted-foreground pb-2">
+                  Kiln will start in {delayMinutes} min
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="profile-select">Select Firing Profile</Label>
             <Select
@@ -332,6 +373,17 @@ export function FiringDashboard({ profiles, selectedProfile, onSelectProfile }: 
               <Square className="h-4 w-4" />
               Stop
             </Button>
+
+            {firingProgress.isActive && status !== 'paused' && (
+              <Button
+                onClick={handleSkipSegment}
+                variant="outline"
+                className="gap-2 ml-auto"
+              >
+                <SkipForward className="h-4 w-4" />
+                Skip Segment
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>

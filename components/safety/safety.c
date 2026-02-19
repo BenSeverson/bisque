@@ -16,7 +16,12 @@ static const char *TAG = "safety";
 /* No valid reading for this long → emergency stop */
 #define TEMP_FAULT_TIMEOUT_US (5 * 1000 * 1000LL)
 
-static int s_ssr_pin = -1;
+/* Vent active below this temperature during firing */
+#define VENT_MAX_TEMP_C 700.0f
+
+static int s_ssr_pin   = -1;
+static int s_alarm_gpio = -1;
+static int s_vent_gpio  = -1;
 static float s_max_safe_temp = 1300.0f;
 static EventGroupHandle_t s_event_group;
 static portMUX_TYPE s_safety_mux = portMUX_INITIALIZER_UNLOCKED;
@@ -25,6 +30,81 @@ static portMUX_TYPE s_safety_mux = portMUX_INITIALIZER_UNLOCKED;
 static float s_ssr_duty = 0.0f;
 static int64_t s_ssr_window_start_us = 0;
 #define SSR_WINDOW_US (2000 * 1000LL)  /* 2 second window */
+
+void safety_init_io(int alarm_gpio, int vent_gpio)
+{
+    s_alarm_gpio = alarm_gpio;
+    s_vent_gpio  = vent_gpio;
+
+    if (alarm_gpio >= 0) {
+        gpio_config_t io = {
+            .pin_bit_mask = (1ULL << alarm_gpio),
+            .mode = GPIO_MODE_OUTPUT,
+            .pull_up_en = GPIO_PULLUP_DISABLE,
+            .pull_down_en = GPIO_PULLDOWN_ENABLE,
+            .intr_type = GPIO_INTR_DISABLE,
+        };
+        gpio_config(&io);
+        gpio_set_level(alarm_gpio, 0);
+        ESP_LOGI(TAG, "Alarm GPIO %d configured", alarm_gpio);
+    }
+
+    if (vent_gpio >= 0) {
+        gpio_config_t io = {
+            .pin_bit_mask = (1ULL << vent_gpio),
+            .mode = GPIO_MODE_OUTPUT,
+            .pull_up_en = GPIO_PULLUP_DISABLE,
+            .pull_down_en = GPIO_PULLDOWN_ENABLE,
+            .intr_type = GPIO_INTR_DISABLE,
+        };
+        gpio_config(&io);
+        gpio_set_level(vent_gpio, 0);
+        ESP_LOGI(TAG, "Vent GPIO %d configured", vent_gpio);
+    }
+}
+
+void safety_trigger_alarm(int pattern)
+{
+    if (s_alarm_gpio < 0) return;
+
+    /* Simple patterns: drive GPIO high for a duration */
+    switch (pattern) {
+    case 0: /* short beep */
+        gpio_set_level(s_alarm_gpio, 1);
+        vTaskDelay(pdMS_TO_TICKS(200));
+        gpio_set_level(s_alarm_gpio, 0);
+        break;
+    case 1: /* long beep (completion) */
+        for (int i = 0; i < 3; i++) {
+            gpio_set_level(s_alarm_gpio, 1);
+            vTaskDelay(pdMS_TO_TICKS(500));
+            gpio_set_level(s_alarm_gpio, 0);
+            vTaskDelay(pdMS_TO_TICKS(200));
+        }
+        break;
+    case 2: /* error pattern */
+        for (int i = 0; i < 5; i++) {
+            gpio_set_level(s_alarm_gpio, 1);
+            vTaskDelay(pdMS_TO_TICKS(100));
+            gpio_set_level(s_alarm_gpio, 0);
+            vTaskDelay(pdMS_TO_TICKS(100));
+        }
+        break;
+    default:
+        gpio_set_level(s_alarm_gpio, 1);
+        vTaskDelay(pdMS_TO_TICKS(300));
+        gpio_set_level(s_alarm_gpio, 0);
+        break;
+    }
+}
+
+void safety_update_vent(bool is_firing, float current_temp_c)
+{
+    if (s_vent_gpio < 0) return;
+    /* Vent relay on during firing at temperatures below 700°C */
+    int level = (is_firing && current_temp_c < VENT_MAX_TEMP_C) ? 1 : 0;
+    gpio_set_level(s_vent_gpio, level);
+}
 
 esp_err_t safety_init(int ssr_pin, float max_safe_temp)
 {
@@ -60,6 +140,10 @@ void safety_emergency_stop(void)
 {
     if (s_ssr_pin >= 0) {
         gpio_set_level(s_ssr_pin, 0);
+    }
+    /* Turn off vent on emergency stop */
+    if (s_vent_gpio >= 0) {
+        gpio_set_level(s_vent_gpio, 0);
     }
     portENTER_CRITICAL(&s_safety_mux);
     s_ssr_duty = 0.0f;
