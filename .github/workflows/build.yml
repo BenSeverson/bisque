@@ -40,7 +40,7 @@ jobs:
         working-directory: web_ui
       - name: Gzip web assets
         working-directory: spiffs_data/www
-        run: find . -type f \( -name "*.js" -o -name "*.css" -o -name "*.html" -o -name "*.svg" \) -exec gzip -k -9 -f {} \;
+        run: find . -type f \( -name "*.js" -o -name "*.css" -o -name "*.html" -o -name "*.svg" \) -exec gzip -9 -f {} \;
 
       # Build firmware
       - name: Build firmware
