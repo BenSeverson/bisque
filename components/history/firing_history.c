@@ -7,12 +7,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <inttypes.h>
 #include <time.h>
 
 static const char *TAG = "history";
 
 #define HISTORY_JSON_PATH  "/www/history.json"
-#define TRACE_PATH_FMT     "/www/trc_%u.csv"
+#define TRACE_PATH_FMT     "/www/trc_%" PRIu32 ".csv"
 #define TRACE_PATH_LEN     32
 
 /* Active firing session */
@@ -172,7 +173,7 @@ void history_record_temp(float temp_c)
 {
     lock();
     if (s_recording && s_trace_file) {
-        fprintf(s_trace_file, "%u,%.1f\n",
+        fprintf(s_trace_file, "%" PRIu32 ",%.1f\n",
                 s_trace_sample_count * 60,  /* time in seconds (1 sample per minute) */
                 temp_c);
         fflush(s_trace_file);
