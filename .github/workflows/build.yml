@@ -1,0 +1,39 @@
+name: Build
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Build web UI
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web_ui/package-lock.json
+      - run: npm ci
+        working-directory: web_ui
+      - run: npm run build
+        working-directory: web_ui
+      - name: Gzip web assets
+        working-directory: spiffs_data/www
+        run: find . -type f \( -name "*.js" -o -name "*.css" -o -name "*.html" -o -name "*.svg" \) -exec gzip -k -9 -f {} \;
+
+      # Build firmware
+      - name: Build firmware
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.5.2
+          target: esp32s3
+
+      # Upload binary
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bisque-firmware
+          path: build/bisque.bin
