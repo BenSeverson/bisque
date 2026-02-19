@@ -2,6 +2,7 @@ idf_component_register(
     SRCS "main.c"
     INCLUDE_DIRS "include"
     REQUIRES
+        app_config
         thermocouple
         pid_control
         firing_engine

@@ -13,6 +13,7 @@
 #include "esp_ota_ops.h"
 #include "esp_http_client.h"
 #include "esp_system.h"
+#include <inttypes.h>
 #include "cJSON.h"
 #include <string.h>
 #include <stdlib.h>
@@ -772,7 +773,7 @@ static esp_err_t handle_get_history_trace(httpd_req_t *req)
     }
 
     char disp[64];
-    snprintf(disp, sizeof(disp), "attachment; filename=\"trace_%u.csv\"", record_id);
+    snprintf(disp, sizeof(disp), "attachment; filename=\"trace_%" PRIu32 ".csv\"", record_id);
     httpd_resp_set_hdr(req, "Content-Disposition", disp);
     httpd_resp_set_type(req, "text/csv");
     httpd_resp_sendstr(req, buf);
