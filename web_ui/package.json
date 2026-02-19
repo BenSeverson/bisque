@@ -67,7 +67,7 @@
     "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "4.7.0",
     "tailwindcss": "4.1.12",
-    "vite": "6.3.5",
+    "vite": "^6.4.1",
     "ws": "^8.19.0"
   },
   "peerDependencies": {
