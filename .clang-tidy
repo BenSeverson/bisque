@@ -1,0 +1,18 @@
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-reserved-identifier,
+  -bugprone-narrowing-conversions,
+  clang-analyzer-*,
+  -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,
+  misc-redundant-expression,
+  readability-braces-around-statements,
+  readability-inconsistent-declaration-parameter-name,
+  readability-misleading-indentation,
+  readability-redundant-declaration,
+WarningsAsErrors: ''
+HeaderFilterRegex: '(main|components)/.*\.h$'
+CheckOptions:
+  - key: bugprone-assert-side-effect.AssertMacros
+    value: 'assert,ESP_ERROR_CHECK'
