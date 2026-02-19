@@ -27,5 +27,4 @@ web_ui/dist/
 
 # Generated / stray
 partition_table/
-package-lock.json
 .python-version
