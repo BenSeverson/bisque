@@ -1,5 +1,10 @@
 idf_component_register(
-    SRCS "display.c"
-    INCLUDE_DIRS "include"
-    REQUIRES driver esp_lcd firing_engine thermocouple
+    SRCS "display_init.c"
+         "display_task.c"
+         "ui_screen_home.c"
+         "ui_screen_chart.c"
+         "ui_screen_profiles.c"
+         "ui_screen_firing.c"
+    INCLUDE_DIRS "include" "."
+    REQUIRES driver esp_lcd esp_timer firing_engine thermocouple safety history app_config
 )

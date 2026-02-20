@@ -83,6 +83,25 @@ menu "Bisque Configuration"
             help
                 GPIO input for lid/door interlock switch. If kiln is opened
                 above safe temperature during firing, a warning is triggered.
+
+        config KILN_PIN_BTN_UP
+            int "Button Up GPIO"
+            default 4
+            help
+                GPIO for the Up/scroll-up navigation button (active-low with internal pull-up).
+
+        config KILN_PIN_BTN_DOWN
+            int "Button Down GPIO"
+            default 5
+            help
+                GPIO for the Down/scroll-down navigation button (active-low with internal pull-up).
+
+        config KILN_PIN_BTN_SELECT
+            int "Button Select GPIO"
+            default 6
+            help
+                GPIO for the Select/enter navigation button (active-low with internal pull-up).
+                Long-press cycles between display screens.
     endmenu
 
     menu "PID Defaults"

@@ -60,7 +60,24 @@
 #define APP_TASK_SAFETY_STACK    4096
 #define APP_TASK_TEMP_READ_STACK 4096
 #define APP_TASK_FIRING_STACK    8192
-#define APP_TASK_DISPLAY_STACK   4096
+#define APP_TASK_DISPLAY_STACK   8192
+
+/* --- Input Buttons (encoder-style navigation) --- */
+#ifdef CONFIG_KILN_PIN_BTN_UP
+#define APP_PIN_BTN_UP      CONFIG_KILN_PIN_BTN_UP
+#else
+#define APP_PIN_BTN_UP      4
+#endif
+#ifdef CONFIG_KILN_PIN_BTN_DOWN
+#define APP_PIN_BTN_DOWN    CONFIG_KILN_PIN_BTN_DOWN
+#else
+#define APP_PIN_BTN_DOWN    5
+#endif
+#ifdef CONFIG_KILN_PIN_BTN_SELECT
+#define APP_PIN_BTN_SELECT  CONFIG_KILN_PIN_BTN_SELECT
+#else
+#define APP_PIN_BTN_SELECT  6
+#endif
 
 /* --- Alarm / Vent GPIO (optional, -1 = disabled) --- */
 #ifdef CONFIG_KILN_PIN_ALARM

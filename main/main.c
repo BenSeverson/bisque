@@ -45,7 +45,7 @@ void app_main(void)
         .sclk_io_num = APP_PIN_SPI_SCLK,
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
-        .max_transfer_sz = 4096,
+        .max_transfer_sz = APP_LCD_H_RES * 40 * 2,
     };
     ESP_ERROR_CHECK(spi_bus_initialize(APP_SPI_HOST, &spi_bus_cfg, SPI_DMA_CH_AUTO));
     ESP_LOGI(TAG, "SPI bus initialized");

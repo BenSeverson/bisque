@@ -1,2 +1,3 @@
 dependencies:
   teriyakigod/esp_lcd_st7735: "^0.0.1"
+  lvgl/lvgl: "^9.2"

@@ -10,7 +10,9 @@ extern "C" {
 #endif
 
 /**
- * Initialize the ST7735 TFT display.
+ * Initialize the ST7735 TFT display with LVGL.
+ * Sets up LCD panel, LVGL core, double-buffered rendering,
+ * button input (encoder-style), and the default input group.
  * The SPI bus must already be initialized.
  *
  * @param host    SPI host
@@ -22,8 +24,9 @@ extern "C" {
 esp_err_t display_init(spi_host_device_t host, int cs_pin, int dc_pin, int rst_pin, int bl_pin);
 
 /**
- * FreeRTOS task: updates the display at ~500ms intervals.
- * Shows temperature, status, segment info, elapsed time.
+ * FreeRTOS task: runs the LVGL timer handler and updates screen content.
+ * Renders at ~30 FPS, polls thermocouple + firing data at 500ms.
+ * Manages 4 navigable screens (Home, Chart, Profiles, Firing).
  * Pass NULL as parameter.
  */
 void display_task(void *param);
