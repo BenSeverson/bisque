@@ -617,7 +617,7 @@ export function Settings({ settings, onUpdateSettings }: SettingsProps) {
               {systemInfo ? (systemInfo.lastErrorCode === 0 ? 'None' : `E${systemInfo.lastErrorCode}`) : '--'}
             </span>
           </div>
-          <div className="flex justify-between py-2">
+          <div className="flex justify-between py-2 border-b">
             <span className="text-sm font-medium">Emergency Stop</span>
             <span className="text-sm">
               {systemInfo?.emergencyStop ? (
@@ -625,6 +625,12 @@ export function Settings({ settings, onUpdateSettings }: SettingsProps) {
               ) : (
                 <Badge variant="secondary">Clear</Badge>
               )}
+            </span>
+          </div>
+          <div className="flex justify-between py-2">
+            <span className="text-sm font-medium">Board Temperature</span>
+            <span className="text-sm text-muted-foreground">
+              {systemInfo ? `${systemInfo.boardTempC.toFixed(1)}°C` : '--'}
             </span>
           </div>
         </CardContent>

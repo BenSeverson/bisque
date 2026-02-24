@@ -140,7 +140,7 @@ export function FiringDashboard({ profiles, selectedProfile, onSelectProfile }: 
     if (!selectedProfile) return;
     try {
       await api.startFiring(selectedProfile.id, delayMinutes);
-      setCurrentTempData([{ time: 0, temp: 20, target: selectedProfile.segments[0].targetTemp }]);
+      setCurrentTempData([{ time: 0, temp: 20, target: 20 }]);
       toast.success(delayMinutes > 0 ? `Firing scheduled in ${delayMinutes} min` : 'Firing started');
     } catch (e) {
       toast.error(`Failed to start: ${e instanceof Error ? e.message : 'Unknown error'}`);
@@ -439,12 +439,25 @@ export function FiringDashboard({ profiles, selectedProfile, onSelectProfile }: 
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
                 dataKey="time"
-                label={{ value: 'Time (minutes)', position: 'insideBottom', offset: -5 }}
+                type="number"
+                domain={profilePath.length > 0 ? [0, Math.ceil(profilePath[profilePath.length - 1].time / 60) * 60] : ['auto', 'auto']}
+                ticks={profilePath.length > 0
+                  ? Array.from({ length: Math.ceil(profilePath[profilePath.length - 1].time / 60) + 1 }, (_, i) => i * 60)
+                  : undefined}
+                tickFormatter={(min: number) => `${Math.round(min / 60)}`}
+                label={{ value: 'Time (hours)', position: 'insideBottom', offset: -5 }}
               />
               <YAxis
                 label={{ value: 'Temperature (\u00B0C)', angle: -90, position: 'insideLeft' }}
               />
-              <Tooltip />
+              <Tooltip
+                labelFormatter={(min: number) => {
+                  const h = Math.floor(min / 60);
+                  const m = min % 60;
+                  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+                }}
+                formatter={(value: number, name: string) => [`${value}°C`, name]}
+              />
               <Legend />
               <Line
                 type="monotone"

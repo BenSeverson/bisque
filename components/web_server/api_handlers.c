@@ -13,12 +13,16 @@
 #include "esp_ota_ops.h"
 #include "esp_http_client.h"
 #include "esp_system.h"
+#include "driver/temperature_sensor.h"
 #include <inttypes.h>
 #include "cJSON.h"
 #include <string.h>
 #include <stdlib.h>
 
 static const char *TAG = "api";
+
+/* ── Internal temperature sensor ──────────────────── */
+static temperature_sensor_handle_t s_board_temp_handle = NULL;
 
 /* ── Auth helpers ──────────────────────────────────── */
 
@@ -552,6 +556,13 @@ static esp_err_t handle_get_system(httpd_req_t *req)
     cJSON_AddNumberToObject(root, "lastErrorCode", (double)firing_engine_get_error_code());
     cJSON_AddNumberToObject(root, "elementHoursS", (double)firing_engine_get_element_hours_s());
 
+    /* Internal temperature sensor (board/chip temp) */
+    float board_temp = 0;
+    if (s_board_temp_handle) {
+        temperature_sensor_get_celsius(s_board_temp_handle, &board_temp);
+    }
+    cJSON_AddNumberToObject(root, "boardTempC", (double)board_temp);
+
     /* SPIFFS info */
     size_t spiffs_total = 0, spiffs_used = 0;
     esp_spiffs_info("storage", &spiffs_total, &spiffs_used);
@@ -1033,6 +1044,16 @@ static esp_err_t handle_autotune_status(httpd_req_t *req)
 
 esp_err_t api_handlers_register(httpd_handle_t server)
 {
+    /* Init internal temperature sensor */
+    temperature_sensor_config_t temp_config = TEMPERATURE_SENSOR_CONFIG_DEFAULT(10, 50);
+    if (temperature_sensor_install(&temp_config, &s_board_temp_handle) == ESP_OK) {
+        temperature_sensor_enable(s_board_temp_handle);
+        ESP_LOGI(TAG, "Board temperature sensor initialized");
+    } else {
+        ESP_LOGW(TAG, "Failed to init board temperature sensor");
+        s_board_temp_handle = NULL;
+    }
+
     /* Core endpoints */
     REGISTER_API("/api/v1/status",                   HTTP_GET,    handle_get_status);
     REGISTER_API("/api/v1/profiles",                 HTTP_GET,    handle_get_profiles);

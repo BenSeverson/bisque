@@ -56,6 +56,7 @@ export interface SystemInfo {
   elementHoursS: number;
   spiffsTotal: number;
   spiffsUsed: number;
+  boardTempC: number;
 }
 
 export interface AutotuneStatus {
