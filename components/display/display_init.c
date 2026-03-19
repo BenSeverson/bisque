@@ -5,7 +5,7 @@
 #include "esp_timer.h"
 #include "esp_lcd_panel_io.h"
 #include "esp_lcd_panel_ops.h"
-#include "esp_lcd_st7735.h"
+#include "esp_lcd_st7796.h"
 #include "driver/gpio.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
@@ -101,14 +101,14 @@ static void encoder_read_cb(lv_indev_t *indev, lv_indev_data_t *data)
 
 esp_err_t display_init(spi_host_device_t host, int cs_pin, int dc_pin, int rst_pin, int bl_pin)
 {
-    /* Backlight - WeAct ST7735 uses active-low (0 = on) */
+    /* Backlight - ST7796S modules are typically active-high (1 = on) */
     if (bl_pin >= 0) {
         gpio_config_t bl_cfg = {
             .pin_bit_mask = (1ULL << bl_pin),
             .mode = GPIO_MODE_OUTPUT,
         };
         gpio_config(&bl_cfg);
-        gpio_set_level(bl_pin, 0);
+        gpio_set_level(bl_pin, 1);
     }
 
     /* LCD panel IO (SPI) — register trans_done callback for DMA pipelining */
@@ -130,13 +130,13 @@ esp_err_t display_init(spi_host_device_t host, int cs_pin, int dc_pin, int rst_p
         return ret;
     }
 
-    /* LCD panel (ST7735) */
+    /* LCD panel (ST7796S) */
     esp_lcd_panel_dev_config_t panel_config = {
         .reset_gpio_num = rst_pin,
         .rgb_endian = LCD_RGB_ENDIAN_BGR,
         .bits_per_pixel = 16,
     };
-    ret = esp_lcd_new_panel_st7735(io_handle, &panel_config, &s_panel);
+    ret = esp_lcd_new_panel_st7796(io_handle, &panel_config, &s_panel);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to create panel: %s", esp_err_to_name(ret));
         return ret;
@@ -145,9 +145,9 @@ esp_err_t display_init(spi_host_device_t host, int cs_pin, int dc_pin, int rst_p
     esp_lcd_panel_reset(s_panel);
     esp_lcd_panel_init(s_panel);
     esp_lcd_panel_set_gap(s_panel, 0, 0);
-    esp_lcd_panel_invert_color(s_panel, true);
-    esp_lcd_panel_swap_xy(s_panel, false);
-    esp_lcd_panel_mirror(s_panel, false, false);
+    esp_lcd_panel_invert_color(s_panel, false);
+    esp_lcd_panel_swap_xy(s_panel, true);
+    esp_lcd_panel_mirror(s_panel, true, false);
     esp_lcd_panel_disp_on_off(s_panel, true);
 
     /* ── LVGL Init ───────────────────────────────── */

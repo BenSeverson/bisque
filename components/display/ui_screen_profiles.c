@@ -57,24 +57,24 @@ lv_obj_t *ui_screen_profiles_create(void)
     lv_obj_set_style_text_font(s_title_lbl, UI_FONT_MEDIUM, 0);
     lv_obj_set_style_text_color(s_title_lbl, UI_COLOR_TEXT, 0);
     lv_label_set_text(s_title_lbl, "Profiles");
-    lv_obj_align(s_title_lbl, LV_ALIGN_TOP_LEFT, 4, 2);
+    lv_obj_align(s_title_lbl, LV_ALIGN_TOP_LEFT, 12, 8);
 
     /* Profile list */
     s_list = lv_list_create(s_screen);
-    lv_obj_set_size(s_list, UI_LCD_W - 4, 110);
-    lv_obj_align(s_list, LV_ALIGN_TOP_MID, 0, 24);
+    lv_obj_set_size(s_list, 456, 230);
+    lv_obj_align(s_list, LV_ALIGN_TOP_MID, 0, 52);
     lv_obj_set_style_bg_color(s_list, UI_COLOR_BG, 0);
     lv_obj_set_style_bg_opa(s_list, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(s_list, 0, 0);
-    lv_obj_set_style_pad_all(s_list, 2, 0);
+    lv_obj_set_style_pad_all(s_list, 8, 0);
 
     /* Page dots */
-    int dot_total_w = UI_SCREEN_COUNT * 10 + (UI_SCREEN_COUNT - 1) * 6;
+    int dot_total_w = UI_SCREEN_COUNT * 14 + (UI_SCREEN_COUNT - 1) * 10;
     int dot_x_start = (UI_LCD_W - dot_total_w) / 2;
     for (int i = 0; i < UI_SCREEN_COUNT; i++) {
         s_dots[i] = lv_obj_create(s_screen);
-        lv_obj_set_size(s_dots[i], 8, 8);
-        lv_obj_set_pos(s_dots[i], dot_x_start + i * 16, UI_LCD_H - 14);
+        lv_obj_set_size(s_dots[i], 12, 12);
+        lv_obj_set_pos(s_dots[i], dot_x_start + i * 24, UI_LCD_H - 22);
         lv_obj_set_style_radius(s_dots[i], LV_RADIUS_CIRCLE, 0);
         lv_obj_set_style_border_width(s_dots[i], 0, 0);
         lv_obj_set_style_bg_color(s_dots[i], UI_COLOR_DOT_INACTIVE, 0);

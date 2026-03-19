@@ -13,11 +13,11 @@ cd "$WEB_DIR"
 npm ci
 npm run build
 
-# Step 2: Gzip assets for SPIFFS
+# Step 2: Gzip assets for SPIFFS (remove originals to fit partition)
 echo "--- Compressing web assets ---"
 cd "$SPIFFS_DIR"
 find . -type f \( -name "*.js" -o -name "*.css" -o -name "*.html" -o -name "*.svg" \) \
-    -exec gzip -k -9 -f {} \;
+    -exec gzip -9 -f {} \;
 
 echo "--- Web UI built to $SPIFFS_DIR ---"
 du -sh "$SPIFFS_DIR"

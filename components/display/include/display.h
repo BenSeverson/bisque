@@ -10,7 +10,7 @@ extern "C" {
 #endif
 
 /**
- * Initialize the ST7735 TFT display with LVGL.
+ * Initialize the ST7796S TFT display with LVGL.
  * Sets up LCD panel, LVGL core, double-buffered rendering,
  * button input (encoder-style), and the default input group.
  * The SPI bus must already be initialized.

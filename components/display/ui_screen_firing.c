@@ -79,26 +79,26 @@ lv_obj_t *ui_screen_firing_create(void)
     lv_obj_set_style_text_font(s_temp_lbl, UI_FONT_MEDIUM, 0);
     lv_obj_set_style_text_color(s_temp_lbl, UI_COLOR_TEXT, 0);
     lv_label_set_text(s_temp_lbl, "---°C IDLE");
-    lv_obj_align(s_temp_lbl, LV_ALIGN_TOP_LEFT, 4, 4);
+    lv_obj_align(s_temp_lbl, LV_ALIGN_TOP_LEFT, 12, 8);
 
     /* Status label (segment + time) */
     s_status_lbl = lv_label_create(s_screen);
     lv_obj_set_style_text_font(s_status_lbl, UI_FONT_SMALL, 0);
     lv_obj_set_style_text_color(s_status_lbl, UI_COLOR_TEXT_DIM, 0);
     lv_label_set_text(s_status_lbl, "");
-    lv_obj_align(s_status_lbl, LV_ALIGN_TOP_LEFT, 4, 28);
+    lv_obj_align(s_status_lbl, LV_ALIGN_TOP_LEFT, 12, 52);
 
     /* Segment info */
     s_seg_lbl = lv_label_create(s_screen);
     lv_obj_set_style_text_font(s_seg_lbl, UI_FONT_SMALL, 0);
     lv_obj_set_style_text_color(s_seg_lbl, UI_COLOR_TEXT_DIM, 0);
     lv_label_set_text(s_seg_lbl, "");
-    lv_obj_align(s_seg_lbl, LV_ALIGN_TOP_LEFT, 4, 46);
+    lv_obj_align(s_seg_lbl, LV_ALIGN_TOP_LEFT, 12, 86);
 
     /* Button matrix */
     s_btnm = lv_buttonmatrix_create(s_screen);
-    lv_obj_set_size(s_btnm, UI_LCD_W - 8, 50);
-    lv_obj_align(s_btnm, LV_ALIGN_CENTER, 0, 15);
+    lv_obj_set_size(s_btnm, 440, 80);
+    lv_obj_align(s_btnm, LV_ALIGN_CENTER, 0, 30);
     lv_buttonmatrix_set_map(s_btnm, s_map_idle);
     lv_obj_set_style_text_font(s_btnm, UI_FONT_SMALL, 0);
     lv_obj_set_style_bg_color(s_btnm, lv_color_make(0x22, 0x22, 0x22), 0);
@@ -110,12 +110,12 @@ lv_obj_t *ui_screen_firing_create(void)
     lv_group_add_obj(lv_group_get_default(), s_btnm);
 
     /* Page dots */
-    int dot_total_w = UI_SCREEN_COUNT * 10 + (UI_SCREEN_COUNT - 1) * 6;
+    int dot_total_w = UI_SCREEN_COUNT * 14 + (UI_SCREEN_COUNT - 1) * 10;
     int dot_x_start = (UI_LCD_W - dot_total_w) / 2;
     for (int i = 0; i < UI_SCREEN_COUNT; i++) {
         s_dots[i] = lv_obj_create(s_screen);
-        lv_obj_set_size(s_dots[i], 8, 8);
-        lv_obj_set_pos(s_dots[i], dot_x_start + i * 16, UI_LCD_H - 14);
+        lv_obj_set_size(s_dots[i], 12, 12);
+        lv_obj_set_pos(s_dots[i], dot_x_start + i * 24, UI_LCD_H - 22);
         lv_obj_set_style_radius(s_dots[i], LV_RADIUS_CIRCLE, 0);
         lv_obj_set_style_border_width(s_dots[i], 0, 0);
         lv_obj_set_style_bg_color(s_dots[i], UI_COLOR_DOT_INACTIVE, 0);

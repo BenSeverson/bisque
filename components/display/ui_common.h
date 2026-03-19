@@ -31,13 +31,13 @@ typedef enum {
 #define UI_COLOR_DOT_INACTIVE lv_color_make(0x44, 0x44, 0x44)
 
 /* --- Font Aliases --- */
-#define UI_FONT_BIG    &lv_font_montserrat_28
-#define UI_FONT_MEDIUM &lv_font_montserrat_20
-#define UI_FONT_SMALL  &lv_font_montserrat_14
+#define UI_FONT_BIG    &lv_font_montserrat_48
+#define UI_FONT_MEDIUM &lv_font_montserrat_36
+#define UI_FONT_SMALL  &lv_font_montserrat_24
 
 /* --- Display Dimensions --- */
-#define UI_LCD_W  128
-#define UI_LCD_H  160
+#define UI_LCD_W  480
+#define UI_LCD_H  320
 
 /* --- Helpers --- */
 #include "firing_types.h"
