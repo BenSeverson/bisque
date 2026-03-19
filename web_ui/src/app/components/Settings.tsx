@@ -630,7 +630,7 @@ export function Settings({ settings, onUpdateSettings }: SettingsProps) {
           <div className="flex justify-between py-2">
             <span className="text-sm font-medium">Board Temperature</span>
             <span className="text-sm text-muted-foreground">
-              {systemInfo ? `${systemInfo.boardTempC.toFixed(1)}°C` : '--'}
+              {systemInfo?.boardTempC != null ? `${systemInfo.boardTempC.toFixed(1)}°C` : '--'}
             </span>
           </div>
         </CardContent>

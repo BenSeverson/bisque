@@ -378,6 +378,7 @@ export async function handleRequest(
         elementHoursS: 3600 * 42,
         spiffsTotal: 917504,
         spiffsUsed: 204800 + Math.round(Math.random() * 50000),
+        boardTempC: 35 + Math.random() * 10,
       });
     }
 
