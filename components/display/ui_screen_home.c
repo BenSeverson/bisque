@@ -67,18 +67,7 @@ lv_obj_t *ui_screen_home_create(void)
     lv_obj_align(s_time_lbl, LV_ALIGN_TOP_MID, 0, 210);
 
     /* Page dots (bottom) */
-    int dot_total_w = UI_SCREEN_COUNT * 14 + (UI_SCREEN_COUNT - 1) * 10;
-    int dot_x_start = (UI_LCD_W - dot_total_w) / 2;
-    for (int i = 0; i < UI_SCREEN_COUNT; i++) {
-        s_dots[i] = lv_obj_create(s_screen);
-        lv_obj_set_size(s_dots[i], 12, 12);
-        lv_obj_set_pos(s_dots[i], dot_x_start + i * 24, UI_LCD_H - 22);
-        lv_obj_set_style_radius(s_dots[i], LV_RADIUS_CIRCLE, 0);
-        lv_obj_set_style_border_width(s_dots[i], 0, 0);
-        lv_obj_set_style_bg_color(s_dots[i], UI_COLOR_DOT_INACTIVE, 0);
-        lv_obj_set_style_bg_opa(s_dots[i], LV_OPA_COVER, 0);
-        lv_obj_clear_flag(s_dots[i], LV_OBJ_FLAG_SCROLLABLE);
-    }
+    ui_create_page_dots(s_screen, s_dots, UI_SCREEN_COUNT);
 
     return s_screen;
 }
@@ -96,7 +85,6 @@ void ui_screen_home_update(const thermocouple_reading_t *tc, const firing_progre
     float temp = tc->fault ? 0 : tc->temperature_c;
     snprintf(buf, sizeof(buf), "%.0f°", temp);
     lv_label_set_text(s_temp_lbl, buf);
-    lv_obj_align(s_temp_lbl, LV_ALIGN_TOP_MID, 0, 60);
 
     /* Target */
     if (prog->is_active) {
@@ -105,7 +93,6 @@ void ui_screen_home_update(const thermocouple_reading_t *tc, const firing_progre
     } else {
         lv_label_set_text(s_target_lbl, "");
     }
-    lv_obj_align(s_target_lbl, LV_ALIGN_TOP_MID, 0, 130);
 
     /* Segment */
     if (prog->is_active && prog->total_segments > 0) {
@@ -114,7 +101,6 @@ void ui_screen_home_update(const thermocouple_reading_t *tc, const firing_progre
     } else {
         lv_label_set_text(s_seg_lbl, "");
     }
-    lv_obj_align(s_seg_lbl, LV_ALIGN_TOP_MID, 0, 170);
 
     /* Elapsed time */
     if (prog->is_active) {
@@ -125,15 +111,11 @@ void ui_screen_home_update(const thermocouple_reading_t *tc, const firing_progre
     } else {
         lv_label_set_text(s_time_lbl, "");
     }
-    lv_obj_align(s_time_lbl, LV_ALIGN_TOP_MID, 0, 210);
 }
 
 void ui_screen_home_set_page_dots(int active_index, int total)
 {
     (void)total;
     if (!s_screen) return;
-    for (int i = 0; i < UI_SCREEN_COUNT; i++) {
-        lv_color_t c = (i == active_index) ? UI_COLOR_DOT_ACTIVE : UI_COLOR_DOT_INACTIVE;
-        lv_obj_set_style_bg_color(s_dots[i], c, 0);
-    }
+    ui_update_page_dots(s_dots, UI_SCREEN_COUNT, active_index);
 }

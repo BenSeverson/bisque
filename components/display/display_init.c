@@ -121,8 +121,8 @@ esp_err_t display_init(spi_host_device_t host, int cs_pin, int dc_pin, int rst_p
         .lcd_param_bits = 8,
         .spi_mode = 0,
         .trans_queue_depth = 10,
-        .on_color_trans_done = on_color_trans_done,
-        .user_ctx = NULL,  /* set after display is created */
+        .on_color_trans_done = NULL,  /* registered after display is created */
+        .user_ctx = NULL,
     };
     esp_err_t ret = esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)host, &io_config, &io_handle);
     if (ret != ESP_OK) {

@@ -120,7 +120,9 @@ void display_task(void *param)
 
             if (xSemaphoreTake(g_lvgl_mutex, pdMS_TO_TICKS(10))) {
                 ui_screen_home_update(&tc, &prog);
-                ui_screen_chart_update(&tc);
+                if (s_current_screen == UI_SCREEN_CHART) {
+                    ui_screen_chart_update(&tc);
+                }
                 ui_screen_firing_update(&tc, &prog);
                 xSemaphoreGive(g_lvgl_mutex);
             }
