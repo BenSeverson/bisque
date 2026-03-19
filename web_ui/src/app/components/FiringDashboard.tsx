@@ -205,12 +205,14 @@ export function FiringDashboard({ profiles, selectedProfile, onSelectProfile }: 
     );
   };
 
-  const getChartData = () => {
+  interface ChartPoint { time: number; profile?: number; current?: number; target?: number }
+
+  const getChartData = (): ChartPoint[] => {
     if (!selectedProfile || profilePath.length === 0) {
-      return currentTempData;
+      return currentTempData.map(p => ({ time: p.time, current: p.temp, target: p.target }));
     }
 
-    const map = new Map<number, { time: number; profile?: number; current?: number; target?: number }>();
+    const map = new Map<number, ChartPoint>();
 
     profilePath.forEach(point => {
       map.set(point.time, { time: point.time, profile: point.temp });
@@ -451,12 +453,13 @@ export function FiringDashboard({ profiles, selectedProfile, onSelectProfile }: 
                 label={{ value: 'Temperature (\u00B0C)', angle: -90, position: 'insideLeft' }}
               />
               <Tooltip
-                labelFormatter={(min: number) => {
+                labelFormatter={(label) => {
+                  const min = Number(label);
                   const h = Math.floor(min / 60);
                   const m = min % 60;
                   return h > 0 ? `${h}h ${m}m` : `${m}m`;
                 }}
-                formatter={(value: number, name: string) => [`${value}°C`, name]}
+                formatter={(value, name) => [`${value}°C`, name as string]}
               />
               <Legend />
               <Line

@@ -199,7 +199,7 @@ export function FiringHistory() {
                           label={{ value: 'Temp (°C)', angle: -90, position: 'insideLeft' }}
                         />
                         <Tooltip
-                          formatter={(v: number) => [`${v}°C`, 'Temperature']}
+                          formatter={(v) => [`${v}°C`, 'Temperature']}
                           labelFormatter={(v) => `${Math.round(Number(v) / 60)} min`}
                         />
                         <Line
