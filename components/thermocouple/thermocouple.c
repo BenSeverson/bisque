@@ -112,6 +112,6 @@ void temp_read_task(void *param)
                          reading.temperature_c, reading.internal_temp_c);
             }
         }
-        vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(250));
+        xTaskDelayUntil(&last_wake, pdMS_TO_TICKS(250));
     }
 }

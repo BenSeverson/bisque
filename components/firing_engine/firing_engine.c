@@ -644,7 +644,7 @@ void firing_task(void *param)
                 progress_unlock();
                 ESP_LOGI(TAG, "Delay expired, firing started: %s", s_active_profile.name);
             } else {
-                vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(1000));
+                xTaskDelayUntil(&last_wake, pdMS_TO_TICKS(1000));
                 continue;
             }
         }
@@ -678,7 +678,7 @@ void firing_task(void *param)
                 progress_unlock();
             }
             safety_set_ssr(0.0f);
-            vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(1000));
+            xTaskDelayUntil(&last_wake, pdMS_TO_TICKS(1000));
             continue;
         }
 
@@ -694,7 +694,7 @@ void firing_task(void *param)
             if (status != FIRING_STATUS_PAUSED) {
                 safety_set_ssr(0.0f);
             }
-            vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(1000));
+            xTaskDelayUntil(&last_wake, pdMS_TO_TICKS(1000));
             continue;
         }
 
@@ -719,7 +719,7 @@ void firing_task(void *param)
                 }
                 do_stop();
             }
-            vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(1000));
+            xTaskDelayUntil(&last_wake, pdMS_TO_TICKS(1000));
             continue;
         }
 
@@ -865,6 +865,6 @@ void firing_task(void *param)
         }
         progress_unlock();
 
-        vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(1000));
+        xTaskDelayUntil(&last_wake, pdMS_TO_TICKS(1000));
     }
 }

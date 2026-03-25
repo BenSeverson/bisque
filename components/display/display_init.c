@@ -133,7 +133,7 @@ esp_err_t display_init(spi_host_device_t host, int cs_pin, int dc_pin, int rst_p
     /* LCD panel (ST7796S) */
     esp_lcd_panel_dev_config_t panel_config = {
         .reset_gpio_num = rst_pin,
-        .rgb_endian = LCD_RGB_ENDIAN_BGR,
+        .data_endian = LCD_RGB_DATA_ENDIAN_BIG,
         .bits_per_pixel = 16,
     };
     ret = esp_lcd_new_panel_st7796(io_handle, &panel_config, &s_panel);

@@ -137,6 +137,6 @@ void display_task(void *param)
                      hours, mins);
         }
 
-        vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(30));
+        xTaskDelayUntil(&last_wake, pdMS_TO_TICKS(30));
     }
 }

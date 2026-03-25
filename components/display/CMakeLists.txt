@@ -6,5 +6,5 @@ idf_component_register(
          "ui_screen_profiles.c"
          "ui_screen_firing.c"
     INCLUDE_DIRS "include" "."
-    REQUIRES driver esp_lcd esp_timer firing_engine thermocouple safety history app_config
+    REQUIRES esp_driver_gpio esp_driver_spi esp_lcd esp_timer firing_engine thermocouple safety history app_config
 )

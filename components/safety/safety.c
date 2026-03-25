@@ -252,6 +252,6 @@ void safety_task(void *param)
             safety_emergency_stop();
         }
 
-        vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(500));
+        xTaskDelayUntil(&last_wake, pdMS_TO_TICKS(500));
     }
 }
