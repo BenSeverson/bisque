@@ -28,3 +28,4 @@ web_ui/dist/
 # Generated / stray
 partition_table/
 .python-version
+.superpowers/

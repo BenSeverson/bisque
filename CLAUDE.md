@@ -48,7 +48,7 @@ partition_table/    # ESP32 partition layout
 - LVGL v9.2, `LV_OS_NONE` (manual FreeRTOS mutex)
 - Color depth: 16-bit, `LV_COLOR_16_SWAP=y`
 - Memory pool: 128KB
-- Fonts enabled: Montserrat 14, 20, 24, 28, 36, 48 (default: 14)
+- Fonts enabled: Montserrat 24, 36, 48 (default: 24)
 - Widgets in use: label, chart, list, buttonmatrix, obj (containers/dots)
 - Layout: absolute positioning via `lv_obj_set_pos()`/`lv_obj_align()` (flex/grid compiled in but unused)
 - Theme: default dark, overridden inline
