@@ -74,6 +74,8 @@ jobs:
       # Static analysis
       - name: Install clang-tidy
         run: sudo apt-get update && sudo apt-get install -y clang-tidy
+      - name: Fix build directory permissions
+        run: sudo chown -R $(id -u):$(id -g) build
       - name: Fix compile_commands.json paths
         run: sed -i "s|/app/BenSeverson/bisque|$(pwd)|g" build/compile_commands.json
       - name: Run clang-tidy
