@@ -70,12 +70,14 @@ float pid_compute(pid_controller_t *pid, float setpoint, float measured, float d
     if (output > pid->output_max) {
         output = pid->output_max;
         /* Anti-windup: prevent integral from growing further */
-        if (error > 0)
+        if (error > 0) {
             pid->integral -= error * dt_s;
+        }
     } else if (output < pid->output_min) {
         output = pid->output_min;
-        if (error < 0)
+        if (error < 0) {
             pid->integral -= error * dt_s;
+        }
     }
 
     return output;
@@ -144,10 +146,12 @@ bool pid_autotune_update(pid_autotune_t *at, float current_temp, float *output)
 
     case AUTOTUNE_RELAY_CYCLING: {
         /* Track peaks */
-        if (current_temp > at->peak_high)
+        if (current_temp > at->peak_high) {
             at->peak_high = current_temp;
-        if (current_temp < at->peak_low)
+        }
+        if (current_temp < at->peak_low) {
             at->peak_low = current_temp;
+        }
 
         bool now_above = current_temp > at->setpoint;
 
@@ -237,8 +241,9 @@ esp_err_t pid_save_gains(float kp, float ki, float kd)
 {
     nvs_handle_t handle;
     esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &handle);
-    if (err != ESP_OK)
+    if (err != ESP_OK) {
         return err;
+    }
 
     /* Store as integers (x10000 for precision) */
     int32_t kp_i = (int32_t)(kp * 10000.0f);
@@ -267,20 +272,23 @@ esp_err_t pid_load_gains(float *kp, float *ki, float *kd)
     }
 
     int32_t val;
-    if (nvs_get_i32(handle, "kp", &val) == ESP_OK)
+    if (nvs_get_i32(handle, "kp", &val) == ESP_OK) {
         *kp = val / 10000.0f;
-    else
+    } else {
         *kp = DEFAULT_KP;
+    }
 
-    if (nvs_get_i32(handle, "ki", &val) == ESP_OK)
+    if (nvs_get_i32(handle, "ki", &val) == ESP_OK) {
         *ki = val / 10000.0f;
-    else
+    } else {
         *ki = DEFAULT_KI;
+    }
 
-    if (nvs_get_i32(handle, "kd", &val) == ESP_OK)
+    if (nvs_get_i32(handle, "kd", &val) == ESP_OK) {
         *kd = val / 10000.0f;
-    else
+    } else {
         *kd = DEFAULT_KD;
+    }
 
     nvs_close(handle);
     return ESP_OK;

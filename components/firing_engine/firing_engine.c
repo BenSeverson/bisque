@@ -180,27 +180,35 @@ esp_err_t firing_engine_init(void)
         uint8_t u8;
         int32_t i32;
         size_t str_sz;
-        if (nvs_get_u8(handle, "unit", &u8) == ESP_OK)
+        if (nvs_get_u8(handle, "unit", &u8) == ESP_OK) {
             s_settings.temp_unit = (char)u8;
-        if (nvs_get_i32(handle, "max_temp", &i32) == ESP_OK)
+        }
+        if (nvs_get_i32(handle, "max_temp", &i32) == ESP_OK) {
             s_settings.max_safe_temp = (float)i32;
-        if (nvs_get_u8(handle, "alarm", &u8) == ESP_OK)
+        }
+        if (nvs_get_u8(handle, "alarm", &u8) == ESP_OK) {
             s_settings.alarm_enabled = u8;
-        if (nvs_get_u8(handle, "autoshut", &u8) == ESP_OK)
+        }
+        if (nvs_get_u8(handle, "autoshut", &u8) == ESP_OK) {
             s_settings.auto_shutdown = u8;
-        if (nvs_get_u8(handle, "notif", &u8) == ESP_OK)
+        }
+        if (nvs_get_u8(handle, "notif", &u8) == ESP_OK) {
             s_settings.notifications_enabled = u8;
+        }
         /* TC offset stored as i32 * 100 */
-        if (nvs_get_i32(handle, "tc_off", &i32) == ESP_OK)
+        if (nvs_get_i32(handle, "tc_off", &i32) == ESP_OK) {
             s_settings.tc_offset_c = (float)i32 / 100.0f;
+        }
         str_sz = sizeof(s_settings.webhook_url);
         nvs_get_str(handle, "webhook", s_settings.webhook_url, &str_sz);
         str_sz = sizeof(s_settings.api_token);
         nvs_get_str(handle, "api_tok", s_settings.api_token, &str_sz);
-        if (nvs_get_i32(handle, "elem_w", &i32) == ESP_OK)
+        if (nvs_get_i32(handle, "elem_w", &i32) == ESP_OK) {
             s_settings.element_watts = (float)i32;
-        if (nvs_get_i32(handle, "elec_c", &i32) == ESP_OK)
+        }
+        if (nvs_get_i32(handle, "elec_c", &i32) == ESP_OK) {
             s_settings.electricity_cost_kwh = (float)i32 / 1000.0f;
+        }
         nvs_close(handle);
     }
 
@@ -208,8 +216,9 @@ esp_err_t firing_engine_init(void)
     nvs_handle_t nvs_diag;
     if (nvs_open("kiln_diag", NVS_READONLY, &nvs_diag) == ESP_OK) {
         uint32_t u32;
-        if (nvs_get_u32(nvs_diag, NVS_KEY_ELEM_HRS, &u32) == ESP_OK)
+        if (nvs_get_u32(nvs_diag, NVS_KEY_ELEM_HRS, &u32) == ESP_OK) {
             s_element_on_s = u32;
+        }
         nvs_close(nvs_diag);
     }
 
@@ -272,10 +281,12 @@ esp_err_t firing_engine_set_settings(const kiln_settings_t *settings)
 {
     /* Clamp max_safe_temp to hardware limit */
     kiln_settings_t safe = *settings;
-    if (safe.max_safe_temp > 1400.0f)
+    if (safe.max_safe_temp > 1400.0f) {
         safe.max_safe_temp = 1400.0f;
-    if (safe.max_safe_temp < 100.0f)
+    }
+    if (safe.max_safe_temp < 100.0f) {
         safe.max_safe_temp = 100.0f;
+    }
 
     settings_lock();
     s_settings = safe;
@@ -287,8 +298,9 @@ esp_err_t firing_engine_set_settings(const kiln_settings_t *settings)
     /* Persist to NVS */
     nvs_handle_t handle;
     esp_err_t err = nvs_open(NVS_NS_SETTINGS, NVS_READWRITE, &handle);
-    if (err != ESP_OK)
+    if (err != ESP_OK) {
         return err;
+    }
 
     nvs_set_u8(handle, "unit", (uint8_t)safe.temp_unit);
     nvs_set_i32(handle, "max_temp", (int32_t)safe.max_safe_temp);
@@ -331,8 +343,9 @@ esp_err_t firing_engine_save_profile(const firing_profile_t *profile)
 {
     nvs_handle_t handle;
     esp_err_t err = nvs_open(NVS_NS_PROFILES, NVS_READWRITE, &handle);
-    if (err != ESP_OK)
+    if (err != ESP_OK) {
         return err;
+    }
 
     char key[16];
     make_nvs_key(profile->id, key, sizeof(key));
@@ -376,8 +389,9 @@ esp_err_t firing_engine_load_profile(const char *id, firing_profile_t *profile)
 {
     nvs_handle_t handle;
     esp_err_t err = nvs_open(NVS_NS_PROFILES, NVS_READONLY, &handle);
-    if (err != ESP_OK)
+    if (err != ESP_OK) {
         return err;
+    }
 
     char key[16];
     make_nvs_key(id, key, sizeof(key));
@@ -392,8 +406,9 @@ esp_err_t firing_engine_delete_profile(const char *id)
 {
     nvs_handle_t handle;
     esp_err_t err = nvs_open(NVS_NS_PROFILES, NVS_READWRITE, &handle);
-    if (err != ESP_OK)
+    if (err != ESP_OK) {
         return err;
+    }
 
     char key[16];
     make_nvs_key(id, key, sizeof(key));
@@ -458,17 +473,17 @@ static bool s_delay_active = false;
 /* Safety tracking for kiln-not-rising and rate-of-rise runaway */
 static float s_check_start_temp = 0.0f;
 static int64_t s_check_start_time_us = 0;
-#define RISING_CHECK_INTERVAL_US (15 * 60 * 1000000LL) /* 15 minutes */
+#define RISING_CHECK_INTERVAL_US (15LL * 60 * 1000000) /* 15 minutes */
 #define RISING_THRESHOLD_C       10.0f                 /* must rise ≥10°C */
 #define RUNAWAY_RATE_MULTIPLIER  2.0f                  /* alert if rate > 2× programmed */
 
 /* History: record temperature once per minute */
 static int64_t s_last_history_sample_us = 0;
-#define HISTORY_SAMPLE_INTERVAL_US (60 * 1000000LL)
+#define HISTORY_SAMPLE_INTERVAL_US (60LL * 1000000)
 
 /* Element hours: accumulate SSR-on time */
 static int64_t s_last_elem_save_us = 0;
-#define ELEM_SAVE_INTERVAL_US (5 * 60 * 1000000LL) /* save every 5 min */
+#define ELEM_SAVE_INTERVAL_US (5LL * 60 * 1000000) /* save every 5 min */
 
 static void start_segment(int segment_idx, float current_temp)
 {
@@ -682,8 +697,9 @@ void firing_task(void *param)
                 s_progress.is_active = false;
                 s_progress.status = FIRING_STATUS_ERROR;
                 progress_unlock();
-                if (s_last_error_code == FIRING_ERR_NONE)
+                if (s_last_error_code == FIRING_ERR_NONE) {
                     s_last_error_code = FIRING_ERR_EMERGENCY_STOP;
+                }
                 history_firing_end(HISTORY_OUTCOME_ERROR, peak, dur, (int)s_last_error_code);
             } else {
                 progress_unlock();
@@ -778,11 +794,13 @@ void firing_task(void *param)
 
             /* Clamp to target */
             if (seg->ramp_rate >= 0) {
-                if (setpoint > seg->target_temp)
+                if (setpoint > seg->target_temp) {
                     setpoint = seg->target_temp;
+                }
             } else {
-                if (setpoint < seg->target_temp)
+                if (setpoint < seg->target_temp) {
                     setpoint = seg->target_temp;
+                }
             }
         }
 

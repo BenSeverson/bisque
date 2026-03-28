@@ -58,12 +58,15 @@ esp_err_t thermocouple_read(thermocouple_reading_t *out)
 
     /* Check fault bit (D16) */
     if (raw & (1 << 16)) {
-        if (raw & (1 << 0))
+        if (raw & (1 << 0)) {
             out->fault |= TC_FAULT_OPEN_CIRCUIT;
-        if (raw & (1 << 1))
+        }
+        if (raw & (1 << 1)) {
             out->fault |= TC_FAULT_SHORT_GND;
-        if (raw & (1 << 2))
+        }
+        if (raw & (1 << 2)) {
             out->fault |= TC_FAULT_SHORT_VCC;
+        }
         out->temperature_c = 0.0f;
         out->internal_temp_c = 0.0f;
         ESP_LOGW(TAG, "Thermocouple fault: 0x%02x", out->fault);

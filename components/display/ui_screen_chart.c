@@ -61,8 +61,9 @@ lv_obj_t *ui_screen_chart_create(void)
 
 void ui_screen_chart_update(const thermocouple_reading_t *tc)
 {
-    if (!s_screen)
+    if (!s_screen) {
         return;
+    }
     char buf[16];
 
     float temp = tc->fault ? 0 : tc->temperature_c;
@@ -76,7 +77,8 @@ void ui_screen_chart_update(const thermocouple_reading_t *tc)
 void ui_screen_chart_set_page_dots(int active_index, int total)
 {
     (void)total;
-    if (!s_screen)
+    if (!s_screen) {
         return;
+    }
     ui_update_page_dots(s_dots, UI_SCREEN_COUNT, active_index);
 }

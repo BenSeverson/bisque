@@ -14,7 +14,7 @@ static const char *TAG = "safety";
 #define HARDWARE_MAX_TEMP_C 1400.0f
 
 /* No valid reading for this long → emergency stop */
-#define TEMP_FAULT_TIMEOUT_US (5 * 1000 * 1000LL)
+#define TEMP_FAULT_TIMEOUT_US (5LL * 1000 * 1000)
 
 /* Vent active below this temperature during firing */
 #define VENT_MAX_TEMP_C 700.0f
@@ -65,8 +65,9 @@ void safety_init_io(int alarm_gpio, int vent_gpio)
 
 void safety_trigger_alarm(int pattern)
 {
-    if (s_alarm_gpio < 0)
+    if (s_alarm_gpio < 0) {
         return;
+    }
 
     /* Simple patterns: drive GPIO high for a duration */
     switch (pattern) {
@@ -101,8 +102,9 @@ void safety_trigger_alarm(int pattern)
 
 void safety_update_vent(bool is_firing, float current_temp_c)
 {
-    if (s_vent_gpio < 0)
+    if (s_vent_gpio < 0) {
         return;
+    }
     /* Vent relay on during firing at temperatures below 700°C */
     int level = (is_firing && current_temp_c < VENT_MAX_TEMP_C) ? 1 : 0;
     gpio_set_level(s_vent_gpio, level);
@@ -122,14 +124,16 @@ esp_err_t safety_init(int ssr_pin, float max_safe_temp)
         .intr_type = GPIO_INTR_DISABLE,
     };
     esp_err_t ret = gpio_config(&io_conf);
-    if (ret != ESP_OK)
+    if (ret != ESP_OK) {
         return ret;
+    }
 
     gpio_set_level(ssr_pin, 0);
 
     s_event_group = xEventGroupCreate();
-    if (!s_event_group)
+    if (!s_event_group) {
         return ESP_ERR_NO_MEM;
+    }
 
     ESP_LOGI(TAG, "Safety initialized: SSR pin=%d, max_safe_temp=%.0f°C", ssr_pin, s_max_safe_temp);
     return ESP_OK;
@@ -192,10 +196,12 @@ void safety_set_ssr(float duty)
         return;
     }
 
-    if (duty < 0.0f)
+    if (duty < 0.0f) {
         duty = 0.0f;
-    if (duty > 1.0f)
+    }
+    if (duty > 1.0f) {
         duty = 1.0f;
+    }
 
     portENTER_CRITICAL(&s_safety_mux);
     s_ssr_duty = duty;

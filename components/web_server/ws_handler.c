@@ -61,13 +61,15 @@ static esp_err_t ws_handler(httpd_req_t *req)
 
     /* First call to get the frame length */
     esp_err_t ret = httpd_ws_recv_frame(req, &ws_pkt, 0);
-    if (ret != ESP_OK)
+    if (ret != ESP_OK) {
         return ret;
+    }
 
     if (ws_pkt.len > 0) {
         uint8_t *buf = malloc(ws_pkt.len + 1);
-        if (!buf)
+        if (!buf) {
             return ESP_ERR_NO_MEM;
+        }
         ws_pkt.payload = buf;
         ret = httpd_ws_recv_frame(req, &ws_pkt, ws_pkt.len);
         if (ret == ESP_OK) {
@@ -86,8 +88,9 @@ static esp_err_t ws_handler(httpd_req_t *req)
 void ws_broadcast(const char *json, size_t len)
 {
     httpd_handle_t server = web_server_get_handle();
-    if (!server)
+    if (!server) {
         return;
+    }
 
     httpd_ws_frame_t ws_pkt = {
         .final = true,

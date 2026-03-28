@@ -36,8 +36,9 @@ static bool check_auth(httpd_req_t *req)
     firing_engine_get_settings(&settings);
 
     /* No token configured → open access */
-    if (settings.api_token[0] == '\0')
+    if (settings.api_token[0] == '\0') {
         return true;
+    }
 
     /* Check Authorization: Bearer <token> */
     char auth_hdr[96] = {0};
@@ -45,8 +46,9 @@ static bool check_auth(httpd_req_t *req)
         const char *prefix = "Bearer ";
         size_t prefix_len = strlen(prefix);
         if (strncmp(auth_hdr, prefix, prefix_len) == 0) {
-            if (strcmp(auth_hdr + prefix_len, settings.api_token) == 0)
+            if (strcmp(auth_hdr + prefix_len, settings.api_token) == 0) {
                 return true;
+            }
         }
     }
 
@@ -55,8 +57,9 @@ static bool check_auth(httpd_req_t *req)
     if (httpd_req_get_url_query_str(req, token_param, sizeof(token_param)) == ESP_OK) {
         char val[80] = {0};
         if (httpd_query_key_value(token_param, "token", val, sizeof(val)) == ESP_OK) {
-            if (strcmp(val, settings.api_token) == 0)
+            if (strcmp(val, settings.api_token) == 0) {
                 return true;
+            }
         }
     }
 
@@ -79,8 +82,9 @@ void send_webhook_event(const char *event, const char *profile_name, float peak_
 {
     kiln_settings_t settings;
     firing_engine_get_settings(&settings);
-    if (!settings.notifications_enabled || settings.webhook_url[0] == '\0')
+    if (!settings.notifications_enabled || settings.webhook_url[0] == '\0') {
         return;
+    }
 
     cJSON *body = cJSON_CreateObject();
     cJSON_AddStringToObject(body, "event", event);
@@ -89,8 +93,9 @@ void send_webhook_event(const char *event, const char *profile_name, float peak_
     cJSON_AddNumberToObject(body, "durationS", duration_s);
     char *json = cJSON_PrintUnformatted(body);
     cJSON_Delete(body);
-    if (!json)
+    if (!json) {
         return;
+    }
 
     esp_http_client_config_t config = {
         .url = settings.webhook_url,
@@ -120,8 +125,9 @@ static int read_body(httpd_req_t *req, char *buf, size_t buf_size)
         return -1;
     }
     int received = httpd_req_recv(req, buf, remaining);
-    if (received <= 0)
+    if (received <= 0) {
         return -1;
+    }
     buf[received] = '\0';
     return received;
 }
@@ -169,8 +175,9 @@ static const char *status_to_string(firing_status_t s)
 
 static esp_err_t handle_get_status(httpd_req_t *req)
 {
-    if (!require_auth(req))
+    if (!require_auth(req)) {
         return ESP_FAIL;
+    }
     firing_progress_t prog;
     firing_engine_get_progress(&prog);
 
@@ -204,8 +211,9 @@ static esp_err_t handle_get_status(httpd_req_t *req)
 
 static esp_err_t handle_get_profiles(httpd_req_t *req)
 {
-    if (!require_auth(req))
+    if (!require_auth(req)) {
         return ESP_FAIL;
+    }
     char ids[FIRING_MAX_PROFILES][FIRING_ID_LEN];
     int count = firing_engine_list_profiles(ids, FIRING_MAX_PROFILES);
 
@@ -246,8 +254,9 @@ static esp_err_t handle_get_profiles(httpd_req_t *req)
 
 static esp_err_t handle_get_profile(httpd_req_t *req)
 {
-    if (!require_auth(req))
+    if (!require_auth(req)) {
         return ESP_FAIL;
+    }
     /* Extract ID from URI: /api/v1/profiles/<id> or /api/v1/profiles/<id>/export */
     const char *uri = req->uri;
     const char *prefix = "/api/v1/profiles/";
@@ -263,8 +272,9 @@ static esp_err_t handle_get_profile(httpd_req_t *req)
     strncpy(id_buf, id_start, sizeof(id_buf) - 1);
     id_buf[sizeof(id_buf) - 1] = '\0';
     char *q = strchr(id_buf, '?');
-    if (q)
+    if (q) {
         *q = '\0';
+    }
 
     /* Check if ends with /export */
     char *export_suffix = strstr(id_buf, "/export");
@@ -312,8 +322,9 @@ static esp_err_t handle_get_profile(httpd_req_t *req)
 
 static esp_err_t handle_post_profile(httpd_req_t *req)
 {
-    if (!require_auth(req))
+    if (!require_auth(req)) {
         return ESP_FAIL;
+    }
     char buf[2048];
     if (read_body(req, buf, sizeof(buf)) < 0) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Body too large or empty");
@@ -331,45 +342,56 @@ static esp_err_t handle_post_profile(httpd_req_t *req)
 
     cJSON *j;
     j = cJSON_GetObjectItem(root, "id");
-    if (j)
+    if (j) {
         strncpy(profile.id, j->valuestring, FIRING_ID_LEN - 1);
+    }
     j = cJSON_GetObjectItem(root, "name");
-    if (j)
+    if (j) {
         strncpy(profile.name, j->valuestring, FIRING_NAME_LEN - 1);
+    }
     j = cJSON_GetObjectItem(root, "description");
-    if (j)
+    if (j) {
         strncpy(profile.description, j->valuestring, FIRING_DESC_LEN - 1);
+    }
     j = cJSON_GetObjectItem(root, "maxTemp");
-    if (j)
+    if (j) {
         profile.max_temp = (float)j->valuedouble;
+    }
     j = cJSON_GetObjectItem(root, "estimatedDuration");
-    if (j)
+    if (j) {
         profile.estimated_duration = (uint32_t)j->valuedouble;
+    }
 
     cJSON *segs = cJSON_GetObjectItem(root, "segments");
     if (segs && cJSON_IsArray(segs)) {
         int count = cJSON_GetArraySize(segs);
-        if (count > FIRING_MAX_SEGMENTS)
+        if (count > FIRING_MAX_SEGMENTS) {
             count = FIRING_MAX_SEGMENTS;
+        }
         profile.segment_count = count;
 
         for (int i = 0; i < count; i++) {
             cJSON *seg = cJSON_GetArrayItem(segs, i);
             j = cJSON_GetObjectItem(seg, "id");
-            if (j)
+            if (j) {
                 strncpy(profile.segments[i].id, j->valuestring, FIRING_ID_LEN - 1);
+            }
             j = cJSON_GetObjectItem(seg, "name");
-            if (j)
+            if (j) {
                 strncpy(profile.segments[i].name, j->valuestring, FIRING_NAME_LEN - 1);
+            }
             j = cJSON_GetObjectItem(seg, "rampRate");
-            if (j)
+            if (j) {
                 profile.segments[i].ramp_rate = (float)j->valuedouble;
+            }
             j = cJSON_GetObjectItem(seg, "targetTemp");
-            if (j)
+            if (j) {
                 profile.segments[i].target_temp = (float)j->valuedouble;
+            }
             j = cJSON_GetObjectItem(seg, "holdTime");
-            if (j)
+            if (j) {
                 profile.segments[i].hold_time = (uint16_t)j->valuedouble;
+            }
         }
     }
     cJSON_Delete(root);
@@ -395,8 +417,9 @@ static esp_err_t handle_post_profile(httpd_req_t *req)
 
 static esp_err_t handle_delete_profile(httpd_req_t *req)
 {
-    if (!require_auth(req))
+    if (!require_auth(req)) {
         return ESP_FAIL;
+    }
     const char *prefix = "/api/v1/profiles/";
     const char *id = req->uri + strlen(prefix);
 
@@ -404,8 +427,9 @@ static esp_err_t handle_delete_profile(httpd_req_t *req)
     strncpy(id_buf, id, sizeof(id_buf) - 1);
     id_buf[sizeof(id_buf) - 1] = '\0';
     char *q = strchr(id_buf, '?');
-    if (q)
+    if (q) {
         *q = '\0';
+    }
 
     firing_engine_delete_profile(id_buf);
 
@@ -418,8 +442,9 @@ static esp_err_t handle_delete_profile(httpd_req_t *req)
 
 static esp_err_t handle_firing_start(httpd_req_t *req)
 {
-    if (!require_auth(req))
+    if (!require_auth(req)) {
         return ESP_FAIL;
+    }
     char buf[128];
     if (read_body(req, buf, sizeof(buf)) < 0) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Body required");
@@ -435,8 +460,9 @@ static esp_err_t handle_firing_start(httpd_req_t *req)
     /* Parse delay_minutes (optional) */
     uint32_t delay_minutes = 0;
     cJSON *delay_item = cJSON_GetObjectItem(root, "delayMinutes");
-    if (delay_item)
+    if (delay_item) {
         delay_minutes = (uint32_t)delay_item->valuedouble;
+    }
 
     cJSON *pid_item = cJSON_GetObjectItem(root, "profileId");
     if (!pid_item || !pid_item->valuestring) {
@@ -471,8 +497,9 @@ static esp_err_t handle_firing_start(httpd_req_t *req)
 
 static esp_err_t handle_firing_stop(httpd_req_t *req)
 {
-    if (!require_auth(req))
+    if (!require_auth(req)) {
         return ESP_FAIL;
+    }
     firing_cmd_t cmd = {.type = FIRING_CMD_STOP};
     xQueueSend(firing_engine_get_cmd_queue(), &cmd, pdMS_TO_TICKS(100));
 
@@ -485,8 +512,9 @@ static esp_err_t handle_firing_stop(httpd_req_t *req)
 
 static esp_err_t handle_firing_pause(httpd_req_t *req)
 {
-    if (!require_auth(req))
+    if (!require_auth(req)) {
         return ESP_FAIL;
+    }
     firing_progress_t prog;
     firing_engine_get_progress(&prog);
 
@@ -504,8 +532,9 @@ static esp_err_t handle_firing_pause(httpd_req_t *req)
 
 static esp_err_t handle_get_settings(httpd_req_t *req)
 {
-    if (!require_auth(req))
+    if (!require_auth(req)) {
         return ESP_FAIL;
+    }
     kiln_settings_t settings;
     firing_engine_get_settings(&settings);
 
@@ -530,8 +559,9 @@ static esp_err_t handle_get_settings(httpd_req_t *req)
 
 static esp_err_t handle_post_settings(httpd_req_t *req)
 {
-    if (!require_auth(req))
+    if (!require_auth(req)) {
         return ESP_FAIL;
+    }
     char buf[768];
     if (read_body(req, buf, sizeof(buf)) < 0) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Body required");
@@ -549,35 +579,45 @@ static esp_err_t handle_post_settings(httpd_req_t *req)
 
     cJSON *j;
     j = cJSON_GetObjectItem(root, "tempUnit");
-    if (j && j->valuestring)
+    if (j && j->valuestring) {
         settings.temp_unit = j->valuestring[0];
+    }
     j = cJSON_GetObjectItem(root, "maxSafeTemp");
-    if (j)
+    if (j) {
         settings.max_safe_temp = (float)j->valuedouble;
+    }
     j = cJSON_GetObjectItem(root, "alarmEnabled");
-    if (j)
+    if (j) {
         settings.alarm_enabled = cJSON_IsTrue(j);
+    }
     j = cJSON_GetObjectItem(root, "autoShutdown");
-    if (j)
+    if (j) {
         settings.auto_shutdown = cJSON_IsTrue(j);
+    }
     j = cJSON_GetObjectItem(root, "notificationsEnabled");
-    if (j)
+    if (j) {
         settings.notifications_enabled = cJSON_IsTrue(j);
+    }
     j = cJSON_GetObjectItem(root, "tcOffsetC");
-    if (j)
+    if (j) {
         settings.tc_offset_c = (float)j->valuedouble;
+    }
     j = cJSON_GetObjectItem(root, "webhookUrl");
-    if (j && j->valuestring)
+    if (j && j->valuestring) {
         strncpy(settings.webhook_url, j->valuestring, sizeof(settings.webhook_url) - 1);
+    }
     j = cJSON_GetObjectItem(root, "apiToken");
-    if (j && j->valuestring && j->valuestring[0] != '\0')
+    if (j && j->valuestring && j->valuestring[0] != '\0') {
         strncpy(settings.api_token, j->valuestring, sizeof(settings.api_token) - 1);
+    }
     j = cJSON_GetObjectItem(root, "elementWatts");
-    if (j)
+    if (j) {
         settings.element_watts = (float)j->valuedouble;
+    }
     j = cJSON_GetObjectItem(root, "electricityCostKwh");
-    if (j)
+    if (j) {
         settings.electricity_cost_kwh = (float)j->valuedouble;
+    }
 
     cJSON_Delete(root);
 
@@ -592,12 +632,13 @@ static esp_err_t handle_post_settings(httpd_req_t *req)
 
 static esp_err_t handle_get_system(httpd_req_t *req)
 {
-    if (!require_auth(req))
+    if (!require_auth(req)) {
         return ESP_FAIL;
+    }
     cJSON *root = cJSON_CreateObject();
     cJSON_AddStringToObject(root, "firmware", APP_FIRMWARE_VERSION);
     cJSON_AddStringToObject(root, "model", "Bisque ESP32-S3");
-    cJSON_AddNumberToObject(root, "uptimeSeconds", (double)(esp_timer_get_time() / 1000000LL));
+    cJSON_AddNumberToObject(root, "uptimeSeconds", (double)esp_timer_get_time() / 1000000.0);
     cJSON_AddNumberToObject(root, "freeHeap", (double)esp_get_free_heap_size());
     cJSON_AddBoolToObject(root, "emergencyStop", safety_is_emergency());
     cJSON_AddNumberToObject(root, "lastErrorCode", (double)firing_engine_get_error_code());
@@ -623,8 +664,9 @@ static esp_err_t handle_get_system(httpd_req_t *req)
 
 static esp_err_t handle_firing_skip_segment(httpd_req_t *req)
 {
-    if (!require_auth(req))
+    if (!require_auth(req)) {
         return ESP_FAIL;
+    }
     firing_cmd_t cmd = {.type = FIRING_CMD_SKIP_SEGMENT};
     xQueueSend(firing_engine_get_cmd_queue(), &cmd, pdMS_TO_TICKS(100));
 
@@ -637,8 +679,9 @@ static esp_err_t handle_firing_skip_segment(httpd_req_t *req)
 
 static esp_err_t handle_profile_import(httpd_req_t *req)
 {
-    if (!require_auth(req))
+    if (!require_auth(req)) {
         return ESP_FAIL;
+    }
     char buf[2048];
     if (read_body(req, buf, sizeof(buf)) < 0) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Body too large or empty");
@@ -655,44 +698,55 @@ static esp_err_t handle_profile_import(httpd_req_t *req)
     memset(&profile, 0, sizeof(profile));
     cJSON *j;
     j = cJSON_GetObjectItem(root, "id");
-    if (j && j->valuestring)
+    if (j && j->valuestring) {
         strncpy(profile.id, j->valuestring, FIRING_ID_LEN - 1);
+    }
     j = cJSON_GetObjectItem(root, "name");
-    if (j && j->valuestring)
+    if (j && j->valuestring) {
         strncpy(profile.name, j->valuestring, FIRING_NAME_LEN - 1);
+    }
     j = cJSON_GetObjectItem(root, "description");
-    if (j && j->valuestring)
+    if (j && j->valuestring) {
         strncpy(profile.description, j->valuestring, FIRING_DESC_LEN - 1);
+    }
     j = cJSON_GetObjectItem(root, "maxTemp");
-    if (j)
+    if (j) {
         profile.max_temp = (float)j->valuedouble;
+    }
     j = cJSON_GetObjectItem(root, "estimatedDuration");
-    if (j)
+    if (j) {
         profile.estimated_duration = (uint32_t)j->valuedouble;
+    }
 
     cJSON *segs = cJSON_GetObjectItem(root, "segments");
     if (segs && cJSON_IsArray(segs)) {
         int cnt = cJSON_GetArraySize(segs);
-        if (cnt > FIRING_MAX_SEGMENTS)
+        if (cnt > FIRING_MAX_SEGMENTS) {
             cnt = FIRING_MAX_SEGMENTS;
+        }
         profile.segment_count = cnt;
         for (int i = 0; i < cnt; i++) {
             cJSON *seg = cJSON_GetArrayItem(segs, i);
             j = cJSON_GetObjectItem(seg, "id");
-            if (j && j->valuestring)
+            if (j && j->valuestring) {
                 strncpy(profile.segments[i].id, j->valuestring, FIRING_ID_LEN - 1);
+            }
             j = cJSON_GetObjectItem(seg, "name");
-            if (j && j->valuestring)
+            if (j && j->valuestring) {
                 strncpy(profile.segments[i].name, j->valuestring, FIRING_NAME_LEN - 1);
+            }
             j = cJSON_GetObjectItem(seg, "rampRate");
-            if (j)
+            if (j) {
                 profile.segments[i].ramp_rate = (float)j->valuedouble;
+            }
             j = cJSON_GetObjectItem(seg, "targetTemp");
-            if (j)
+            if (j) {
                 profile.segments[i].target_temp = (float)j->valuedouble;
+            }
             j = cJSON_GetObjectItem(seg, "holdTime");
-            if (j)
+            if (j) {
                 profile.segments[i].hold_time = (uint16_t)j->valuedouble;
+            }
         }
     }
     cJSON_Delete(root);
@@ -718,8 +772,9 @@ static esp_err_t handle_profile_import(httpd_req_t *req)
 
 static esp_err_t handle_cone_fire(httpd_req_t *req)
 {
-    if (!require_auth(req))
+    if (!require_auth(req)) {
         return ESP_FAIL;
+    }
     char buf[256];
     if (read_body(req, buf, sizeof(buf)) < 0) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Body required");
@@ -740,20 +795,25 @@ static esp_err_t handle_cone_fire(httpd_req_t *req)
 
     cJSON *j;
     j = cJSON_GetObjectItem(root, "coneId");
-    if (j)
+    if (j) {
         cone_id = (int)j->valuedouble;
+    }
     j = cJSON_GetObjectItem(root, "speed");
-    if (j)
+    if (j) {
         speed = (int)j->valuedouble;
+    }
     j = cJSON_GetObjectItem(root, "preheat");
-    if (j)
+    if (j) {
         preheat = cJSON_IsTrue(j);
+    }
     j = cJSON_GetObjectItem(root, "slowCool");
-    if (j)
+    if (j) {
         slow_cool = cJSON_IsTrue(j);
+    }
     j = cJSON_GetObjectItem(root, "save");
-    if (j)
+    if (j) {
         save_profile = cJSON_IsTrue(j);
+    }
     cJSON_Delete(root);
 
     if (cone_id < 0 || cone_id >= CONE_COUNT) {
@@ -795,8 +855,9 @@ static esp_err_t handle_cone_fire(httpd_req_t *req)
 
 static esp_err_t handle_get_history(httpd_req_t *req)
 {
-    if (!require_auth(req))
+    if (!require_auth(req)) {
         return ESP_FAIL;
+    }
     history_record_t records[HISTORY_MAX_RECORDS];
     int count = history_get_records(records, HISTORY_MAX_RECORDS);
 
@@ -827,8 +888,9 @@ static esp_err_t handle_get_history(httpd_req_t *req)
 
 static esp_err_t handle_get_history_trace(httpd_req_t *req)
 {
-    if (!require_auth(req))
+    if (!require_auth(req)) {
         return ESP_FAIL;
+    }
 
     /* Extract record ID from URI */
     const char *prefix = "/api/v1/history/";
@@ -862,8 +924,9 @@ static esp_err_t handle_get_history_trace(httpd_req_t *req)
 
 static esp_err_t handle_ota_upload(httpd_req_t *req)
 {
-    if (!require_auth(req))
+    if (!require_auth(req)) {
         return ESP_FAIL;
+    }
 
     const esp_partition_t *update_partition = esp_ota_get_next_update_partition(NULL);
     if (!update_partition) {
@@ -929,8 +992,9 @@ static esp_err_t handle_ota_upload(httpd_req_t *req)
 
 static esp_err_t handle_diag_relay(httpd_req_t *req)
 {
-    if (!require_auth(req))
+    if (!require_auth(req)) {
         return ESP_FAIL;
+    }
 
     /* Only allow relay test when not firing */
     firing_progress_t prog;
@@ -946,15 +1010,18 @@ static esp_err_t handle_diag_relay(httpd_req_t *req)
         cJSON *root = cJSON_Parse(buf);
         if (root) {
             cJSON *j = cJSON_GetObjectItem(root, "durationSeconds");
-            if (j)
+            if (j) {
                 duration_s = (int)j->valuedouble;
+            }
             cJSON_Delete(root);
         }
     }
-    if (duration_s < 1)
+    if (duration_s < 1) {
         duration_s = 1;
-    if (duration_s > 10)
+    }
+    if (duration_s > 10) {
         duration_s = 10;
+    }
 
     ESP_LOGI(TAG, "Relay test: %d seconds", duration_s);
     safety_set_ssr(1.0f);
@@ -971,8 +1038,9 @@ static esp_err_t handle_diag_relay(httpd_req_t *req)
 
 static esp_err_t handle_diag_thermocouple(httpd_req_t *req)
 {
-    if (!require_auth(req))
+    if (!require_auth(req)) {
         return ESP_FAIL;
+    }
 
     thermocouple_reading_t tc;
     thermocouple_get_latest(&tc);
@@ -1002,8 +1070,9 @@ static esp_err_t handle_diag_thermocouple(httpd_req_t *req)
 
 static esp_err_t handle_get_cone_table(httpd_req_t *req)
 {
-    if (!require_auth(req))
+    if (!require_auth(req)) {
         return ESP_FAIL;
+    }
 
     cJSON *arr = cJSON_CreateArray();
     for (int i = 0; i < CONE_COUNT; i++) {
@@ -1028,8 +1097,9 @@ static esp_err_t handle_get_cone_table(httpd_req_t *req)
 
 static esp_err_t handle_autotune_start(httpd_req_t *req)
 {
-    if (!require_auth(req))
+    if (!require_auth(req)) {
         return ESP_FAIL;
+    }
     char buf[128];
     if (read_body(req, buf, sizeof(buf)) < 0) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Body required");
@@ -1044,11 +1114,13 @@ static esp_err_t handle_autotune_start(httpd_req_t *req)
 
     float setpoint = 500.0f, hysteresis = 5.0f;
     cJSON *j = cJSON_GetObjectItem(root, "setpoint");
-    if (j)
+    if (j) {
         setpoint = (float)j->valuedouble;
+    }
     j = cJSON_GetObjectItem(root, "hysteresis");
-    if (j)
+    if (j) {
         hysteresis = (float)j->valuedouble;
+    }
     cJSON_Delete(root);
 
     /* Validate against max safe temp */
@@ -1071,8 +1143,9 @@ static esp_err_t handle_autotune_start(httpd_req_t *req)
 
 static esp_err_t handle_autotune_stop(httpd_req_t *req)
 {
-    if (!require_auth(req))
+    if (!require_auth(req)) {
         return ESP_FAIL;
+    }
     firing_cmd_t cmd = {.type = FIRING_CMD_AUTOTUNE_STOP};
     xQueueSend(firing_engine_get_cmd_queue(), &cmd, pdMS_TO_TICKS(100));
 
@@ -1085,8 +1158,9 @@ static esp_err_t handle_autotune_stop(httpd_req_t *req)
 
 static esp_err_t handle_autotune_status(httpd_req_t *req)
 {
-    if (!require_auth(req))
+    if (!require_auth(req)) {
         return ESP_FAIL;
+    }
     /* Access autotune state via progress */
     firing_progress_t prog;
     firing_engine_get_progress(&prog);
@@ -1117,6 +1191,7 @@ static esp_err_t handle_autotune_status(httpd_req_t *req)
 
 #define REGISTER_API(path, http_method, fn)                                                    \
     do {                                                                                       \
+        /* NOLINTNEXTLINE(bugprone-macro-parentheses) -- struct init, parens not needed */     \
         httpd_uri_t u = {.uri = path, .method = http_method, .handler = fn, .user_ctx = NULL}; \
         esp_err_t e = httpd_register_uri_handler(server, &u);                                  \
         if (e != ESP_OK)                                                                       \

@@ -86,10 +86,12 @@ static void encoder_read_cb(lv_indev_t *indev, lv_indev_data_t *data)
 
     /* Encoder diff: generate ±1 on press edge */
     data->enc_diff = 0;
-    if (up && !prev_up)
+    if (up && !prev_up) {
         data->enc_diff = -1;
-    if (down && !prev_down)
+    }
+    if (down && !prev_down) {
         data->enc_diff = 1;
+    }
     prev_up = up;
     prev_down = down;
 

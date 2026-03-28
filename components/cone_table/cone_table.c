@@ -54,17 +54,20 @@ static const char *s_speed_names[3] = {
 
 const char *cone_name(cone_id_t cone)
 {
-    if (cone < 0 || cone >= CONE_COUNT)
+    if (cone < 0 || cone >= CONE_COUNT) {
         return "??";
+    }
     return s_cone_table[cone].name;
 }
 
 float cone_target_temp_c(cone_id_t cone, cone_speed_t speed)
 {
-    if (cone < 0 || cone >= CONE_COUNT)
+    if (cone < 0 || cone >= CONE_COUNT) {
         return 0.0f;
-    if (speed < 0 || speed > 2)
+    }
+    if (speed < 0 || speed > 2) {
         speed = CONE_SPEED_MEDIUM;
+    }
     return s_cone_table[cone].temp_c[speed];
 }
 
@@ -85,8 +88,9 @@ esp_err_t cone_fire_generate(cone_id_t cone, cone_speed_t speed, bool preheat, b
 
     /* Replace dots/spaces with dashes for NVS key safety */
     for (char *p = out_profile->id; *p; p++) {
-        if (*p == '.' || *p == ' ')
+        if (*p == '.' || *p == ' ') {
             *p = '-';
+        }
     }
 
     snprintf(out_profile->name, FIRING_NAME_LEN, "Cone %s (%s)", s_cone_table[cone].name, s_speed_names[speed]);
@@ -158,7 +162,7 @@ esp_err_t cone_fire_generate(cone_id_t cone, cone_speed_t speed, bool preheat, b
 
     /* Estimate duration */
     float total_min = 0.0f;
-    float cur_temp = preheat ? 20.0f : 20.0f;
+    float cur_temp = 20.0f; /* Room temperature start regardless of preheat */
     for (int i = 0; i < seg; i++) {
         float rate = out_profile->segments[i].ramp_rate;
         float diff = out_profile->segments[i].target_temp - cur_temp;

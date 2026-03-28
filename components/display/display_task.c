@@ -34,10 +34,12 @@ static bool s_select_was_long = false;
 
 static void ui_switch_screen(ui_screen_id_t id)
 {
-    if (id >= UI_SCREEN_COUNT)
+    if (id >= UI_SCREEN_COUNT) {
         return;
-    if (id == s_current_screen && lv_screen_active() == s_screens[id])
+    }
+    if (id == s_current_screen && lv_screen_active() == s_screens[id]) {
         return;
+    }
 
     s_current_screen = id;
     lv_screen_load_anim(s_screens[id], LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);

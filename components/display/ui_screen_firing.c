@@ -25,8 +25,9 @@ static void btnm_cb(lv_event_t *e)
 {
     lv_obj_t *obj = lv_event_get_target(e);
     uint32_t idx = lv_buttonmatrix_get_selected_button(obj);
-    if (idx == LV_BUTTONMATRIX_BUTTON_NONE)
+    if (idx == LV_BUTTONMATRIX_BUTTON_NONE) {
         return;
+    }
 
     firing_cmd_t cmd = {0};
 
@@ -118,8 +119,9 @@ lv_obj_t *ui_screen_firing_create(void)
 
 void ui_screen_firing_update(const thermocouple_reading_t *tc, const firing_progress_t *prog)
 {
-    if (!s_screen)
+    if (!s_screen) {
         return;
+    }
     char buf[48];
 
     float temp = tc->fault ? 0 : tc->temperature_c;
@@ -165,7 +167,8 @@ void ui_screen_firing_update(const thermocouple_reading_t *tc, const firing_prog
 void ui_screen_firing_set_page_dots(int active_index, int total)
 {
     (void)total;
-    if (!s_screen)
+    if (!s_screen) {
         return;
+    }
     ui_update_page_dots(s_dots, UI_SCREEN_COUNT, active_index);
 }
