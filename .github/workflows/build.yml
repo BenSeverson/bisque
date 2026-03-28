@@ -78,17 +78,39 @@ jobs:
         run: sudo chown -R $(id -u):$(id -g) build
       - name: Fix compile_commands.json for clang-tidy
         run: |
-          sed -i "s|/app/BenSeverson/bisque|$(pwd)|g" build/compile_commands.json
-          sed -i 's/-mlongcalls//g' build/compile_commands.json
-          sed -i 's/-fno-malloc-dce//g' build/compile_commands.json
-          sed -i 's/-fno-shrink-wrap//g' build/compile_commands.json
-          sed -i 's/-fno-tree-switch-conversion//g' build/compile_commands.json
-          sed -i 's/-fstrict-volatile-bitfields//g' build/compile_commands.json
-          sed -i 's/-fzero-init-padding-bits=all//g' build/compile_commands.json
-          sed -i 's/--target=xtensa-esp32s3-unknown-elf//g' build/compile_commands.json
-          sed -i 's/-Wno-old-style-declaration//g' build/compile_commands.json
+          python3 -c "
+          import json, re
+          with open('build/compile_commands.json') as f:
+              db = json.load(f)
+          for entry in db:
+              cmd = entry['command']
+              # Fix Docker paths
+              cmd = cmd.replace('/app/BenSeverson/bisque', '$(pwd)')
+              entry['directory'] = entry['directory'].replace('/app/BenSeverson/bisque', '$(pwd)')
+              # Replace Xtensa GCC/clang with system gcc
+              cmd = re.sub(r'\S*xtensa-esp32s3-elf-\S+', 'gcc', cmd, count=1)
+              # Strip Xtensa-specific flags that clang doesn't understand
+              xtensa_flags = ['-mlongcalls', '-fno-malloc-dce', '-fno-shrink-wrap',
+                  '-fno-tree-switch-conversion', '-fstrict-volatile-bitfields',
+                  '-fzero-init-padding-bits=all', '-Wno-old-style-declaration',
+                  '-fno-builtin-memcpy', '-fno-builtin-memset', '-fno-builtin-bzero',
+                  '-fno-builtin-stpcpy', '-fno-builtin-strncpy']
+              for flag in xtensa_flags:
+                  cmd = cmd.replace(' ' + flag, '')
+              # Remove any --target=xtensa or -target xtensa flags
+              cmd = re.sub(r'-?-target[= ]\S*xtensa\S*', '', cmd)
+              entry['command'] = cmd
+          with open('build/compile_commands.json', 'w') as f:
+              json.dump(db, f, indent=2)
+          "
       - name: Run clang-tidy
-        run: run-clang-tidy -p build -header-filter='(main|components)/.*\.h$' -warnings-as-errors='*' main/main.c components/*/*.c
+        run: >
+          run-clang-tidy -p build
+          -header-filter='(main|components)/.*\.h$'
+          -warnings-as-errors='*'
+          -extra-arg=--target=x86_64-linux-gnu
+          -extra-arg=-Wno-unknown-attributes
+          main/main.c components/*/*.c
       - name: Install cppcheck
         run: sudo apt-get install -y cppcheck
       - name: Run cppcheck
