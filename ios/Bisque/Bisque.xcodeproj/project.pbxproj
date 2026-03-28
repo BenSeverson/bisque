@@ -1,0 +1,822 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		034B7BCF6876B439E690E1A8 /* ProfilesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 890C019ADF6F1DEACBE27284 /* ProfilesViewModel.swift */; };
+		09CACA232C0B2D62AF4EB396 /* BisqueLiveActivityBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 281A82DDFCC6710C3BDF2F68 /* BisqueLiveActivityBundle.swift */; };
+		0A3F8F693F79C8634C2E52C7 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE59FF303BB4FF4F058375FB /* ContentView.swift */; };
+		101B582C2AECE4B0BD15D498 /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47689B2DD31BC05760D2D35C /* KeychainHelper.swift */; };
+		121B338C0F8BE117218D23F7 /* ErrorBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = E73C5470591B71B68950128B /* ErrorBanner.swift */; };
+		138B82F9529A17E8FED95EB8 /* StatusBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 764258567183EB9AD8D1B8DB /* StatusBadge.swift */; };
+		1566FC7FB453BEACCE8359AF /* ProfileDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F98F61F40B66307F278B32A6 /* ProfileDetailView.swift */; };
+		16DBE80BE1D2C1958F341C4B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 16B3DC4A5A7341F70C385D2B /* Assets.xcassets */; };
+		17067E9917FCA6BC17D223A2 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7E6260E86929D317FCBDC054 /* Assets.xcassets */; };
+		178A2068E12CABF233C29205 /* FiringLockScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4FAD9335D03E06678762FA8 /* FiringLockScreenView.swift */; };
+		1A709E5FD37F0CD149274C2E /* ProfileCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D4B9D08C1B5EC98E47DB2D5 /* ProfileCardView.swift */; };
+		1D6520283FC95B8F4024F337 /* DashboardTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A55B82380BDD7D68EC31A23 /* DashboardTab.swift */; };
+		26AE3C92FFE5875DAE305B41 /* KilnSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCE119D726854D44ABEE7D1 /* KilnSettings.swift */; };
+		2874ADA5291A3BA264B9812A /* FiringControlsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2111E52086147DDDF3B5C11 /* FiringControlsView.swift */; };
+		2D1C4E4AD19ECD95E366595E /* ProfileBuilderViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A911DE54A2F023390618E7A /* ProfileBuilderViewModel.swift */; };
+		2DABA1B7F4BF841FF10E2FC0 /* UserDefaultsKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCDC6F2A43E27E2FDD3AC72B /* UserDefaultsKeys.swift */; };
+		2E0362066FEE285F2219563E /* AutotuneStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EBA9CB46B249DADD29E870F /* AutotuneStatus.swift */; };
+		38A705717C7FE9C9C7E0836F /* APIError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3310994771D8D25E65754D00 /* APIError.swift */; };
+		49E9820EF2E66860BC376F94 /* HistoryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53E9963A715355312356AC21 /* HistoryViewModel.swift */; };
+		4D0476BF5987BDCAC6E7AB15 /* SegmentEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AD8375CEFFA9A0C4ED3827F /* SegmentEditorView.swift */; };
+		4DEC5F82E69A5ED54E41F3EE /* ConnectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16AE830F82565440414384D2 /* ConnectionView.swift */; };
+		517E3D072508FAAE64AFEDA4 /* TemperatureCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B4A7F488DE73A2E01E265A8 /* TemperatureCardView.swift */; };
+		541CB3812F3C762907DDB27B /* HistoryRecordRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4199566E0928A495EFB873BB /* HistoryRecordRow.swift */; };
+		54B802D9C45AC407D20F3CB3 /* PreviewData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D7F2D56E911D3C0674062A4 /* PreviewData.swift */; };
+		571DBD0855C9E503C26BF1CE /* StatusResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77399FCF1E462EE45C83161B /* StatusResponse.swift */; };
+		58176037E4B8E94648984B3C /* FiringChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2390C2C66FA2B3F7DBEEE195 /* FiringChartView.swift */; };
+		5C6A64EEF2ECFC7F8C128117 /* ConeFireView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5011D4C581DE2226456FC264 /* ConeFireView.swift */; };
+		5DA3532A7F62C4183BDE9C00 /* SegmentListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44583DE9F4BF547990315568 /* SegmentListView.swift */; };
+		641EA1A89560D730508F673C /* HistoryTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = F22CAB3A5AD7425B1D481E83 /* HistoryTab.swift */; };
+		6421E944EEBFBB02C338B10E /* TemperatureDataPoint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D4DC4E3465EBD88296D0C3C /* TemperatureDataPoint.swift */; };
+		643995F8C8BD031F9BDE351E /* BisqueApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA9964F6DD097C17C4712CEF /* BisqueApp.swift */; };
+		64C1D81E3EAF03E6520BA9F9 /* ProfileBuilderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E314DDEAB58993BD0FD56EC /* ProfileBuilderView.swift */; };
+		6C1D988791FAB3469E5A8BA4 /* BisqueLiveActivity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F7FA29E44418078D249C8C5A /* BisqueLiveActivity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		70E7A734D13B941518AD8506 /* TemperatureText.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9F131DB9BEFC1F26E338065 /* TemperatureText.swift */; };
+		7623DA52F7EBD810BA951A0D /* DiagThermocouple.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C4A80A1C88346C07B79D9BC /* DiagThermocouple.swift */; };
+		7B3B05AFEEB31E2B8D5BD5AB /* SettingsTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA92D0A942F9875DFAEA9B4B /* SettingsTab.swift */; };
+		86D5A2CB868BB4CC50EA16B4 /* HistoryRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7764E1BB68840F9971131A /* HistoryRecord.swift */; };
+		885593DECBBDC2EA581774EC /* FiringActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F89C228440A203C89CDC289 /* FiringActivityAttributes.swift */; };
+		8CD817D289CF5985C1A26E20 /* WebSocketMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8F90B48E0F08776A7EF34D0 /* WebSocketMessage.swift */; };
+		902A63B370C0F78EF61E6D98 /* FiringProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CAF4D46EA741C75819A73BF /* FiringProfile.swift */; };
+		925A3FF058851DFB67CD383D /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A18B9FD404281AF8D3A375EC /* AboutView.swift */; };
+		938518881EC9AFBC2586C0FF /* FiringSegment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EC837DDDB8894D22506AF18 /* FiringSegment.swift */; };
+		95E035CC52CF24549748C491 /* TimeText.swift in Sources */ = {isa = PBXBuildFile; fileRef = F41A1FBDBADB26201EE7BC91 /* TimeText.swift */; };
+		A6EB34376FE93A0485B437B6 /* KilnConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47F3E5FF06C5CFF45A92D693 /* KilnConnection.swift */; };
+		AB25503ABFA048B9FC157C4F /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CA870F870239DBEF8161D67 /* NotificationManager.swift */; };
+		B3CE8F817BB92D5ACFFB2476 /* FiringStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEA79CAF8AAF5E68C07243C4 /* FiringStatus.swift */; };
+		B5215838D538ED9F28696D46 /* FiringActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F89C228440A203C89CDC289 /* FiringActivityAttributes.swift */; };
+		BE2757612A5865DC39DFE306 /* Formatters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58BD5B2295FE389DFA09A263 /* Formatters.swift */; };
+		C9B9DC3F9750D516BA57DFE3 /* FiringStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEA79CAF8AAF5E68C07243C4 /* FiringStatus.swift */; };
+		CD851B56BC3AEA3F1C83021E /* KilnWebSocketManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A73135746827DB70B6782D1E /* KilnWebSocketManager.swift */; };
+		CF0076D09E302D43D81C24E1 /* KilnStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45DFFBD1961D23EF508A3813 /* KilnStore.swift */; };
+		DB7A57F0D01169B9DCA5A260 /* FiringProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9795B731E74E674B0E13F9C7 /* FiringProgress.swift */; };
+		DEAE6D4EA9D11D04FE4B163E /* ProfilesTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 905F7E7B8760083A44A5862A /* ProfilesTab.swift */; };
+		DF4D1E13A2274A88E18507A5 /* DiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAFEC88D954E46B864C00AA6 /* DiagnosticsView.swift */; };
+		E1CD3EA8F0653828467F93F0 /* ConeEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC8F5F69874337D25F2E7033 /* ConeEntry.swift */; };
+		E7279B2EDA585E4CE40843EF /* DashboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4088DD08674E50F93A53D940 /* DashboardViewModel.swift */; };
+		EAA1F4ABBEA46FA1061CAFD8 /* SettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8A193D025466706BDDBB549 /* SettingsViewModel.swift */; };
+		EAF5604874FC512E019B77CD /* KilnAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5097775AD49300C0F4CC7090 /* KilnAPIClient.swift */; };
+		EC92FAAFF203936EF6ECEBC0 /* HistoryDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D79D8576F670DA53C479FD9F /* HistoryDetailView.swift */; };
+		ED9A6FDB72348669AA7E9F56 /* SystemInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = D02765264276A6A461EE7C19 /* SystemInfo.swift */; };
+		F65896E007EE35DB86284C2F /* TemperatureConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD61428BE55E6BE3A80EE79D /* TemperatureConverter.swift */; };
+		F73699463FF0E5FF63A0F9E3 /* OTAUpdateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BDA42273DDEB6D3E5454293 /* OTAUpdateView.swift */; };
+		FBC71B7AA2BEF4D09038CA8E /* FiringActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BF41426D079E1C95F76BF09 /* FiringActivityManager.swift */; };
+		FC074BE5F1B505E5F2701521 /* AutotuneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E241ABE022B1A1E386770FA /* AutotuneView.swift */; };
+		FEEB0907B5D1A5C98FDE16E7 /* BisqueLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEB251D6BE342CD77C664A6A /* BisqueLiveActivity.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		97C909B0833209C99EDF4380 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C14D59B6E69B41901E1DE283 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B394116C0D6EB2D8A9331D90;
+			remoteInfo = BisqueLiveActivity;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		199DBB7D2C11CF9F21AEB05C /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				6C1D988791FAB3469E5A8BA4 /* BisqueLiveActivity.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		16AE830F82565440414384D2 /* ConnectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionView.swift; sourceTree = "<group>"; };
+		16B3DC4A5A7341F70C385D2B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		1EBA9CB46B249DADD29E870F /* AutotuneStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutotuneStatus.swift; sourceTree = "<group>"; };
+		2390C2C66FA2B3F7DBEEE195 /* FiringChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FiringChartView.swift; sourceTree = "<group>"; };
+		281A82DDFCC6710C3BDF2F68 /* BisqueLiveActivityBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BisqueLiveActivityBundle.swift; sourceTree = "<group>"; };
+		2BDA42273DDEB6D3E5454293 /* OTAUpdateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OTAUpdateView.swift; sourceTree = "<group>"; };
+		2E241ABE022B1A1E386770FA /* AutotuneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutotuneView.swift; sourceTree = "<group>"; };
+		3310994771D8D25E65754D00 /* APIError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIError.swift; sourceTree = "<group>"; };
+		3D4B9D08C1B5EC98E47DB2D5 /* ProfileCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileCardView.swift; sourceTree = "<group>"; };
+		4088DD08674E50F93A53D940 /* DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViewModel.swift; sourceTree = "<group>"; };
+		4199566E0928A495EFB873BB /* HistoryRecordRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryRecordRow.swift; sourceTree = "<group>"; };
+		44583DE9F4BF547990315568 /* SegmentListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SegmentListView.swift; sourceTree = "<group>"; };
+		45DFFBD1961D23EF508A3813 /* KilnStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KilnStore.swift; sourceTree = "<group>"; };
+		47689B2DD31BC05760D2D35C /* KeychainHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainHelper.swift; sourceTree = "<group>"; };
+		47F3E5FF06C5CFF45A92D693 /* KilnConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KilnConnection.swift; sourceTree = "<group>"; };
+		4A55B82380BDD7D68EC31A23 /* DashboardTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardTab.swift; sourceTree = "<group>"; };
+		4AD8375CEFFA9A0C4ED3827F /* SegmentEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SegmentEditorView.swift; sourceTree = "<group>"; };
+		4BF41426D079E1C95F76BF09 /* FiringActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FiringActivityManager.swift; sourceTree = "<group>"; };
+		4D4DC4E3465EBD88296D0C3C /* TemperatureDataPoint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemperatureDataPoint.swift; sourceTree = "<group>"; };
+		5011D4C581DE2226456FC264 /* ConeFireView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConeFireView.swift; sourceTree = "<group>"; };
+		5097775AD49300C0F4CC7090 /* KilnAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KilnAPIClient.swift; sourceTree = "<group>"; };
+		53E9963A715355312356AC21 /* HistoryViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryViewModel.swift; sourceTree = "<group>"; };
+		58BD5B2295FE389DFA09A263 /* Formatters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatters.swift; sourceTree = "<group>"; };
+		5CA870F870239DBEF8161D67 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
+		5CAF4D46EA741C75819A73BF /* FiringProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FiringProfile.swift; sourceTree = "<group>"; };
+		5D7F2D56E911D3C0674062A4 /* PreviewData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewData.swift; sourceTree = "<group>"; };
+		5E314DDEAB58993BD0FD56EC /* ProfileBuilderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileBuilderView.swift; sourceTree = "<group>"; };
+		6C4A80A1C88346C07B79D9BC /* DiagThermocouple.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagThermocouple.swift; sourceTree = "<group>"; };
+		6EC837DDDB8894D22506AF18 /* FiringSegment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FiringSegment.swift; sourceTree = "<group>"; };
+		7397F8683E3C2BEA155266F4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		764258567183EB9AD8D1B8DB /* StatusBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBadge.swift; sourceTree = "<group>"; };
+		77399FCF1E462EE45C83161B /* StatusResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusResponse.swift; sourceTree = "<group>"; };
+		7A911DE54A2F023390618E7A /* ProfileBuilderViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileBuilderViewModel.swift; sourceTree = "<group>"; };
+		7B4A7F488DE73A2E01E265A8 /* TemperatureCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemperatureCardView.swift; sourceTree = "<group>"; };
+		7E6260E86929D317FCBDC054 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		890C019ADF6F1DEACBE27284 /* ProfilesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilesViewModel.swift; sourceTree = "<group>"; };
+		8F89C228440A203C89CDC289 /* FiringActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FiringActivityAttributes.swift; sourceTree = "<group>"; };
+		905F7E7B8760083A44A5862A /* ProfilesTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilesTab.swift; sourceTree = "<group>"; };
+		9795B731E74E674B0E13F9C7 /* FiringProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FiringProgress.swift; sourceTree = "<group>"; };
+		A18B9FD404281AF8D3A375EC /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
+		A2111E52086147DDDF3B5C11 /* FiringControlsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FiringControlsView.swift; sourceTree = "<group>"; };
+		A73135746827DB70B6782D1E /* KilnWebSocketManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KilnWebSocketManager.swift; sourceTree = "<group>"; };
+		A8A193D025466706BDDBB549 /* SettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModel.swift; sourceTree = "<group>"; };
+		A8F90B48E0F08776A7EF34D0 /* WebSocketMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSocketMessage.swift; sourceTree = "<group>"; };
+		AA92D0A942F9875DFAEA9B4B /* SettingsTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsTab.swift; sourceTree = "<group>"; };
+		ACCE119D726854D44ABEE7D1 /* KilnSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KilnSettings.swift; sourceTree = "<group>"; };
+		AEA79CAF8AAF5E68C07243C4 /* FiringStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FiringStatus.swift; sourceTree = "<group>"; };
+		BAFEC88D954E46B864C00AA6 /* DiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsView.swift; sourceTree = "<group>"; };
+		BEB251D6BE342CD77C664A6A /* BisqueLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BisqueLiveActivity.swift; sourceTree = "<group>"; };
+		C4FAD9335D03E06678762FA8 /* FiringLockScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FiringLockScreenView.swift; sourceTree = "<group>"; };
+		CA9964F6DD097C17C4712CEF /* BisqueApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BisqueApp.swift; sourceTree = "<group>"; };
+		D02765264276A6A461EE7C19 /* SystemInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemInfo.swift; sourceTree = "<group>"; };
+		D79D8576F670DA53C479FD9F /* HistoryDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryDetailView.swift; sourceTree = "<group>"; };
+		D9F131DB9BEFC1F26E338065 /* TemperatureText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemperatureText.swift; sourceTree = "<group>"; };
+		DA7764E1BB68840F9971131A /* HistoryRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryRecord.swift; sourceTree = "<group>"; };
+		DC8F5F69874337D25F2E7033 /* ConeEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConeEntry.swift; sourceTree = "<group>"; };
+		E2C2D5C3402A7FF103FA9AD4 /* Bisque.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Bisque.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E73C5470591B71B68950128B /* ErrorBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorBanner.swift; sourceTree = "<group>"; };
+		F22CAB3A5AD7425B1D481E83 /* HistoryTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryTab.swift; sourceTree = "<group>"; };
+		F41A1FBDBADB26201EE7BC91 /* TimeText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeText.swift; sourceTree = "<group>"; };
+		F7FA29E44418078D249C8C5A /* BisqueLiveActivity.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = BisqueLiveActivity.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		F8B7DC7270351C4B236A3E30 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		F98F61F40B66307F278B32A6 /* ProfileDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileDetailView.swift; sourceTree = "<group>"; };
+		FCDC6F2A43E27E2FDD3AC72B /* UserDefaultsKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsKeys.swift; sourceTree = "<group>"; };
+		FD61428BE55E6BE3A80EE79D /* TemperatureConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemperatureConverter.swift; sourceTree = "<group>"; };
+		FE59FF303BB4FF4F058375FB /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		02B0617299F871919FB7FB87 /* Preview Content */ = {
+			isa = PBXGroup;
+			children = (
+				5D7F2D56E911D3C0674062A4 /* PreviewData.swift */,
+			);
+			path = "Preview Content";
+			sourceTree = "<group>";
+		};
+		031A15FDD988B28EF2576E32 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				E73C5470591B71B68950128B /* ErrorBanner.swift */,
+				764258567183EB9AD8D1B8DB /* StatusBadge.swift */,
+				D9F131DB9BEFC1F26E338065 /* TemperatureText.swift */,
+				F41A1FBDBADB26201EE7BC91 /* TimeText.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		0365A6D847B346514B0758A6 /* Notifications */ = {
+			isa = PBXGroup;
+			children = (
+				5CA870F870239DBEF8161D67 /* NotificationManager.swift */,
+			);
+			path = Notifications;
+			sourceTree = "<group>";
+		};
+		192DEAB2E8E0477B66240FC5 /* ProfileBuilder */ = {
+			isa = PBXGroup;
+			children = (
+				5011D4C581DE2226456FC264 /* ConeFireView.swift */,
+				5E314DDEAB58993BD0FD56EC /* ProfileBuilderView.swift */,
+				4AD8375CEFFA9A0C4ED3827F /* SegmentEditorView.swift */,
+			);
+			path = ProfileBuilder;
+			sourceTree = "<group>";
+		};
+		1A449C1756AE59CB592EF1C5 = {
+			isa = PBXGroup;
+			children = (
+				23DF65B6B4F90192D85CE268 /* Bisque */,
+				50EE673A2078852BB86B40BF /* BisqueLiveActivity */,
+				7228B174695CC2F1F3991655 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		23DF65B6B4F90192D85CE268 /* Bisque */ = {
+			isa = PBXGroup;
+			children = (
+				16B3DC4A5A7341F70C385D2B /* Assets.xcassets */,
+				CA9964F6DD097C17C4712CEF /* BisqueApp.swift */,
+				FE59FF303BB4FF4F058375FB /* ContentView.swift */,
+				7397F8683E3C2BEA155266F4 /* Info.plist */,
+				9FD54CC3524D7CE4D31A41DC /* LiveActivity */,
+				DA3A33C6086DF21BF7CC905C /* Models */,
+				77CE8FA66F7593576BE7AF01 /* Networking */,
+				0365A6D847B346514B0758A6 /* Notifications */,
+				02B0617299F871919FB7FB87 /* Preview Content */,
+				737C60515E55CA7510A7B8BD /* State */,
+				F85D13B0F4C1E34459FBE0D1 /* Utilities */,
+				AC761C7A682CAA4153584F2C /* Views */,
+			);
+			path = Bisque;
+			sourceTree = "<group>";
+		};
+		3A6F894C915951FE9E5C189F /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				A18B9FD404281AF8D3A375EC /* AboutView.swift */,
+				2E241ABE022B1A1E386770FA /* AutotuneView.swift */,
+				BAFEC88D954E46B864C00AA6 /* DiagnosticsView.swift */,
+				2BDA42273DDEB6D3E5454293 /* OTAUpdateView.swift */,
+				AA92D0A942F9875DFAEA9B4B /* SettingsTab.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		4383B9303D992ABA6C39DB95 /* Dashboard */ = {
+			isa = PBXGroup;
+			children = (
+				4A55B82380BDD7D68EC31A23 /* DashboardTab.swift */,
+				2390C2C66FA2B3F7DBEEE195 /* FiringChartView.swift */,
+				A2111E52086147DDDF3B5C11 /* FiringControlsView.swift */,
+				44583DE9F4BF547990315568 /* SegmentListView.swift */,
+				7B4A7F488DE73A2E01E265A8 /* TemperatureCardView.swift */,
+			);
+			path = Dashboard;
+			sourceTree = "<group>";
+		};
+		50EE673A2078852BB86B40BF /* BisqueLiveActivity */ = {
+			isa = PBXGroup;
+			children = (
+				7E6260E86929D317FCBDC054 /* Assets.xcassets */,
+				BEB251D6BE342CD77C664A6A /* BisqueLiveActivity.swift */,
+				281A82DDFCC6710C3BDF2F68 /* BisqueLiveActivityBundle.swift */,
+				C4FAD9335D03E06678762FA8 /* FiringLockScreenView.swift */,
+				F8B7DC7270351C4B236A3E30 /* Info.plist */,
+			);
+			path = BisqueLiveActivity;
+			sourceTree = "<group>";
+		};
+		7228B174695CC2F1F3991655 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				E2C2D5C3402A7FF103FA9AD4 /* Bisque.app */,
+				F7FA29E44418078D249C8C5A /* BisqueLiveActivity.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		737C60515E55CA7510A7B8BD /* State */ = {
+			isa = PBXGroup;
+			children = (
+				4088DD08674E50F93A53D940 /* DashboardViewModel.swift */,
+				53E9963A715355312356AC21 /* HistoryViewModel.swift */,
+				47F3E5FF06C5CFF45A92D693 /* KilnConnection.swift */,
+				45DFFBD1961D23EF508A3813 /* KilnStore.swift */,
+				7A911DE54A2F023390618E7A /* ProfileBuilderViewModel.swift */,
+				890C019ADF6F1DEACBE27284 /* ProfilesViewModel.swift */,
+				A8A193D025466706BDDBB549 /* SettingsViewModel.swift */,
+			);
+			path = State;
+			sourceTree = "<group>";
+		};
+		77CE8FA66F7593576BE7AF01 /* Networking */ = {
+			isa = PBXGroup;
+			children = (
+				3310994771D8D25E65754D00 /* APIError.swift */,
+				5097775AD49300C0F4CC7090 /* KilnAPIClient.swift */,
+				A73135746827DB70B6782D1E /* KilnWebSocketManager.swift */,
+			);
+			path = Networking;
+			sourceTree = "<group>";
+		};
+		785F8113E3E2F9D20F5BFB6A /* History */ = {
+			isa = PBXGroup;
+			children = (
+				D79D8576F670DA53C479FD9F /* HistoryDetailView.swift */,
+				4199566E0928A495EFB873BB /* HistoryRecordRow.swift */,
+				F22CAB3A5AD7425B1D481E83 /* HistoryTab.swift */,
+			);
+			path = History;
+			sourceTree = "<group>";
+		};
+		9FD54CC3524D7CE4D31A41DC /* LiveActivity */ = {
+			isa = PBXGroup;
+			children = (
+				8F89C228440A203C89CDC289 /* FiringActivityAttributes.swift */,
+				4BF41426D079E1C95F76BF09 /* FiringActivityManager.swift */,
+			);
+			path = LiveActivity;
+			sourceTree = "<group>";
+		};
+		AC761C7A682CAA4153584F2C /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				AD2A74A90D03E12E8A923CDB /* Connection */,
+				4383B9303D992ABA6C39DB95 /* Dashboard */,
+				785F8113E3E2F9D20F5BFB6A /* History */,
+				192DEAB2E8E0477B66240FC5 /* ProfileBuilder */,
+				DA116023AD7138D5F839CBBE /* Profiles */,
+				3A6F894C915951FE9E5C189F /* Settings */,
+				031A15FDD988B28EF2576E32 /* Shared */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		AD2A74A90D03E12E8A923CDB /* Connection */ = {
+			isa = PBXGroup;
+			children = (
+				16AE830F82565440414384D2 /* ConnectionView.swift */,
+			);
+			path = Connection;
+			sourceTree = "<group>";
+		};
+		DA116023AD7138D5F839CBBE /* Profiles */ = {
+			isa = PBXGroup;
+			children = (
+				3D4B9D08C1B5EC98E47DB2D5 /* ProfileCardView.swift */,
+				F98F61F40B66307F278B32A6 /* ProfileDetailView.swift */,
+				905F7E7B8760083A44A5862A /* ProfilesTab.swift */,
+			);
+			path = Profiles;
+			sourceTree = "<group>";
+		};
+		DA3A33C6086DF21BF7CC905C /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				1EBA9CB46B249DADD29E870F /* AutotuneStatus.swift */,
+				DC8F5F69874337D25F2E7033 /* ConeEntry.swift */,
+				6C4A80A1C88346C07B79D9BC /* DiagThermocouple.swift */,
+				5CAF4D46EA741C75819A73BF /* FiringProfile.swift */,
+				9795B731E74E674B0E13F9C7 /* FiringProgress.swift */,
+				6EC837DDDB8894D22506AF18 /* FiringSegment.swift */,
+				AEA79CAF8AAF5E68C07243C4 /* FiringStatus.swift */,
+				DA7764E1BB68840F9971131A /* HistoryRecord.swift */,
+				ACCE119D726854D44ABEE7D1 /* KilnSettings.swift */,
+				77399FCF1E462EE45C83161B /* StatusResponse.swift */,
+				D02765264276A6A461EE7C19 /* SystemInfo.swift */,
+				4D4DC4E3465EBD88296D0C3C /* TemperatureDataPoint.swift */,
+				A8F90B48E0F08776A7EF34D0 /* WebSocketMessage.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		F85D13B0F4C1E34459FBE0D1 /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				58BD5B2295FE389DFA09A263 /* Formatters.swift */,
+				47689B2DD31BC05760D2D35C /* KeychainHelper.swift */,
+				FD61428BE55E6BE3A80EE79D /* TemperatureConverter.swift */,
+				FCDC6F2A43E27E2FDD3AC72B /* UserDefaultsKeys.swift */,
+			);
+			path = Utilities;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A9F6465C2D509B4CA2C94903 /* Bisque */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2D7D372A2DD5D1494B140BF4 /* Build configuration list for PBXNativeTarget "Bisque" */;
+			buildPhases = (
+				FFAB2CECB5774244D7E57B99 /* Sources */,
+				044C7963953ECAA5BCAF7057 /* Resources */,
+				199DBB7D2C11CF9F21AEB05C /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				DE60C1167F950CF0F44CEEDA /* PBXTargetDependency */,
+			);
+			name = Bisque;
+			packageProductDependencies = (
+			);
+			productName = Bisque;
+			productReference = E2C2D5C3402A7FF103FA9AD4 /* Bisque.app */;
+			productType = "com.apple.product-type.application";
+		};
+		B394116C0D6EB2D8A9331D90 /* BisqueLiveActivity */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 531F282089D627D4D7F8BE4B /* Build configuration list for PBXNativeTarget "BisqueLiveActivity" */;
+			buildPhases = (
+				8C2EDACFD388455EA993AD13 /* Sources */,
+				FA9F7E50455AA6BBFB92A225 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = BisqueLiveActivity;
+			packageProductDependencies = (
+			);
+			productName = BisqueLiveActivity;
+			productReference = F7FA29E44418078D249C8C5A /* BisqueLiveActivity.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		C14D59B6E69B41901E1DE283 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					A9F6465C2D509B4CA2C94903 = {
+						DevelopmentTeam = "";
+					};
+					B394116C0D6EB2D8A9331D90 = {
+						DevelopmentTeam = "";
+					};
+				};
+			};
+			buildConfigurationList = AD87D3B3E1C77CAD9EB0F76F /* Build configuration list for PBXProject "Bisque" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 1A449C1756AE59CB592EF1C5;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 7228B174695CC2F1F3991655 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A9F6465C2D509B4CA2C94903 /* Bisque */,
+				B394116C0D6EB2D8A9331D90 /* BisqueLiveActivity */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		044C7963953ECAA5BCAF7057 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				16DBE80BE1D2C1958F341C4B /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FA9F7E50455AA6BBFB92A225 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				17067E9917FCA6BC17D223A2 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		8C2EDACFD388455EA993AD13 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FEEB0907B5D1A5C98FDE16E7 /* BisqueLiveActivity.swift in Sources */,
+				09CACA232C0B2D62AF4EB396 /* BisqueLiveActivityBundle.swift in Sources */,
+				B5215838D538ED9F28696D46 /* FiringActivityAttributes.swift in Sources */,
+				178A2068E12CABF233C29205 /* FiringLockScreenView.swift in Sources */,
+				B3CE8F817BB92D5ACFFB2476 /* FiringStatus.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FFAB2CECB5774244D7E57B99 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				38A705717C7FE9C9C7E0836F /* APIError.swift in Sources */,
+				925A3FF058851DFB67CD383D /* AboutView.swift in Sources */,
+				2E0362066FEE285F2219563E /* AutotuneStatus.swift in Sources */,
+				FC074BE5F1B505E5F2701521 /* AutotuneView.swift in Sources */,
+				643995F8C8BD031F9BDE351E /* BisqueApp.swift in Sources */,
+				E1CD3EA8F0653828467F93F0 /* ConeEntry.swift in Sources */,
+				5C6A64EEF2ECFC7F8C128117 /* ConeFireView.swift in Sources */,
+				4DEC5F82E69A5ED54E41F3EE /* ConnectionView.swift in Sources */,
+				0A3F8F693F79C8634C2E52C7 /* ContentView.swift in Sources */,
+				1D6520283FC95B8F4024F337 /* DashboardTab.swift in Sources */,
+				E7279B2EDA585E4CE40843EF /* DashboardViewModel.swift in Sources */,
+				7623DA52F7EBD810BA951A0D /* DiagThermocouple.swift in Sources */,
+				DF4D1E13A2274A88E18507A5 /* DiagnosticsView.swift in Sources */,
+				121B338C0F8BE117218D23F7 /* ErrorBanner.swift in Sources */,
+				885593DECBBDC2EA581774EC /* FiringActivityAttributes.swift in Sources */,
+				FBC71B7AA2BEF4D09038CA8E /* FiringActivityManager.swift in Sources */,
+				58176037E4B8E94648984B3C /* FiringChartView.swift in Sources */,
+				2874ADA5291A3BA264B9812A /* FiringControlsView.swift in Sources */,
+				902A63B370C0F78EF61E6D98 /* FiringProfile.swift in Sources */,
+				DB7A57F0D01169B9DCA5A260 /* FiringProgress.swift in Sources */,
+				938518881EC9AFBC2586C0FF /* FiringSegment.swift in Sources */,
+				C9B9DC3F9750D516BA57DFE3 /* FiringStatus.swift in Sources */,
+				BE2757612A5865DC39DFE306 /* Formatters.swift in Sources */,
+				EC92FAAFF203936EF6ECEBC0 /* HistoryDetailView.swift in Sources */,
+				86D5A2CB868BB4CC50EA16B4 /* HistoryRecord.swift in Sources */,
+				541CB3812F3C762907DDB27B /* HistoryRecordRow.swift in Sources */,
+				641EA1A89560D730508F673C /* HistoryTab.swift in Sources */,
+				49E9820EF2E66860BC376F94 /* HistoryViewModel.swift in Sources */,
+				101B582C2AECE4B0BD15D498 /* KeychainHelper.swift in Sources */,
+				EAF5604874FC512E019B77CD /* KilnAPIClient.swift in Sources */,
+				A6EB34376FE93A0485B437B6 /* KilnConnection.swift in Sources */,
+				26AE3C92FFE5875DAE305B41 /* KilnSettings.swift in Sources */,
+				CF0076D09E302D43D81C24E1 /* KilnStore.swift in Sources */,
+				CD851B56BC3AEA3F1C83021E /* KilnWebSocketManager.swift in Sources */,
+				AB25503ABFA048B9FC157C4F /* NotificationManager.swift in Sources */,
+				F73699463FF0E5FF63A0F9E3 /* OTAUpdateView.swift in Sources */,
+				54B802D9C45AC407D20F3CB3 /* PreviewData.swift in Sources */,
+				64C1D81E3EAF03E6520BA9F9 /* ProfileBuilderView.swift in Sources */,
+				2D1C4E4AD19ECD95E366595E /* ProfileBuilderViewModel.swift in Sources */,
+				1A709E5FD37F0CD149274C2E /* ProfileCardView.swift in Sources */,
+				1566FC7FB453BEACCE8359AF /* ProfileDetailView.swift in Sources */,
+				DEAE6D4EA9D11D04FE4B163E /* ProfilesTab.swift in Sources */,
+				034B7BCF6876B439E690E1A8 /* ProfilesViewModel.swift in Sources */,
+				4D0476BF5987BDCAC6E7AB15 /* SegmentEditorView.swift in Sources */,
+				5DA3532A7F62C4183BDE9C00 /* SegmentListView.swift in Sources */,
+				7B3B05AFEEB31E2B8D5BD5AB /* SettingsTab.swift in Sources */,
+				EAA1F4ABBEA46FA1061CAFD8 /* SettingsViewModel.swift in Sources */,
+				138B82F9529A17E8FED95EB8 /* StatusBadge.swift in Sources */,
+				571DBD0855C9E503C26BF1CE /* StatusResponse.swift in Sources */,
+				ED9A6FDB72348669AA7E9F56 /* SystemInfo.swift in Sources */,
+				517E3D072508FAAE64AFEDA4 /* TemperatureCardView.swift in Sources */,
+				F65896E007EE35DB86284C2F /* TemperatureConverter.swift in Sources */,
+				6421E944EEBFBB02C338B10E /* TemperatureDataPoint.swift in Sources */,
+				70E7A734D13B941518AD8506 /* TemperatureText.swift in Sources */,
+				95E035CC52CF24549748C491 /* TimeText.swift in Sources */,
+				2DABA1B7F4BF841FF10E2FC0 /* UserDefaultsKeys.swift in Sources */,
+				8CD817D289CF5985C1A26E20 /* WebSocketMessage.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		DE60C1167F950CF0F44CEEDA /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B394116C0D6EB2D8A9331D90 /* BisqueLiveActivity */;
+			targetProxy = 97C909B0833209C99EDF4380 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		0B1B760B7F16CF2E18874285 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = Bisque/Info.plist;
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.bisque.kiln-controller";
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		7DB148B5BC3A2F2EE7C5963B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = Bisque/Info.plist;
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.bisque.kiln-controller";
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		C59FD75ADB274DD78C7FD6C2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		CA0E23BC640D5944A2423773 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = BisqueLiveActivity/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Bisque Live Activity";
+				INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier = "com.apple.widgetkit-extension";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.bisque.kiln-controller.live-activity";
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		D81A773AA302983B80B0981D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		EEA359BCEE1983F685249C0C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = BisqueLiveActivity/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Bisque Live Activity";
+				INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier = "com.apple.widgetkit-extension";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.bisque.kiln-controller.live-activity";
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		2D7D372A2DD5D1494B140BF4 /* Build configuration list for PBXNativeTarget "Bisque" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7DB148B5BC3A2F2EE7C5963B /* Debug */,
+				0B1B760B7F16CF2E18874285 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		531F282089D627D4D7F8BE4B /* Build configuration list for PBXNativeTarget "BisqueLiveActivity" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EEA359BCEE1983F685249C0C /* Debug */,
+				CA0E23BC640D5944A2423773 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		AD87D3B3E1C77CAD9EB0F76F /* Build configuration list for PBXProject "Bisque" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C59FD75ADB274DD78C7FD6C2 /* Debug */,
+				D81A773AA302983B80B0981D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = C14D59B6E69B41901E1DE283 /* Project object */;
+}
