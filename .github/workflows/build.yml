@@ -76,8 +76,17 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y clang-tidy
       - name: Fix build directory permissions
         run: sudo chown -R $(id -u):$(id -g) build
-      - name: Fix compile_commands.json paths
-        run: sed -i "s|/app/BenSeverson/bisque|$(pwd)|g" build/compile_commands.json
+      - name: Fix compile_commands.json for clang-tidy
+        run: |
+          sed -i "s|/app/BenSeverson/bisque|$(pwd)|g" build/compile_commands.json
+          sed -i 's/-mlongcalls//g' build/compile_commands.json
+          sed -i 's/-fno-malloc-dce//g' build/compile_commands.json
+          sed -i 's/-fno-shrink-wrap//g' build/compile_commands.json
+          sed -i 's/-fno-tree-switch-conversion//g' build/compile_commands.json
+          sed -i 's/-fstrict-volatile-bitfields//g' build/compile_commands.json
+          sed -i 's/-fzero-init-padding-bits=all//g' build/compile_commands.json
+          sed -i 's/--target=xtensa-esp32s3-unknown-elf//g' build/compile_commands.json
+          sed -i 's/-Wno-old-style-declaration//g' build/compile_commands.json
       - name: Run clang-tidy
         run: run-clang-tidy -p build -header-filter='(main|components)/.*\.h$' -warnings-as-errors='*' main/main.c components/*/*.c
       - name: Install cppcheck
