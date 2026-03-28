@@ -12,9 +12,9 @@
 
 static const char *TAG = "history";
 
-#define HISTORY_JSON_PATH  "/www/history.json"
-#define TRACE_PATH_FMT     "/www/trc_%" PRIu32 ".csv"
-#define TRACE_PATH_LEN     32
+#define HISTORY_JSON_PATH "/www/history.json"
+#define TRACE_PATH_FMT    "/www/trc_%" PRIu32 ".csv"
+#define TRACE_PATH_LEN    32
 
 /* Active firing session */
 static bool s_recording = false;
@@ -28,8 +28,16 @@ static uint32_t s_next_id = 1;
 
 /* ── Internal helpers ─────────────────────────────────────────────────── */
 
-static void lock(void)   { if (s_mutex) xSemaphoreTake(s_mutex, portMAX_DELAY); }
-static void unlock(void) { if (s_mutex) xSemaphoreGive(s_mutex); }
+static void lock(void)
+{
+    if (s_mutex)
+        xSemaphoreTake(s_mutex, portMAX_DELAY);
+}
+static void unlock(void)
+{
+    if (s_mutex)
+        xSemaphoreGive(s_mutex);
+}
 
 static void make_trace_path(uint32_t id, char *buf, size_t size)
 {
@@ -40,7 +48,8 @@ static esp_err_t load_records_from_json(history_record_t *records, int max_count
 {
     *out_count = 0;
     FILE *f = fopen(HISTORY_JSON_PATH, "r");
-    if (!f) return ESP_ERR_NOT_FOUND;
+    if (!f)
+        return ESP_ERR_NOT_FOUND;
 
     fseek(f, 0, SEEK_END);
     long sz = ftell(f);
@@ -51,7 +60,10 @@ static esp_err_t load_records_from_json(history_record_t *records, int max_count
     }
 
     char *buf = malloc(sz + 1);
-    if (!buf) { fclose(f); return ESP_ERR_NO_MEM; }
+    if (!buf) {
+        fclose(f);
+        return ESP_ERR_NO_MEM;
+    }
     fread(buf, 1, sz, f);
     buf[sz] = '\0';
     fclose(f);
@@ -59,21 +71,25 @@ static esp_err_t load_records_from_json(history_record_t *records, int max_count
     cJSON *arr = cJSON_Parse(buf);
     free(buf);
     if (!arr || !cJSON_IsArray(arr)) {
-        if (arr) cJSON_Delete(arr);
+        if (arr)
+            cJSON_Delete(arr);
         return ESP_ERR_INVALID_RESPONSE;
     }
 
     int count = cJSON_GetArraySize(arr);
-    if (count > max_count) count = max_count;
+    if (count > max_count)
+        count = max_count;
 
     for (int i = 0; i < count; i++) {
         cJSON *item = cJSON_GetArrayItem(arr, i);
         cJSON *j;
 
         j = cJSON_GetObjectItem(item, "id");
-        if (j) records[i].id = (uint32_t)j->valuedouble;
+        if (j)
+            records[i].id = (uint32_t)j->valuedouble;
         j = cJSON_GetObjectItem(item, "startTime");
-        if (j) records[i].start_time = (int64_t)j->valuedouble;
+        if (j)
+            records[i].start_time = (int64_t)j->valuedouble;
         j = cJSON_GetObjectItem(item, "profileName");
         if (j && j->valuestring)
             strncpy(records[i].profile_name, j->valuestring, HISTORY_PROFILE_NAME_LEN - 1);
@@ -81,13 +97,17 @@ static esp_err_t load_records_from_json(history_record_t *records, int max_count
         if (j && j->valuestring)
             strncpy(records[i].profile_id, j->valuestring, sizeof(records[i].profile_id) - 1);
         j = cJSON_GetObjectItem(item, "peakTemp");
-        if (j) records[i].peak_temp_c = (float)j->valuedouble;
+        if (j)
+            records[i].peak_temp_c = (float)j->valuedouble;
         j = cJSON_GetObjectItem(item, "durationS");
-        if (j) records[i].duration_s = (uint32_t)j->valuedouble;
+        if (j)
+            records[i].duration_s = (uint32_t)j->valuedouble;
         j = cJSON_GetObjectItem(item, "outcome");
-        if (j) records[i].outcome = (history_outcome_t)(int)j->valuedouble;
+        if (j)
+            records[i].outcome = (history_outcome_t)(int)j->valuedouble;
         j = cJSON_GetObjectItem(item, "errorCode");
-        if (j) records[i].error_code = (int)j->valuedouble;
+        if (j)
+            records[i].error_code = (int)j->valuedouble;
     }
 
     cJSON_Delete(arr);
@@ -98,7 +118,8 @@ static esp_err_t load_records_from_json(history_record_t *records, int max_count
 static esp_err_t save_records_to_json(const history_record_t *records, int count)
 {
     cJSON *arr = cJSON_CreateArray();
-    if (!arr) return ESP_ERR_NO_MEM;
+    if (!arr)
+        return ESP_ERR_NO_MEM;
 
     for (int i = 0; i < count; i++) {
         cJSON *item = cJSON_CreateObject();
@@ -115,7 +136,8 @@ static esp_err_t save_records_to_json(const history_record_t *records, int count
 
     char *json = cJSON_PrintUnformatted(arr);
     cJSON_Delete(arr);
-    if (!json) return ESP_ERR_NO_MEM;
+    if (!json)
+        return ESP_ERR_NO_MEM;
 
     FILE *f = fopen(HISTORY_JSON_PATH, "w");
     if (!f) {
@@ -133,7 +155,8 @@ static esp_err_t save_records_to_json(const history_record_t *records, int count
 esp_err_t history_init(void)
 {
     s_mutex = xSemaphoreCreateMutex();
-    if (!s_mutex) return ESP_ERR_NO_MEM;
+    if (!s_mutex)
+        return ESP_ERR_NO_MEM;
 
     /* Load existing records to determine next ID */
     history_record_t tmp[HISTORY_MAX_RECORDS];
@@ -153,8 +176,10 @@ void history_firing_start(const char *profile_id, const char *profile_name)
     memset(&s_current, 0, sizeof(s_current));
     s_current.id = s_next_id++;
     s_current.start_time = (int64_t)time(NULL);
-    if (profile_id)   strncpy(s_current.profile_id,   profile_id,   sizeof(s_current.profile_id)   - 1);
-    if (profile_name) strncpy(s_current.profile_name, profile_name, HISTORY_PROFILE_NAME_LEN - 1);
+    if (profile_id)
+        strncpy(s_current.profile_id, profile_id, sizeof(s_current.profile_id) - 1);
+    if (profile_name)
+        strncpy(s_current.profile_name, profile_name, HISTORY_PROFILE_NAME_LEN - 1);
 
     /* Open trace file */
     char trace_path[TRACE_PATH_LEN];
@@ -174,7 +199,7 @@ void history_record_temp(float temp_c)
     lock();
     if (s_recording && s_trace_file) {
         fprintf(s_trace_file, "%" PRIu32 ",%.1f\n",
-                s_trace_sample_count * 60,  /* time in seconds (1 sample per minute) */
+                s_trace_sample_count * 60, /* time in seconds (1 sample per minute) */
                 temp_c);
         fflush(s_trace_file);
         s_trace_sample_count++;
@@ -186,8 +211,7 @@ void history_record_temp(float temp_c)
     unlock();
 }
 
-void history_firing_end(history_outcome_t outcome, float peak_temp,
-                        uint32_t duration_s, int error_code)
+void history_firing_end(history_outcome_t outcome, float peak_temp, uint32_t duration_s, int error_code)
 {
     lock();
     if (!s_recording) {
@@ -195,7 +219,7 @@ void history_firing_end(history_outcome_t outcome, float peak_temp,
         return;
     }
 
-    s_current.outcome    = outcome;
+    s_current.outcome = outcome;
     s_current.peak_temp_c = (peak_temp > s_current.peak_temp_c) ? peak_temp : s_current.peak_temp_c;
     s_current.duration_s = duration_s;
     s_current.error_code = error_code;
@@ -215,7 +239,8 @@ void history_firing_end(history_outcome_t outcome, float peak_temp,
     memmove(&records[1], &records[0], count * sizeof(history_record_t));
     records[0] = s_current;
     count++;
-    if (count > HISTORY_MAX_RECORDS) count = HISTORY_MAX_RECORDS;
+    if (count > HISTORY_MAX_RECORDS)
+        count = HISTORY_MAX_RECORDS;
 
     /* Delete oldest trace if we exceeded the limit */
     if (count == HISTORY_MAX_RECORDS) {
@@ -227,10 +252,10 @@ void history_firing_end(history_outcome_t outcome, float peak_temp,
     save_records_to_json(records, count);
     unlock();
 
-    const char *outcome_str = outcome == HISTORY_OUTCOME_COMPLETE ? "complete" :
-                              outcome == HISTORY_OUTCOME_ERROR    ? "error"    : "aborted";
-    ESP_LOGI(TAG, "Firing ended: %s, peak=%.0f°C, %u s",
-             outcome_str, s_current.peak_temp_c, duration_s);
+    const char *outcome_str = outcome == HISTORY_OUTCOME_COMPLETE ? "complete"
+                              : outcome == HISTORY_OUTCOME_ERROR  ? "error"
+                                                                  : "aborted";
+    ESP_LOGI(TAG, "Firing ended: %s, peak=%.0f°C, %u s", outcome_str, s_current.peak_temp_c, duration_s);
 }
 
 int history_get_records(history_record_t *out_records, int max_count)
@@ -248,7 +273,8 @@ esp_err_t history_get_trace_csv(uint32_t record_id, char *buf, size_t buf_size)
     make_trace_path(record_id, trace_path, sizeof(trace_path));
 
     FILE *f = fopen(trace_path, "r");
-    if (!f) return ESP_ERR_NOT_FOUND;
+    if (!f)
+        return ESP_ERR_NOT_FOUND;
 
     size_t n = fread(buf, 1, buf_size - 1, f);
     buf[n] = '\0';

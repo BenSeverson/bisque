@@ -20,8 +20,8 @@ static const char *TAG = "display_task";
 
 /* Externals from display_init.c */
 extern SemaphoreHandle_t g_lvgl_mutex;
-extern lv_indev_t       *g_indev_encoder;
-extern lv_group_t       *g_input_group;
+extern lv_indev_t *g_indev_encoder;
+extern lv_group_t *g_input_group;
 
 /* Screen objects */
 static lv_obj_t *s_screens[UI_SCREEN_COUNT];
@@ -30,12 +30,14 @@ static ui_screen_id_t s_current_screen = UI_SCREEN_HOME;
 /* Long-press detection for screen switching */
 #define LONG_PRESS_MS 800
 static int64_t s_select_press_start_us = 0;
-static bool    s_select_was_long = false;
+static bool s_select_was_long = false;
 
 static void ui_switch_screen(ui_screen_id_t id)
 {
-    if (id >= UI_SCREEN_COUNT) return;
-    if (id == s_current_screen && lv_screen_active() == s_screens[id]) return;
+    if (id >= UI_SCREEN_COUNT)
+        return;
+    if (id == s_current_screen && lv_screen_active() == s_screens[id])
+        return;
 
     s_current_screen = id;
     lv_screen_load_anim(s_screens[id], LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
@@ -81,10 +83,10 @@ void display_task(void *param)
 
     /* Create all screens */
     if (xSemaphoreTake(g_lvgl_mutex, portMAX_DELAY)) {
-        s_screens[UI_SCREEN_HOME]     = ui_screen_home_create();
-        s_screens[UI_SCREEN_CHART]    = ui_screen_chart_create();
+        s_screens[UI_SCREEN_HOME] = ui_screen_home_create();
+        s_screens[UI_SCREEN_CHART] = ui_screen_chart_create();
         s_screens[UI_SCREEN_PROFILES] = ui_screen_profiles_create();
-        s_screens[UI_SCREEN_FIRING]   = ui_screen_firing_create();
+        s_screens[UI_SCREEN_FIRING] = ui_screen_firing_create();
 
         /* Load home screen */
         lv_screen_load(s_screens[UI_SCREEN_HOME]);
@@ -131,10 +133,8 @@ void display_task(void *param)
             float temp = tc.fault ? 0 : tc.temperature_c;
             uint32_t hours = prog.elapsed_time / 3600;
             uint32_t mins = (prog.elapsed_time % 3600) / 60;
-            ESP_LOGI(TAG, "Temp: %.0f°C/%.0f°C | %s | Seg %d/%d | %" PRIu32 "h %" PRIu32 "m",
-                     temp, prog.target_temp, ui_status_label(prog.status),
-                     prog.current_segment + 1, prog.total_segments,
-                     hours, mins);
+            ESP_LOGI(TAG, "Temp: %.0f°C/%.0f°C | %s | Seg %d/%d | %" PRIu32 "h %" PRIu32 "m", temp, prog.target_temp,
+                     ui_status_label(prog.status), prog.current_segment + 1, prog.total_segments, hours, mins);
         }
 
         xTaskDelayUntil(&last_wake, pdMS_TO_TICKS(30));

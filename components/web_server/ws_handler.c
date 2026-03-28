@@ -19,15 +19,24 @@ static firing_status_t s_prev_status = FIRING_STATUS_IDLE;
 static const char *status_to_string_ws(firing_status_t s)
 {
     switch (s) {
-    case FIRING_STATUS_IDLE:     return "idle";
-    case FIRING_STATUS_HEATING:  return "heating";
-    case FIRING_STATUS_HOLDING:  return "holding";
-    case FIRING_STATUS_COOLING:  return "cooling";
-    case FIRING_STATUS_COMPLETE: return "complete";
-    case FIRING_STATUS_ERROR:    return "error";
-    case FIRING_STATUS_PAUSED:   return "paused";
-    case FIRING_STATUS_AUTOTUNE: return "autotune";
-    default: return "unknown";
+    case FIRING_STATUS_IDLE:
+        return "idle";
+    case FIRING_STATUS_HEATING:
+        return "heating";
+    case FIRING_STATUS_HOLDING:
+        return "holding";
+    case FIRING_STATUS_COOLING:
+        return "cooling";
+    case FIRING_STATUS_COMPLETE:
+        return "complete";
+    case FIRING_STATUS_ERROR:
+        return "error";
+    case FIRING_STATUS_PAUSED:
+        return "paused";
+    case FIRING_STATUS_AUTOTUNE:
+        return "autotune";
+    default:
+        return "unknown";
     }
 }
 
@@ -52,11 +61,13 @@ static esp_err_t ws_handler(httpd_req_t *req)
 
     /* First call to get the frame length */
     esp_err_t ret = httpd_ws_recv_frame(req, &ws_pkt, 0);
-    if (ret != ESP_OK) return ret;
+    if (ret != ESP_OK)
+        return ret;
 
     if (ws_pkt.len > 0) {
         uint8_t *buf = malloc(ws_pkt.len + 1);
-        if (!buf) return ESP_ERR_NO_MEM;
+        if (!buf)
+            return ESP_ERR_NO_MEM;
         ws_pkt.payload = buf;
         ret = httpd_ws_recv_frame(req, &ws_pkt, ws_pkt.len);
         if (ret == ESP_OK) {
@@ -75,7 +86,8 @@ static esp_err_t ws_handler(httpd_req_t *req)
 void ws_broadcast(const char *json, size_t len)
 {
     httpd_handle_t server = web_server_get_handle();
-    if (!server) return;
+    if (!server)
+        return;
 
     httpd_ws_frame_t ws_pkt = {
         .final = true,
@@ -98,8 +110,7 @@ void ws_broadcast(const char *json, size_t len)
 }
 
 /* Declare webhook sender from api_handlers.c */
-extern void send_webhook_event(const char *event, const char *profile_name,
-                               float peak_temp, uint32_t duration_s);
+extern void send_webhook_event(const char *event, const char *profile_name, float peak_temp, uint32_t duration_s);
 
 /* Called from firing_task or a timer to push updates */
 void ws_broadcast_status(void)
@@ -118,10 +129,10 @@ void ws_broadcast_status(void)
     /* Detect firing completion / error transitions → trigger alarm and webhook */
     if (prog.status != s_prev_status) {
         if (prog.status == FIRING_STATUS_COMPLETE) {
-            safety_trigger_alarm(1);  /* completion chime */
+            safety_trigger_alarm(1); /* completion chime */
             send_webhook_event("complete", prog.profile_id, prog.current_temp, prog.elapsed_time);
         } else if (prog.status == FIRING_STATUS_ERROR) {
-            safety_trigger_alarm(2);  /* error pattern */
+            safety_trigger_alarm(2); /* error pattern */
             send_webhook_event("error", prog.profile_id, prog.current_temp, prog.elapsed_time);
         }
         s_prev_status = prog.status;

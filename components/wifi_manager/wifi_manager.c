@@ -9,8 +9,8 @@
 
 static const char *TAG = "wifi_mgr";
 
-#define WIFI_CONNECTED_BIT  BIT0
-#define WIFI_FAIL_BIT       BIT1
+#define WIFI_CONNECTED_BIT BIT0
+#define WIFI_FAIL_BIT      BIT1
 
 static EventGroupHandle_t s_wifi_event_group;
 static int s_retry_count = 0;
@@ -23,8 +23,7 @@ static const char *s_ap_pass;
 
 static void start_ap(void);
 
-static void event_handler(void *arg, esp_event_base_t event_base,
-                          int32_t event_id, void *event_data)
+static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
     if (event_base == WIFI_EVENT) {
         switch (event_id) {
@@ -65,11 +64,12 @@ static void start_ap(void)
     esp_wifi_stop();
 
     wifi_config_t ap_config = {
-        .ap = {
-            .channel = 1,
-            .max_connection = 4,
-            .authmode = WIFI_AUTH_WPA2_PSK,
-        },
+        .ap =
+            {
+                .channel = 1,
+                .max_connection = 4,
+                .authmode = WIFI_AUTH_WPA2_PSK,
+            },
     };
     strncpy((char *)ap_config.ap.ssid, s_ap_ssid, sizeof(ap_config.ap.ssid) - 1);
     ap_config.ap.ssid_len = strlen(s_ap_ssid);
@@ -90,8 +90,7 @@ static void start_ap(void)
     xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
 }
 
-esp_err_t wifi_manager_init(const char *sta_ssid, const char *sta_pass,
-                            const char *ap_ssid, const char *ap_pass)
+esp_err_t wifi_manager_init(const char *sta_ssid, const char *sta_pass, const char *ap_ssid, const char *ap_pass)
 {
     s_ap_ssid = ap_ssid;
     s_ap_pass = ap_pass;
@@ -103,10 +102,8 @@ esp_err_t wifi_manager_init(const char *sta_ssid, const char *sta_pass,
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(
-        WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL, NULL));
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(
-        IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL, NULL));
 
     /* If no STA SSID, go directly to AP mode */
     if (sta_ssid == NULL || sta_ssid[0] == '\0') {
@@ -132,12 +129,11 @@ esp_err_t wifi_manager_init(const char *sta_ssid, const char *sta_pass,
 
 esp_err_t wifi_manager_wait_connected(uint32_t timeout_ms)
 {
-    EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
-                                            WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
-                                            pdFALSE, pdFALSE,
-                                            pdMS_TO_TICKS(timeout_ms));
+    EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT, pdFALSE, pdFALSE,
+                                           pdMS_TO_TICKS(timeout_ms));
 
-    if (bits & WIFI_CONNECTED_BIT) return ESP_OK;
+    if (bits & WIFI_CONNECTED_BIT)
+        return ESP_OK;
     return ESP_ERR_TIMEOUT;
 }
 

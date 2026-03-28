@@ -66,8 +66,7 @@ void app_main(void)
     safety_set_max_temp(settings.max_safe_temp);
 
     /* ── Display Init ──────────────────────────────── */
-    ret = display_init(APP_SPI_HOST, APP_PIN_LCD_CS, APP_PIN_LCD_DC,
-                       APP_PIN_LCD_RST, APP_PIN_LCD_BL);
+    ret = display_init(APP_SPI_HOST, APP_PIN_LCD_CS, APP_PIN_LCD_DC, APP_PIN_LCD_RST, APP_PIN_LCD_BL);
     if (ret != ESP_OK) {
         ESP_LOGW(TAG, "Display init failed (non-fatal): %s", esp_err_to_name(ret));
     }
@@ -80,14 +79,11 @@ void app_main(void)
     const char *sta_ssid = "";
     const char *sta_pass = "";
 #endif
-    ESP_ERROR_CHECK(wifi_manager_init(sta_ssid, sta_pass,
-                                       APP_WIFI_AP_SSID, APP_WIFI_AP_PASS));
+    ESP_ERROR_CHECK(wifi_manager_init(sta_ssid, sta_pass, APP_WIFI_AP_SSID, APP_WIFI_AP_PASS));
 
     /* Wait for Wi-Fi (30s timeout) */
     if (wifi_manager_wait_connected(30000) == ESP_OK) {
-        ESP_LOGI(TAG, "Wi-Fi ready: %s (AP mode: %s)",
-                 wifi_manager_get_ip(),
-                 wifi_manager_is_ap_mode() ? "yes" : "no");
+        ESP_LOGI(TAG, "Wi-Fi ready: %s (AP mode: %s)", wifi_manager_get_ip(), wifi_manager_is_ap_mode() ? "yes" : "no");
     } else {
         ESP_LOGW(TAG, "Wi-Fi connection timed out");
     }
@@ -118,24 +114,21 @@ void app_main(void)
 
     /* ── Web Server Init ───────────────────────────── */
     ESP_ERROR_CHECK(web_server_start());
-    history_init();  /* SPIFFS must be mounted first (done inside web_server_start) */
+    history_init(); /* SPIFFS must be mounted first (done inside web_server_start) */
     ESP_LOGI(TAG, "Web server started at http://%s/", wifi_manager_get_ip());
 
     /* ── Create FreeRTOS Tasks ─────────────────────── */
 
     /* Core 1: Real-time control tasks */
-    xTaskCreatePinnedToCore(safety_task, "safety", APP_TASK_SAFETY_STACK,
-                            NULL, APP_TASK_SAFETY_PRIO, NULL, 1);
+    xTaskCreatePinnedToCore(safety_task, "safety", APP_TASK_SAFETY_STACK, NULL, APP_TASK_SAFETY_PRIO, NULL, 1);
 
-    xTaskCreatePinnedToCore(temp_read_task, "temp_read", APP_TASK_TEMP_READ_STACK,
-                            NULL, APP_TASK_TEMP_READ_PRIO, NULL, 1);
+    xTaskCreatePinnedToCore(temp_read_task, "temp_read", APP_TASK_TEMP_READ_STACK, NULL, APP_TASK_TEMP_READ_PRIO, NULL,
+                            1);
 
-    xTaskCreatePinnedToCore(firing_task, "firing", APP_TASK_FIRING_STACK,
-                            NULL, APP_TASK_FIRING_PRIO, NULL, 1);
+    xTaskCreatePinnedToCore(firing_task, "firing", APP_TASK_FIRING_STACK, NULL, APP_TASK_FIRING_PRIO, NULL, 1);
 
     /* Core 0: UI + network tasks */
-    xTaskCreatePinnedToCore(display_task, "display", APP_TASK_DISPLAY_STACK,
-                            NULL, APP_TASK_DISPLAY_PRIO, NULL, 0);
+    xTaskCreatePinnedToCore(display_task, "display", APP_TASK_DISPLAY_STACK, NULL, APP_TASK_DISPLAY_PRIO, NULL, 0);
 
     /* ── WebSocket broadcast timer ─────────────────── */
     const esp_timer_create_args_t ws_timer_args = {
@@ -145,7 +138,7 @@ void app_main(void)
     esp_timer_handle_t ws_timer;
     ESP_ERROR_CHECK(esp_timer_create(&ws_timer_args, &ws_timer));
     /* 1s interval during firing, but we use 1s always and let the client manage */
-    ESP_ERROR_CHECK(esp_timer_start_periodic(ws_timer, 1000000));  /* 1 second */
+    ESP_ERROR_CHECK(esp_timer_start_periodic(ws_timer, 1000000)); /* 1 second */
 
     ESP_LOGI(TAG, "=== Bisque started successfully ===");
     ESP_LOGI(TAG, "Free heap: %lu bytes", (unsigned long)esp_get_free_heap_size());

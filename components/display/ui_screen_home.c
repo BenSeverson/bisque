@@ -5,13 +5,13 @@
 #include <inttypes.h>
 
 /* Screen widgets */
-static lv_obj_t *s_screen     = NULL;
+static lv_obj_t *s_screen = NULL;
 static lv_obj_t *s_status_bar = NULL;
 static lv_obj_t *s_status_lbl = NULL;
-static lv_obj_t *s_temp_lbl   = NULL;
+static lv_obj_t *s_temp_lbl = NULL;
 static lv_obj_t *s_target_lbl = NULL;
-static lv_obj_t *s_seg_lbl    = NULL;
-static lv_obj_t *s_time_lbl   = NULL;
+static lv_obj_t *s_seg_lbl = NULL;
+static lv_obj_t *s_time_lbl = NULL;
 static lv_obj_t *s_dots[UI_SCREEN_COUNT];
 
 lv_obj_t *ui_screen_home_create(void)
@@ -74,7 +74,8 @@ lv_obj_t *ui_screen_home_create(void)
 
 void ui_screen_home_update(const thermocouple_reading_t *tc, const firing_progress_t *prog)
 {
-    if (!s_screen) return;
+    if (!s_screen)
+        return;
     char buf[32];
 
     /* Status bar */
@@ -116,6 +117,7 @@ void ui_screen_home_update(const thermocouple_reading_t *tc, const firing_progre
 void ui_screen_home_set_page_dots(int active_index, int total)
 {
     (void)total;
-    if (!s_screen) return;
+    if (!s_screen)
+        return;
     ui_update_page_dots(s_dots, UI_SCREEN_COUNT, active_index);
 }

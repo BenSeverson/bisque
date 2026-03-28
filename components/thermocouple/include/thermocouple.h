@@ -12,15 +12,15 @@ extern "C" {
 #endif
 
 /* Fault flag bits */
-#define TC_FAULT_OPEN_CIRCUIT  (1 << 0)
-#define TC_FAULT_SHORT_GND     (1 << 1)
-#define TC_FAULT_SHORT_VCC     (1 << 2)
+#define TC_FAULT_OPEN_CIRCUIT (1 << 0)
+#define TC_FAULT_SHORT_GND    (1 << 1)
+#define TC_FAULT_SHORT_VCC    (1 << 2)
 
 typedef struct {
-    float temperature_c;      /* Thermocouple temperature in Celsius */
-    float internal_temp_c;    /* Cold-junction (internal) temperature */
-    uint8_t fault;            /* Bitfield: TC_FAULT_* flags, 0 = no fault */
-    int64_t timestamp_us;     /* esp_timer_get_time() when reading was taken */
+    float temperature_c;   /* Thermocouple temperature in Celsius */
+    float internal_temp_c; /* Cold-junction (internal) temperature */
+    uint8_t fault;         /* Bitfield: TC_FAULT_* flags, 0 = no fault */
+    int64_t timestamp_us;  /* esp_timer_get_time() when reading was taken */
 } thermocouple_reading_t;
 
 /**

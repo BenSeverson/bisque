@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-#define HISTORY_MAX_RECORDS   20
+#define HISTORY_MAX_RECORDS      20
 #define HISTORY_PROFILE_NAME_LEN 48
 
 typedef enum {
@@ -18,14 +18,14 @@ typedef enum {
 } history_outcome_t;
 
 typedef struct {
-    uint32_t id;                    /* Monotonic record ID */
-    int64_t  start_time;            /* Unix timestamp (0 if NTP not available) */
-    char     profile_name[HISTORY_PROFILE_NAME_LEN];
-    char     profile_id[40];
-    float    peak_temp_c;
-    uint32_t duration_s;            /* Total firing duration in seconds */
+    uint32_t id;        /* Monotonic record ID */
+    int64_t start_time; /* Unix timestamp (0 if NTP not available) */
+    char profile_name[HISTORY_PROFILE_NAME_LEN];
+    char profile_id[40];
+    float peak_temp_c;
+    uint32_t duration_s; /* Total firing duration in seconds */
     history_outcome_t outcome;
-    int      error_code;            /* Error code if outcome == ERROR */
+    int error_code; /* Error code if outcome == ERROR */
 } history_record_t;
 
 /**
@@ -54,8 +54,7 @@ void history_record_temp(float temp_c);
  * @param duration_s Total elapsed seconds.
  * @param error_code Error code (0 if none).
  */
-void history_firing_end(history_outcome_t outcome, float peak_temp,
-                        uint32_t duration_s, int error_code);
+void history_firing_end(history_outcome_t outcome, float peak_temp, uint32_t duration_s, int error_code);
 
 /**
  * Retrieve the list of stored history records (newest first).

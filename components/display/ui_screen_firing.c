@@ -7,17 +7,17 @@
 
 static const char *TAG = "ui_firing";
 
-static lv_obj_t *s_screen     = NULL;
-static lv_obj_t *s_temp_lbl   = NULL;
+static lv_obj_t *s_screen = NULL;
+static lv_obj_t *s_temp_lbl = NULL;
 static lv_obj_t *s_status_lbl = NULL;
-static lv_obj_t *s_seg_lbl    = NULL;
-static lv_obj_t *s_btnm       = NULL;
+static lv_obj_t *s_seg_lbl = NULL;
+static lv_obj_t *s_btnm = NULL;
 static lv_obj_t *s_dots[UI_SCREEN_COUNT];
 
 /* Button map variations */
-static const char *s_map_idle[]   = { "Start", "" };
-static const char *s_map_active[] = { "Pause", "Stop", "" };
-static const char *s_map_paused[] = { "Resume", "Stop", "" };
+static const char *s_map_idle[] = {"Start", ""};
+static const char *s_map_active[] = {"Pause", "Stop", ""};
+static const char *s_map_paused[] = {"Resume", "Stop", ""};
 
 static firing_status_t s_last_status = FIRING_STATUS_IDLE;
 
@@ -25,9 +25,10 @@ static void btnm_cb(lv_event_t *e)
 {
     lv_obj_t *obj = lv_event_get_target(e);
     uint32_t idx = lv_buttonmatrix_get_selected_button(obj);
-    if (idx == LV_BUTTONMATRIX_BUTTON_NONE) return;
+    if (idx == LV_BUTTONMATRIX_BUTTON_NONE)
+        return;
 
-    firing_cmd_t cmd = { 0 };
+    firing_cmd_t cmd = {0};
 
     switch (s_last_status) {
     case FIRING_STATUS_IDLE:
@@ -117,7 +118,8 @@ lv_obj_t *ui_screen_firing_create(void)
 
 void ui_screen_firing_update(const thermocouple_reading_t *tc, const firing_progress_t *prog)
 {
-    if (!s_screen) return;
+    if (!s_screen)
+        return;
     char buf[48];
 
     float temp = tc->fault ? 0 : tc->temperature_c;
@@ -130,8 +132,8 @@ void ui_screen_firing_update(const thermocouple_reading_t *tc, const firing_prog
     if (prog->is_active && prog->total_segments > 0) {
         uint32_t h = prog->elapsed_time / 3600;
         uint32_t m = (prog->elapsed_time % 3600) / 60;
-        snprintf(buf, sizeof(buf), "Seg %d/%d  %" PRIu32 "h%" PRIu32 "m",
-                 prog->current_segment + 1, prog->total_segments, h, m);
+        snprintf(buf, sizeof(buf), "Seg %d/%d  %" PRIu32 "h%" PRIu32 "m", prog->current_segment + 1,
+                 prog->total_segments, h, m);
         lv_label_set_text(s_status_lbl, buf);
 
         snprintf(buf, sizeof(buf), LV_SYMBOL_RIGHT " %.0f°C", prog->target_temp);
@@ -163,6 +165,7 @@ void ui_screen_firing_update(const thermocouple_reading_t *tc, const firing_prog
 void ui_screen_firing_set_page_dots(int active_index, int total)
 {
     (void)total;
-    if (!s_screen) return;
+    if (!s_screen)
+        return;
     ui_update_page_dots(s_dots, UI_SCREEN_COUNT, active_index);
 }

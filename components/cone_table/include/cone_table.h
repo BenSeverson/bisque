@@ -56,9 +56,9 @@ typedef enum {
 } cone_id_t;
 
 typedef enum {
-    CONE_SPEED_SLOW   = 0,  /* 60°C/hr final segment */
-    CONE_SPEED_MEDIUM = 1,  /* 150°C/hr final segment */
-    CONE_SPEED_FAST   = 2,  /* 300°C/hr final segment */
+    CONE_SPEED_SLOW = 0,   /* 60°C/hr final segment */
+    CONE_SPEED_MEDIUM = 1, /* 150°C/hr final segment */
+    CONE_SPEED_FAST = 2,   /* 300°C/hr final segment */
 } cone_speed_t;
 
 /** Return the display name for a cone (e.g. "022", "04", "6"). */
@@ -82,9 +82,8 @@ float cone_target_temp_c(cone_id_t cone, cone_speed_t speed);
  * @param slow_cool   Add slow-cool through 573°C on the way down.
  * @param out_profile Caller-provided buffer for the resulting profile.
  */
-esp_err_t cone_fire_generate(cone_id_t cone, cone_speed_t speed,
-                              bool preheat, bool slow_cool,
-                              firing_profile_t *out_profile);
+esp_err_t cone_fire_generate(cone_id_t cone, cone_speed_t speed, bool preheat, bool slow_cool,
+                             firing_profile_t *out_profile);
 
 #ifdef __cplusplus
 }

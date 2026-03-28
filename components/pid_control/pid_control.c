@@ -13,8 +13,8 @@ static const char *TAG = "pid_control";
 #define DEFAULT_KI 0.01f
 #define DEFAULT_KD 50.0f
 
-#define NVS_NAMESPACE "pid"
-#define AUTOTUNE_TIMEOUT_US (60LL * 60 * 1000000)  /* 60 minutes */
+#define NVS_NAMESPACE       "pid"
+#define AUTOTUNE_TIMEOUT_US (60LL * 60 * 1000000) /* 60 minutes */
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -22,8 +22,7 @@ static const char *TAG = "pid_control";
 
 /* ── PID Controller ────────────────────────────────────────── */
 
-void pid_init(pid_controller_t *pid, float kp, float ki, float kd,
-              float output_min, float output_max)
+void pid_init(pid_controller_t *pid, float kp, float ki, float kd, float output_min, float output_max)
 {
     pid->kp = kp;
     pid->ki = ki;
@@ -71,10 +70,12 @@ float pid_compute(pid_controller_t *pid, float setpoint, float measured, float d
     if (output > pid->output_max) {
         output = pid->output_max;
         /* Anti-windup: prevent integral from growing further */
-        if (error > 0) pid->integral -= error * dt_s;
+        if (error > 0)
+            pid->integral -= error * dt_s;
     } else if (output < pid->output_min) {
         output = pid->output_min;
-        if (error < 0) pid->integral -= error * dt_s;
+        if (error < 0)
+            pid->integral -= error * dt_s;
     }
 
     return output;
@@ -111,8 +112,7 @@ esp_err_t pid_autotune_start(pid_autotune_t *at, float setpoint, float hysteresi
 
 bool pid_autotune_update(pid_autotune_t *at, float current_temp, float *output)
 {
-    if (at->state == AUTOTUNE_COMPLETE || at->state == AUTOTUNE_FAILED ||
-        at->state == AUTOTUNE_IDLE) {
+    if (at->state == AUTOTUNE_COMPLETE || at->state == AUTOTUNE_FAILED || at->state == AUTOTUNE_IDLE) {
         *output = 0.0f;
         return true;
     }
@@ -133,7 +133,7 @@ bool pid_autotune_update(pid_autotune_t *at, float current_temp, float *output)
         *output = 1.0f;
         if (current_temp >= at->setpoint - at->hysteresis) {
             at->state = AUTOTUNE_RELAY_CYCLING;
-            at->relay_on = false;  /* Start by turning off at setpoint */
+            at->relay_on = false; /* Start by turning off at setpoint */
             at->above_setpoint = true;
             at->last_crossing_us = now;
             at->peak_high = current_temp;
@@ -144,8 +144,10 @@ bool pid_autotune_update(pid_autotune_t *at, float current_temp, float *output)
 
     case AUTOTUNE_RELAY_CYCLING: {
         /* Track peaks */
-        if (current_temp > at->peak_high) at->peak_high = current_temp;
-        if (current_temp < at->peak_low)  at->peak_low = current_temp;
+        if (current_temp > at->peak_high)
+            at->peak_high = current_temp;
+        if (current_temp < at->peak_low)
+            at->peak_low = current_temp;
 
         bool now_above = current_temp > at->setpoint;
 
@@ -170,8 +172,8 @@ bool pid_autotune_update(pid_autotune_t *at, float current_temp, float *output)
                 at->peak_high = current_temp;
                 at->peak_low = current_temp;
 
-                ESP_LOGI(TAG, "Auto-tune cycle %d/%d: period=%.1fs, amplitude=%.1f°C",
-                         at->cycles_done, at->cycles_needed, period_s, amplitude);
+                ESP_LOGI(TAG, "Auto-tune cycle %d/%d: period=%.1fs, amplitude=%.1f°C", at->cycles_done,
+                         at->cycles_needed, period_s, amplitude);
 
                 if (at->cycles_done >= at->cycles_needed) {
                     /* Compute PID gains using Ziegler-Nichols */
@@ -194,8 +196,8 @@ bool pid_autotune_update(pid_autotune_t *at, float current_temp, float *output)
                     at->kd_result = 0.075f * ku * pu;
 
                     at->state = AUTOTUNE_COMPLETE;
-                    ESP_LOGI(TAG, "Auto-tune complete: Kp=%.4f, Ki=%.4f, Kd=%.4f",
-                             at->kp_result, at->ki_result, at->kd_result);
+                    ESP_LOGI(TAG, "Auto-tune complete: Kp=%.4f, Ki=%.4f, Kd=%.4f", at->kp_result, at->ki_result,
+                             at->kd_result);
                     *output = 0.0f;
                     return true;
                 }
@@ -235,7 +237,8 @@ esp_err_t pid_save_gains(float kp, float ki, float kd)
 {
     nvs_handle_t handle;
     esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &handle);
-    if (err != ESP_OK) return err;
+    if (err != ESP_OK)
+        return err;
 
     /* Store as integers (x10000 for precision) */
     int32_t kp_i = (int32_t)(kp * 10000.0f);
@@ -264,14 +267,20 @@ esp_err_t pid_load_gains(float *kp, float *ki, float *kd)
     }
 
     int32_t val;
-    if (nvs_get_i32(handle, "kp", &val) == ESP_OK) *kp = val / 10000.0f;
-    else *kp = DEFAULT_KP;
+    if (nvs_get_i32(handle, "kp", &val) == ESP_OK)
+        *kp = val / 10000.0f;
+    else
+        *kp = DEFAULT_KP;
 
-    if (nvs_get_i32(handle, "ki", &val) == ESP_OK) *ki = val / 10000.0f;
-    else *ki = DEFAULT_KI;
+    if (nvs_get_i32(handle, "ki", &val) == ESP_OK)
+        *ki = val / 10000.0f;
+    else
+        *ki = DEFAULT_KI;
 
-    if (nvs_get_i32(handle, "kd", &val) == ESP_OK) *kd = val / 10000.0f;
-    else *kd = DEFAULT_KD;
+    if (nvs_get_i32(handle, "kd", &val) == ESP_OK)
+        *kd = val / 10000.0f;
+    else
+        *kd = DEFAULT_KD;
 
     nvs_close(handle);
     return ESP_OK;

@@ -44,78 +44,85 @@ static uint32_t s_element_on_s = 0;
 
 /* ── Internal helpers ──────────────────────────────── */
 
-static void progress_lock(void)   { xSemaphoreTake(s_progress_mutex, portMAX_DELAY); }
-static void progress_unlock(void) { xSemaphoreGive(s_progress_mutex); }
-static void settings_lock(void)   { xSemaphoreTake(s_settings_mutex, portMAX_DELAY); }
-static void settings_unlock(void) { xSemaphoreGive(s_settings_mutex); }
+static void progress_lock(void)
+{
+    xSemaphoreTake(s_progress_mutex, portMAX_DELAY);
+}
+static void progress_unlock(void)
+{
+    xSemaphoreGive(s_progress_mutex);
+}
+static void settings_lock(void)
+{
+    xSemaphoreTake(s_settings_mutex, portMAX_DELAY);
+}
+static void settings_unlock(void)
+{
+    xSemaphoreGive(s_settings_mutex);
+}
 
 /* ── Default Profiles ──────────────────────────────── */
 
 static const firing_profile_t s_default_profiles[] = {
-    {
-        .id = "bisque-04",
-        .name = "Bisque Cone 04",
-        .description = "Standard bisque firing to cone 04",
-        .segment_count = 3,
-        .max_temp = 1060.0f,
-        .estimated_duration = 540,
-        .segments = {
-            { .id = "1", .name = "Warm-up", .ramp_rate = 100.0f, .target_temp = 200.0f, .hold_time = 60 },
-            { .id = "2", .name = "Water smoke", .ramp_rate = 50.0f, .target_temp = 600.0f, .hold_time = 30 },
-            { .id = "3", .name = "Ramp to top", .ramp_rate = 150.0f, .target_temp = 1060.0f, .hold_time = 15 },
-        }
-    },
-    {
-        .id = "glaze-6",
-        .name = "Glaze Cone 6",
-        .description = "Mid-fire glaze for stoneware",
-        .segment_count = 3,
-        .max_temp = 1222.0f,
-        .estimated_duration = 480,
-        .segments = {
-            { .id = "1", .name = "Initial heat", .ramp_rate = 150.0f, .target_temp = 600.0f, .hold_time = 0 },
-            { .id = "2", .name = "Medium ramp", .ramp_rate = 100.0f, .target_temp = 1000.0f, .hold_time = 0 },
-            { .id = "3", .name = "Final ramp", .ramp_rate = 80.0f, .target_temp = 1222.0f, .hold_time = 10 },
-        }
-    },
-    {
-        .id = "glaze-10",
-        .name = "Glaze Cone 10",
-        .description = "High-fire glaze for porcelain",
-        .segment_count = 3,
-        .max_temp = 1305.0f,
-        .estimated_duration = 600,
-        .segments = {
-            { .id = "1", .name = "Low heat", .ramp_rate = 120.0f, .target_temp = 500.0f, .hold_time = 0 },
-            { .id = "2", .name = "Medium heat", .ramp_rate = 150.0f, .target_temp = 1000.0f, .hold_time = 15 },
-            { .id = "3", .name = "High heat", .ramp_rate = 100.0f, .target_temp = 1305.0f, .hold_time = 20 },
-        }
-    },
-    {
-        .id = "low-fire",
-        .name = "Low Fire Cone 06",
-        .description = "Low temp for earthenware and decals",
-        .segment_count = 2,
-        .max_temp = 999.0f,
-        .estimated_duration = 420,
-        .segments = {
-            { .id = "1", .name = "Warm-up", .ramp_rate = 100.0f, .target_temp = 400.0f, .hold_time = 30 },
-            { .id = "2", .name = "Ramp to top", .ramp_rate = 120.0f, .target_temp = 999.0f, .hold_time = 10 },
-        }
-    },
-    {
-        .id = "crystalline",
-        .name = "Crystalline Glaze",
-        .description = "Controlled cooling for crystal growth",
-        .segment_count = 3,
-        .max_temp = 1260.0f,
-        .estimated_duration = 720,
-        .segments = {
-            { .id = "1", .name = "Initial ramp", .ramp_rate = 200.0f, .target_temp = 1260.0f, .hold_time = 30 },
-            { .id = "2", .name = "Crystal growth", .ramp_rate = -200.0f, .target_temp = 1100.0f, .hold_time = 120 },
-            { .id = "3", .name = "Cool down", .ramp_rate = -150.0f, .target_temp = 800.0f, .hold_time = 0 },
-        }
-    },
+    {.id = "bisque-04",
+     .name = "Bisque Cone 04",
+     .description = "Standard bisque firing to cone 04",
+     .segment_count = 3,
+     .max_temp = 1060.0f,
+     .estimated_duration = 540,
+     .segments =
+         {
+             {.id = "1", .name = "Warm-up", .ramp_rate = 100.0f, .target_temp = 200.0f, .hold_time = 60},
+             {.id = "2", .name = "Water smoke", .ramp_rate = 50.0f, .target_temp = 600.0f, .hold_time = 30},
+             {.id = "3", .name = "Ramp to top", .ramp_rate = 150.0f, .target_temp = 1060.0f, .hold_time = 15},
+         }},
+    {.id = "glaze-6",
+     .name = "Glaze Cone 6",
+     .description = "Mid-fire glaze for stoneware",
+     .segment_count = 3,
+     .max_temp = 1222.0f,
+     .estimated_duration = 480,
+     .segments =
+         {
+             {.id = "1", .name = "Initial heat", .ramp_rate = 150.0f, .target_temp = 600.0f, .hold_time = 0},
+             {.id = "2", .name = "Medium ramp", .ramp_rate = 100.0f, .target_temp = 1000.0f, .hold_time = 0},
+             {.id = "3", .name = "Final ramp", .ramp_rate = 80.0f, .target_temp = 1222.0f, .hold_time = 10},
+         }},
+    {.id = "glaze-10",
+     .name = "Glaze Cone 10",
+     .description = "High-fire glaze for porcelain",
+     .segment_count = 3,
+     .max_temp = 1305.0f,
+     .estimated_duration = 600,
+     .segments =
+         {
+             {.id = "1", .name = "Low heat", .ramp_rate = 120.0f, .target_temp = 500.0f, .hold_time = 0},
+             {.id = "2", .name = "Medium heat", .ramp_rate = 150.0f, .target_temp = 1000.0f, .hold_time = 15},
+             {.id = "3", .name = "High heat", .ramp_rate = 100.0f, .target_temp = 1305.0f, .hold_time = 20},
+         }},
+    {.id = "low-fire",
+     .name = "Low Fire Cone 06",
+     .description = "Low temp for earthenware and decals",
+     .segment_count = 2,
+     .max_temp = 999.0f,
+     .estimated_duration = 420,
+     .segments =
+         {
+             {.id = "1", .name = "Warm-up", .ramp_rate = 100.0f, .target_temp = 400.0f, .hold_time = 30},
+             {.id = "2", .name = "Ramp to top", .ramp_rate = 120.0f, .target_temp = 999.0f, .hold_time = 10},
+         }},
+    {.id = "crystalline",
+     .name = "Crystalline Glaze",
+     .description = "Controlled cooling for crystal growth",
+     .segment_count = 3,
+     .max_temp = 1260.0f,
+     .estimated_duration = 720,
+     .segments =
+         {
+             {.id = "1", .name = "Initial ramp", .ramp_rate = 200.0f, .target_temp = 1260.0f, .hold_time = 30},
+             {.id = "2", .name = "Crystal growth", .ramp_rate = -200.0f, .target_temp = 1100.0f, .hold_time = 120},
+             {.id = "3", .name = "Cool down", .ramp_rate = -150.0f, .target_temp = 800.0f, .hold_time = 0},
+         }},
 };
 
 #define NUM_DEFAULT_PROFILES (sizeof(s_default_profiles) / sizeof(s_default_profiles[0]))
@@ -265,8 +272,10 @@ esp_err_t firing_engine_set_settings(const kiln_settings_t *settings)
 {
     /* Clamp max_safe_temp to hardware limit */
     kiln_settings_t safe = *settings;
-    if (safe.max_safe_temp > 1400.0f) safe.max_safe_temp = 1400.0f;
-    if (safe.max_safe_temp < 100.0f)  safe.max_safe_temp = 100.0f;
+    if (safe.max_safe_temp > 1400.0f)
+        safe.max_safe_temp = 1400.0f;
+    if (safe.max_safe_temp < 100.0f)
+        safe.max_safe_temp = 100.0f;
 
     settings_lock();
     s_settings = safe;
@@ -278,7 +287,8 @@ esp_err_t firing_engine_set_settings(const kiln_settings_t *settings)
     /* Persist to NVS */
     nvs_handle_t handle;
     esp_err_t err = nvs_open(NVS_NS_SETTINGS, NVS_READWRITE, &handle);
-    if (err != ESP_OK) return err;
+    if (err != ESP_OK)
+        return err;
 
     nvs_set_u8(handle, "unit", (uint8_t)safe.temp_unit);
     nvs_set_i32(handle, "max_temp", (int32_t)safe.max_safe_temp);
@@ -311,8 +321,7 @@ static void make_nvs_key(const char *id, char *key, size_t key_size)
     /* Replace any non-alphanumeric with underscore */
     for (int i = 0; key[i]; i++) {
         char c = key[i];
-        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-              (c >= '0' && c <= '9') || c == '_')) {
+        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_')) {
             key[i] = '_';
         }
     }
@@ -322,7 +331,8 @@ esp_err_t firing_engine_save_profile(const firing_profile_t *profile)
 {
     nvs_handle_t handle;
     esp_err_t err = nvs_open(NVS_NS_PROFILES, NVS_READWRITE, &handle);
-    if (err != ESP_OK) return err;
+    if (err != ESP_OK)
+        return err;
 
     char key[16];
     make_nvs_key(profile->id, key, sizeof(key));
@@ -366,7 +376,8 @@ esp_err_t firing_engine_load_profile(const char *id, firing_profile_t *profile)
 {
     nvs_handle_t handle;
     esp_err_t err = nvs_open(NVS_NS_PROFILES, NVS_READONLY, &handle);
-    if (err != ESP_OK) return err;
+    if (err != ESP_OK)
+        return err;
 
     char key[16];
     make_nvs_key(id, key, sizeof(key));
@@ -381,7 +392,8 @@ esp_err_t firing_engine_delete_profile(const char *id)
 {
     nvs_handle_t handle;
     esp_err_t err = nvs_open(NVS_NS_PROFILES, NVS_READWRITE, &handle);
-    if (err != ESP_OK) return err;
+    if (err != ESP_OK)
+        return err;
 
     char key[16];
     make_nvs_key(id, key, sizeof(key));
@@ -446,9 +458,9 @@ static bool s_delay_active = false;
 /* Safety tracking for kiln-not-rising and rate-of-rise runaway */
 static float s_check_start_temp = 0.0f;
 static int64_t s_check_start_time_us = 0;
-#define RISING_CHECK_INTERVAL_US   (15 * 60 * 1000000LL)   /* 15 minutes */
-#define RISING_THRESHOLD_C         10.0f                    /* must rise ≥10°C */
-#define RUNAWAY_RATE_MULTIPLIER    2.0f                     /* alert if rate > 2× programmed */
+#define RISING_CHECK_INTERVAL_US (15 * 60 * 1000000LL) /* 15 minutes */
+#define RISING_THRESHOLD_C       10.0f                 /* must rise ≥10°C */
+#define RUNAWAY_RATE_MULTIPLIER  2.0f                  /* alert if rate > 2× programmed */
 
 /* History: record temperature once per minute */
 static int64_t s_last_history_sample_us = 0;
@@ -456,7 +468,7 @@ static int64_t s_last_history_sample_us = 0;
 
 /* Element hours: accumulate SSR-on time */
 static int64_t s_last_elem_save_us = 0;
-#define ELEM_SAVE_INTERVAL_US (5 * 60 * 1000000LL)   /* save every 5 min */
+#define ELEM_SAVE_INTERVAL_US (5 * 60 * 1000000LL) /* save every 5 min */
 
 static void start_segment(int segment_idx, float current_temp)
 {
@@ -466,8 +478,8 @@ static void start_segment(int segment_idx, float current_temp)
     s_segment_hold_start_time_s = 0;
 
     firing_segment_t *seg = &s_active_profile.segments[segment_idx];
-    ESP_LOGI(TAG, "Starting segment %d: '%s' — ramp %.0f°C/hr to %.0f°C, hold %d min",
-             segment_idx, seg->name, seg->ramp_rate, seg->target_temp, seg->hold_time);
+    ESP_LOGI(TAG, "Starting segment %d: '%s' — ramp %.0f°C/hr to %.0f°C, hold %d min", segment_idx, seg->name,
+             seg->ramp_rate, seg->target_temp, seg->hold_time);
 }
 
 static void do_stop(void)
@@ -506,19 +518,18 @@ void firing_task(void *param)
 
                 s_delay_active = false;
                 if (cmd.start.delay_minutes > 0) {
-                    s_delay_start_end_us = esp_timer_get_time() +
-                                          (int64_t)cmd.start.delay_minutes * 60 * 1000000LL;
+                    s_delay_start_end_us = esp_timer_get_time() + (int64_t)cmd.start.delay_minutes * 60 * 1000000LL;
                     s_delay_active = true;
                     progress_lock();
                     s_progress.is_active = true;
-                    s_progress.status = FIRING_STATUS_IDLE;  /* show as idle during delay */
+                    s_progress.status = FIRING_STATUS_IDLE; /* show as idle during delay */
                     strncpy(s_progress.profile_id, s_active_profile.id, FIRING_ID_LEN - 1);
                     s_progress.current_segment = 0;
                     s_progress.total_segments = s_active_profile.segment_count;
                     s_progress.elapsed_time = 0;
                     progress_unlock();
-                    ESP_LOGI(TAG, "Firing queued with %u min delay: %s",
-                             cmd.start.delay_minutes, s_active_profile.name);
+                    ESP_LOGI(TAG, "Firing queued with %u min delay: %s", cmd.start.delay_minutes,
+                             s_active_profile.name);
                 } else {
                     start_segment(0, cur_temp);
                     pid_reset(&s_pid);
@@ -587,8 +598,8 @@ void firing_task(void *param)
                     start_segment(next, cur);
                     progress_lock();
                     s_progress.current_segment = next;
-                    s_progress.status = (s_active_profile.segments[next].ramp_rate >= 0)
-                                        ? FIRING_STATUS_HEATING : FIRING_STATUS_COOLING;
+                    s_progress.status = (s_active_profile.segments[next].ramp_rate >= 0) ? FIRING_STATUS_HEATING
+                                                                                         : FIRING_STATUS_COOLING;
                     progress_unlock();
                     ESP_LOGI(TAG, "Skipped to segment %d", next);
                 } else if (active && seg_idx + 1 >= total) {
@@ -713,8 +724,7 @@ void firing_task(void *param)
                 if (pid_autotune_is_complete(&s_autotune)) {
                     /* Save tuned gains */
                     pid_save_gains(s_autotune.kp_result, s_autotune.ki_result, s_autotune.kd_result);
-                    pid_init(&s_pid, s_autotune.kp_result, s_autotune.ki_result, s_autotune.kd_result,
-                             0.0f, 1.0f);
+                    pid_init(&s_pid, s_autotune.kp_result, s_autotune.ki_result, s_autotune.kd_result, 0.0f, 1.0f);
                     ESP_LOGI(TAG, "Auto-tune gains applied");
                 }
                 do_stop();
@@ -731,8 +741,8 @@ void firing_task(void *param)
             if ((now_us - s_check_start_time_us) >= RISING_CHECK_INTERVAL_US) {
                 float temp_rise = current_temp - s_check_start_temp;
                 if (temp_rise < RISING_THRESHOLD_C) {
-                    ESP_LOGE(TAG, "Kiln not rising: only %.1f°C in 15 min (need %.0f°C)",
-                             temp_rise, RISING_THRESHOLD_C);
+                    ESP_LOGE(TAG, "Kiln not rising: only %.1f°C in 15 min (need %.0f°C)", temp_rise,
+                             RISING_THRESHOLD_C);
                     s_last_error_code = FIRING_ERR_NOT_RISING;
                     safety_emergency_stop();
                 }
@@ -745,12 +755,12 @@ void firing_task(void *param)
         /* ── Safety: rate-of-rise runaway check ──────────────────────────── */
         if (status == FIRING_STATUS_HEATING && !s_holding && fabsf(seg->ramp_rate) > 0.1f) {
             float elapsed_seg_s = (float)(now_us - s_segment_start_time_us) / 1000000.0f;
-            if (elapsed_seg_s > 300.0f) {   /* Only check after 5 minutes in segment */
+            if (elapsed_seg_s > 300.0f) { /* Only check after 5 minutes in segment */
                 float actual_rate_c_hr = ((current_temp - s_segment_start_temp) / elapsed_seg_s) * 3600.0f;
                 if (actual_rate_c_hr > seg->ramp_rate * RUNAWAY_RATE_MULTIPLIER &&
-                    actual_rate_c_hr > 50.0f) {   /* Ignore when rate < 50°C/hr (noise) */
-                    ESP_LOGE(TAG, "Runaway: actual rate %.0f°C/hr vs programmed %.0f°C/hr",
-                             actual_rate_c_hr, seg->ramp_rate);
+                    actual_rate_c_hr > 50.0f) { /* Ignore when rate < 50°C/hr (noise) */
+                    ESP_LOGE(TAG, "Runaway: actual rate %.0f°C/hr vs programmed %.0f°C/hr", actual_rate_c_hr,
+                             seg->ramp_rate);
                     s_last_error_code = FIRING_ERR_RUNAWAY;
                     safety_emergency_stop();
                 }
@@ -768,9 +778,11 @@ void firing_task(void *param)
 
             /* Clamp to target */
             if (seg->ramp_rate >= 0) {
-                if (setpoint > seg->target_temp) setpoint = seg->target_temp;
+                if (setpoint > seg->target_temp)
+                    setpoint = seg->target_temp;
             } else {
-                if (setpoint < seg->target_temp) setpoint = seg->target_temp;
+                if (setpoint < seg->target_temp)
+                    setpoint = seg->target_temp;
             }
         }
 
@@ -794,8 +806,7 @@ void firing_task(void *param)
         }
 
         /* Check segment transitions */
-        bool at_target = fabsf(current_temp - seg->target_temp) < 2.0f &&
-                         fabsf(setpoint - seg->target_temp) < 0.5f;
+        bool at_target = fabsf(current_temp - seg->target_temp) < 2.0f && fabsf(setpoint - seg->target_temp) < 0.5f;
 
         if (!s_holding && at_target) {
             /* Start hold phase — hold_time == 0 means infinite hold */
@@ -805,11 +816,10 @@ void firing_task(void *param)
             s_progress.status = FIRING_STATUS_HOLDING;
             progress_unlock();
             if (seg->hold_time == 0) {
-                ESP_LOGI(TAG, "Segment %d: holding at %.0f°C indefinitely (tap skip to advance)",
-                         seg_idx, seg->target_temp);
+                ESP_LOGI(TAG, "Segment %d: holding at %.0f°C indefinitely (tap skip to advance)", seg_idx,
+                         seg->target_temp);
             } else {
-                ESP_LOGI(TAG, "Segment %d: holding at %.0f°C for %d min",
-                         seg_idx, seg->target_temp, seg->hold_time);
+                ESP_LOGI(TAG, "Segment %d: holding at %.0f°C for %d min", seg_idx, seg->target_temp, seg->hold_time);
             }
         }
 
@@ -860,8 +870,7 @@ void firing_task(void *param)
         if (s_active_profile.estimated_duration > 0) {
             uint32_t est_total_s = s_active_profile.estimated_duration * 60;
             s_progress.estimated_remaining =
-                (s_progress.elapsed_time < est_total_s) ?
-                (est_total_s - s_progress.elapsed_time) : 0;
+                (s_progress.elapsed_time < est_total_s) ? (est_total_s - s_progress.elapsed_time) : 0;
         }
         progress_unlock();
 

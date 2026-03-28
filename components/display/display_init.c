@@ -16,12 +16,12 @@ static const char *TAG = "display";
 
 /* --- Globals shared with display_task.c --- */
 SemaphoreHandle_t g_lvgl_mutex = NULL;
-lv_indev_t       *g_indev_encoder = NULL;
-lv_group_t       *g_input_group = NULL;
+lv_indev_t *g_indev_encoder = NULL;
+lv_group_t *g_input_group = NULL;
 
 /* --- Static state --- */
 static esp_lcd_panel_handle_t s_panel = NULL;
-static lv_display_t          *s_disp = NULL;
+static lv_display_t *s_disp = NULL;
 
 /* Double-buffered DMA draw buffers: 40 rows each */
 #define DRAW_BUF_LINES 40
@@ -30,12 +30,12 @@ static uint8_t s_buf2[UI_LCD_W * DRAW_BUF_LINES * 2] __attribute__((aligned(4)))
 
 /* Button debounce state */
 static struct {
-    int      pin;
-    bool     pressed;
-    int64_t  last_change_us;
+    int pin;
+    bool pressed;
+    int64_t last_change_us;
 } s_buttons[3];
 
-#define BTN_DEBOUNCE_US 50000  /* 50ms */
+#define BTN_DEBOUNCE_US 50000 /* 50ms */
 
 /* ── Flush callback ────────────────────────────── */
 
@@ -50,10 +50,7 @@ static bool on_color_trans_done(esp_lcd_panel_io_handle_t io, esp_lcd_panel_io_e
 
 static void flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map)
 {
-    esp_lcd_panel_draw_bitmap(s_panel,
-                              area->x1, area->y1,
-                              area->x2 + 1, area->y2 + 1,
-                              px_map);
+    esp_lcd_panel_draw_bitmap(s_panel, area->x1, area->y1, area->x2 + 1, area->y2 + 1, px_map);
 }
 
 /* ── Tick ──────────────────────────────────────── */
@@ -67,7 +64,7 @@ static uint32_t tick_get_cb(void)
 
 static bool btn_is_pressed(int idx)
 {
-    bool raw = (gpio_get_level(s_buttons[idx].pin) == 0);  /* active-low */
+    bool raw = (gpio_get_level(s_buttons[idx].pin) == 0); /* active-low */
     int64_t now = esp_timer_get_time();
     if (raw != s_buttons[idx].pressed) {
         if (now - s_buttons[idx].last_change_us > BTN_DEBOUNCE_US) {
@@ -83,14 +80,16 @@ static void encoder_read_cb(lv_indev_t *indev, lv_indev_data_t *data)
     (void)indev;
     static bool prev_up = false, prev_down = false;
 
-    bool up   = btn_is_pressed(0);
+    bool up = btn_is_pressed(0);
     bool down = btn_is_pressed(1);
-    bool sel  = btn_is_pressed(2);
+    bool sel = btn_is_pressed(2);
 
     /* Encoder diff: generate ±1 on press edge */
     data->enc_diff = 0;
-    if (up && !prev_up)   data->enc_diff = -1;
-    if (down && !prev_down) data->enc_diff = 1;
+    if (up && !prev_up)
+        data->enc_diff = -1;
+    if (down && !prev_down)
+        data->enc_diff = 1;
     prev_up = up;
     prev_down = down;
 
@@ -121,7 +120,7 @@ esp_err_t display_init(spi_host_device_t host, int cs_pin, int dc_pin, int rst_p
         .lcd_param_bits = 8,
         .spi_mode = 0,
         .trans_queue_depth = 10,
-        .on_color_trans_done = NULL,  /* registered after display is created */
+        .on_color_trans_done = NULL, /* registered after display is created */
         .user_ctx = NULL,
     };
     esp_err_t ret = esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)host, &io_config, &io_handle);
@@ -161,9 +160,8 @@ esp_err_t display_init(spi_host_device_t host, int cs_pin, int dc_pin, int rst_p
     lv_display_set_color_format(s_disp, LV_COLOR_FORMAT_RGB565);
 
     /* Now set the user_ctx on the IO handle so the ISR can call flush_ready */
-    esp_lcd_panel_io_register_event_callbacks(io_handle,
-        &(esp_lcd_panel_io_callbacks_t){ .on_color_trans_done = on_color_trans_done },
-        s_disp);
+    esp_lcd_panel_io_register_event_callbacks(
+        io_handle, &(esp_lcd_panel_io_callbacks_t){.on_color_trans_done = on_color_trans_done}, s_disp);
 
     /* ── Button GPIO Init ────────────────────────── */
     s_buttons[0].pin = APP_PIN_BTN_UP;
@@ -196,7 +194,6 @@ esp_err_t display_init(spi_host_device_t host, int cs_pin, int dc_pin, int rst_p
     /* ── LVGL Mutex ──────────────────────────────── */
     g_lvgl_mutex = xSemaphoreCreateMutex();
 
-    ESP_LOGI(TAG, "LVGL display initialized (%dx%d, double-buffered %d lines)",
-             UI_LCD_W, UI_LCD_H, DRAW_BUF_LINES);
+    ESP_LOGI(TAG, "LVGL display initialized (%dx%d, double-buffered %d lines)", UI_LCD_W, UI_LCD_H, DRAW_BUF_LINES);
     return ESP_OK;
 }

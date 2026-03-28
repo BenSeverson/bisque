@@ -7,19 +7,20 @@
 
 static const char *TAG = "ui_profiles";
 
-static lv_obj_t *s_screen    = NULL;
+static lv_obj_t *s_screen = NULL;
 static lv_obj_t *s_title_lbl = NULL;
-static lv_obj_t *s_list      = NULL;
+static lv_obj_t *s_list = NULL;
 static lv_obj_t *s_dots[UI_SCREEN_COUNT];
 
 /* Store profile IDs for launching */
 static char s_profile_ids[FIRING_MAX_PROFILES][FIRING_ID_LEN];
-static int  s_profile_count = 0;
+static int s_profile_count = 0;
 
 static void profile_btn_cb(lv_event_t *e)
 {
     int idx = (int)(intptr_t)lv_event_get_user_data(e);
-    if (idx < 0 || idx >= s_profile_count) return;
+    if (idx < 0 || idx >= s_profile_count)
+        return;
 
     firing_profile_t profile;
     esp_err_t ret = firing_engine_load_profile(s_profile_ids[idx], &profile);
@@ -31,10 +32,11 @@ static void profile_btn_cb(lv_event_t *e)
     /* Send start command to firing engine */
     firing_cmd_t cmd = {
         .type = FIRING_CMD_START,
-        .start = {
-            .profile = profile,
-            .delay_minutes = 0,
-        },
+        .start =
+            {
+                .profile = profile,
+                .delay_minutes = 0,
+            },
     };
 
     QueueHandle_t q = firing_engine_get_cmd_queue();
@@ -79,7 +81,8 @@ lv_obj_t *ui_screen_profiles_create(void)
 
 void ui_screen_profiles_refresh(void)
 {
-    if (!s_list) return;
+    if (!s_list)
+        return;
 
     /* Clear existing list items */
     lv_obj_clean(s_list);
@@ -117,6 +120,7 @@ void ui_screen_profiles_refresh(void)
 void ui_screen_profiles_set_page_dots(int active_index, int total)
 {
     (void)total;
-    if (!s_screen) return;
+    if (!s_screen)
+        return;
     ui_update_page_dots(s_dots, UI_SCREEN_COUNT, active_index);
 }

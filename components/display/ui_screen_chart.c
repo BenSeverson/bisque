@@ -4,9 +4,9 @@
 
 #define CHART_POINTS 120
 
-static lv_obj_t *s_screen    = NULL;
-static lv_obj_t *s_temp_lbl  = NULL;
-static lv_obj_t *s_chart     = NULL;
+static lv_obj_t *s_screen = NULL;
+static lv_obj_t *s_temp_lbl = NULL;
+static lv_obj_t *s_chart = NULL;
 static lv_chart_series_t *s_series = NULL;
 static lv_obj_t *s_dots[UI_SCREEN_COUNT];
 
@@ -39,10 +39,10 @@ lv_obj_t *ui_screen_chart_create(void)
     lv_obj_set_style_border_width(s_chart, 2, 0);
     lv_obj_set_style_radius(s_chart, 4, 0);
     lv_obj_set_style_line_width(s_chart, 3, LV_PART_ITEMS);
-    lv_obj_set_style_size(s_chart, 0, 0, LV_PART_INDICATOR);  /* hide data point dots */
+    lv_obj_set_style_size(s_chart, 0, 0, LV_PART_INDICATOR); /* hide data point dots */
 
     /* Chart grid lines */
-    lv_chart_set_div_line_count(s_chart, 5, 4);  /* 5 horizontal, 4 vertical divisions */
+    lv_chart_set_div_line_count(s_chart, 5, 4); /* 5 horizontal, 4 vertical divisions */
     lv_obj_set_style_line_color(s_chart, UI_COLOR_BORDER, LV_PART_MAIN);
 
     /* Temperature series */
@@ -61,7 +61,8 @@ lv_obj_t *ui_screen_chart_create(void)
 
 void ui_screen_chart_update(const thermocouple_reading_t *tc)
 {
-    if (!s_screen) return;
+    if (!s_screen)
+        return;
     char buf[16];
 
     float temp = tc->fault ? 0 : tc->temperature_c;
@@ -75,6 +76,7 @@ void ui_screen_chart_update(const thermocouple_reading_t *tc)
 void ui_screen_chart_set_page_dots(int active_index, int total)
 {
     (void)total;
-    if (!s_screen) return;
+    if (!s_screen)
+        return;
     ui_update_page_dots(s_dots, UI_SCREEN_COUNT, active_index);
 }

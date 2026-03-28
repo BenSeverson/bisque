@@ -14,8 +14,8 @@ static thermocouple_reading_t s_latest_reading;
 esp_err_t thermocouple_init(spi_host_device_t host, int cs_pin)
 {
     spi_device_interface_config_t dev_cfg = {
-        .clock_speed_hz = 1 * 1000 * 1000,  /* MAX31855 supports up to 5 MHz */
-        .mode = 0,                            /* SPI mode 0 */
+        .clock_speed_hz = 1 * 1000 * 1000, /* MAX31855 supports up to 5 MHz */
+        .mode = 0,                         /* SPI mode 0 */
         .spics_io_num = cs_pin,
         .queue_size = 1,
         .command_bits = 0,
@@ -50,19 +50,20 @@ esp_err_t thermocouple_read(thermocouple_reading_t *out)
         return ret;
     }
 
-    uint32_t raw = ((uint32_t)rx_buf[0] << 24) |
-                   ((uint32_t)rx_buf[1] << 16) |
-                   ((uint32_t)rx_buf[2] << 8)  |
-                   (uint32_t)rx_buf[3];
+    uint32_t raw =
+        ((uint32_t)rx_buf[0] << 24) | ((uint32_t)rx_buf[1] << 16) | ((uint32_t)rx_buf[2] << 8) | (uint32_t)rx_buf[3];
 
     out->timestamp_us = esp_timer_get_time();
     out->fault = 0;
 
     /* Check fault bit (D16) */
     if (raw & (1 << 16)) {
-        if (raw & (1 << 0)) out->fault |= TC_FAULT_OPEN_CIRCUIT;
-        if (raw & (1 << 1)) out->fault |= TC_FAULT_SHORT_GND;
-        if (raw & (1 << 2)) out->fault |= TC_FAULT_SHORT_VCC;
+        if (raw & (1 << 0))
+            out->fault |= TC_FAULT_OPEN_CIRCUIT;
+        if (raw & (1 << 1))
+            out->fault |= TC_FAULT_SHORT_GND;
+        if (raw & (1 << 2))
+            out->fault |= TC_FAULT_SHORT_VCC;
         out->temperature_c = 0.0f;
         out->internal_temp_c = 0.0f;
         ESP_LOGW(TAG, "Thermocouple fault: 0x%02x", out->fault);
@@ -72,14 +73,14 @@ esp_err_t thermocouple_read(thermocouple_reading_t *out)
     /* Thermocouple temperature: bits[31:18], 14-bit signed, 0.25°C resolution */
     int16_t tc_raw = (int16_t)((raw >> 18) & 0x3FFF);
     if (tc_raw & 0x2000) {
-        tc_raw |= 0xC000;  /* Sign extend */
+        tc_raw |= 0xC000; /* Sign extend */
     }
     out->temperature_c = tc_raw * 0.25f;
 
     /* Internal (cold junction) temperature: bits[15:4], 12-bit signed, 0.0625°C resolution */
     int16_t int_raw = (int16_t)((raw >> 4) & 0x0FFF);
     if (int_raw & 0x0800) {
-        int_raw |= 0xF000;  /* Sign extend */
+        int_raw |= 0xF000; /* Sign extend */
     }
     out->internal_temp_c = int_raw * 0.0625f;
 
@@ -108,8 +109,7 @@ void temp_read_task(void *param)
             portEXIT_CRITICAL(&s_reading_mux);
 
             if (reading.fault == 0) {
-                ESP_LOGD(TAG, "Temp: %.1f°C (internal: %.1f°C)",
-                         reading.temperature_c, reading.internal_temp_c);
+                ESP_LOGD(TAG, "Temp: %.1f°C (internal: %.1f°C)", reading.temperature_c, reading.internal_temp_c);
             }
         }
         xTaskDelayUntil(&last_wake, pdMS_TO_TICKS(250));

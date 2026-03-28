@@ -17,8 +17,7 @@ extern "C" {
  * @param ap_pass     AP mode password
  * @return ESP_OK on successful init (doesn't guarantee connection)
  */
-esp_err_t wifi_manager_init(const char *sta_ssid, const char *sta_pass,
-                            const char *ap_ssid, const char *ap_pass);
+esp_err_t wifi_manager_init(const char *sta_ssid, const char *sta_pass, const char *ap_ssid, const char *ap_pass);
 
 /**
  * Block until Wi-Fi is connected (STA) or AP is started. Timeout in ms.
