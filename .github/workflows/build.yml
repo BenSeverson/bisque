@@ -29,6 +29,17 @@ jobs:
       - name: Check C formatting
         run: find main components -name '*.c' -o -name '*.h' | xargs clang-format --dry-run --Werror
 
+  build-ios:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate Xcode project
+        run: brew install xcodegen && xcodegen generate
+        working-directory: ios/Bisque
+      - name: Build iOS app
+        run: xcodebuild -scheme Bisque -sdk iphoneos -arch arm64 CODE_SIGNING_ALLOWED=NO -quiet
+        working-directory: ios/Bisque
+
   build:
     needs: [lint-web, lint-c]
     runs-on: ubuntu-latest
@@ -55,6 +66,12 @@ jobs:
         with:
           esp_idf_version: v6.0
           target: esp32s3
+
+      # Static analysis
+      - name: Install clang-tidy
+        run: sudo apt-get update && sudo apt-get install -y clang-tidy
+      - name: Run clang-tidy
+        run: run-clang-tidy -p build -header-filter='(main|components)/.*\.h$' -warnings-as-errors='*' main/main.c components/*/*.c
 
       # Upload binary
       - uses: actions/upload-artifact@v4
