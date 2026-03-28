@@ -21,6 +21,8 @@ jobs:
         working-directory: web_ui
       - run: npm run lint
         working-directory: web_ui
+      - run: npm run format:check
+        working-directory: web_ui
 
   lint-c:
     runs-on: ubuntu-latest
@@ -59,6 +61,8 @@ jobs:
       - name: Gzip web assets
         working-directory: spiffs_data/www
         run: find . -type f \( -name "*.js" -o -name "*.css" -o -name "*.html" -o -name "*.svg" \) -exec gzip -9 -f {} \;
+      - name: Check SPIFFS size
+        run: ./scripts/check-spiffs-size.sh spiffs_data/www
 
       # Build firmware
       - name: Build firmware
@@ -74,6 +78,18 @@ jobs:
         run: sed -i "s|/app/BenSeverson/bisque|$(pwd)|g" build/compile_commands.json
       - name: Run clang-tidy
         run: run-clang-tidy -p build -header-filter='(main|components)/.*\.h$' -warnings-as-errors='*' main/main.c components/*/*.c
+      - name: Install cppcheck
+        run: sudo apt-get install -y cppcheck
+      - name: Run cppcheck
+        run: >
+          cppcheck
+          --enable=warning,style,performance
+          --error-exitcode=1
+          --suppress=missingIncludeSystem
+          --suppress=unusedFunction
+          main/ components/
+      - name: Check firmware size
+        run: ./scripts/check-firmware-size.sh build/bisque.bin
 
       # Upload binary
       - uses: actions/upload-artifact@v4
