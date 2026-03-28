@@ -1,11 +1,11 @@
-import { useRef } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
-import { FiringProfile } from '../types/kiln';
-import { Flame, Clock, TrendingUp, Copy, Download, Upload } from 'lucide-react';
-import { api } from '../services/api';
-import { toast } from 'sonner';
+import { useRef } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
+import { FiringProfile } from "../types/kiln";
+import { Flame, Clock, TrendingUp, Copy, Download, Upload } from "lucide-react";
+import { api } from "../services/api";
+import { toast } from "sonner";
 
 interface FiringProfilesProps {
   profiles: FiringProfile[];
@@ -37,18 +37,18 @@ export function FiringProfiles({
       toast.success(`Duplicated "${profile.name}"`);
       onRefreshProfiles?.();
     } catch {
-      toast.error('Failed to duplicate profile');
+      toast.error("Failed to duplicate profile");
     }
   };
 
   const handleExport = (e: React.MouseEvent, profile: FiringProfile) => {
     e.stopPropagation();
     const url = api.exportProfile(profile.id);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = `${profile.id}.json`;
     a.click();
-    toast.success('Downloading profile JSON');
+    toast.success("Downloading profile JSON");
   };
 
   const handleImportClick = () => {
@@ -65,10 +65,10 @@ export function FiringProfiles({
       toast.success(`Imported "${profile.name}"`);
       onRefreshProfiles?.();
     } catch {
-      toast.error('Failed to import profile — invalid JSON or format');
+      toast.error("Failed to import profile — invalid JSON or format");
     } finally {
       // Reset so the same file can be re-imported
-      e.target.value = '';
+      e.target.value = "";
     }
   };
 
@@ -102,18 +102,14 @@ export function FiringProfiles({
           <Card
             key={profile.id}
             className={`cursor-pointer transition-all ${
-              selectedProfile?.id === profile.id
-                ? 'ring-2 ring-primary'
-                : 'hover:shadow-lg'
+              selectedProfile?.id === profile.id ? "ring-2 ring-primary" : "hover:shadow-lg"
             }`}
             onClick={() => onSelectProfile(profile.id)}
           >
             <CardHeader>
               <div className="flex justify-between items-start">
                 <CardTitle className="text-lg">{profile.name}</CardTitle>
-                {selectedProfile?.id === profile.id && (
-                  <Badge variant="default">Selected</Badge>
-                )}
+                {selectedProfile?.id === profile.id && <Badge variant="default">Selected</Badge>}
               </div>
               <CardDescription>{profile.description}</CardDescription>
             </CardHeader>
@@ -140,7 +136,8 @@ export function FiringProfiles({
                     <div key={segment.id} className="text-xs bg-muted/50 p-2 rounded">
                       <div className="font-medium">{segment.name}</div>
                       <div className="text-muted-foreground">
-                        {segment.rampRate > 0 ? '+' : ''}{segment.rampRate}°C/hr → {segment.targetTemp}°C
+                        {segment.rampRate > 0 ? "+" : ""}
+                        {segment.rampRate}°C/hr → {segment.targetTemp}°C
                         {segment.holdTime > 0 && `, hold ${segment.holdTime} min`}
                         {segment.holdTime === 0 && ` (hold until skip)`}
                       </div>

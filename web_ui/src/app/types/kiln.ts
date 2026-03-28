@@ -29,15 +29,15 @@ export interface FiringProgress {
 }
 
 export interface KilnSettings {
-  tempUnit: 'C' | 'F';
+  tempUnit: "C" | "F";
   maxSafeTemp: number;
   alarmEnabled: boolean;
   autoShutdown: boolean;
   notificationsEnabled: boolean;
   tcOffsetC: number;
   webhookUrl: string;
-  apiToken?: string;          // write-only: only sent when changing the token
-  apiTokenSet?: boolean;      // read: whether a token is currently set
+  apiToken?: string; // write-only: only sent when changing the token
+  apiTokenSet?: boolean; // read: whether a token is currently set
   elementWatts: number;
   electricityCostKwh: number;
 }
@@ -63,6 +63,6 @@ export interface HistoryRecord {
   profileId: string;
   peakTemp: number;
   durationS: number;
-  outcome: 'complete' | 'error' | 'aborted';
+  outcome: "complete" | "error" | "aborted";
   errorCode: number;
 }

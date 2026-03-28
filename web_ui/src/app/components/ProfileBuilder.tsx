@@ -1,21 +1,21 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Textarea } from './ui/textarea';
-import { Switch } from './ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { FiringProfile, FiringSegment, ConeEntry } from '../types/kiln';
-import { Plus, Trash2, Save, MoveUp, MoveDown, Flame } from 'lucide-react';
-import { api } from '../services/api';
-import { toast } from 'sonner';
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Textarea } from "./ui/textarea";
+import { Switch } from "./ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { FiringProfile, FiringSegment, ConeEntry } from "../types/kiln";
+import { Plus, Trash2, Save, MoveUp, MoveDown, Flame } from "lucide-react";
+import { api } from "../services/api";
+import { toast } from "sonner";
 
 // Generate UUID - works in non-secure contexts (HTTP) unlike crypto.randomUUID()
 function generateId(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
 }
@@ -27,10 +27,10 @@ interface ProfileBuilderProps {
 }
 
 export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: ProfileBuilderProps) {
-  const [mode, setMode] = useState<'manual' | 'cone'>('manual');
+  const [mode, setMode] = useState<"manual" | "cone">("manual");
   const [editingProfile, setEditingProfile] = useState<FiringProfile | null>(null);
-  const [profileName, setProfileName] = useState('');
-  const [profileDescription, setProfileDescription] = useState('');
+  const [profileName, setProfileName] = useState("");
+  const [profileDescription, setProfileDescription] = useState("");
   const [segments, setSegments] = useState<FiringSegment[]>([]);
 
   // Cone fire state
@@ -42,18 +42,21 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
   const [coneGenerating, setConeGenerating] = useState(false);
 
   useEffect(() => {
-    api.getConeTable().then(setConeEntries).catch(() => {});
+    api
+      .getConeTable()
+      .then(setConeEntries)
+      .catch(() => {});
   }, []);
 
   const createNewProfile = () => {
-    setMode('manual');
+    setMode("manual");
     setEditingProfile(null);
-    setProfileName('');
-    setProfileDescription('');
+    setProfileName("");
+    setProfileDescription("");
     setSegments([
       {
         id: generateId(),
-        name: 'Segment 1',
+        name: "Segment 1",
         rampRate: 100,
         targetTemp: 600,
         holdTime: 0,
@@ -64,7 +67,7 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
   const loadProfile = (profileId: string) => {
     const profile = profiles.find((p) => p.id === profileId);
     if (profile) {
-      setMode('manual');
+      setMode("manual");
       setEditingProfile(profile);
       setProfileName(profile.name);
       setProfileDescription(profile.description);
@@ -74,7 +77,7 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
 
   const handleGenerateConeFire = async () => {
     if (selectedConeId === null) {
-      toast.error('Please select a cone');
+      toast.error("Please select a cone");
       return;
     }
     setConeGenerating(true);
@@ -86,14 +89,14 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
         slowCool,
         save: false,
       });
-      setMode('manual');
+      setMode("manual");
       setEditingProfile(null);
       setProfileName(profile.name);
       setProfileDescription(profile.description);
       setSegments([...profile.segments]);
-      toast.success('Cone fire profile generated — review and save below');
+      toast.success("Cone fire profile generated — review and save below");
     } catch (e) {
-      toast.error(`Failed to generate: ${e instanceof Error ? e.message : 'Unknown error'}`);
+      toast.error(`Failed to generate: ${e instanceof Error ? e.message : "Unknown error"}`);
     } finally {
       setConeGenerating(false);
     }
@@ -115,16 +118,12 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
   };
 
   const updateSegment = (segmentId: string, field: keyof FiringSegment, value: string | number) => {
-    setSegments(
-      segments.map((s) =>
-        s.id === segmentId ? { ...s, [field]: value } : s
-      )
-    );
+    setSegments(segments.map((s) => (s.id === segmentId ? { ...s, [field]: value } : s)));
   };
 
-  const moveSegment = (index: number, direction: 'up' | 'down') => {
+  const moveSegment = (index: number, direction: "up" | "down") => {
     const newSegments = [...segments];
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= segments.length) return;
     [newSegments[index], newSegments[targetIndex]] = [newSegments[targetIndex], newSegments[index]];
     setSegments(newSegments);
@@ -150,11 +149,11 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
 
   const saveProfile = () => {
     if (!profileName.trim()) {
-      toast.error('Please enter a profile name');
+      toast.error("Please enter a profile name");
       return;
     }
     if (segments.length === 0) {
-      toast.error('Please add at least one segment');
+      toast.error("Please add at least one segment");
       return;
     }
     const profile: FiringProfile = {
@@ -168,22 +167,21 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
     onSaveProfile(profile);
     toast.success(`Profile "${profileName}" saved successfully`);
     setEditingProfile(null);
-    setProfileName('');
-    setProfileDescription('');
+    setProfileName("");
+    setProfileDescription("");
     setSegments([]);
   };
 
   const speedLabel = (s: 0 | 1 | 2) => {
-    if (s === 0) return 'Slow';
-    if (s === 1) return 'Medium';
-    return 'Fast';
+    if (s === 0) return "Slow";
+    if (s === 1) return "Medium";
+    return "Fast";
   };
 
   const selectedCone = coneEntries.find((c) => c.id === selectedConeId);
-  const coneTargetTemp =
-    selectedCone
-      ? [selectedCone.slowTempC, selectedCone.mediumTempC, selectedCone.fastTempC][coneSpeed]
-      : null;
+  const coneTargetTemp = selectedCone
+    ? [selectedCone.slowTempC, selectedCone.mediumTempC, selectedCone.fastTempC][coneSpeed]
+    : null;
 
   return (
     <div className="space-y-6">
@@ -196,15 +194,15 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
         </div>
         <div className="flex gap-2">
           <Button
-            variant={mode === 'cone' ? 'default' : 'outline'}
-            onClick={() => setMode('cone')}
+            variant={mode === "cone" ? "default" : "outline"}
+            onClick={() => setMode("cone")}
             className="gap-2"
           >
             <Flame className="h-4 w-4" />
             Cone Fire Wizard
           </Button>
           <Button
-            variant={mode === 'manual' ? 'default' : 'outline'}
+            variant={mode === "manual" ? "default" : "outline"}
             onClick={createNewProfile}
             className="gap-2"
           >
@@ -215,7 +213,7 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
       </div>
 
       {/* Cone Fire Wizard */}
-      {mode === 'cone' && (
+      {mode === "cone" && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -231,7 +229,7 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
               <div className="space-y-2">
                 <Label>Target Cone</Label>
                 <Select
-                  value={selectedConeId !== null ? String(selectedConeId) : ''}
+                  value={selectedConeId !== null ? String(selectedConeId) : ""}
                   onValueChange={(v) => setSelectedConeId(Number(v))}
                 >
                   <SelectTrigger>
@@ -267,7 +265,7 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
 
             {coneTargetTemp !== null && (
               <div className="p-3 bg-muted/50 rounded-lg text-sm">
-                Cone {selectedCone?.name} @ {speedLabel(coneSpeed)}: target{' '}
+                Cone {selectedCone?.name} @ {speedLabel(coneSpeed)}: target{" "}
                 <span className="font-semibold">{coneTargetTemp}°C</span>
               </div>
             )}
@@ -299,14 +297,14 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
               className="w-full gap-2"
             >
               <Flame className="h-4 w-4" />
-              {coneGenerating ? 'Generating...' : 'Generate Profile'}
+              {coneGenerating ? "Generating..." : "Generate Profile"}
             </Button>
           </CardContent>
         </Card>
       )}
 
       {/* Load existing profile */}
-      {mode === 'manual' && profiles.length > 0 && (
+      {mode === "manual" && profiles.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Load Existing Profile</CardTitle>
@@ -317,7 +315,7 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
               {profiles.map((profile) => (
                 <Button
                   key={profile.id}
-                  variant={editingProfile?.id === profile.id ? 'default' : 'outline'}
+                  variant={editingProfile?.id === profile.id ? "default" : "outline"}
                   onClick={() => loadProfile(profile.id)}
                 >
                   {profile.name}
@@ -365,7 +363,8 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
                 <div>
                   <p className="text-sm text-muted-foreground">Estimated Duration</p>
                   <p className="text-2xl font-semibold">
-                    {Math.floor(calculateEstimatedDuration() / 60)}h {calculateEstimatedDuration() % 60}m
+                    {Math.floor(calculateEstimatedDuration() / 60)}h{" "}
+                    {calculateEstimatedDuration() % 60}m
                   </p>
                 </div>
               </div>
@@ -378,7 +377,9 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
               <div className="flex justify-between items-center">
                 <div>
                   <CardTitle>Firing Segments</CardTitle>
-                  <CardDescription>Define temperature ramps and holds. Set hold time to 0 for infinite hold.</CardDescription>
+                  <CardDescription>
+                    Define temperature ramps and holds. Set hold time to 0 for infinite hold.
+                  </CardDescription>
                 </div>
                 <Button onClick={addSegment} variant="outline" size="sm" className="gap-2">
                   <Plus className="h-4 w-4" />
@@ -394,7 +395,7 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
                       <Label>Segment Name</Label>
                       <Input
                         value={segment.name}
-                        onChange={(e) => updateSegment(segment.id, 'name', e.target.value)}
+                        onChange={(e) => updateSegment(segment.id, "name", e.target.value)}
                         placeholder="e.g., Warm-up, Water smoke"
                       />
                     </div>
@@ -402,7 +403,7 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => moveSegment(index, 'up')}
+                        onClick={() => moveSegment(index, "up")}
                         disabled={index === 0}
                       >
                         <MoveUp className="h-4 w-4" />
@@ -410,7 +411,7 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => moveSegment(index, 'down')}
+                        onClick={() => moveSegment(index, "down")}
                         disabled={index === segments.length - 1}
                       >
                         <MoveDown className="h-4 w-4" />
@@ -432,7 +433,9 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
                       <Input
                         type="number"
                         value={segment.rampRate}
-                        onChange={(e) => updateSegment(segment.id, 'rampRate', parseFloat(e.target.value))}
+                        onChange={(e) =>
+                          updateSegment(segment.id, "rampRate", parseFloat(e.target.value))
+                        }
                       />
                       <p className="text-xs text-muted-foreground">
                         Positive to heat, negative to cool
@@ -444,7 +447,9 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
                       <Input
                         type="number"
                         value={segment.targetTemp}
-                        onChange={(e) => updateSegment(segment.id, 'targetTemp', parseFloat(e.target.value))}
+                        onChange={(e) =>
+                          updateSegment(segment.id, "targetTemp", parseFloat(e.target.value))
+                        }
                       />
                     </div>
 
@@ -453,12 +458,12 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
                       <Input
                         type="number"
                         value={segment.holdTime}
-                        onChange={(e) => updateSegment(segment.id, 'holdTime', parseFloat(e.target.value))}
+                        onChange={(e) =>
+                          updateSegment(segment.id, "holdTime", parseFloat(e.target.value))
+                        }
                         min="0"
                       />
-                      <p className="text-xs text-muted-foreground">
-                        0 = hold until skip
-                      </p>
+                      <p className="text-xs text-muted-foreground">0 = hold until skip</p>
                     </div>
                   </div>
                 </div>
@@ -474,10 +479,10 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
                 onClick={() => {
                   if (window.confirm(`Delete profile "${profileName}"?`)) {
                     onDeleteProfile(editingProfile.id);
-                    toast.success('Profile deleted');
+                    toast.success("Profile deleted");
                     setEditingProfile(null);
-                    setProfileName('');
-                    setProfileDescription('');
+                    setProfileName("");
+                    setProfileDescription("");
                     setSegments([]);
                   }
                 }}
@@ -493,11 +498,12 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
         </>
       )}
 
-      {segments.length === 0 && !profileName && mode === 'manual' && (
+      {segments.length === 0 && !profileName && mode === "manual" && (
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground">
-              Click "New Profile" to start building, or use the Cone Fire Wizard to generate a schedule.
+              Click "New Profile" to start building, or use the Cone Fire Wizard to generate a
+              schedule.
             </p>
           </CardContent>
         </Card>

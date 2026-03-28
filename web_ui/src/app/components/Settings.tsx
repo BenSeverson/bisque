@@ -1,16 +1,16 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Label } from './ui/label';
-import { Input } from './ui/input';
-import { Switch } from './ui/switch';
-import { Button } from './ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Badge } from './ui/badge';
-import { Progress } from './ui/progress';
-import { KilnSettings } from '../types/kiln';
-import { api, setApiToken, SystemInfo, AutotuneStatus, DiagThermocouple } from '../services/api';
-import { toast } from 'sonner';
-import { Upload, Zap, Thermometer, AlertTriangle } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { Label } from "./ui/label";
+import { Input } from "./ui/input";
+import { Switch } from "./ui/switch";
+import { Button } from "./ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { Badge } from "./ui/badge";
+import { Progress } from "./ui/progress";
+import { KilnSettings } from "../types/kiln";
+import { api, setApiToken, SystemInfo, AutotuneStatus, DiagThermocouple } from "../services/api";
+import { toast } from "sonner";
+import { Upload, Zap, Thermometer, AlertTriangle } from "lucide-react";
 
 interface SettingsProps {
   settings: KilnSettings;
@@ -32,34 +32,43 @@ export function Settings({ settings, onUpdateSettings }: SettingsProps) {
   const otaInputRef = useRef<HTMLInputElement>(null);
 
   // API token local state
-  const [newToken, setNewToken] = useState('');
+  const [newToken, setNewToken] = useState("");
 
   useEffect(() => {
-    api.getSystemInfo().then(setSystemInfo).catch(() => {});
-    api.getAutotuneStatus().then((s) => {
-      setAutotuneStatus(s);
-      setAutotuneRunning(s.state === 'running');
-    }).catch(() => {});
+    api
+      .getSystemInfo()
+      .then(setSystemInfo)
+      .catch(() => {});
+    api
+      .getAutotuneStatus()
+      .then((s) => {
+        setAutotuneStatus(s);
+        setAutotuneRunning(s.state === "running");
+      })
+      .catch(() => {});
   }, []);
 
   // Poll autotune status while running
   useEffect(() => {
     if (!autotuneRunning) return;
     const interval = setInterval(() => {
-      api.getAutotuneStatus().then((s) => {
-        setAutotuneStatus(s);
-        if (s.state !== 'running') {
-          setAutotuneRunning(false);
-          toast.success('Auto-tune complete');
-        }
-      }).catch(() => {});
+      api
+        .getAutotuneStatus()
+        .then((s) => {
+          setAutotuneStatus(s);
+          if (s.state !== "running") {
+            setAutotuneRunning(false);
+            toast.success("Auto-tune complete");
+          }
+        })
+        .catch(() => {});
     }, 2000);
     return () => clearInterval(interval);
   }, [autotuneRunning]);
 
   const handleSave = useCallback(async () => {
     onUpdateSettings(settings);
-    toast.success('Settings saved');
+    toast.success("Settings saved");
   }, [settings, onUpdateSettings]);
 
   const handleSetToken = useCallback(async () => {
@@ -67,24 +76,24 @@ export function Settings({ settings, onUpdateSettings }: SettingsProps) {
     const updated = { ...settings, apiToken: newToken.trim() };
     onUpdateSettings(updated);
     setApiToken(newToken.trim());
-    setNewToken('');
-    toast.success('API token set');
+    setNewToken("");
+    toast.success("API token set");
   }, [newToken, settings, onUpdateSettings]);
 
   const handleClearToken = useCallback(async () => {
-    const updated = { ...settings, apiToken: '', apiTokenSet: false };
+    const updated = { ...settings, apiToken: "", apiTokenSet: false };
     onUpdateSettings(updated);
     setApiToken(null);
-    toast.success('API token cleared');
+    toast.success("API token cleared");
   }, [settings, onUpdateSettings]);
 
   const handleStartAutotune = useCallback(async () => {
     try {
       await api.startAutotune(autotuneSetpoint);
       setAutotuneRunning(true);
-      toast.success('Auto-tune started');
+      toast.success("Auto-tune started");
     } catch (e) {
-      toast.error(`Failed: ${e instanceof Error ? e.message : 'Unknown error'}`);
+      toast.error(`Failed: ${e instanceof Error ? e.message : "Unknown error"}`);
     }
   }, [autotuneSetpoint]);
 
@@ -92,9 +101,9 @@ export function Settings({ settings, onUpdateSettings }: SettingsProps) {
     try {
       await api.stopAutotune();
       setAutotuneRunning(false);
-      toast.success('Auto-tune stopped');
+      toast.success("Auto-tune stopped");
     } catch {
-      toast.error('Failed to stop auto-tune');
+      toast.error("Failed to stop auto-tune");
     }
   }, []);
 
@@ -103,16 +112,16 @@ export function Settings({ settings, onUpdateSettings }: SettingsProps) {
       const diag = await api.getThermocoupleDiag();
       setTcDiag(diag);
     } catch {
-      toast.error('Failed to read thermocouple');
+      toast.error("Failed to read thermocouple");
     }
   }, []);
 
   const handleTestRelay = useCallback(async () => {
     try {
       await api.testRelay(2);
-      toast.success('Relay activated for 2 seconds');
+      toast.success("Relay activated for 2 seconds");
     } catch {
-      toast.error('Failed to test relay');
+      toast.error("Failed to test relay");
     }
   }, []);
 
@@ -121,11 +130,11 @@ export function Settings({ settings, onUpdateSettings }: SettingsProps) {
     setOtaProgress(0);
     try {
       await api.uploadOta(otaFile, (pct) => setOtaProgress(pct));
-      toast.success('Firmware uploaded — controller is rebooting');
+      toast.success("Firmware uploaded — controller is rebooting");
       setOtaFile(null);
       setOtaProgress(null);
     } catch (e) {
-      toast.error(`OTA failed: ${e instanceof Error ? e.message : 'Unknown error'}`);
+      toast.error(`OTA failed: ${e instanceof Error ? e.message : "Unknown error"}`);
       setOtaProgress(null);
     }
   }, [otaFile]);
@@ -160,7 +169,7 @@ export function Settings({ settings, onUpdateSettings }: SettingsProps) {
             <Label htmlFor="temp-unit">Temperature Unit</Label>
             <Select
               value={settings.tempUnit}
-              onValueChange={(value: 'C' | 'F') =>
+              onValueChange={(value: "C" | "F") =>
                 onUpdateSettings({ ...settings, tempUnit: value })
               }
             >
@@ -201,7 +210,8 @@ export function Settings({ settings, onUpdateSettings }: SettingsProps) {
               }
             />
             <p className="text-sm text-muted-foreground">
-              Calibration offset added to raw TC reading. Use a reference thermometer to determine this value.
+              Calibration offset added to raw TC reading. Use a reference thermometer to determine
+              this value.
             </p>
           </div>
         </CardContent>
@@ -279,10 +289,8 @@ export function Settings({ settings, onUpdateSettings }: SettingsProps) {
               id="webhook-url"
               type="url"
               placeholder="https://your-server.example.com/kiln-webhook"
-              value={settings.webhookUrl ?? ''}
-              onChange={(e) =>
-                onUpdateSettings({ ...settings, webhookUrl: e.target.value })
-              }
+              value={settings.webhookUrl ?? ""}
+              onChange={(e) => onUpdateSettings({ ...settings, webhookUrl: e.target.value })}
             />
             <p className="text-sm text-muted-foreground">
               Leave blank to disable. The controller posts: event, profile, peakTemp, durationS.
@@ -325,15 +333,18 @@ export function Settings({ settings, onUpdateSettings }: SettingsProps) {
                 placeholder="e.g. 0.15"
                 value={settings.electricityCostKwh ?? 0}
                 onChange={(e) =>
-                  onUpdateSettings({ ...settings, electricityCostKwh: parseFloat(e.target.value) || 0 })
+                  onUpdateSettings({
+                    ...settings,
+                    electricityCostKwh: parseFloat(e.target.value) || 0,
+                  })
                 }
               />
             </div>
           </div>
           {(settings.elementWatts ?? 0) > 0 && (settings.electricityCostKwh ?? 0) > 0 && (
             <p className="text-sm text-muted-foreground">
-              At 50% average duty cycle: {settings.elementWatts! / 2000} kW ×{' '}
-              ${settings.electricityCostKwh!.toFixed(2)}/kWh
+              At 50% average duty cycle: {settings.elementWatts! / 2000} kW × $
+              {settings.electricityCostKwh!.toFixed(2)}/kWh
             </p>
           )}
         </CardContent>
@@ -374,9 +385,11 @@ export function Settings({ settings, onUpdateSettings }: SettingsProps) {
             )}
           </div>
           <p className="text-sm text-muted-foreground">
-            Once set, all API requests must include{' '}
-            <code className="text-xs bg-muted px-1 py-0.5 rounded">Authorization: Bearer &lt;token&gt;</code>.
-            The token is never returned by the API.
+            Once set, all API requests must include{" "}
+            <code className="text-xs bg-muted px-1 py-0.5 rounded">
+              Authorization: Bearer &lt;token&gt;
+            </code>
+            . The token is never returned by the API.
           </p>
         </CardContent>
       </Card>
@@ -411,7 +424,8 @@ export function Settings({ settings, onUpdateSettings }: SettingsProps) {
             <div className="flex items-center gap-2">
               <Badge variant="default">Running</Badge>
               <span className="text-sm text-muted-foreground">
-                Temp: {autotuneStatus?.currentTemp?.toFixed(1)}°C / {autotuneStatus?.targetTemp?.toFixed(0)}°C
+                Temp: {autotuneStatus?.currentTemp?.toFixed(1)}°C /{" "}
+                {autotuneStatus?.targetTemp?.toFixed(0)}°C
               </span>
             </div>
           )}
@@ -432,9 +446,7 @@ export function Settings({ settings, onUpdateSettings }: SettingsProps) {
                 Stop Auto-Tune
               </Button>
             ) : (
-              <Button onClick={handleStartAutotune}>
-                Start Auto-Tune
-              </Button>
+              <Button onClick={handleStartAutotune}>Start Auto-Tune</Button>
             )}
           </div>
           <p className="text-sm text-muted-foreground">
@@ -488,14 +500,14 @@ export function Settings({ settings, onUpdateSettings }: SettingsProps) {
                 <div className="flex items-center gap-2 text-destructive mt-1">
                   <AlertTriangle className="h-4 w-4" />
                   <span>
-                    Fault detected:{' '}
+                    Fault detected:{" "}
                     {[
-                      tcDiag.openCircuit && 'Open Circuit',
-                      tcDiag.shortGnd && 'Short to GND',
-                      tcDiag.shortVcc && 'Short to VCC',
+                      tcDiag.openCircuit && "Open Circuit",
+                      tcDiag.shortGnd && "Short to GND",
+                      tcDiag.shortVcc && "Short to VCC",
                     ]
                       .filter(Boolean)
-                      .join(', ')}
+                      .join(", ")}
                   </span>
                 </div>
               )}
@@ -576,31 +588,29 @@ export function Settings({ settings, onUpdateSettings }: SettingsProps) {
           <div className="flex justify-between py-2 border-b">
             <span className="text-sm font-medium">Model</span>
             <span className="text-sm text-muted-foreground">
-              {systemInfo?.model || 'Bisque ESP32-S3'}
+              {systemInfo?.model || "Bisque ESP32-S3"}
             </span>
           </div>
           <div className="flex justify-between py-2 border-b">
             <span className="text-sm font-medium">Firmware Version</span>
-            <span className="text-sm text-muted-foreground">
-              {systemInfo?.firmware || '--'}
-            </span>
+            <span className="text-sm text-muted-foreground">{systemInfo?.firmware || "--"}</span>
           </div>
           <div className="flex justify-between py-2 border-b">
             <span className="text-sm font-medium">Uptime</span>
             <span className="text-sm text-muted-foreground">
-              {systemInfo ? formatUptime(systemInfo.uptimeSeconds) : '--'}
+              {systemInfo ? formatUptime(systemInfo.uptimeSeconds) : "--"}
             </span>
           </div>
           <div className="flex justify-between py-2 border-b">
             <span className="text-sm font-medium">Free Heap</span>
             <span className="text-sm text-muted-foreground">
-              {systemInfo ? formatBytes(systemInfo.freeHeap) : '--'}
+              {systemInfo ? formatBytes(systemInfo.freeHeap) : "--"}
             </span>
           </div>
           <div className="flex justify-between py-2 border-b">
             <span className="text-sm font-medium">Element Hours</span>
             <span className="text-sm text-muted-foreground">
-              {systemInfo ? formatHours(systemInfo.elementHoursS) : '--'}
+              {systemInfo ? formatHours(systemInfo.elementHoursS) : "--"}
             </span>
           </div>
           <div className="flex justify-between py-2 border-b">
@@ -608,13 +618,17 @@ export function Settings({ settings, onUpdateSettings }: SettingsProps) {
             <span className="text-sm text-muted-foreground">
               {systemInfo
                 ? `${formatBytes(systemInfo.spiffsUsed)} / ${formatBytes(systemInfo.spiffsTotal)}`
-                : '--'}
+                : "--"}
             </span>
           </div>
           <div className="flex justify-between py-2 border-b">
             <span className="text-sm font-medium">Last Error Code</span>
             <span className="text-sm text-muted-foreground">
-              {systemInfo ? (systemInfo.lastErrorCode === 0 ? 'None' : `E${systemInfo.lastErrorCode}`) : '--'}
+              {systemInfo
+                ? systemInfo.lastErrorCode === 0
+                  ? "None"
+                  : `E${systemInfo.lastErrorCode}`
+                : "--"}
             </span>
           </div>
           <div className="flex justify-between py-2 border-b">
@@ -630,7 +644,7 @@ export function Settings({ settings, onUpdateSettings }: SettingsProps) {
           <div className="flex justify-between py-2">
             <span className="text-sm font-medium">Board Temperature</span>
             <span className="text-sm text-muted-foreground">
-              {systemInfo?.boardTempC != null ? `${systemInfo.boardTempC.toFixed(1)}°C` : '--'}
+              {systemInfo?.boardTempC != null ? `${systemInfo.boardTempC.toFixed(1)}°C` : "--"}
             </span>
           </div>
         </CardContent>

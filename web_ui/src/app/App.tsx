@@ -1,28 +1,28 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
-import { FiringDashboard } from './components/FiringDashboard';
-import { FiringProfiles } from './components/FiringProfiles';
-import { ProfileBuilder } from './components/ProfileBuilder';
-import { Settings } from './components/Settings';
-import { FiringHistory } from './components/FiringHistory';
-import { FiringProfile, KilnSettings } from './types/kiln';
-import { mockProfiles } from './data/mockProfiles';
-import { Flame, FileText, Wrench, Settings as SettingsIcon, History } from 'lucide-react';
-import { Toaster } from './components/ui/sonner';
-import { api } from './services/api';
-import { kilnWS } from './services/websocket';
+import { useState, useEffect, useCallback } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
+import { FiringDashboard } from "./components/FiringDashboard";
+import { FiringProfiles } from "./components/FiringProfiles";
+import { ProfileBuilder } from "./components/ProfileBuilder";
+import { Settings } from "./components/Settings";
+import { FiringHistory } from "./components/FiringHistory";
+import { FiringProfile, KilnSettings } from "./types/kiln";
+import { mockProfiles } from "./data/mockProfiles";
+import { Flame, FileText, Wrench, Settings as SettingsIcon, History } from "lucide-react";
+import { Toaster } from "./components/ui/sonner";
+import { api } from "./services/api";
+import { kilnWS } from "./services/websocket";
 
 export default function App() {
   const [profiles, setProfiles] = useState<FiringProfile[]>([]);
   const [selectedProfile, setSelectedProfile] = useState<FiringProfile | null>(null);
   const [settings, setSettings] = useState<KilnSettings>({
-    tempUnit: 'C',
+    tempUnit: "C",
     maxSafeTemp: 1400,
     alarmEnabled: true,
     autoShutdown: true,
     notificationsEnabled: true,
     tcOffsetC: 0,
-    webhookUrl: '',
+    webhookUrl: "",
     elementWatts: 0,
     electricityCostKwh: 0,
   });

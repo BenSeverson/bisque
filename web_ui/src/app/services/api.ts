@@ -1,6 +1,6 @@
-import { FiringProfile, KilnSettings, ConeEntry, HistoryRecord } from '../types/kiln';
+import { FiringProfile, KilnSettings, ConeEntry, HistoryRecord } from "../types/kiln";
 
-const API_BASE = '/api/v1';
+const API_BASE = "/api/v1";
 
 // API token for auth (stored in memory, not localStorage for security)
 let _apiToken: string | null = null;
@@ -10,9 +10,9 @@ export function setApiToken(token: string | null) {
 }
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (_apiToken) {
-    headers['Authorization'] = `Bearer ${_apiToken}`;
+    headers["Authorization"] = `Bearer ${_apiToken}`;
   }
 
   const res = await fetch(`${API_BASE}${url}`, {
@@ -81,38 +81,37 @@ export interface DiagThermocouple {
 
 export const api = {
   // Status
-  getStatus: () => request<StatusResponse>('/status'),
+  getStatus: () => request<StatusResponse>("/status"),
 
   // Profiles
-  getProfiles: () => request<FiringProfile[]>('/profiles'),
+  getProfiles: () => request<FiringProfile[]>("/profiles"),
   getProfile: (id: string) => request<FiringProfile>(`/profiles/${id}`),
   saveProfile: (profile: FiringProfile) =>
-    request<{ ok: boolean; id: string }>('/profiles', {
-      method: 'POST',
+    request<{ ok: boolean; id: string }>("/profiles", {
+      method: "POST",
       body: JSON.stringify(profile),
     }),
-  deleteProfile: (id: string) =>
-    request<{ ok: boolean }>(`/profiles/${id}`, { method: 'DELETE' }),
+  deleteProfile: (id: string) => request<{ ok: boolean }>(`/profiles/${id}`, { method: "DELETE" }),
   duplicateProfile: async (profile: FiringProfile) => {
     const copy: FiringProfile = {
       ...profile,
       id: `${profile.id}-copy-${Date.now().toString(36)}`,
       name: `${profile.name} (Copy)`,
     };
-    return request<{ ok: boolean; id: string }>('/profiles', {
-      method: 'POST',
+    return request<{ ok: boolean; id: string }>("/profiles", {
+      method: "POST",
       body: JSON.stringify(copy),
     });
   },
   exportProfile: (id: string) => `${API_BASE}/profiles/${id}/export`,
   importProfile: (profile: FiringProfile) =>
-    request<{ ok: boolean; id: string }>('/profiles/import', {
-      method: 'POST',
+    request<{ ok: boolean; id: string }>("/profiles/import", {
+      method: "POST",
       body: JSON.stringify(profile),
     }),
 
   // Cone fire
-  getConeTable: () => request<ConeEntry[]>('/cone-table'),
+  getConeTable: () => request<ConeEntry[]>("/cone-table"),
   generateConeFire: (params: {
     coneId: number;
     speed: number; // 0=slow, 1=medium, 2=fast
@@ -120,54 +119,52 @@ export const api = {
     slowCool: boolean;
     save: boolean;
   }) =>
-    request<FiringProfile>('/profiles/cone-fire', {
-      method: 'POST',
+    request<FiringProfile>("/profiles/cone-fire", {
+      method: "POST",
       body: JSON.stringify(params),
     }),
 
   // Firing control
   startFiring: (profileId: string, delayMinutes = 0) =>
-    request<{ ok: boolean }>('/firing/start', {
-      method: 'POST',
+    request<{ ok: boolean }>("/firing/start", {
+      method: "POST",
       body: JSON.stringify({ profileId, delayMinutes }),
     }),
-  stopFiring: () => request<{ ok: boolean }>('/firing/stop', { method: 'POST' }),
-  pauseFiring: () =>
-    request<{ ok: boolean; action: string }>('/firing/pause', { method: 'POST' }),
-  skipSegment: () =>
-    request<{ ok: boolean }>('/firing/skip-segment', { method: 'POST' }),
+  stopFiring: () => request<{ ok: boolean }>("/firing/stop", { method: "POST" }),
+  pauseFiring: () => request<{ ok: boolean; action: string }>("/firing/pause", { method: "POST" }),
+  skipSegment: () => request<{ ok: boolean }>("/firing/skip-segment", { method: "POST" }),
 
   // Settings
-  getSettings: () => request<KilnSettings>('/settings'),
+  getSettings: () => request<KilnSettings>("/settings"),
   saveSettings: (settings: KilnSettings) =>
-    request<{ ok: boolean }>('/settings', {
-      method: 'POST',
+    request<{ ok: boolean }>("/settings", {
+      method: "POST",
       body: JSON.stringify(settings),
     }),
 
   // System
-  getSystemInfo: () => request<SystemInfo>('/system'),
+  getSystemInfo: () => request<SystemInfo>("/system"),
 
   // Auto-tune
   startAutotune: (setpoint: number, hysteresis = 5) =>
-    request<{ ok: boolean }>('/autotune/start', {
-      method: 'POST',
+    request<{ ok: boolean }>("/autotune/start", {
+      method: "POST",
       body: JSON.stringify({ setpoint, hysteresis }),
     }),
-  stopAutotune: () => request<{ ok: boolean }>('/autotune/stop', { method: 'POST' }),
-  getAutotuneStatus: () => request<AutotuneStatus>('/autotune/status'),
+  stopAutotune: () => request<{ ok: boolean }>("/autotune/stop", { method: "POST" }),
+  getAutotuneStatus: () => request<AutotuneStatus>("/autotune/status"),
 
   // History
-  getHistory: () => request<HistoryRecord[]>('/history'),
+  getHistory: () => request<HistoryRecord[]>("/history"),
   getHistoryTrace: (recordId: number) => `${API_BASE}/history/${recordId}/trace`,
 
   // OTA
   uploadOta: async (file: File, onProgress?: (pct: number) => void): Promise<{ ok: boolean }> => {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', `${API_BASE}/ota`);
+      xhr.open("POST", `${API_BASE}/ota`);
       if (_apiToken) {
-        xhr.setRequestHeader('Authorization', `Bearer ${_apiToken}`);
+        xhr.setRequestHeader("Authorization", `Bearer ${_apiToken}`);
       }
       if (onProgress) {
         xhr.upload.onprogress = (e) => {
@@ -178,16 +175,16 @@ export const api = {
         if (xhr.status < 300) resolve(JSON.parse(xhr.responseText));
         else reject(new Error(`OTA error ${xhr.status}: ${xhr.responseText}`));
       };
-      xhr.onerror = () => reject(new Error('OTA upload failed'));
+      xhr.onerror = () => reject(new Error("OTA upload failed"));
       xhr.send(file);
     });
   },
 
   // Diagnostics
   testRelay: (durationSeconds = 2) =>
-    request<{ ok: boolean; durationSeconds: number }>('/diagnostics/relay', {
-      method: 'POST',
+    request<{ ok: boolean; durationSeconds: number }>("/diagnostics/relay", {
+      method: "POST",
       body: JSON.stringify({ durationSeconds }),
     }),
-  getThermocoupleDiag: () => request<DiagThermocouple>('/diagnostics/thermocouple'),
+  getThermocoupleDiag: () => request<DiagThermocouple>("/diagnostics/thermocouple"),
 };

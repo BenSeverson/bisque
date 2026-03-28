@@ -1,12 +1,20 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Badge } from './ui/badge';
-import { Button } from './ui/button';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { HistoryRecord } from '../types/kiln';
-import { api } from '../services/api';
-import { Download, Flame, Clock, Thermometer, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { useState, useEffect, useCallback } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+import { HistoryRecord } from "../types/kiln";
+import { api } from "../services/api";
+import { Download, Flame, Clock, Thermometer, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 export function FiringHistory() {
   const [records, setRecords] = useState<HistoryRecord[]>([]);
@@ -37,10 +45,10 @@ export function FiringHistory() {
       const res = await fetch(url);
       if (res.ok) {
         const csv = await res.text();
-        const lines = csv.trim().split('\n').slice(1); // skip header
+        const lines = csv.trim().split("\n").slice(1); // skip header
         const parsed = lines
           .map((line) => {
-            const [time_s, temp_c] = line.split(',').map(Number);
+            const [time_s, temp_c] = line.split(",").map(Number);
             return { time_s, temp_c };
           })
           .filter((d) => !isNaN(d.time_s) && !isNaN(d.temp_c));
@@ -53,11 +61,11 @@ export function FiringHistory() {
 
   const handleDownloadTrace = (record: HistoryRecord) => {
     const url = api.getHistoryTrace(record.id);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = `trace_${record.id}.csv`;
     a.click();
-    toast.success('Downloading trace CSV');
+    toast.success("Downloading trace CSV");
   };
 
   const formatDuration = (s: number) => {
@@ -67,14 +75,14 @@ export function FiringHistory() {
   };
 
   const formatDate = (timestamp: number) => {
-    if (!timestamp) return 'Unknown date';
+    if (!timestamp) return "Unknown date";
     return new Date(timestamp * 1000).toLocaleString();
   };
 
-  const outcomeVariant = (outcome: string): 'default' | 'secondary' | 'destructive' | 'outline' => {
-    if (outcome === 'complete') return 'default';
-    if (outcome === 'error') return 'destructive';
-    return 'outline';
+  const outcomeVariant = (outcome: string): "default" | "secondary" | "destructive" | "outline" => {
+    if (outcome === "complete") return "default";
+    if (outcome === "error") return "destructive";
+    return "outline";
   };
 
   if (loading) {
@@ -113,7 +121,7 @@ export function FiringHistory() {
               <Card
                 key={record.id}
                 className={`cursor-pointer transition-all ${
-                  selectedRecord?.id === record.id ? 'ring-2 ring-primary' : 'hover:shadow-md'
+                  selectedRecord?.id === record.id ? "ring-2 ring-primary" : "hover:shadow-md"
                 }`}
                 onClick={() => handleSelectRecord(record)}
               >
@@ -178,7 +186,9 @@ export function FiringHistory() {
                     </div>
                     <div className="text-center p-3 bg-muted/50 rounded-lg">
                       <p className="text-xs text-muted-foreground">Duration</p>
-                      <p className="text-xl font-bold">{formatDuration(selectedRecord.durationS)}</p>
+                      <p className="text-xl font-bold">
+                        {formatDuration(selectedRecord.durationS)}
+                      </p>
                     </div>
                     <div className="text-center p-3 bg-muted/50 rounded-lg">
                       <p className="text-xs text-muted-foreground">Outcome</p>
@@ -193,13 +203,11 @@ export function FiringHistory() {
                         <XAxis
                           dataKey="time_s"
                           tickFormatter={(v) => `${Math.round(v / 60)}m`}
-                          label={{ value: 'Time', position: 'insideBottom', offset: -5 }}
+                          label={{ value: "Time", position: "insideBottom", offset: -5 }}
                         />
-                        <YAxis
-                          label={{ value: 'Temp (°C)', angle: -90, position: 'insideLeft' }}
-                        />
+                        <YAxis label={{ value: "Temp (°C)", angle: -90, position: "insideLeft" }} />
                         <Tooltip
-                          formatter={(v) => [`${v}°C`, 'Temperature']}
+                          formatter={(v) => [`${v}°C`, "Temperature"]}
                           labelFormatter={(v) => `${Math.round(Number(v) / 60)} min`}
                         />
                         <Line
@@ -232,7 +240,9 @@ export function FiringHistory() {
               <Card>
                 <CardContent className="py-20 text-center">
                   <Flame className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">Select a firing record to view its temperature trace.</p>
+                  <p className="text-muted-foreground">
+                    Select a firing record to view its temperature trace.
+                  </p>
                 </CardContent>
               </Card>
             )}

@@ -1,17 +1,35 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
-import { Progress } from './ui/progress';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Label } from './ui/label';
-import { Input } from './ui/input';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Play, Pause, Square, Flame, ThermometerSun, Clock, SkipForward, Timer } from 'lucide-react';
-import { FiringProfile, FiringProgress, TemperatureDataPoint } from '../types/kiln';
-import { api } from '../services/api';
-import { kilnWS, WSMessage } from '../services/websocket';
-import { toast } from 'sonner';
+import { useState, useEffect, useCallback } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
+import { Progress } from "./ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { Label } from "./ui/label";
+import { Input } from "./ui/input";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
+import {
+  Play,
+  Pause,
+  Square,
+  Flame,
+  ThermometerSun,
+  Clock,
+  SkipForward,
+  Timer,
+} from "lucide-react";
+import { FiringProfile, FiringProgress, TemperatureDataPoint } from "../types/kiln";
+import { api } from "../services/api";
+import { kilnWS, WSMessage } from "../services/websocket";
+import { toast } from "sonner";
 
 interface FiringDashboardProps {
   profiles: FiringProfile[];
@@ -19,7 +37,11 @@ interface FiringDashboardProps {
   onSelectProfile: (profileId: string) => void;
 }
 
-export function FiringDashboard({ profiles, selectedProfile, onSelectProfile }: FiringDashboardProps) {
+export function FiringDashboard({
+  profiles,
+  selectedProfile,
+  onSelectProfile,
+}: FiringDashboardProps) {
   const [firingProgress, setFiringProgress] = useState<FiringProgress>({
     isActive: false,
     profileId: null,
@@ -30,10 +52,10 @@ export function FiringDashboard({ profiles, selectedProfile, onSelectProfile }: 
     totalSegments: 0,
     elapsedTime: 0,
     estimatedTimeRemaining: 0,
-    status: 'idle',
+    status: "idle",
   });
 
-  const [status, setStatus] = useState<string>('idle');
+  const [status, setStatus] = useState<string>("idle");
   const [delayMinutes, setDelayMinutes] = useState<number>(0);
 
   const [currentTempData, setCurrentTempData] = useState<TemperatureDataPoint[]>([
@@ -44,29 +66,32 @@ export function FiringDashboard({ profiles, selectedProfile, onSelectProfile }: 
 
   // Fetch initial status from REST API
   useEffect(() => {
-    api.getStatus().then((s) => {
-      setFiringProgress({
-        isActive: s.isActive,
-        profileId: s.profileId,
-        startTime: null,
-        currentTemp: s.currentTemp,
-        targetTemp: s.targetTemp,
-        currentSegment: s.currentSegment,
-        totalSegments: s.totalSegments,
-        elapsedTime: s.elapsedTime,
-        estimatedTimeRemaining: s.estimatedTimeRemaining,
-        status: s.status,
+    api
+      .getStatus()
+      .then((s) => {
+        setFiringProgress({
+          isActive: s.isActive,
+          profileId: s.profileId,
+          startTime: null,
+          currentTemp: s.currentTemp,
+          targetTemp: s.targetTemp,
+          currentSegment: s.currentSegment,
+          totalSegments: s.totalSegments,
+          elapsedTime: s.elapsedTime,
+          estimatedTimeRemaining: s.estimatedTimeRemaining,
+          status: s.status,
+        });
+        setStatus(s.status);
+      })
+      .catch(() => {
+        // Not connected to ESP32
       });
-      setStatus(s.status);
-    }).catch(() => {
-      // Not connected to ESP32
-    });
   }, []);
 
   // Subscribe to WebSocket for real-time temperature updates
   useEffect(() => {
     const unsubscribe = kilnWS.subscribe((msg: WSMessage) => {
-      if (msg.type === 'temp_update') {
+      if (msg.type === "temp_update") {
         const d = msg.data;
         setFiringProgress((prev) => ({
           ...prev,
@@ -119,16 +144,24 @@ export function FiringDashboard({ profiles, selectedProfile, onSelectProfile }: 
       const steps = Math.max(10, Math.floor(rampTimeMinutes / 5));
       for (let i = 1; i <= steps; i++) {
         const progress = i / steps;
-        const stepTime = currentTime + (rampTimeMinutes * progress);
-        const stepTemp = currentTemp + (tempDifference * progress);
-        path.push({ time: Math.round(stepTime), temp: Math.round(stepTemp), target: Math.round(stepTemp) });
+        const stepTime = currentTime + rampTimeMinutes * progress;
+        const stepTemp = currentTemp + tempDifference * progress;
+        path.push({
+          time: Math.round(stepTime),
+          temp: Math.round(stepTemp),
+          target: Math.round(stepTemp),
+        });
       }
 
       currentTime += rampTimeMinutes;
       currentTemp = segment.targetTemp;
 
       if (segment.holdTime > 0) {
-        path.push({ time: Math.round(currentTime + segment.holdTime), temp: segment.targetTemp, target: segment.targetTemp });
+        path.push({
+          time: Math.round(currentTime + segment.holdTime),
+          temp: segment.targetTemp,
+          target: segment.targetTemp,
+        });
         currentTime += segment.holdTime;
       }
     });
@@ -141,27 +174,29 @@ export function FiringDashboard({ profiles, selectedProfile, onSelectProfile }: 
     try {
       await api.startFiring(selectedProfile.id, delayMinutes);
       setCurrentTempData([{ time: 0, temp: 20, target: 20 }]);
-      toast.success(delayMinutes > 0 ? `Firing scheduled in ${delayMinutes} min` : 'Firing started');
+      toast.success(
+        delayMinutes > 0 ? `Firing scheduled in ${delayMinutes} min` : "Firing started",
+      );
     } catch (e) {
-      toast.error(`Failed to start: ${e instanceof Error ? e.message : 'Unknown error'}`);
+      toast.error(`Failed to start: ${e instanceof Error ? e.message : "Unknown error"}`);
     }
   }, [selectedProfile, delayMinutes]);
 
   const handleSkipSegment = useCallback(async () => {
     try {
       await api.skipSegment();
-      toast.success('Skipped to next segment');
+      toast.success("Skipped to next segment");
     } catch (e) {
-      toast.error(`Failed to skip: ${e instanceof Error ? e.message : 'Unknown error'}`);
+      toast.error(`Failed to skip: ${e instanceof Error ? e.message : "Unknown error"}`);
     }
   }, []);
 
   const handlePause = useCallback(async () => {
     try {
       const result = await api.pauseFiring();
-      toast.success(result.action === 'paused' ? 'Firing paused' : 'Firing resumed');
+      toast.success(result.action === "paused" ? "Firing paused" : "Firing resumed");
     } catch (e) {
-      toast.error(`Failed: ${e instanceof Error ? e.message : 'Unknown error'}`);
+      toast.error(`Failed: ${e instanceof Error ? e.message : "Unknown error"}`);
     }
   }, []);
 
@@ -169,9 +204,9 @@ export function FiringDashboard({ profiles, selectedProfile, onSelectProfile }: 
     try {
       await api.stopFiring();
       setCurrentTempData([{ time: 0, temp: 20, target: 20 }]);
-      toast.success('Firing stopped');
+      toast.success("Firing stopped");
     } catch (e) {
-      toast.error(`Failed to stop: ${e instanceof Error ? e.message : 'Unknown error'}`);
+      toast.error(`Failed to stop: ${e instanceof Error ? e.message : "Unknown error"}`);
     }
   }, []);
 
@@ -188,37 +223,42 @@ export function FiringDashboard({ profiles, selectedProfile, onSelectProfile }: 
   };
 
   const getStatusBadge = () => {
-    const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-      heating: 'default',
-      holding: 'default',
-      cooling: 'default',
-      complete: 'secondary',
-      error: 'destructive',
-      paused: 'outline',
-      autotune: 'default',
-      idle: 'secondary',
+    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+      heating: "default",
+      holding: "default",
+      cooling: "default",
+      complete: "secondary",
+      error: "destructive",
+      paused: "outline",
+      autotune: "default",
+      idle: "secondary",
     };
     return (
-      <Badge variant={variants[status] || 'secondary'}>
+      <Badge variant={variants[status] || "secondary"}>
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </Badge>
     );
   };
 
-  interface ChartPoint { time: number; profile?: number; current?: number; target?: number }
+  interface ChartPoint {
+    time: number;
+    profile?: number;
+    current?: number;
+    target?: number;
+  }
 
   const getChartData = (): ChartPoint[] => {
     if (!selectedProfile || profilePath.length === 0) {
-      return currentTempData.map(p => ({ time: p.time, current: p.temp, target: p.target }));
+      return currentTempData.map((p) => ({ time: p.time, current: p.temp, target: p.target }));
     }
 
     const map = new Map<number, ChartPoint>();
 
-    profilePath.forEach(point => {
+    profilePath.forEach((point) => {
       map.set(point.time, { time: point.time, profile: point.temp });
     });
 
-    currentTempData.forEach(point => {
+    currentTempData.forEach((point) => {
       const existing = map.get(point.time);
       if (existing) {
         existing.current = point.temp;
@@ -268,9 +308,7 @@ export function FiringDashboard({ profiles, selectedProfile, onSelectProfile }: 
         <Card>
           <CardHeader className="pb-3">
             <CardDescription>Status</CardDescription>
-            <CardTitle className="flex items-center gap-2">
-              {getStatusBadge()}
-            </CardTitle>
+            <CardTitle className="flex items-center gap-2">{getStatusBadge()}</CardTitle>
           </CardHeader>
         </Card>
       </div>
@@ -280,13 +318,16 @@ export function FiringDashboard({ profiles, selectedProfile, onSelectProfile }: 
         <CardHeader>
           <CardTitle>Firing Controls</CardTitle>
           <CardDescription>
-            {selectedProfile && firingProgress.currentSegment < (selectedProfile?.segments.length || 0) && (
-              <>Current Segment: {selectedProfile.segments[firingProgress.currentSegment]?.name}</>
-            )}
+            {selectedProfile &&
+              firingProgress.currentSegment < (selectedProfile?.segments.length || 0) && (
+                <>
+                  Current Segment: {selectedProfile.segments[firingProgress.currentSegment]?.name}
+                </>
+              )}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {!firingProgress.isActive && status !== 'paused' && (
+          {!firingProgress.isActive && status !== "paused" && (
             <div className="flex items-end gap-3">
               <div className="space-y-2 w-36">
                 <Label htmlFor="delay-start" className="flex items-center gap-1">
@@ -313,7 +354,7 @@ export function FiringDashboard({ profiles, selectedProfile, onSelectProfile }: 
           <div className="space-y-2">
             <Label htmlFor="profile-select">Select Firing Profile</Label>
             <Select
-              value={selectedProfile?.id || ''}
+              value={selectedProfile?.id || ""}
               onValueChange={onSelectProfile}
               disabled={firingProgress.isActive}
             >
@@ -349,12 +390,12 @@ export function FiringDashboard({ profiles, selectedProfile, onSelectProfile }: 
           </div>
 
           <div className="flex gap-2">
-            {!firingProgress.isActive && status !== 'paused' ? (
+            {!firingProgress.isActive && status !== "paused" ? (
               <Button onClick={handleStart} disabled={!selectedProfile} className="gap-2">
                 <Play className="h-4 w-4" />
                 Start Firing
               </Button>
-            ) : status === 'paused' ? (
+            ) : status === "paused" ? (
               <Button onClick={handlePause} className="gap-2">
                 <Play className="h-4 w-4" />
                 Resume
@@ -369,19 +410,15 @@ export function FiringDashboard({ profiles, selectedProfile, onSelectProfile }: 
             <Button
               onClick={handleStop}
               variant="destructive"
-              disabled={!firingProgress.isActive && status !== 'paused'}
+              disabled={!firingProgress.isActive && status !== "paused"}
               className="gap-2"
             >
               <Square className="h-4 w-4" />
               Stop
             </Button>
 
-            {firingProgress.isActive && status !== 'paused' && (
-              <Button
-                onClick={handleSkipSegment}
-                variant="outline"
-                className="gap-2 ml-auto"
-              >
+            {firingProgress.isActive && status !== "paused" && (
+              <Button onClick={handleSkipSegment} variant="outline" className="gap-2 ml-auto">
                 <SkipForward className="h-4 w-4" />
                 Skip Segment
               </Button>
@@ -406,8 +443,8 @@ export function FiringDashboard({ profiles, selectedProfile, onSelectProfile }: 
                   key={segment.id}
                   className={`p-3 rounded-lg border ${
                     index === firingProgress.currentSegment && firingProgress.isActive
-                      ? 'bg-primary/10 border-primary'
-                      : 'bg-muted/50'
+                      ? "bg-primary/10 border-primary"
+                      : "bg-muted/50"
                   }`}
                 >
                   <div className="flex justify-between items-center">
@@ -417,7 +454,8 @@ export function FiringDashboard({ profiles, selectedProfile, onSelectProfile }: 
                     )}
                   </div>
                   <div className="text-sm text-muted-foreground mt-1">
-                    {segment.rampRate > 0 ? '+' : ''}{segment.rampRate}&deg;C/hr &rarr; {segment.targetTemp}&deg;C
+                    {segment.rampRate > 0 ? "+" : ""}
+                    {segment.rampRate}&deg;C/hr &rarr; {segment.targetTemp}&deg;C
                     {segment.holdTime > 0 && `, hold ${segment.holdTime} min`}
                   </div>
                 </div>
@@ -432,7 +470,7 @@ export function FiringDashboard({ profiles, selectedProfile, onSelectProfile }: 
         <CardHeader>
           <CardTitle>Temperature Profile</CardTitle>
           <CardDescription>
-            {selectedProfile ? `Running: ${selectedProfile.name}` : 'No profile selected'}
+            {selectedProfile ? `Running: ${selectedProfile.name}` : "No profile selected"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -442,15 +480,24 @@ export function FiringDashboard({ profiles, selectedProfile, onSelectProfile }: 
               <XAxis
                 dataKey="time"
                 type="number"
-                domain={profilePath.length > 0 ? [0, Math.ceil(profilePath[profilePath.length - 1].time / 60) * 60] : ['auto', 'auto']}
-                ticks={profilePath.length > 0
-                  ? Array.from({ length: Math.ceil(profilePath[profilePath.length - 1].time / 60) + 1 }, (_, i) => i * 60)
-                  : undefined}
+                domain={
+                  profilePath.length > 0
+                    ? [0, Math.ceil(profilePath[profilePath.length - 1].time / 60) * 60]
+                    : ["auto", "auto"]
+                }
+                ticks={
+                  profilePath.length > 0
+                    ? Array.from(
+                        { length: Math.ceil(profilePath[profilePath.length - 1].time / 60) + 1 },
+                        (_, i) => i * 60,
+                      )
+                    : undefined
+                }
                 tickFormatter={(min: number) => `${Math.round(min / 60)}`}
-                label={{ value: 'Time (hours)', position: 'insideBottom', offset: -5 }}
+                label={{ value: "Time (hours)", position: "insideBottom", offset: -5 }}
               />
               <YAxis
-                label={{ value: 'Temperature (\u00B0C)', angle: -90, position: 'insideLeft' }}
+                label={{ value: "Temperature (\u00B0C)", angle: -90, position: "insideLeft" }}
               />
               <Tooltip
                 labelFormatter={(label) => {

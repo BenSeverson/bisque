@@ -10,7 +10,7 @@ export interface TempUpdateData {
 }
 
 export interface WSMessage {
-  type: 'temp_update';
+  type: "temp_update";
   data: TempUpdateData;
 }
 
@@ -23,7 +23,7 @@ class KilnWebSocket {
   private url: string;
 
   constructor() {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     this.url = `${protocol}//${window.location.host}/api/v1/ws`;
   }
 
@@ -34,7 +34,7 @@ class KilnWebSocket {
       this.ws = new WebSocket(this.url);
 
       this.ws.onopen = () => {
-        console.log('[WS] Connected');
+        console.log("[WS] Connected");
         if (this.reconnectTimer) {
           clearTimeout(this.reconnectTimer);
           this.reconnectTimer = null;
@@ -46,21 +46,21 @@ class KilnWebSocket {
           const msg: WSMessage = JSON.parse(event.data);
           this.handlers.forEach((handler) => handler(msg));
         } catch (e) {
-          console.warn('[WS] Failed to parse message:', e);
+          console.warn("[WS] Failed to parse message:", e);
         }
       };
 
       this.ws.onclose = () => {
-        console.log('[WS] Disconnected, reconnecting...');
+        console.log("[WS] Disconnected, reconnecting...");
         this.scheduleReconnect();
       };
 
       this.ws.onerror = (err) => {
-        console.error('[WS] Error:', err);
+        console.error("[WS] Error:", err);
         this.ws?.close();
       };
     } catch (e) {
-      console.error('[WS] Failed to connect:', e);
+      console.error("[WS] Failed to connect:", e);
       this.scheduleReconnect();
     }
   }

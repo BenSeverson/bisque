@@ -8,7 +8,10 @@
     "dev": "vite",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write 'src/**/*.{ts,tsx,css}'",
+    "format:check": "prettier --check 'src/**/*.{ts,tsx,css}'",
+    "mock-server": "tsx mock-server/standalone.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.1.15",
@@ -38,7 +41,9 @@
     "eslint": "^9.17.0",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
+    "prettier": "^3.8.1",
     "tailwindcss": "4.2.2",
+    "tsx": "^4.21.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.57.1",
     "vite": "^6.4.1",
