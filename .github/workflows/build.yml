@@ -82,7 +82,7 @@ jobs:
         with:
           esp_idf_version: v6.0
           target: esp32s3
-          command: idf_tools.py install esp-clang && idf.py clang-check --run-clang-tidy-options="-warnings-as-errors=*"
+          command: idf_tools.py install esp-clang && eval "$(idf_tools.py export)" && idf.py clang-check --run-clang-tidy-options="-warnings-as-errors=*"
       - name: Run cppcheck
         uses: espressif/esp-idf-ci-action@v1
         with:
