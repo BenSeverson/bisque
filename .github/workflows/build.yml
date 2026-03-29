@@ -76,29 +76,13 @@ jobs:
       - name: Check firmware size
         run: ./scripts/check-firmware-size.sh build/bisque.bin
 
-      # Static analysis (runs inside ESP-IDF Docker container for access to toolchain headers)
+      # Static analysis
       - name: Run clang-tidy
         uses: espressif/esp-idf-ci-action@v1
         with:
           esp_idf_version: v6.0
           target: esp32s3
-          command: |
-            apt-get update && apt-get install -y clang-tidy &&
-            sed -i \
-              -e 's|[^ "]*xtensa-esp32s3-elf-[a-z+]*|clang|g' \
-              -e 's| -mlongcalls||g' \
-              -e 's| -fno-tree-switch-conversion||g' \
-              -e 's| -fstrict-volatile-bitfields||g' \
-              -e 's| -fno-shrink-wrap||g' \
-              -e 's| -fno-malloc-dce||g' \
-              -e 's| -fzero-init-padding-bits=all||g' \
-              -e 's| -Wno-old-style-declaration||g' \
-              build/compile_commands.json &&
-            run-clang-tidy -p build \
-              -header-filter='(main|components)/.*\.h$' \
-              -extra-arg=--target=x86_64-linux-gnu \
-              -extra-arg=-Wno-unknown-attributes \
-              main/main.c components/*/*.c
+          command: idf_tools.py install esp-clang && idf.py clang-check --run-clang-tidy-options="-warnings-as-errors=*"
       - name: Run cppcheck
         uses: espressif/esp-idf-ci-action@v1
         with:
