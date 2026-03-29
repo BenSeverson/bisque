@@ -56,7 +56,7 @@ static esp_err_t load_records_from_json(history_record_t *records, int max_count
 
     fseek(f, 0, SEEK_END);
     long sz = ftell(f);
-    rewind(f);
+    fseek(f, 0, SEEK_SET);
     if (sz <= 0 || sz > 32768) {
         fclose(f);
         return ESP_ERR_INVALID_SIZE;
