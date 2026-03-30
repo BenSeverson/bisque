@@ -48,7 +48,7 @@ struct ConeFireView: View {
                 ForEach(viewModel.segments) { segment in
                     VStack(alignment: .leading) {
                         Text(segment.name).font(.subheadline.bold())
-                        Text("\(segment.rampRate > 0 ? "+" : "")\(Int(segment.rampRate))°C/hr → \(Int(segment.targetTemp))°C\(segment.holdTime > 0 ? ", hold \(Int(segment.holdTime))m" : "")")
+                        Text(segment.formattedDescription)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

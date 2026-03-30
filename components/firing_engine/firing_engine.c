@@ -1,4 +1,5 @@
 #include "firing_engine.h"
+#include "app_config.h"
 #include "thermocouple.h"
 #include "pid_control.h"
 #include "safety.h"
@@ -281,8 +282,8 @@ esp_err_t firing_engine_set_settings(const kiln_settings_t *settings)
 {
     /* Clamp max_safe_temp to hardware limit */
     kiln_settings_t safe = *settings;
-    if (safe.max_safe_temp > 1400.0f) {
-        safe.max_safe_temp = 1400.0f;
+    if (safe.max_safe_temp > APP_HARDWARE_MAX_TEMP_C) {
+        safe.max_safe_temp = APP_HARDWARE_MAX_TEMP_C;
     }
     if (safe.max_safe_temp < 100.0f) {
         safe.max_safe_temp = 100.0f;
@@ -339,6 +340,15 @@ static void make_nvs_key(const char *id, char *key, size_t key_size)
     }
 }
 
+static int load_profile_index(nvs_handle_t handle, char ids[][FIRING_ID_LEN])
+{
+    size_t idx_size = FIRING_MAX_PROFILES * FIRING_ID_LEN;
+    if (nvs_get_blob(handle, NVS_KEY_INDEX, ids, &idx_size) == ESP_OK) {
+        return (int)(idx_size / FIRING_ID_LEN);
+    }
+    return 0;
+}
+
 esp_err_t firing_engine_save_profile(const firing_profile_t *profile)
 {
     nvs_handle_t handle;
@@ -358,11 +368,7 @@ esp_err_t firing_engine_save_profile(const firing_profile_t *profile)
 
     /* Update index: load existing, add if not present */
     char ids[FIRING_MAX_PROFILES][FIRING_ID_LEN];
-    size_t idx_size = sizeof(ids);
-    int count = 0;
-    if (nvs_get_blob(handle, NVS_KEY_INDEX, ids, &idx_size) == ESP_OK) {
-        count = (int)(idx_size / FIRING_ID_LEN);
-    }
+    int count = load_profile_index(handle, ids);
 
     /* Check if already in index */
     bool found = false;
@@ -416,11 +422,7 @@ esp_err_t firing_engine_delete_profile(const char *id)
 
     /* Remove from index */
     char ids[FIRING_MAX_PROFILES][FIRING_ID_LEN];
-    size_t idx_size = sizeof(ids);
-    int count = 0;
-    if (nvs_get_blob(handle, NVS_KEY_INDEX, ids, &idx_size) == ESP_OK) {
-        count = (int)(idx_size / FIRING_ID_LEN);
-    }
+    int count = load_profile_index(handle, ids);
 
     for (int i = 0; i < count; i++) {
         if (strcmp(ids[i], id) == 0) {
@@ -445,11 +447,7 @@ int firing_engine_list_profiles(char ids_out[][FIRING_ID_LEN], int max_count)
     }
 
     char ids[FIRING_MAX_PROFILES][FIRING_ID_LEN];
-    size_t idx_size = sizeof(ids);
-    int count = 0;
-    if (nvs_get_blob(handle, NVS_KEY_INDEX, ids, &idx_size) == ESP_OK) {
-        count = (int)(idx_size / FIRING_ID_LEN);
-    }
+    int count = load_profile_index(handle, ids);
     nvs_close(handle);
 
     int result = (count < max_count) ? count : max_count;
@@ -495,6 +493,33 @@ static void start_segment(int segment_idx, float current_temp)
     firing_segment_t *seg = &s_active_profile.segments[segment_idx];
     ESP_LOGI(TAG, "Starting segment %d: '%s' — ramp %.0f°C/hr to %.0f°C, hold %d min", segment_idx, seg->name,
              seg->ramp_rate, seg->target_temp, seg->hold_time);
+}
+
+static void begin_firing(float cur_temp, int64_t now_us)
+{
+    start_segment(0, cur_temp);
+    pid_reset(&s_pid);
+    s_check_start_temp = cur_temp;
+    s_check_start_time_us = now_us;
+    s_last_history_sample_us = now_us;
+    history_firing_start(s_active_profile.id, s_active_profile.name);
+    progress_lock();
+    s_progress.status = FIRING_STATUS_HEATING;
+    progress_unlock();
+}
+
+static void complete_firing(float peak, uint32_t dur, bool save_elem_hrs)
+{
+    safety_set_ssr(0.0f);
+    progress_lock();
+    s_progress.is_active = false;
+    s_progress.status = FIRING_STATUS_COMPLETE;
+    progress_unlock();
+    history_firing_end(HISTORY_OUTCOME_COMPLETE, peak, dur, 0);
+    if (save_elem_hrs) {
+        save_element_hours();
+    }
+    xEventGroupSetBits(safety_get_event_group(), SAFETY_BIT_FIRING_COMPLETE);
 }
 
 static void do_stop(void)
@@ -546,20 +571,14 @@ void firing_task(void *param)
                     ESP_LOGI(TAG, "Firing queued with %u min delay: %s", cmd.start.delay_minutes,
                              s_active_profile.name);
                 } else {
-                    start_segment(0, cur_temp);
-                    pid_reset(&s_pid);
-                    s_check_start_temp = cur_temp;
-                    s_check_start_time_us = esp_timer_get_time();
-                    s_last_history_sample_us = esp_timer_get_time();
-                    history_firing_start(s_active_profile.id, s_active_profile.name);
                     progress_lock();
                     s_progress.is_active = true;
-                    s_progress.status = FIRING_STATUS_HEATING;
                     strncpy(s_progress.profile_id, s_active_profile.id, FIRING_ID_LEN - 1);
                     s_progress.current_segment = 0;
                     s_progress.total_segments = s_active_profile.segment_count;
                     s_progress.elapsed_time = 0;
                     progress_unlock();
+                    begin_firing(cur_temp, esp_timer_get_time());
                     ESP_LOGI(TAG, "Firing started: %s", s_active_profile.name);
                 }
                 s_last_error_code = FIRING_ERR_NONE;
@@ -619,15 +638,11 @@ void firing_task(void *param)
                     ESP_LOGI(TAG, "Skipped to segment %d", next);
                 } else if (active && seg_idx + 1 >= total) {
                     /* Skip last segment → firing complete */
-                    safety_set_ssr(0.0f);
                     progress_lock();
                     float peak = s_progress.current_temp;
                     uint32_t dur = s_progress.elapsed_time;
-                    s_progress.is_active = false;
-                    s_progress.status = FIRING_STATUS_COMPLETE;
                     progress_unlock();
-                    history_firing_end(HISTORY_OUTCOME_COMPLETE, peak, dur, 0);
-                    xEventGroupSetBits(safety_get_event_group(), SAFETY_BIT_FIRING_COMPLETE);
+                    complete_firing(peak, dur, false);
                 }
                 break;
             }
@@ -659,15 +674,7 @@ void firing_task(void *param)
                 kiln_settings_t st;
                 firing_engine_get_settings(&st);
                 float cur_temp = r.temperature_c + st.tc_offset_c;
-                start_segment(0, cur_temp);
-                pid_reset(&s_pid);
-                s_check_start_temp = cur_temp;
-                s_check_start_time_us = now_us;
-                s_last_history_sample_us = now_us;
-                history_firing_start(s_active_profile.id, s_active_profile.name);
-                progress_lock();
-                s_progress.status = FIRING_STATUS_HEATING;
-                progress_unlock();
+                begin_firing(cur_temp, now_us);
                 ESP_LOGI(TAG, "Delay expired, firing started: %s", s_active_profile.name);
             } else {
                 xTaskDelayUntil(&last_wake, pdMS_TO_TICKS(1000));

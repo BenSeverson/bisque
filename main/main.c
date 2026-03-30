@@ -137,8 +137,7 @@ void app_main(void)
     };
     esp_timer_handle_t ws_timer;
     ESP_ERROR_CHECK(esp_timer_create(&ws_timer_args, &ws_timer));
-    /* 1s interval during firing, but we use 1s always and let the client manage */
-    ESP_ERROR_CHECK(esp_timer_start_periodic(ws_timer, 1000000)); /* 1 second */
+    ESP_ERROR_CHECK(esp_timer_start_periodic(ws_timer, 1000000)); /* 1s broadcast interval */
 
     ESP_LOGI(TAG, "=== Bisque started successfully ===");
     ESP_LOGI(TAG, "Free heap: %lu bytes", (unsigned long)esp_get_free_heap_size());

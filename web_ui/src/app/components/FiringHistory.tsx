@@ -13,8 +13,10 @@ import {
 } from "recharts";
 import { HistoryRecord } from "../types/kiln";
 import { api } from "../services/api";
-import { Download, Flame, Clock, Thermometer, Trash2 } from "lucide-react";
+import { Download, Flame, Clock, Thermometer } from "lucide-react";
 import { toast } from "sonner";
+import { formatDuration } from "../utils/time";
+import { downloadUrl } from "../utils/download";
 
 export function FiringHistory() {
   const [records, setRecords] = useState<HistoryRecord[]>([]);
@@ -60,18 +62,8 @@ export function FiringHistory() {
   };
 
   const handleDownloadTrace = (record: HistoryRecord) => {
-    const url = api.getHistoryTrace(record.id);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `trace_${record.id}.csv`;
-    a.click();
+    downloadUrl(api.getHistoryTrace(record.id), `trace_${record.id}.csv`);
     toast.success("Downloading trace CSV");
-  };
-
-  const formatDuration = (s: number) => {
-    const h = Math.floor(s / 3600);
-    const m = Math.floor((s % 3600) / 60);
-    return `${h}h ${m}m`;
   };
 
   const formatDate = (timestamp: number) => {

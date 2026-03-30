@@ -77,11 +77,7 @@ final class ProfileBuilderViewModel {
 
         do {
             let result = try await client.saveProfile(profile)
-            let saved = FiringProfile(id: result.id, name: profile.name,
-                                      description: profile.description,
-                                      segments: profile.segments,
-                                      maxTemp: profile.maxTemp,
-                                      estimatedDuration: profile.estimatedDuration)
+            let saved = profile.copyWithId(result.id)
             if let index = store.profiles.firstIndex(where: { $0.id == existingId }) {
                 store.profiles[index] = saved
             } else {

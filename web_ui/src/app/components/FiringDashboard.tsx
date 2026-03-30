@@ -30,6 +30,9 @@ import { FiringProfile, FiringProgress, TemperatureDataPoint } from "../types/ki
 import { api } from "../services/api";
 import { kilnWS, WSMessage } from "../services/websocket";
 import { toast } from "sonner";
+import { formatDuration } from "../utils/time";
+import { toErrorMessage } from "../utils/error";
+import { computeSegmentDurationMinutes } from "../utils/profile";
 
 interface FiringDashboardProps {
   profiles: FiringProfile[];
@@ -55,7 +58,6 @@ export function FiringDashboard({
     status: "idle",
   });
 
-  const [status, setStatus] = useState<string>("idle");
   const [delayMinutes, setDelayMinutes] = useState<number>(0);
 
   const [currentTempData, setCurrentTempData] = useState<TemperatureDataPoint[]>([
@@ -81,7 +83,6 @@ export function FiringDashboard({
           estimatedTimeRemaining: s.estimatedTimeRemaining,
           status: s.status,
         });
-        setStatus(s.status);
       })
       .catch(() => {
         // Not connected to ESP32
@@ -104,7 +105,6 @@ export function FiringDashboard({
           estimatedTimeRemaining: d.estimatedTimeRemaining,
           status: d.status,
         }));
-        setStatus(d.status);
 
         // Append to chart data (elapsedTime is in seconds from ESP32)
         const timeMin = Math.round(d.elapsedTime / 60);
@@ -138,8 +138,10 @@ export function FiringDashboard({
 
     selectedProfile.segments.forEach((segment) => {
       const tempDifference = segment.targetTemp - currentTemp;
-      const rampTimeHours = Math.abs(tempDifference) / Math.abs(segment.rampRate);
-      const rampTimeMinutes = rampTimeHours * 60;
+      const { rampMinutes: rampTimeMinutes } = computeSegmentDurationMinutes(
+        { targetTemp: segment.targetTemp, rampRate: segment.rampRate, holdMinutes: segment.holdTime },
+        currentTemp,
+      );
 
       const steps = Math.max(10, Math.floor(rampTimeMinutes / 5));
       for (let i = 1; i <= steps; i++) {
@@ -178,7 +180,7 @@ export function FiringDashboard({
         delayMinutes > 0 ? `Firing scheduled in ${delayMinutes} min` : "Firing started",
       );
     } catch (e) {
-      toast.error(`Failed to start: ${e instanceof Error ? e.message : "Unknown error"}`);
+      toast.error(`Failed to start: ${toErrorMessage(e)}`);
     }
   }, [selectedProfile, delayMinutes]);
 
@@ -187,7 +189,7 @@ export function FiringDashboard({
       await api.skipSegment();
       toast.success("Skipped to next segment");
     } catch (e) {
-      toast.error(`Failed to skip: ${e instanceof Error ? e.message : "Unknown error"}`);
+      toast.error(`Failed to skip: ${toErrorMessage(e)}`);
     }
   }, []);
 
@@ -196,7 +198,7 @@ export function FiringDashboard({
       const result = await api.pauseFiring();
       toast.success(result.action === "paused" ? "Firing paused" : "Firing resumed");
     } catch (e) {
-      toast.error(`Failed: ${e instanceof Error ? e.message : "Unknown error"}`);
+      toast.error(`Failed: ${toErrorMessage(e)}`);
     }
   }, []);
 
@@ -206,15 +208,9 @@ export function FiringDashboard({
       setCurrentTempData([{ time: 0, temp: 20, target: 20 }]);
       toast.success("Firing stopped");
     } catch (e) {
-      toast.error(`Failed to stop: ${e instanceof Error ? e.message : "Unknown error"}`);
+      toast.error(`Failed to stop: ${toErrorMessage(e)}`);
     }
   }, []);
-
-  const formatTime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    return `${hours}h ${mins}m`;
-  };
 
   const getProgress = () => {
     if (!selectedProfile || firingProgress.elapsedTime === 0) return 0;
@@ -234,8 +230,8 @@ export function FiringDashboard({
       idle: "secondary",
     };
     return (
-      <Badge variant={variants[status] || "secondary"}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+      <Badge variant={variants[firingProgress.status] || "secondary"}>
+        {firingProgress.status.charAt(0).toUpperCase() + firingProgress.status.slice(1)}
       </Badge>
     );
   };
@@ -300,7 +296,7 @@ export function FiringDashboard({
             <CardDescription>Elapsed Time</CardDescription>
             <CardTitle className="flex items-center gap-2 text-3xl">
               <Clock className="h-6 w-6" />
-              {formatTime(firingProgress.elapsedTime)}
+              {formatDuration(firingProgress.elapsedTime)}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -327,7 +323,7 @@ export function FiringDashboard({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {!firingProgress.isActive && status !== "paused" && (
+          {!firingProgress.isActive && firingProgress.status !== "paused" && (
             <div className="flex items-end gap-3">
               <div className="space-y-2 w-36">
                 <Label htmlFor="delay-start" className="flex items-center gap-1">
@@ -384,18 +380,18 @@ export function FiringDashboard({
             <Progress value={getProgress()} />
             {selectedProfile && (
               <p className="text-sm text-muted-foreground">
-                Estimated time remaining: {formatTime(firingProgress.estimatedTimeRemaining)}
+                Estimated time remaining: {formatDuration(firingProgress.estimatedTimeRemaining)}
               </p>
             )}
           </div>
 
           <div className="flex gap-2">
-            {!firingProgress.isActive && status !== "paused" ? (
+            {!firingProgress.isActive && firingProgress.status !== "paused" ? (
               <Button onClick={handleStart} disabled={!selectedProfile} className="gap-2">
                 <Play className="h-4 w-4" />
                 Start Firing
               </Button>
-            ) : status === "paused" ? (
+            ) : firingProgress.status === "paused" ? (
               <Button onClick={handlePause} className="gap-2">
                 <Play className="h-4 w-4" />
                 Resume
@@ -410,14 +406,14 @@ export function FiringDashboard({
             <Button
               onClick={handleStop}
               variant="destructive"
-              disabled={!firingProgress.isActive && status !== "paused"}
+              disabled={!firingProgress.isActive && firingProgress.status !== "paused"}
               className="gap-2"
             >
               <Square className="h-4 w-4" />
               Stop
             </Button>
 
-            {firingProgress.isActive && status !== "paused" && (
+            {firingProgress.isActive && firingProgress.status !== "paused" && (
               <Button onClick={handleSkipSegment} variant="outline" className="gap-2 ml-auto">
                 <SkipForward className="h-4 w-4" />
                 Skip Segment

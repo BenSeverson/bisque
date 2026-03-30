@@ -2,6 +2,7 @@
 
 #include "esp_err.h"
 #include "esp_http_server.h"
+#include "firing_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -36,6 +37,11 @@ void ws_broadcast(const char *json, size_t len);
  * Call from a timer or task to push periodic updates.
  */
 void ws_broadcast_status(void);
+
+/**
+ * Convert firing status enum to lowercase string for JSON APIs.
+ */
+const char *firing_status_to_string(firing_status_t s);
 
 /* Internal: register API handlers (called by web_server_start) */
 esp_err_t api_handlers_register(httpd_handle_t server);

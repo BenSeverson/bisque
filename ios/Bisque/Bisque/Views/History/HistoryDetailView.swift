@@ -50,15 +50,6 @@ struct HistoryDetailView: View {
                     .padding(.horizontal)
                 }
 
-                // Export
-                Button {
-                    // CSV export handled via share sheet
-                } label: {
-                    Label("Export CSV", systemImage: "square.and.arrow.up")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .padding(.horizontal)
             }
             .padding(.vertical)
         }

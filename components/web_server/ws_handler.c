@@ -16,30 +16,6 @@ static int s_ws_count = 0;
 /* Track previous firing status for transition detection */
 static firing_status_t s_prev_status = FIRING_STATUS_IDLE;
 
-static const char *status_to_string_ws(firing_status_t s)
-{
-    switch (s) {
-    case FIRING_STATUS_IDLE:
-        return "idle";
-    case FIRING_STATUS_HEATING:
-        return "heating";
-    case FIRING_STATUS_HOLDING:
-        return "holding";
-    case FIRING_STATUS_COOLING:
-        return "cooling";
-    case FIRING_STATUS_COMPLETE:
-        return "complete";
-    case FIRING_STATUS_ERROR:
-        return "error";
-    case FIRING_STATUS_PAUSED:
-        return "paused";
-    case FIRING_STATUS_AUTOTUNE:
-        return "autotune";
-    default:
-        return "unknown";
-    }
-}
-
 /* ── WebSocket handler ─────────────────────────────── */
 
 static esp_err_t ws_handler(httpd_req_t *req)
@@ -150,7 +126,7 @@ void ws_broadcast_status(void)
     cJSON *data = cJSON_AddObjectToObject(root, "data");
     cJSON_AddNumberToObject(data, "currentTemp", adjusted_temp);
     cJSON_AddNumberToObject(data, "targetTemp", prog.target_temp);
-    cJSON_AddStringToObject(data, "status", status_to_string_ws(prog.status));
+    cJSON_AddStringToObject(data, "status", firing_status_to_string(prog.status));
     cJSON_AddNumberToObject(data, "currentSegment", prog.current_segment);
     cJSON_AddNumberToObject(data, "totalSegments", prog.total_segments);
     cJSON_AddNumberToObject(data, "elapsedTime", prog.elapsed_time);

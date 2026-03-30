@@ -3,7 +3,6 @@ import UniformTypeIdentifiers
 
 @MainActor @Observable
 final class ProfilesViewModel {
-    var isLoading = false
     var error: String?
 
     func deleteProfile(id: String, using client: KilnAPIClient, store: KilnStore) async {
@@ -27,10 +26,7 @@ final class ProfilesViewModel {
 
         do {
             let result = try await client.saveProfile(copy)
-            var saved = copy
-            saved = FiringProfile(id: result.id, name: copy.name, description: copy.description,
-                                  segments: copy.segments, maxTemp: copy.maxTemp,
-                                  estimatedDuration: copy.estimatedDuration)
+            let saved = copy.copyWithId(result.id)
             store.profiles.append(saved)
         } catch {
             self.error = error.localizedDescription
@@ -41,11 +37,7 @@ final class ProfilesViewModel {
         do {
             let profile = try JSONDecoder().decode(FiringProfile.self, from: data)
             let result = try await client.importProfile(profile)
-            let imported = FiringProfile(id: result.id, name: profile.name,
-                                         description: profile.description,
-                                         segments: profile.segments,
-                                         maxTemp: profile.maxTemp,
-                                         estimatedDuration: profile.estimatedDuration)
+            let imported = profile.copyWithId(result.id)
             store.profiles.append(imported)
         } catch {
             self.error = error.localizedDescription

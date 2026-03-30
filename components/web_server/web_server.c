@@ -9,6 +9,32 @@ static const char *TAG = "web_server";
 
 static httpd_handle_t s_server = NULL;
 
+/* ── Shared status string helper ─────────────────── */
+
+const char *firing_status_to_string(firing_status_t s)
+{
+    switch (s) {
+    case FIRING_STATUS_IDLE:
+        return "idle";
+    case FIRING_STATUS_HEATING:
+        return "heating";
+    case FIRING_STATUS_HOLDING:
+        return "holding";
+    case FIRING_STATUS_COOLING:
+        return "cooling";
+    case FIRING_STATUS_COMPLETE:
+        return "complete";
+    case FIRING_STATUS_ERROR:
+        return "error";
+    case FIRING_STATUS_PAUSED:
+        return "paused";
+    case FIRING_STATUS_AUTOTUNE:
+        return "autotune";
+    default:
+        return "unknown";
+    }
+}
+
 /* ── MIME type lookup ──────────────────────────────── */
 
 static const char *get_mime_type(const char *path)

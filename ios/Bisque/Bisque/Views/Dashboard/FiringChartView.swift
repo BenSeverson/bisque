@@ -6,6 +6,10 @@ struct FiringChartView: View {
     let profilePath: [TemperatureDataPoint]
     let unit: String
 
+    private func displayTemp(_ celsius: Double) -> Double {
+        unit == "F" ? TemperatureConverter.cToF(celsius) : celsius
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Temperature")
@@ -17,7 +21,7 @@ struct FiringChartView: View {
                 ForEach(profilePath) { point in
                     LineMark(
                         x: .value("Time", point.time),
-                        y: .value("Temp", unit == "F" ? TemperatureConverter.cToF(point.temp) : point.temp),
+                        y: .value("Temp", displayTemp(point.temp)),
                         series: .value("Series", "Profile")
                     )
                     .foregroundStyle(.gray.opacity(0.5))
@@ -28,7 +32,7 @@ struct FiringChartView: View {
                 ForEach(temperatureHistory) { point in
                     LineMark(
                         x: .value("Time", point.time),
-                        y: .value("Temp", unit == "F" ? TemperatureConverter.cToF(point.temp) : point.temp),
+                        y: .value("Temp", displayTemp(point.temp)),
                         series: .value("Series", "Current")
                     )
                     .foregroundStyle(.orange)
@@ -39,7 +43,7 @@ struct FiringChartView: View {
                 ForEach(temperatureHistory) { point in
                     LineMark(
                         x: .value("Time", point.time),
-                        y: .value("Temp", unit == "F" ? TemperatureConverter.cToF(point.target) : point.target),
+                        y: .value("Temp", displayTemp(point.target)),
                         series: .value("Series", "Target")
                     )
                     .foregroundStyle(.blue)

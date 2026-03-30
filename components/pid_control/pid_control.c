@@ -1,4 +1,5 @@
 #include "pid_control.h"
+#include "app_config.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "nvs_flash.h"
@@ -8,10 +9,9 @@
 
 static const char *TAG = "pid_control";
 
-/* Default gains (used when NVS has no stored values) */
-#define DEFAULT_KP 2.0f
-#define DEFAULT_KI 0.01f
-#define DEFAULT_KD 50.0f
+#define DEFAULT_KP APP_PID_KP_DEFAULT
+#define DEFAULT_KI APP_PID_KI_DEFAULT
+#define DEFAULT_KD APP_PID_KD_DEFAULT
 
 #define NVS_NAMESPACE       "pid"
 #define AUTOTUNE_TIMEOUT_US (60LL * 60 * 1000000) /* 60 minutes */

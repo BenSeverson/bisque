@@ -5,8 +5,6 @@ final class DashboardViewModel {
     var selectedProfileId: String?
     var delayMinutes: Int = 0
     var isStarting = false
-    var isPausing = false
-    var isStopping = false
     var actionError: String?
 
     func startFiring(using client: KilnAPIClient, store: KilnStore) async {
@@ -27,27 +25,21 @@ final class DashboardViewModel {
     }
 
     func pauseFiring(using client: KilnAPIClient) async {
-        isPausing = true
         actionError = nil
         do {
             _ = try await client.pauseFiring()
-            isPausing = false
         } catch {
             actionError = error.localizedDescription
-            isPausing = false
         }
     }
 
     func stopFiring(using client: KilnAPIClient, store: KilnStore) async {
-        isStopping = true
         actionError = nil
         do {
             _ = try await client.stopFiring()
             store.clearTemperatureHistory()
-            isStopping = false
         } catch {
             actionError = error.localizedDescription
-            isStopping = false
         }
     }
 

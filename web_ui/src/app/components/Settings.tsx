@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { formatUptime } from "../utils/time";
+import { toErrorMessage } from "../utils/error";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Label } from "./ui/label";
 import { Input } from "./ui/input";
@@ -66,10 +68,10 @@ export function Settings({ settings, onUpdateSettings }: SettingsProps) {
     return () => clearInterval(interval);
   }, [autotuneRunning]);
 
-  const handleSave = useCallback(async () => {
+  const handleSave = () => {
     onUpdateSettings(settings);
     toast.success("Settings saved");
-  }, [settings, onUpdateSettings]);
+  };
 
   const handleSetToken = useCallback(async () => {
     if (!newToken.trim()) return;
@@ -93,7 +95,7 @@ export function Settings({ settings, onUpdateSettings }: SettingsProps) {
       setAutotuneRunning(true);
       toast.success("Auto-tune started");
     } catch (e) {
-      toast.error(`Failed: ${e instanceof Error ? e.message : "Unknown error"}`);
+      toast.error(`Failed: ${toErrorMessage(e)}`);
     }
   }, [autotuneSetpoint]);
 
@@ -134,17 +136,10 @@ export function Settings({ settings, onUpdateSettings }: SettingsProps) {
       setOtaFile(null);
       setOtaProgress(null);
     } catch (e) {
-      toast.error(`OTA failed: ${e instanceof Error ? e.message : "Unknown error"}`);
+      toast.error(`OTA failed: ${toErrorMessage(e)}`);
       setOtaProgress(null);
     }
   }, [otaFile]);
-
-  const formatUptime = (seconds: number) => {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = Math.floor(seconds % 60);
-    return `${h}h ${m}m ${s}s`;
-  };
 
   const formatBytes = (bytes: number) => `${Math.round(bytes / 1024)} KB`;
   const formatHours = (seconds: number) => `${(seconds / 3600).toFixed(1)} hrs`;

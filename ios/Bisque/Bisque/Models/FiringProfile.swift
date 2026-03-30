@@ -7,4 +7,10 @@ struct FiringProfile: Codable, Identifiable, Hashable {
     var segments: [FiringSegment]
     var maxTemp: Double
     var estimatedDuration: Double // minutes
+
+    func copyWithId(_ newId: String) -> FiringProfile {
+        FiringProfile(id: newId, name: name, description: description,
+                      segments: segments, maxTemp: maxTemp,
+                      estimatedDuration: estimatedDuration)
+    }
 }

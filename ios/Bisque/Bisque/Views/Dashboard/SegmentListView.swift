@@ -16,7 +16,7 @@ struct SegmentListView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(segment.name)
                             .font(.subheadline.weight(.medium))
-                        Text("\(segment.rampRate > 0 ? "+" : "")\(Int(segment.rampRate))°C/hr → \(Int(segment.targetTemp))°C\(segment.holdTime > 0 ? ", hold \(Int(segment.holdTime))m" : "")")
+                        Text(segment.formattedDescription)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

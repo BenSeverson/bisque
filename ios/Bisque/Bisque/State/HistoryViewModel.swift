@@ -42,12 +42,4 @@ final class HistoryViewModel {
         return points
     }
 
-    func traceCSVData(for record: HistoryRecord, using client: KilnAPIClient) async -> Data? {
-        do {
-            let csv = try await client.getHistoryTrace(recordId: record.id)
-            return csv.data(using: .utf8)
-        } catch {
-            return nil
-        }
-    }
 }

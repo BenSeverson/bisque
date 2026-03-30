@@ -147,28 +147,89 @@ static esp_err_t send_json(httpd_req_t *req, cJSON *root)
     return ESP_OK;
 }
 
-static const char *status_to_string(firing_status_t s)
+/* ── Profile JSON helpers ─────────────────────────── */
+
+static cJSON *profile_to_json(const firing_profile_t *profile)
 {
-    switch (s) {
-    case FIRING_STATUS_IDLE:
-        return "idle";
-    case FIRING_STATUS_HEATING:
-        return "heating";
-    case FIRING_STATUS_HOLDING:
-        return "holding";
-    case FIRING_STATUS_COOLING:
-        return "cooling";
-    case FIRING_STATUS_COMPLETE:
-        return "complete";
-    case FIRING_STATUS_ERROR:
-        return "error";
-    case FIRING_STATUS_PAUSED:
-        return "paused";
-    case FIRING_STATUS_AUTOTUNE:
-        return "autotune";
-    default:
-        return "unknown";
+    cJSON *p = cJSON_CreateObject();
+    cJSON_AddStringToObject(p, "id", profile->id);
+    cJSON_AddStringToObject(p, "name", profile->name);
+    cJSON_AddStringToObject(p, "description", profile->description);
+    cJSON_AddNumberToObject(p, "maxTemp", profile->max_temp);
+    cJSON_AddNumberToObject(p, "estimatedDuration", profile->estimated_duration);
+
+    cJSON *segs = cJSON_AddArrayToObject(p, "segments");
+    for (int i = 0; i < profile->segment_count; i++) {
+        cJSON *s = cJSON_CreateObject();
+        cJSON_AddStringToObject(s, "id", profile->segments[i].id);
+        cJSON_AddStringToObject(s, "name", profile->segments[i].name);
+        cJSON_AddNumberToObject(s, "rampRate", profile->segments[i].ramp_rate);
+        cJSON_AddNumberToObject(s, "targetTemp", profile->segments[i].target_temp);
+        cJSON_AddNumberToObject(s, "holdTime", profile->segments[i].hold_time);
+        cJSON_AddItemToArray(segs, s);
     }
+    return p;
+}
+
+static bool profile_from_json(cJSON *root, firing_profile_t *out)
+{
+    memset(out, 0, sizeof(*out));
+
+    cJSON *j;
+    j = cJSON_GetObjectItem(root, "id");
+    if (j && j->valuestring) {
+        strncpy(out->id, j->valuestring, FIRING_ID_LEN - 1);
+    }
+    j = cJSON_GetObjectItem(root, "name");
+    if (j && j->valuestring) {
+        strncpy(out->name, j->valuestring, FIRING_NAME_LEN - 1);
+    }
+    j = cJSON_GetObjectItem(root, "description");
+    if (j && j->valuestring) {
+        strncpy(out->description, j->valuestring, FIRING_DESC_LEN - 1);
+    }
+    j = cJSON_GetObjectItem(root, "maxTemp");
+    if (j) {
+        out->max_temp = (float)j->valuedouble;
+    }
+    j = cJSON_GetObjectItem(root, "estimatedDuration");
+    if (j) {
+        out->estimated_duration = (uint32_t)j->valuedouble;
+    }
+
+    cJSON *segs = cJSON_GetObjectItem(root, "segments");
+    if (segs && cJSON_IsArray(segs)) {
+        int count = cJSON_GetArraySize(segs);
+        if (count > FIRING_MAX_SEGMENTS) {
+            count = FIRING_MAX_SEGMENTS;
+        }
+        out->segment_count = count;
+        for (int i = 0; i < count; i++) {
+            cJSON *seg = cJSON_GetArrayItem(segs, i);
+            j = cJSON_GetObjectItem(seg, "id");
+            if (j && j->valuestring) {
+                strncpy(out->segments[i].id, j->valuestring, FIRING_ID_LEN - 1);
+            }
+            j = cJSON_GetObjectItem(seg, "name");
+            if (j && j->valuestring) {
+                strncpy(out->segments[i].name, j->valuestring, FIRING_NAME_LEN - 1);
+            }
+            j = cJSON_GetObjectItem(seg, "rampRate");
+            if (j) {
+                out->segments[i].ramp_rate = (float)j->valuedouble;
+            }
+            j = cJSON_GetObjectItem(seg, "targetTemp");
+            if (j) {
+                out->segments[i].target_temp = (float)j->valuedouble;
+            }
+            j = cJSON_GetObjectItem(seg, "holdTime");
+            if (j) {
+                out->segments[i].hold_time = (uint16_t)j->valuedouble;
+            }
+        }
+    }
+
+    return out->id[0] != '\0';
 }
 
 /* ── GET /api/v1/status ────────────────────────────── */
@@ -193,7 +254,7 @@ static esp_err_t handle_get_status(httpd_req_t *req)
     cJSON_AddNumberToObject(root, "totalSegments", prog.total_segments);
     cJSON_AddNumberToObject(root, "elapsedTime", prog.elapsed_time);
     cJSON_AddNumberToObject(root, "estimatedTimeRemaining", prog.estimated_remaining);
-    cJSON_AddStringToObject(root, "status", status_to_string(prog.status));
+    cJSON_AddStringToObject(root, "status", firing_status_to_string(prog.status));
 
     /* Thermocouple details */
     cJSON *tc_obj = cJSON_AddObjectToObject(root, "thermocouple");
@@ -221,33 +282,11 @@ static esp_err_t handle_get_profiles(httpd_req_t *req)
     for (int i = 0; i < count; i++) {
         firing_profile_t profile;
         if (firing_engine_load_profile(ids[i], &profile) == ESP_OK) {
-            cJSON *p = cJSON_CreateObject();
-            cJSON_AddStringToObject(p, "id", profile.id);
-            cJSON_AddStringToObject(p, "name", profile.name);
-            cJSON_AddStringToObject(p, "description", profile.description);
-            cJSON_AddNumberToObject(p, "maxTemp", profile.max_temp);
-            cJSON_AddNumberToObject(p, "estimatedDuration", profile.estimated_duration);
-
-            cJSON *segs = cJSON_AddArrayToObject(p, "segments");
-            for (int j = 0; j < profile.segment_count; j++) {
-                cJSON *s = cJSON_CreateObject();
-                cJSON_AddStringToObject(s, "id", profile.segments[j].id);
-                cJSON_AddStringToObject(s, "name", profile.segments[j].name);
-                cJSON_AddNumberToObject(s, "rampRate", profile.segments[j].ramp_rate);
-                cJSON_AddNumberToObject(s, "targetTemp", profile.segments[j].target_temp);
-                cJSON_AddNumberToObject(s, "holdTime", profile.segments[j].hold_time);
-                cJSON_AddItemToArray(segs, s);
-            }
-            cJSON_AddItemToArray(arr, p);
+            cJSON_AddItemToArray(arr, profile_to_json(&profile));
         }
     }
 
-    httpd_resp_set_type(req, "application/json");
-    char *json = cJSON_PrintUnformatted(arr);
-    cJSON_Delete(arr);
-    httpd_resp_sendstr(req, json);
-    free(json);
-    return ESP_OK;
+    return send_json(req, arr);
 }
 
 /* ── GET /api/v1/profiles/:id  (and /api/v1/profiles/:id/export) ─────── */
@@ -290,23 +329,7 @@ static esp_err_t handle_get_profile(httpd_req_t *req)
     }
 
     /* Build profile JSON (shared between GET and export) */
-    cJSON *p = cJSON_CreateObject();
-    cJSON_AddStringToObject(p, "id", profile.id);
-    cJSON_AddStringToObject(p, "name", profile.name);
-    cJSON_AddStringToObject(p, "description", profile.description);
-    cJSON_AddNumberToObject(p, "maxTemp", profile.max_temp);
-    cJSON_AddNumberToObject(p, "estimatedDuration", profile.estimated_duration);
-
-    cJSON *segs = cJSON_AddArrayToObject(p, "segments");
-    for (int j = 0; j < profile.segment_count; j++) {
-        cJSON *s = cJSON_CreateObject();
-        cJSON_AddStringToObject(s, "id", profile.segments[j].id);
-        cJSON_AddStringToObject(s, "name", profile.segments[j].name);
-        cJSON_AddNumberToObject(s, "rampRate", profile.segments[j].ramp_rate);
-        cJSON_AddNumberToObject(s, "targetTemp", profile.segments[j].target_temp);
-        cJSON_AddNumberToObject(s, "holdTime", profile.segments[j].hold_time);
-        cJSON_AddItemToArray(segs, s);
-    }
+    cJSON *p = profile_to_json(&profile);
 
     if (is_export) {
         /* For export, set Content-Disposition header to trigger download */
@@ -338,68 +361,12 @@ static esp_err_t handle_post_profile(httpd_req_t *req)
     }
 
     firing_profile_t profile;
-    memset(&profile, 0, sizeof(profile));
-
-    cJSON *j;
-    j = cJSON_GetObjectItem(root, "id");
-    if (j) {
-        strncpy(profile.id, j->valuestring, FIRING_ID_LEN - 1);
-    }
-    j = cJSON_GetObjectItem(root, "name");
-    if (j) {
-        strncpy(profile.name, j->valuestring, FIRING_NAME_LEN - 1);
-    }
-    j = cJSON_GetObjectItem(root, "description");
-    if (j) {
-        strncpy(profile.description, j->valuestring, FIRING_DESC_LEN - 1);
-    }
-    j = cJSON_GetObjectItem(root, "maxTemp");
-    if (j) {
-        profile.max_temp = (float)j->valuedouble;
-    }
-    j = cJSON_GetObjectItem(root, "estimatedDuration");
-    if (j) {
-        profile.estimated_duration = (uint32_t)j->valuedouble;
-    }
-
-    cJSON *segs = cJSON_GetObjectItem(root, "segments");
-    if (segs && cJSON_IsArray(segs)) {
-        int count = cJSON_GetArraySize(segs);
-        if (count > FIRING_MAX_SEGMENTS) {
-            count = FIRING_MAX_SEGMENTS;
-        }
-        profile.segment_count = count;
-
-        for (int i = 0; i < count; i++) {
-            cJSON *seg = cJSON_GetArrayItem(segs, i);
-            j = cJSON_GetObjectItem(seg, "id");
-            if (j) {
-                strncpy(profile.segments[i].id, j->valuestring, FIRING_ID_LEN - 1);
-            }
-            j = cJSON_GetObjectItem(seg, "name");
-            if (j) {
-                strncpy(profile.segments[i].name, j->valuestring, FIRING_NAME_LEN - 1);
-            }
-            j = cJSON_GetObjectItem(seg, "rampRate");
-            if (j) {
-                profile.segments[i].ramp_rate = (float)j->valuedouble;
-            }
-            j = cJSON_GetObjectItem(seg, "targetTemp");
-            if (j) {
-                profile.segments[i].target_temp = (float)j->valuedouble;
-            }
-            j = cJSON_GetObjectItem(seg, "holdTime");
-            if (j) {
-                profile.segments[i].hold_time = (uint16_t)j->valuedouble;
-            }
-        }
-    }
-    cJSON_Delete(root);
-
-    if (profile.id[0] == '\0') {
+    if (!profile_from_json(root, &profile)) {
+        cJSON_Delete(root);
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Missing profile id");
         return ESP_FAIL;
     }
+    cJSON_Delete(root);
 
     esp_err_t err = firing_engine_save_profile(&profile);
     if (err != ESP_OK) {
@@ -695,66 +662,12 @@ static esp_err_t handle_profile_import(httpd_req_t *req)
     }
 
     firing_profile_t profile;
-    memset(&profile, 0, sizeof(profile));
-    cJSON *j;
-    j = cJSON_GetObjectItem(root, "id");
-    if (j && j->valuestring) {
-        strncpy(profile.id, j->valuestring, FIRING_ID_LEN - 1);
-    }
-    j = cJSON_GetObjectItem(root, "name");
-    if (j && j->valuestring) {
-        strncpy(profile.name, j->valuestring, FIRING_NAME_LEN - 1);
-    }
-    j = cJSON_GetObjectItem(root, "description");
-    if (j && j->valuestring) {
-        strncpy(profile.description, j->valuestring, FIRING_DESC_LEN - 1);
-    }
-    j = cJSON_GetObjectItem(root, "maxTemp");
-    if (j) {
-        profile.max_temp = (float)j->valuedouble;
-    }
-    j = cJSON_GetObjectItem(root, "estimatedDuration");
-    if (j) {
-        profile.estimated_duration = (uint32_t)j->valuedouble;
-    }
-
-    cJSON *segs = cJSON_GetObjectItem(root, "segments");
-    if (segs && cJSON_IsArray(segs)) {
-        int cnt = cJSON_GetArraySize(segs);
-        if (cnt > FIRING_MAX_SEGMENTS) {
-            cnt = FIRING_MAX_SEGMENTS;
-        }
-        profile.segment_count = cnt;
-        for (int i = 0; i < cnt; i++) {
-            cJSON *seg = cJSON_GetArrayItem(segs, i);
-            j = cJSON_GetObjectItem(seg, "id");
-            if (j && j->valuestring) {
-                strncpy(profile.segments[i].id, j->valuestring, FIRING_ID_LEN - 1);
-            }
-            j = cJSON_GetObjectItem(seg, "name");
-            if (j && j->valuestring) {
-                strncpy(profile.segments[i].name, j->valuestring, FIRING_NAME_LEN - 1);
-            }
-            j = cJSON_GetObjectItem(seg, "rampRate");
-            if (j) {
-                profile.segments[i].ramp_rate = (float)j->valuedouble;
-            }
-            j = cJSON_GetObjectItem(seg, "targetTemp");
-            if (j) {
-                profile.segments[i].target_temp = (float)j->valuedouble;
-            }
-            j = cJSON_GetObjectItem(seg, "holdTime");
-            if (j) {
-                profile.segments[i].hold_time = (uint16_t)j->valuedouble;
-            }
-        }
-    }
-    cJSON_Delete(root);
-
-    if (profile.id[0] == '\0') {
+    if (!profile_from_json(root, &profile)) {
+        cJSON_Delete(root);
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Missing profile id");
         return ESP_FAIL;
     }
+    cJSON_Delete(root);
 
     esp_err_t err = firing_engine_save_profile(&profile);
     if (err != ESP_OK) {
@@ -832,23 +745,7 @@ static esp_err_t handle_cone_fire(httpd_req_t *req)
         firing_engine_save_profile(&profile);
     }
 
-    cJSON *p = cJSON_CreateObject();
-    cJSON_AddStringToObject(p, "id", profile.id);
-    cJSON_AddStringToObject(p, "name", profile.name);
-    cJSON_AddStringToObject(p, "description", profile.description);
-    cJSON_AddNumberToObject(p, "maxTemp", profile.max_temp);
-    cJSON_AddNumberToObject(p, "estimatedDuration", profile.estimated_duration);
-    cJSON *segs = cJSON_AddArrayToObject(p, "segments");
-    for (int j2 = 0; j2 < profile.segment_count; j2++) {
-        cJSON *s = cJSON_CreateObject();
-        cJSON_AddStringToObject(s, "id", profile.segments[j2].id);
-        cJSON_AddStringToObject(s, "name", profile.segments[j2].name);
-        cJSON_AddNumberToObject(s, "rampRate", profile.segments[j2].ramp_rate);
-        cJSON_AddNumberToObject(s, "targetTemp", profile.segments[j2].target_temp);
-        cJSON_AddNumberToObject(s, "holdTime", profile.segments[j2].hold_time);
-        cJSON_AddItemToArray(segs, s);
-    }
-    return send_json(req, p);
+    return send_json(req, profile_to_json(&profile));
 }
 
 /* ── GET /api/v1/history ───────────────────────────── */
@@ -876,12 +773,7 @@ static esp_err_t handle_get_history(httpd_req_t *req)
         cJSON_AddItemToArray(arr, item);
     }
 
-    httpd_resp_set_type(req, "application/json");
-    char *json = cJSON_PrintUnformatted(arr);
-    cJSON_Delete(arr);
-    httpd_resp_sendstr(req, json);
-    free(json);
-    return ESP_OK;
+    return send_json(req, arr);
 }
 
 /* ── GET /api/v1/history/:id/trace ────────────────── */
@@ -1085,12 +977,7 @@ static esp_err_t handle_get_cone_table(httpd_req_t *req)
         cJSON_AddItemToArray(arr, item);
     }
 
-    httpd_resp_set_type(req, "application/json");
-    char *json = cJSON_PrintUnformatted(arr);
-    cJSON_Delete(arr);
-    httpd_resp_sendstr(req, json);
-    free(json);
-    return ESP_OK;
+    return send_json(req, arr);
 }
 
 /* ── POST /api/v1/autotune/start ───────────────────── */

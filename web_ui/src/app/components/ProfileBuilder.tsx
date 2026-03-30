@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -10,6 +10,8 @@ import { FiringProfile, FiringSegment, ConeEntry } from "../types/kiln";
 import { Plus, Trash2, Save, MoveUp, MoveDown, Flame } from "lucide-react";
 import { api } from "../services/api";
 import { toast } from "sonner";
+import { toErrorMessage } from "../utils/error";
+import { computeSegmentDurationMinutes } from "../utils/profile";
 
 // Generate UUID - works in non-secure contexts (HTTP) unlike crypto.randomUUID()
 function generateId(): string {
@@ -96,7 +98,7 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
       setSegments([...profile.segments]);
       toast.success("Cone fire profile generated — review and save below");
     } catch (e) {
-      toast.error(`Failed to generate: ${e instanceof Error ? e.message : "Unknown error"}`);
+      toast.error(`Failed to generate: ${toErrorMessage(e)}`);
     } finally {
       setConeGenerating(false);
     }
@@ -129,18 +131,19 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
     setSegments(newSegments);
   };
 
-  const calculateEstimatedDuration = (): number => {
+  const estimatedDuration = useMemo(() => {
     let totalMinutes = 0;
     let currentTemp = 20;
     segments.forEach((segment) => {
-      const tempDifference = Math.abs(segment.targetTemp - currentTemp);
-      const rampTimeHours = tempDifference / Math.abs(segment.rampRate);
-      const rampTimeMinutes = rampTimeHours * 60;
-      totalMinutes += rampTimeMinutes + segment.holdTime;
+      const { rampMinutes, holdMinutes } = computeSegmentDurationMinutes(
+        { targetTemp: segment.targetTemp, rampRate: segment.rampRate, holdMinutes: segment.holdTime },
+        currentTemp,
+      );
+      totalMinutes += rampMinutes + holdMinutes;
       currentTemp = segment.targetTemp;
     });
     return Math.round(totalMinutes);
-  };
+  }, [segments]);
 
   const calculateMaxTemp = (): number => {
     if (segments.length === 0) return 0;
@@ -162,7 +165,7 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
       description: profileDescription,
       segments,
       maxTemp: calculateMaxTemp(),
-      estimatedDuration: calculateEstimatedDuration(),
+      estimatedDuration: estimatedDuration,
     };
     onSaveProfile(profile);
     toast.success(`Profile "${profileName}" saved successfully`);
@@ -363,8 +366,8 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
                 <div>
                   <p className="text-sm text-muted-foreground">Estimated Duration</p>
                   <p className="text-2xl font-semibold">
-                    {Math.floor(calculateEstimatedDuration() / 60)}h{" "}
-                    {calculateEstimatedDuration() % 60}m
+                    {Math.floor(estimatedDuration / 60)}h{" "}
+                    {estimatedDuration % 60}m
                   </p>
                 </div>
               </div>

@@ -53,15 +53,7 @@ struct FiringLockScreenView: View {
     }
 
     private var statusColor: Color {
-        switch context.state.status {
-        case "heating":  return Color(red: 1.0, green: 0.65, blue: 0.0)
-        case "holding":  return Color(red: 1.0, green: 1.0, blue: 0.0)
-        case "cooling":  return Color(red: 0.29, green: 0.56, blue: 0.85)
-        case "error":    return Color(red: 1.0, green: 0.23, blue: 0.19)
-        case "complete": return Color(red: 0.19, green: 0.82, blue: 0.35)
-        case "paused":   return Color(red: 1.0, green: 1.0, blue: 0.0)
-        default:         return .secondary
-        }
+        liveActivityStatusColor(context.state.status)
     }
 
     private var statusLabel: String {
@@ -69,18 +61,11 @@ struct FiringLockScreenView: View {
     }
 
     private var elapsedText: String {
-        let elapsed = Date().timeIntervalSince(context.attributes.startTime)
-        let h = Int(elapsed) / 3600
-        let m = (Int(elapsed) % 3600) / 60
-        if h > 0 { return "\(h)h \(m)m elapsed" }
-        return "\(m)m elapsed"
+        let elapsed = Int(Date().timeIntervalSince(context.attributes.startTime))
+        return "\(liveActivityFormatDuration(elapsed)) elapsed"
     }
 
     private var remainingText: String {
-        let s = context.state.estimatedSecondsRemaining
-        let h = s / 3600
-        let m = (s % 3600) / 60
-        if h > 0 { return "\(h)h \(m)m" }
-        return "\(m)m"
+        liveActivityFormatDuration(context.state.estimatedSecondsRemaining)
     }
 }

@@ -1,5 +1,6 @@
 #include "safety.h"
 #include "thermocouple.h"
+#include "app_config.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "driver/gpio.h"
@@ -10,11 +11,7 @@
 
 static const char *TAG = "safety";
 
-/* Hardware absolute maximum — cannot be overridden */
-#define HARDWARE_MAX_TEMP_C 1400.0f
-
-/* No valid reading for this long → emergency stop */
-#define TEMP_FAULT_TIMEOUT_US (5LL * 1000 * 1000)
+#define TEMP_FAULT_TIMEOUT_US ((int64_t)APP_TEMP_FAULT_TIMEOUT_MS * 1000LL)
 
 /* Vent active below this temperature during firing */
 #define VENT_MAX_TEMP_C 700.0f
@@ -29,7 +26,7 @@ static portMUX_TYPE s_safety_mux = portMUX_INITIALIZER_UNLOCKED;
 /* Time-proportional SSR state */
 static float s_ssr_duty = 0.0f;
 static int64_t s_ssr_window_start_us = 0;
-#define SSR_WINDOW_US (2000 * 1000LL) /* 2 second window */
+#define SSR_WINDOW_US ((int64_t)APP_SSR_WINDOW_MS * 1000LL)
 
 void safety_init_io(int alarm_gpio, int vent_gpio)
 {
@@ -113,7 +110,7 @@ void safety_update_vent(bool is_firing, float current_temp_c)
 esp_err_t safety_init(int ssr_pin, float max_safe_temp)
 {
     s_ssr_pin = ssr_pin;
-    s_max_safe_temp = (max_safe_temp < HARDWARE_MAX_TEMP_C) ? max_safe_temp : HARDWARE_MAX_TEMP_C;
+    s_max_safe_temp = (max_safe_temp < APP_HARDWARE_MAX_TEMP_C) ? max_safe_temp : APP_HARDWARE_MAX_TEMP_C;
 
     /* Configure SSR GPIO as output, start LOW (off) */
     gpio_config_t io_conf = {
@@ -176,7 +173,7 @@ bool safety_is_emergency(void)
 void safety_set_max_temp(float max_safe_temp)
 {
     portENTER_CRITICAL(&s_safety_mux);
-    s_max_safe_temp = (max_safe_temp < HARDWARE_MAX_TEMP_C) ? max_safe_temp : HARDWARE_MAX_TEMP_C;
+    s_max_safe_temp = (max_safe_temp < APP_HARDWARE_MAX_TEMP_C) ? max_safe_temp : APP_HARDWARE_MAX_TEMP_C;
     portEXIT_CRITICAL(&s_safety_mux);
 }
 
@@ -250,7 +247,7 @@ void safety_task(void *param)
             max_temp = s_max_safe_temp;
             portEXIT_CRITICAL(&s_safety_mux);
 
-            if (reading.temperature_c > max_temp || reading.temperature_c > HARDWARE_MAX_TEMP_C) {
+            if (reading.temperature_c > max_temp || reading.temperature_c > APP_HARDWARE_MAX_TEMP_C) {
                 ESP_LOGE(TAG, "Over-temp: %.1f°C exceeds limit %.1f°C", reading.temperature_c, max_temp);
                 safety_emergency_stop();
             }

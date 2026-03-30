@@ -156,10 +156,6 @@ actor KilnAPIClient {
         try await request(path: "/profiles")
     }
 
-    func getProfile(id: String) async throws -> FiringProfile {
-        try await request(path: "/profiles/\(id)")
-    }
-
     func saveProfile(_ profile: FiringProfile) async throws -> OkIdResponse {
         try await request(method: "POST", path: "/profiles", body: profile)
     }
@@ -170,10 +166,6 @@ actor KilnAPIClient {
 
     func importProfile(_ profile: FiringProfile) async throws -> OkIdResponse {
         try await request(method: "POST", path: "/profiles/import", body: profile)
-    }
-
-    func exportProfileURL(id: String) -> URL? {
-        URL(string: baseURL.absoluteString + "/profiles/\(id)/export")
     }
 
     // MARK: - Cone Fire

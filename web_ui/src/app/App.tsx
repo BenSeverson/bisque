@@ -26,20 +26,15 @@ export default function App() {
     elementWatts: 0,
     electricityCostKwh: 0,
   });
-  const [connected, setConnected] = useState(false);
-
   const fetchProfiles = useCallback(async () => {
     try {
       const data = await api.getProfiles();
       setProfiles(data);
-      setConnected(true);
     } catch {
       // Fallback to mock data when ESP32 is not reachable
-      if (!connected) {
-        setProfiles(mockProfiles);
-      }
+      setProfiles((prev) => (prev.length === 0 ? mockProfiles : prev));
     }
-  }, [connected]);
+  }, []);
 
   const fetchSettings = useCallback(async () => {
     try {

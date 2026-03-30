@@ -5,7 +5,6 @@ enum APIError: LocalizedError {
     case unauthorized
     case serverError(statusCode: Int, message: String)
     case decodingError(Error)
-    case timeout
     case invalidURL
 
     var errorDescription: String? {
@@ -18,8 +17,6 @@ enum APIError: LocalizedError {
             return "Server error \(code): \(message)"
         case .decodingError(let error):
             return "Data error: \(error.localizedDescription)"
-        case .timeout:
-            return "Request timed out"
         case .invalidURL:
             return "Invalid kiln address"
         }

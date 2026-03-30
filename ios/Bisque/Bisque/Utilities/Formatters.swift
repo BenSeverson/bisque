@@ -32,20 +32,20 @@ enum Formatters {
         return "\(Int(round(temp)))°\(unit)"
     }
 
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        f.timeStyle = .short
+        return f
+    }()
+
     /// Format a Unix timestamp to a readable date string
     static func formatDate(_ timestamp: Double) -> String {
-        let date = Date(timeIntervalSince1970: timestamp)
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
+        formatDate(Date(timeIntervalSince1970: timestamp))
     }
 
     /// Format a Date to a readable date string
     static func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
+        dateFormatter.string(from: date)
     }
 }

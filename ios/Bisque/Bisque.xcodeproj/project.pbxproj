@@ -40,7 +40,6 @@
 		643995F8C8BD031F9BDE351E /* BisqueApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA9964F6DD097C17C4712CEF /* BisqueApp.swift */; };
 		64C1D81E3EAF03E6520BA9F9 /* ProfileBuilderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E314DDEAB58993BD0FD56EC /* ProfileBuilderView.swift */; };
 		6C1D988791FAB3469E5A8BA4 /* BisqueLiveActivity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F7FA29E44418078D249C8C5A /* BisqueLiveActivity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		70E7A734D13B941518AD8506 /* TemperatureText.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9F131DB9BEFC1F26E338065 /* TemperatureText.swift */; };
 		7623DA52F7EBD810BA951A0D /* DiagThermocouple.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C4A80A1C88346C07B79D9BC /* DiagThermocouple.swift */; };
 		7B3B05AFEEB31E2B8D5BD5AB /* SettingsTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA92D0A942F9875DFAEA9B4B /* SettingsTab.swift */; };
 		86D5A2CB868BB4CC50EA16B4 /* HistoryRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7764E1BB68840F9971131A /* HistoryRecord.swift */; };
@@ -49,7 +48,6 @@
 		902A63B370C0F78EF61E6D98 /* FiringProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CAF4D46EA741C75819A73BF /* FiringProfile.swift */; };
 		925A3FF058851DFB67CD383D /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A18B9FD404281AF8D3A375EC /* AboutView.swift */; };
 		938518881EC9AFBC2586C0FF /* FiringSegment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EC837DDDB8894D22506AF18 /* FiringSegment.swift */; };
-		95E035CC52CF24549748C491 /* TimeText.swift in Sources */ = {isa = PBXBuildFile; fileRef = F41A1FBDBADB26201EE7BC91 /* TimeText.swift */; };
 		A6EB34376FE93A0485B437B6 /* KilnConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47F3E5FF06C5CFF45A92D693 /* KilnConnection.swift */; };
 		AB25503ABFA048B9FC157C4F /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CA870F870239DBEF8161D67 /* NotificationManager.swift */; };
 		B3CE8F817BB92D5ACFFB2476 /* FiringStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEA79CAF8AAF5E68C07243C4 /* FiringStatus.swift */; };
@@ -152,13 +150,11 @@
 		CA9964F6DD097C17C4712CEF /* BisqueApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BisqueApp.swift; sourceTree = "<group>"; };
 		D02765264276A6A461EE7C19 /* SystemInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemInfo.swift; sourceTree = "<group>"; };
 		D79D8576F670DA53C479FD9F /* HistoryDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryDetailView.swift; sourceTree = "<group>"; };
-		D9F131DB9BEFC1F26E338065 /* TemperatureText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemperatureText.swift; sourceTree = "<group>"; };
 		DA7764E1BB68840F9971131A /* HistoryRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryRecord.swift; sourceTree = "<group>"; };
 		DC8F5F69874337D25F2E7033 /* ConeEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConeEntry.swift; sourceTree = "<group>"; };
 		E2C2D5C3402A7FF103FA9AD4 /* Bisque.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Bisque.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E73C5470591B71B68950128B /* ErrorBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorBanner.swift; sourceTree = "<group>"; };
 		F22CAB3A5AD7425B1D481E83 /* HistoryTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryTab.swift; sourceTree = "<group>"; };
-		F41A1FBDBADB26201EE7BC91 /* TimeText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeText.swift; sourceTree = "<group>"; };
 		F7FA29E44418078D249C8C5A /* BisqueLiveActivity.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = BisqueLiveActivity.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		F8B7DC7270351C4B236A3E30 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		F98F61F40B66307F278B32A6 /* ProfileDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileDetailView.swift; sourceTree = "<group>"; };
@@ -181,8 +177,6 @@
 			children = (
 				E73C5470591B71B68950128B /* ErrorBanner.swift */,
 				764258567183EB9AD8D1B8DB /* StatusBadge.swift */,
-				D9F131DB9BEFC1F26E338065 /* TemperatureText.swift */,
-				F41A1FBDBADB26201EE7BC91 /* TimeText.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -551,8 +545,6 @@
 				517E3D072508FAAE64AFEDA4 /* TemperatureCardView.swift in Sources */,
 				F65896E007EE35DB86284C2F /* TemperatureConverter.swift in Sources */,
 				6421E944EEBFBB02C338B10E /* TemperatureDataPoint.swift in Sources */,
-				70E7A734D13B941518AD8506 /* TemperatureText.swift in Sources */,
-				95E035CC52CF24549748C491 /* TimeText.swift in Sources */,
 				2DABA1B7F4BF841FF10E2FC0 /* UserDefaultsKeys.swift in Sources */,
 				8CD817D289CF5985C1A26E20 /* WebSocketMessage.swift in Sources */,
 			);
