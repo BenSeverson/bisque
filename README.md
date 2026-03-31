@@ -61,7 +61,7 @@ Built with **ESP-IDF** (C) | **React** | **SwiftUI** | **LVGL**
 
 | Component | Description | Approx. Cost |
 |-----------|-------------|:------------:|
-| ESP32-S3-DevKitC-1 | Main controller (44-pin, USB-C) | ~$8 |
+| ESP32-S3-DevKitC-1 (N16R8) | Main controller, 16MB flash, 8MB PSRAM (44-pin, USB-C) | ~$10 |
 | MAX31855 breakout | K-type thermocouple amplifier (SPI) | ~$15 |
 | K-type thermocouple | High-temp probe, kiln rated | ~$15-30 |
 | ST7796S 3.5" TFT LCD | 480x320 SPI display | ~$12 |
