@@ -136,7 +136,11 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
     let currentTemp = 20;
     segments.forEach((segment) => {
       const { rampMinutes, holdMinutes } = computeSegmentDurationMinutes(
-        { targetTemp: segment.targetTemp, rampRate: segment.rampRate, holdMinutes: segment.holdTime },
+        {
+          targetTemp: segment.targetTemp,
+          rampRate: segment.rampRate,
+          holdMinutes: segment.holdTime,
+        },
         currentTemp,
       );
       totalMinutes += rampMinutes + holdMinutes;
@@ -366,8 +370,7 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
                 <div>
                   <p className="text-sm text-muted-foreground">Estimated Duration</p>
                   <p className="text-2xl font-semibold">
-                    {Math.floor(estimatedDuration / 60)}h{" "}
-                    {estimatedDuration % 60}m
+                    {Math.floor(estimatedDuration / 60)}h {estimatedDuration % 60}m
                   </p>
                 </div>
               </div>

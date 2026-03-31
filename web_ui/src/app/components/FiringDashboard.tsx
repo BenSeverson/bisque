@@ -139,7 +139,11 @@ export function FiringDashboard({
     selectedProfile.segments.forEach((segment) => {
       const tempDifference = segment.targetTemp - currentTemp;
       const { rampMinutes: rampTimeMinutes } = computeSegmentDurationMinutes(
-        { targetTemp: segment.targetTemp, rampRate: segment.rampRate, holdMinutes: segment.holdTime },
+        {
+          targetTemp: segment.targetTemp,
+          rampRate: segment.rampRate,
+          holdMinutes: segment.holdTime,
+        },
         currentTemp,
       );
 
