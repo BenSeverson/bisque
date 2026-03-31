@@ -8,8 +8,13 @@ Built with **ESP-IDF** (C) | **React** | **SwiftUI** | **LVGL**
   <img src="docs/screenshots/web-dashboard.png" width="600" alt="Web dashboard showing live firing progress" />
 </p>
 <p align="center">
-  <img src="docs/screenshots/lcd-home.png" width="320" alt="LCD home screen" />
-  <img src="docs/screenshots/ios-app.png" width="280" alt="iOS app dashboard" />
+  <img src="docs/screenshots/lcd-home.png" width="240" alt="LCD home screen" />
+  <img src="docs/screenshots/lcd-chart.png" width="240" alt="LCD chart screen" />
+  <img src="docs/screenshots/lcd-profiles.png" width="240" alt="LCD profiles screen" />
+  <img src="docs/screenshots/lcd-firing.png" width="240" alt="LCD firing screen" />
+</p>
+<p align="center">
+  <img src="docs/screenshots/ios-app.png" width="280" alt="iOS app" />
 </p>
 
 ## Features
