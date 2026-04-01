@@ -8,19 +8,6 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License" /></a>
 </p>
 
-<p align="center">
-  <img src="docs/screenshots/web-dashboard.png" width="600" alt="Web dashboard showing live firing progress" />
-</p>
-<p align="center">
-  <img src="docs/screenshots/lcd-home.png" width="160" alt="LCD home screen" />
-  <img src="docs/screenshots/lcd-chart.png" width="160" alt="LCD chart screen" />
-  <img src="docs/screenshots/lcd-profiles.png" width="160" alt="LCD profiles screen" />
-  <img src="docs/screenshots/lcd-firing.png" width="160" alt="LCD firing screen" />
-</p>
-<p align="center">
-  <img src="docs/screenshots/ios-app.png" width="280" alt="iOS app" />
-</p>
-
 ## Features
 
 **Temperature Control**
@@ -61,8 +48,30 @@
 - WebSocket for real-time streaming
 - Webhook notifications (firing complete/error)
 
+## Screenshots
+
+**Web Dashboard** (React)
+<p align="center">
+  <img src="docs/screenshots/web-dashboard.png" width="600" alt="Web dashboard showing live firing progress" />
+</p>
+
+**LCD Display** (LVGL on 3.5" TFT)
+<p align="center">
+  <img src="docs/screenshots/lcd-home.png" width="160" alt="LCD home screen" />
+  <img src="docs/screenshots/lcd-chart.png" width="160" alt="LCD chart screen" />
+  <img src="docs/screenshots/lcd-profiles.png" width="160" alt="LCD profiles screen" />
+  <img src="docs/screenshots/lcd-firing.png" width="160" alt="LCD firing screen" />
+</p>
+
+**iOS App** (SwiftUI)
+<p align="center">
+  <img src="docs/screenshots/ios-app.png" width="280" alt="iOS app" />
+</p>
+
+## Bill of Materials
+
 <details>
-<summary><strong>Bill of Materials</strong></summary>
+<summary>Expand</summary>
 
 | Component | Description | Approx. Cost |
 |-----------|-------------|:------------:|
@@ -79,8 +88,10 @@
 
 </details>
 
+## Wiring
+
 <details>
-<summary><strong>Wiring</strong></summary>
+<summary>Expand</summary>
 
 ### SPI Bus (shared by thermocouple and display)
 
@@ -129,7 +140,7 @@ See also: [Wiring Diagram](docs/wiring-diagram.svg) | [Perfboard Layout](docs/pe
 
 ### Prerequisites
 
-- [ESP-IDF v5.5.2](https://docs.espressif.com/projects/esp-idf/en/v5.5.2/esp32s3/get-started/)
+- [ESP-IDF v6.0](https://docs.espressif.com/projects/esp-idf/en/v6.0/esp32s3/get-started/)
 - Node.js 18+
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) (for iOS development)
 
