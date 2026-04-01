@@ -1081,13 +1081,20 @@ static esp_err_t handle_autotune_status(httpd_req_t *req)
 static const char *ota_state_to_string(esp_ota_img_states_t state)
 {
     switch (state) {
-    case ESP_OTA_IMG_NEW:              return "new";
-    case ESP_OTA_IMG_PENDING_VERIFY:   return "pending_verify";
-    case ESP_OTA_IMG_VALID:            return "valid";
-    case ESP_OTA_IMG_INVALID:          return "invalid";
-    case ESP_OTA_IMG_ABORTED:          return "aborted";
-    case ESP_OTA_IMG_UNDEFINED:        return "undefined";
-    default:                           return "unknown";
+    case ESP_OTA_IMG_NEW:
+        return "new";
+    case ESP_OTA_IMG_PENDING_VERIFY:
+        return "pending_verify";
+    case ESP_OTA_IMG_VALID:
+        return "valid";
+    case ESP_OTA_IMG_INVALID:
+        return "invalid";
+    case ESP_OTA_IMG_ABORTED:
+        return "aborted";
+    case ESP_OTA_IMG_UNDEFINED:
+        return "undefined";
+    default:
+        return "unknown";
     }
 }
 

@@ -369,9 +369,7 @@ export function ProfileBuilder() {
                     {...register("name")}
                     placeholder="e.g., Custom Bisque Firing"
                   />
-                  {errors.name && (
-                    <p className="text-sm text-destructive">{errors.name.message}</p>
-                  )}
+                  {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
                 </div>
 
                 <div className="space-y-2">
@@ -409,7 +407,13 @@ export function ProfileBuilder() {
                       Define temperature ramps and holds. Set hold time to 0 for infinite hold.
                     </CardDescription>
                   </div>
-                  <Button onClick={addSegment} type="button" variant="outline" size="sm" className="gap-2">
+                  <Button
+                    onClick={addSegment}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                  >
                     <Plus className="h-4 w-4" />
                     Add Segment
                   </Button>

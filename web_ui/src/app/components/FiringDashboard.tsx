@@ -33,11 +33,22 @@ import { formatDuration } from "../utils/time";
 import { toErrorMessage } from "../utils/error";
 import { computeSegmentDurationMinutes } from "../utils/profile";
 import { useKilnStore } from "../stores/kilnStore";
-import { useProfiles, useStartFiring, useStopFiring, usePauseFiring, useSkipSegment } from "../hooks/queries";
+import {
+  useProfiles,
+  useStartFiring,
+  useStopFiring,
+  usePauseFiring,
+  useSkipSegment,
+} from "../hooks/queries";
 
 export function FiringDashboard() {
-  const { selectedProfileId, setSelectedProfileId, firingProgress, currentTempData, resetTempData } =
-    useKilnStore();
+  const {
+    selectedProfileId,
+    setSelectedProfileId,
+    firingProgress,
+    currentTempData,
+    resetTempData,
+  } = useKilnStore();
   const { data: profiles = [] } = useProfiles();
   const selectedProfile = useMemo(
     () => profiles.find((p) => p.id === selectedProfileId) ?? null,

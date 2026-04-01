@@ -62,13 +62,7 @@ export function Settings() {
     }
   }, [autotuneStatus, autotuneRunning]);
 
-  const {
-    register,
-    handleSubmit,
-    watch,
-    setValue,
-    reset,
-  } = useForm<SettingsFormValues>({
+  const { register, handleSubmit, watch, setValue, reset } = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsSchema),
     defaultValues: settings,
   });
@@ -90,7 +84,10 @@ export function Settings() {
   };
 
   // Optimistic update helper for switches/selects that save immediately
-  const updateField = (field: keyof SettingsFormValues, value: SettingsFormValues[keyof SettingsFormValues]) => {
+  const updateField = (
+    field: keyof SettingsFormValues,
+    value: SettingsFormValues[keyof SettingsFormValues],
+  ) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     setValue(field, value as any);
     const updated = { ...watchedSettings, [field]: value };
