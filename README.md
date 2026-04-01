@@ -1,17 +1,21 @@
-# Bisque
+<p align="center">
+  <img src="docs/logo-banner.svg" alt="Bisque — Open-source ESP32-S3 ceramic kiln controller" width="700" />
+</p>
 
-Open-source ESP32-S3 ceramic kiln controller with PID temperature regulation, a real-time web dashboard, iOS app, and comprehensive safety systems.
-
-Built with **ESP-IDF** (C) | **React** | **SwiftUI** | **LVGL**
+<p align="center">
+  <a href="https://github.com/BenSeverson/bisque/actions/workflows/build.yml"><img src="https://github.com/BenSeverson/bisque/actions/workflows/build.yml/badge.svg" alt="Build Status" /></a>
+  <img src="https://img.shields.io/badge/ESP--IDF-v6.0-blue" alt="ESP-IDF v6.0" />
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License" /></a>
+</p>
 
 <p align="center">
   <img src="docs/screenshots/web-dashboard.png" width="600" alt="Web dashboard showing live firing progress" />
 </p>
 <p align="center">
-  <img src="docs/screenshots/lcd-home.png" width="240" alt="LCD home screen" />
-  <img src="docs/screenshots/lcd-chart.png" width="240" alt="LCD chart screen" />
-  <img src="docs/screenshots/lcd-profiles.png" width="240" alt="LCD profiles screen" />
-  <img src="docs/screenshots/lcd-firing.png" width="240" alt="LCD firing screen" />
+  <img src="docs/screenshots/lcd-home.png" width="160" alt="LCD home screen" />
+  <img src="docs/screenshots/lcd-chart.png" width="160" alt="LCD chart screen" />
+  <img src="docs/screenshots/lcd-profiles.png" width="160" alt="LCD profiles screen" />
+  <img src="docs/screenshots/lcd-firing.png" width="160" alt="LCD firing screen" />
 </p>
 <p align="center">
   <img src="docs/screenshots/ios-app.png" width="280" alt="iOS app" />
@@ -57,7 +61,8 @@ Built with **ESP-IDF** (C) | **React** | **SwiftUI** | **LVGL**
 - WebSocket for real-time streaming
 - Webhook notifications (firing complete/error)
 
-## Bill of Materials
+<details>
+<summary><strong>Bill of Materials</strong></summary>
 
 | Component | Description | Approx. Cost |
 |-----------|-------------|:------------:|
@@ -72,7 +77,10 @@ Built with **ESP-IDF** (C) | **React** | **SwiftUI** | **LVGL**
 
 > **Safety warning:** Kilns operate at dangerous temperatures and voltages. Ensure all high-voltage wiring is performed by a qualified electrician. Use appropriate safety equipment and never leave a firing kiln unattended.
 
-## Wiring
+</details>
+
+<details>
+<summary><strong>Wiring</strong></summary>
 
 ### SPI Bus (shared by thermocouple and display)
 
@@ -114,6 +122,8 @@ Built with **ESP-IDF** (C) | **React** | **SwiftUI** | **LVGL**
 | Select | 6             | Active-low, internal pull-up |
 
 See also: [Wiring Diagram](docs/wiring-diagram.svg) | [Perfboard Layout](docs/perfboard-layout.svg)
+
+</details>
 
 ## Getting Started
 
@@ -163,7 +173,8 @@ cd web_ui && npm run mock-server   # HTTP + WebSocket on localhost:8080
 
 In the iOS simulator, tap "Use Mock Server" on the connection screen.
 
-## Simulator / Mock Server
+<details>
+<summary><strong>Simulator / Mock Server</strong></summary>
 
 A mock kiln server simulates the full API (status, profiles, firing, settings, history, autotune, diagnostics) with realistic temperature physics so you can develop and test without hardware.
 
@@ -215,6 +226,8 @@ cmake -B build && cmake --build build
 
 Requires SDL2 (`brew install sdl2` on macOS).
 
+</details>
+
 ## Architecture
 
 ```
@@ -235,3 +248,7 @@ ios/Bisque/           SwiftUI iOS app
 simulator/            LVGL SDL2 desktop simulator
 docs/                 Wiring diagrams, screenshots
 ```
+
+## License
+
+[MIT](LICENSE)
