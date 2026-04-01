@@ -6,11 +6,13 @@
 #include "safety.h"
 #include "cone_table.h"
 #include "firing_history.h"
+#include "wifi_manager.h"
 #include "app_config.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "esp_spiffs.h"
 #include "esp_ota_ops.h"
+#include "esp_app_desc.h"
 #include "esp_http_client.h"
 #include "esp_system.h"
 #include "driver/temperature_sensor.h"
@@ -1074,6 +1076,91 @@ static esp_err_t handle_autotune_status(httpd_req_t *req)
     return send_json(req, root);
 }
 
+/* ── GET /api/v1/wifi ─────────────────────────────── */
+
+static esp_err_t handle_get_wifi(httpd_req_t *req)
+{
+    if (!require_auth(req)) {
+        return ESP_FAIL;
+    }
+
+    char ssid[33] = {0};
+    char pass[65] = {0};
+    bool has_saved = wifi_manager_load_creds(ssid, sizeof(ssid), pass, sizeof(pass)) == ESP_OK && ssid[0];
+
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddBoolToObject(root, "connected", wifi_manager_is_connected());
+    cJSON_AddBoolToObject(root, "apMode", wifi_manager_is_ap_mode());
+    cJSON_AddStringToObject(root, "ip", wifi_manager_get_ip());
+    cJSON_AddBoolToObject(root, "hasSavedCredentials", has_saved);
+    if (has_saved) {
+        cJSON_AddStringToObject(root, "savedSsid", ssid);
+    }
+
+    return send_json(req, root);
+}
+
+/* ── POST /api/v1/wifi ────────────────────────────── */
+
+static esp_err_t handle_post_wifi(httpd_req_t *req)
+{
+    if (!require_auth(req)) {
+        return ESP_FAIL;
+    }
+
+    char buf[256];
+    if (read_body(req, buf, sizeof(buf)) < 0) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Body required");
+        return ESP_FAIL;
+    }
+
+    cJSON *root = cJSON_Parse(buf);
+    if (!root) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
+        return ESP_FAIL;
+    }
+
+    cJSON *j_ssid = cJSON_GetObjectItem(root, "ssid");
+    if (!j_ssid || !j_ssid->valuestring || j_ssid->valuestring[0] == '\0') {
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Missing ssid");
+        return ESP_FAIL;
+    }
+
+    const char *ssid = j_ssid->valuestring;
+    cJSON *j_pass = cJSON_GetObjectItem(root, "password");
+    const char *pass = (j_pass && j_pass->valuestring) ? j_pass->valuestring : "";
+
+    esp_err_t err = wifi_manager_save_creds(ssid, pass);
+    cJSON_Delete(root);
+
+    if (err != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to save credentials");
+        return ESP_FAIL;
+    }
+
+    cJSON *resp = cJSON_CreateObject();
+    cJSON_AddBoolToObject(resp, "ok", true);
+    cJSON_AddStringToObject(resp, "message", "Wi-Fi credentials saved. Reboot to connect.");
+    return send_json(req, resp);
+}
+
+/* ── DELETE /api/v1/wifi ──────────────────────────── */
+
+static esp_err_t handle_delete_wifi(httpd_req_t *req)
+{
+    if (!require_auth(req)) {
+        return ESP_FAIL;
+    }
+
+    wifi_manager_clear_creds();
+
+    cJSON *resp = cJSON_CreateObject();
+    cJSON_AddBoolToObject(resp, "ok", true);
+    cJSON_AddStringToObject(resp, "message", "Wi-Fi credentials cleared. Will start in AP mode after reboot.");
+    return send_json(req, resp);
+}
+
 /* ── Register All Handlers ─────────────────────────── */
 
 #define REGISTER_API(path, http_method, fn)                                                    \
@@ -1136,6 +1223,11 @@ esp_err_t api_handlers_register(httpd_handle_t server)
     REGISTER_API("/api/v1/diagnostics/relay", HTTP_POST, handle_diag_relay);
     REGISTER_API("/api/v1/diagnostics/thermocouple", HTTP_GET, handle_diag_thermocouple);
 
-    ESP_LOGI(TAG, "API handlers registered (%d endpoints)", 25);
+    /* Wi-Fi configuration */
+    REGISTER_API("/api/v1/wifi", HTTP_GET, handle_get_wifi);
+    REGISTER_API("/api/v1/wifi", HTTP_POST, handle_post_wifi);
+    REGISTER_API("/api/v1/wifi", HTTP_DELETE, handle_delete_wifi);
+
+    ESP_LOGI(TAG, "API handlers registered (%d endpoints)", 28);
     return ESP_OK;
 }

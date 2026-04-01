@@ -72,13 +72,24 @@ void app_main(void)
     }
 
     /* ── Wi-Fi Init ────────────────────────────────── */
-#ifdef CONFIG_KILN_WIFI_STA_SSID
-    const char *sta_ssid = CONFIG_KILN_WIFI_STA_SSID;
-    const char *sta_pass = CONFIG_KILN_WIFI_STA_PASS;
-#else
+    /* Try NVS-saved credentials first, fall back to compile-time config */
+    char nvs_ssid[33] = {0};
+    char nvs_pass[65] = {0};
     const char *sta_ssid = "";
     const char *sta_pass = "";
+    if (wifi_manager_load_creds(nvs_ssid, sizeof(nvs_ssid), nvs_pass, sizeof(nvs_pass)) == ESP_OK && nvs_ssid[0]) {
+        sta_ssid = nvs_ssid;
+        sta_pass = nvs_pass;
+        ESP_LOGI(TAG, "Using Wi-Fi credentials from NVS");
+    } else {
+#ifdef CONFIG_KILN_WIFI_STA_SSID
+        sta_ssid = CONFIG_KILN_WIFI_STA_SSID;
+        sta_pass = CONFIG_KILN_WIFI_STA_PASS;
+        ESP_LOGI(TAG, "Using compile-time Wi-Fi credentials");
+#else
+        ESP_LOGI(TAG, "No Wi-Fi credentials configured, starting in AP mode");
 #endif
+    }
     ESP_ERROR_CHECK(wifi_manager_init(sta_ssid, sta_pass, APP_WIFI_AP_SSID, APP_WIFI_AP_PASS));
 
     /* Wait for Wi-Fi (30s timeout) */

@@ -3,6 +3,8 @@
 #include "esp_event.h"
 #include "esp_netif.h"
 #include "esp_log.h"
+#include "nvs_flash.h"
+#include "nvs.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 #include <string.h>
@@ -152,4 +154,66 @@ bool wifi_manager_is_ap_mode(void)
 const char *wifi_manager_get_ip(void)
 {
     return s_ip_str;
+}
+
+/* ── NVS Credential Persistence ───────────────────── */
+
+#define WIFI_NVS_NAMESPACE "wifi_cfg"
+
+esp_err_t wifi_manager_load_creds(char *ssid, size_t ssid_len, char *pass, size_t pass_len)
+{
+    nvs_handle_t handle;
+    esp_err_t err = nvs_open(WIFI_NVS_NAMESPACE, NVS_READONLY, &handle);
+    if (err != ESP_OK) {
+        return ESP_ERR_NVS_NOT_FOUND;
+    }
+
+    err = nvs_get_str(handle, "ssid", ssid, &ssid_len);
+    if (err != ESP_OK) {
+        nvs_close(handle);
+        return ESP_ERR_NVS_NOT_FOUND;
+    }
+
+    err = nvs_get_str(handle, "pass", pass, &pass_len);
+    if (err != ESP_OK) {
+        /* SSID without password is valid (open network) */
+        pass[0] = '\0';
+    }
+
+    nvs_close(handle);
+    ESP_LOGI(TAG, "Loaded Wi-Fi credentials from NVS: SSID=%s", ssid);
+    return ESP_OK;
+}
+
+esp_err_t wifi_manager_save_creds(const char *ssid, const char *pass)
+{
+    nvs_handle_t handle;
+    esp_err_t err = nvs_open(WIFI_NVS_NAMESPACE, NVS_READWRITE, &handle);
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    nvs_set_str(handle, "ssid", ssid);
+    nvs_set_str(handle, "pass", pass ? pass : "");
+    err = nvs_commit(handle);
+    nvs_close(handle);
+
+    ESP_LOGI(TAG, "Saved Wi-Fi credentials to NVS: SSID=%s", ssid);
+    return err;
+}
+
+esp_err_t wifi_manager_clear_creds(void)
+{
+    nvs_handle_t handle;
+    esp_err_t err = nvs_open(WIFI_NVS_NAMESPACE, NVS_READWRITE, &handle);
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    nvs_erase_all(handle);
+    err = nvs_commit(handle);
+    nvs_close(handle);
+
+    ESP_LOGI(TAG, "Cleared Wi-Fi credentials from NVS");
+    return err;
 }

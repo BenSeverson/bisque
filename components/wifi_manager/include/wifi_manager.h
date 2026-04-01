@@ -40,6 +40,23 @@ bool wifi_manager_is_ap_mode(void);
  */
 const char *wifi_manager_get_ip(void);
 
+/**
+ * Load Wi-Fi STA credentials from NVS.
+ * Returns ESP_OK if credentials were found, ESP_ERR_NVS_NOT_FOUND otherwise.
+ * Buffers must be at least 33 (ssid) and 65 (pass) bytes.
+ */
+esp_err_t wifi_manager_load_creds(char *ssid, size_t ssid_len, char *pass, size_t pass_len);
+
+/**
+ * Save Wi-Fi STA credentials to NVS. Takes effect after reboot.
+ */
+esp_err_t wifi_manager_save_creds(const char *ssid, const char *pass);
+
+/**
+ * Clear saved Wi-Fi STA credentials from NVS.
+ */
+esp_err_t wifi_manager_clear_creds(void);
+
 #ifdef __cplusplus
 }
 #endif
