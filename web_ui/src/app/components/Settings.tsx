@@ -1,4 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { formatUptime } from "../utils/time";
 import { toErrorMessage } from "../utils/error";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
@@ -9,21 +11,35 @@ import { Button } from "./ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
-import { KilnSettings } from "../types/kiln";
-import { api, setApiToken, SystemInfo, AutotuneStatus, DiagThermocouple } from "../services/api";
+import { setApiToken } from "../services/api";
 import { toast } from "sonner";
 import { Upload, Zap, Thermometer, AlertTriangle } from "lucide-react";
+import { settingsSchema, SettingsFormValues } from "../schemas/kiln";
+import {
+  useSettings,
+  useSaveSettings,
+  useSystemInfo,
+  useAutotuneStatus,
+  useStartAutotune,
+  useStopAutotune,
+  useTestRelay,
+  useUploadOta,
+} from "../hooks/queries";
+import { api, DiagThermocouple } from "../services/api";
 
-interface SettingsProps {
-  settings: KilnSettings;
-  onUpdateSettings: (settings: KilnSettings) => void;
-}
+export function Settings() {
+  const { data: settings } = useSettings();
+  const saveSettings = useSaveSettings();
+  const { data: systemInfo } = useSystemInfo();
 
-export function Settings({ settings, onUpdateSettings }: SettingsProps) {
-  const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
-  const [autotuneStatus, setAutotuneStatus] = useState<AutotuneStatus | null>(null);
-  const [autotuneSetpoint, setAutotuneSetpoint] = useState(500);
   const [autotuneRunning, setAutotuneRunning] = useState(false);
+  const { data: autotuneStatus } = useAutotuneStatus(autotuneRunning);
+  const [autotuneSetpoint, setAutotuneSetpoint] = useState(500);
+
+  const startAutotune = useStartAutotune();
+  const stopAutotune = useStopAutotune();
+  const testRelay = useTestRelay();
+  const uploadOta = useUploadOta();
 
   // TC diagnostics
   const [tcDiag, setTcDiag] = useState<DiagThermocouple | null>(null);
@@ -36,78 +52,86 @@ export function Settings({ settings, onUpdateSettings }: SettingsProps) {
   // API token local state
   const [newToken, setNewToken] = useState("");
 
+  // Initialize autotuneRunning from query
   useEffect(() => {
-    api
-      .getSystemInfo()
-      .then(setSystemInfo)
-      .catch(() => {});
-    api
-      .getAutotuneStatus()
-      .then((s) => {
-        setAutotuneStatus(s);
-        setAutotuneRunning(s.state === "running");
-      })
-      .catch(() => {});
-  }, []);
+    if (autotuneStatus?.state === "running") {
+      setAutotuneRunning(true);
+    } else if (autotuneStatus && autotuneStatus.state !== "running" && autotuneRunning) {
+      setAutotuneRunning(false);
+      toast.success("Auto-tune complete");
+    }
+  }, [autotuneStatus, autotuneRunning]);
 
-  // Poll autotune status while running
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    reset,
+  } = useForm<SettingsFormValues>({
+    resolver: zodResolver(settingsSchema),
+    defaultValues: settings,
+  });
+
+  // Sync form when server data arrives
   useEffect(() => {
-    if (!autotuneRunning) return;
-    const interval = setInterval(() => {
-      api
-        .getAutotuneStatus()
-        .then((s) => {
-          setAutotuneStatus(s);
-          if (s.state !== "running") {
-            setAutotuneRunning(false);
-            toast.success("Auto-tune complete");
-          }
-        })
-        .catch(() => {});
-    }, 2000);
-    return () => clearInterval(interval);
-  }, [autotuneRunning]);
+    if (settings) reset(settings);
+  }, [settings, reset]);
 
-  const handleSave = () => {
-    onUpdateSettings(settings);
-    toast.success("Settings saved");
+  const watchedSettings = watch();
+
+  const onSubmit = async (data: SettingsFormValues) => {
+    try {
+      await saveSettings.mutateAsync(data);
+      toast.success("Settings saved");
+    } catch {
+      toast.error("Failed to save settings");
+    }
+  };
+
+  // Optimistic update helper for switches/selects that save immediately
+  const updateField = (field: keyof SettingsFormValues, value: SettingsFormValues[keyof SettingsFormValues]) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    setValue(field, value as any);
+    const updated = { ...watchedSettings, [field]: value };
+    saveSettings.mutate(updated);
   };
 
   const handleSetToken = useCallback(async () => {
     if (!newToken.trim()) return;
-    const updated = { ...settings, apiToken: newToken.trim() };
-    onUpdateSettings(updated);
+    const updated = { ...watchedSettings, apiToken: newToken.trim() };
+    saveSettings.mutate(updated);
     setApiToken(newToken.trim());
     setNewToken("");
     toast.success("API token set");
-  }, [newToken, settings, onUpdateSettings]);
+  }, [newToken, watchedSettings, saveSettings]);
 
   const handleClearToken = useCallback(async () => {
-    const updated = { ...settings, apiToken: "", apiTokenSet: false };
-    onUpdateSettings(updated);
+    const updated = { ...watchedSettings, apiToken: "", apiTokenSet: false };
+    saveSettings.mutate(updated);
     setApiToken(null);
     toast.success("API token cleared");
-  }, [settings, onUpdateSettings]);
+  }, [watchedSettings, saveSettings]);
 
   const handleStartAutotune = useCallback(async () => {
     try {
-      await api.startAutotune(autotuneSetpoint);
+      await startAutotune.mutateAsync(autotuneSetpoint);
       setAutotuneRunning(true);
       toast.success("Auto-tune started");
     } catch (e) {
       toast.error(`Failed: ${toErrorMessage(e)}`);
     }
-  }, [autotuneSetpoint]);
+  }, [autotuneSetpoint, startAutotune]);
 
   const handleStopAutotune = useCallback(async () => {
     try {
-      await api.stopAutotune();
+      await stopAutotune.mutateAsync();
       setAutotuneRunning(false);
       toast.success("Auto-tune stopped");
     } catch {
       toast.error("Failed to stop auto-tune");
     }
-  }, []);
+  }, [stopAutotune]);
 
   const handleReadTC = useCallback(async () => {
     try {
@@ -120,18 +144,18 @@ export function Settings({ settings, onUpdateSettings }: SettingsProps) {
 
   const handleTestRelay = useCallback(async () => {
     try {
-      await api.testRelay(2);
+      await testRelay.mutateAsync();
       toast.success("Relay activated for 2 seconds");
     } catch {
       toast.error("Failed to test relay");
     }
-  }, []);
+  }, [testRelay]);
 
   const handleOtaUpload = useCallback(async () => {
     if (!otaFile) return;
     setOtaProgress(0);
     try {
-      await api.uploadOta(otaFile, (pct) => setOtaProgress(pct));
+      await uploadOta.mutateAsync({ file: otaFile, onProgress: (pct) => setOtaProgress(pct) });
       toast.success("Firmware uploaded — controller is rebooting");
       setOtaFile(null);
       setOtaProgress(null);
@@ -139,7 +163,7 @@ export function Settings({ settings, onUpdateSettings }: SettingsProps) {
       toast.error(`OTA failed: ${toErrorMessage(e)}`);
       setOtaProgress(null);
     }
-  }, [otaFile]);
+  }, [otaFile, uploadOta]);
 
   const formatBytes = (bytes: number) => `${Math.round(bytes / 1024)} KB`;
   const formatHours = (seconds: number) => `${(seconds / 3600).toFixed(1)} hrs`;
@@ -153,197 +177,181 @@ export function Settings({ settings, onUpdateSettings }: SettingsProps) {
         </p>
       </div>
 
-      {/* Temperature Settings */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Temperature Settings</CardTitle>
-          <CardDescription>Configure temperature units, limits, and calibration</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="temp-unit">Temperature Unit</Label>
-            <Select
-              value={settings.tempUnit}
-              onValueChange={(value: "C" | "F") =>
-                onUpdateSettings({ ...settings, tempUnit: value })
-              }
-            >
-              <SelectTrigger id="temp-unit">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="C">Celsius (°C)</SelectItem>
-                <SelectItem value="F">Fahrenheit (°F)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="max-temp">Maximum Safe Temperature (°C)</Label>
-            <Input
-              id="max-temp"
-              type="number"
-              value={settings.maxSafeTemp}
-              onChange={(e) =>
-                onUpdateSettings({ ...settings, maxSafeTemp: parseFloat(e.target.value) })
-              }
-            />
-            <p className="text-sm text-muted-foreground">
-              The kiln will shut down if this temperature is exceeded. Hardware max: 1400°C.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="tc-offset">Thermocouple Offset (°C)</Label>
-            <Input
-              id="tc-offset"
-              type="number"
-              step="0.5"
-              value={settings.tcOffsetC ?? 0}
-              onChange={(e) =>
-                onUpdateSettings({ ...settings, tcOffsetC: parseFloat(e.target.value) || 0 })
-              }
-            />
-            <p className="text-sm text-muted-foreground">
-              Calibration offset added to raw TC reading. Use a reference thermometer to determine
-              this value.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Safety Settings */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Safety Settings</CardTitle>
-          <CardDescription>Configure safety features and alerts</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="alarm-enabled">Temperature Alarm</Label>
-              <p className="text-sm text-muted-foreground">
-                Sound alarm if temperature exceeds safe limits
-              </p>
-            </div>
-            <Switch
-              id="alarm-enabled"
-              checked={settings.alarmEnabled}
-              onCheckedChange={(checked) =>
-                onUpdateSettings({ ...settings, alarmEnabled: checked })
-              }
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="auto-shutdown">Automatic Shutdown</Label>
-              <p className="text-sm text-muted-foreground">
-                Automatically shut down kiln when firing completes
-              </p>
-            </div>
-            <Switch
-              id="auto-shutdown"
-              checked={settings.autoShutdown}
-              onCheckedChange={(checked) =>
-                onUpdateSettings({ ...settings, autoShutdown: checked })
-              }
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="notifications">Notifications</Label>
-              <p className="text-sm text-muted-foreground">
-                Receive notifications for important events
-              </p>
-            </div>
-            <Switch
-              id="notifications"
-              checked={settings.notificationsEnabled}
-              onCheckedChange={(checked) =>
-                onUpdateSettings({ ...settings, notificationsEnabled: checked })
-              }
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Notifications */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Webhook Notifications</CardTitle>
-          <CardDescription>
-            POST a JSON payload to your URL when a firing completes or errors
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="webhook-url">Webhook URL</Label>
-            <Input
-              id="webhook-url"
-              type="url"
-              placeholder="https://your-server.example.com/kiln-webhook"
-              value={settings.webhookUrl ?? ""}
-              onChange={(e) => onUpdateSettings({ ...settings, webhookUrl: e.target.value })}
-            />
-            <p className="text-sm text-muted-foreground">
-              Leave blank to disable. The controller posts: event, profile, peakTemp, durationS.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Cost Estimation */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Firing Cost Estimator</CardTitle>
-          <CardDescription>
-            Configure element power and electricity rate for cost estimates
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        {/* Temperature Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Temperature Settings</CardTitle>
+            <CardDescription>Configure temperature units, limits, and calibration</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="element-watts">Element Power (W)</Label>
+              <Label htmlFor="temp-unit">Temperature Unit</Label>
+              <Select
+                value={watchedSettings.tempUnit}
+                onValueChange={(value: "C" | "F") => updateField("tempUnit", value)}
+              >
+                <SelectTrigger id="temp-unit">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="C">Celsius (°C)</SelectItem>
+                  <SelectItem value="F">Fahrenheit (°F)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="max-temp">Maximum Safe Temperature (°C)</Label>
               <Input
-                id="element-watts"
+                id="max-temp"
                 type="number"
-                min="0"
-                step="100"
-                placeholder="e.g. 2400"
-                value={settings.elementWatts ?? 0}
-                onChange={(e) =>
-                  onUpdateSettings({ ...settings, elementWatts: parseFloat(e.target.value) || 0 })
-                }
+                {...register("maxSafeTemp", { valueAsNumber: true })}
+              />
+              <p className="text-sm text-muted-foreground">
+                The kiln will shut down if this temperature is exceeded. Hardware max: 1400°C.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="tc-offset">Thermocouple Offset (°C)</Label>
+              <Input
+                id="tc-offset"
+                type="number"
+                step="0.5"
+                {...register("tcOffsetC", { valueAsNumber: true })}
+              />
+              <p className="text-sm text-muted-foreground">
+                Calibration offset added to raw TC reading. Use a reference thermometer to determine
+                this value.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Safety Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Safety Settings</CardTitle>
+            <CardDescription>Configure safety features and alerts</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="alarm-enabled">Temperature Alarm</Label>
+                <p className="text-sm text-muted-foreground">
+                  Sound alarm if temperature exceeds safe limits
+                </p>
+              </div>
+              <Switch
+                id="alarm-enabled"
+                checked={watchedSettings.alarmEnabled}
+                onCheckedChange={(checked) => updateField("alarmEnabled", checked)}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="elec-cost">Electricity Cost ($/kWh)</Label>
-              <Input
-                id="elec-cost"
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="e.g. 0.15"
-                value={settings.electricityCostKwh ?? 0}
-                onChange={(e) =>
-                  onUpdateSettings({
-                    ...settings,
-                    electricityCostKwh: parseFloat(e.target.value) || 0,
-                  })
-                }
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="auto-shutdown">Automatic Shutdown</Label>
+                <p className="text-sm text-muted-foreground">
+                  Automatically shut down kiln when firing completes
+                </p>
+              </div>
+              <Switch
+                id="auto-shutdown"
+                checked={watchedSettings.autoShutdown}
+                onCheckedChange={(checked) => updateField("autoShutdown", checked)}
               />
             </div>
-          </div>
-          {(settings.elementWatts ?? 0) > 0 && (settings.electricityCostKwh ?? 0) > 0 && (
-            <p className="text-sm text-muted-foreground">
-              At 50% average duty cycle: {settings.elementWatts! / 2000} kW × $
-              {settings.electricityCostKwh!.toFixed(2)}/kWh
-            </p>
-          )}
-        </CardContent>
-      </Card>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="notifications">Notifications</Label>
+                <p className="text-sm text-muted-foreground">
+                  Receive notifications for important events
+                </p>
+              </div>
+              <Switch
+                id="notifications"
+                checked={watchedSettings.notificationsEnabled}
+                onCheckedChange={(checked) => updateField("notificationsEnabled", checked)}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Notifications */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Webhook Notifications</CardTitle>
+            <CardDescription>
+              POST a JSON payload to your URL when a firing completes or errors
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="webhook-url">Webhook URL</Label>
+              <Input
+                id="webhook-url"
+                type="url"
+                placeholder="https://your-server.example.com/kiln-webhook"
+                {...register("webhookUrl")}
+              />
+              <p className="text-sm text-muted-foreground">
+                Leave blank to disable. The controller posts: event, profile, peakTemp, durationS.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Cost Estimation */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Firing Cost Estimator</CardTitle>
+            <CardDescription>
+              Configure element power and electricity rate for cost estimates
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="element-watts">Element Power (W)</Label>
+                <Input
+                  id="element-watts"
+                  type="number"
+                  min="0"
+                  step="100"
+                  placeholder="e.g. 2400"
+                  {...register("elementWatts", { valueAsNumber: true })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="elec-cost">Electricity Cost ($/kWh)</Label>
+                <Input
+                  id="elec-cost"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="e.g. 0.15"
+                  {...register("electricityCostKwh", { valueAsNumber: true })}
+                />
+              </div>
+            </div>
+            {(watchedSettings.elementWatts ?? 0) > 0 &&
+              (watchedSettings.electricityCostKwh ?? 0) > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  At 50% average duty cycle: {watchedSettings.elementWatts! / 2000} kW × $
+                  {watchedSettings.electricityCostKwh!.toFixed(2)}/kWh
+                </p>
+              )}
+          </CardContent>
+        </Card>
+
+        {/* Save button for the form */}
+        <div className="flex justify-end">
+          <Button type="submit">Save Settings</Button>
+        </div>
+      </form>
 
       {/* API Security */}
       <Card>
@@ -356,7 +364,7 @@ export function Settings({ settings, onUpdateSettings }: SettingsProps) {
         <CardContent className="space-y-4">
           <div className="flex items-center gap-2">
             <span className="text-sm">Token status:</span>
-            {settings.apiTokenSet ? (
+            {watchedSettings.apiTokenSet ? (
               <Badge variant="default">Set</Badge>
             ) : (
               <Badge variant="secondary">Not set</Badge>
@@ -373,7 +381,7 @@ export function Settings({ settings, onUpdateSettings }: SettingsProps) {
             <Button onClick={handleSetToken} disabled={!newToken.trim()}>
               Set Token
             </Button>
-            {settings.apiTokenSet && (
+            {watchedSettings.apiTokenSet && (
               <Button variant="outline" onClick={handleClearToken}>
                 Clear
               </Button>
@@ -644,10 +652,6 @@ export function Settings({ settings, onUpdateSettings }: SettingsProps) {
           </div>
         </CardContent>
       </Card>
-
-      <div className="flex justify-end">
-        <Button onClick={handleSave}>Save Settings</Button>
-      </div>
     </div>
   );
 }

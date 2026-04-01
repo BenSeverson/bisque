@@ -1,101 +1,20 @@
-import { useState, useEffect, useCallback } from "react";
+import { useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { FiringDashboard } from "./components/FiringDashboard";
 import { FiringProfiles } from "./components/FiringProfiles";
 import { ProfileBuilder } from "./components/ProfileBuilder";
 import { Settings } from "./components/Settings";
 import { FiringHistory } from "./components/FiringHistory";
-import { FiringProfile, KilnSettings } from "./types/kiln";
-import { mockProfiles } from "./data/mockProfiles";
 import { Flame, FileText, Wrench, Settings as SettingsIcon, History } from "lucide-react";
 import { Toaster } from "./components/ui/sonner";
-import { api } from "./services/api";
-import { kilnWS } from "./services/websocket";
+import { useKilnStore } from "./stores/kilnStore";
 
 export default function App() {
-  const [profiles, setProfiles] = useState<FiringProfile[]>([]);
-  const [selectedProfile, setSelectedProfile] = useState<FiringProfile | null>(null);
-  const [settings, setSettings] = useState<KilnSettings>({
-    tempUnit: "C",
-    maxSafeTemp: 1400,
-    alarmEnabled: true,
-    autoShutdown: true,
-    notificationsEnabled: true,
-    tcOffsetC: 0,
-    webhookUrl: "",
-    elementWatts: 0,
-    electricityCostKwh: 0,
-  });
-  const fetchProfiles = useCallback(async () => {
-    try {
-      const data = await api.getProfiles();
-      setProfiles(data);
-    } catch {
-      // Fallback to mock data when ESP32 is not reachable
-      setProfiles((prev) => (prev.length === 0 ? mockProfiles : prev));
-    }
-  }, []);
-
-  const fetchSettings = useCallback(async () => {
-    try {
-      const data = await api.getSettings();
-      setSettings(data);
-    } catch {
-      // Use defaults when not connected
-    }
-  }, []);
+  const initWebSocket = useKilnStore((s) => s.initWebSocket);
 
   useEffect(() => {
-    fetchProfiles();
-    fetchSettings();
-    kilnWS.connect();
-    return () => kilnWS.disconnect();
-  }, [fetchProfiles, fetchSettings]);
-
-  const handleSelectProfile = (profileId: string) => {
-    const profile = profiles.find((p) => p.id === profileId);
-    setSelectedProfile(profile || null);
-  };
-
-  const handleSaveProfile = async (profile: FiringProfile) => {
-    try {
-      await api.saveProfile(profile);
-      await fetchProfiles();
-    } catch {
-      // Local-only fallback
-      setProfiles((prev) => {
-        const existing = prev.find((p) => p.id === profile.id);
-        if (existing) {
-          return prev.map((p) => (p.id === profile.id ? profile : p));
-        }
-        return [...prev, profile];
-      });
-    }
-  };
-
-  const handleDeleteProfile = async (profileId: string) => {
-    try {
-      await api.deleteProfile(profileId);
-      if (selectedProfile?.id === profileId) {
-        setSelectedProfile(null);
-      }
-      await fetchProfiles();
-    } catch {
-      setProfiles((prev) => prev.filter((p) => p.id !== profileId));
-      if (selectedProfile?.id === profileId) {
-        setSelectedProfile(null);
-      }
-    }
-  };
-
-  const handleUpdateSettings = async (newSettings: KilnSettings) => {
-    setSettings(newSettings);
-    try {
-      await api.saveSettings(newSettings);
-    } catch {
-      // Settings saved locally only
-    }
-  };
+    return initWebSocket();
+  }, [initWebSocket]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -143,32 +62,19 @@ export default function App() {
           </TabsList>
 
           <TabsContent value="dashboard" className="space-y-4">
-            <FiringDashboard
-              profiles={profiles}
-              selectedProfile={selectedProfile}
-              onSelectProfile={handleSelectProfile}
-            />
+            <FiringDashboard />
           </TabsContent>
 
           <TabsContent value="profiles" className="space-y-4">
-            <FiringProfiles
-              profiles={profiles}
-              selectedProfile={selectedProfile}
-              onSelectProfile={handleSelectProfile}
-              onRefreshProfiles={fetchProfiles}
-            />
+            <FiringProfiles />
           </TabsContent>
 
           <TabsContent value="builder" className="space-y-4">
-            <ProfileBuilder
-              profiles={profiles}
-              onSaveProfile={handleSaveProfile}
-              onDeleteProfile={handleDeleteProfile}
-            />
+            <ProfileBuilder />
           </TabsContent>
 
           <TabsContent value="settings" className="space-y-4">
-            <Settings settings={settings} onUpdateSettings={handleUpdateSettings} />
+            <Settings />
           </TabsContent>
 
           <TabsContent value="history" className="space-y-4">

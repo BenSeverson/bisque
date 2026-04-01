@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -8,28 +8,27 @@ import { api } from "../services/api";
 import { toast } from "sonner";
 import { formatDurationFromMinutes } from "../utils/time";
 import { downloadUrl } from "../utils/download";
+import { useKilnStore } from "../stores/kilnStore";
+import { useProfiles, useDuplicateProfile, useImportProfile } from "../hooks/queries";
 
-interface FiringProfilesProps {
-  profiles: FiringProfile[];
-  selectedProfile: FiringProfile | null;
-  onSelectProfile: (profileId: string) => void;
-  onRefreshProfiles?: () => void;
-}
+export function FiringProfiles() {
+  const { selectedProfileId, setSelectedProfileId } = useKilnStore();
+  const { data: profiles = [] } = useProfiles();
+  const selectedProfile = useMemo(
+    () => profiles.find((p) => p.id === selectedProfileId) ?? null,
+    [profiles, selectedProfileId],
+  );
 
-export function FiringProfiles({
-  profiles,
-  selectedProfile,
-  onSelectProfile,
-  onRefreshProfiles,
-}: FiringProfilesProps) {
+  const duplicateProfile = useDuplicateProfile();
+  const importProfile = useImportProfile();
+
   const importInputRef = useRef<HTMLInputElement>(null);
 
   const handleDuplicate = async (e: React.MouseEvent, profile: FiringProfile) => {
     e.stopPropagation();
     try {
-      await api.duplicateProfile(profile);
+      await duplicateProfile.mutateAsync(profile);
       toast.success(`Duplicated "${profile.name}"`);
-      onRefreshProfiles?.();
     } catch {
       toast.error("Failed to duplicate profile");
     }
@@ -51,13 +50,11 @@ export function FiringProfiles({
     try {
       const text = await file.text();
       const profile = JSON.parse(text) as FiringProfile;
-      await api.importProfile(profile);
+      await importProfile.mutateAsync(profile);
       toast.success(`Imported "${profile.name}"`);
-      onRefreshProfiles?.();
     } catch {
       toast.error("Failed to import profile — invalid JSON or format");
     } finally {
-      // Reset so the same file can be re-imported
       e.target.value = "";
     }
   };
@@ -94,7 +91,7 @@ export function FiringProfiles({
             className={`cursor-pointer transition-all ${
               selectedProfile?.id === profile.id ? "ring-2 ring-primary" : "hover:shadow-lg"
             }`}
-            onClick={() => onSelectProfile(profile.id)}
+            onClick={() => setSelectedProfileId(profile.id)}
           >
             <CardHeader>
               <div className="flex justify-between items-start">

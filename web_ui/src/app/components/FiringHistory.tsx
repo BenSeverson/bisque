@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -17,29 +17,14 @@ import { Download, Flame, Clock, Thermometer } from "lucide-react";
 import { toast } from "sonner";
 import { formatDuration } from "../utils/time";
 import { downloadUrl } from "../utils/download";
+import { useHistory } from "../hooks/queries";
 
 export function FiringHistory() {
-  const [records, setRecords] = useState<HistoryRecord[]>([]);
+  const { data: records = [], isLoading } = useHistory();
   const [selectedRecord, setSelectedRecord] = useState<HistoryRecord | null>(null);
   const [traceData, setTraceData] = useState<{ time_s: number; temp_c: number }[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  const fetchHistory = useCallback(async () => {
-    try {
-      const data = await api.getHistory();
-      setRecords(data);
-    } catch {
-      // Not connected or no history
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchHistory();
-  }, [fetchHistory]);
-
-  const handleSelectRecord = async (record: HistoryRecord) => {
+  const handleSelectRecord = useCallback(async (record: HistoryRecord) => {
     setSelectedRecord(record);
     setTraceData([]);
     try {
@@ -47,7 +32,7 @@ export function FiringHistory() {
       const res = await fetch(url);
       if (res.ok) {
         const csv = await res.text();
-        const lines = csv.trim().split("\n").slice(1); // skip header
+        const lines = csv.trim().split("\n").slice(1);
         const parsed = lines
           .map((line) => {
             const [time_s, temp_c] = line.split(",").map(Number);
@@ -59,7 +44,7 @@ export function FiringHistory() {
     } catch {
       // No trace available
     }
-  };
+  }, []);
 
   const handleDownloadTrace = (record: HistoryRecord) => {
     downloadUrl(api.getHistoryTrace(record.id), `trace_${record.id}.csv`);
@@ -77,7 +62,7 @@ export function FiringHistory() {
     return "outline";
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <Card>
         <CardContent className="py-12 text-center">

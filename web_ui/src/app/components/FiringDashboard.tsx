@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -26,44 +26,30 @@ import {
   SkipForward,
   Timer,
 } from "lucide-react";
-import { FiringProfile, FiringProgress, TemperatureDataPoint } from "../types/kiln";
+import { TemperatureDataPoint } from "../types/kiln";
 import { api } from "../services/api";
-import { kilnWS, WSMessage } from "../services/websocket";
 import { toast } from "sonner";
 import { formatDuration } from "../utils/time";
 import { toErrorMessage } from "../utils/error";
 import { computeSegmentDurationMinutes } from "../utils/profile";
+import { useKilnStore } from "../stores/kilnStore";
+import { useProfiles, useStartFiring, useStopFiring, usePauseFiring, useSkipSegment } from "../hooks/queries";
 
-interface FiringDashboardProps {
-  profiles: FiringProfile[];
-  selectedProfile: FiringProfile | null;
-  onSelectProfile: (profileId: string) => void;
-}
+export function FiringDashboard() {
+  const { selectedProfileId, setSelectedProfileId, firingProgress, currentTempData, resetTempData } =
+    useKilnStore();
+  const { data: profiles = [] } = useProfiles();
+  const selectedProfile = useMemo(
+    () => profiles.find((p) => p.id === selectedProfileId) ?? null,
+    [profiles, selectedProfileId],
+  );
 
-export function FiringDashboard({
-  profiles,
-  selectedProfile,
-  onSelectProfile,
-}: FiringDashboardProps) {
-  const [firingProgress, setFiringProgress] = useState<FiringProgress>({
-    isActive: false,
-    profileId: null,
-    startTime: null,
-    currentTemp: 20,
-    targetTemp: 20,
-    currentSegment: 0,
-    totalSegments: 0,
-    elapsedTime: 0,
-    estimatedTimeRemaining: 0,
-    status: "idle",
-  });
+  const startFiring = useStartFiring();
+  const stopFiring = useStopFiring();
+  const pauseFiring = usePauseFiring();
+  const skipSegment = useSkipSegment();
 
   const [delayMinutes, setDelayMinutes] = useState<number>(0);
-
-  const [currentTempData, setCurrentTempData] = useState<TemperatureDataPoint[]>([
-    { time: 0, temp: 20, target: 20 },
-  ]);
-
   const [profilePath, setProfilePath] = useState<TemperatureDataPoint[]>([]);
 
   // Fetch initial status from REST API
@@ -71,56 +57,22 @@ export function FiringDashboard({
     api
       .getStatus()
       .then((s) => {
-        setFiringProgress({
-          isActive: s.isActive,
-          profileId: s.profileId,
-          startTime: null,
-          currentTemp: s.currentTemp,
-          targetTemp: s.targetTemp,
-          currentSegment: s.currentSegment,
-          totalSegments: s.totalSegments,
-          elapsedTime: s.elapsedTime,
-          estimatedTimeRemaining: s.estimatedTimeRemaining,
-          status: s.status,
+        useKilnStore.setState({
+          firingProgress: {
+            isActive: s.isActive,
+            profileId: s.profileId,
+            startTime: null,
+            currentTemp: s.currentTemp,
+            targetTemp: s.targetTemp,
+            currentSegment: s.currentSegment,
+            totalSegments: s.totalSegments,
+            elapsedTime: s.elapsedTime,
+            estimatedTimeRemaining: s.estimatedTimeRemaining,
+            status: s.status,
+          },
         });
       })
-      .catch(() => {
-        // Not connected to ESP32
-      });
-  }, []);
-
-  // Subscribe to WebSocket for real-time temperature updates
-  useEffect(() => {
-    const unsubscribe = kilnWS.subscribe((msg: WSMessage) => {
-      if (msg.type === "temp_update") {
-        const d = msg.data;
-        setFiringProgress((prev) => ({
-          ...prev,
-          isActive: d.isActive,
-          currentTemp: d.currentTemp,
-          targetTemp: d.targetTemp,
-          currentSegment: d.currentSegment,
-          totalSegments: d.totalSegments,
-          elapsedTime: d.elapsedTime,
-          estimatedTimeRemaining: d.estimatedTimeRemaining,
-          status: d.status,
-        }));
-
-        // Append to chart data (elapsedTime is in seconds from ESP32)
-        const timeMin = Math.round(d.elapsedTime / 60);
-        setCurrentTempData((prev) => {
-          const newData = [...prev];
-          if (newData.length > 200) newData.shift();
-          newData.push({
-            time: timeMin,
-            temp: Math.round(d.currentTemp),
-            target: Math.round(d.targetTemp),
-          });
-          return newData;
-        });
-      }
-    });
-    return unsubscribe;
+      .catch(() => {});
   }, []);
 
   // Calculate the complete profile path when profile is selected
@@ -178,43 +130,43 @@ export function FiringDashboard({
   const handleStart = useCallback(async () => {
     if (!selectedProfile) return;
     try {
-      await api.startFiring(selectedProfile.id, delayMinutes);
-      setCurrentTempData([{ time: 0, temp: 20, target: 20 }]);
+      await startFiring.mutateAsync({ profileId: selectedProfile.id, delayMinutes });
+      resetTempData();
       toast.success(
         delayMinutes > 0 ? `Firing scheduled in ${delayMinutes} min` : "Firing started",
       );
     } catch (e) {
       toast.error(`Failed to start: ${toErrorMessage(e)}`);
     }
-  }, [selectedProfile, delayMinutes]);
+  }, [selectedProfile, delayMinutes, startFiring, resetTempData]);
 
   const handleSkipSegment = useCallback(async () => {
     try {
-      await api.skipSegment();
+      await skipSegment.mutateAsync();
       toast.success("Skipped to next segment");
     } catch (e) {
       toast.error(`Failed to skip: ${toErrorMessage(e)}`);
     }
-  }, []);
+  }, [skipSegment]);
 
   const handlePause = useCallback(async () => {
     try {
-      const result = await api.pauseFiring();
+      const result = await pauseFiring.mutateAsync();
       toast.success(result.action === "paused" ? "Firing paused" : "Firing resumed");
     } catch (e) {
       toast.error(`Failed: ${toErrorMessage(e)}`);
     }
-  }, []);
+  }, [pauseFiring]);
 
   const handleStop = useCallback(async () => {
     try {
-      await api.stopFiring();
-      setCurrentTempData([{ time: 0, temp: 20, target: 20 }]);
+      await stopFiring.mutateAsync();
+      resetTempData();
       toast.success("Firing stopped");
     } catch (e) {
       toast.error(`Failed to stop: ${toErrorMessage(e)}`);
     }
-  }, []);
+  }, [stopFiring, resetTempData]);
 
   const getProgress = () => {
     if (!selectedProfile || firingProgress.elapsedTime === 0) return 0;
@@ -355,7 +307,7 @@ export function FiringDashboard({
             <Label htmlFor="profile-select">Select Firing Profile</Label>
             <Select
               value={selectedProfile?.id || ""}
-              onValueChange={onSelectProfile}
+              onValueChange={setSelectedProfileId}
               disabled={firingProgress.isActive}
             >
               <SelectTrigger id="profile-select">

@@ -1,4 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
+import { useForm, useFieldArray } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -6,12 +8,19 @@ import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { Switch } from "./ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { FiringProfile, FiringSegment, ConeEntry } from "../types/kiln";
+import { FiringProfile } from "../types/kiln";
 import { Plus, Trash2, Save, MoveUp, MoveDown, Flame } from "lucide-react";
-import { api } from "../services/api";
 import { toast } from "sonner";
 import { toErrorMessage } from "../utils/error";
 import { computeSegmentDurationMinutes } from "../utils/profile";
+import { profileFormSchema, ProfileFormValues } from "../schemas/kiln";
+import {
+  useProfiles,
+  useSaveProfile,
+  useDeleteProfile,
+  useConeTable,
+  useGenerateConeFire,
+} from "../hooks/queries";
 
 // Generate UUID - works in non-secure contexts (HTTP) unlike crypto.randomUUID()
 function generateId(): string {
@@ -22,114 +31,48 @@ function generateId(): string {
   });
 }
 
-interface ProfileBuilderProps {
-  profiles: FiringProfile[];
-  onSaveProfile: (profile: FiringProfile) => void;
-  onDeleteProfile?: (profileId: string) => void;
-}
+export function ProfileBuilder() {
+  const { data: profiles = [] } = useProfiles();
+  const saveProfile = useSaveProfile();
+  const deleteProfile = useDeleteProfile();
+  const { data: coneEntries = [] } = useConeTable();
+  const generateConeFire = useGenerateConeFire();
 
-export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: ProfileBuilderProps) {
   const [mode, setMode] = useState<"manual" | "cone">("manual");
-  const [editingProfile, setEditingProfile] = useState<FiringProfile | null>(null);
-  const [profileName, setProfileName] = useState("");
-  const [profileDescription, setProfileDescription] = useState("");
-  const [segments, setSegments] = useState<FiringSegment[]>([]);
+  const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
 
   // Cone fire state
-  const [coneEntries, setConeEntries] = useState<ConeEntry[]>([]);
   const [selectedConeId, setSelectedConeId] = useState<number | null>(null);
-  const [coneSpeed, setConeSpeed] = useState<0 | 1 | 2>(1); // 0=slow, 1=medium, 2=fast
+  const [coneSpeed, setConeSpeed] = useState<0 | 1 | 2>(1);
   const [preheat, setPreheat] = useState(true);
   const [slowCool, setSlowCool] = useState(false);
-  const [coneGenerating, setConeGenerating] = useState(false);
 
-  useEffect(() => {
-    api
-      .getConeTable()
-      .then(setConeEntries)
-      .catch(() => {});
-  }, []);
+  const {
+    register,
+    handleSubmit,
+    control,
+    reset,
+    watch,
+    setValue,
+    formState: { errors },
+  } = useForm<ProfileFormValues>({
+    resolver: zodResolver(profileFormSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      segments: [],
+    },
+  });
 
-  const createNewProfile = () => {
-    setMode("manual");
-    setEditingProfile(null);
-    setProfileName("");
-    setProfileDescription("");
-    setSegments([
-      {
-        id: generateId(),
-        name: "Segment 1",
-        rampRate: 100,
-        targetTemp: 600,
-        holdTime: 0,
-      },
-    ]);
-  };
+  const { fields, append, remove, move } = useFieldArray({
+    control,
+    name: "segments",
+  });
 
-  const loadProfile = (profileId: string) => {
-    const profile = profiles.find((p) => p.id === profileId);
-    if (profile) {
-      setMode("manual");
-      setEditingProfile(profile);
-      setProfileName(profile.name);
-      setProfileDescription(profile.description);
-      setSegments([...profile.segments]);
-    }
-  };
+  const segments = watch("segments");
+  const profileName = watch("name");
 
-  const handleGenerateConeFire = async () => {
-    if (selectedConeId === null) {
-      toast.error("Please select a cone");
-      return;
-    }
-    setConeGenerating(true);
-    try {
-      const profile = await api.generateConeFire({
-        coneId: selectedConeId,
-        speed: coneSpeed,
-        preheat,
-        slowCool,
-        save: false,
-      });
-      setMode("manual");
-      setEditingProfile(null);
-      setProfileName(profile.name);
-      setProfileDescription(profile.description);
-      setSegments([...profile.segments]);
-      toast.success("Cone fire profile generated — review and save below");
-    } catch (e) {
-      toast.error(`Failed to generate: ${toErrorMessage(e)}`);
-    } finally {
-      setConeGenerating(false);
-    }
-  };
-
-  const addSegment = () => {
-    const newSegment: FiringSegment = {
-      id: generateId(),
-      name: `Segment ${segments.length + 1}`,
-      rampRate: 100,
-      targetTemp: 1000,
-      holdTime: 0,
-    };
-    setSegments([...segments, newSegment]);
-  };
-
-  const removeSegment = (segmentId: string) => {
-    setSegments(segments.filter((s) => s.id !== segmentId));
-  };
-
-  const updateSegment = (segmentId: string, field: keyof FiringSegment, value: string | number) => {
-    setSegments(segments.map((s) => (s.id === segmentId ? { ...s, [field]: value } : s)));
-  };
-
-  const moveSegment = (index: number, direction: "up" | "down") => {
-    const newSegments = [...segments];
-    const targetIndex = direction === "up" ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= segments.length) return;
-    [newSegments[index], newSegments[targetIndex]] = [newSegments[targetIndex], newSegments[index]];
-    setSegments(newSegments);
-  };
+  const isEditing = fields.length > 0 || profileName;
 
   const estimatedDuration = useMemo(() => {
     let totalMinutes = 0;
@@ -154,29 +97,106 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
     return Math.max(...segments.map((s) => s.targetTemp));
   };
 
-  const saveProfile = () => {
-    if (!profileName.trim()) {
-      toast.error("Please enter a profile name");
+  const createNewProfile = () => {
+    setMode("manual");
+    setEditingProfileId(null);
+    reset({
+      name: "",
+      description: "",
+      segments: [
+        {
+          id: generateId(),
+          name: "Segment 1",
+          rampRate: 100,
+          targetTemp: 600,
+          holdTime: 0,
+        },
+      ],
+    });
+  };
+
+  const loadProfile = (profileId: string) => {
+    const profile = profiles.find((p) => p.id === profileId);
+    if (profile) {
+      setMode("manual");
+      setEditingProfileId(profile.id);
+      reset({
+        name: profile.name,
+        description: profile.description,
+        segments: profile.segments.map((s) => ({ ...s })),
+      });
+    }
+  };
+
+  const handleGenerateConeFire = async () => {
+    if (selectedConeId === null) {
+      toast.error("Please select a cone");
       return;
     }
-    if (segments.length === 0) {
-      toast.error("Please add at least one segment");
-      return;
+    try {
+      const profile = await generateConeFire.mutateAsync({
+        coneId: selectedConeId,
+        speed: coneSpeed,
+        preheat,
+        slowCool,
+        save: false,
+      });
+      setMode("manual");
+      setEditingProfileId(null);
+      reset({
+        name: profile.name,
+        description: profile.description,
+        segments: profile.segments.map((s) => ({ ...s })),
+      });
+      toast.success("Cone fire profile generated — review and save below");
+    } catch (e) {
+      toast.error(`Failed to generate: ${toErrorMessage(e)}`);
     }
+  };
+
+  const addSegment = () => {
+    append({
+      id: generateId(),
+      name: `Segment ${fields.length + 1}`,
+      rampRate: 100,
+      targetTemp: 1000,
+      holdTime: 0,
+    });
+  };
+
+  const onSubmit = async (data: ProfileFormValues) => {
     const profile: FiringProfile = {
-      id: editingProfile?.id || generateId(),
-      name: profileName,
-      description: profileDescription,
-      segments,
+      id: editingProfileId || generateId(),
+      name: data.name,
+      description: data.description,
+      segments: data.segments,
       maxTemp: calculateMaxTemp(),
-      estimatedDuration: estimatedDuration,
+      estimatedDuration,
     };
-    onSaveProfile(profile);
-    toast.success(`Profile "${profileName}" saved successfully`);
-    setEditingProfile(null);
-    setProfileName("");
-    setProfileDescription("");
-    setSegments([]);
+    try {
+      await saveProfile.mutateAsync(profile);
+      toast.success(`Profile "${data.name}" saved successfully`);
+      setEditingProfileId(null);
+      reset({ name: "", description: "", segments: [] });
+    } catch {
+      // The mutation's onError fallback handles local cache update
+      toast.success(`Profile "${data.name}" saved locally`);
+      setEditingProfileId(null);
+      reset({ name: "", description: "", segments: [] });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!editingProfileId) return;
+    if (!window.confirm(`Delete profile "${profileName}"?`)) return;
+    try {
+      await deleteProfile.mutateAsync(editingProfileId);
+      toast.success("Profile deleted");
+      setEditingProfileId(null);
+      reset({ name: "", description: "", segments: [] });
+    } catch {
+      toast.error("Failed to delete profile");
+    }
   };
 
   const speedLabel = (s: 0 | 1 | 2) => {
@@ -300,11 +320,11 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
 
             <Button
               onClick={handleGenerateConeFire}
-              disabled={selectedConeId === null || coneGenerating}
+              disabled={selectedConeId === null || generateConeFire.isPending}
               className="w-full gap-2"
             >
               <Flame className="h-4 w-4" />
-              {coneGenerating ? "Generating..." : "Generate Profile"}
+              {generateConeFire.isPending ? "Generating..." : "Generate Profile"}
             </Button>
           </CardContent>
         </Card>
@@ -322,7 +342,7 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
               {profiles.map((profile) => (
                 <Button
                   key={profile.id}
-                  variant={editingProfile?.id === profile.id ? "default" : "outline"}
+                  variant={editingProfileId === profile.id ? "default" : "outline"}
                   onClick={() => loadProfile(profile.id)}
                 >
                   {profile.name}
@@ -334,177 +354,169 @@ export function ProfileBuilder({ profiles, onSaveProfile, onDeleteProfile }: Pro
       )}
 
       {/* Profile Editor */}
-      {(segments.length > 0 || profileName) && (
-        <>
-          <Card>
-            <CardHeader>
-              <CardTitle>Profile Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="profile-name">Profile Name</Label>
-                <Input
-                  id="profile-name"
-                  value={profileName}
-                  onChange={(e) => setProfileName(e.target.value)}
-                  placeholder="e.g., Custom Bisque Firing"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="profile-description">Description</Label>
-                <Textarea
-                  id="profile-description"
-                  value={profileDescription}
-                  onChange={(e) => setProfileDescription(e.target.value)}
-                  placeholder="Describe the purpose of this firing profile..."
-                  rows={3}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 pt-2 border-t">
-                <div>
-                  <p className="text-sm text-muted-foreground">Max Temperature</p>
-                  <p className="text-2xl font-semibold">{calculateMaxTemp()}°C</p>
+      {isEditing && (
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Profile Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="profile-name">Profile Name</Label>
+                  <Input
+                    id="profile-name"
+                    {...register("name")}
+                    placeholder="e.g., Custom Bisque Firing"
+                  />
+                  {errors.name && (
+                    <p className="text-sm text-destructive">{errors.name.message}</p>
+                  )}
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Estimated Duration</p>
-                  <p className="text-2xl font-semibold">
-                    {Math.floor(estimatedDuration / 60)}h {estimatedDuration % 60}m
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
 
-          {/* Segments */}
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle>Firing Segments</CardTitle>
-                  <CardDescription>
-                    Define temperature ramps and holds. Set hold time to 0 for infinite hold.
-                  </CardDescription>
+                <div className="space-y-2">
+                  <Label htmlFor="profile-description">Description</Label>
+                  <Textarea
+                    id="profile-description"
+                    {...register("description")}
+                    placeholder="Describe the purpose of this firing profile..."
+                    rows={3}
+                  />
                 </div>
-                <Button onClick={addSegment} variant="outline" size="sm" className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Add Segment
+
+                <div className="grid grid-cols-2 gap-4 pt-2 border-t">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Max Temperature</p>
+                    <p className="text-2xl font-semibold">{calculateMaxTemp()}°C</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Estimated Duration</p>
+                    <p className="text-2xl font-semibold">
+                      {Math.floor(estimatedDuration / 60)}h {estimatedDuration % 60}m
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Segments */}
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle>Firing Segments</CardTitle>
+                    <CardDescription>
+                      Define temperature ramps and holds. Set hold time to 0 for infinite hold.
+                    </CardDescription>
+                  </div>
+                  <Button onClick={addSegment} type="button" variant="outline" size="sm" className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Add Segment
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {errors.segments?.root && (
+                  <p className="text-sm text-destructive">{errors.segments.root.message}</p>
+                )}
+                {fields.map((field, index) => (
+                  <div key={field.id} className="p-4 border rounded-lg space-y-4">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1 space-y-2">
+                        <Label>Segment Name</Label>
+                        <Input
+                          {...register(`segments.${index}.name`)}
+                          placeholder="e.g., Warm-up, Water smoke"
+                        />
+                        {errors.segments?.[index]?.name && (
+                          <p className="text-sm text-destructive">
+                            {errors.segments[index].name.message}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex gap-1 ml-4">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => move(index, index - 1)}
+                          disabled={index === 0}
+                        >
+                          <MoveUp className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => move(index, index + 1)}
+                          disabled={index === fields.length - 1}
+                        >
+                          <MoveDown className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => remove(index)}
+                          disabled={fields.length === 1}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label>Ramp Rate (°C/hr)</Label>
+                        <Input
+                          type="number"
+                          {...register(`segments.${index}.rampRate`, { valueAsNumber: true })}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Positive to heat, negative to cool
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Target Temp (°C)</Label>
+                        <Input
+                          type="number"
+                          {...register(`segments.${index}.targetTemp`, { valueAsNumber: true })}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Hold Time (min)</Label>
+                        <Input
+                          type="number"
+                          {...register(`segments.${index}.holdTime`, { valueAsNumber: true })}
+                          min="0"
+                        />
+                        <p className="text-xs text-muted-foreground">0 = hold until skip</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            {/* Save/Delete Actions */}
+            <div className="flex gap-2 justify-end">
+              {editingProfileId && (
+                <Button type="button" variant="destructive" onClick={handleDelete}>
+                  Delete Profile
                 </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {segments.map((segment, index) => (
-                <div key={segment.id} className="p-4 border rounded-lg space-y-4">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1 space-y-2">
-                      <Label>Segment Name</Label>
-                      <Input
-                        value={segment.name}
-                        onChange={(e) => updateSegment(segment.id, "name", e.target.value)}
-                        placeholder="e.g., Warm-up, Water smoke"
-                      />
-                    </div>
-                    <div className="flex gap-1 ml-4">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => moveSegment(index, "up")}
-                        disabled={index === 0}
-                      >
-                        <MoveUp className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => moveSegment(index, "down")}
-                        disabled={index === segments.length - 1}
-                      >
-                        <MoveDown className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeSegment(segment.id)}
-                        disabled={segments.length === 1}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label>Ramp Rate (°C/hr)</Label>
-                      <Input
-                        type="number"
-                        value={segment.rampRate}
-                        onChange={(e) =>
-                          updateSegment(segment.id, "rampRate", parseFloat(e.target.value))
-                        }
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Positive to heat, negative to cool
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Target Temp (°C)</Label>
-                      <Input
-                        type="number"
-                        value={segment.targetTemp}
-                        onChange={(e) =>
-                          updateSegment(segment.id, "targetTemp", parseFloat(e.target.value))
-                        }
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Hold Time (min)</Label>
-                      <Input
-                        type="number"
-                        value={segment.holdTime}
-                        onChange={(e) =>
-                          updateSegment(segment.id, "holdTime", parseFloat(e.target.value))
-                        }
-                        min="0"
-                      />
-                      <p className="text-xs text-muted-foreground">0 = hold until skip</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          {/* Save/Delete Actions */}
-          <div className="flex gap-2 justify-end">
-            {editingProfile && onDeleteProfile && (
-              <Button
-                variant="destructive"
-                onClick={() => {
-                  if (window.confirm(`Delete profile "${profileName}"?`)) {
-                    onDeleteProfile(editingProfile.id);
-                    toast.success("Profile deleted");
-                    setEditingProfile(null);
-                    setProfileName("");
-                    setProfileDescription("");
-                    setSegments([]);
-                  }
-                }}
-              >
-                Delete Profile
+              )}
+              <Button type="submit" className="gap-2">
+                <Save className="h-4 w-4" />
+                Save Profile
               </Button>
-            )}
-            <Button onClick={saveProfile} className="gap-2">
-              <Save className="h-4 w-4" />
-              Save Profile
-            </Button>
+            </div>
           </div>
-        </>
+        </form>
       )}
 
-      {segments.length === 0 && !profileName && mode === "manual" && (
+      {!isEditing && mode === "manual" && (
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground">
