@@ -1076,6 +1076,120 @@ static esp_err_t handle_autotune_status(httpd_req_t *req)
     return send_json(req, root);
 }
 
+/* ── GET /api/v1/ota/status ───────────────────────── */
+
+static const char *ota_state_to_string(esp_ota_img_states_t state)
+{
+    switch (state) {
+    case ESP_OTA_IMG_NEW:              return "new";
+    case ESP_OTA_IMG_PENDING_VERIFY:   return "pending_verify";
+    case ESP_OTA_IMG_VALID:            return "valid";
+    case ESP_OTA_IMG_INVALID:          return "invalid";
+    case ESP_OTA_IMG_ABORTED:          return "aborted";
+    case ESP_OTA_IMG_UNDEFINED:        return "undefined";
+    default:                           return "unknown";
+    }
+}
+
+static esp_err_t handle_ota_status(httpd_req_t *req)
+{
+    if (!require_auth(req)) {
+        return ESP_FAIL;
+    }
+
+    const esp_partition_t *running = esp_ota_get_running_partition();
+    const esp_partition_t *next = esp_ota_get_next_update_partition(NULL);
+    const esp_partition_t *boot = esp_ota_get_boot_partition();
+
+    cJSON *root = cJSON_CreateObject();
+
+    /* Running partition info */
+    if (running) {
+        cJSON *run = cJSON_AddObjectToObject(root, "running");
+        cJSON_AddStringToObject(run, "label", running->label);
+        cJSON_AddNumberToObject(run, "address", running->address);
+        cJSON_AddNumberToObject(run, "size", running->size);
+
+        esp_ota_img_states_t state;
+        if (esp_ota_get_state_partition(running, &state) == ESP_OK) {
+            cJSON_AddStringToObject(run, "state", ota_state_to_string(state));
+        }
+
+        /* Get app description for version info */
+        esp_app_desc_t app_desc;
+        if (esp_ota_get_partition_description(running, &app_desc) == ESP_OK) {
+            cJSON_AddStringToObject(run, "version", app_desc.version);
+            cJSON_AddStringToObject(run, "date", app_desc.date);
+            cJSON_AddStringToObject(run, "time", app_desc.time);
+            cJSON_AddStringToObject(run, "idfVersion", app_desc.idf_ver);
+        }
+    }
+
+    /* Next update partition */
+    if (next) {
+        cJSON *nxt = cJSON_AddObjectToObject(root, "nextUpdate");
+        cJSON_AddStringToObject(nxt, "label", next->label);
+        cJSON_AddNumberToObject(nxt, "size", next->size);
+    }
+
+    /* Boot partition */
+    if (boot) {
+        cJSON_AddStringToObject(root, "bootPartition", boot->label);
+    }
+
+    /* Rollback availability */
+    cJSON_AddBoolToObject(root, "rollbackAvailable", esp_ota_check_rollback_is_possible());
+
+    return send_json(req, root);
+}
+
+/* ── POST /api/v1/ota/rollback ────────────────────── */
+
+static esp_err_t handle_ota_rollback(httpd_req_t *req)
+{
+    if (!require_auth(req)) {
+        return ESP_FAIL;
+    }
+
+    if (!esp_ota_check_rollback_is_possible()) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Rollback not available");
+        return ESP_FAIL;
+    }
+
+    esp_err_t err = esp_ota_mark_app_invalid_rollback_and_reboot();
+    if (err != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Rollback failed");
+        return ESP_FAIL;
+    }
+
+    /* Won't reach here — device reboots */
+    return ESP_OK;
+}
+
+/* ── POST /api/v1/ota/confirm ─────────────────────── */
+
+static esp_err_t handle_ota_confirm(httpd_req_t *req)
+{
+    if (!require_auth(req)) {
+        return ESP_FAIL;
+    }
+
+    const esp_partition_t *running = esp_ota_get_running_partition();
+    esp_ota_img_states_t state;
+    if (esp_ota_get_state_partition(running, &state) == ESP_OK && state == ESP_OTA_IMG_PENDING_VERIFY) {
+        esp_ota_mark_app_valid_cancel_rollback();
+        cJSON *resp = cJSON_CreateObject();
+        cJSON_AddBoolToObject(resp, "ok", true);
+        cJSON_AddStringToObject(resp, "message", "Firmware confirmed as valid");
+        return send_json(req, resp);
+    }
+
+    cJSON *resp = cJSON_CreateObject();
+    cJSON_AddBoolToObject(resp, "ok", true);
+    cJSON_AddStringToObject(resp, "message", "Firmware already confirmed");
+    return send_json(req, resp);
+}
+
 /* ── GET /api/v1/wifi ─────────────────────────────── */
 
 static esp_err_t handle_get_wifi(httpd_req_t *req)
@@ -1218,6 +1332,9 @@ esp_err_t api_handlers_register(httpd_handle_t server)
 
     /* OTA */
     REGISTER_API("/api/v1/ota", HTTP_POST, handle_ota_upload);
+    REGISTER_API("/api/v1/ota/status", HTTP_GET, handle_ota_status);
+    REGISTER_API("/api/v1/ota/rollback", HTTP_POST, handle_ota_rollback);
+    REGISTER_API("/api/v1/ota/confirm", HTTP_POST, handle_ota_confirm);
 
     /* Diagnostics */
     REGISTER_API("/api/v1/diagnostics/relay", HTTP_POST, handle_diag_relay);
@@ -1228,6 +1345,6 @@ esp_err_t api_handlers_register(httpd_handle_t server)
     REGISTER_API("/api/v1/wifi", HTTP_POST, handle_post_wifi);
     REGISTER_API("/api/v1/wifi", HTTP_DELETE, handle_delete_wifi);
 
-    ESP_LOGI(TAG, "API handlers registered (%d endpoints)", 28);
+    ESP_LOGI(TAG, "API handlers registered (%d endpoints)", 31);
     return ESP_OK;
 }
