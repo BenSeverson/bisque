@@ -20,6 +20,7 @@ web_ui/dist/
 # IDE / tools
 .vscode/
 .idea/
+xcuserdata/
 .cache/
 .claude/
 *.swp
