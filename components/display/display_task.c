@@ -135,8 +135,7 @@ void display_task(void *param)
              * Once you know peak usage, shrink the pool to reclaim DIRAM for the system heap. */
             lv_mem_monitor_t mon;
             lv_mem_monitor(&mon);
-            ESP_LOGI(TAG, "LVGL mem: %lu used, %lu free, %d%% frag",
-                     (unsigned long)(mon.total_size - mon.free_size),
+            ESP_LOGI(TAG, "LVGL mem: %lu used, %lu free, %d%% frag", (unsigned long)(mon.total_size - mon.free_size),
                      (unsigned long)mon.free_size, mon.frag_pct);
 
             /* Serial log */

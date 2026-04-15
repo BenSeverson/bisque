@@ -63,7 +63,7 @@ void status_led_task(void *param)
         tick++;
 
         bool blink_1hz = (tick % 4) < 2;  /* on 500ms, off 500ms */
-        bool blink_2hz = (tick % 2) == 0;  /* on 250ms, off 250ms */
+        bool blink_2hz = (tick % 2) == 0; /* on 250ms, off 250ms */
 
         /* Priority 1: Safety emergency */
         if (safety_is_emergency()) {
