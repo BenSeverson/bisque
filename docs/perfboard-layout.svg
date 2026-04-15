@@ -324,18 +324,18 @@
   <circle cx="695" cy="796" r="4" class="header-pin"/><circle cx="720" cy="796" r="4" class="header-pin"/>
   <text x="545" y="817" class="pin-label">GND</text>
   <text x="570" y="817" class="pin-label">3V3</text>
-  <text x="595" y="817" class="pin-label">MOSI</text>
+  <text x="595" y="817" class="pin-label">RST</text>
   <text x="620" y="817" class="pin-label">SCLK</text>
-  <text x="645" y="817" class="pin-label">CS</text>
+  <text x="645" y="817" class="pin-label">BL</text>
   <text x="670" y="817" class="pin-label">DC</text>
-  <text x="695" y="817" class="pin-label">RST</text>
-  <text x="720" y="817" class="pin-label">BL</text>
-  <text x="595" y="828" class="gpio-label">GP11</text>
+  <text x="695" y="817" class="pin-label">CS</text>
+  <text x="720" y="817" class="pin-label">MOSI</text>
+  <text x="595" y="828" class="gpio-label">GP3</text>
   <text x="620" y="828" class="gpio-label">GP12</text>
-  <text x="645" y="828" class="gpio-label">GP9</text>
+  <text x="645" y="828" class="gpio-label">GP8</text>
   <text x="670" y="828" class="gpio-label">GP46</text>
-  <text x="695" y="828" class="gpio-label">GP3</text>
-  <text x="720" y="828" class="gpio-label">GP8</text>
+  <text x="695" y="828" class="gpio-label">GP9</text>
+  <text x="720" y="828" class="gpio-label">GP11</text>
   <text x="646" y="783" class="section-label" fill="#4488ff">LCD DISPLAY</text>
 
   <!-- ==================== WIRE ROUTING HINTS ==================== -->
