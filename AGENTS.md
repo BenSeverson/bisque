@@ -128,21 +128,3 @@ When translating Figma designs for this project:
 7. **Input model** — 3-button encoder (up/down/select). Interactive widgets must be added to `g_input_group`.
 8. **Memory budget** — 128KB LVGL heap. Keep widget counts minimal.
 9. **New screens** — follow the `ui_screen_*.c/.h` module pattern. Add to `ui_screen_id_t` enum and `UI_SCREEN_COUNT`.
-
-## Hardware Diagrams
-
-Two SVG diagrams document the perfboard wiring layout:
-
-| File | Shows |
-|---|---|
-| `docs/perfboard-layout.svg` | Top-down perfboard layout: ESP32 placement, header positions, wire routing |
-| `docs/wiring-diagram.svg` | Wiring schematic: all electrical connections between ESP32 and peripherals |
-
-**Generation method:** Hand-crafted SVG by Claude Code. Not produced by KiCad or any EDA tool.
-
-**Source of truth for pin assignments:** `components/app_config/include/app_config.h` (`APP_PIN_*` defines). If pin assignments change in firmware, regenerate both diagrams.
-
-**How to update:**
-- Ask Claude Code: "update the perfboard layout diagram" or "update the wiring diagram"
-- Or edit the SVG directly in any SVG editor (Inkscape, Figma, browser dev tools)
-- KiCad CLI v9.0.8 is installed (`kicad-cli sch export svg`) if a professional schematic is ever needed
