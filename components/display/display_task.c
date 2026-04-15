@@ -131,6 +131,14 @@ void display_task(void *param)
                 xSemaphoreGive(g_lvgl_mutex);
             }
 
+            /* Log LVGL heap usage to help right-size CONFIG_LV_MEM_SIZE_KILOBYTES (currently 64 KB).
+             * Once you know peak usage, shrink the pool to reclaim DIRAM for the system heap. */
+            lv_mem_monitor_t mon;
+            lv_mem_monitor(&mon);
+            ESP_LOGI(TAG, "LVGL mem: %lu used, %lu free, %d%% frag",
+                     (unsigned long)(mon.total_size - mon.free_size),
+                     (unsigned long)mon.free_size, mon.frag_pct);
+
             /* Serial log */
             float temp = tc.fault ? 0 : tc.temperature_c;
             uint32_t hours = prog.elapsed_time / 3600;
