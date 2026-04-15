@@ -19,10 +19,10 @@
 #define APP_PIN_SSR 17
 
 /* --- ST7796S Display --- */
-#define APP_PIN_LCD_CS  9
-#define APP_PIN_LCD_DC  46
-#define APP_PIN_LCD_RST 3
-#define APP_PIN_LCD_BL  8
+#define APP_PIN_LCD_CS  8
+#define APP_PIN_LCD_DC  9
+#define APP_PIN_LCD_RST 46
+#define APP_PIN_LCD_BL  3
 
 #define APP_LCD_H_RES       480
 #define APP_LCD_V_RES       320
@@ -78,6 +78,9 @@
 #else
 #define APP_PIN_BTN_SELECT 6
 #endif
+
+/* --- Status LED (WS2812B) --- */
+#define APP_PIN_STATUS_LED 48
 
 /* --- Alarm / Vent GPIO (optional, -1 = disabled) --- */
 #ifdef CONFIG_KILN_PIN_ALARM

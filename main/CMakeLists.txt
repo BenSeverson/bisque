@@ -10,6 +10,7 @@ idf_component_register(
         safety
         wifi_manager
         history
+        status_led
         mdns
         esp_netif
         lwip

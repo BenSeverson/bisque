@@ -18,6 +18,7 @@
 #include "web_server.h"
 #include "display.h"
 #include "firing_history.h"
+#include "status_led.h"
 
 static const char *TAG = "main";
 
@@ -100,6 +101,11 @@ void app_main(void)
         ESP_LOGW(TAG, "Wi-Fi connection timed out");
     }
 
+    /* ── Status LED Init ────────────────────────────── */
+    if (status_led_init() != ESP_OK) {
+        ESP_LOGW(TAG, "Status LED init failed (non-fatal)");
+    }
+
     /* ── mDNS ─────────────────────────────────────── */
     {
         esp_err_t mdns_err = mdns_init();
@@ -141,6 +147,8 @@ void app_main(void)
 
     /* Core 0: UI + network tasks */
     xTaskCreatePinnedToCore(display_task, "display", APP_TASK_DISPLAY_STACK, NULL, APP_TASK_DISPLAY_PRIO, NULL, 0);
+
+    xTaskCreatePinnedToCore(status_led_task, "status_led", 2048, NULL, 1, NULL, 0);
 
     /* ── WebSocket broadcast timer ─────────────────── */
     const esp_timer_create_args_t ws_timer_args = {
