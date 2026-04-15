@@ -148,7 +148,7 @@ esp_err_t display_init(spi_host_device_t host, int cs_pin, int dc_pin, int rst_p
     esp_lcd_panel_set_gap(s_panel, 0, 0);
     esp_lcd_panel_invert_color(s_panel, false);
     esp_lcd_panel_swap_xy(s_panel, true);
-    esp_lcd_panel_mirror(s_panel, true, false);
+    esp_lcd_panel_mirror(s_panel, false, false);
     esp_lcd_panel_disp_on_off(s_panel, true);
 
     /* ── LVGL Init ───────────────────────────────── */
