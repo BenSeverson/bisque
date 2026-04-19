@@ -94,6 +94,3 @@
 #else
 #define APP_PIN_VENT (-1)
 #endif
-
-/* --- Firmware Info --- */
-#define APP_FIRMWARE_VERSION "2.0.0"

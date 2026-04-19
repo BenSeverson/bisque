@@ -5,6 +5,7 @@
 #include "esp_timer.h"
 #include "nvs_flash.h"
 #include "esp_ota_ops.h"
+#include "esp_app_desc.h"
 #include "driver/spi_master.h"
 #include "mdns.h"
 #include "esp_sntp.h"
@@ -30,7 +31,7 @@ static void ws_broadcast_timer_cb(void *arg)
 
 void app_main(void)
 {
-    ESP_LOGI(TAG, "=== Bisque v%s ===", APP_FIRMWARE_VERSION);
+    ESP_LOGI(TAG, "=== Bisque v%s ===", esp_app_get_description()->version);
 
     /* ── NVS Init ──────────────────────────────────── */
     esp_err_t ret = nvs_flash_init();

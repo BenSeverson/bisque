@@ -5,7 +5,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WEB_DIR="$SCRIPT_DIR/web_ui"
 SPIFFS_DIR="$SCRIPT_DIR/spiffs_data/www"
 
-echo "=== Building Bisque ==="
+export BISQUE_VERSION="${BISQUE_VERSION:-$("$SCRIPT_DIR/scripts/version.sh")}"
+echo "=== Building Bisque $BISQUE_VERSION ==="
 
 # Step 1: Build web UI
 echo "--- Building Web UI ---"

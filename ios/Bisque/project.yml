@@ -29,8 +29,8 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         INFOPLIST_KEY_NSSupportsLiveActivities: YES
         PRODUCT_BUNDLE_IDENTIFIER: com.bisque.kiln-controller
-        MARKETING_VERSION: "1.0.0"
-        CURRENT_PROJECT_VERSION: "1"
+        MARKETING_VERSION: ${BISQUE_MARKETING_VERSION}
+        CURRENT_PROJECT_VERSION: ${BISQUE_BUILD_NUMBER}
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         SWIFT_EMIT_LOC_STRINGS: YES
         SUPPORTS_MACCATALYST: NO
@@ -56,8 +56,8 @@ targets:
         INFOPLIST_KEY_CFBundleDisplayName: Bisque Live Activity
         INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier: com.apple.widgetkit-extension
         PRODUCT_BUNDLE_IDENTIFIER: com.bisque.kiln-controller.live-activity
-        MARKETING_VERSION: "1.0.0"
-        CURRENT_PROJECT_VERSION: "1"
+        MARKETING_VERSION: ${BISQUE_MARKETING_VERSION}
+        CURRENT_PROJECT_VERSION: ${BISQUE_BUILD_NUMBER}
         SWIFT_EMIT_LOC_STRINGS: YES
         SUPPORTS_MACCATALYST: NO
 

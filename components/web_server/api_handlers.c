@@ -605,7 +605,7 @@ static esp_err_t handle_get_system(httpd_req_t *req)
         return ESP_FAIL;
     }
     cJSON *root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "firmware", APP_FIRMWARE_VERSION);
+    cJSON_AddStringToObject(root, "firmware", esp_app_get_description()->version);
     cJSON_AddStringToObject(root, "model", "Bisque ESP32-S3");
     cJSON_AddNumberToObject(root, "uptimeSeconds", (double)esp_timer_get_time() / 1000000.0);
     cJSON_AddNumberToObject(root, "freeHeap", (double)esp_get_free_heap_size());

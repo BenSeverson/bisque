@@ -5,6 +5,9 @@ import react from '@vitejs/plugin-react'
 import { kilnMockPlugin } from './mock-server/plugin'
 
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(process.env.BISQUE_VERSION ?? '0.0.0-dev'),
+  },
   plugins: [
     kilnMockPlugin(),
     // The React and Tailwind plugins are both required for Make, even if

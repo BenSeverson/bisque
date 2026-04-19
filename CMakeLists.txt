@@ -2,6 +2,19 @@ cmake_minimum_required(VERSION 3.16)
 
 set(EXTRA_COMPONENT_DIRS "components")
 
+# Derive PROJECT_VER from scripts/version.sh (git describe) unless the caller
+# already exported BISQUE_VERSION. ESP-IDF embeds PROJECT_VER into esp_app_desc.
+if(DEFINED ENV{BISQUE_VERSION} AND NOT "$ENV{BISQUE_VERSION}" STREQUAL "")
+    set(PROJECT_VER "$ENV{BISQUE_VERSION}")
+else()
+    execute_process(
+        COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/scripts/version.sh"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        OUTPUT_VARIABLE PROJECT_VER
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+endif()
+
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
 project(bisque)

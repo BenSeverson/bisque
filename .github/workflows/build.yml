@@ -35,6 +35,13 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Compute version
+        run: |
+          echo "BISQUE_VERSION=$(./scripts/version.sh)" >> $GITHUB_ENV
+          echo "BISQUE_MARKETING_VERSION=1.0.0" >> $GITHUB_ENV
+          echo "BISQUE_BUILD_NUMBER=${{ github.run_number }}" >> $GITHUB_ENV
       - name: Generate Xcode project
         run: brew install xcodegen && xcodegen generate
         working-directory: ios/Bisque
@@ -47,6 +54,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Compute version
+        run: echo "BISQUE_VERSION=$(./scripts/version.sh)" >> $GITHUB_ENV
 
       # Build web UI
       - uses: actions/setup-node@v4
@@ -100,5 +111,7 @@ jobs:
       # Upload binary
       - uses: actions/upload-artifact@v4
         with:
-          name: bisque-firmware
-          path: build/bisque.bin
+          name: bisque-firmware-${{ env.BISQUE_VERSION }}
+          path: |
+            build/bisque.bin
+            build/storage.bin

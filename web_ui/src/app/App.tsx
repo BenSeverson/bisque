@@ -87,7 +87,7 @@ export default function App() {
       <footer className="border-t mt-12">
         <div className="container mx-auto px-4 py-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
-            <p>Bisque ESP32-S3</p>
+            <p>Bisque ESP32-S3 · {__APP_VERSION__}</p>
             <div className="flex gap-6">
               <a href="#" className="hover:text-foreground transition-colors">
                 Documentation
