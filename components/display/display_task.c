@@ -4,12 +4,10 @@
 #include "ui_screen_chart.h"
 #include "ui_screen_profiles.h"
 #include "ui_screen_firing.h"
-#include "app_config.h"
 #include "thermocouple.h"
 #include "firing_engine.h"
 #include "esp_log.h"
 #include "esp_timer.h"
-#include "driver/gpio.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
@@ -26,11 +24,6 @@ extern lv_group_t *g_input_group;
 /* Screen objects */
 static lv_obj_t *s_screens[UI_SCREEN_COUNT];
 static ui_screen_id_t s_current_screen = UI_SCREEN_HOME;
-
-/* Long-press detection for screen switching */
-#define LONG_PRESS_MS 800
-static int64_t s_select_press_start_us = 0;
-static bool s_select_was_long = false;
 
 static void ui_switch_screen(ui_screen_id_t id)
 {
@@ -58,23 +51,15 @@ static void ui_switch_screen(ui_screen_id_t id)
     ESP_LOGI(TAG, "Switched to screen %d", id);
 }
 
-static void check_long_press_screen_switch(void)
+static void check_lr_screen_switch(void)
 {
-    bool sel_pressed = (gpio_get_level(APP_PIN_BTN_SELECT) == 0);
-
-    if (sel_pressed && s_select_press_start_us == 0) {
-        s_select_press_start_us = esp_timer_get_time();
-        s_select_was_long = false;
-    } else if (sel_pressed && !s_select_was_long) {
-        int64_t held_ms = (esp_timer_get_time() - s_select_press_start_us) / 1000;
-        if (held_ms >= LONG_PRESS_MS) {
-            s_select_was_long = true;
-            ui_screen_id_t next = (s_current_screen + 1) % UI_SCREEN_COUNT;
-            ui_switch_screen(next);
-        }
-    } else if (!sel_pressed) {
-        s_select_press_start_us = 0;
-        s_select_was_long = false;
+    if (display_consume_left_press()) {
+        ui_screen_id_t prev = (s_current_screen + UI_SCREEN_COUNT - 1) % UI_SCREEN_COUNT;
+        ui_switch_screen(prev);
+    }
+    if (display_consume_right_press()) {
+        ui_screen_id_t next = (s_current_screen + 1) % UI_SCREEN_COUNT;
+        ui_switch_screen(next);
     }
 }
 
@@ -107,7 +92,7 @@ void display_task(void *param)
         /* LVGL timer handler (~30ms interval → ~30 FPS) */
         if (xSemaphoreTake(g_lvgl_mutex, pdMS_TO_TICKS(10))) {
             lv_timer_handler();
-            check_long_press_screen_switch();
+            check_lr_screen_switch();
             xSemaphoreGive(g_lvgl_mutex);
         }
 

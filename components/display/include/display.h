@@ -4,6 +4,7 @@
 #include "esp_lcd_panel_io.h"
 #include "esp_lcd_panel_ops.h"
 #include "driver/spi_master.h"
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -12,7 +13,7 @@ extern "C" {
 /**
  * Initialize the ST7796S TFT display with LVGL.
  * Sets up LCD panel, LVGL core, double-buffered rendering,
- * button input (encoder-style), and the default input group.
+ * 5-way nav switch input (Up/Down/Left/Right/Center), and the default input group.
  * The SPI bus must already be initialized.
  *
  * @param host    SPI host
@@ -30,6 +31,10 @@ esp_err_t display_init(spi_host_device_t host, int cs_pin, int dc_pin, int rst_p
  * Pass NULL as parameter.
  */
 void display_task(void *param);
+
+/* Returns true exactly once per debounced press of Left / Right on the nav switch. */
+bool display_consume_left_press(void);
+bool display_consume_right_press(void);
 
 #ifdef __cplusplus
 }
