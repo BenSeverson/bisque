@@ -16,7 +16,7 @@ jobs:
         run: echo "BISQUE_VERSION=$(./scripts/version.sh)" >> $GITHUB_ENV
 
       # Web UI
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
