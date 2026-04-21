@@ -46,7 +46,7 @@ jobs:
           cp build/bootloader/bootloader.bin release/bisque-bootloader-${BISQUE_VERSION}.bin
           cp build/partition_table/partition-table.bin release/bisque-partitions-${BISQUE_VERSION}.bin
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           files: release/*
           generate_release_notes: true
