@@ -62,7 +62,7 @@
 #define APP_TASK_FIRING_STACK    8192
 #define APP_TASK_DISPLAY_STACK   16384
 
-/* --- Input Buttons (encoder-style navigation) --- */
+/* --- Input Buttons (5-way navigation switch: Up/Down/Left/Right/Center) --- */
 #ifdef CONFIG_KILN_PIN_BTN_UP
 #define APP_PIN_BTN_UP CONFIG_KILN_PIN_BTN_UP
 #else
@@ -77,6 +77,16 @@
 #define APP_PIN_BTN_SELECT CONFIG_KILN_PIN_BTN_SELECT
 #else
 #define APP_PIN_BTN_SELECT 6
+#endif
+#ifdef CONFIG_KILN_PIN_BTN_LEFT
+#define APP_PIN_BTN_LEFT CONFIG_KILN_PIN_BTN_LEFT
+#else
+#define APP_PIN_BTN_LEFT 1
+#endif
+#ifdef CONFIG_KILN_PIN_BTN_RIGHT
+#define APP_PIN_BTN_RIGHT CONFIG_KILN_PIN_BTN_RIGHT
+#else
+#define APP_PIN_BTN_RIGHT 2
 #endif
 
 /* --- Status LED (WS2812B) --- */

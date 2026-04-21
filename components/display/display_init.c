@@ -28,12 +28,14 @@ static lv_display_t *s_disp = NULL;
 static uint8_t s_buf1[UI_LCD_W * DRAW_BUF_LINES * 2] __attribute__((aligned(4)));
 static uint8_t s_buf2[UI_LCD_W * DRAW_BUF_LINES * 2] __attribute__((aligned(4)));
 
-/* Button debounce state */
+/* Button debounce state — 5-way nav switch */
+enum { BTN_UP = 0, BTN_DOWN, BTN_SELECT, BTN_LEFT, BTN_RIGHT, BTN_COUNT };
+
 static struct {
     int pin;
     bool pressed;
     int64_t last_change_us;
-} s_buttons[3];
+} s_buttons[BTN_COUNT];
 
 #define BTN_DEBOUNCE_US 50000 /* 50ms */
 
@@ -80,9 +82,9 @@ static void encoder_read_cb(lv_indev_t *indev, lv_indev_data_t *data)
     (void)indev;
     static bool prev_up = false, prev_down = false;
 
-    bool up = btn_is_pressed(0);
-    bool down = btn_is_pressed(1);
-    bool sel = btn_is_pressed(2);
+    bool up = btn_is_pressed(BTN_UP);
+    bool down = btn_is_pressed(BTN_DOWN);
+    bool sel = btn_is_pressed(BTN_SELECT);
 
     /* Encoder diff: generate ±1 on press edge */
     data->enc_diff = 0;
@@ -96,6 +98,29 @@ static void encoder_read_cb(lv_indev_t *indev, lv_indev_data_t *data)
     prev_down = down;
 
     data->state = sel ? LV_INDEV_STATE_PRESSED : LV_INDEV_STATE_RELEASED;
+}
+
+/* Left / Right press-edge consumers for screen switching in display_task.
+ * Each returns true exactly once per debounced press; subsequent calls while
+ * the button is still held return false. */
+static bool consume_edge(int idx, bool *prev)
+{
+    bool now = btn_is_pressed(idx);
+    bool edge = now && !*prev;
+    *prev = now;
+    return edge;
+}
+
+bool display_consume_left_press(void)
+{
+    static bool prev_left = false;
+    return consume_edge(BTN_LEFT, &prev_left);
+}
+
+bool display_consume_right_press(void)
+{
+    static bool prev_right = false;
+    return consume_edge(BTN_RIGHT, &prev_right);
 }
 
 /* ── Init ──────────────────────────────────────── */
@@ -166,11 +191,13 @@ esp_err_t display_init(spi_host_device_t host, int cs_pin, int dc_pin, int rst_p
         io_handle, &(esp_lcd_panel_io_callbacks_t){.on_color_trans_done = on_color_trans_done}, s_disp);
 
     /* ── Button GPIO Init ────────────────────────── */
-    s_buttons[0].pin = APP_PIN_BTN_UP;
-    s_buttons[1].pin = APP_PIN_BTN_DOWN;
-    s_buttons[2].pin = APP_PIN_BTN_SELECT;
+    s_buttons[BTN_UP].pin = APP_PIN_BTN_UP;
+    s_buttons[BTN_DOWN].pin = APP_PIN_BTN_DOWN;
+    s_buttons[BTN_SELECT].pin = APP_PIN_BTN_SELECT;
+    s_buttons[BTN_LEFT].pin = APP_PIN_BTN_LEFT;
+    s_buttons[BTN_RIGHT].pin = APP_PIN_BTN_RIGHT;
 
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < BTN_COUNT; i++) {
         gpio_config_t btn_cfg = {
             .pin_bit_mask = (1ULL << s_buttons[i].pin),
             .mode = GPIO_MODE_INPUT,
