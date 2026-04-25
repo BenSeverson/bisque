@@ -31,6 +31,8 @@ static uint8_t s_buf2[UI_LCD_W * DRAW_BUF_LINES * 2] __attribute__((aligned(4)))
 /* Button debounce state — 5-way nav switch */
 enum { BTN_UP = 0, BTN_DOWN, BTN_SELECT, BTN_LEFT, BTN_RIGHT, BTN_COUNT };
 
+static const char *const BTN_NAMES[BTN_COUNT] = {"UP", "DOWN", "SELECT", "LEFT", "RIGHT"};
+
 static struct {
     int pin;
     bool pressed;
@@ -72,6 +74,7 @@ static bool btn_is_pressed(int idx)
         if (now - s_buttons[idx].last_change_us > BTN_DEBOUNCE_US) {
             s_buttons[idx].pressed = raw;
             s_buttons[idx].last_change_us = now;
+            ESP_LOGI(TAG, "btn %s %s", BTN_NAMES[idx], raw ? "down" : "up");
         }
     }
     return s_buttons[idx].pressed;
@@ -159,7 +162,7 @@ esp_err_t display_init(spi_host_device_t host, int cs_pin, int dc_pin, int rst_p
     /* LCD panel (ST7796S) */
     esp_lcd_panel_dev_config_t panel_config = {
         .reset_gpio_num = rst_pin,
-        .data_endian = LCD_RGB_DATA_ENDIAN_BIG,
+        .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_BGR,
         .bits_per_pixel = 16,
     };
     ret = esp_lcd_new_panel_st7796(io_handle, &panel_config, &s_panel);
@@ -184,7 +187,7 @@ esp_err_t display_init(spi_host_device_t host, int cs_pin, int dc_pin, int rst_p
     s_disp = lv_display_create(UI_LCD_W, UI_LCD_H);
     lv_display_set_flush_cb(s_disp, flush_cb);
     lv_display_set_buffers(s_disp, s_buf1, s_buf2, sizeof(s_buf1), LV_DISPLAY_RENDER_MODE_PARTIAL);
-    lv_display_set_color_format(s_disp, LV_COLOR_FORMAT_RGB565);
+    lv_display_set_color_format(s_disp, LV_COLOR_FORMAT_RGB565_SWAPPED);
 
     /* Now set the user_ctx on the IO handle so the ISR can call flush_ready */
     esp_lcd_panel_io_register_event_callbacks(

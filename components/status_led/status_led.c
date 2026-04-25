@@ -13,7 +13,7 @@ static const char *TAG = "status_led";
 static led_strip_handle_t s_strip;
 
 /* Dim brightness for debug indicator (0-255) */
-#define LED_BRIGHTNESS 255
+#define LED_BRIGHTNESS 30
 
 esp_err_t status_led_init(void)
 {

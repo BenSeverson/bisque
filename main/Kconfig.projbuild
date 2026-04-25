@@ -98,7 +98,7 @@ menu "Bisque Configuration"
 
         config KILN_PIN_BTN_SELECT
             int "Button Select GPIO"
-            default 6
+            default 1
             help
                 GPIO for the Select/enter navigation button (active-low with internal pull-up).
                 Long-press cycles between display screens.
