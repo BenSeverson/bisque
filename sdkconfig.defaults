@@ -20,6 +20,10 @@ CONFIG_SPIFFS_MAX_PARTITIONS=1
 CONFIG_FREERTOS_HZ=1000
 CONFIG_FREERTOS_UNICORE=n
 
+# Main task stack (app_main initializes Wi-Fi, mDNS, SPIFFS, HTTP server, etc.
+# on this stack — the 3584-byte IDF default overflows partway through startup).
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+
 # HTTP Server
 CONFIG_HTTPD_MAX_REQ_HDR_LEN=1024
 CONFIG_HTTPD_MAX_URI_LEN=512
