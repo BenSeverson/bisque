@@ -35,13 +35,13 @@ file(GLOB_RECURSE LVGL_CORE_SRC
 # SDL driver sources
 file(GLOB LVGL_SDL_SRC ${LVGL_DIR}/src/drivers/sdl/*.c)
 
-# Bisque UI screen sources
+# Bisque UI sources (same files the firmware compiles)
 set(BISQUE_DISPLAY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../components/display)
 set(BISQUE_UI_SRC
-    ${BISQUE_DISPLAY_DIR}/ui_screen_home.c
-    ${BISQUE_DISPLAY_DIR}/ui_screen_chart.c
-    ${BISQUE_DISPLAY_DIR}/ui_screen_profiles.c
-    ${BISQUE_DISPLAY_DIR}/ui_screen_firing.c
+    ${BISQUE_DISPLAY_DIR}/dashboard.c
+    ${BISQUE_DISPLAY_DIR}/modal.c
+    ${BISQUE_DISPLAY_DIR}/modal_profile_picker.c
+    ${BISQUE_DISPLAY_DIR}/modal_action_menu.c
 )
 
 add_executable(bisque_sim
@@ -64,6 +64,7 @@ target_include_directories(bisque_sim PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../components/firing_engine/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../components/thermocouple/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../components/app_config/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../components/history/include
     # SDL2
     ${SDL2_INCLUDE_DIRS}
 )

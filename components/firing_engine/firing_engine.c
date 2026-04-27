@@ -455,6 +455,42 @@ int firing_engine_list_profiles(char ids_out[][FIRING_ID_LEN], int max_count)
     return result;
 }
 
+float firing_planned_temp_at(const firing_profile_t *profile, uint32_t t_seconds, float start_temp)
+{
+    if (!profile || profile->segment_count == 0) {
+        return start_temp;
+    }
+
+    float seg_start_temp = start_temp;
+    uint32_t cumulative_s = 0;
+
+    for (int i = 0; i < profile->segment_count; i++) {
+        const firing_segment_t *seg = &profile->segments[i];
+
+        float ramp_per_sec = seg->ramp_rate / 3600.0f;
+        uint32_t ramp_dur_s = 0;
+        if (fabsf(ramp_per_sec) > 0.0001f) {
+            float delta = seg->target_temp - seg_start_temp;
+            ramp_dur_s = (uint32_t)fabsf(delta / ramp_per_sec);
+        }
+        uint32_t hold_dur_s = (uint32_t)seg->hold_time * 60u;
+        uint32_t seg_total_s = ramp_dur_s + hold_dur_s;
+
+        if (t_seconds < cumulative_s + ramp_dur_s) {
+            uint32_t in_seg = t_seconds - cumulative_s;
+            return seg_start_temp + ramp_per_sec * (float)in_seg;
+        }
+        if (t_seconds < cumulative_s + seg_total_s) {
+            return seg->target_temp;
+        }
+
+        cumulative_s += seg_total_s;
+        seg_start_temp = seg->target_temp;
+    }
+
+    return seg_start_temp;
+}
+
 /* ── Firing Task ───────────────────────────────────── */
 
 /* State for active firing */

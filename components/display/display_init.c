@@ -14,10 +14,11 @@
 
 static const char *TAG = "display";
 
-/* --- Globals shared with display_task.c --- */
+/* --- Globals shared with display_task.c, dashboard.c, and modal.c --- */
 SemaphoreHandle_t g_lvgl_mutex = NULL;
 lv_indev_t *g_indev_encoder = NULL;
 lv_group_t *g_input_group = NULL;
+lv_group_t *g_modal_group = NULL;
 
 /* --- Static state --- */
 static esp_lcd_panel_handle_t s_panel = NULL;
@@ -218,8 +219,13 @@ esp_err_t display_init(spi_host_device_t host, int cs_pin, int dc_pin, int rst_p
     lv_indev_set_type(g_indev_encoder, LV_INDEV_TYPE_ENCODER);
     lv_indev_set_read_cb(g_indev_encoder, encoder_read_cb);
 
-    /* ── Default Input Group ─────────────────────── */
+    /* ── Input Groups ────────────────────────────── */
+    /* g_input_group: dashboard's base focus group. Holds the dashboard's invisible
+     *   SELECT trap so SELECT presses on the bare dashboard fire LV_EVENT_CLICKED.
+     * g_modal_group: populated when a modal opens; encoder is switched to it so
+     *   UP/DOWN/SELECT navigate the modal's widgets. */
     g_input_group = lv_group_create();
+    g_modal_group = lv_group_create();
     lv_indev_set_group(g_indev_encoder, g_input_group);
     lv_group_set_default(g_input_group);
 

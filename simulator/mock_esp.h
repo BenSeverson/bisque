@@ -1,32 +1,15 @@
 /**
- * Mock ESP-IDF types and functions for the desktop simulator.
- * Provides stubs for thermocouple, firing engine, and FreeRTOS APIs
- * that the display screens depend on.
+ * Setters that let simulator/main.c drive the mock thermocouple / firing engine /
+ * history APIs that mock_esp.c implements. Include this from main.c only — the
+ * firmware UI code (dashboard, modals) doesn't need it.
  */
 #pragma once
 
-#include <stdint.h>
-#include <stdbool.h>
+#include "firing_types.h"
+#include "thermocouple.h"
+#include "firing_history.h"
 
-/* --- esp_err.h stub --- */
-typedef int esp_err_t;
-#define ESP_OK 0
-#define ESP_FAIL -1
-
-/* --- esp_log.h stub --- */
-#define ESP_LOGI(tag, fmt, ...) (void)0
-#define ESP_LOGW(tag, fmt, ...) (void)0
-#define ESP_LOGE(tag, fmt, ...) (void)0
-
-/* --- FreeRTOS stubs --- */
-typedef void *QueueHandle_t;
-typedef int BaseType_t;
-#define pdTRUE 1
-#define pdFALSE 0
-#define pdMS_TO_TICKS(ms) (ms)
-
-static inline BaseType_t xQueueSend(QueueHandle_t q, const void *item, uint32_t ticks)
-{
-    (void)q; (void)item; (void)ticks;
-    return pdTRUE;
-}
+void mock_set_progress(const firing_progress_t *p);
+void mock_set_thermocouple(const thermocouple_reading_t *tc);
+void mock_set_error_code(firing_error_code_t code);
+void mock_set_last_firing(const history_record_t *r); /* NULL clears */

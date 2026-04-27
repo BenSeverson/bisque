@@ -39,8 +39,8 @@
 - Local notifications for firing complete/error
 
 **LCD Display**
-- 3.5" TFT (480x320) with LVGL, 4 screens: home, chart, profiles, firing
-- 3-button encoder navigation (up/down/select)
+- 3.5" TFT (480x320) with LVGL, adaptive single-screen dashboard (idle/active/paused/complete/error)
+- 5-way nav switch (up/down/select/left/right), SELECT-driven modals for profile pick and firing control
 
 **Connectivity**
 - Wi-Fi with mDNS (`bisque.local`)
@@ -57,10 +57,16 @@
 
 **LCD Display** (LVGL on 3.5" TFT)
 <p align="center">
-  <img src="docs/screenshots/lcd-home.png" width="160" alt="LCD home screen" />
-  <img src="docs/screenshots/lcd-chart.png" width="160" alt="LCD chart screen" />
-  <img src="docs/screenshots/lcd-profiles.png" width="160" alt="LCD profiles screen" />
-  <img src="docs/screenshots/lcd-firing.png" width="160" alt="LCD firing screen" />
+  <img src="docs/screenshots/lcd-idle.png" width="160" alt="LCD idle" />
+  <img src="docs/screenshots/lcd-heating.png" width="160" alt="LCD heating" />
+  <img src="docs/screenshots/lcd-paused.png" width="160" alt="LCD paused" />
+  <img src="docs/screenshots/lcd-complete.png" width="160" alt="LCD complete" />
+</p>
+<p align="center">
+  <img src="docs/screenshots/lcd-modal-picker.png" width="160" alt="Profile picker modal" />
+  <img src="docs/screenshots/lcd-modal-start-confirm.png" width="160" alt="Start confirm modal" />
+  <img src="docs/screenshots/lcd-modal-actions.png" width="160" alt="Action menu modal" />
+  <img src="docs/screenshots/lcd-error.png" width="160" alt="LCD error" />
 </p>
 
 **iOS App** (SwiftUI)
@@ -251,7 +257,7 @@ components/
   safety/             Watchdog, over-temp, fault detection
   cone_table/         Orton cone temperature lookup (022-13)
   history/            Firing history + temperature traces (NVS)
-  display/            ST7796S LCD + LVGL UI (4 screens)
+  display/            ST7796S LCD + LVGL UI (adaptive dashboard)
   web_server/         REST API + WebSocket server
   wifi_manager/       Wi-Fi STA/AP + mDNS
 web_ui/               React/TypeScript web dashboard
