@@ -18,15 +18,14 @@ extern SemaphoreHandle_t g_lvgl_mutex;
 extern lv_indev_t *g_indev_encoder;
 extern lv_group_t *g_input_group;
 
-/* LEFT closes the open modal; RIGHT is reserved (drained so its press-edge state stays in sync). */
 static void check_left_cancel(void)
 {
-    if (display_consume_left_press()) {
-        if (dashboard_modal_active()) {
-            dashboard_modal_close();
-        }
+    bool left = display_consume_left_press();
+    bool right = display_consume_right_press();
+    if (dashboard_modal_active()) {
+        if (left) dashboard_modal_nav_left();
+        if (right) dashboard_modal_nav_right();
     }
-    (void)display_consume_right_press();
 }
 
 void display_task(void *param)

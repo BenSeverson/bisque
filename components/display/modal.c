@@ -18,6 +18,7 @@ typedef struct {
 static modal_frame_t s_stack[MODAL_STACK_MAX];
 static int s_stack_depth = 0;
 static lv_obj_t *s_root = NULL;
+static bool s_horizontal_nav = false;
 
 static void teardown_root(void)
 {
@@ -30,6 +31,7 @@ static void teardown_root(void)
 
 static void build_frame(const modal_frame_t *frame)
 {
+    s_horizontal_nav = false;
     s_root = lv_obj_create(lv_layer_top());
     lv_obj_set_size(s_root, UI_LCD_W, UI_LCD_H);
     lv_obj_set_pos(s_root, 0, 0);
@@ -88,4 +90,25 @@ void dashboard_modal_close_all(void)
 bool dashboard_modal_active(void)
 {
     return s_stack_depth > 0;
+}
+
+void dashboard_modal_use_horizontal_nav(void)
+{
+    s_horizontal_nav = true;
+}
+
+void dashboard_modal_nav_left(void)
+{
+    if (s_horizontal_nav) {
+        lv_group_focus_prev(g_modal_group);
+    } else {
+        dashboard_modal_close();
+    }
+}
+
+void dashboard_modal_nav_right(void)
+{
+    if (s_horizontal_nav) {
+        lv_group_focus_next(g_modal_group);
+    }
 }

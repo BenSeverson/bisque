@@ -50,6 +50,29 @@ void dashboard_modal_close_all(void);
  */
 bool dashboard_modal_active(void);
 
+/**
+ * Switch the top modal frame to horizontal-nav mode: LEFT/RIGHT physical
+ * button presses navigate focus between buttons instead of closing the modal.
+ * Automatically resets when a new frame is built.
+ *
+ * Must be called from inside a modal_builder_fn (with LVGL mutex held).
+ */
+void dashboard_modal_use_horizontal_nav(void);
+
+/**
+ * Handle a physical LEFT press when a modal is active. In normal mode this
+ * closes the top frame; in horizontal-nav mode it moves focus to the previous
+ * object in the modal group.
+ */
+void dashboard_modal_nav_left(void);
+
+/**
+ * Handle a physical RIGHT press when a modal is active. In horizontal-nav
+ * mode this moves focus to the next object in the modal group; otherwise a
+ * no-op.
+ */
+void dashboard_modal_nav_right(void);
+
 #ifdef __cplusplus
 }
 #endif

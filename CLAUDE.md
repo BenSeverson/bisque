@@ -7,7 +7,8 @@ ESP32-S3 ceramic kiln controller. Firmware built with **ESP-IDF** (C), using **L
 ## Build & Flash
 
 ```bash
-./build.sh          # Build firmware (wraps idf.py build)
+./build.sh          # Build web UI (npm ci + vite), gzip into spiffs_data/www/, then idf.py build
+idf.py build        # Firmware-only rebuild (skips web UI)
 idf.py flash monitor  # Flash and monitor
 ```
 
@@ -39,8 +40,8 @@ partition_table/    # ESP32 partition layout
 
 - **Panel:** ST7796S, 480x320px (landscape), 16-bit RGB565, BGR byte order
 - **Interface:** SPI @ 40 MHz (SPI2_HOST)
-- **Pins:** MOSI=11, SCLK=12, CS=9, DC=46, RST=3, BL=8 (active-high)
-- **Input:** 3-button encoder (Up=GPIO4, Down=GPIO5, Select=GPIO6), active-low with pull-up, 50ms debounce
+- **Pins:** MOSI=11, SCLK=12, CS=8, DC=9, RST=46, BL=3 (active-high)
+- **Input:** 5-way nav switch (Up=GPIO4, Down=GPIO5, Left=GPIO6, Right=GPIO2, Center/Select=GPIO1), active-low with pull-up, 50ms debounce. Source of truth: `components/app_config/include/app_config.h` (`APP_PIN_BTN_*`).
 - **Rendering:** Partial refresh, double-buffered DMA (40 rows), ~30 FPS
 
 ### LVGL Configuration
@@ -69,10 +70,10 @@ partition_table/    # ESP32 partition layout
 | `UI_COLOR_PAUSED` | `#FFFF00` | Paused (same as holding) |
 | `UI_COLOR_IDLE` | `#00CC00` | Idle/ready |
 | `UI_COLOR_AUTOTUNE` | `#FFA500` | PID autotune |
-| `UI_COLOR_DOT_ACTIVE` | `#FFFFFF` | Active page dot |
-| `UI_COLOR_DOT_INACTIVE` | `#444444` | Inactive page dot |
-
-Inline colors (not yet in tokens): `#111111` (chart bg), `#222222` (btnmatrix bg), `#333333` (chart border/grid, profile focus), `#444444` (button bg).
+| `UI_COLOR_SURFACE_1` | `#111111` | Chart background, low-elevation surfaces |
+| `UI_COLOR_SURFACE_2` | `#222222` | Control backgrounds (button matrix, etc.) |
+| `UI_COLOR_BORDER`    | `#333333` | Borders, chart grid, focus outlines |
+| `UI_COLOR_BUTTON_BG` | `#444444` | Button face |
 
 **Fonts:**
 | Token | Font | Size | Usage |
@@ -89,19 +90,18 @@ Inline colors (not yet in tokens): `#111111` (chart bg), `#222222` (btnmatrix bg
 
 ### Screen Architecture
 
-4 screens, all created at startup, switched via long-press Select (800ms), animated with `LV_SCR_LOAD_ANIM_FADE_IN` (200ms):
+**Single adaptive dashboard.** `components/display/dashboard.c` owns one full-screen layout that swaps content based on `firing_progress_t::status` (idle vs. heating/holding/cooling/etc.). `dashboard_update()` is called every 500ms by `display_task`.
 
-| ID | Screen | Key Widgets |
-|---|---|---|
-| 0 | Home | Status bar (colored), big temp, target/seg/time labels |
-| 1 | Chart | Temp label, 120-point line chart (0-1400°C range) |
-| 2 | Profiles | Title, scrollable list of firing profiles |
-| 3 | Firing | Temp+status, segment info, button matrix (Start/Pause/Resume/Stop) |
+**Modal stack on top.** `components/display/modal.c` provides a frame stack parented to `lv_layer_top()`:
 
-Each screen module (`ui_screen_*.c`) follows the pattern:
-- `ui_screen_X_create()` — allocates widgets, returns root `lv_obj_t*`
-- `ui_screen_X_update(...)` — refreshes from live data (called every 500ms)
-- `ui_screen_X_set_page_dots(active, total)` — updates dot indicators
+- `dashboard_modal_open(builder, ctx)` — push a frame; the builder populates widgets and they auto-join the modal's input group.
+- `dashboard_modal_close()` — pop top; rebuilds parent if any.
+- `dashboard_modal_close_all()` — used when an action commits (Start/Stop) to dismiss the workflow.
+- `dashboard_modal_use_horizontal_nav()` — call from inside a builder to make Left/Right move focus between buttons instead of closing the frame. Resets per-build.
+
+Existing modal builders: `modal_profile_picker.c`, `modal_action_menu.c`.
+
+**Input routing:** the dashboard parks an invisible focusable trap (`s_select_trap`) in `g_input_group` so the encoder always has a focus target; modals swap the indev to their own group while open. Left/Right physical presses are routed via `display_consume_left_press()` / `display_consume_right_press()` and dispatched to `dashboard_modal_nav_left/right()` when a modal is active.
 
 ### Icons
 
@@ -113,7 +113,7 @@ Only `LV_SYMBOL_RIGHT` (chevron "→") is used, as a target temperature prefix. 
 - Every screen root: black bg, `LV_OPA_COVER`, non-scrollable
 - Status colors map via `ui_status_color(firing_status_t)` helper
 - Status labels map via `ui_status_label(firing_status_t)` helper
-- Page dots: 4x 12px circles at Y=298, spaced 24px apart, centered
+- All LVGL access (dashboard create/update, modal open/close) must happen with `g_lvgl_mutex` held — `display_task` holds it while ticking LVGL.
 
 ## Figma-to-Code Guidelines
 
@@ -125,9 +125,9 @@ When translating Figma designs for this project:
 4. **Dark theme** — pure black background, white text, semantic status colors.
 5. **Color tokens** — use existing `UI_COLOR_*` macros. Add new ones to `ui_common.h` if needed.
 6. **No images/SVGs** — the display has no image decoder enabled. Use LVGL primitives and symbols only.
-7. **Input model** — 3-button encoder (up/down/select). Interactive widgets must be added to `g_input_group`.
+7. **Input model** — 5-way nav switch (up/down/left/right/center). Interactive widgets must be added to `g_input_group` (or to a modal's group when built inside a `modal_builder_fn`).
 8. **Memory budget** — 128KB LVGL heap. Keep widget counts minimal.
-9. **New screens** — follow the `ui_screen_*.c/.h` module pattern. Add to `ui_screen_id_t` enum and `UI_SCREEN_COUNT`.
+9. **New surfaces** — there is no "new screen". Either extend `dashboard.c` (if status-driven) or add a modal builder in `components/display/modal_*.c` and push it via `dashboard_modal_open()`. Builders run under the LVGL mutex; pass long-lived (static/global) ctx, never stack data.
 
 ## Hardware Diagrams
 
