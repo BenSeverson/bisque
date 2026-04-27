@@ -121,9 +121,7 @@ static void confirm_builder(lv_obj_t *root, void *ctx)
     lv_obj_add_event_cb(cancel_btn, on_cancel_clicked, LV_EVENT_CLICKED, NULL);
 
     lv_group_focus_obj(start_btn);
-
-    lv_obj_t *hint = make_modal_label(root, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "SELECT to confirm  |  LEFT to go back");
-    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -16);
+    dashboard_modal_use_horizontal_nav();
 }
 
 /* ── Picker modal ──────────────────────────────────── */
