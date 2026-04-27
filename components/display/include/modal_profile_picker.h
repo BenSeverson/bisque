@@ -12,7 +12,7 @@ extern "C" {
  *
  * No-op if no profiles exist.
  *
- * Must be called with the LVGL mutex held.
+ * Must be called with LVGL locked via lv_lock().
  */
 void modal_profile_picker_open(void);
 

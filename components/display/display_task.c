@@ -8,24 +8,28 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "freertos/semphr.h"
 #include "lvgl.h"
 
 static const char *TAG = "display_task";
-
-/* Externals from display_init.c */
-extern SemaphoreHandle_t g_lvgl_mutex;
-extern lv_indev_t *g_indev_encoder;
-extern lv_group_t *g_input_group;
 
 static void check_left_cancel(void)
 {
     bool left = display_consume_left_press();
     bool right = display_consume_right_press();
-    if (dashboard_modal_active()) {
-        if (left) dashboard_modal_nav_left();
-        if (right) dashboard_modal_nav_right();
+    if (!left && !right) {
+        return;
     }
+
+    lv_lock();
+    if (dashboard_modal_active()) {
+        if (left) {
+            dashboard_modal_nav_left();
+        }
+        if (right) {
+            dashboard_modal_nav_right();
+        }
+    }
+    lv_unlock();
 }
 
 void display_task(void *param)
@@ -33,21 +37,17 @@ void display_task(void *param)
     (void)param;
     ESP_LOGI(TAG, "display_task started");
 
-    if (xSemaphoreTake(g_lvgl_mutex, portMAX_DELAY)) {
-        dashboard_create();
-        xSemaphoreGive(g_lvgl_mutex);
-    }
+    lv_lock();
+    dashboard_create();
+    lv_unlock();
 
     TickType_t last_wake = xTaskGetTickCount();
     int64_t last_data_update_us = 0;
 
     for (;;) {
         /* LVGL timer handler (~30ms interval → ~30 FPS) */
-        if (xSemaphoreTake(g_lvgl_mutex, pdMS_TO_TICKS(10))) {
-            lv_timer_handler();
-            check_left_cancel();
-            xSemaphoreGive(g_lvgl_mutex);
-        }
+        lv_timer_handler();
+        check_left_cancel();
 
         /* Data polling at 500ms intervals */
         int64_t now_us = esp_timer_get_time();
@@ -60,15 +60,13 @@ void display_task(void *param)
             firing_progress_t prog;
             firing_engine_get_progress(&prog);
 
-            if (xSemaphoreTake(g_lvgl_mutex, pdMS_TO_TICKS(10))) {
-                dashboard_update(&tc, &prog);
-                xSemaphoreGive(g_lvgl_mutex);
-            }
-
             /* Log LVGL heap usage to help right-size CONFIG_LV_MEM_SIZE_KILOBYTES (currently 64 KB).
              * Once you know peak usage, shrink the pool to reclaim DIRAM for the system heap. */
             lv_mem_monitor_t mon;
+            lv_lock();
+            dashboard_update(&tc, &prog);
             lv_mem_monitor(&mon);
+            lv_unlock();
             ESP_LOGI(TAG, "LVGL mem: %lu used, %lu free, %d%% frag", (unsigned long)(mon.total_size - mon.free_size),
                      (unsigned long)mon.free_size, mon.frag_pct);
 

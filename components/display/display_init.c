@@ -7,15 +7,12 @@
 #include "esp_lcd_panel_ops.h"
 #include "esp_lcd_st7796.h"
 #include "driver/gpio.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/semphr.h"
 #include "lvgl.h"
 #include <string.h>
 
 static const char *TAG = "display";
 
-/* --- Globals shared with display_task.c, dashboard.c, and modal.c --- */
-SemaphoreHandle_t g_lvgl_mutex = NULL;
+/* --- Globals shared with dashboard.c and modal.c --- */
 lv_indev_t *g_indev_encoder = NULL;
 lv_group_t *g_input_group = NULL;
 lv_group_t *g_modal_group = NULL;
@@ -228,9 +225,6 @@ esp_err_t display_init(spi_host_device_t host, int cs_pin, int dc_pin, int rst_p
     g_modal_group = lv_group_create();
     lv_indev_set_group(g_indev_encoder, g_input_group);
     lv_group_set_default(g_input_group);
-
-    /* ── LVGL Mutex ──────────────────────────────── */
-    g_lvgl_mutex = xSemaphoreCreateMutex();
 
     ESP_LOGI(TAG, "LVGL display initialized (%dx%d, double-buffered %d lines)", UI_LCD_W, UI_LCD_H, DRAW_BUF_LINES);
     return ESP_OK;

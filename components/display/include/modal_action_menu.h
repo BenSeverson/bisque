@@ -16,7 +16,7 @@ extern "C" {
  * Pause / Resume / Skip / Stop-Autotune dispatch their command directly and
  * close the modal stack. Stop pushes a confirmation modal first.
  *
- * Must be called with the LVGL mutex held.
+ * Must be called with LVGL locked via lv_lock().
  */
 void modal_action_menu_open(firing_status_t status_at_open);
 
