@@ -146,8 +146,15 @@ void app_main(void)
 
     xTaskCreatePinnedToCore(firing_task, "firing", APP_TASK_FIRING_STACK, NULL, APP_TASK_FIRING_PRIO, NULL, 1);
 
-    /* Core 0: UI + network tasks */
-    xTaskCreatePinnedToCore(display_task, "display", APP_TASK_DISPLAY_STACK, NULL, APP_TASK_DISPLAY_PRIO, NULL, 0);
+    /* Core 0: UI + network tasks. Display gets a hard error check because if internal
+     * SRAM is too tight to satisfy the 16 KiB stack, FreeRTOS silently returns errCOULD_NOT_ALLOCATE
+     * and the UI just never starts (with no diagnostic) — easier to crash loudly. */
+    BaseType_t disp_rc =
+        xTaskCreatePinnedToCore(display_task, "display", APP_TASK_DISPLAY_STACK, NULL, APP_TASK_DISPLAY_PRIO, NULL, 0);
+    if (disp_rc != pdPASS) {
+        ESP_LOGE(TAG, "Failed to create display_task (rc=%d) — out of internal RAM?", (int)disp_rc);
+        abort();
+    }
 
     xTaskCreatePinnedToCore(status_led_task, "status_led", 2048, NULL, 1, NULL, 0);
 

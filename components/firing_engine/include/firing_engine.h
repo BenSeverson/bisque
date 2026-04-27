@@ -69,6 +69,26 @@ firing_error_code_t firing_engine_get_error_code(void);
 uint32_t firing_engine_get_element_hours_s(void);
 
 /**
+ * Compute the planned setpoint at a given elapsed time within a profile.
+ *
+ * Walks segments in order — each consists of a ramp from the previous
+ * segment's target to the current target at `ramp_rate` (°C/hr), followed
+ * by a flat hold for `hold_time` minutes. `hold_time == 0` is treated as
+ * a 0-duration hold (matches `estimated_duration` accounting; the firing
+ * engine treats it as an infinite hold but that's not meaningful for a
+ * planned curve).
+ *
+ * @param profile     Profile to walk. NULL or empty profile returns start_temp.
+ * @param t_seconds   Elapsed time since firing started.
+ * @param start_temp  Temperature segment 0 begins at. The kiln's actual start
+ *                    temp is unknown to a UI (and to anyone after a reboot),
+ *                    so callers typically pass a fixed assumption like 20°C.
+ * @return Planned setpoint in °C. Saturates to the last segment's target after
+ *         the profile completes.
+ */
+float firing_planned_temp_at(const firing_profile_t *profile, uint32_t t_seconds, float start_temp);
+
+/**
  * FreeRTOS task: runs the firing state machine, PID control, SSR output.
  * Pass NULL as parameter.
  */

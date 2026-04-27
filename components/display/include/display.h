@@ -27,7 +27,7 @@ esp_err_t display_init(spi_host_device_t host, int cs_pin, int dc_pin, int rst_p
 /**
  * FreeRTOS task: runs the LVGL timer handler and updates screen content.
  * Renders at ~30 FPS, polls thermocouple + firing data at 500ms.
- * Manages 4 navigable screens (Home, Chart, Profiles, Firing).
+ * Drives a single adaptive dashboard whose layout swaps based on firing status.
  * Pass NULL as parameter.
  */
 void display_task(void *param);
