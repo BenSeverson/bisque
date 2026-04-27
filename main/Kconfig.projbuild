@@ -49,19 +49,25 @@ menu "Bisque Configuration"
 
         config KILN_PIN_LCD_CS
             int "LCD CS GPIO"
-            default 9
+            default 8
 
         config KILN_PIN_LCD_DC
             int "LCD DC GPIO"
-            default 46
+            default 9
 
         config KILN_PIN_LCD_RST
             int "LCD RST GPIO"
-            default 3
+            default 46
 
         config KILN_PIN_LCD_BL
             int "LCD Backlight GPIO"
-            default 8
+            default 3
+
+        config KILN_PIN_STATUS_LED
+            int "Status LED GPIO (WS2812B)"
+            default 48
+            help
+                GPIO connected to the on-board WS2812B status LED.
 
         config KILN_PIN_ALARM
             int "Alarm output GPIO (-1 = disabled)"
@@ -102,6 +108,18 @@ menu "Bisque Configuration"
             help
                 GPIO for the Select/enter navigation button (active-low with internal pull-up).
                 Long-press cycles between display screens.
+
+        config KILN_PIN_BTN_LEFT
+            int "Button Left GPIO"
+            default 6
+            help
+                GPIO for the Left navigation button (active-low with internal pull-up).
+
+        config KILN_PIN_BTN_RIGHT
+            int "Button Right GPIO"
+            default 2
+            help
+                GPIO for the Right navigation button (active-low with internal pull-up).
     endmenu
 
     menu "PID Defaults"

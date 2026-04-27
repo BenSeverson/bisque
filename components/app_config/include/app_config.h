@@ -3,26 +3,28 @@
 /*
  * Bisque — Hardware Pin Assignments and Default Constants
  *
- * All pins are configurable via Kconfig (menuconfig), these are compile-time defaults.
+ * All GPIO assignments are configurable via Kconfig (menuconfig). Defaults
+ * live in main/Kconfig.projbuild; edit pins there (or via `idf.py menuconfig`),
+ * not here.
  */
 
 /* --- SPI Bus (shared by thermocouple + display) --- */
 #define APP_SPI_HOST     SPI2_HOST
-#define APP_PIN_SPI_MOSI 11
-#define APP_PIN_SPI_MISO 13
-#define APP_PIN_SPI_SCLK 12
+#define APP_PIN_SPI_MOSI CONFIG_KILN_PIN_SPI_MOSI
+#define APP_PIN_SPI_MISO CONFIG_KILN_PIN_SPI_MISO
+#define APP_PIN_SPI_SCLK CONFIG_KILN_PIN_SPI_SCLK
 
 /* --- MAX31855 Thermocouple --- */
-#define APP_PIN_TC_CS 10
+#define APP_PIN_TC_CS CONFIG_KILN_PIN_TC_CS
 
 /* --- SSR Output --- */
-#define APP_PIN_SSR 17
+#define APP_PIN_SSR CONFIG_KILN_PIN_SSR
 
 /* --- ST7796S Display --- */
-#define APP_PIN_LCD_CS  8
-#define APP_PIN_LCD_DC  9
-#define APP_PIN_LCD_RST 46
-#define APP_PIN_LCD_BL  3
+#define APP_PIN_LCD_CS  CONFIG_KILN_PIN_LCD_CS
+#define APP_PIN_LCD_DC  CONFIG_KILN_PIN_LCD_DC
+#define APP_PIN_LCD_RST CONFIG_KILN_PIN_LCD_RST
+#define APP_PIN_LCD_BL  CONFIG_KILN_PIN_LCD_BL
 
 #define APP_LCD_H_RES       480
 #define APP_LCD_V_RES       320
@@ -63,44 +65,16 @@
 #define APP_TASK_DISPLAY_STACK   16384
 
 /* --- Input Buttons (5-way navigation switch: Up/Down/Left/Right/Center) --- */
-#ifdef CONFIG_KILN_PIN_BTN_UP
-#define APP_PIN_BTN_UP CONFIG_KILN_PIN_BTN_UP
-#else
-#define APP_PIN_BTN_UP 4
-#endif
-#ifdef CONFIG_KILN_PIN_BTN_DOWN
-#define APP_PIN_BTN_DOWN CONFIG_KILN_PIN_BTN_DOWN
-#else
-#define APP_PIN_BTN_DOWN 5
-#endif
-#ifdef CONFIG_KILN_PIN_BTN_SELECT
+#define APP_PIN_BTN_UP     CONFIG_KILN_PIN_BTN_UP
+#define APP_PIN_BTN_DOWN   CONFIG_KILN_PIN_BTN_DOWN
 #define APP_PIN_BTN_SELECT CONFIG_KILN_PIN_BTN_SELECT
-#else
-#define APP_PIN_BTN_SELECT 1
-#endif
-#ifdef CONFIG_KILN_PIN_BTN_LEFT
-#define APP_PIN_BTN_LEFT CONFIG_KILN_PIN_BTN_LEFT
-#else
-#define APP_PIN_BTN_LEFT 6
-#endif
-#ifdef CONFIG_KILN_PIN_BTN_RIGHT
-#define APP_PIN_BTN_RIGHT CONFIG_KILN_PIN_BTN_RIGHT
-#else
-#define APP_PIN_BTN_RIGHT 2
-#endif
+#define APP_PIN_BTN_LEFT   CONFIG_KILN_PIN_BTN_LEFT
+#define APP_PIN_BTN_RIGHT  CONFIG_KILN_PIN_BTN_RIGHT
 
 /* --- Status LED (WS2812B) --- */
-#define APP_PIN_STATUS_LED 48
+#define APP_PIN_STATUS_LED CONFIG_KILN_PIN_STATUS_LED
 
-/* --- Alarm / Vent GPIO (optional, -1 = disabled) --- */
-#ifdef CONFIG_KILN_PIN_ALARM
-#define APP_PIN_ALARM CONFIG_KILN_PIN_ALARM
-#else
-#define APP_PIN_ALARM (-1)
-#endif
-
-#ifdef CONFIG_KILN_PIN_VENT
-#define APP_PIN_VENT CONFIG_KILN_PIN_VENT
-#else
-#define APP_PIN_VENT (-1)
-#endif
+/* --- Optional GPIOs (-1 = disabled) --- */
+#define APP_PIN_ALARM      CONFIG_KILN_PIN_ALARM
+#define APP_PIN_VENT       CONFIG_KILN_PIN_VENT
+#define APP_PIN_LID_SWITCH CONFIG_KILN_PIN_LID_SWITCH
