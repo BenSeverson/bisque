@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -70,6 +71,7 @@ void app_main(void)
 
     /* ── Display Init ──────────────────────────────── */
     ret = display_init(APP_SPI_HOST, APP_PIN_LCD_CS, APP_PIN_LCD_DC, APP_PIN_LCD_RST, APP_PIN_LCD_BL);
+    bool display_initialized = (ret == ESP_OK);
     if (ret != ESP_OK) {
         ESP_LOGW(TAG, "Display init failed (non-fatal): %s", esp_err_to_name(ret));
     }
@@ -149,11 +151,15 @@ void app_main(void)
     /* Core 0: UI + network tasks. Display gets a hard error check because if internal
      * SRAM is too tight to satisfy the 16 KiB stack, FreeRTOS silently returns errCOULD_NOT_ALLOCATE
      * and the UI just never starts (with no diagnostic) — easier to crash loudly. */
-    BaseType_t disp_rc =
-        xTaskCreatePinnedToCore(display_task, "display", APP_TASK_DISPLAY_STACK, NULL, APP_TASK_DISPLAY_PRIO, NULL, 0);
-    if (disp_rc != pdPASS) {
-        ESP_LOGE(TAG, "Failed to create display_task (rc=%d) — out of internal RAM?", (int)disp_rc);
-        abort();
+    if (display_initialized) {
+        BaseType_t disp_rc = xTaskCreatePinnedToCore(display_task, "display", APP_TASK_DISPLAY_STACK, NULL,
+                                                     APP_TASK_DISPLAY_PRIO, NULL, 0);
+        if (disp_rc != pdPASS) {
+            ESP_LOGE(TAG, "Failed to create display_task (rc=%d) — out of internal RAM?", (int)disp_rc);
+            abort();
+        }
+    } else {
+        ESP_LOGW(TAG, "Display task skipped; controller will run headless");
     }
 
     xTaskCreatePinnedToCore(status_led_task, "status_led", 2048, NULL, 1, NULL, 0);

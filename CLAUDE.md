@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-ESP32-S3 ceramic kiln controller. Firmware built with **ESP-IDF** (C), using **LVGL v9.2** for the embedded display UI. The display is a **3.5" ST7796S TFT LCD** (480x320 landscape, SPI, RGB565).
+ESP32-S3 ceramic kiln controller. Firmware built with **ESP-IDF** (C), using **LVGL v9.5.0** for the embedded display UI. The display is a **3.5" ST7796S TFT LCD** (480x320 landscape, SPI, RGB565).
 
 ## Build & Flash
 
@@ -46,7 +46,7 @@ partition_table/    # ESP32 partition layout
 
 ### LVGL Configuration
 
-- LVGL v9.2, `LV_OS_NONE` (manual FreeRTOS mutex)
+- LVGL v9.5.0, `LV_OS_FREERTOS` (LVGL lock API)
 - Color depth: 16-bit, `LV_COLOR_16_SWAP=y`
 - Memory pool: 128KB
 - Fonts enabled: Montserrat 24, 36, 48 (default: 24)
@@ -113,7 +113,7 @@ Only `LV_SYMBOL_RIGHT` (chevron "→") is used, as a target temperature prefix. 
 - Every screen root: black bg, `LV_OPA_COVER`, non-scrollable
 - Status colors map via `ui_status_color(firing_status_t)` helper
 - Status labels map via `ui_status_label(firing_status_t)` helper
-- All LVGL access (dashboard create/update, modal open/close) must happen with `g_lvgl_mutex` held — `display_task` holds it while ticking LVGL.
+- All LVGL access (dashboard create/update, modal open/close) must happen with LVGL locked via `lv_lock()` / `lv_unlock()`; `lv_timer_handler()` locks internally when `LV_OS_FREERTOS` is enabled.
 
 ## Figma-to-Code Guidelines
 
@@ -127,7 +127,7 @@ When translating Figma designs for this project:
 6. **No images/SVGs** — the display has no image decoder enabled. Use LVGL primitives and symbols only.
 7. **Input model** — 5-way nav switch (up/down/left/right/center). Interactive widgets must be added to `g_input_group` (or to a modal's group when built inside a `modal_builder_fn`).
 8. **Memory budget** — 128KB LVGL heap. Keep widget counts minimal.
-9. **New surfaces** — there is no "new screen". Either extend `dashboard.c` (if status-driven) or add a modal builder in `components/display/modal_*.c` and push it via `dashboard_modal_open()`. Builders run under the LVGL mutex; pass long-lived (static/global) ctx, never stack data.
+9. **New surfaces** — there is no "new screen". Either extend `dashboard.c` (if status-driven) or add a modal builder in `components/display/modal_*.c` and push it via `dashboard_modal_open()`. Builders run under the LVGL lock; pass long-lived (static/global) ctx, never stack data.
 
 ## Hardware Diagrams
 

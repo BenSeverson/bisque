@@ -25,7 +25,7 @@ typedef void (*modal_builder_fn)(lv_obj_t *root, void *ctx);
  * Push a modal onto the stack. Tears down the previous top frame's widgets,
  * builds the new one, switches the encoder indev to the modal group.
  *
- * Must be called with the LVGL mutex held.
+ * Must be called with LVGL locked via lv_lock().
  */
 void dashboard_modal_open(modal_builder_fn builder, void *ctx);
 
@@ -33,7 +33,7 @@ void dashboard_modal_open(modal_builder_fn builder, void *ctx);
  * Pop the top frame. If a parent frame remains, it is rebuilt; otherwise the
  * encoder indev is restored to the dashboard's base group.
  *
- * Must be called with the LVGL mutex held.
+ * Must be called with LVGL locked via lv_lock().
  */
 void dashboard_modal_close(void);
 
@@ -41,7 +41,7 @@ void dashboard_modal_close(void);
  * Pop every frame and return to the dashboard. Used when an action commits
  * (e.g. "Start" or "Stop") to dismiss the entire modal workflow.
  *
- * Must be called with the LVGL mutex held.
+ * Must be called with LVGL locked via lv_lock().
  */
 void dashboard_modal_close_all(void);
 
@@ -55,7 +55,7 @@ bool dashboard_modal_active(void);
  * button presses navigate focus between buttons instead of closing the modal.
  * Automatically resets when a new frame is built.
  *
- * Must be called from inside a modal_builder_fn (with LVGL mutex held).
+ * Must be called from inside a modal_builder_fn (with LVGL locked).
  */
 void dashboard_modal_use_horizontal_nav(void);
 
