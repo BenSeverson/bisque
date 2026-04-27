@@ -8,8 +8,8 @@ if [ ! -f "$BINARY" ]; then
     exit 1
 fi
 
-# From partitions.csv: OTA partitions are 0x180000 = 1572864 bytes
-PARTITION_SIZE=1572864
+# From partitions.csv: OTA partitions are 0x400000 = 4194304 bytes
+PARTITION_SIZE=4194304
 WARN_THRESHOLD=$(( PARTITION_SIZE * 90 / 100 ))
 FAIL_THRESHOLD=$(( PARTITION_SIZE * 99 / 100 ))
 

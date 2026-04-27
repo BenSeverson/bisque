@@ -2,8 +2,8 @@
 set -euo pipefail
 
 SPIFFS_DIR="${1:-spiffs_data/www}"
-# From partitions.csv: storage partition is 0xE0000 = 917504 bytes
-PARTITION_SIZE=917504
+# From partitions.csv: storage partition is 0x7E0000 = 8257536 bytes
+PARTITION_SIZE=8257536
 # Warn at 80%, fail at 95%
 WARN_THRESHOLD=$(( PARTITION_SIZE * 80 / 100 ))
 FAIL_THRESHOLD=$(( PARTITION_SIZE * 95 / 100 ))
