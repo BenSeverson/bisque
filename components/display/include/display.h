@@ -34,6 +34,11 @@ void display_task(void *param);
 bool display_consume_left_press(void);
 bool display_consume_right_press(void);
 
+/* Drives the backlight pin high. display_init() leaves it low so the panel's
+ * uninitialized VRAM isn't visible as static at power-on; display_task calls
+ * this once the first frame has been flushed. */
+void display_backlight_on(void);
+
 #ifdef __cplusplus
 }
 #endif
