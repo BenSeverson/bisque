@@ -593,6 +593,178 @@ static void do_stop(void)
     ESP_LOGI(TAG, "Firing stopped");
 }
 
+static void handle_cmd(const firing_cmd_t *cmd)
+{
+    switch (cmd->type) {
+    case FIRING_CMD_START: {
+        /* Defense in depth: refuse to overwrite an active firing.
+           The HTTP layer also gates this, but other callers (display
+           modal, future internal callers) bypass that path. */
+        progress_lock();
+        bool already_active = s_progress.is_active;
+        progress_unlock();
+        if (already_active || s_delay_active) {
+            ESP_LOGW(TAG, "START rejected: firing already active");
+            break;
+        }
+
+        /* Sanity-check the profile so a malformed one never reaches
+           begin_firing(). The HTTP validator is stricter; these are
+           the floor any caller must clear. */
+        const firing_profile_t *np = &cmd->start.profile;
+        if (np->segment_count == 0 || np->segment_count > FIRING_MAX_SEGMENTS) {
+            ESP_LOGW(TAG, "START rejected: bad segment_count=%u", np->segment_count);
+            break;
+        }
+        float max_safe = safety_get_max_temp();
+        bool seg_ok = true;
+        for (uint8_t i = 0; i < np->segment_count; i++) {
+            float t = np->segments[i].target_temp;
+            float r_rate = np->segments[i].ramp_rate;
+            if (!isfinite(t) || t <= 0.0f || t > max_safe || !isfinite(r_rate) || r_rate == 0.0f) {
+                ESP_LOGW(TAG, "START rejected: segment %u invalid (target=%.1f rate=%.1f)", i, t, r_rate);
+                seg_ok = false;
+                break;
+            }
+        }
+        if (!seg_ok) {
+            break;
+        }
+
+        s_active_profile = cmd->start.profile;
+        thermocouple_reading_t r;
+        thermocouple_get_latest(&r);
+        float cur_temp = r.temperature_c;
+
+        kiln_settings_t settings;
+        firing_engine_get_settings(&settings);
+        cur_temp += settings.tc_offset_c;
+
+        s_delay_active = false;
+        if (cmd->start.delay_minutes > 0) {
+            s_delay_start_end_us = esp_timer_get_time() + (int64_t)cmd->start.delay_minutes * 60 * 1000000LL;
+            s_delay_active = true;
+            progress_lock();
+            s_progress.is_active = true;
+            s_progress.status = FIRING_STATUS_IDLE; /* show as idle during delay */
+            strncpy(s_progress.profile_id, s_active_profile.id, FIRING_ID_LEN - 1);
+            s_progress.current_segment = 0;
+            s_progress.total_segments = s_active_profile.segment_count;
+            s_progress.elapsed_time = 0;
+            progress_unlock();
+            ESP_LOGI(TAG, "Firing queued with %u min delay: %s", cmd->start.delay_minutes,
+                     s_active_profile.name);
+        } else {
+            progress_lock();
+            s_progress.is_active = true;
+            strncpy(s_progress.profile_id, s_active_profile.id, FIRING_ID_LEN - 1);
+            s_progress.current_segment = 0;
+            s_progress.total_segments = s_active_profile.segment_count;
+            s_progress.elapsed_time = 0;
+            progress_unlock();
+            begin_firing(cur_temp, esp_timer_get_time());
+            ESP_LOGI(TAG, "Firing started: %s", s_active_profile.name);
+        }
+        s_last_error_code = FIRING_ERR_NONE;
+        break;
+    }
+
+    case FIRING_CMD_STOP: {
+        bool was_active;
+        progress_lock();
+        was_active = s_progress.is_active;
+        float peak = s_progress.current_temp;
+        uint32_t dur = s_progress.elapsed_time;
+        progress_unlock();
+        if (was_active) {
+            history_firing_end(HISTORY_OUTCOME_ABORTED, peak, dur, 0);
+        }
+        s_delay_active = false;
+        do_stop();
+        break;
+    }
+
+    case FIRING_CMD_PAUSE:
+        progress_lock();
+        if (s_progress.is_active && s_progress.status != FIRING_STATUS_PAUSED) {
+            s_progress.status = FIRING_STATUS_PAUSED;
+            safety_set_ssr(0.0f);
+            ESP_LOGI(TAG, "Firing paused");
+        }
+        progress_unlock();
+        break;
+
+    case FIRING_CMD_RESUME:
+        progress_lock();
+        if (s_progress.status == FIRING_STATUS_PAUSED) {
+            s_progress.status = s_holding ? FIRING_STATUS_HOLDING : FIRING_STATUS_HEATING;
+            ESP_LOGI(TAG, "Firing resumed");
+        }
+        progress_unlock();
+        break;
+
+    case FIRING_CMD_SKIP_SEGMENT: {
+        progress_lock();
+        bool active = s_progress.is_active;
+        int seg_idx = s_progress.current_segment;
+        int total = s_progress.total_segments;
+        float cur = s_progress.current_temp;
+        progress_unlock();
+
+        if (active && seg_idx + 1 < total) {
+            int next = seg_idx + 1;
+            start_segment(next, cur);
+            progress_lock();
+            s_progress.current_segment = next;
+            s_progress.status = (s_active_profile.segments[next].ramp_rate >= 0) ? FIRING_STATUS_HEATING
+                                                                                 : FIRING_STATUS_COOLING;
+            progress_unlock();
+            ESP_LOGI(TAG, "Skipped to segment %d", next);
+        } else if (active && seg_idx + 1 >= total) {
+            /* Skip last segment → firing complete */
+            progress_lock();
+            float peak = s_progress.current_temp;
+            uint32_t dur = s_progress.elapsed_time;
+            progress_unlock();
+            complete_firing(peak, dur, false);
+        }
+        break;
+    }
+
+    case FIRING_CMD_AUTOTUNE_START:
+        pid_autotune_start(&s_autotune, cmd->autotune.setpoint, cmd->autotune.hysteresis);
+        progress_lock();
+        s_progress.is_active = true;
+        s_progress.status = FIRING_STATUS_AUTOTUNE;
+        s_progress.elapsed_time = 0;
+        progress_unlock();
+        ESP_LOGI(TAG, "Auto-tune mode started");
+        break;
+
+    case FIRING_CMD_AUTOTUNE_STOP:
+        pid_autotune_cancel(&s_autotune);
+        do_stop();
+        break;
+    }
+}
+
+/* Block on the command queue until the next 1 Hz deadline, dispatching any
+ * commands that arrive in the meantime. Keeps PID cadence anchored to
+ * *last_wake while giving commands ms-level latency instead of up to 1 s. */
+static void wait_until_next_tick(TickType_t *last_wake)
+{
+    TickType_t deadline = *last_wake + pdMS_TO_TICKS(1000);
+    firing_cmd_t cmd;
+    for (;;) {
+        TickType_t now = xTaskGetTickCount();
+        int32_t remaining = (int32_t)(deadline - now);
+        if (remaining <= 0) break;
+        if (xQueueReceive(s_cmd_queue, &cmd, (TickType_t)remaining) != pdTRUE) break;
+        handle_cmd(&cmd);
+    }
+    *last_wake = deadline;
+}
+
 void firing_task(void *param)
 {
     (void)param;
@@ -602,162 +774,6 @@ void firing_task(void *param)
     ESP_LOGI(TAG, "firing_task started");
 
     for (;;) {
-        /* Process commands */
-        firing_cmd_t cmd;
-        while (xQueueReceive(s_cmd_queue, &cmd, 0) == pdTRUE) {
-            switch (cmd.type) {
-            case FIRING_CMD_START: {
-                /* Defense in depth: refuse to overwrite an active firing.
-                   The HTTP layer also gates this, but other callers (display
-                   modal, future internal callers) bypass that path. */
-                progress_lock();
-                bool already_active = s_progress.is_active;
-                progress_unlock();
-                if (already_active || s_delay_active) {
-                    ESP_LOGW(TAG, "START rejected: firing already active");
-                    break;
-                }
-
-                /* Sanity-check the profile so a malformed one never reaches
-                   begin_firing(). The HTTP validator is stricter; these are
-                   the floor any caller must clear. */
-                const firing_profile_t *np = &cmd.start.profile;
-                if (np->segment_count == 0 || np->segment_count > FIRING_MAX_SEGMENTS) {
-                    ESP_LOGW(TAG, "START rejected: bad segment_count=%u", np->segment_count);
-                    break;
-                }
-                float max_safe = safety_get_max_temp();
-                bool seg_ok = true;
-                for (uint8_t i = 0; i < np->segment_count; i++) {
-                    float t = np->segments[i].target_temp;
-                    float r_rate = np->segments[i].ramp_rate;
-                    if (!isfinite(t) || t <= 0.0f || t > max_safe || !isfinite(r_rate) || r_rate == 0.0f) {
-                        ESP_LOGW(TAG, "START rejected: segment %u invalid (target=%.1f rate=%.1f)", i, t, r_rate);
-                        seg_ok = false;
-                        break;
-                    }
-                }
-                if (!seg_ok) {
-                    break;
-                }
-
-                s_active_profile = cmd.start.profile;
-                thermocouple_reading_t r;
-                thermocouple_get_latest(&r);
-                float cur_temp = r.temperature_c;
-
-                kiln_settings_t settings;
-                firing_engine_get_settings(&settings);
-                cur_temp += settings.tc_offset_c;
-
-                s_delay_active = false;
-                if (cmd.start.delay_minutes > 0) {
-                    s_delay_start_end_us = esp_timer_get_time() + (int64_t)cmd.start.delay_minutes * 60 * 1000000LL;
-                    s_delay_active = true;
-                    progress_lock();
-                    s_progress.is_active = true;
-                    s_progress.status = FIRING_STATUS_IDLE; /* show as idle during delay */
-                    strncpy(s_progress.profile_id, s_active_profile.id, FIRING_ID_LEN - 1);
-                    s_progress.current_segment = 0;
-                    s_progress.total_segments = s_active_profile.segment_count;
-                    s_progress.elapsed_time = 0;
-                    progress_unlock();
-                    ESP_LOGI(TAG, "Firing queued with %u min delay: %s", cmd.start.delay_minutes,
-                             s_active_profile.name);
-                } else {
-                    progress_lock();
-                    s_progress.is_active = true;
-                    strncpy(s_progress.profile_id, s_active_profile.id, FIRING_ID_LEN - 1);
-                    s_progress.current_segment = 0;
-                    s_progress.total_segments = s_active_profile.segment_count;
-                    s_progress.elapsed_time = 0;
-                    progress_unlock();
-                    begin_firing(cur_temp, esp_timer_get_time());
-                    ESP_LOGI(TAG, "Firing started: %s", s_active_profile.name);
-                }
-                s_last_error_code = FIRING_ERR_NONE;
-                break;
-            }
-
-            case FIRING_CMD_STOP: {
-                bool was_active;
-                progress_lock();
-                was_active = s_progress.is_active;
-                float peak = s_progress.current_temp;
-                uint32_t dur = s_progress.elapsed_time;
-                progress_unlock();
-                if (was_active) {
-                    history_firing_end(HISTORY_OUTCOME_ABORTED, peak, dur, 0);
-                }
-                s_delay_active = false;
-                do_stop();
-                break;
-            }
-
-            case FIRING_CMD_PAUSE:
-                progress_lock();
-                if (s_progress.is_active && s_progress.status != FIRING_STATUS_PAUSED) {
-                    s_progress.status = FIRING_STATUS_PAUSED;
-                    safety_set_ssr(0.0f);
-                    ESP_LOGI(TAG, "Firing paused");
-                }
-                progress_unlock();
-                break;
-
-            case FIRING_CMD_RESUME:
-                progress_lock();
-                if (s_progress.status == FIRING_STATUS_PAUSED) {
-                    s_progress.status = s_holding ? FIRING_STATUS_HOLDING : FIRING_STATUS_HEATING;
-                    ESP_LOGI(TAG, "Firing resumed");
-                }
-                progress_unlock();
-                break;
-
-            case FIRING_CMD_SKIP_SEGMENT: {
-                progress_lock();
-                bool active = s_progress.is_active;
-                int seg_idx = s_progress.current_segment;
-                int total = s_progress.total_segments;
-                float cur = s_progress.current_temp;
-                progress_unlock();
-
-                if (active && seg_idx + 1 < total) {
-                    int next = seg_idx + 1;
-                    start_segment(next, cur);
-                    progress_lock();
-                    s_progress.current_segment = next;
-                    s_progress.status = (s_active_profile.segments[next].ramp_rate >= 0) ? FIRING_STATUS_HEATING
-                                                                                         : FIRING_STATUS_COOLING;
-                    progress_unlock();
-                    ESP_LOGI(TAG, "Skipped to segment %d", next);
-                } else if (active && seg_idx + 1 >= total) {
-                    /* Skip last segment → firing complete */
-                    progress_lock();
-                    float peak = s_progress.current_temp;
-                    uint32_t dur = s_progress.elapsed_time;
-                    progress_unlock();
-                    complete_firing(peak, dur, false);
-                }
-                break;
-            }
-
-            case FIRING_CMD_AUTOTUNE_START:
-                pid_autotune_start(&s_autotune, cmd.autotune.setpoint, cmd.autotune.hysteresis);
-                progress_lock();
-                s_progress.is_active = true;
-                s_progress.status = FIRING_STATUS_AUTOTUNE;
-                s_progress.elapsed_time = 0;
-                progress_unlock();
-                ESP_LOGI(TAG, "Auto-tune mode started");
-                break;
-
-            case FIRING_CMD_AUTOTUNE_STOP:
-                pid_autotune_cancel(&s_autotune);
-                do_stop();
-                break;
-            }
-        }
-
         /* Handle delay-start countdown */
         if (s_delay_active) {
             int64_t now_us = esp_timer_get_time();
@@ -776,7 +792,7 @@ void firing_task(void *param)
                 thermocouple_reading_t r;
                 thermocouple_get_latest(&r);
                 safety_update_vent(true, r.temperature_c);
-                xTaskDelayUntil(&last_wake, pdMS_TO_TICKS(1000));
+                wait_until_next_tick(&last_wake);
                 continue;
             }
         }
@@ -818,7 +834,7 @@ void firing_task(void *param)
                 progress_unlock();
             }
             safety_set_ssr(0.0f);
-            xTaskDelayUntil(&last_wake, pdMS_TO_TICKS(1000));
+            wait_until_next_tick(&last_wake);
             continue;
         }
 
@@ -834,7 +850,7 @@ void firing_task(void *param)
             if (status != FIRING_STATUS_PAUSED) {
                 safety_set_ssr(0.0f);
             }
-            xTaskDelayUntil(&last_wake, pdMS_TO_TICKS(1000));
+            wait_until_next_tick(&last_wake);
             continue;
         }
 
@@ -858,7 +874,7 @@ void firing_task(void *param)
                 }
                 do_stop();
             }
-            xTaskDelayUntil(&last_wake, pdMS_TO_TICKS(1000));
+            wait_until_next_tick(&last_wake);
             continue;
         }
 
@@ -1010,6 +1026,6 @@ void firing_task(void *param)
         }
         progress_unlock();
 
-        xTaskDelayUntil(&last_wake, pdMS_TO_TICKS(1000));
+        wait_until_next_tick(&last_wake);
     }
 }
