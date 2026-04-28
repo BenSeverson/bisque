@@ -497,7 +497,9 @@ export function ProfileBuilder() {
                           {...register(`segments.${index}.holdTime`, { valueAsNumber: true })}
                           min="0"
                         />
-                        <p className="text-xs text-muted-foreground">0 = no hold (advance immediately)</p>
+                        <p className="text-xs text-muted-foreground">
+                          0 = no hold (advance immediately)
+                        </p>
                       </div>
                     </div>
                   </div>

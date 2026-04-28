@@ -256,8 +256,7 @@ static bool validate_profile(const firing_profile_t *p, char *err, size_t errlen
             return false;
         }
         if (s->target_temp > max_safe) {
-            snprintf(err, errlen, "Segment %u target %.0f exceeds safe limit %.0f", i, s->target_temp,
-                     max_safe);
+            snprintf(err, errlen, "Segment %u target %.0f exceeds safe limit %.0f", i, s->target_temp, max_safe);
             return false;
         }
         if (!isfinite(s->ramp_rate) || s->ramp_rate == 0.0f) {

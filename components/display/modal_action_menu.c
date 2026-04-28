@@ -8,9 +8,9 @@
 
 static const char *TAG = "actions";
 
-#define BTN_W      200
-#define BTN_H      60
-#define BTN_GAP    16
+#define BTN_W       200
+#define BTN_H       60
+#define BTN_GAP     16
 #define BTN_FIRST_Y 72
 
 static firing_status_t s_status_at_open = FIRING_STATUS_IDLE;
