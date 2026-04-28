@@ -29,6 +29,7 @@ static kiln_settings_t s_settings;
 static SemaphoreHandle_t s_settings_mutex;
 
 static QueueHandle_t s_cmd_queue;
+static QueueHandle_t s_event_queue;
 
 /* PID controller */
 static pid_controller_t s_pid;
@@ -155,8 +156,9 @@ esp_err_t firing_engine_init(void)
     s_progress_mutex = xSemaphoreCreateMutex();
     s_settings_mutex = xSemaphoreCreateMutex();
     s_cmd_queue = xQueueCreate(4, sizeof(firing_cmd_t));
+    s_event_queue = xQueueCreate(4, sizeof(firing_event_t));
 
-    if (!s_progress_mutex || !s_settings_mutex || !s_cmd_queue) {
+    if (!s_progress_mutex || !s_settings_mutex || !s_cmd_queue || !s_event_queue) {
         return ESP_ERR_NO_MEM;
     }
 
@@ -241,6 +243,28 @@ esp_err_t firing_engine_init(void)
 QueueHandle_t firing_engine_get_cmd_queue(void)
 {
     return s_cmd_queue;
+}
+
+QueueHandle_t firing_engine_get_event_queue(void)
+{
+    return s_event_queue;
+}
+
+static void emit_event(firing_event_kind_t kind, float peak_temp, uint32_t duration_s)
+{
+    firing_event_t evt = {
+        .kind = kind,
+        .peak_temp = peak_temp,
+        .duration_s = duration_s,
+    };
+    progress_lock();
+    strncpy(evt.profile_id, s_progress.profile_id, FIRING_ID_LEN - 1);
+    evt.profile_id[FIRING_ID_LEN - 1] = '\0';
+    progress_unlock();
+
+    if (xQueueSend(s_event_queue, &evt, 0) != pdTRUE) {
+        ESP_LOGW(TAG, "event queue full, dropping %s", kind == FIRING_EVENT_COMPLETE ? "complete" : "error");
+    }
 }
 
 void firing_engine_get_progress(firing_progress_t *out)
@@ -555,6 +579,7 @@ static void complete_firing(float peak, uint32_t dur, bool save_elem_hrs)
         save_element_hours();
     }
     xEventGroupSetBits(safety_get_event_group(), SAFETY_BIT_FIRING_COMPLETE);
+    emit_event(FIRING_EVENT_COMPLETE, peak, dur);
 }
 
 static void do_stop(void)
@@ -712,6 +737,10 @@ void firing_task(void *param)
                 begin_firing(cur_temp, now_us);
                 ESP_LOGI(TAG, "Delay expired, firing started: %s", s_active_profile.name);
             } else {
+                /* Keep vent in sync while waiting for delay to expire. */
+                thermocouple_reading_t r;
+                thermocouple_get_latest(&r);
+                safety_update_vent(true, r.temperature_c);
                 xTaskDelayUntil(&last_wake, pdMS_TO_TICKS(1000));
                 continue;
             }
@@ -724,6 +753,12 @@ void firing_task(void *param)
         float tc_offset = s_settings.tc_offset_c;
         settings_unlock();
         float current_temp = reading.temperature_c + tc_offset;
+
+        /* Drive vent relay once per tick (cheap GPIO write). */
+        progress_lock();
+        bool vent_active = s_progress.is_active;
+        progress_unlock();
+        safety_update_vent(vent_active, current_temp);
 
         /* Compute dt */
         int64_t now_us = esp_timer_get_time();
@@ -743,6 +778,7 @@ void firing_task(void *param)
                     s_last_error_code = FIRING_ERR_EMERGENCY_STOP;
                 }
                 history_firing_end(HISTORY_OUTCOME_ERROR, peak, dur, (int)s_last_error_code);
+                emit_event(FIRING_EVENT_ERROR, peak, dur);
             } else {
                 progress_unlock();
             }
@@ -905,6 +941,7 @@ void firing_task(void *param)
                     history_firing_end(HISTORY_OUTCOME_COMPLETE, peak, dur, 0);
                     save_element_hours();
                     xEventGroupSetBits(safety_get_event_group(), SAFETY_BIT_FIRING_COMPLETE);
+                    emit_event(FIRING_EVENT_COMPLETE, peak, dur);
                     ESP_LOGI(TAG, "Firing complete!");
                 } else {
                     start_segment(next_seg, current_temp);

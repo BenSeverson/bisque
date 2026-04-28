@@ -19,6 +19,26 @@ esp_err_t firing_engine_init(void);
  */
 QueueHandle_t firing_engine_get_cmd_queue(void);
 
+/* ── Firing transition events ───────────────────────── */
+
+typedef enum {
+    FIRING_EVENT_COMPLETE,
+    FIRING_EVENT_ERROR,
+} firing_event_kind_t;
+
+typedef struct {
+    firing_event_kind_t kind;
+    char profile_id[FIRING_ID_LEN];
+    float peak_temp;
+    uint32_t duration_s;
+} firing_event_t;
+
+/**
+ * Get the firing-event queue. Drained by a consumer task that runs slow
+ * side-effects (alarm beeps, webhook POST) off the firing/safety hot path.
+ */
+QueueHandle_t firing_engine_get_event_queue(void);
+
 /**
  * Get current firing progress (thread-safe copy).
  */
