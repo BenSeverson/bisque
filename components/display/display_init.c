@@ -20,6 +20,7 @@ lv_group_t *g_modal_group = NULL;
 /* --- Static state --- */
 static esp_lcd_panel_handle_t s_panel = NULL;
 static lv_display_t *s_disp = NULL;
+static int s_bl_pin = -1;
 
 /* Double-buffered DMA draw buffers: 40 rows each */
 #define DRAW_BUF_LINES 40
@@ -124,18 +125,29 @@ bool display_consume_right_press(void)
     return consume_edge(BTN_RIGHT, &prev_right);
 }
 
+void display_backlight_on(void)
+{
+    if (s_bl_pin >= 0) {
+        gpio_set_level(s_bl_pin, 1);
+    }
+}
+
 /* ── Init ──────────────────────────────────────── */
 
 esp_err_t display_init(spi_host_device_t host, int cs_pin, int dc_pin, int rst_pin, int bl_pin)
 {
-    /* Backlight - ST7796S modules are typically active-high (1 = on) */
+    /* Backlight - ST7796S modules are typically active-high (1 = on).
+     * Keep BL off through init so the panel's uninitialized VRAM isn't visible
+     * as static at power-on. display_backlight_on() raises it after the first
+     * frame has been flushed by display_task. */
+    s_bl_pin = bl_pin;
     if (bl_pin >= 0) {
         gpio_config_t bl_cfg = {
             .pin_bit_mask = (1ULL << bl_pin),
             .mode = GPIO_MODE_OUTPUT,
         };
         gpio_config(&bl_cfg);
-        gpio_set_level(bl_pin, 1);
+        gpio_set_level(bl_pin, 0);
     }
 
     /* LCD panel IO (SPI) — register trans_done callback for DMA pipelining */

@@ -41,6 +41,19 @@ void display_task(void *param)
     dashboard_create();
     lv_unlock();
 
+    /* Pump LVGL until the first frame is fully flushed, then raise the backlight.
+     * Partial render mode pushes the 320 rows in 8 chunks via async DMA; running
+     * the handler ~10 times with a short delay between calls covers the chunks
+     * plus their on_color_trans_done callbacks. Without this warm-up the panel
+     * shows uninitialized VRAM (static) when the backlight first comes on. */
+    for (int i = 0; i < 10; i++) {
+        lv_lock();
+        lv_timer_handler();
+        lv_unlock();
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+    display_backlight_on();
+
     TickType_t last_wake = xTaskGetTickCount();
     int64_t last_data_update_us = 0;
 
