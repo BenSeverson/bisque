@@ -26,7 +26,7 @@ import {
   SkipForward,
   Timer,
 } from "lucide-react";
-import { TemperatureDataPoint } from "../types/kiln";
+import { TemperatureDataPoint, HOLD_UNTIL_SKIP } from "../types/kiln";
 import { api } from "../services/api";
 import { toast } from "sonner";
 import { formatDuration } from "../utils/time";
@@ -125,7 +125,7 @@ export function FiringDashboard() {
       currentTime += rampTimeMinutes;
       currentTemp = segment.targetTemp;
 
-      if (segment.holdTime > 0) {
+      if (segment.holdTime > 0 && segment.holdTime !== HOLD_UNTIL_SKIP) {
         path.push({
           time: Math.round(currentTime + segment.holdTime),
           temp: segment.targetTemp,
@@ -419,7 +419,10 @@ export function FiringDashboard() {
                   <div className="text-sm text-muted-foreground mt-1">
                     {segment.rampRate > 0 ? "+" : ""}
                     {segment.rampRate}&deg;C/hr &rarr; {segment.targetTemp}&deg;C
-                    {segment.holdTime > 0 && `, hold ${segment.holdTime} min`}
+                    {segment.holdTime === HOLD_UNTIL_SKIP && " (hold until skip)"}
+                    {segment.holdTime > 0 &&
+                      segment.holdTime !== HOLD_UNTIL_SKIP &&
+                      `, hold ${segment.holdTime} min`}
                   </div>
                 </div>
               ))}

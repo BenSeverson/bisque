@@ -1,9 +1,13 @@
+/** Sentinel for FiringSegment.holdTime meaning "hold until operator skips."
+ *  Mirrors FIRING_HOLD_INDEFINITE in firing_types.h. */
+export const HOLD_UNTIL_SKIP = 65535;
+
 export interface FiringSegment {
   id: string;
   name: string;
   rampRate: number; // degrees per hour
   targetTemp: number; // degrees
-  holdTime: number; // minutes (0 = hold indefinitely)
+  holdTime: number; // minutes (0 = no hold; HOLD_UNTIL_SKIP = hold until skip)
 }
 
 export interface FiringProfile {

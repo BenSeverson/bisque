@@ -92,10 +92,9 @@ uint32_t firing_engine_get_element_hours_s(void);
  *
  * Walks segments in order — each consists of a ramp from the previous
  * segment's target to the current target at `ramp_rate` (°C/hr), followed
- * by a flat hold for `hold_time` minutes. `hold_time == 0` is treated as
- * a 0-duration hold (matches `estimated_duration` accounting; the firing
- * engine treats it as an infinite hold but that's not meaningful for a
- * planned curve).
+ * by a flat hold for `hold_time` minutes. `hold_time == 0` is a 0-duration
+ * pass-through. `hold_time == FIRING_HOLD_INDEFINITE` (skip-to-advance hold)
+ * has no defined planned duration and is treated as 0 in the curve.
  *
  * @param profile     Profile to walk. NULL or empty profile returns start_temp.
  * @param t_seconds   Elapsed time since firing started.

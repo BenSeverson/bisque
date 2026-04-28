@@ -2,7 +2,7 @@ import { useRef, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
-import { FiringProfile } from "../types/kiln";
+import { FiringProfile, HOLD_UNTIL_SKIP } from "../types/kiln";
 import { Flame, Clock, TrendingUp, Copy, Download, Upload } from "lucide-react";
 import { api } from "../services/api";
 import { toast } from "sonner";
@@ -125,8 +125,10 @@ export function FiringProfiles() {
                       <div className="text-muted-foreground">
                         {segment.rampRate > 0 ? "+" : ""}
                         {segment.rampRate}°C/hr → {segment.targetTemp}°C
-                        {segment.holdTime > 0 && `, hold ${segment.holdTime} min`}
-                        {segment.holdTime === 0 && ` (hold until skip)`}
+                        {segment.holdTime === HOLD_UNTIL_SKIP && ` (hold until skip)`}
+                        {segment.holdTime > 0 &&
+                          segment.holdTime !== HOLD_UNTIL_SKIP &&
+                          `, hold ${segment.holdTime} min`}
                       </div>
                     </div>
                   ))}

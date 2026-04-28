@@ -496,7 +496,8 @@ float firing_planned_temp_at(const firing_profile_t *profile, uint32_t t_seconds
             float delta = seg->target_temp - seg_start_temp;
             ramp_dur_s = (uint32_t)fabsf(delta / ramp_per_sec);
         }
-        uint32_t hold_dur_s = (uint32_t)seg->hold_time * 60u;
+        uint32_t hold_dur_s =
+            (seg->hold_time == FIRING_HOLD_INDEFINITE) ? 0u : (uint32_t)seg->hold_time * 60u;
         uint32_t seg_total_s = ramp_dur_s + hold_dur_s;
 
         if (t_seconds < cumulative_s + ramp_dur_s) {
@@ -905,15 +906,18 @@ void firing_task(void *param)
         bool at_target = fabsf(current_temp - seg->target_temp) < 2.0f && fabsf(setpoint - seg->target_temp) < 0.5f;
 
         if (!s_holding && at_target) {
-            /* Start hold phase — hold_time == 0 means infinite hold */
+            /* Reached target. hold_time == 0 → pass through (advance next iteration via
+               hold_done below). FIRING_HOLD_INDEFINITE → wait for SKIP_SEGMENT. */
             s_holding = true;
             s_segment_hold_start_time_s = (float)(now_us) / 1000000.0f;
             progress_lock();
             s_progress.status = FIRING_STATUS_HOLDING;
             progress_unlock();
-            if (seg->hold_time == 0) {
+            if (seg->hold_time == FIRING_HOLD_INDEFINITE) {
                 ESP_LOGI(TAG, "Segment %d: holding at %.0f°C indefinitely (tap skip to advance)", seg_idx,
                          seg->target_temp);
+            } else if (seg->hold_time == 0) {
+                ESP_LOGI(TAG, "Segment %d: reached %.0f°C, advancing", seg_idx, seg->target_temp);
             } else {
                 ESP_LOGI(TAG, "Segment %d: holding at %.0f°C for %d min", seg_idx, seg->target_temp, seg->hold_time);
             }
@@ -921,10 +925,11 @@ void firing_task(void *param)
 
         if (s_holding) {
             float hold_elapsed_s = (float)(now_us) / 1000000.0f - s_segment_hold_start_time_s;
-            float hold_needed_s = seg->hold_time * 60.0f;
+            bool infinite_hold = (seg->hold_time == FIRING_HOLD_INDEFINITE);
+            float hold_needed_s = infinite_hold ? 0.0f : (float)seg->hold_time * 60.0f;
 
-            /* hold_time == 0 means infinite — skip only via SKIP_SEGMENT command */
-            bool hold_done = (seg->hold_time > 0) && (hold_elapsed_s >= hold_needed_s);
+            /* FIRING_HOLD_INDEFINITE waits for SKIP_SEGMENT; any finite duration (incl. 0) advances when elapsed. */
+            bool hold_done = !infinite_hold && (hold_elapsed_s >= hold_needed_s);
 
             if (hold_done) {
                 /* Hold complete — advance to next segment */
