@@ -5,7 +5,7 @@ export const firingSegmentSchema = z.object({
   name: z.string().min(1, "Segment name is required"),
   rampRate: z.number({ message: "Ramp rate is required" }),
   targetTemp: z.number({ message: "Target temp is required" }).min(0).max(1400),
-  holdTime: z.number({ message: "Hold time is required" }).min(0),
+  holdTime: z.number({ message: "Hold time is required" }).min(0).max(65535),
 });
 
 export const profileFormSchema = z.object({

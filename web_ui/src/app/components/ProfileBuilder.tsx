@@ -404,7 +404,8 @@ export function ProfileBuilder() {
                   <div>
                     <CardTitle>Firing Segments</CardTitle>
                     <CardDescription>
-                      Define temperature ramps and holds. Set hold time to 0 for infinite hold.
+                      Define temperature ramps and holds. Hold time of 0 advances immediately on
+                      reaching the target.
                     </CardDescription>
                   </div>
                   <Button
@@ -496,7 +497,7 @@ export function ProfileBuilder() {
                           {...register(`segments.${index}.holdTime`, { valueAsNumber: true })}
                           min="0"
                         />
-                        <p className="text-xs text-muted-foreground">0 = hold until skip</p>
+                        <p className="text-xs text-muted-foreground">0 = no hold (advance immediately)</p>
                       </div>
                     </div>
                   </div>

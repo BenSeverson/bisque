@@ -13,6 +13,10 @@ extern "C" {
 #define FIRING_DESC_LEN     128
 #define FIRING_ID_LEN       40
 
+/* Sentinel for hold_time meaning "hold until skip" (operator advances manually).
+   0 means no hold (advance immediately on reaching target). */
+#define FIRING_HOLD_INDEFINITE 0xFFFF
+
 /* Matches web_ui/src/app/types/kiln.ts FiringSegment */
 typedef struct {
     char id[FIRING_ID_LEN];
