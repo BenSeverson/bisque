@@ -736,6 +736,7 @@ void firing_task(void *param)
                 firing_engine_get_settings(&st);
                 float cur_temp = r.temperature_c + st.tc_offset_c;
                 begin_firing(cur_temp, now_us);
+                last_compute_us = now_us;
                 ESP_LOGI(TAG, "Delay expired, firing started: %s", s_active_profile.name);
             } else {
                 /* Keep vent in sync while waiting for delay to expire. */
