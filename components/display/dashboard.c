@@ -422,6 +422,9 @@ static void update_view_active(const thermocouple_reading_t *tc, const firing_pr
 
 static void build_view_complete(const firing_progress_t *prog)
 {
+    if (!prog) {
+        return;
+    }
     s_content = create_content_area();
 
     lv_obj_t *title = make_label(s_content, UI_FONT_MEDIUM, UI_COLOR_TEXT, "Firing complete");

@@ -461,7 +461,7 @@ static esp_err_t handle_firing_start(httpd_req_t *req)
 
     /* Parse delay_minutes (optional) */
     uint32_t delay_minutes = 0;
-    cJSON *delay_item = cJSON_GetObjectItem(root, "delayMinutes");
+    const cJSON *delay_item = cJSON_GetObjectItem(root, "delayMinutes");
     if (delay_item) {
         double dm = delay_item->valuedouble;
         const uint32_t max_delay = 7u * 24u * 60u; /* 7 days */
