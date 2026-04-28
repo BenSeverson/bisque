@@ -13,7 +13,6 @@
 
 #include "app_config.h"
 #include "thermocouple.h"
-#include "pid_control.h"
 #include "firing_engine.h"
 #include "safety.h"
 #include "wifi_manager.h"

@@ -4,7 +4,6 @@
 #include "esp_err.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
-#include "freertos/semphr.h"
 
 #ifdef __cplusplus
 extern "C" {
