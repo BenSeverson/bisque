@@ -1,9 +1,10 @@
 #include "web_server.h"
 #include "firing_engine.h"
 #include "thermocouple.h"
-#include "safety.h"
 #include "esp_log.h"
 #include "cJSON.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include <string.h>
 
 static const char *TAG = "ws";
@@ -13,8 +14,8 @@ static const char *TAG = "ws";
 static int s_ws_fds[MAX_WS_CLIENTS];
 static int s_ws_count = 0;
 
-/* Track previous firing status for transition detection */
-static firing_status_t s_prev_status = FIRING_STATUS_IDLE;
+/* Broadcast worker task */
+static TaskHandle_t s_ws_task = NULL;
 
 /* ── WebSocket handler ─────────────────────────────── */
 
@@ -88,10 +89,7 @@ void ws_broadcast(const char *json, size_t len)
     s_ws_count = valid;
 }
 
-/* Declare webhook sender from api_handlers.c */
-extern void send_webhook_event(const char *event, const char *profile_name, float peak_temp, uint32_t duration_s);
-
-/* Called from firing_task or a timer to push updates */
+/* Compose and send a status frame. Runs on the broadcast worker task. */
 void ws_broadcast_status(void)
 {
     firing_progress_t prog;
@@ -100,25 +98,9 @@ void ws_broadcast_status(void)
     thermocouple_reading_t tc;
     thermocouple_get_latest(&tc);
 
-    /* Apply TC offset for WS broadcast */
     kiln_settings_t settings;
     firing_engine_get_settings(&settings);
     float adjusted_temp = tc.fault ? 0.0f : (tc.temperature_c + settings.tc_offset_c);
-
-    /* Detect firing completion / error transitions → trigger alarm and webhook */
-    if (prog.status != s_prev_status) {
-        if (prog.status == FIRING_STATUS_COMPLETE) {
-            safety_trigger_alarm(1); /* completion chime */
-            send_webhook_event("complete", prog.profile_id, prog.current_temp, prog.elapsed_time);
-        } else if (prog.status == FIRING_STATUS_ERROR) {
-            safety_trigger_alarm(2); /* error pattern */
-            send_webhook_event("error", prog.profile_id, prog.current_temp, prog.elapsed_time);
-        }
-        s_prev_status = prog.status;
-    }
-
-    /* Update vent relay */
-    safety_update_vent(prog.is_active, adjusted_temp);
 
     cJSON *root = cJSON_CreateObject();
     cJSON_AddStringToObject(root, "type", "temp_update");
@@ -140,6 +122,33 @@ void ws_broadcast_status(void)
         ws_broadcast(json, strlen(json));
         free(json);
     }
+}
+
+/* ── Broadcast worker task ──────────────────────────── */
+
+void ws_broadcast_notify(void)
+{
+    if (s_ws_task) {
+        xTaskNotifyGive(s_ws_task);
+    }
+}
+
+static void ws_broadcast_task(void *arg)
+{
+    (void)arg;
+    for (;;) {
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        ws_broadcast_status();
+    }
+}
+
+esp_err_t ws_handler_start(void)
+{
+    if (s_ws_task) {
+        return ESP_OK;
+    }
+    BaseType_t ok = xTaskCreatePinnedToCore(ws_broadcast_task, "ws_broadcast", 4096, NULL, 2, &s_ws_task, 0);
+    return (ok == pdPASS) ? ESP_OK : ESP_ERR_NO_MEM;
 }
 
 /* ── Register ──────────────────────────────────────── */

@@ -26,7 +26,9 @@ static const char *TAG = "main";
 static void ws_broadcast_timer_cb(void *arg)
 {
     (void)arg;
-    ws_broadcast_status();
+    /* Wake the broadcast worker; never block here — esp_timer callbacks run on
+       a single shared task and any blocking work would stall every other timer. */
+    ws_broadcast_notify();
 }
 
 void app_main(void)
@@ -163,7 +165,10 @@ void app_main(void)
 
     xTaskCreatePinnedToCore(status_led_task, "status_led", 2048, NULL, 1, NULL, 0);
 
-    /* ── WebSocket broadcast timer ─────────────────── */
+    /* ── Workers driven off firing engine + WS broadcast timer ── */
+    ESP_ERROR_CHECK(ws_handler_start());
+    ESP_ERROR_CHECK(notification_task_start());
+
     const esp_timer_create_args_t ws_timer_args = {
         .callback = ws_broadcast_timer_cb,
         .name = "ws_broadcast",

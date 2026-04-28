@@ -34,9 +34,33 @@ void ws_broadcast(const char *json, size_t len);
 
 /**
  * Compose and broadcast current status via WebSocket.
- * Call from a timer or task to push periodic updates.
+ * Runs on the dedicated ws_broadcast_task; do not call from ISR or
+ * esp_timer context — use ws_broadcast_notify() to wake the task instead.
  */
 void ws_broadcast_status(void);
+
+/**
+ * Wake the WebSocket broadcast task so it pushes a fresh status frame.
+ * Safe to call from esp_timer callbacks; non-blocking.
+ */
+void ws_broadcast_notify(void);
+
+/**
+ * Start the WebSocket broadcast worker task. Call once after web_server_start().
+ */
+esp_err_t ws_handler_start(void);
+
+/**
+ * Start the firing-event consumer task. Drains firing_engine_get_event_queue()
+ * and runs slow side-effects (alarm, webhook POST) off the firing/safety path.
+ */
+esp_err_t notification_task_start(void);
+
+/**
+ * POST a JSON event to the configured webhook URL (5 s timeout). Blocking;
+ * call from a worker task only.
+ */
+void send_webhook_event(const char *event, const char *profile_name, float peak_temp, uint32_t duration_s);
 
 /**
  * Convert firing status enum to lowercase string for JSON APIs.
