@@ -496,8 +496,7 @@ float firing_planned_temp_at(const firing_profile_t *profile, uint32_t t_seconds
             float delta = seg->target_temp - seg_start_temp;
             ramp_dur_s = (uint32_t)fabsf(delta / ramp_per_sec);
         }
-        uint32_t hold_dur_s =
-            (seg->hold_time == FIRING_HOLD_INDEFINITE) ? 0u : (uint32_t)seg->hold_time * 60u;
+        uint32_t hold_dur_s = (seg->hold_time == FIRING_HOLD_INDEFINITE) ? 0u : (uint32_t)seg->hold_time * 60u;
         uint32_t seg_total_s = ramp_dur_s + hold_dur_s;
 
         if (t_seconds < cumulative_s + ramp_dur_s) {
@@ -632,10 +631,8 @@ void firing_task(void *param)
                 for (uint8_t i = 0; i < np->segment_count; i++) {
                     float t = np->segments[i].target_temp;
                     float r_rate = np->segments[i].ramp_rate;
-                    if (!isfinite(t) || t <= 0.0f || t > max_safe || !isfinite(r_rate) ||
-                        r_rate == 0.0f) {
-                        ESP_LOGW(TAG, "START rejected: segment %u invalid (target=%.1f rate=%.1f)", i,
-                                 t, r_rate);
+                    if (!isfinite(t) || t <= 0.0f || t > max_safe || !isfinite(r_rate) || r_rate == 0.0f) {
+                        ESP_LOGW(TAG, "START rejected: segment %u invalid (target=%.1f rate=%.1f)", i, t, r_rate);
                         seg_ok = false;
                         break;
                     }

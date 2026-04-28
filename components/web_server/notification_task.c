@@ -26,14 +26,14 @@ static void notification_task(void *arg)
 
         switch (evt.kind) {
         case FIRING_EVENT_COMPLETE:
-            ESP_LOGI(TAG, "firing complete: profile=%s peak=%.1fC dur=%us",
-                     evt.profile_id, evt.peak_temp, (unsigned)evt.duration_s);
+            ESP_LOGI(TAG, "firing complete: profile=%s peak=%.1fC dur=%us", evt.profile_id, evt.peak_temp,
+                     (unsigned)evt.duration_s);
             safety_trigger_alarm(1);
             send_webhook_event("complete", evt.profile_id, evt.peak_temp, evt.duration_s);
             break;
         case FIRING_EVENT_ERROR:
-            ESP_LOGW(TAG, "firing error: profile=%s peak=%.1fC dur=%us",
-                     evt.profile_id, evt.peak_temp, (unsigned)evt.duration_s);
+            ESP_LOGW(TAG, "firing error: profile=%s peak=%.1fC dur=%us", evt.profile_id, evt.peak_temp,
+                     (unsigned)evt.duration_s);
             safety_trigger_alarm(2);
             send_webhook_event("error", evt.profile_id, evt.peak_temp, evt.duration_s);
             break;
