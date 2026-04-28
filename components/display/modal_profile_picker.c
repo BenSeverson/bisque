@@ -51,6 +51,9 @@ static lv_obj_t *make_modal_button(lv_obj_t *parent, const char *text, lv_color_
     lv_obj_set_size(btn, 140, 60);
     lv_obj_set_style_bg_color(btn, bg, 0);
     lv_obj_set_style_radius(btn, 6, 0);
+    lv_obj_set_style_outline_color(btn, UI_COLOR_TEXT, LV_STATE_FOCUSED);
+    lv_obj_set_style_outline_width(btn, 3, LV_STATE_FOCUSED);
+    lv_obj_set_style_outline_pad(btn, 2, LV_STATE_FOCUSED);
     lv_obj_t *lbl = lv_label_create(btn);
     lv_obj_set_style_text_font(lbl, UI_FONT_SMALL, 0);
     lv_obj_set_style_text_color(lbl, fg, 0);
@@ -170,6 +173,8 @@ static void picker_builder(lv_obj_t *root, void *ctx)
         lv_obj_set_style_bg_color(btn, UI_COLOR_SURFACE_2, 0);
         lv_obj_set_style_text_color(btn, UI_COLOR_TEXT, 0);
         lv_obj_set_style_text_font(btn, UI_FONT_SMALL, 0);
+        lv_obj_set_style_bg_color(btn, UI_COLOR_HEATING, LV_STATE_FOCUSED);
+        lv_obj_set_style_text_color(btn, UI_COLOR_BG, LV_STATE_FOCUSED);
         /* user_data points into s_profile_ids, which has static lifetime — safe to dereference later. */
         lv_obj_add_event_cb(btn, on_profile_clicked, LV_EVENT_CLICKED, s_profile_ids[i]);
     }
