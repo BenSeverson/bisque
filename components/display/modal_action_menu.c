@@ -46,6 +46,9 @@ static lv_obj_t *make_button(lv_obj_t *parent, const char *text, lv_color_t bg, 
     lv_obj_set_size(btn, BTN_W, BTN_H);
     lv_obj_set_style_bg_color(btn, bg, 0);
     lv_obj_set_style_radius(btn, 6, 0);
+    lv_obj_set_style_outline_color(btn, UI_COLOR_TEXT, LV_STATE_FOCUSED);
+    lv_obj_set_style_outline_width(btn, 3, LV_STATE_FOCUSED);
+    lv_obj_set_style_outline_pad(btn, 2, LV_STATE_FOCUSED);
     lv_obj_t *lbl = lv_label_create(btn);
     lv_obj_set_style_text_font(lbl, UI_FONT_SMALL, 0);
     lv_obj_set_style_text_color(lbl, fg, 0);
