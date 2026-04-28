@@ -28,7 +28,7 @@
 
 #define APP_LCD_H_RES       480
 #define APP_LCD_V_RES       320
-#define APP_LCD_SPI_FREQ_HZ (40 * 1000 * 1000)
+#define APP_LCD_SPI_FREQ_HZ (80 * 1000 * 1000)
 
 /* --- PID Defaults --- */
 #define APP_PID_KP_DEFAULT 2.0f
