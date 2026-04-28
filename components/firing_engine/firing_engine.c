@@ -608,6 +608,42 @@ void firing_task(void *param)
         while (xQueueReceive(s_cmd_queue, &cmd, 0) == pdTRUE) {
             switch (cmd.type) {
             case FIRING_CMD_START: {
+                /* Defense in depth: refuse to overwrite an active firing.
+                   The HTTP layer also gates this, but other callers (display
+                   modal, future internal callers) bypass that path. */
+                progress_lock();
+                bool already_active = s_progress.is_active;
+                progress_unlock();
+                if (already_active || s_delay_active) {
+                    ESP_LOGW(TAG, "START rejected: firing already active");
+                    break;
+                }
+
+                /* Sanity-check the profile so a malformed one never reaches
+                   begin_firing(). The HTTP validator is stricter; these are
+                   the floor any caller must clear. */
+                const firing_profile_t *np = &cmd.start.profile;
+                if (np->segment_count == 0 || np->segment_count > FIRING_MAX_SEGMENTS) {
+                    ESP_LOGW(TAG, "START rejected: bad segment_count=%u", np->segment_count);
+                    break;
+                }
+                float max_safe = safety_get_max_temp();
+                bool seg_ok = true;
+                for (uint8_t i = 0; i < np->segment_count; i++) {
+                    float t = np->segments[i].target_temp;
+                    float r_rate = np->segments[i].ramp_rate;
+                    if (!isfinite(t) || t <= 0.0f || t > max_safe || !isfinite(r_rate) ||
+                        r_rate == 0.0f) {
+                        ESP_LOGW(TAG, "START rejected: segment %u invalid (target=%.1f rate=%.1f)", i,
+                                 t, r_rate);
+                        seg_ok = false;
+                        break;
+                    }
+                }
+                if (!seg_ok) {
+                    break;
+                }
+
                 s_active_profile = cmd.start.profile;
                 thermocouple_reading_t r;
                 thermocouple_get_latest(&r);

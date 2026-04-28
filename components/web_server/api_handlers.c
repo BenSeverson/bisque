@@ -20,6 +20,7 @@
 #include "cJSON.h"
 #include <string.h>
 #include <stdlib.h>
+#include <math.h>
 
 static const char *TAG = "api";
 
@@ -234,6 +235,39 @@ static bool profile_from_json(cJSON *root, firing_profile_t *out)
     return out->id[0] != '\0';
 }
 
+/* Validate a profile is safe to fire: bounded segments, finite/in-range
+   targets and ramp rates. Writes a human-readable reason into err on
+   failure. Returns true if the profile is acceptable. */
+static bool validate_profile(const firing_profile_t *p, char *err, size_t errlen)
+{
+    if (p->segment_count == 0 || p->segment_count > FIRING_MAX_SEGMENTS) {
+        snprintf(err, errlen, "Invalid segment_count: %u", p->segment_count);
+        return false;
+    }
+    float max_safe = safety_get_max_temp();
+    if (p->max_temp > 0.0f && p->max_temp > max_safe) {
+        snprintf(err, errlen, "Profile max_temp %.0f exceeds safe limit %.0f", p->max_temp, max_safe);
+        return false;
+    }
+    for (uint8_t i = 0; i < p->segment_count; i++) {
+        const firing_segment_t *s = &p->segments[i];
+        if (!isfinite(s->target_temp) || s->target_temp <= 0.0f) {
+            snprintf(err, errlen, "Segment %u: invalid target_temp", i);
+            return false;
+        }
+        if (s->target_temp > max_safe) {
+            snprintf(err, errlen, "Segment %u target %.0f exceeds safe limit %.0f", i, s->target_temp,
+                     max_safe);
+            return false;
+        }
+        if (!isfinite(s->ramp_rate) || s->ramp_rate == 0.0f) {
+            snprintf(err, errlen, "Segment %u: invalid ramp_rate", i);
+            return false;
+        }
+    }
+    return true;
+}
+
 /* ── GET /api/v1/status ────────────────────────────── */
 
 static esp_err_t handle_get_status(httpd_req_t *req)
@@ -430,7 +464,14 @@ static esp_err_t handle_firing_start(httpd_req_t *req)
     uint32_t delay_minutes = 0;
     cJSON *delay_item = cJSON_GetObjectItem(root, "delayMinutes");
     if (delay_item) {
-        delay_minutes = (uint32_t)delay_item->valuedouble;
+        double dm = delay_item->valuedouble;
+        const uint32_t max_delay = 7u * 24u * 60u; /* 7 days */
+        if (!isfinite(dm) || dm < 0.0 || dm > (double)max_delay) {
+            cJSON_Delete(root);
+            httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "delayMinutes out of range");
+            return ESP_FAIL;
+        }
+        delay_minutes = (uint32_t)dm;
     }
 
     cJSON *pid_item = cJSON_GetObjectItem(root, "profileId");
@@ -447,6 +488,23 @@ static esp_err_t handle_firing_start(httpd_req_t *req)
         return ESP_FAIL;
     }
     cJSON_Delete(root);
+
+    /* Reject if a firing (or armed delay) is already active. */
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    if (prog.is_active) {
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_set_type(req, "text/plain");
+        const char *msg = "Firing already active";
+        httpd_resp_send(req, msg, HTTPD_RESP_USE_STRLEN);
+        return ESP_FAIL;
+    }
+
+    char err[96];
+    if (!validate_profile(&profile, err, sizeof(err))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, err);
+        return ESP_FAIL;
+    }
 
     firing_cmd_t cmd = {.type = FIRING_CMD_START};
     cmd.start.profile = profile;
