@@ -106,7 +106,8 @@ void app_main(void)
     }
 
     /* ── Status LED Init ────────────────────────────── */
-    if (status_led_init() != ESP_OK) {
+    bool status_led_initialized = (status_led_init() == ESP_OK);
+    if (!status_led_initialized) {
         ESP_LOGW(TAG, "Status LED init failed (non-fatal)");
     }
 
@@ -163,7 +164,11 @@ void app_main(void)
         ESP_LOGW(TAG, "Display task skipped; controller will run headless");
     }
 
-    xTaskCreatePinnedToCore(status_led_task, "status_led", 2048, NULL, 1, NULL, 0);
+    if (status_led_initialized) {
+        xTaskCreatePinnedToCore(status_led_task, "status_led", 2048, NULL, 1, NULL, 0);
+    } else {
+        ESP_LOGW(TAG, "Status LED task skipped");
+    }
 
     /* ── Workers driven off firing engine + WS broadcast timer ── */
     ESP_ERROR_CHECK(ws_handler_start());
