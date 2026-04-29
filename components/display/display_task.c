@@ -2,6 +2,8 @@
 #include "ui_common.h"
 #include "dashboard.h"
 #include "modal.h"
+#include "splash.h"
+#include "boot_status.h"
 #include "thermocouple.h"
 #include "firing_engine.h"
 #include "esp_log.h"
@@ -11,6 +13,8 @@
 #include "lvgl.h"
 
 static const char *TAG = "display_task";
+
+#define SPLASH_MIN_VISIBLE_US 1500000 /* keep splash on screen at least 1.5 s */
 
 static void check_left_cancel(void)
 {
@@ -32,13 +36,13 @@ static void check_left_cancel(void)
     lv_unlock();
 }
 
-void display_task(void *param)
+/* Render the splash, then loop pumping LVGL until boot is complete and the
+ * splash has been visible for at least SPLASH_MIN_VISIBLE_US. Status text is
+ * pushed onto the splash whenever main has published a new pointer. */
+static void run_splash_phase(void)
 {
-    (void)param;
-    ESP_LOGI(TAG, "display_task started");
-
     lv_lock();
-    dashboard_create();
+    splash_create();
     lv_unlock();
 
     /* Pump LVGL until the first frame is fully flushed, then raise the backlight.
@@ -53,6 +57,44 @@ void display_task(void *param)
         vTaskDelay(pdMS_TO_TICKS(10));
     }
     display_backlight_on();
+
+    int64_t shown_at_us = esp_timer_get_time();
+    const char *last_status = boot_status_get();
+
+    for (;;) {
+        const char *current = boot_status_get();
+        if (current != last_status) {
+            last_status = current;
+            lv_lock();
+            splash_set_status(current);
+            lv_unlock();
+        }
+
+        lv_lock();
+        lv_timer_handler();
+        lv_unlock();
+
+        if (boot_status_is_ready() && (esp_timer_get_time() - shown_at_us) >= SPLASH_MIN_VISIBLE_US) {
+            break;
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(30));
+    }
+}
+
+void display_task(void *param)
+{
+    (void)param;
+    ESP_LOGI(TAG, "display_task started");
+
+    run_splash_phase();
+
+    /* Hand off splash → dashboard inside a single lv_lock region so LVGL never
+     * renders an intermediate frame between the two. */
+    lv_lock();
+    splash_destroy();
+    dashboard_create();
+    lv_unlock();
 
     TickType_t last_wake = xTaskGetTickCount();
     int64_t last_data_update_us = 0;
