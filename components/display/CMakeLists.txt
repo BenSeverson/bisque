@@ -5,6 +5,8 @@ idf_component_register(
          "modal.c"
          "modal_profile_picker.c"
          "modal_action_menu.c"
+         "splash.c"
+         "assets/flame_icon.c"
     INCLUDE_DIRS "include" "."
-    REQUIRES esp_driver_gpio esp_driver_spi esp_lcd esp_timer firing_engine thermocouple safety history app_config
+    REQUIRES esp_driver_gpio esp_driver_spi esp_lcd esp_timer esp_app_format firing_engine thermocouple safety history app_config
 )

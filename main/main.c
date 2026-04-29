@@ -18,6 +18,7 @@
 #include "wifi_manager.h"
 #include "web_server.h"
 #include "display.h"
+#include "boot_status.h"
 #include "firing_history.h"
 #include "status_led.h"
 
@@ -77,6 +78,22 @@ void app_main(void)
         ESP_LOGW(TAG, "Display init failed (non-fatal): %s", esp_err_to_name(ret));
     }
 
+    /* Bring up the display task immediately so the splash is on-screen during
+     * the slow init steps below (Wi-Fi can take up to 30 s). The task gets a
+     * hard error check because if internal SRAM is too tight to satisfy the
+     * 16 KiB stack, FreeRTOS silently returns errCOULD_NOT_ALLOCATE and the UI
+     * just never starts (with no diagnostic) — easier to crash loudly. */
+    if (display_initialized) {
+        BaseType_t disp_rc = xTaskCreatePinnedToCore(display_task, "display", APP_TASK_DISPLAY_STACK, NULL,
+                                                     APP_TASK_DISPLAY_PRIO, NULL, 0);
+        if (disp_rc != pdPASS) {
+            ESP_LOGE(TAG, "Failed to create display_task (rc=%d) — out of internal RAM?", (int)disp_rc);
+            abort();
+        }
+    } else {
+        ESP_LOGW(TAG, "Display task skipped; controller will run headless");
+    }
+
     /* ── Wi-Fi Init ────────────────────────────────── */
     /* Try NVS-saved credentials first, fall back to compile-time config */
     char nvs_ssid[33] = {0};
@@ -99,10 +116,14 @@ void app_main(void)
     ESP_ERROR_CHECK(wifi_manager_init(sta_ssid, sta_pass, APP_WIFI_AP_SSID, APP_WIFI_AP_PASS));
 
     /* Wait for Wi-Fi (30s timeout) */
+    boot_status_set("Connecting to Wi-Fi...");
     if (wifi_manager_wait_connected(30000) == ESP_OK) {
         ESP_LOGI(TAG, "Wi-Fi ready: %s (AP mode: %s)", wifi_manager_get_ip(), wifi_manager_is_ap_mode() ? "yes" : "no");
     } else {
         ESP_LOGW(TAG, "Wi-Fi connection timed out");
+    }
+    if (wifi_manager_is_ap_mode()) {
+        boot_status_set("Wi-Fi: access point mode");
     }
 
     /* ── Status LED Init ────────────────────────────── */
@@ -150,19 +171,8 @@ void app_main(void)
 
     xTaskCreatePinnedToCore(firing_task, "firing", APP_TASK_FIRING_STACK, NULL, APP_TASK_FIRING_PRIO, NULL, 1);
 
-    /* Core 0: UI + network tasks. Display gets a hard error check because if internal
-     * SRAM is too tight to satisfy the 16 KiB stack, FreeRTOS silently returns errCOULD_NOT_ALLOCATE
-     * and the UI just never starts (with no diagnostic) — easier to crash loudly. */
-    if (display_initialized) {
-        BaseType_t disp_rc = xTaskCreatePinnedToCore(display_task, "display", APP_TASK_DISPLAY_STACK, NULL,
-                                                     APP_TASK_DISPLAY_PRIO, NULL, 0);
-        if (disp_rc != pdPASS) {
-            ESP_LOGE(TAG, "Failed to create display_task (rc=%d) — out of internal RAM?", (int)disp_rc);
-            abort();
-        }
-    } else {
-        ESP_LOGW(TAG, "Display task skipped; controller will run headless");
-    }
+    /* Core 0: UI + network tasks. (display_task was created earlier, right after
+     * display_init, so the splash could render during the Wi-Fi wait above.) */
 
     if (status_led_initialized) {
         xTaskCreatePinnedToCore(status_led_task, "status_led", 2048, NULL, 1, NULL, 0);
@@ -194,6 +204,9 @@ void app_main(void)
             esp_ota_mark_app_valid_cancel_rollback();
         }
     }
+
+    boot_status_set("Ready");
+    boot_status_mark_ready();
 
     ESP_LOGI(TAG, "=== Bisque started successfully ===");
     ESP_LOGI(TAG, "Free heap: %lu bytes", (unsigned long)esp_get_free_heap_size());
