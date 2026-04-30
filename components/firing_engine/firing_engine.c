@@ -523,6 +523,11 @@ static float s_segment_start_temp;
 static float s_segment_hold_start_time_s;
 static bool s_holding;
 
+/* Microsecond accumulator for elapsed_time. The PID loop's per-tick dt is
+ * ~1.0s with jitter; truncating each tick to whole seconds loses ~half of
+ * real time on average. Sum the raw int64 us deltas and publish floor(s). */
+static int64_t s_elapsed_accum_us = 0;
+
 /* Delay-start state */
 static int64_t s_delay_start_end_us = 0;
 static bool s_delay_active = false;
@@ -657,6 +662,7 @@ static void handle_cmd(const firing_cmd_t *cmd)
             s_progress.total_segments = s_active_profile.segment_count;
             s_progress.elapsed_time = 0;
             progress_unlock();
+            s_elapsed_accum_us = 0;
             ESP_LOGI(TAG, "Firing queued with %u min delay: %s", cmd->start.delay_minutes,
                      s_active_profile.name);
         } else {
@@ -667,6 +673,7 @@ static void handle_cmd(const firing_cmd_t *cmd)
             s_progress.total_segments = s_active_profile.segment_count;
             s_progress.elapsed_time = 0;
             progress_unlock();
+            s_elapsed_accum_us = 0;
             begin_firing(cur_temp, esp_timer_get_time());
             ESP_LOGI(TAG, "Firing started: %s", s_active_profile.name);
         }
@@ -743,6 +750,7 @@ static void handle_cmd(const firing_cmd_t *cmd)
         s_progress.status = FIRING_STATUS_AUTOTUNE;
         s_progress.elapsed_time = 0;
         progress_unlock();
+        s_elapsed_accum_us = 0;
         ESP_LOGI(TAG, "Auto-tune mode started");
         break;
 
@@ -818,7 +826,8 @@ void firing_task(void *param)
 
         /* Compute dt */
         int64_t now_us = esp_timer_get_time();
-        float dt_s = (float)(now_us - last_compute_us) / 1000000.0f;
+        int64_t dt_us = now_us - last_compute_us;
+        float dt_s = (float)dt_us / 1000000.0f;
         last_compute_us = now_us;
 
         /* Check for emergency stop */
@@ -865,8 +874,9 @@ void firing_task(void *param)
             bool done = pid_autotune_update(&s_autotune, current_temp, &output);
             safety_set_ssr(output);
 
+            s_elapsed_accum_us += dt_us;
             progress_lock();
-            s_progress.elapsed_time += (uint32_t)dt_s;
+            s_progress.elapsed_time = (uint32_t)(s_elapsed_accum_us / 1000000);
             s_progress.target_temp = s_autotune.setpoint;
             progress_unlock();
 
@@ -1021,8 +1031,9 @@ void firing_task(void *param)
         }
 
         /* Update progress timing */
+        s_elapsed_accum_us += dt_us;
         progress_lock();
-        s_progress.elapsed_time += (uint32_t)dt_s;
+        s_progress.elapsed_time = (uint32_t)(s_elapsed_accum_us / 1000000);
         s_progress.target_temp = setpoint;
         if (s_active_profile.estimated_duration > 0) {
             uint32_t est_total_s = s_active_profile.estimated_duration * 60;
