@@ -483,9 +483,20 @@ static void on_select_trap_clicked(lv_event_t *e)
         return;
     }
     switch (s_current_view) {
+    case VIEW_ERROR: {
+        /* Acknowledge the error before opening the picker. Without this, the
+           firing engine stays in ERROR and cancelling the picker drops the
+           user straight back to the error screen — an inescapable loop. */
+        QueueHandle_t q = firing_engine_get_cmd_queue();
+        if (q) {
+            firing_cmd_t cmd = {.type = FIRING_CMD_STOP};
+            xQueueSend(q, &cmd, 0);
+        }
+        modal_profile_picker_open();
+        break;
+    }
     case VIEW_IDLE:
     case VIEW_COMPLETE:
-    case VIEW_ERROR:
         modal_profile_picker_open();
         break;
     case VIEW_ACTIVE:
