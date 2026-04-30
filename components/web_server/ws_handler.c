@@ -106,14 +106,7 @@ void ws_broadcast_status(void)
     cJSON_AddStringToObject(root, "type", "temp_update");
 
     cJSON *data = cJSON_AddObjectToObject(root, "data");
-    cJSON_AddNumberToObject(data, "currentTemp", adjusted_temp);
-    cJSON_AddNumberToObject(data, "targetTemp", prog.target_temp);
-    cJSON_AddStringToObject(data, "status", firing_status_to_string(prog.status));
-    cJSON_AddNumberToObject(data, "currentSegment", prog.current_segment);
-    cJSON_AddNumberToObject(data, "totalSegments", prog.total_segments);
-    cJSON_AddNumberToObject(data, "elapsedTime", prog.elapsed_time);
-    cJSON_AddNumberToObject(data, "estimatedTimeRemaining", prog.estimated_remaining);
-    cJSON_AddBoolToObject(data, "isActive", prog.is_active);
+    json_add_progress_fields(data, &prog, adjusted_temp);
 
     char *json = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);

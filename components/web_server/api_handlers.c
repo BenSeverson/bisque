@@ -135,6 +135,22 @@ static int read_body(httpd_req_t *req, char *buf, size_t buf_size)
     return received;
 }
 
+/* Helper: read POST body and parse as JSON. On error, sends a 400 response and
+   returns NULL. Caller must cJSON_Delete() the returned object on success. */
+static cJSON *parse_body_json(httpd_req_t *req, char *buf, size_t buf_size)
+{
+    if (read_body(req, buf, buf_size) < 0) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Body required or too large");
+        return NULL;
+    }
+    cJSON *root = cJSON_Parse(buf);
+    if (!root) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
+        return NULL;
+    }
+    return root;
+}
+
 /* Helper: send JSON response */
 static esp_err_t send_json(httpd_req_t *req, cJSON *root)
 {
@@ -148,6 +164,21 @@ static esp_err_t send_json(httpd_req_t *req, cJSON *root)
     httpd_resp_sendstr(req, json);
     free(json);
     return ESP_OK;
+}
+
+/* ── Shared JSON helpers ──────────────────────────── */
+
+void json_add_progress_fields(cJSON *target, const firing_progress_t *prog, float current_temp)
+{
+    cJSON_AddBoolToObject(target, "isActive", prog->is_active);
+    cJSON_AddStringToObject(target, "profileId", prog->profile_id);
+    cJSON_AddNumberToObject(target, "currentTemp", current_temp);
+    cJSON_AddNumberToObject(target, "targetTemp", prog->target_temp);
+    cJSON_AddNumberToObject(target, "currentSegment", prog->current_segment);
+    cJSON_AddNumberToObject(target, "totalSegments", prog->total_segments);
+    cJSON_AddNumberToObject(target, "elapsedTime", prog->elapsed_time);
+    cJSON_AddNumberToObject(target, "estimatedTimeRemaining", prog->estimated_remaining);
+    cJSON_AddStringToObject(target, "status", firing_status_to_string(prog->status));
 }
 
 /* ── Profile JSON helpers ─────────────────────────── */
@@ -281,15 +312,7 @@ static esp_err_t handle_get_status(httpd_req_t *req)
     thermocouple_get_latest(&tc);
 
     cJSON *root = cJSON_CreateObject();
-    cJSON_AddBoolToObject(root, "isActive", prog.is_active);
-    cJSON_AddStringToObject(root, "profileId", prog.profile_id);
-    cJSON_AddNumberToObject(root, "currentTemp", tc.fault ? 0 : tc.temperature_c);
-    cJSON_AddNumberToObject(root, "targetTemp", prog.target_temp);
-    cJSON_AddNumberToObject(root, "currentSegment", prog.current_segment);
-    cJSON_AddNumberToObject(root, "totalSegments", prog.total_segments);
-    cJSON_AddNumberToObject(root, "elapsedTime", prog.elapsed_time);
-    cJSON_AddNumberToObject(root, "estimatedTimeRemaining", prog.estimated_remaining);
-    cJSON_AddStringToObject(root, "status", firing_status_to_string(prog.status));
+    json_add_progress_fields(root, &prog, tc.fault ? 0.0f : tc.temperature_c);
 
     /* Thermocouple details */
     cJSON *tc_obj = cJSON_AddObjectToObject(root, "thermocouple");
@@ -384,14 +407,8 @@ static esp_err_t handle_post_profile(httpd_req_t *req)
         return ESP_FAIL;
     }
     char buf[2048];
-    if (read_body(req, buf, sizeof(buf)) < 0) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Body too large or empty");
-        return ESP_FAIL;
-    }
-
-    cJSON *root = cJSON_Parse(buf);
+    cJSON *root = parse_body_json(req, buf, sizeof(buf));
     if (!root) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
         return ESP_FAIL;
     }
 
@@ -448,14 +465,8 @@ static esp_err_t handle_firing_start(httpd_req_t *req)
         return ESP_FAIL;
     }
     char buf[128];
-    if (read_body(req, buf, sizeof(buf)) < 0) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Body required");
-        return ESP_FAIL;
-    }
-
-    cJSON *root = cJSON_Parse(buf);
+    cJSON *root = parse_body_json(req, buf, sizeof(buf));
     if (!root) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
         return ESP_FAIL;
     }
 
@@ -589,14 +600,8 @@ static esp_err_t handle_post_settings(httpd_req_t *req)
         return ESP_FAIL;
     }
     char buf[768];
-    if (read_body(req, buf, sizeof(buf)) < 0) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Body required");
-        return ESP_FAIL;
-    }
-
-    cJSON *root = cJSON_Parse(buf);
+    cJSON *root = parse_body_json(req, buf, sizeof(buf));
     if (!root) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
         return ESP_FAIL;
     }
 
@@ -709,14 +714,8 @@ static esp_err_t handle_profile_import(httpd_req_t *req)
         return ESP_FAIL;
     }
     char buf[2048];
-    if (read_body(req, buf, sizeof(buf)) < 0) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Body too large or empty");
-        return ESP_FAIL;
-    }
-
-    cJSON *root = cJSON_Parse(buf);
+    cJSON *root = parse_body_json(req, buf, sizeof(buf));
     if (!root) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
         return ESP_FAIL;
     }
 
@@ -748,14 +747,8 @@ static esp_err_t handle_cone_fire(httpd_req_t *req)
         return ESP_FAIL;
     }
     char buf[256];
-    if (read_body(req, buf, sizeof(buf)) < 0) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Body required");
-        return ESP_FAIL;
-    }
-
-    cJSON *root = cJSON_Parse(buf);
+    cJSON *root = parse_body_json(req, buf, sizeof(buf));
     if (!root) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
         return ESP_FAIL;
     }
 
@@ -826,8 +819,7 @@ static esp_err_t handle_get_history(httpd_req_t *req)
         cJSON_AddStringToObject(item, "profileId", records[i].profile_id);
         cJSON_AddNumberToObject(item, "peakTemp", records[i].peak_temp_c);
         cJSON_AddNumberToObject(item, "durationS", records[i].duration_s);
-        const char *outcomes[] = {"complete", "error", "aborted"};
-        cJSON_AddStringToObject(item, "outcome", records[i].outcome < 3 ? outcomes[records[i].outcome] : "unknown");
+        cJSON_AddStringToObject(item, "outcome", history_outcome_to_string(records[i].outcome));
         cJSON_AddNumberToObject(item, "errorCode", records[i].error_code);
         cJSON_AddItemToArray(arr, item);
     }
@@ -1050,14 +1042,8 @@ static esp_err_t handle_autotune_start(httpd_req_t *req)
         return ESP_FAIL;
     }
     char buf[128];
-    if (read_body(req, buf, sizeof(buf)) < 0) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Body required");
-        return ESP_FAIL;
-    }
-
-    cJSON *root = cJSON_Parse(buf);
+    cJSON *root = parse_body_json(req, buf, sizeof(buf));
     if (!root) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
         return ESP_FAIL;
     }
 
@@ -1290,14 +1276,8 @@ static esp_err_t handle_post_wifi(httpd_req_t *req)
     }
 
     char buf[256];
-    if (read_body(req, buf, sizeof(buf)) < 0) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Body required");
-        return ESP_FAIL;
-    }
-
-    cJSON *root = cJSON_Parse(buf);
+    cJSON *root = parse_body_json(req, buf, sizeof(buf));
     if (!root) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
         return ESP_FAIL;
     }
 
