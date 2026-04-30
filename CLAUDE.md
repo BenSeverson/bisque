@@ -52,7 +52,7 @@ partition_table/    # ESP32 partition layout
 - Fonts enabled: Montserrat 24, 36, 48 (default: 24)
 - Widgets in use: label, chart, list, buttonmatrix, obj (containers/dots)
 - Layout: absolute positioning via `lv_obj_set_pos()`/`lv_obj_align()` (flex/grid compiled in but unused)
-- Theme: default dark, overridden inline
+- Theme: a custom theme registered via `lv_display_set_theme()`. Source: `components/display/ui_theme.c`. It applies shared `lv_style_t` defaults by widget class — screen baseline (black bg, white text, base font), plain panels (transparent + chrome-free), buttons (radius + bg_opa + focused outline), lists and list buttons (with focused state), and chart parts (frame + grid + items + indicator). Tweak the styles there to retune the whole UI.
 
 ### Design Tokens (defined in `components/display/ui_common.h`)
 
@@ -74,6 +74,11 @@ partition_table/    # ESP32 partition layout
 | `UI_COLOR_SURFACE_2` | `#222222` | Control backgrounds (button matrix, etc.) |
 | `UI_COLOR_BORDER`    | `#333333` | Borders, chart grid, focus outlines |
 | `UI_COLOR_BUTTON_BG` | `#444444` | Button face |
+| `UI_SPLASH_BG` | `#FFFFFF` | Splash bg (light surface, splash only) |
+| `UI_SPLASH_WORDMARK` | `#000000` | Splash wordmark |
+| `UI_SPLASH_SUBTITLE` | `#444444` | Splash subtitle |
+| `UI_SPLASH_STATUS` | `#666666` | Splash status text |
+| `UI_SPLASH_VERSION` | `#999999` | Splash version label |
 
 **Fonts:**
 | Token | Font | Size | Usage |
@@ -101,6 +106,8 @@ partition_table/    # ESP32 partition layout
 
 Existing modal builders: `modal_profile_picker.c`, `modal_action_menu.c`.
 
+**No "new screens".** Either extend `dashboard.c` (if the surface is status-driven) or add a modal builder in `components/display/modal_*.c` and push it via `dashboard_modal_open()`. Builders run under the LVGL lock; pass long-lived (static/global) ctx, never stack data.
+
 **Input routing:** the dashboard parks an invisible focusable trap (`s_select_trap`) in `g_input_group` so the encoder always has a focus target; modals swap the indev to their own group while open. Left/Right physical presses are routed via `display_consume_left_press()` / `display_consume_right_press()` and dispatched to `dashboard_modal_nav_left/right()` when a modal is active.
 
 ### Icons & Images
@@ -111,26 +118,13 @@ Existing modal builders: `modal_profile_picker.c`, `modal_action_menu.c`.
 
 ### Styling Conventions
 
-- Prefer **centralized styling** via `lv_style_t` structs and/or LVGL themes so colors, fonts, and spacing can be retuned in one place. Define shared styles once (e.g. in `ui_common.c`) and apply them with `lv_obj_add_style()`; reach for inline `lv_obj_set_style_*()` only for one-off tweaks that genuinely don't belong in a shared style.
-- New visual tokens belong as `UI_COLOR_*` / `UI_FONT_*` macros in `ui_common.h` and should be referenced by shared styles, not hard-coded at call sites.
-- Every screen root: black bg, `LV_OPA_COVER`, non-scrollable
-- Status colors map via `ui_status_color(firing_status_t)` helper
-- Status labels map via `ui_status_label(firing_status_t)` helper
+- **Default styling comes from the theme** (`ui_theme.c`) and the shared widget helpers (`ui_widgets.h`: `ui_make_label`, `ui_make_button`, `ui_make_separator`). Use them. New label/button/separator call sites should not hand-roll `lv_label_create` + `lv_obj_set_style_*` boilerplate.
+- **Tune defaults centrally.** Adjust the `lv_style_t`s in `ui_theme.c` to change all themed widgets at once. Add new shared styles there if a recurring composite emerges.
+- **Inline `lv_obj_set_style_*()` is for runtime-dynamic state**, not visual defaults. Legitimate uses today: status-bar color updates driven by `firing_status_t`, the modal overlay's 90% opacity, splash's light palette overrides, and per-instance button bg colors used as a semantic flag (ERROR / HEATING / BUTTON_BG).
+- New visual tokens belong as `UI_COLOR_*` / `UI_FONT_*` macros in `ui_common.h`; reference them from `ui_theme.c` styles, not hard-coded at call sites.
+- Status colors map via `ui_status_color(firing_status_t)` helper.
+- Status labels map via `ui_status_label(firing_status_t)` helper.
 - All LVGL access (dashboard create/update, modal open/close) must happen with LVGL locked via `lv_lock()` / `lv_unlock()`; `lv_timer_handler()` locks internally when `LV_OS_FREERTOS` is enabled.
-
-## Figma-to-Code Guidelines
-
-When translating Figma designs for this project:
-
-1. **Target: LVGL C code**, not web frameworks. Map Figma layers to `lv_obj_t` widgets.
-2. **480x320 constraint** — designs must fit this resolution (landscape). Use absolute pixel positioning.
-3. **3 font sizes only** — map Figma text to `UI_FONT_BIG` (48), `UI_FONT_MEDIUM` (36), or `UI_FONT_SMALL` (24).
-4. **Dark theme** — pure black background, white text, semantic status colors.
-5. **Color tokens** — use existing `UI_COLOR_*` macros. Add new ones to `ui_common.h` if needed.
-6. **No runtime image decoders** — PNG/JPEG/BMP decoders aren't enabled (each adds significant flash). Compile-time embedded RGB565 bitmaps (static `lv_image_dsc_t` C arrays from `lv_img_conv`) are fine since they bypass any decoder. Prefer LVGL primitives and symbols when they suffice; reach for an embedded bitmap only when a primitive approximation would be too lossy.
-7. **Input model** — 5-way nav switch (up/down/left/right/center). Interactive widgets must be added to `g_input_group` (or to a modal's group when built inside a `modal_builder_fn`).
-8. **Memory budget** — 128KB LVGL heap. Keep widget counts minimal.
-9. **New surfaces** — there is no "new screen". Either extend `dashboard.c` (if status-driven) or add a modal builder in `components/display/modal_*.c` and push it via `dashboard_modal_open()`. Builders run under the LVGL lock; pass long-lived (static/global) ctx, never stack data.
 
 ## Hardware Diagrams
 
