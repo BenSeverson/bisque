@@ -663,8 +663,7 @@ static void handle_cmd(const firing_cmd_t *cmd)
             s_progress.elapsed_time = 0;
             progress_unlock();
             s_elapsed_accum_us = 0;
-            ESP_LOGI(TAG, "Firing queued with %u min delay: %s", cmd->start.delay_minutes,
-                     s_active_profile.name);
+            ESP_LOGI(TAG, "Firing queued with %u min delay: %s", cmd->start.delay_minutes, s_active_profile.name);
         } else {
             progress_lock();
             s_progress.is_active = true;
@@ -728,8 +727,8 @@ static void handle_cmd(const firing_cmd_t *cmd)
             start_segment(next, cur);
             progress_lock();
             s_progress.current_segment = next;
-            s_progress.status = (s_active_profile.segments[next].ramp_rate >= 0) ? FIRING_STATUS_HEATING
-                                                                                 : FIRING_STATUS_COOLING;
+            s_progress.status =
+                (s_active_profile.segments[next].ramp_rate >= 0) ? FIRING_STATUS_HEATING : FIRING_STATUS_COOLING;
             progress_unlock();
             ESP_LOGI(TAG, "Skipped to segment %d", next);
         } else if (active && seg_idx + 1 >= total) {
@@ -771,8 +770,10 @@ static void wait_until_next_tick(TickType_t *last_wake)
     for (;;) {
         TickType_t now = xTaskGetTickCount();
         int32_t remaining = (int32_t)(deadline - now);
-        if (remaining <= 0) break;
-        if (xQueueReceive(s_cmd_queue, &cmd, (TickType_t)remaining) != pdTRUE) break;
+        if (remaining <= 0)
+            break;
+        if (xQueueReceive(s_cmd_queue, &cmd, (TickType_t)remaining) != pdTRUE)
+            break;
         handle_cmd(&cmd);
     }
     *last_wake = deadline;
