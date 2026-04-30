@@ -1,6 +1,7 @@
 #include "modal_profile_picker.h"
 #include "modal.h"
 #include "ui_common.h"
+#include "ui_widgets.h"
 #include "firing_engine.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
@@ -36,30 +37,9 @@ static void format_duration_minutes(uint32_t total_minutes, char *buf, size_t bu
     }
 }
 
-static lv_obj_t *make_modal_label(lv_obj_t *parent, const lv_font_t *font, lv_color_t color, const char *text)
-{
-    lv_obj_t *l = lv_label_create(parent);
-    lv_obj_set_style_text_font(l, font, 0);
-    lv_obj_set_style_text_color(l, color, 0);
-    lv_label_set_text(l, text);
-    return l;
-}
-
 static lv_obj_t *make_modal_button(lv_obj_t *parent, const char *text, lv_color_t bg, lv_color_t fg)
 {
-    lv_obj_t *btn = lv_button_create(parent);
-    lv_obj_set_size(btn, 140, 60);
-    lv_obj_set_style_bg_color(btn, bg, 0);
-    lv_obj_set_style_radius(btn, 6, 0);
-    lv_obj_set_style_outline_color(btn, UI_COLOR_TEXT, LV_STATE_FOCUSED);
-    lv_obj_set_style_outline_width(btn, 3, LV_STATE_FOCUSED);
-    lv_obj_set_style_outline_pad(btn, 2, LV_STATE_FOCUSED);
-    lv_obj_t *lbl = lv_label_create(btn);
-    lv_obj_set_style_text_font(lbl, UI_FONT_SMALL, 0);
-    lv_obj_set_style_text_color(lbl, fg, 0);
-    lv_label_set_text(lbl, text);
-    lv_obj_center(lbl);
-    return btn;
+    return ui_make_button(parent, 140, 60, text, bg, fg);
 }
 
 /* ── Confirm modal ─────────────────────────────────── */
@@ -105,14 +85,14 @@ static void confirm_builder(lv_obj_t *root, void *ctx)
 
     char buf[160];
     snprintf(buf, sizeof(buf), "Start %s?", s_selected_profile.name);
-    lv_obj_t *title = make_modal_label(root, UI_FONT_MEDIUM, UI_COLOR_TEXT, buf);
+    lv_obj_t *title = ui_make_label(root, UI_FONT_MEDIUM, UI_COLOR_TEXT, buf);
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 60);
 
     char dur_buf[24];
     format_duration_minutes(s_selected_profile.estimated_duration, dur_buf, sizeof(dur_buf));
     snprintf(buf, sizeof(buf), "Max %.0f°C   ~%s   %u segments", (double)s_selected_profile.max_temp, dur_buf,
              (unsigned)s_selected_profile.segment_count);
-    lv_obj_t *details = make_modal_label(root, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, buf);
+    lv_obj_t *details = ui_make_label(root, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, buf);
     lv_obj_align(details, LV_ALIGN_TOP_MID, 0, 130);
 
     lv_obj_t *start_btn = make_modal_button(root, "Start", UI_COLOR_HEATING, UI_COLOR_BG);
@@ -147,18 +127,12 @@ static void picker_builder(lv_obj_t *root, void *ctx)
 {
     (void)ctx;
 
-    lv_obj_t *title = make_modal_label(root, UI_FONT_MEDIUM, UI_COLOR_TEXT, "Select a profile");
+    lv_obj_t *title = ui_make_label(root, UI_FONT_MEDIUM, UI_COLOR_TEXT, "Select a profile");
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 16);
 
     lv_obj_t *list = lv_list_create(root);
     lv_obj_set_size(list, UI_LCD_W - 32, UI_LCD_H - 130);
     lv_obj_align(list, LV_ALIGN_TOP_MID, 0, 60);
-    lv_obj_set_style_bg_color(list, UI_COLOR_SURFACE_1, 0);
-    lv_obj_set_style_bg_opa(list, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_color(list, UI_COLOR_BORDER, 0);
-    lv_obj_set_style_border_width(list, 1, 0);
-    lv_obj_set_style_radius(list, 4, 0);
-    lv_obj_set_style_pad_all(list, 4, 0);
 
     for (int i = 0; i < s_profile_count; i++) {
         firing_profile_t p;
@@ -170,16 +144,11 @@ static void picker_builder(lv_obj_t *root, void *ctx)
         char label[128];
         snprintf(label, sizeof(label), "%s   |   %.0f°C   |   ~%s", p.name, (double)p.max_temp, dur_buf);
         lv_obj_t *btn = lv_list_add_button(list, NULL, label);
-        lv_obj_set_style_bg_color(btn, UI_COLOR_SURFACE_2, 0);
-        lv_obj_set_style_text_color(btn, UI_COLOR_TEXT, 0);
-        lv_obj_set_style_text_font(btn, UI_FONT_SMALL, 0);
-        lv_obj_set_style_bg_color(btn, UI_COLOR_HEATING, LV_STATE_FOCUSED);
-        lv_obj_set_style_text_color(btn, UI_COLOR_BG, LV_STATE_FOCUSED);
         /* user_data points into s_profile_ids, which has static lifetime — safe to dereference later. */
         lv_obj_add_event_cb(btn, on_profile_clicked, LV_EVENT_CLICKED, s_profile_ids[i]);
     }
 
-    lv_obj_t *hint = make_modal_label(root, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "SELECT to choose  |  LEFT to cancel");
+    lv_obj_t *hint = ui_make_label(root, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "SELECT to choose  |  LEFT to cancel");
     lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -16);
 }
 
