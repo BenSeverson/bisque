@@ -631,6 +631,11 @@ static void handle_cmd(const firing_cmd_t *cmd)
             break;
         }
 
+        /* Release any prior soft emergency stop (NOT_RISING, RUNAWAY, ...).
+           safety_task re-trips within 500 ms if a persistent fault (TC fault,
+           over-temp) is still active, so this only clears stale latched trips. */
+        safety_clear_emergency();
+
         s_active_profile = cmd->start.profile;
         thermocouple_reading_t r;
         thermocouple_get_latest(&r);
