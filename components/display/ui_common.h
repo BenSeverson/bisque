@@ -25,6 +25,15 @@ extern "C" {
 #define UI_COLOR_BORDER    lv_color_make(0x33, 0x33, 0x33) /* borders, grid */
 #define UI_COLOR_BUTTON_BG lv_color_make(0x44, 0x44, 0x44) /* button face */
 
+/* Splash-only palette. The boot splash is the single light-themed surface in
+ * the app (white bg, dark text). These are namespaced separately so they don't
+ * get confused with the dark UI palette above. */
+#define UI_SPLASH_BG       lv_color_hex(0xFFFFFF)
+#define UI_SPLASH_WORDMARK lv_color_hex(0x000000)
+#define UI_SPLASH_SUBTITLE lv_color_hex(0x444444)
+#define UI_SPLASH_STATUS   lv_color_hex(0x666666)
+#define UI_SPLASH_VERSION  lv_color_hex(0x999999)
+
 /* --- Font Aliases --- */
 #define UI_FONT_BIG    &lv_font_montserrat_48
 #define UI_FONT_MEDIUM &lv_font_montserrat_36
