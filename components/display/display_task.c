@@ -116,7 +116,7 @@ void display_task(void *param)
             firing_engine_get_progress(&prog);
 
             /* Log LVGL heap usage to help right-size CONFIG_LV_MEM_SIZE_KILOBYTES (currently 64 KB).
-             * Once you know peak usage, shrink the pool to reclaim DIRAM for the system heap. 
+             * Once you know peak usage, shrink the pool to reclaim DIRAM for the system heap.
              * TODO: remove this
              */
             lv_mem_monitor_t mon;
