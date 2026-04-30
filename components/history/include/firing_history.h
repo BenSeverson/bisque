@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include "esp_err.h"
 
 #ifdef __cplusplus
@@ -65,13 +66,12 @@ void history_firing_end(history_outcome_t outcome, float peak_temp, uint32_t dur
 int history_get_records(history_record_t *out_records, int max_count);
 
 /**
- * Write CSV temperature trace for a record to the given buffer.
+ * Open the CSV temperature trace file for a record for reading. Caller must
+ * fclose() the returned handle.
  * @param record_id  The history record ID.
- * @param buf        Output buffer.
- * @param buf_size   Size of output buffer.
- * @return ESP_OK on success, ESP_ERR_NOT_FOUND if trace missing.
+ * @return FILE* on success, NULL if the trace file does not exist.
  */
-esp_err_t history_get_trace_csv(uint32_t record_id, char *buf, size_t buf_size);
+FILE *history_open_trace(uint32_t record_id);
 
 /**
  * Delete all history records and traces.

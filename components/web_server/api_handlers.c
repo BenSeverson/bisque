@@ -848,16 +848,8 @@ static esp_err_t handle_get_history_trace(httpd_req_t *req)
     const char *id_start = req->uri + strlen(prefix);
     uint32_t record_id = (uint32_t)atoi(id_start);
 
-    /* Use a heap buffer since CSV can be large (up to ~50KB) */
-    char *buf = malloc(65536);
-    if (!buf) {
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Out of memory");
-        return ESP_FAIL;
-    }
-
-    esp_err_t err = history_get_trace_csv(record_id, buf, 65536);
-    if (err != ESP_OK) {
-        free(buf);
+    FILE *f = history_open_trace(record_id);
+    if (!f) {
         httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, "Trace not found");
         return ESP_FAIL;
     }
@@ -866,8 +858,19 @@ static esp_err_t handle_get_history_trace(httpd_req_t *req)
     snprintf(disp, sizeof(disp), "attachment; filename=\"trace_%" PRIu32 ".csv\"", record_id);
     httpd_resp_set_hdr(req, "Content-Disposition", disp);
     httpd_resp_set_type(req, "text/csv");
-    httpd_resp_sendstr(req, buf);
-    free(buf);
+
+    /* Stream the CSV in 1 KB chunks to avoid a large transient heap buffer. */
+    char buf[1024];
+    size_t read_bytes;
+    while ((read_bytes = fread(buf, 1, sizeof(buf), f)) > 0) {
+        if (httpd_resp_send_chunk(req, buf, read_bytes) != ESP_OK) {
+            fclose(f);
+            httpd_resp_send_chunk(req, NULL, 0);
+            return ESP_FAIL;
+        }
+    }
+    fclose(f);
+    httpd_resp_send_chunk(req, NULL, 0);
     return ESP_OK;
 }
 
