@@ -286,20 +286,11 @@ int history_get_records(history_record_t *out_records, int max_count)
     return count;
 }
 
-esp_err_t history_get_trace_csv(uint32_t record_id, char *buf, size_t buf_size)
+FILE *history_open_trace(uint32_t record_id)
 {
     char trace_path[TRACE_PATH_LEN];
     make_trace_path(record_id, trace_path, sizeof(trace_path));
-
-    FILE *f = fopen(trace_path, "r");
-    if (!f) {
-        return ESP_ERR_NOT_FOUND;
-    }
-
-    size_t n = fread(buf, 1, buf_size - 1, f);
-    buf[n] = '\0';
-    fclose(f);
-    return ESP_OK;
+    return fopen(trace_path, "r");
 }
 
 void history_clear(void)
