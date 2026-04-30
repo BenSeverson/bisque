@@ -82,7 +82,7 @@ static void styles_init(void)
 
     lv_style_init(&s_list_button_focused);
     lv_style_set_bg_color(&s_list_button_focused, UI_COLOR_HEATING);
-    lv_style_set_text_color(&s_list_button_focused, UI_COLOR_BG);
+    lv_style_set_text_color(&s_list_button_focused, UI_COLOR_ON_ACCENT);
 #endif
 
 #if LV_USE_CHART

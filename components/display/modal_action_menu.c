@@ -64,7 +64,7 @@ static void stop_confirm_builder(lv_obj_t *root, void *ctx)
 
     /* 140-wide confirm buttons sit side-by-side at +/-80 with a 20px gap; the
      * 200-wide menu-list size (BTN_W) would overlap at this offset. */
-    lv_obj_t *stop_btn = ui_make_button(root, 140, 60, "Stop", UI_COLOR_ERROR, UI_COLOR_TEXT);
+    lv_obj_t *stop_btn = ui_make_button(root, 140, 60, "Stop", UI_COLOR_ERROR, lv_color_white());
     lv_obj_align(stop_btn, LV_ALIGN_CENTER, -80, 30);
     lv_obj_add_event_cb(stop_btn, on_stop_confirmed, LV_EVENT_CLICKED, NULL);
 
@@ -126,13 +126,13 @@ static void menu_builder(lv_obj_t *root, void *ctx)
     int y = BTN_FIRST_Y;
 
     if (s_status_at_open == FIRING_STATUS_AUTOTUNE) {
-        lv_obj_t *btn = make_button(root, "Stop Autotune", UI_COLOR_ERROR, UI_COLOR_TEXT);
+        lv_obj_t *btn = make_button(root, "Stop Autotune", UI_COLOR_ERROR, lv_color_white());
         lv_obj_align(btn, LV_ALIGN_TOP_MID, 0, y);
         lv_obj_add_event_cb(btn, on_autotune_stop_clicked, LV_EVENT_CLICKED, NULL);
         first_btn = btn;
     } else {
         if (s_status_at_open == FIRING_STATUS_PAUSED) {
-            lv_obj_t *btn = make_button(root, "Resume", UI_COLOR_HEATING, UI_COLOR_BG);
+            lv_obj_t *btn = make_button(root, "Resume", UI_COLOR_HEATING, UI_COLOR_ON_ACCENT);
             lv_obj_align(btn, LV_ALIGN_TOP_MID, 0, y);
             lv_obj_add_event_cb(btn, on_resume_clicked, LV_EVENT_CLICKED, NULL);
             first_btn = btn;
@@ -149,7 +149,7 @@ static void menu_builder(lv_obj_t *root, void *ctx)
         lv_obj_add_event_cb(skip, on_skip_clicked, LV_EVENT_CLICKED, NULL);
         y += BTN_H + BTN_GAP;
 
-        lv_obj_t *stop = make_button(root, "Stop", UI_COLOR_ERROR, UI_COLOR_TEXT);
+        lv_obj_t *stop = make_button(root, "Stop", UI_COLOR_ERROR, lv_color_white());
         lv_obj_align(stop, LV_ALIGN_TOP_MID, 0, y);
         lv_obj_add_event_cb(stop, on_stop_clicked, LV_EVENT_CLICKED, NULL);
     }

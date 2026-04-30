@@ -111,15 +111,18 @@ static bool view_uses_profile(view_id_t v)
     return view_is_active_family(v) || v == VIEW_COMPLETE || v == VIEW_ERROR;
 }
 
-/* Pick black or white for status-bar text so it stays readable on the bar's color. */
+/* Pick black or white for status-bar text so it stays readable on the bar's color.
+ * COOLING (#1E66D0) and ERROR (#CC1F1F) need white; warmer accents need black.
+ * Returns absolute colors (not theme tokens) so the function survives a future
+ * UI_COLOR_BG / UI_COLOR_TEXT redefinition. */
 static lv_color_t status_text_color(firing_status_t status)
 {
     switch (status) {
     case FIRING_STATUS_COOLING:
     case FIRING_STATUS_ERROR:
-        return UI_COLOR_TEXT;
+        return lv_color_white();
     default:
-        return UI_COLOR_BG;
+        return UI_COLOR_ON_ACCENT;
     }
 }
 
@@ -556,10 +559,10 @@ void dashboard_create(void)
     lv_obj_set_style_bg_opa(s_status_bar, LV_OPA_COVER, 0);
     lv_obj_clear_flag(s_status_bar, LV_OBJ_FLAG_SCROLLABLE);
 
-    s_status_label = ui_make_label(s_status_bar, UI_FONT_SMALL, UI_COLOR_BG, "IDLE");
+    s_status_label = ui_make_label(s_status_bar, UI_FONT_SMALL, UI_COLOR_ON_ACCENT, "IDLE");
     lv_obj_align(s_status_label, LV_ALIGN_LEFT_MID, 16, 0);
 
-    s_seg_label = ui_make_label(s_status_bar, UI_FONT_SMALL, UI_COLOR_BG, "");
+    s_seg_label = ui_make_label(s_status_bar, UI_FONT_SMALL, UI_COLOR_ON_ACCENT, "");
     lv_obj_align(s_seg_label, LV_ALIGN_RIGHT_MID, -16, 0);
 
     /* Invisible 1x1 trap parked off-screen. It's the only object in g_input_group,

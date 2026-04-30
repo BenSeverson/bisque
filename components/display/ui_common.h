@@ -9,25 +9,26 @@ extern "C" {
 #endif
 
 /* --- Color Palette (LVGL colors) --- */
-#define UI_COLOR_BG        lv_color_black()
-#define UI_COLOR_TEXT      lv_color_white()
-#define UI_COLOR_TEXT_DIM  lv_color_make(0x99, 0x99, 0x99)
-#define UI_COLOR_HEATING   lv_color_make(0xFF, 0xA5, 0x00) /* orange */
-#define UI_COLOR_HOLDING   lv_color_make(0xFF, 0xFF, 0x00) /* yellow */
-#define UI_COLOR_COOLING   lv_color_make(0x00, 0x00, 0xFF) /* blue */
-#define UI_COLOR_ERROR     lv_color_make(0xFF, 0x00, 0x00) /* red */
-#define UI_COLOR_COMPLETE  lv_color_make(0x00, 0xFF, 0x00) /* green */
-#define UI_COLOR_PAUSED    lv_color_make(0xFF, 0xFF, 0x00) /* yellow */
-#define UI_COLOR_IDLE      lv_color_make(0x00, 0xCC, 0x00) /* green */
-#define UI_COLOR_AUTOTUNE  lv_color_make(0xFF, 0xA5, 0x00) /* orange */
-#define UI_COLOR_SURFACE_1 lv_color_make(0x11, 0x11, 0x11) /* chart bg */
-#define UI_COLOR_SURFACE_2 lv_color_make(0x22, 0x22, 0x22) /* control bg */
-#define UI_COLOR_BORDER    lv_color_make(0x33, 0x33, 0x33) /* borders, grid */
-#define UI_COLOR_BUTTON_BG lv_color_make(0x44, 0x44, 0x44) /* button face */
+#define UI_COLOR_BG        lv_color_white()
+#define UI_COLOR_TEXT      lv_color_black()
+#define UI_COLOR_TEXT_DIM  lv_color_make(0x5C, 0x5C, 0x5C)
+#define UI_COLOR_HEATING   lv_color_make(0xE0, 0x7A, 0x00) /* orange */
+#define UI_COLOR_HOLDING   lv_color_make(0xE0, 0xB8, 0x00) /* mustard yellow */
+#define UI_COLOR_COOLING   lv_color_make(0x1E, 0x66, 0xD0) /* blue */
+#define UI_COLOR_ERROR     lv_color_make(0xCC, 0x1F, 0x1F) /* red */
+#define UI_COLOR_COMPLETE  lv_color_make(0x1E, 0x9E, 0x3A) /* green */
+#define UI_COLOR_PAUSED    lv_color_make(0xE0, 0xB8, 0x00) /* yellow == HOLDING */
+#define UI_COLOR_IDLE      lv_color_make(0x1E, 0x9E, 0x3A) /* green == COMPLETE */
+#define UI_COLOR_AUTOTUNE  lv_color_make(0xE0, 0x7A, 0x00) /* orange == HEATING */
+#define UI_COLOR_SURFACE_1 lv_color_make(0xF2, 0xF2, 0xF2) /* chart bg, list bg */
+#define UI_COLOR_SURFACE_2 lv_color_make(0xE6, 0xE6, 0xE6) /* list-item bg */
+#define UI_COLOR_BORDER    lv_color_make(0xBF, 0xBF, 0xBF) /* borders, grid */
+#define UI_COLOR_BUTTON_BG lv_color_make(0xD9, 0xD9, 0xD9) /* button face */
+#define UI_COLOR_ON_ACCENT lv_color_black()                /* text on warm accents (orange/yellow/green pills) */
 
-/* Splash-only palette. The boot splash is the single light-themed surface in
- * the app (white bg, dark text). These are namespaced separately so they don't
- * get confused with the dark UI palette above. */
+/* Splash-only palette. Kept namespaced because the splash uses a more granular
+ * grey hierarchy (#000/#444/#666/#999) than the main UI's two-step
+ * black/text-dim system. */
 #define UI_SPLASH_BG       lv_color_hex(0xFFFFFF)
 #define UI_SPLASH_WORDMARK lv_color_hex(0x000000)
 #define UI_SPLASH_SUBTITLE lv_color_hex(0x444444)

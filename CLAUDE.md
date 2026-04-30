@@ -52,29 +52,30 @@ partition_table/    # ESP32 partition layout
 - Fonts enabled: Montserrat 24, 36, 48 (default: 24)
 - Widgets in use: label, chart, list, buttonmatrix, obj (containers/dots)
 - Layout: absolute positioning via `lv_obj_set_pos()`/`lv_obj_align()` (flex/grid compiled in but unused)
-- Theme: a custom theme registered via `lv_display_set_theme()`. Source: `components/display/ui_theme.c`. It applies shared `lv_style_t` defaults by widget class — screen baseline (black bg, white text, base font), plain panels (transparent + chrome-free), buttons (radius + bg_opa + focused outline), lists and list buttons (with focused state), and chart parts (frame + grid + items + indicator). Tweak the styles there to retune the whole UI.
+- Theme: a custom theme registered via `lv_display_set_theme()`. Source: `components/display/ui_theme.c`. It applies shared `lv_style_t` defaults by widget class — screen baseline (white bg, black text, base font), plain panels (transparent + chrome-free), buttons (radius + bg_opa + focused outline), lists and list buttons (with focused state), and chart parts (frame + grid + items + indicator). Tweak the styles there to retune the whole UI.
 
 ### Design Tokens (defined in `components/display/ui_common.h`)
 
 **Colors:**
 | Token | Value | Usage |
 |---|---|---|
-| `UI_COLOR_BG` | `#000000` | Screen backgrounds |
-| `UI_COLOR_TEXT` | `#FFFFFF` | Primary text |
-| `UI_COLOR_TEXT_DIM` | `#999999` | Secondary/dimmed text |
-| `UI_COLOR_HEATING` | `#FFA500` | Heating status, chart line |
-| `UI_COLOR_HOLDING` | `#FFFF00` | Holding status |
-| `UI_COLOR_COOLING` | `#0000FF` | Cooling status |
-| `UI_COLOR_ERROR` | `#FF0000` | Error status |
-| `UI_COLOR_COMPLETE` | `#00FF00` | Firing complete |
-| `UI_COLOR_PAUSED` | `#FFFF00` | Paused (same as holding) |
-| `UI_COLOR_IDLE` | `#00CC00` | Idle/ready |
-| `UI_COLOR_AUTOTUNE` | `#FFA500` | PID autotune |
-| `UI_COLOR_SURFACE_1` | `#111111` | Chart background, low-elevation surfaces |
-| `UI_COLOR_SURFACE_2` | `#222222` | Control backgrounds (button matrix, etc.) |
-| `UI_COLOR_BORDER`    | `#333333` | Borders, chart grid, focus outlines |
-| `UI_COLOR_BUTTON_BG` | `#444444` | Button face |
-| `UI_SPLASH_BG` | `#FFFFFF` | Splash bg (light surface, splash only) |
+| `UI_COLOR_BG` | `#FFFFFF` | Screen backgrounds |
+| `UI_COLOR_TEXT` | `#000000` | Primary text |
+| `UI_COLOR_TEXT_DIM` | `#5C5C5C` | Secondary/dimmed text |
+| `UI_COLOR_HEATING` | `#E07A00` | Heating status, chart line |
+| `UI_COLOR_HOLDING` | `#E0B800` | Holding status |
+| `UI_COLOR_COOLING` | `#1E66D0` | Cooling status |
+| `UI_COLOR_ERROR` | `#CC1F1F` | Error status |
+| `UI_COLOR_COMPLETE` | `#1E9E3A` | Firing complete |
+| `UI_COLOR_PAUSED` | `#E0B800` | Paused (same as holding) |
+| `UI_COLOR_IDLE` | `#1E9E3A` | Idle/ready (same as complete) |
+| `UI_COLOR_AUTOTUNE` | `#E07A00` | PID autotune (same as heating) |
+| `UI_COLOR_SURFACE_1` | `#F2F2F2` | Chart background, low-elevation surfaces |
+| `UI_COLOR_SURFACE_2` | `#E6E6E6` | Control backgrounds (button matrix, etc.) |
+| `UI_COLOR_BORDER`    | `#BFBFBF` | Borders, chart grid, focus outlines |
+| `UI_COLOR_BUTTON_BG` | `#D9D9D9` | Button face |
+| `UI_COLOR_ON_ACCENT` | `#000000` | Text on warm-accent surfaces (orange buttons, focused list item, status-pill default) |
+| `UI_SPLASH_BG` | `#FFFFFF` | Splash bg |
 | `UI_SPLASH_WORDMARK` | `#000000` | Splash wordmark |
 | `UI_SPLASH_SUBTITLE` | `#444444` | Splash subtitle |
 | `UI_SPLASH_STATUS` | `#666666` | Splash status text |
