@@ -111,7 +111,8 @@ Existing modal builders: `modal_profile_picker.c`, `modal_action_menu.c`.
 
 ### Styling Conventions
 
-- All styles are **inline** (`lv_obj_set_style_*()` calls), no `lv_style_t` structs
+- Prefer **centralized styling** via `lv_style_t` structs and/or LVGL themes so colors, fonts, and spacing can be retuned in one place. Define shared styles once (e.g. in `ui_common.c`) and apply them with `lv_obj_add_style()`; reach for inline `lv_obj_set_style_*()` only for one-off tweaks that genuinely don't belong in a shared style.
+- New visual tokens belong as `UI_COLOR_*` / `UI_FONT_*` macros in `ui_common.h` and should be referenced by shared styles, not hard-coded at call sites.
 - Every screen root: black bg, `LV_OPA_COVER`, non-scrollable
 - Status colors map via `ui_status_color(firing_status_t)` helper
 - Status labels map via `ui_status_label(firing_status_t)` helper
