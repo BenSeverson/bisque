@@ -1,5 +1,6 @@
 #include "display.h"
 #include "ui_common.h"
+#include "ui_theme.h"
 #include "app_config.h"
 #include "esp_log.h"
 #include "esp_timer.h"
@@ -198,6 +199,12 @@ esp_err_t display_init(spi_host_device_t host, int cs_pin, int dc_pin, int rst_p
     lv_display_set_flush_cb(s_disp, flush_cb);
     lv_display_set_buffers(s_disp, s_buf1, s_buf2, sizeof(s_buf1), LV_DISPLAY_RENDER_MODE_PARTIAL);
     lv_display_set_color_format(s_disp, LV_COLOR_FORMAT_RGB565_SWAPPED);
+
+    /* Install the UI theme before any widget is created so every widget picks up
+     * the shared defaults. The default screen created inside lv_display_create()
+     * predates this and won't be themed, but splash and dashboard build their own
+     * full-screen roots that do get themed. */
+    ui_theme_init(s_disp);
 
     /* Now set the user_ctx on the IO handle so the ISR can call flush_ready */
     esp_lcd_panel_io_register_event_callbacks(
