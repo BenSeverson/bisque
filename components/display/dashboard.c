@@ -3,6 +3,7 @@
 #include "modal_profile_picker.h"
 #include "modal_action_menu.h"
 #include "ui_common.h"
+#include "ui_widgets.h"
 #include "firing_engine.h"
 #include "firing_history.h"
 #include "esp_log.h"
@@ -143,23 +144,11 @@ static const char *error_code_description(firing_error_code_t code)
 
 /* ── Widget helpers ──────────────────────────────────── */
 
-static lv_obj_t *make_label(lv_obj_t *parent, const lv_font_t *font, lv_color_t color, const char *text)
-{
-    lv_obj_t *l = lv_label_create(parent);
-    lv_obj_set_style_text_font(l, font, 0);
-    lv_obj_set_style_text_color(l, color, 0);
-    lv_label_set_text(l, text);
-    return l;
-}
-
 static lv_obj_t *create_content_area(void)
 {
     lv_obj_t *c = lv_obj_create(s_screen);
     lv_obj_set_size(c, UI_LCD_W, UI_LCD_H - STATUS_BAR_H);
     lv_obj_set_pos(c, 0, CONTENT_Y);
-    lv_obj_set_style_bg_opa(c, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(c, 0, 0);
-    lv_obj_set_style_pad_all(c, 0, 0);
     lv_obj_clear_flag(c, LV_OBJ_FLAG_SCROLLABLE);
     return c;
 }
@@ -241,28 +230,22 @@ static void build_view_idle(void)
 {
     s_content = create_content_area();
 
-    s_idle_temp = make_label(s_content, UI_FONT_BIG, UI_COLOR_TEXT, "-");
+    s_idle_temp = ui_make_label(s_content, UI_FONT_BIG, UI_COLOR_TEXT, "-");
     lv_obj_align(s_idle_temp, LV_ALIGN_TOP_MID, 0, 92 - CONTENT_Y);
 
-    lv_obj_t *ready = make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "Ready");
+    lv_obj_t *ready = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "Ready");
     lv_obj_align(ready, LV_ALIGN_TOP_MID, 0, 156 - CONTENT_Y);
 
     /* Last-firing summary, only shown if there's at least one history record. */
     history_record_t last;
     if (history_get_records(&last, 1) > 0) {
-        lv_obj_t *sep = lv_obj_create(s_content);
-        lv_obj_set_size(sep, 200, 1);
+        lv_obj_t *sep = ui_make_separator(s_content, 200);
         lv_obj_align(sep, LV_ALIGN_TOP_MID, 0, 200 - CONTENT_Y);
-        lv_obj_set_style_bg_color(sep, UI_COLOR_BORDER, 0);
-        lv_obj_set_style_bg_opa(sep, LV_OPA_COVER, 0);
-        lv_obj_set_style_border_width(sep, 0, 0);
-        lv_obj_set_style_pad_all(sep, 0, 0);
-        lv_obj_clear_flag(sep, LV_OBJ_FLAG_SCROLLABLE);
 
-        lv_obj_t *header = make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "LAST FIRING");
+        lv_obj_t *header = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "LAST FIRING");
         lv_obj_align(header, LV_ALIGN_TOP_MID, 0, 212 - CONTENT_Y);
 
-        lv_obj_t *name = make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT, last.profile_name);
+        lv_obj_t *name = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT, last.profile_name);
         lv_obj_align(name, LV_ALIGN_TOP_MID, 0, 236 - CONTENT_Y);
 
         char dur_buf[24];
@@ -270,11 +253,11 @@ static void build_view_idle(void)
         char details[96];
         snprintf(details, sizeof(details), "Peak %.0f°C  -  %s  -  %s", (double)last.peak_temp_c, dur_buf,
                  outcome_label(last.outcome));
-        lv_obj_t *details_label = make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, details);
+        lv_obj_t *details_label = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, details);
         lv_obj_align(details_label, LV_ALIGN_TOP_MID, 0, 260 - CONTENT_Y);
     }
 
-    lv_obj_t *hint = make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "SELECT to start a firing");
+    lv_obj_t *hint = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "SELECT to start a firing");
     lv_obj_align(hint, LV_ALIGN_TOP_MID, 0, 286 - CONTENT_Y);
 }
 
@@ -298,31 +281,25 @@ static void build_view_active(void)
 {
     s_content = create_content_area();
 
-    s_active_temp = make_label(s_content, UI_FONT_BIG, UI_COLOR_TEXT, "-");
+    s_active_temp = ui_make_label(s_content, UI_FONT_BIG, UI_COLOR_TEXT, "-");
     lv_obj_align(s_active_temp, LV_ALIGN_TOP_LEFT, LEFT_COL_X, 56 - CONTENT_Y);
 
-    s_active_target = make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "");
+    s_active_target = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "");
     lv_obj_align(s_active_target, LV_ALIGN_TOP_LEFT, LEFT_COL_X, 112 - CONTENT_Y);
 
-    lv_obj_t *sep = lv_obj_create(s_content);
-    lv_obj_set_size(sep, LEFT_COL_W - 12, 1);
+    lv_obj_t *sep = ui_make_separator(s_content, LEFT_COL_W - 12);
     lv_obj_set_pos(sep, LEFT_COL_X, 156 - CONTENT_Y);
-    lv_obj_set_style_bg_color(sep, UI_COLOR_BORDER, 0);
-    lv_obj_set_style_bg_opa(sep, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(sep, 0, 0);
-    lv_obj_set_style_pad_all(sep, 0, 0);
-    lv_obj_clear_flag(sep, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_t *elapsed_hdr = make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "ELAPSED");
+    lv_obj_t *elapsed_hdr = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "ELAPSED");
     lv_obj_align(elapsed_hdr, LV_ALIGN_TOP_LEFT, LEFT_COL_X, 168 - CONTENT_Y);
 
-    s_active_elapsed = make_label(s_content, UI_FONT_MEDIUM, UI_COLOR_TEXT, "0m 00s");
+    s_active_elapsed = ui_make_label(s_content, UI_FONT_MEDIUM, UI_COLOR_TEXT, "0m 00s");
     lv_obj_align(s_active_elapsed, LV_ALIGN_TOP_LEFT, LEFT_COL_X, 192 - CONTENT_Y);
 
-    lv_obj_t *remaining_hdr = make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "REMAINING");
+    lv_obj_t *remaining_hdr = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "REMAINING");
     lv_obj_align(remaining_hdr, LV_ALIGN_TOP_LEFT, LEFT_COL_X, 232 - CONTENT_Y);
 
-    s_active_remaining = make_label(s_content, UI_FONT_MEDIUM, UI_COLOR_TEXT, "-");
+    s_active_remaining = ui_make_label(s_content, UI_FONT_MEDIUM, UI_COLOR_TEXT, "-");
     lv_obj_align(s_active_remaining, LV_ALIGN_TOP_LEFT, LEFT_COL_X, 256 - CONTENT_Y);
 
     /* Chart with planned overlay + actual series. */
@@ -341,16 +318,6 @@ static void build_view_active(void)
     }
     lv_chart_set_range(s_chart, LV_CHART_AXIS_PRIMARY_Y, 0, y_max);
     lv_chart_set_div_line_count(s_chart, 6, 0); /* horizontal grid every ~200°C */
-
-    lv_obj_set_style_bg_color(s_chart, UI_COLOR_SURFACE_1, 0);
-    lv_obj_set_style_bg_opa(s_chart, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_color(s_chart, UI_COLOR_BORDER, 0);
-    lv_obj_set_style_border_width(s_chart, 1, 0);
-    lv_obj_set_style_radius(s_chart, 4, 0);
-    lv_obj_set_style_line_color(s_chart, UI_COLOR_BORDER, LV_PART_MAIN);
-    lv_obj_set_style_line_width(s_chart, 3, LV_PART_ITEMS);
-    lv_obj_set_style_size(s_chart, 0, 0, LV_PART_INDICATOR); /* no point markers */
-    lv_obj_set_style_pad_all(s_chart, 0, 0);
     lv_obj_clear_flag(s_chart, LV_OBJ_FLAG_SCROLLABLE);
 
     /* Planned series first so it draws underneath the actual line. */
@@ -371,12 +338,12 @@ static void build_view_active(void)
     }
 
     /* PAUSED overlay — created here, hidden by default. dashboard_update toggles visibility. */
-    s_paused_overlay = make_label(s_content, UI_FONT_BIG, UI_COLOR_TEXT_DIM, "PAUSED");
+    s_paused_overlay = ui_make_label(s_content, UI_FONT_BIG, UI_COLOR_TEXT_DIM, "PAUSED");
     lv_obj_align_to(s_paused_overlay, s_chart, LV_ALIGN_CENTER, 0, 0);
     lv_obj_add_flag(s_paused_overlay, LV_OBJ_FLAG_HIDDEN);
 
     /* Footer hint, right-aligned. Profile name will fill the left in step 10. */
-    lv_obj_t *hint = make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "SELECT for actions");
+    lv_obj_t *hint = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "SELECT for actions");
     lv_obj_align(hint, LV_ALIGN_TOP_RIGHT, -16, 286 - CONTENT_Y);
 }
 
@@ -427,27 +394,27 @@ static void build_view_complete(const firing_progress_t *prog)
     }
     s_content = create_content_area();
 
-    lv_obj_t *title = make_label(s_content, UI_FONT_MEDIUM, UI_COLOR_TEXT, "Firing complete");
+    lv_obj_t *title = ui_make_label(s_content, UI_FONT_MEDIUM, UI_COLOR_TEXT, "Firing complete");
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 80 - CONTENT_Y);
 
     const char *name = (s_cached_profile_valid && s_cached_profile.name[0] != '\0') ? s_cached_profile.name : "Firing";
-    lv_obj_t *prof = make_label(s_content, UI_FONT_MEDIUM, UI_COLOR_TEXT, name);
+    lv_obj_t *prof = ui_make_label(s_content, UI_FONT_MEDIUM, UI_COLOR_TEXT, name);
     lv_obj_align(prof, LV_ALIGN_TOP_MID, 0, 132 - CONTENT_Y);
 
     char peak_buf[24];
     snprintf(peak_buf, sizeof(peak_buf), "Peak %.0f°C", (double)s_active_peak_c);
-    lv_obj_t *peak = make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT, peak_buf);
+    lv_obj_t *peak = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT, peak_buf);
     lv_obj_align(peak, LV_ALIGN_TOP_MID, 0, 180 - CONTENT_Y);
 
     char buf[32];
     format_duration(prog->elapsed_time, buf, sizeof(buf), "Duration ");
-    lv_obj_t *dur = make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT, buf);
+    lv_obj_t *dur = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT, buf);
     lv_obj_align(dur, LV_ALIGN_TOP_MID, 0, 208 - CONTENT_Y);
 
-    s_complete_now_temp = make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "");
+    s_complete_now_temp = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "");
     lv_obj_align(s_complete_now_temp, LV_ALIGN_TOP_MID, 0, 240 - CONTENT_Y);
 
-    lv_obj_t *hint = make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "SELECT to start a new firing");
+    lv_obj_t *hint = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "SELECT to start a new firing");
     lv_obj_align(hint, LV_ALIGN_TOP_MID, 0, 286 - CONTENT_Y);
 }
 
@@ -474,17 +441,17 @@ static void build_view_error(const firing_progress_t *prog)
     firing_error_code_t code = firing_engine_get_error_code();
     const char *desc = error_code_description(code);
 
-    lv_obj_t *title = make_label(s_content, UI_FONT_MEDIUM, UI_COLOR_TEXT, "Firing stopped");
+    lv_obj_t *title = ui_make_label(s_content, UI_FONT_MEDIUM, UI_COLOR_TEXT, "Firing stopped");
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 80 - CONTENT_Y);
 
-    lv_obj_t *err = make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT, desc);
+    lv_obj_t *err = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT, desc);
     lv_obj_align(err, LV_ALIGN_TOP_MID, 0, 132 - CONTENT_Y);
 
-    s_error_now_temp = make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT, "");
+    s_error_now_temp = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT, "");
     lv_obj_align(s_error_now_temp, LV_ALIGN_TOP_MID, 0, 176 - CONTENT_Y);
 
     if (s_cached_profile_valid && s_cached_profile.name[0] != '\0') {
-        lv_obj_t *prof = make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "");
+        lv_obj_t *prof = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "");
         lv_label_set_text_fmt(prof, "Profile: %s", s_cached_profile.name);
         lv_obj_align(prof, LV_ALIGN_TOP_MID, 0, 204 - CONTENT_Y);
     }
@@ -494,11 +461,11 @@ static void build_view_error(const firing_progress_t *prog)
         char dur_buf[24];
         format_duration(prog->elapsed_time, dur_buf, sizeof(dur_buf), "");
         snprintf(buf, sizeof(buf), "Stopped at Seg %u / %s", (unsigned)(prog->current_segment + 1), dur_buf);
-        lv_obj_t *seg = make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, buf);
+        lv_obj_t *seg = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, buf);
         lv_obj_align(seg, LV_ALIGN_TOP_MID, 0, 232 - CONTENT_Y);
     }
 
-    lv_obj_t *hint = make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "SELECT to acknowledge");
+    lv_obj_t *hint = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "SELECT to acknowledge");
     lv_obj_align(hint, LV_ALIGN_TOP_MID, 0, 286 - CONTENT_Y);
 }
 
@@ -580,9 +547,6 @@ static void switch_view(view_id_t target, const firing_progress_t *prog)
 void dashboard_create(void)
 {
     s_screen = lv_obj_create(NULL);
-    lv_obj_set_style_bg_color(s_screen, UI_COLOR_BG, 0);
-    lv_obj_set_style_bg_opa(s_screen, LV_OPA_COVER, 0);
-    lv_obj_set_style_pad_all(s_screen, 0, 0);
     lv_obj_clear_flag(s_screen, LV_OBJ_FLAG_SCROLLABLE);
 
     s_status_bar = lv_obj_create(s_screen);
@@ -590,15 +554,12 @@ void dashboard_create(void)
     lv_obj_set_pos(s_status_bar, 0, 0);
     lv_obj_set_style_bg_color(s_status_bar, UI_COLOR_IDLE, 0);
     lv_obj_set_style_bg_opa(s_status_bar, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(s_status_bar, 0, 0);
-    lv_obj_set_style_radius(s_status_bar, 0, 0);
-    lv_obj_set_style_pad_all(s_status_bar, 0, 0);
     lv_obj_clear_flag(s_status_bar, LV_OBJ_FLAG_SCROLLABLE);
 
-    s_status_label = make_label(s_status_bar, UI_FONT_SMALL, UI_COLOR_BG, "IDLE");
+    s_status_label = ui_make_label(s_status_bar, UI_FONT_SMALL, UI_COLOR_BG, "IDLE");
     lv_obj_align(s_status_label, LV_ALIGN_LEFT_MID, 16, 0);
 
-    s_seg_label = make_label(s_status_bar, UI_FONT_SMALL, UI_COLOR_BG, "");
+    s_seg_label = ui_make_label(s_status_bar, UI_FONT_SMALL, UI_COLOR_BG, "");
     lv_obj_align(s_seg_label, LV_ALIGN_RIGHT_MID, -16, 0);
 
     /* Invisible 1x1 trap parked off-screen. It's the only object in g_input_group,
@@ -606,9 +567,6 @@ void dashboard_create(void)
     s_select_trap = lv_obj_create(s_screen);
     lv_obj_set_size(s_select_trap, 1, 1);
     lv_obj_set_pos(s_select_trap, -10, -10);
-    lv_obj_set_style_bg_opa(s_select_trap, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(s_select_trap, 0, 0);
-    lv_obj_set_style_pad_all(s_select_trap, 0, 0);
     lv_obj_clear_flag(s_select_trap, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(s_select_trap, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(s_select_trap, on_select_trap_clicked, LV_EVENT_CLICKED, NULL);
