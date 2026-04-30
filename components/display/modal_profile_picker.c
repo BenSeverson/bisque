@@ -95,7 +95,7 @@ static void confirm_builder(lv_obj_t *root, void *ctx)
     lv_obj_t *details = ui_make_label(root, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, buf);
     lv_obj_align(details, LV_ALIGN_TOP_MID, 0, 130);
 
-    lv_obj_t *start_btn = make_modal_button(root, "Start", UI_COLOR_HEATING, UI_COLOR_BG);
+    lv_obj_t *start_btn = make_modal_button(root, "Start", UI_COLOR_HEATING, UI_COLOR_ON_ACCENT);
     lv_obj_align(start_btn, LV_ALIGN_CENTER, -80, 30);
     lv_obj_add_event_cb(start_btn, on_start_clicked, LV_EVENT_CLICKED, NULL);
 
