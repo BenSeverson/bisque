@@ -141,9 +141,22 @@ static void picker_builder(lv_obj_t *root, void *ctx)
         }
         char dur_buf[24];
         format_duration_minutes(p.estimated_duration, dur_buf, sizeof(dur_buf));
-        char label[128];
-        snprintf(label, sizeof(label), "%s   |   %.0f°C   |   ~%s", p.name, (double)p.max_temp, dur_buf);
-        lv_obj_t *btn = lv_list_add_button(list, NULL, label);
+        char subtitle[64];
+        snprintf(subtitle, sizeof(subtitle), "%.0f°C   ~%s", (double)p.max_temp, dur_buf);
+
+        lv_obj_t *btn = lv_list_add_button(list, NULL, NULL);
+        lv_obj_set_layout(btn, LV_LAYOUT_FLEX);
+        lv_obj_set_flex_flow(btn, LV_FLEX_FLOW_COLUMN);
+        lv_obj_set_flex_align(btn, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_height(btn, LV_SIZE_CONTENT);
+
+        lv_obj_t *name = lv_label_create(btn);
+        lv_label_set_text(name, p.name);
+
+        lv_obj_t *sub = lv_label_create(btn);
+        lv_label_set_text(sub, subtitle);
+        lv_obj_set_style_text_color(sub, UI_COLOR_TEXT_DIM, 0);
+
         /* user_data points into s_profile_ids, which has static lifetime — safe to dereference later. */
         lv_obj_add_event_cb(btn, on_profile_clicked, LV_EVENT_CLICKED, s_profile_ids[i]);
     }
