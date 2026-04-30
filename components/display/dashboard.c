@@ -588,7 +588,14 @@ void dashboard_update(const thermocouple_reading_t *tc, const firing_progress_t 
 
     view_id_t target = view_for_status(prog->status);
 
-    if (!view_uses_profile(s_prev_view) && view_uses_profile(target)) {
+    /* Refresh cached profile when entering a profile-using view, or when the
+       active profile_id changes underneath us (e.g. user starts a new firing
+       from the ERROR view — without this, build_view_error would keep showing
+       the prior firing's profile name). */
+    bool entering_profile_view = !view_uses_profile(s_prev_view) && view_uses_profile(target);
+    bool profile_id_changed = view_uses_profile(target) && prog->profile_id[0] != '\0' &&
+                              (!s_cached_profile_valid || strcmp(prog->profile_id, s_cached_profile.id) != 0);
+    if (entering_profile_view || profile_id_changed) {
         enter_profile_view(prog, tc);
     }
 
