@@ -36,12 +36,6 @@ bool boot_status_is_ready(void)
 
 /* ── Splash widgets ───────────────────────────────────────────────────── */
 
-#define SPLASH_BG       lv_color_hex(0xFFFFFF)
-#define SPLASH_WORDMARK lv_color_hex(0x000000)
-#define SPLASH_SUBTITLE lv_color_hex(0x444444)
-#define SPLASH_STATUS   lv_color_hex(0x666666)
-#define SPLASH_VERSION  lv_color_hex(0x999999)
-
 static lv_obj_t *s_root = NULL;
 static lv_obj_t *s_status_label = NULL;
 
@@ -52,10 +46,8 @@ void splash_create(void)
     s_root = lv_obj_create(screen);
     lv_obj_set_size(s_root, UI_LCD_W, UI_LCD_H);
     lv_obj_set_pos(s_root, 0, 0);
-    lv_obj_set_style_bg_color(s_root, SPLASH_BG, 0);
+    lv_obj_set_style_bg_color(s_root, UI_SPLASH_BG, 0);
     lv_obj_set_style_bg_opa(s_root, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(s_root, 0, 0);
-    lv_obj_set_style_pad_all(s_root, 0, 0);
     lv_obj_clear_flag(s_root, LV_OBJ_FLAG_SCROLLABLE);
 
     lv_obj_t *flame = lv_image_create(s_root);
@@ -65,19 +57,19 @@ void splash_create(void)
     lv_obj_t *wordmark = lv_label_create(s_root);
     lv_label_set_text(wordmark, "Bisque");
     lv_obj_set_style_text_font(wordmark, UI_FONT_BIG, 0);
-    lv_obj_set_style_text_color(wordmark, SPLASH_WORDMARK, 0);
+    lv_obj_set_style_text_color(wordmark, UI_SPLASH_WORDMARK, 0);
     lv_obj_align(wordmark, LV_ALIGN_TOP_MID, 0, 132);
 
     lv_obj_t *subtitle = lv_label_create(s_root);
     lv_label_set_text(subtitle, "Kiln Controller");
     lv_obj_set_style_text_font(subtitle, UI_FONT_SMALL, 0);
-    lv_obj_set_style_text_color(subtitle, SPLASH_SUBTITLE, 0);
+    lv_obj_set_style_text_color(subtitle, UI_SPLASH_SUBTITLE, 0);
     lv_obj_align(subtitle, LV_ALIGN_TOP_MID, 0, 188);
 
     s_status_label = lv_label_create(s_root);
     lv_label_set_text(s_status_label, boot_status_get());
     lv_obj_set_style_text_font(s_status_label, UI_FONT_SMALL, 0);
-    lv_obj_set_style_text_color(s_status_label, SPLASH_STATUS, 0);
+    lv_obj_set_style_text_color(s_status_label, UI_SPLASH_STATUS, 0);
     lv_obj_align(s_status_label, LV_ALIGN_TOP_MID, 0, 260);
 
     lv_obj_t *version = lv_label_create(s_root);
@@ -85,7 +77,7 @@ void splash_create(void)
     snprintf(version_buf, sizeof(version_buf), "v%s", esp_app_get_description()->version);
     lv_label_set_text(version, version_buf);
     lv_obj_set_style_text_font(version, UI_FONT_SMALL, 0);
-    lv_obj_set_style_text_color(version, SPLASH_VERSION, 0);
+    lv_obj_set_style_text_color(version, UI_SPLASH_VERSION, 0);
     lv_obj_align(version, LV_ALIGN_BOTTOM_LEFT, 12, -8);
 }
 
