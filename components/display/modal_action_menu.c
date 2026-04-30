@@ -62,11 +62,13 @@ static void stop_confirm_builder(lv_obj_t *root, void *ctx)
     lv_obj_t *body = ui_make_label(root, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "Progress will be lost.");
     lv_obj_align(body, LV_ALIGN_TOP_MID, 0, 130);
 
-    lv_obj_t *stop_btn = make_button(root, "Stop", UI_COLOR_ERROR, UI_COLOR_TEXT);
+    /* 140-wide confirm buttons sit side-by-side at +/-80 with a 20px gap; the
+     * 200-wide menu-list size (BTN_W) would overlap at this offset. */
+    lv_obj_t *stop_btn = ui_make_button(root, 140, 60, "Stop", UI_COLOR_ERROR, UI_COLOR_TEXT);
     lv_obj_align(stop_btn, LV_ALIGN_CENTER, -80, 30);
     lv_obj_add_event_cb(stop_btn, on_stop_confirmed, LV_EVENT_CLICKED, NULL);
 
-    lv_obj_t *cancel_btn = make_button(root, "Cancel", UI_COLOR_BUTTON_BG, UI_COLOR_TEXT);
+    lv_obj_t *cancel_btn = ui_make_button(root, 140, 60, "Cancel", UI_COLOR_BUTTON_BG, UI_COLOR_TEXT);
     lv_obj_align(cancel_btn, LV_ALIGN_CENTER, 80, 30);
     lv_obj_add_event_cb(cancel_btn, on_stop_cancelled, LV_EVENT_CLICKED, NULL);
 
