@@ -3,6 +3,7 @@
 #include "esp_err.h"
 #include "esp_http_server.h"
 #include "firing_types.h"
+#include "cJSON.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -66,6 +67,19 @@ void send_webhook_event(const char *event, const char *profile_name, float peak_
  * Convert firing status enum to lowercase string for JSON APIs.
  */
 const char *firing_status_to_string(firing_status_t s);
+
+/**
+ * Add the shared firing-progress fields (currentTemp, targetTemp, status,
+ * segment counters, elapsed/remaining time, isActive, profileId) to `target`.
+ * Used by both the REST status endpoint and the WebSocket broadcast so the two
+ * payloads stay in sync.
+ *
+ * @param target       cJSON object to mutate.
+ * @param prog         Snapshot from firing_engine_get_progress().
+ * @param current_temp Temperature value to publish (caller decides whether
+ *                     offset/fault adjustments apply).
+ */
+void json_add_progress_fields(cJSON *target, const firing_progress_t *prog, float current_temp);
 
 /* Internal: register API handlers (called by web_server_start) */
 esp_err_t api_handlers_register(httpd_handle_t server);

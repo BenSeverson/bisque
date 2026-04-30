@@ -216,19 +216,6 @@ static void enter_profile_view(const firing_progress_t *prog, const thermocouple
 
 /* ── IDLE view ─────────────────────────────────────────── */
 
-static const char *outcome_label(history_outcome_t outcome)
-{
-    switch (outcome) {
-    case HISTORY_OUTCOME_COMPLETE:
-        return "complete";
-    case HISTORY_OUTCOME_ABORTED:
-        return "aborted";
-    case HISTORY_OUTCOME_ERROR:
-    default:
-        return "error";
-    }
-}
-
 static void build_view_idle(void)
 {
     s_content = create_content_area();
@@ -255,7 +242,7 @@ static void build_view_idle(void)
         format_duration(last.duration_s, dur_buf, sizeof(dur_buf), "");
         char details[96];
         snprintf(details, sizeof(details), "Peak %.0f°C  -  %s  -  %s", (double)last.peak_temp_c, dur_buf,
-                 outcome_label(last.outcome));
+                 history_outcome_to_string(last.outcome));
         lv_obj_t *details_label = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, details);
         lv_obj_align(details_label, LV_ALIGN_TOP_MID, 0, 260 - CONTENT_Y);
     }

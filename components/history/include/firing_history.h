@@ -78,6 +78,12 @@ FILE *history_open_trace(uint32_t record_id);
  */
 void history_clear(void);
 
+/**
+ * Convert outcome enum to lowercase string ("complete" / "error" / "aborted").
+ * Returns "unknown" for out-of-range values.
+ */
+const char *history_outcome_to_string(history_outcome_t outcome);
+
 #ifdef __cplusplus
 }
 #endif

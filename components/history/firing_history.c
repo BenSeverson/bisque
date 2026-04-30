@@ -167,6 +167,20 @@ static esp_err_t save_records_to_json(const history_record_t *records, int count
 
 /* ── Public API ───────────────────────────────────────────────────────── */
 
+const char *history_outcome_to_string(history_outcome_t outcome)
+{
+    switch (outcome) {
+    case HISTORY_OUTCOME_COMPLETE:
+        return "complete";
+    case HISTORY_OUTCOME_ERROR:
+        return "error";
+    case HISTORY_OUTCOME_ABORTED:
+        return "aborted";
+    default:
+        return "unknown";
+    }
+}
+
 esp_err_t history_init(void)
 {
     s_mutex = xSemaphoreCreateMutex();
@@ -271,10 +285,8 @@ void history_firing_end(history_outcome_t outcome, float peak_temp, uint32_t dur
     save_records_to_json(records, count);
     unlock();
 
-    const char *outcome_str = outcome == HISTORY_OUTCOME_COMPLETE ? "complete"
-                              : outcome == HISTORY_OUTCOME_ERROR  ? "error"
-                                                                  : "aborted";
-    ESP_LOGI(TAG, "Firing ended: %s, peak=%.0f°C, %u s", outcome_str, s_current.peak_temp_c, duration_s);
+    ESP_LOGI(TAG, "Firing ended: %s, peak=%.0f°C, %u s", history_outcome_to_string(outcome),
+             s_current.peak_temp_c, duration_s);
 }
 
 int history_get_records(history_record_t *out_records, int max_count)
