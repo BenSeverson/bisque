@@ -51,9 +51,13 @@ static void styles_init(void)
     lv_style_set_pad_all(&s_panel, 0);
 
     /* Button defaults. bg_color is intentionally left to per-instance overrides
-     * because Bisque uses bg as a semantic flag (ERROR / HEATING / BUTTON_BG). */
+     * because Bisque uses bg as a semantic flag (ERROR / HEATING / BUTTON_BG).
+     * bg_opa is set so a freshly themed button paints its bg color — without it
+     * the per-instance bg_color has nothing to render and the button appears
+     * transparent over its parent. */
     lv_style_init(&s_button);
     lv_style_set_radius(&s_button, 6);
+    lv_style_set_bg_opa(&s_button, LV_OPA_COVER);
     lv_style_set_text_color(&s_button, UI_COLOR_TEXT);
 
     lv_style_init(&s_button_focused);
