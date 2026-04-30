@@ -2,8 +2,6 @@
 
 Web dashboard for the Bisque kiln controller. Built with React, Tailwind CSS, and Recharts.
 
-The original design is available at https://www.figma.com/design/RPySfhiIONMDto2aIROkUA/Kiln-Controller-Web-Panel.
-
 ## Development
 
 ```bash
