@@ -1,6 +1,7 @@
 #include "modal_action_menu.h"
 #include "modal.h"
 #include "ui_common.h"
+#include "ui_widgets.h"
 #include "firing_engine.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
@@ -31,30 +32,9 @@ static void send_cmd(firing_cmd_type_t type, const char *desc)
     }
 }
 
-static lv_obj_t *make_label(lv_obj_t *parent, const lv_font_t *font, lv_color_t color, const char *text)
-{
-    lv_obj_t *l = lv_label_create(parent);
-    lv_obj_set_style_text_font(l, font, 0);
-    lv_obj_set_style_text_color(l, color, 0);
-    lv_label_set_text(l, text);
-    return l;
-}
-
 static lv_obj_t *make_button(lv_obj_t *parent, const char *text, lv_color_t bg, lv_color_t fg)
 {
-    lv_obj_t *btn = lv_button_create(parent);
-    lv_obj_set_size(btn, BTN_W, BTN_H);
-    lv_obj_set_style_bg_color(btn, bg, 0);
-    lv_obj_set_style_radius(btn, 6, 0);
-    lv_obj_set_style_outline_color(btn, UI_COLOR_TEXT, LV_STATE_FOCUSED);
-    lv_obj_set_style_outline_width(btn, 3, LV_STATE_FOCUSED);
-    lv_obj_set_style_outline_pad(btn, 2, LV_STATE_FOCUSED);
-    lv_obj_t *lbl = lv_label_create(btn);
-    lv_obj_set_style_text_font(lbl, UI_FONT_SMALL, 0);
-    lv_obj_set_style_text_color(lbl, fg, 0);
-    lv_label_set_text(lbl, text);
-    lv_obj_center(lbl);
-    return btn;
+    return ui_make_button(parent, BTN_W, BTN_H, text, bg, fg);
 }
 
 /* ── Stop confirm ──────────────────────────────────── */
@@ -76,10 +56,10 @@ static void stop_confirm_builder(lv_obj_t *root, void *ctx)
 {
     (void)ctx;
 
-    lv_obj_t *title = make_label(root, UI_FONT_MEDIUM, UI_COLOR_TEXT, "Stop the firing?");
+    lv_obj_t *title = ui_make_label(root, UI_FONT_MEDIUM, UI_COLOR_TEXT, "Stop the firing?");
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 80);
 
-    lv_obj_t *body = make_label(root, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "Progress will be lost.");
+    lv_obj_t *body = ui_make_label(root, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "Progress will be lost.");
     lv_obj_align(body, LV_ALIGN_TOP_MID, 0, 130);
 
     lv_obj_t *stop_btn = make_button(root, "Stop", UI_COLOR_ERROR, UI_COLOR_TEXT);
@@ -93,7 +73,7 @@ static void stop_confirm_builder(lv_obj_t *root, void *ctx)
     /* Destructive default — focus Cancel so accidental SELECT presses don't stop the firing. */
     lv_group_focus_obj(cancel_btn);
 
-    lv_obj_t *hint = make_label(root, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "SELECT to confirm  |  LEFT to go back");
+    lv_obj_t *hint = ui_make_label(root, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "SELECT to confirm  |  LEFT to go back");
     lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -16);
 }
 
@@ -137,7 +117,7 @@ static void menu_builder(lv_obj_t *root, void *ctx)
 {
     (void)ctx;
 
-    lv_obj_t *title = make_label(root, UI_FONT_MEDIUM, UI_COLOR_TEXT, "Actions");
+    lv_obj_t *title = ui_make_label(root, UI_FONT_MEDIUM, UI_COLOR_TEXT, "Actions");
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 16);
 
     lv_obj_t *first_btn = NULL;
@@ -176,7 +156,7 @@ static void menu_builder(lv_obj_t *root, void *ctx)
         lv_group_focus_obj(first_btn);
     }
 
-    lv_obj_t *hint = make_label(root, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "SELECT to choose  |  LEFT to cancel");
+    lv_obj_t *hint = ui_make_label(root, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "SELECT to choose  |  LEFT to cancel");
     lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -16);
 }
 
