@@ -16,7 +16,12 @@ static const char *TAG = "display_task";
 
 #define SPLASH_MIN_VISIBLE_US 1500000 /* keep splash on screen at least 1.5 s */
 
-static void check_left_cancel(void)
+extern lv_group_t *g_input_group;
+
+/* LEFT/RIGHT alias UP/DOWN: both axes move focus through the active group.
+ * Cancel is always a visible button on dismissible modals — there is no
+ * "back via LEFT" gesture. */
+static void route_lr_focus(void)
 {
     bool left = display_consume_left_press();
     bool right = display_consume_right_press();
@@ -31,6 +36,13 @@ static void check_left_cancel(void)
         }
         if (right) {
             dashboard_modal_nav_right();
+        }
+    } else {
+        if (left) {
+            lv_group_focus_prev(g_input_group);
+        }
+        if (right) {
+            lv_group_focus_next(g_input_group);
         }
     }
     lv_unlock();
@@ -102,7 +114,7 @@ void display_task(void *param)
     for (;;) {
         /* LVGL timer handler (~30ms interval → ~30 FPS) */
         lv_timer_handler();
-        check_left_cancel();
+        route_lr_focus();
 
         /* Data polling at 500ms intervals */
         int64_t now_us = esp_timer_get_time();
