@@ -107,13 +107,19 @@ partition_table/    # ESP32 partition layout
 - `dashboard_modal_open(builder, ctx)` — push a frame; the builder populates widgets and they auto-join the modal's input group.
 - `dashboard_modal_close()` — pop top; rebuilds parent if any.
 - `dashboard_modal_close_all()` — used when an action commits (Start/Stop) to dismiss the workflow.
-- `dashboard_modal_use_horizontal_nav()` — call from inside a builder to make Left/Right move focus between buttons instead of closing the frame. Resets per-build.
 
 Existing modal builders: `modal_profile_picker.c`, `modal_action_menu.c`.
 
 **No "new screens".** Either extend `dashboard.c` (if the surface is status-driven) or add a modal builder in `components/display/modal_*.c` and push it via `dashboard_modal_open()`. Builders run under the LVGL lock; pass long-lived (static/global) ctx, never stack data.
 
-**Input routing:** the dashboard parks an invisible focusable trap (`s_select_trap`) in `g_input_group` so the encoder always has a focus target; modals swap the indev to their own group while open. Left/Right physical presses are routed via `display_consume_left_press()` / `display_consume_right_press()` and dispatched to `dashboard_modal_nav_left/right()` when a modal is active.
+**Input model — joystick is a pure navigator.** The 5-way switch only ever moves focus or activates the focused widget; there is no "back via LEFT" gesture. Every dismissible modal must include a visible **Cancel** button — the user navigates to it like any other control and presses SELECT to close the frame.
+
+- UP / LEFT → `lv_group_focus_prev()` on the active group
+- DOWN / RIGHT → `lv_group_focus_next()` on the active group
+- SELECT → activate the focused widget
+- LEFT/RIGHT alias UP/DOWN so the user doesn't have to know which axis a layout uses (vertical lists, horizontal Start/Cancel pairs — both work).
+
+Plumbing: the dashboard parks an invisible focusable trap (`s_select_trap`) in `g_input_group` so SELECT on the bare dashboard fires `LV_EVENT_CLICKED` and opens the contextual modal; modals swap the indev to `g_modal_group` while open. UP/DOWN and SELECT flow through LVGL's encoder driver; LEFT/RIGHT are polled outside LVGL via `display_consume_left_press()` / `display_consume_right_press()` and dispatched in `display_task::route_lr_focus()` to `dashboard_modal_nav_left/right()` (modal active) or `lv_group_focus_prev/next(g_input_group)` (dashboard).
 
 ### Icons & Images
 

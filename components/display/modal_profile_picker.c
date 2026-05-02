@@ -104,7 +104,6 @@ static void confirm_builder(lv_obj_t *root, void *ctx)
     lv_obj_add_event_cb(cancel_btn, on_cancel_clicked, LV_EVENT_CLICKED, NULL);
 
     lv_group_focus_obj(start_btn);
-    dashboard_modal_use_horizontal_nav();
 }
 
 /* ── Picker modal ──────────────────────────────────── */
@@ -123,6 +122,12 @@ static void on_profile_clicked(lv_event_t *e)
     dashboard_modal_open(confirm_builder, NULL);
 }
 
+static void on_picker_cancel_clicked(lv_event_t *e)
+{
+    (void)e;
+    dashboard_modal_close();
+}
+
 static void picker_builder(lv_obj_t *root, void *ctx)
 {
     (void)ctx;
@@ -131,7 +136,7 @@ static void picker_builder(lv_obj_t *root, void *ctx)
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 16);
 
     lv_obj_t *list = lv_list_create(root);
-    lv_obj_set_size(list, UI_LCD_W - 32, UI_LCD_H - 130);
+    lv_obj_set_size(list, UI_LCD_W - 32, UI_LCD_H - 180);
     lv_obj_align(list, LV_ALIGN_TOP_MID, 0, 60);
 
     for (int i = 0; i < s_profile_count; i++) {
@@ -161,7 +166,11 @@ static void picker_builder(lv_obj_t *root, void *ctx)
         lv_obj_add_event_cb(btn, on_profile_clicked, LV_EVENT_CLICKED, s_profile_ids[i]);
     }
 
-    lv_obj_t *hint = ui_make_label(root, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "SELECT to choose  |  LEFT to cancel");
+    lv_obj_t *cancel_btn = ui_make_button(root, 200, 44, "Cancel", UI_COLOR_BUTTON_BG, UI_COLOR_TEXT);
+    lv_obj_align(cancel_btn, LV_ALIGN_TOP_MID, 0, UI_LCD_H - 110);
+    lv_obj_add_event_cb(cancel_btn, on_picker_cancel_clicked, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t *hint = ui_make_label(root, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "SELECT to choose");
     lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -16);
 }
 
