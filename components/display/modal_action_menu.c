@@ -10,8 +10,8 @@
 static const char *TAG = "actions";
 
 #define BTN_W       200
-#define BTN_H       60
-#define BTN_GAP     16
+#define BTN_H       44
+#define BTN_GAP     12
 #define BTN_FIRST_Y 72
 
 static firing_status_t s_status_at_open = FIRING_STATUS_IDLE;
@@ -75,7 +75,7 @@ static void stop_confirm_builder(lv_obj_t *root, void *ctx)
     /* Destructive default — focus Cancel so accidental SELECT presses don't stop the firing. */
     lv_group_focus_obj(cancel_btn);
 
-    lv_obj_t *hint = ui_make_label(root, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "SELECT to confirm  |  LEFT to go back");
+    lv_obj_t *hint = ui_make_label(root, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "SELECT to confirm");
     lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -16);
 }
 
@@ -115,6 +115,12 @@ static void on_autotune_stop_clicked(lv_event_t *e)
     dashboard_modal_close_all();
 }
 
+static void on_menu_cancel_clicked(lv_event_t *e)
+{
+    (void)e;
+    dashboard_modal_close();
+}
+
 static void menu_builder(lv_obj_t *root, void *ctx)
 {
     (void)ctx;
@@ -130,6 +136,7 @@ static void menu_builder(lv_obj_t *root, void *ctx)
         lv_obj_align(btn, LV_ALIGN_TOP_MID, 0, y);
         lv_obj_add_event_cb(btn, on_autotune_stop_clicked, LV_EVENT_CLICKED, NULL);
         first_btn = btn;
+        y += BTN_H + BTN_GAP;
     } else {
         if (s_status_at_open == FIRING_STATUS_PAUSED) {
             lv_obj_t *btn = make_button(root, "Resume", UI_COLOR_HEATING, UI_COLOR_ON_ACCENT);
@@ -152,13 +159,18 @@ static void menu_builder(lv_obj_t *root, void *ctx)
         lv_obj_t *stop = make_button(root, "Stop", UI_COLOR_ERROR, lv_color_white());
         lv_obj_align(stop, LV_ALIGN_TOP_MID, 0, y);
         lv_obj_add_event_cb(stop, on_stop_clicked, LV_EVENT_CLICKED, NULL);
+        y += BTN_H + BTN_GAP;
     }
+
+    lv_obj_t *cancel = make_button(root, "Cancel", UI_COLOR_BUTTON_BG, UI_COLOR_TEXT);
+    lv_obj_align(cancel, LV_ALIGN_TOP_MID, 0, y);
+    lv_obj_add_event_cb(cancel, on_menu_cancel_clicked, LV_EVENT_CLICKED, NULL);
 
     if (first_btn) {
         lv_group_focus_obj(first_btn);
     }
 
-    lv_obj_t *hint = ui_make_label(root, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "SELECT to choose  |  LEFT to cancel");
+    lv_obj_t *hint = ui_make_label(root, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "SELECT to choose");
     lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -16);
 }
 
