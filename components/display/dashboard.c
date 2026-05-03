@@ -191,6 +191,15 @@ static void destroy_content(void)
         s_content = NULL;
     }
     clear_view_widgets();
+
+    /* IDLE promotes a real button into g_input_group; the button is gone now,
+       so re-park encoder focus on the invisible trap. */
+    if (s_select_trap) {
+        if (lv_obj_get_group(s_select_trap) == NULL) {
+            lv_group_add_obj(g_input_group, s_select_trap);
+        }
+        lv_group_focus_obj(s_select_trap);
+    }
 }
 
 /* Refresh the cached profile (and derived total duration + reset peak) for views that
@@ -216,6 +225,15 @@ static void enter_profile_view(const firing_progress_t *prog, const thermocouple
 
 /* ── IDLE view ─────────────────────────────────────────── */
 
+static void on_idle_select_btn_clicked(lv_event_t *e)
+{
+    (void)e;
+    if (dashboard_modal_active()) {
+        return;
+    }
+    modal_profile_picker_open();
+}
+
 static void build_view_idle(void)
 {
     s_content = create_content_area();
@@ -226,17 +244,18 @@ static void build_view_idle(void)
     lv_obj_t *ready = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "Ready");
     lv_obj_align(ready, LV_ALIGN_TOP_MID, 0, 156 - CONTENT_Y);
 
-    /* Last-firing summary, only shown if there's at least one history record. */
+    /* Last-firing summary, only shown if there's at least one history record.
+       Positioned above the Select-profile button at the bottom. */
     history_record_t last;
     if (history_get_records(&last, 1) > 0) {
         lv_obj_t *sep = ui_make_separator(s_content, 200);
-        lv_obj_align(sep, LV_ALIGN_TOP_MID, 0, 200 - CONTENT_Y);
+        lv_obj_align(sep, LV_ALIGN_TOP_MID, 0, 192 - CONTENT_Y);
 
         lv_obj_t *header = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "LAST FIRING");
-        lv_obj_align(header, LV_ALIGN_TOP_MID, 0, 212 - CONTENT_Y);
+        lv_obj_align(header, LV_ALIGN_TOP_MID, 0, 204 - CONTENT_Y);
 
         lv_obj_t *name = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT, last.profile_name);
-        lv_obj_align(name, LV_ALIGN_TOP_MID, 0, 236 - CONTENT_Y);
+        lv_obj_align(name, LV_ALIGN_TOP_MID, 0, 224 - CONTENT_Y);
 
         char dur_buf[24];
         format_duration(last.duration_s, dur_buf, sizeof(dur_buf), "");
@@ -244,11 +263,18 @@ static void build_view_idle(void)
         snprintf(details, sizeof(details), "Peak %.0f°C  -  %s  -  %s", (double)last.peak_temp_c, dur_buf,
                  history_outcome_to_string(last.outcome));
         lv_obj_t *details_label = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, details);
-        lv_obj_align(details_label, LV_ALIGN_TOP_MID, 0, 260 - CONTENT_Y);
+        lv_obj_align(details_label, LV_ALIGN_TOP_MID, 0, 244 - CONTENT_Y);
     }
 
-    lv_obj_t *hint = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "SELECT to start a firing");
-    lv_obj_align(hint, LV_ALIGN_TOP_MID, 0, 286 - CONTENT_Y);
+    lv_obj_t *select_btn = ui_make_button(s_content, 200, 40, "Select profile", UI_COLOR_HEATING, UI_COLOR_ON_ACCENT);
+    lv_obj_align(select_btn, LV_ALIGN_BOTTOM_MID, 0, -8);
+    lv_obj_add_event_cb(select_btn, on_idle_select_btn_clicked, LV_EVENT_CLICKED, NULL);
+
+    /* Hand encoder focus from the invisible SELECT trap to this visible button.
+       destroy_content() restores the trap when the IDLE view tears down. */
+    lv_group_remove_obj(s_select_trap);
+    lv_group_add_obj(g_input_group, select_btn);
+    lv_group_focus_obj(select_btn);
 }
 
 static void update_view_idle(const thermocouple_reading_t *tc)
@@ -331,10 +357,6 @@ static void build_view_active(void)
     s_paused_overlay = ui_make_label(s_content, UI_FONT_BIG, UI_COLOR_TEXT_DIM, "PAUSED");
     lv_obj_align_to(s_paused_overlay, s_chart, LV_ALIGN_CENTER, 0, 0);
     lv_obj_add_flag(s_paused_overlay, LV_OBJ_FLAG_HIDDEN);
-
-    /* Footer hint, right-aligned. Profile name will fill the left in step 10. */
-    lv_obj_t *hint = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "SELECT for actions");
-    lv_obj_align(hint, LV_ALIGN_TOP_RIGHT, -16, 286 - CONTENT_Y);
 }
 
 static void update_view_active(const thermocouple_reading_t *tc, const firing_progress_t *prog)
@@ -403,9 +425,6 @@ static void build_view_complete(const firing_progress_t *prog)
 
     s_complete_now_temp = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "");
     lv_obj_align(s_complete_now_temp, LV_ALIGN_TOP_MID, 0, 240 - CONTENT_Y);
-
-    lv_obj_t *hint = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "SELECT to start a new firing");
-    lv_obj_align(hint, LV_ALIGN_TOP_MID, 0, 286 - CONTENT_Y);
 }
 
 static void update_view_complete(const thermocouple_reading_t *tc)
@@ -454,9 +473,6 @@ static void build_view_error(const firing_progress_t *prog)
         lv_obj_t *seg = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, buf);
         lv_obj_align(seg, LV_ALIGN_TOP_MID, 0, 232 - CONTENT_Y);
     }
-
-    lv_obj_t *hint = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "SELECT to acknowledge");
-    lv_obj_align(hint, LV_ALIGN_TOP_MID, 0, 286 - CONTENT_Y);
 }
 
 static void update_view_error(const thermocouple_reading_t *tc)
