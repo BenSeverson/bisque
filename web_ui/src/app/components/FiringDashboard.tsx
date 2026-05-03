@@ -61,7 +61,6 @@ export function FiringDashboard() {
   const skipSegment = useSkipSegment();
 
   const [delayMinutes, setDelayMinutes] = useState<number>(0);
-  const [profilePath, setProfilePath] = useState<TemperatureDataPoint[]>([]);
 
   // Fetch initial status from REST API
   useEffect(() => {
@@ -87,11 +86,8 @@ export function FiringDashboard() {
   }, []);
 
   // Calculate the complete profile path when profile is selected
-  useEffect(() => {
-    if (!selectedProfile) {
-      setProfilePath([]);
-      return;
-    }
+  const profilePath = useMemo<TemperatureDataPoint[]>(() => {
+    if (!selectedProfile) return [];
 
     const path: TemperatureDataPoint[] = [];
     let currentTime = 0;
@@ -135,7 +131,7 @@ export function FiringDashboard() {
       }
     });
 
-    setProfilePath(path);
+    return path;
   }, [selectedProfile]);
 
   const handleStart = useCallback(async () => {

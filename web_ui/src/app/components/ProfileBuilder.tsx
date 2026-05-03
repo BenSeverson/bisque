@@ -53,7 +53,6 @@ export function ProfileBuilder() {
     control,
     reset,
     watch,
-    setValue,
     formState: { errors },
   } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
