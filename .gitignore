@@ -2,6 +2,7 @@
 build/
 sdkconfig
 sdkconfig.old
+sdkconfig.defaults.local
 
 # Managed components (fetched during build)
 managed_components/
