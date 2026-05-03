@@ -74,9 +74,6 @@ static void stop_confirm_builder(lv_obj_t *root, void *ctx)
 
     /* Destructive default — focus Cancel so accidental SELECT presses don't stop the firing. */
     lv_group_focus_obj(cancel_btn);
-
-    lv_obj_t *hint = ui_make_label(root, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "SELECT to confirm");
-    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -16);
 }
 
 /* ── Action menu ───────────────────────────────────── */
@@ -169,9 +166,6 @@ static void menu_builder(lv_obj_t *root, void *ctx)
     if (first_btn) {
         lv_group_focus_obj(first_btn);
     }
-
-    lv_obj_t *hint = ui_make_label(root, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "SELECT to choose");
-    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -16);
 }
 
 /* ── Public API ────────────────────────────────────── */
