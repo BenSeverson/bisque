@@ -65,7 +65,7 @@ static void dashboard_tick_cb(lv_timer_t *t)
      */
     lv_mem_monitor_t mon;
     lv_mem_monitor(&mon);
-    ESP_LOGI(TAG, "LVGL mem: %lu used, %lu free, %d%% frag", (unsigned long)(mon.total_size - mon.free_size),
+    ESP_LOGD(TAG, "LVGL mem: %lu used, %lu free, %d%% frag", (unsigned long)(mon.total_size - mon.free_size),
              (unsigned long)mon.free_size, mon.frag_pct);
 
     float temp = tc.fault ? 0 : tc.temperature_c;
