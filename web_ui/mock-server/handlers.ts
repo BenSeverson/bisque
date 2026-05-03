@@ -1,7 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'http';
 import { state } from './state';
 import { startFiring, stopFiring, pauseFiring, getStatusResponse } from './simulator';
-import { AMBIENT } from './physics';
 
 function json(res: ServerResponse, data: unknown, status = 200): void {
   res.writeHead(status, { 'Content-Type': 'application/json' });
