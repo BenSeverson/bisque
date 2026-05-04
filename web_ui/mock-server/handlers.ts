@@ -173,7 +173,7 @@ function generateConeFire(params: {
       holdTime: 0,
     });
     segments.push({
-      id: `cone-seg-${id++}`,
+      id: `cone-seg-${id}`,
       name: 'Slow Cool 2',
       rampRate: -50,
       targetTemp: 500,
