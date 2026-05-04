@@ -3,9 +3,12 @@ cmake_minimum_required(VERSION 3.16)
 set(EXTRA_COMPONENT_DIRS "components")
 
 # Layer an untracked sdkconfig.defaults.local on top of sdkconfig.defaults so
-# local-only settings (e.g. Wi-Fi creds) persist without being committed.
-# Missing files are tolerated by ESP-IDF.
-set(SDKCONFIG_DEFAULTS "sdkconfig.defaults;sdkconfig.defaults.local")
+# local-only settings (e.g. Wi-Fi creds) persist without being committed. Only
+# include the local file when it exists — ESP-IDF errors on missing entries.
+set(SDKCONFIG_DEFAULTS "sdkconfig.defaults")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/sdkconfig.defaults.local")
+    list(APPEND SDKCONFIG_DEFAULTS "sdkconfig.defaults.local")
+endif()
 
 # Derive PROJECT_VER from scripts/version.sh (git describe) unless the caller
 # already exported BISQUE_VERSION. ESP-IDF embeds PROJECT_VER into esp_app_desc.
