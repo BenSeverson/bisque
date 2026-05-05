@@ -1,29 +1,69 @@
 import { FiringProfile, KilnSettings, ConeEntry, HistoryRecord } from "../types/kiln";
+import { kilnWS } from "./websocket";
 
 const API_BASE = "/api/v1";
+const TOKEN_STORAGE_KEY = "bisque.apiToken";
 
-// API token for auth (stored in memory, not localStorage for security)
-let _apiToken: string | null = null;
+// Persisted in sessionStorage so a page reload doesn't lock the user out, but
+// it's still cleared when the browser/tab closes.
+let _apiToken: string | null =
+  typeof window !== "undefined" ? window.sessionStorage.getItem(TOKEN_STORAGE_KEY) : null;
+
+// Propagate the persisted token to the WS client at module-load time.
+if (_apiToken) kilnWS.setAuthToken(_apiToken);
 
 export function setApiToken(token: string | null) {
   _apiToken = token;
+  if (typeof window !== "undefined") {
+    if (token) window.sessionStorage.setItem(TOKEN_STORAGE_KEY, token);
+    else window.sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+  }
+  kilnWS.setAuthToken(token);
+}
+
+export function getApiToken(): string | null {
+  return _apiToken;
+}
+
+function authHeaders(): Record<string, string> {
+  return _apiToken ? { Authorization: `Bearer ${_apiToken}` } : {};
 }
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (_apiToken) {
-    headers["Authorization"] = `Bearer ${_apiToken}`;
-  }
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...authHeaders(),
+  };
 
   const res = await fetch(`${API_BASE}${url}`, {
-    headers,
     ...options,
+    headers: { ...headers, ...(options?.headers as Record<string, string> | undefined) },
   });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`API error ${res.status}: ${text}`);
   }
   return res.json();
+}
+
+/** Authenticated fetch that returns the response Blob for download. */
+async function fetchBlob(url: string): Promise<Blob> {
+  const res = await fetch(`${API_BASE}${url}`, { headers: authHeaders() });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
+  return res.blob();
+}
+
+/** Authenticated fetch that returns response text. */
+async function fetchText(url: string): Promise<string> {
+  const res = await fetch(`${API_BASE}${url}`, { headers: authHeaders() });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
+  return res.text();
 }
 
 export interface StatusResponse {
@@ -103,7 +143,7 @@ export const api = {
       body: JSON.stringify(copy),
     });
   },
-  exportProfile: (id: string) => `${API_BASE}/profiles/${id}/export`,
+  exportProfile: (id: string) => fetchBlob(`/profiles/${id}/export`),
   importProfile: (profile: FiringProfile) =>
     request<{ ok: boolean; id: string }>("/profiles/import", {
       method: "POST",
@@ -156,7 +196,8 @@ export const api = {
 
   // History
   getHistory: () => request<HistoryRecord[]>("/history"),
-  getHistoryTrace: (recordId: number) => `${API_BASE}/history/${recordId}/trace`,
+  getHistoryTrace: (recordId: number) => fetchText(`/history/${recordId}/trace`),
+  getHistoryTraceBlob: (recordId: number) => fetchBlob(`/history/${recordId}/trace`),
 
   // OTA
   uploadOta: async (file: File, onProgress?: (pct: number) => void): Promise<{ ok: boolean }> => {

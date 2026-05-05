@@ -177,11 +177,8 @@ export function ProfileBuilder() {
       toast.success(`Profile "${data.name}" saved successfully`);
       setEditingProfileId(null);
       reset({ name: "", description: "", segments: [] });
-    } catch {
-      // The mutation's onError fallback handles local cache update
-      toast.success(`Profile "${data.name}" saved locally`);
-      setEditingProfileId(null);
-      reset({ name: "", description: "", segments: [] });
+    } catch (err) {
+      toast.error(`Failed to save profile: ${toErrorMessage(err)}`);
     }
   };
 
@@ -193,8 +190,8 @@ export function ProfileBuilder() {
       toast.success("Profile deleted");
       setEditingProfileId(null);
       reset({ name: "", description: "", segments: [] });
-    } catch {
-      toast.error("Failed to delete profile");
+    } catch (err) {
+      toast.error(`Failed to delete profile: ${toErrorMessage(err)}`);
     }
   };
 
@@ -476,9 +473,15 @@ export function ProfileBuilder() {
                           type="number"
                           {...register(`segments.${index}.rampRate`, { valueAsNumber: true })}
                         />
-                        <p className="text-xs text-muted-foreground">
-                          Positive to heat, negative to cool
-                        </p>
+                        {errors.segments?.[index]?.rampRate ? (
+                          <p className="text-xs text-destructive">
+                            {errors.segments[index].rampRate.message}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            Positive to heat, negative to cool
+                          </p>
+                        )}
                       </div>
 
                       <div className="space-y-2">
@@ -487,6 +490,11 @@ export function ProfileBuilder() {
                           type="number"
                           {...register(`segments.${index}.targetTemp`, { valueAsNumber: true })}
                         />
+                        {errors.segments?.[index]?.targetTemp && (
+                          <p className="text-xs text-destructive">
+                            {errors.segments[index].targetTemp.message}
+                          </p>
+                        )}
                       </div>
 
                       <div className="space-y-2">
@@ -496,9 +504,15 @@ export function ProfileBuilder() {
                           {...register(`segments.${index}.holdTime`, { valueAsNumber: true })}
                           min="0"
                         />
-                        <p className="text-xs text-muted-foreground">
-                          0 = no hold (advance immediately)
-                        </p>
+                        {errors.segments?.[index]?.holdTime ? (
+                          <p className="text-xs text-destructive">
+                            {errors.segments[index].holdTime.message}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            0 = no hold (advance immediately)
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>

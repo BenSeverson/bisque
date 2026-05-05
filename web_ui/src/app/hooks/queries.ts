@@ -101,15 +101,6 @@ export function useSaveProfile() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.profiles });
     },
-    onError: (_err, profile) => {
-      // Local-only fallback: update cache directly
-      queryClient.setQueryData<FiringProfile[]>(queryKeys.profiles, (old) => {
-        if (!old) return [profile];
-        const existing = old.find((p) => p.id === profile.id);
-        if (existing) return old.map((p) => (p.id === profile.id ? profile : p));
-        return [...old, profile];
-      });
-    },
   });
 }
 
@@ -121,12 +112,6 @@ export function useDeleteProfile() {
     onSuccess: (_data, profileId) => {
       if (selectedProfileId === profileId) setSelectedProfileId(null);
       queryClient.invalidateQueries({ queryKey: queryKeys.profiles });
-    },
-    onError: (_err, profileId) => {
-      if (selectedProfileId === profileId) setSelectedProfileId(null);
-      queryClient.setQueryData<FiringProfile[]>(queryKeys.profiles, (old) =>
-        old?.filter((p) => p.id !== profileId),
-      );
     },
   });
 }

@@ -16,75 +16,112 @@ export interface WSMessage {
 
 type MessageHandler = (msg: WSMessage) => void;
 
+const RECONNECT_DELAY_MS = 3000;
+
 class KilnWebSocket {
   private ws: WebSocket | null = null;
   private handlers: Set<MessageHandler> = new Set();
   private reconnectTimer: number | null = null;
-  private url: string;
+  private intentionalClose = false;
+  private token: string | null = null;
 
-  constructor() {
+  private buildUrl(): string {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    this.url = `${protocol}//${window.location.host}/api/v1/ws`;
+    const base = `${protocol}//${window.location.host}/api/v1/ws`;
+    return this.token ? `${base}?token=${encodeURIComponent(this.token)}` : base;
+  }
+
+  setAuthToken(token: string | null) {
+    if (this.token === token) return;
+    this.token = token;
+    // Reconnect with the new credential if we're currently up.
+    if (this.ws) {
+      this.intentionalClose = true;
+      this.detachHandlers(this.ws);
+      this.ws.close();
+      this.ws = null;
+      this.intentionalClose = false;
+      this.connect();
+    }
   }
 
   connect() {
-    if (this.ws?.readyState === WebSocket.OPEN) return;
+    if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING) {
+      return;
+    }
+
+    this.intentionalClose = false;
 
     try {
-      this.ws = new WebSocket(this.url);
+      const ws = new WebSocket(this.buildUrl());
+      this.ws = ws;
 
-      this.ws.onopen = () => {
-        console.log("[WS] Connected");
+      ws.onopen = () => {
+        if (import.meta.env.DEV) console.log("[WS] Connected");
         if (this.reconnectTimer) {
           clearTimeout(this.reconnectTimer);
           this.reconnectTimer = null;
         }
       };
 
-      this.ws.onmessage = (event) => {
+      ws.onmessage = (event) => {
         try {
           const msg: WSMessage = JSON.parse(event.data);
           this.handlers.forEach((handler) => handler(msg));
         } catch (e) {
-          console.warn("[WS] Failed to parse message:", e);
+          if (import.meta.env.DEV) console.warn("[WS] Failed to parse message:", e);
         }
       };
 
-      this.ws.onclose = () => {
-        console.log("[WS] Disconnected, reconnecting...");
+      ws.onclose = () => {
+        if (this.intentionalClose) return;
+        if (import.meta.env.DEV) console.log("[WS] Disconnected, reconnecting...");
         this.scheduleReconnect();
       };
 
-      this.ws.onerror = (err) => {
-        console.error("[WS] Error:", err);
-        this.ws?.close();
+      ws.onerror = (err) => {
+        if (import.meta.env.DEV) console.error("[WS] Error:", err);
+        // Let onclose handle reconnect; closing here would double-fire.
       };
     } catch (e) {
-      console.error("[WS] Failed to connect:", e);
+      if (import.meta.env.DEV) console.error("[WS] Failed to connect:", e);
       this.scheduleReconnect();
     }
   }
 
+  private detachHandlers(ws: WebSocket) {
+    ws.onopen = null;
+    ws.onmessage = null;
+    ws.onclose = null;
+    ws.onerror = null;
+  }
+
   private scheduleReconnect() {
-    if (this.reconnectTimer) return;
+    if (this.reconnectTimer || this.intentionalClose) return;
     this.reconnectTimer = window.setTimeout(() => {
       this.reconnectTimer = null;
       this.connect();
-    }, 3000);
+    }, RECONNECT_DELAY_MS);
   }
 
   disconnect() {
+    this.intentionalClose = true;
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-    this.ws?.close();
-    this.ws = null;
+    if (this.ws) {
+      this.detachHandlers(this.ws);
+      this.ws.close();
+      this.ws = null;
+    }
   }
 
   subscribe(handler: MessageHandler): () => void {
     this.handlers.add(handler);
-    return () => this.handlers.delete(handler);
+    return () => {
+      this.handlers.delete(handler);
+    };
   }
 }
 
