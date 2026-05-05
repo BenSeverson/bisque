@@ -4,11 +4,23 @@ import { FiringProfile, KilnSettings } from "../types/kiln";
 import { useKilnStore } from "../stores/kilnStore";
 import { mockProfiles } from "../data/mockProfiles";
 
+export const DEFAULT_SETTINGS: KilnSettings = {
+  tempUnit: "C",
+  maxSafeTemp: 1400,
+  alarmEnabled: true,
+  autoShutdown: true,
+  notificationsEnabled: true,
+  tcOffsetC: 0,
+  webhookUrl: "",
+  apiTokenSet: false,
+  elementWatts: 0,
+  electricityCostKwh: 0,
+};
+
 // Query keys
 export const queryKeys = {
   profiles: ["profiles"] as const,
   settings: ["settings"] as const,
-  status: ["status"] as const,
   systemInfo: ["systemInfo"] as const,
   autotuneStatus: ["autotuneStatus"] as const,
   history: ["history"] as const,
@@ -36,25 +48,7 @@ export function useSettings() {
   return useQuery({
     queryKey: queryKeys.settings,
     queryFn: () => api.getSettings(),
-    placeholderData: {
-      tempUnit: "C" as const,
-      maxSafeTemp: 1400,
-      alarmEnabled: true,
-      autoShutdown: true,
-      notificationsEnabled: true,
-      tcOffsetC: 0,
-      webhookUrl: "",
-      elementWatts: 0,
-      electricityCostKwh: 0,
-    },
-  });
-}
-
-export function useStatus() {
-  return useQuery({
-    queryKey: queryKeys.status,
-    queryFn: () => api.getStatus(),
-    retry: false,
+    placeholderData: DEFAULT_SETTINGS,
   });
 }
 

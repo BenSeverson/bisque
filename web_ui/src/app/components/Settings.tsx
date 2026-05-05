@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type Path, type PathValue } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { formatUptime } from "../utils/time";
 import { toErrorMessage } from "../utils/error";
@@ -84,16 +84,14 @@ export function Settings() {
     }
   };
 
-  // Optimistic update helper for switches/selects that save immediately
-  const updateField = (
-    field: keyof SettingsFormValues,
-    value: SettingsFormValues[keyof SettingsFormValues],
-  ) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    setValue(field, value as any);
-    const updated = { ...watchedSettings, [field]: value };
-    saveSettings.mutate(updated);
-  };
+  // Optimistic update helper for switches/selects that save immediately.
+  function updateField<K extends Path<SettingsFormValues>>(
+    field: K,
+    value: PathValue<SettingsFormValues, K>,
+  ) {
+    setValue(field, value);
+    saveSettings.mutate({ ...watchedSettings, [field]: value });
+  }
 
   const handleSetToken = useCallback(async () => {
     if (!newToken.trim()) return;
@@ -167,7 +165,11 @@ export function Settings() {
     }
   }, [otaFile, uploadOta]);
 
-  const formatBytes = (bytes: number) => `${Math.round(bytes / 1024)} KB`;
+  const formatBytes = (bytes: number) => {
+    if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
+    return `${bytes} B`;
+  };
   const formatHours = (seconds: number) => `${(seconds / 3600).toFixed(1)} hrs`;
 
   return (

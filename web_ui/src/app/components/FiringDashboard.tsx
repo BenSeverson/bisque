@@ -26,7 +26,12 @@ import {
   SkipForward,
   Timer,
 } from "lucide-react";
-import { TemperatureDataPoint, HOLD_UNTIL_SKIP } from "../types/kiln";
+import {
+  TemperatureDataPoint,
+  HOLD_UNTIL_SKIP,
+  coerceFiringStatus,
+  FiringStatus,
+} from "../types/kiln";
 import { api } from "../services/api";
 import { toast } from "sonner";
 import { formatDuration } from "../utils/time";
@@ -40,6 +45,13 @@ import {
   usePauseFiring,
   useSkipSegment,
 } from "../hooks/queries";
+
+interface ChartPoint {
+  time: number;
+  profile?: number;
+  current?: number;
+  target?: number;
+}
 
 export function FiringDashboard() {
   const {
@@ -83,7 +95,7 @@ export function FiringDashboard() {
             totalSegments: s.totalSegments,
             elapsedTime: s.elapsedTime,
             estimatedTimeRemaining: s.estimatedTimeRemaining,
-            status: s.status,
+            status: coerceFiringStatus(s.status),
           },
           currentTempData: [
             {
@@ -191,14 +203,14 @@ export function FiringDashboard() {
     }
   }, [stopFiring, resetTempData]);
 
-  const getProgress = () => {
+  const progress = useMemo(() => {
     if (!selectedProfile || firingProgress.elapsedTime === 0) return 0;
     const totalSeconds = selectedProfile.estimatedDuration * 60;
     return Math.min(100, (firingProgress.elapsedTime / totalSeconds) * 100);
-  };
+  }, [selectedProfile, firingProgress.elapsedTime]);
 
   const getStatusBadge = () => {
-    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+    const variants: Record<FiringStatus, "default" | "secondary" | "destructive" | "outline"> = {
       heating: "default",
       holding: "default",
       cooling: "default",
@@ -209,20 +221,13 @@ export function FiringDashboard() {
       idle: "secondary",
     };
     return (
-      <Badge variant={variants[firingProgress.status] || "secondary"}>
+      <Badge variant={variants[firingProgress.status]}>
         {firingProgress.status.charAt(0).toUpperCase() + firingProgress.status.slice(1)}
       </Badge>
     );
   };
 
-  interface ChartPoint {
-    time: number;
-    profile?: number;
-    current?: number;
-    target?: number;
-  }
-
-  const getChartData = (): ChartPoint[] => {
+  const chartData = useMemo<ChartPoint[]>(() => {
     if (!selectedProfile || profilePath.length === 0) {
       return currentTempData.map((p) => ({ time: p.time, current: p.temp, target: p.target }));
     }
@@ -244,7 +249,7 @@ export function FiringDashboard() {
     });
 
     return Array.from(map.values()).sort((a, b) => a.time - b.time);
-  };
+  }, [selectedProfile, profilePath, currentTempData]);
 
   return (
     <div className="space-y-6">
@@ -354,9 +359,9 @@ export function FiringDashboard() {
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span>Overall Progress</span>
-              <span>{Math.round(getProgress())}%</span>
+              <span>{Math.round(progress)}%</span>
             </div>
-            <Progress value={getProgress()} />
+            <Progress value={progress} />
             {selectedProfile && (
               <p className="text-sm text-muted-foreground">
                 Estimated time remaining: {formatDuration(firingProgress.estimatedTimeRemaining)}
@@ -453,7 +458,7 @@ export function FiringDashboard() {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={400}>
-            <LineChart data={getChartData()}>
+            <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
                 dataKey="time"
@@ -490,7 +495,7 @@ export function FiringDashboard() {
               <Line
                 type="monotone"
                 dataKey="current"
-                stroke="#ef4444"
+                stroke="var(--chart-1)"
                 strokeWidth={2}
                 name="Current Temp"
                 dot={false}
@@ -498,7 +503,7 @@ export function FiringDashboard() {
               <Line
                 type="monotone"
                 dataKey="target"
-                stroke="#3b82f6"
+                stroke="var(--chart-3)"
                 strokeWidth={2}
                 strokeDasharray="5 5"
                 name="Target Temp"
@@ -508,7 +513,7 @@ export function FiringDashboard() {
                 <Line
                   type="monotone"
                   dataKey="profile"
-                  stroke="#6b7280"
+                  stroke="var(--muted-foreground)"
                   strokeWidth={1}
                   strokeDasharray="3 3"
                   name="Profile Path"

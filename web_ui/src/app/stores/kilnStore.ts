@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { FiringProgress, TemperatureDataPoint } from "../types/kiln";
+import { FiringProgress, TemperatureDataPoint, coerceFiringStatus } from "../types/kiln";
 import { kilnWS, WSMessage } from "../services/websocket";
 
 interface KilnState {
@@ -78,7 +78,7 @@ export const useKilnStore = create<KilnState>((set) => ({
               totalSegments: d.totalSegments,
               elapsedTime: d.elapsedTime,
               estimatedTimeRemaining: d.estimatedTimeRemaining,
-              status: d.status,
+              status: coerceFiringStatus(d.status),
             },
             currentTempData: newData,
           };
