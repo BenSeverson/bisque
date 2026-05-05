@@ -45,7 +45,10 @@ function TabsContent({ className, ...props }: React.ComponentProps<typeof TabsPr
   return (
     <TabsPrimitive.Content
       data-slot="tabs-content"
-      className={cn("flex-1 outline-none", className)}
+      // data-[state=inactive]:hidden lets callers opt into forceMount without
+      // showing the inactive panel. Without forceMount Radix unmounts inactive
+      // content anyway, so the rule is a no-op there.
+      className={cn("flex-1 outline-none data-[state=inactive]:hidden", className)}
       {...props}
     />
   );

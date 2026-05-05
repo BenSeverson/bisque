@@ -69,11 +69,13 @@ export default function App() {
             <FiringProfiles />
           </TabsContent>
 
-          <TabsContent value="builder" className="space-y-4">
+          {/* forceMount keeps form state alive when the user switches tabs;
+              react-hook-form state is per-mount and would otherwise be lost. */}
+          <TabsContent value="builder" className="space-y-4" forceMount>
             <ProfileBuilder />
           </TabsContent>
 
-          <TabsContent value="settings" className="space-y-4">
+          <TabsContent value="settings" className="space-y-4" forceMount>
             <Settings />
           </TabsContent>
 
@@ -86,19 +88,8 @@ export default function App() {
       {/* Footer */}
       <footer className="border-t mt-12">
         <div className="container mx-auto px-4 py-6">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
+          <div className="text-sm text-muted-foreground">
             <p>Bisque ESP32-S3 · {__APP_VERSION__}</p>
-            <div className="flex gap-6">
-              <a href="#" className="hover:text-foreground transition-colors">
-                Documentation
-              </a>
-              <a href="#" className="hover:text-foreground transition-colors">
-                Support
-              </a>
-              <a href="#" className="hover:text-foreground transition-colors">
-                Safety Guidelines
-              </a>
-            </div>
           </div>
         </div>
       </footer>

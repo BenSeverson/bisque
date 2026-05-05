@@ -19,6 +19,32 @@ export interface FiringProfile {
   estimatedDuration: number; // minutes
 }
 
+export type FiringStatus =
+  | "idle"
+  | "heating"
+  | "holding"
+  | "cooling"
+  | "complete"
+  | "error"
+  | "paused"
+  | "autotune";
+
+const FIRING_STATUSES: ReadonlySet<FiringStatus> = new Set([
+  "idle",
+  "heating",
+  "holding",
+  "cooling",
+  "complete",
+  "error",
+  "paused",
+  "autotune",
+]);
+
+/** Coerce a server-provided status string into a FiringStatus, falling back to "idle". */
+export function coerceFiringStatus(s: string | undefined | null): FiringStatus {
+  return s && FIRING_STATUSES.has(s as FiringStatus) ? (s as FiringStatus) : "idle";
+}
+
 export interface FiringProgress {
   isActive: boolean;
   profileId: string | null;
@@ -29,7 +55,7 @@ export interface FiringProgress {
   totalSegments: number;
   elapsedTime: number; // seconds
   estimatedTimeRemaining: number; // seconds
-  status: string;
+  status: FiringStatus;
 }
 
 export interface KilnSettings {

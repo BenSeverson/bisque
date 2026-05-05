@@ -192,7 +192,7 @@ export function FiringHistory() {
                         <Line
                           type="monotone"
                           dataKey="temp_c"
-                          stroke="#ef4444"
+                          stroke="var(--chart-1)"
                           strokeWidth={2}
                           dot={false}
                           name="Temperature"
