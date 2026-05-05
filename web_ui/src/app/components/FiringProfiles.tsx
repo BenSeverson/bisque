@@ -3,11 +3,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { FiringProfile, HOLD_UNTIL_SKIP } from "../types/kiln";
+import { firingProfileSchema } from "../schemas/kiln";
 import { Flame, Clock, TrendingUp, Copy, Download, Upload } from "lucide-react";
 import { api } from "../services/api";
 import { toast } from "sonner";
 import { formatDurationFromMinutes } from "../utils/time";
-import { downloadUrl } from "../utils/download";
+import { downloadBlob } from "../utils/download";
+import { toErrorMessage } from "../utils/error";
 import { useKilnStore } from "../stores/kilnStore";
 import { useProfiles, useDuplicateProfile, useImportProfile } from "../hooks/queries";
 
@@ -34,10 +36,15 @@ export function FiringProfiles() {
     }
   };
 
-  const handleExport = (e: React.MouseEvent, profile: FiringProfile) => {
+  const handleExport = async (e: React.MouseEvent, profile: FiringProfile) => {
     e.stopPropagation();
-    downloadUrl(api.exportProfile(profile.id), `${profile.id}.json`);
-    toast.success("Downloading profile JSON");
+    try {
+      const blob = await api.exportProfile(profile.id);
+      downloadBlob(blob, `${profile.id}.json`);
+      toast.success("Downloading profile JSON");
+    } catch (err) {
+      toast.error(`Failed to export: ${toErrorMessage(err)}`);
+    }
   };
 
   const handleImportClick = () => {
@@ -49,11 +56,16 @@ export function FiringProfiles() {
     if (!file) return;
     try {
       const text = await file.text();
-      const profile = JSON.parse(text) as FiringProfile;
-      await importProfile.mutateAsync(profile);
-      toast.success(`Imported "${profile.name}"`);
-    } catch {
-      toast.error("Failed to import profile — invalid JSON or format");
+      const parsed = firingProfileSchema.safeParse(JSON.parse(text));
+      if (!parsed.success) {
+        const first = parsed.error.issues[0];
+        toast.error(`Invalid profile: ${first?.path.join(".") || "format"} — ${first?.message}`);
+        return;
+      }
+      await importProfile.mutateAsync(parsed.data);
+      toast.success(`Imported "${parsed.data.name}"`);
+    } catch (err) {
+      toast.error(`Failed to import profile: ${toErrorMessage(err)}`);
     } finally {
       e.target.value = "";
     }

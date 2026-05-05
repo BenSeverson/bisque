@@ -67,9 +67,10 @@ export function Settings() {
     defaultValues: settings,
   });
 
-  // Sync form when server data arrives
+  // Sync form when server data arrives. keepDirtyValues prevents a refetch (e.g.
+  // on window focus) from stomping unsaved edits the user is in the middle of.
   useEffect(() => {
-    if (settings) reset(settings);
+    if (settings) reset(settings, { keepDirtyValues: true });
   }, [settings, reset]);
 
   const watchedSettings = watch();
@@ -111,6 +112,10 @@ export function Settings() {
   }, [watchedSettings, saveSettings]);
 
   const handleStartAutotune = useCallback(async () => {
+    if (!Number.isFinite(autotuneSetpoint) || autotuneSetpoint <= 0) {
+      toast.error("Enter a valid setpoint above 0°C");
+      return;
+    }
     try {
       await startAutotune.mutateAsync(autotuneSetpoint);
       setAutotuneRunning(true);
@@ -437,7 +442,10 @@ export function Settings() {
                 id="autotune-setpoint"
                 type="number"
                 value={autotuneSetpoint}
-                onChange={(e) => setAutotuneSetpoint(parseFloat(e.target.value))}
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  setAutotuneSetpoint(Number.isFinite(v) ? v : 0);
+                }}
                 disabled={autotuneRunning}
               />
             </div>

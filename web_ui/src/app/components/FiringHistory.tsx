@@ -16,7 +16,8 @@ import { api } from "../services/api";
 import { Download, Flame, Clock, Thermometer } from "lucide-react";
 import { toast } from "sonner";
 import { formatDuration } from "../utils/time";
-import { downloadUrl } from "../utils/download";
+import { downloadBlob } from "../utils/download";
+import { toErrorMessage } from "../utils/error";
 import { useHistory } from "../hooks/queries";
 
 export function FiringHistory() {
@@ -28,28 +29,29 @@ export function FiringHistory() {
     setSelectedRecord(record);
     setTraceData([]);
     try {
-      const url = api.getHistoryTrace(record.id);
-      const res = await fetch(url);
-      if (res.ok) {
-        const csv = await res.text();
-        const lines = csv.trim().split("\n").slice(1);
-        const parsed = lines
-          .map((line) => {
-            const [time_s, temp_c] = line.split(",").map(Number);
-            return { time_s, temp_c };
-          })
-          .filter((d) => !isNaN(d.time_s) && !isNaN(d.temp_c));
-        setTraceData(parsed);
-      }
+      const csv = await api.getHistoryTrace(record.id);
+      const lines = csv.trim().split("\n").slice(1);
+      const parsed = lines
+        .map((line) => {
+          const [time_s, temp_c] = line.split(",").map(Number);
+          return { time_s, temp_c };
+        })
+        .filter((d) => !isNaN(d.time_s) && !isNaN(d.temp_c));
+      setTraceData(parsed);
     } catch {
-      // No trace available
+      // Trace endpoint missing or unauthorized — leave traceData empty.
     }
   }, []);
 
-  const handleDownloadTrace = (record: HistoryRecord) => {
-    downloadUrl(api.getHistoryTrace(record.id), `trace_${record.id}.csv`);
-    toast.success("Downloading trace CSV");
-  };
+  const handleDownloadTrace = useCallback(async (record: HistoryRecord) => {
+    try {
+      const blob = await api.getHistoryTraceBlob(record.id);
+      downloadBlob(blob, `trace_${record.id}.csv`);
+      toast.success("Downloading trace CSV");
+    } catch (e) {
+      toast.error(`Failed to download trace: ${toErrorMessage(e)}`);
+    }
+  }, []);
 
   const formatDate = (timestamp: number) => {
     if (!timestamp) return "Unknown date";

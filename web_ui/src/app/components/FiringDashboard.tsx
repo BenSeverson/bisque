@@ -62,16 +62,21 @@ export function FiringDashboard() {
 
   const [delayMinutes, setDelayMinutes] = useState<number>(0);
 
-  // Fetch initial status from REST API
+  // Fetch initial status from REST API. Seeds firingProgress AND the chart so a
+  // mid-firing reload doesn't show 20°C until the first WS message arrives, and
+  // restores the active profile selection.
   useEffect(() => {
+    let cancelled = false;
     api
       .getStatus()
       .then((s) => {
-        useKilnStore.setState({
+        if (cancelled) return;
+        const timeMin = Math.round(s.elapsedTime / 60);
+        useKilnStore.setState((state) => ({
           firingProgress: {
             isActive: s.isActive,
-            profileId: s.profileId,
-            startTime: null,
+            profileId: s.profileId || null,
+            startTime: state.firingProgress.startTime,
             currentTemp: s.currentTemp,
             targetTemp: s.targetTemp,
             currentSegment: s.currentSegment,
@@ -80,9 +85,20 @@ export function FiringDashboard() {
             estimatedTimeRemaining: s.estimatedTimeRemaining,
             status: s.status,
           },
-        });
+          currentTempData: [
+            {
+              time: timeMin,
+              temp: Math.round(s.currentTemp),
+              target: Math.round(s.targetTemp),
+            },
+          ],
+          selectedProfileId: s.isActive && s.profileId ? s.profileId : state.selectedProfileId,
+        }));
       })
       .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Calculate the complete profile path when profile is selected

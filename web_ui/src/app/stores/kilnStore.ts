@@ -31,6 +31,8 @@ const initialProgress: FiringProgress = {
 
 const initialTempData: TemperatureDataPoint[] = [{ time: 0, temp: 20, target: 20 }];
 
+const MAX_TEMP_POINTS = 600;
+
 export const useKilnStore = create<KilnState>((set) => ({
   selectedProfileId: null,
   setSelectedProfileId: (id) => set({ selectedProfileId: id }),
@@ -47,13 +49,23 @@ export const useKilnStore = create<KilnState>((set) => ({
         const d = msg.data;
         set((state) => {
           const timeMin = Math.round(d.elapsedTime / 60);
-          const newData = [...state.currentTempData];
-          if (newData.length > 200) newData.shift();
-          newData.push({
+          const newPoint = {
             time: timeMin,
             temp: Math.round(d.currentTemp),
             target: Math.round(d.targetTemp),
-          });
+          };
+          // Dedupe by minute: replace last entry if its time matches; otherwise append.
+          // Without this, sub-minute WS updates would flood the buffer (e.g. 1Hz → 60
+          // points/min) and the 200-cap would only retain ~3 minutes of history.
+          const last = state.currentTempData[state.currentTempData.length - 1];
+          let newData: TemperatureDataPoint[];
+          if (last && last.time === timeMin) {
+            newData = state.currentTempData.slice(0, -1);
+            newData.push(newPoint);
+          } else {
+            newData = [...state.currentTempData, newPoint];
+            if (newData.length > MAX_TEMP_POINTS) newData.shift();
+          }
 
           return {
             firingProgress: {
