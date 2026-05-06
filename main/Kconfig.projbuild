@@ -71,7 +71,7 @@ menu "Bisque Configuration"
 
         config KILN_PIN_ALARM
             int "Alarm output GPIO (-1 = disabled)"
-            default -1
+            default 7
             help
                 GPIO for buzzer or relay triggered on firing complete or error.
                 Set to -1 to disable.
