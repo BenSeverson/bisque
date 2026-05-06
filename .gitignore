@@ -1,6 +1,7 @@
 # ESP-IDF build output
 build/
 sdkconfig
+sdkconfig.old
 sdkconfig.defaults.local
 
 # Managed components (fetched during build)
