@@ -516,57 +516,67 @@ float firing_planned_temp_at(const firing_profile_t *profile, uint32_t t_seconds
 
 /* ── Firing Task ───────────────────────────────────── */
 
-/* State for active firing */
-static firing_profile_t s_active_profile;
-static int64_t s_segment_start_time_us;
-static float s_segment_start_temp;
-static float s_segment_hold_start_time_s;
-static bool s_holding;
-
-/* Microsecond accumulator for elapsed_time. The PID loop's per-tick dt is
- * ~1.0s with jitter; truncating each tick to whole seconds loses ~half of
- * real time on average. Sum the raw int64 us deltas and publish floor(s). */
-static int64_t s_elapsed_accum_us = 0;
-
-/* Delay-start state */
-static int64_t s_delay_start_end_us = 0;
-static bool s_delay_active = false;
-
-/* Safety tracking for kiln-not-rising and rate-of-rise runaway */
-static float s_check_start_temp = 0.0f;
-static int64_t s_check_start_time_us = 0;
-#define RISING_CHECK_INTERVAL_US (15LL * 60 * 1000000) /* 15 minutes */
-#define RISING_THRESHOLD_C       10.0f                 /* must rise ≥10°C */
-#define RUNAWAY_RATE_MULTIPLIER  2.0f                  /* alert if rate > 2× programmed */
-
-/* History: record temperature once per minute */
-static int64_t s_last_history_sample_us = 0;
+#define RISING_CHECK_INTERVAL_US   (15LL * 60 * 1000000) /* 15 minutes */
+#define RISING_THRESHOLD_C         10.0f                 /* must rise ≥10°C */
+#define RUNAWAY_RATE_MULTIPLIER    2.0f                  /* alert if rate > 2× programmed */
 #define HISTORY_SAMPLE_INTERVAL_US (60LL * 1000000)
+#define ELEM_SAVE_INTERVAL_US      (5LL * 60 * 1000000) /* save every 5 min */
 
-/* Element hours: accumulate SSR-on time */
-static int64_t s_last_elem_save_us = 0;
-#define ELEM_SAVE_INTERVAL_US (5LL * 60 * 1000000) /* save every 5 min */
+/* Mutable state for an active firing. Grouped into one struct so a host test
+ * harness can snapshot or reset everything in one place. The microsecond
+ * accumulator deserves a note: the PID loop's per-tick dt is ~1.0s with
+ * jitter; truncating each tick to whole seconds loses ~half of real time on
+ * average, so we sum raw int64 us deltas and publish floor(s). */
+typedef struct {
+    /* Profile being executed (copied in on START). */
+    firing_profile_t active_profile;
 
-static void start_segment(int segment_idx, float current_temp)
+    /* Per-segment timing. */
+    int64_t segment_start_time_us;
+    float segment_start_temp;
+    float segment_hold_start_time_s;
+    bool holding;
+
+    /* Elapsed-time accumulator. */
+    int64_t elapsed_accum_us;
+
+    /* Delay-start. */
+    int64_t delay_start_end_us;
+    bool delay_active;
+
+    /* Safety: kiln-not-rising window (also used for runaway baseline). */
+    float check_start_temp;
+    int64_t check_start_time_us;
+
+    /* History sampling cadence. */
+    int64_t last_history_sample_us;
+
+    /* Element-hours flush cadence. */
+    int64_t last_elem_save_us;
+} firing_state_t;
+
+static firing_state_t s_state;
+
+static void start_segment(int segment_idx, float current_temp, int64_t now_us)
 {
-    s_segment_start_time_us = esp_timer_get_time();
-    s_segment_start_temp = current_temp;
-    s_holding = false;
-    s_segment_hold_start_time_s = 0;
+    s_state.segment_start_time_us = now_us;
+    s_state.segment_start_temp = current_temp;
+    s_state.holding = false;
+    s_state.segment_hold_start_time_s = 0;
 
-    firing_segment_t *seg = &s_active_profile.segments[segment_idx];
+    firing_segment_t *seg = &s_state.active_profile.segments[segment_idx];
     ESP_LOGI(TAG, "Starting segment %d: '%s' — ramp %.0f°C/hr to %.0f°C, hold %d min", segment_idx, seg->name,
              seg->ramp_rate, seg->target_temp, seg->hold_time);
 }
 
 static void begin_firing(float cur_temp, int64_t now_us)
 {
-    start_segment(0, cur_temp);
+    start_segment(0, cur_temp, now_us);
     pid_reset(&s_pid);
-    s_check_start_temp = cur_temp;
-    s_check_start_time_us = now_us;
-    s_last_history_sample_us = now_us;
-    history_firing_start(s_active_profile.id, s_active_profile.name);
+    s_state.check_start_temp = cur_temp;
+    s_state.check_start_time_us = now_us;
+    s_state.last_history_sample_us = now_us;
+    history_firing_start(s_state.active_profile.id, s_state.active_profile.name);
     progress_lock();
     s_progress.status = FIRING_STATUS_HEATING;
     progress_unlock();
@@ -608,7 +618,7 @@ static void handle_cmd(const firing_cmd_t *cmd)
         progress_lock();
         bool already_active = s_progress.is_active;
         progress_unlock();
-        if (already_active || s_delay_active) {
+        if (already_active || s_state.delay_active) {
             ESP_LOGW(TAG, "START rejected: firing already active");
             break;
         }
@@ -641,7 +651,7 @@ static void handle_cmd(const firing_cmd_t *cmd)
            over-temp) is still active, so this only clears stale latched trips. */
         safety_clear_emergency();
 
-        s_active_profile = cmd->start.profile;
+        s_state.active_profile = cmd->start.profile;
         thermocouple_reading_t r;
         thermocouple_get_latest(&r);
         float cur_temp = r.temperature_c;
@@ -650,31 +660,32 @@ static void handle_cmd(const firing_cmd_t *cmd)
         firing_engine_get_settings(&settings);
         cur_temp += settings.tc_offset_c;
 
-        s_delay_active = false;
+        int64_t now_us = esp_timer_get_time();
+        s_state.delay_active = false;
         if (cmd->start.delay_minutes > 0) {
-            s_delay_start_end_us = esp_timer_get_time() + (int64_t)cmd->start.delay_minutes * 60 * 1000000LL;
-            s_delay_active = true;
+            s_state.delay_start_end_us = now_us + (int64_t)cmd->start.delay_minutes * 60 * 1000000LL;
+            s_state.delay_active = true;
             progress_lock();
             s_progress.is_active = true;
             s_progress.status = FIRING_STATUS_IDLE; /* show as idle during delay */
-            strncpy(s_progress.profile_id, s_active_profile.id, FIRING_ID_LEN - 1);
+            strncpy(s_progress.profile_id, s_state.active_profile.id, FIRING_ID_LEN - 1);
             s_progress.current_segment = 0;
-            s_progress.total_segments = s_active_profile.segment_count;
+            s_progress.total_segments = s_state.active_profile.segment_count;
             s_progress.elapsed_time = 0;
             progress_unlock();
-            s_elapsed_accum_us = 0;
-            ESP_LOGI(TAG, "Firing queued with %u min delay: %s", cmd->start.delay_minutes, s_active_profile.name);
+            s_state.elapsed_accum_us = 0;
+            ESP_LOGI(TAG, "Firing queued with %u min delay: %s", cmd->start.delay_minutes, s_state.active_profile.name);
         } else {
             progress_lock();
             s_progress.is_active = true;
-            strncpy(s_progress.profile_id, s_active_profile.id, FIRING_ID_LEN - 1);
+            strncpy(s_progress.profile_id, s_state.active_profile.id, FIRING_ID_LEN - 1);
             s_progress.current_segment = 0;
-            s_progress.total_segments = s_active_profile.segment_count;
+            s_progress.total_segments = s_state.active_profile.segment_count;
             s_progress.elapsed_time = 0;
             progress_unlock();
-            s_elapsed_accum_us = 0;
-            begin_firing(cur_temp, esp_timer_get_time());
-            ESP_LOGI(TAG, "Firing started: %s", s_active_profile.name);
+            s_state.elapsed_accum_us = 0;
+            begin_firing(cur_temp, now_us);
+            ESP_LOGI(TAG, "Firing started: %s", s_state.active_profile.name);
         }
         s_last_error_code = FIRING_ERR_NONE;
         break;
@@ -690,7 +701,7 @@ static void handle_cmd(const firing_cmd_t *cmd)
         if (was_active) {
             history_firing_end(HISTORY_OUTCOME_ABORTED, peak, dur, 0);
         }
-        s_delay_active = false;
+        s_state.delay_active = false;
         do_stop();
         break;
     }
@@ -708,7 +719,7 @@ static void handle_cmd(const firing_cmd_t *cmd)
     case FIRING_CMD_RESUME:
         progress_lock();
         if (s_progress.status == FIRING_STATUS_PAUSED) {
-            s_progress.status = s_holding ? FIRING_STATUS_HOLDING : FIRING_STATUS_HEATING;
+            s_progress.status = s_state.holding ? FIRING_STATUS_HOLDING : FIRING_STATUS_HEATING;
             ESP_LOGI(TAG, "Firing resumed");
         }
         progress_unlock();
@@ -724,11 +735,11 @@ static void handle_cmd(const firing_cmd_t *cmd)
 
         if (active && seg_idx + 1 < total) {
             int next = seg_idx + 1;
-            start_segment(next, cur);
+            start_segment(next, cur, esp_timer_get_time());
             progress_lock();
             s_progress.current_segment = next;
             s_progress.status =
-                (s_active_profile.segments[next].ramp_rate >= 0) ? FIRING_STATUS_HEATING : FIRING_STATUS_COOLING;
+                (s_state.active_profile.segments[next].ramp_rate >= 0) ? FIRING_STATUS_HEATING : FIRING_STATUS_COOLING;
             progress_unlock();
             ESP_LOGI(TAG, "Skipped to segment %d", next);
         } else if (active && seg_idx + 1 >= total) {
@@ -749,7 +760,7 @@ static void handle_cmd(const firing_cmd_t *cmd)
         s_progress.status = FIRING_STATUS_AUTOTUNE;
         s_progress.elapsed_time = 0;
         progress_unlock();
-        s_elapsed_accum_us = 0;
+        s_state.elapsed_accum_us = 0;
         ESP_LOGI(TAG, "Auto-tune mode started");
         break;
 
@@ -758,6 +769,286 @@ static void handle_cmd(const firing_cmd_t *cmd)
         do_stop();
         break;
     }
+}
+
+/* ── Pure helpers ───────────────────────────────────
+ * No I/O, no globals — easy to unit test. Kept file-static for now; an
+ * internal header will expose them once host-test harness lands. */
+
+/* Linear ramp from segment_start_temp toward seg->target_temp at seg->ramp_rate
+ * (°C/hr), clamped at target. When holding, the setpoint is fixed at target. */
+static float compute_dynamic_setpoint(const firing_segment_t *seg, float seg_start_temp, int64_t seg_start_time_us,
+                                      int64_t now_us, bool holding)
+{
+    if (holding) {
+        return seg->target_temp;
+    }
+    float elapsed_seg_s = (float)(now_us - seg_start_time_us) / 1000000.0f;
+    float ramp_per_sec = seg->ramp_rate / 3600.0f;
+    float setpoint = seg_start_temp + ramp_per_sec * elapsed_seg_s;
+
+    if (seg->ramp_rate >= 0) {
+        if (setpoint > seg->target_temp) {
+            setpoint = seg->target_temp;
+        }
+    } else {
+        if (setpoint < seg->target_temp) {
+            setpoint = seg->target_temp;
+        }
+    }
+    return setpoint;
+}
+
+/* True once both the measured temperature and the planned setpoint are within
+ * the small target band — keeps us from declaring "at target" while the ramp
+ * is still climbing toward it. */
+static bool at_target_predicate(float current_temp, float setpoint, float target_temp)
+{
+    return fabsf(current_temp - target_temp) < 2.0f && fabsf(setpoint - target_temp) < 0.5f;
+}
+
+/* ── Firing tick ────────────────────────────────────
+ * Single iteration of the firing loop. firing_task drives this once per
+ * second; a host harness can drive it with a virtual clock to fast-forward
+ * an entire firing in <1 s for tests. */
+
+/* Wall clock at the previous tick. Owned by firing_tick; firing_task seeds it
+ * from esp_timer_get_time() before entering the loop. */
+static int64_t s_last_compute_us = 0;
+
+static void firing_tick(int64_t now_us)
+{
+    /* Handle delay-start countdown */
+    if (s_state.delay_active) {
+        if (now_us >= s_state.delay_start_end_us) {
+            s_state.delay_active = false;
+            thermocouple_reading_t r;
+            thermocouple_get_latest(&r);
+            kiln_settings_t st;
+            firing_engine_get_settings(&st);
+            float cur_temp = r.temperature_c + st.tc_offset_c;
+            begin_firing(cur_temp, now_us);
+            /* Reset dt baseline so the PID tick that runs in the rest of this
+             * iteration sees dt≈0 (matches pre-refactor behavior). */
+            s_last_compute_us = now_us;
+            ESP_LOGI(TAG, "Delay expired, firing started: %s", s_state.active_profile.name);
+        } else {
+            /* Keep vent in sync while waiting for delay to expire. */
+            thermocouple_reading_t r;
+            thermocouple_get_latest(&r);
+            safety_update_vent(true, r.temperature_c);
+            return;
+        }
+    }
+
+    /* Get current temperature (with TC offset applied) */
+    thermocouple_reading_t reading;
+    thermocouple_get_latest(&reading);
+    settings_lock();
+    float tc_offset = s_settings.tc_offset_c;
+    settings_unlock();
+    float current_temp = reading.temperature_c + tc_offset;
+
+    /* Drive vent relay once per tick (cheap GPIO write). */
+    progress_lock();
+    bool vent_active = s_progress.is_active;
+    progress_unlock();
+    safety_update_vent(vent_active, current_temp);
+
+    /* Compute dt */
+    int64_t dt_us = now_us - s_last_compute_us;
+    float dt_s = (float)dt_us / 1000000.0f;
+    s_last_compute_us = now_us;
+
+    /* Check for emergency stop */
+    if (safety_is_emergency()) {
+        progress_lock();
+        if (s_progress.is_active) {
+            float peak = s_progress.current_temp;
+            uint32_t dur = s_progress.elapsed_time;
+            s_progress.is_active = false;
+            s_progress.status = FIRING_STATUS_ERROR;
+            progress_unlock();
+            if (s_last_error_code == FIRING_ERR_NONE) {
+                s_last_error_code = FIRING_ERR_EMERGENCY_STOP;
+            }
+            history_firing_end(HISTORY_OUTCOME_ERROR, peak, dur, (int)s_last_error_code);
+            emit_event(FIRING_EVENT_ERROR, peak, dur);
+        } else {
+            progress_unlock();
+        }
+        safety_set_ssr(0.0f);
+        return;
+    }
+
+    progress_lock();
+    firing_status_t status = s_progress.status;
+    bool active = s_progress.is_active;
+    int seg_idx = s_progress.current_segment;
+    s_progress.current_temp = current_temp;
+    progress_unlock();
+
+    if (!active || status == FIRING_STATUS_PAUSED || status == FIRING_STATUS_IDLE || status == FIRING_STATUS_COMPLETE ||
+        status == FIRING_STATUS_ERROR) {
+        if (status != FIRING_STATUS_PAUSED) {
+            safety_set_ssr(0.0f);
+        }
+        return;
+    }
+
+    /* Auto-tune mode */
+    if (status == FIRING_STATUS_AUTOTUNE) {
+        float output;
+        bool done = pid_autotune_update(&s_autotune, current_temp, &output);
+        safety_set_ssr(output);
+
+        s_state.elapsed_accum_us += dt_us;
+        progress_lock();
+        s_progress.elapsed_time = (uint32_t)(s_state.elapsed_accum_us / 1000000);
+        s_progress.target_temp = s_autotune.setpoint;
+        progress_unlock();
+
+        if (done) {
+            if (pid_autotune_is_complete(&s_autotune)) {
+                /* Save tuned gains */
+                pid_save_gains(s_autotune.kp_result, s_autotune.ki_result, s_autotune.kd_result);
+                pid_init(&s_pid, s_autotune.kp_result, s_autotune.ki_result, s_autotune.kd_result, 0.0f, 1.0f);
+                ESP_LOGI(TAG, "Auto-tune gains applied");
+            }
+            do_stop();
+        }
+        return;
+    }
+
+    /* Normal firing: PID control + state machine */
+    firing_segment_t *seg = &s_state.active_profile.segments[seg_idx];
+
+    /* ── Safety: kiln-not-rising check ──────────────────────────────── */
+    if (status == FIRING_STATUS_HEATING && !s_state.holding) {
+        if ((now_us - s_state.check_start_time_us) >= RISING_CHECK_INTERVAL_US) {
+            float temp_rise = current_temp - s_state.check_start_temp;
+            if (temp_rise < RISING_THRESHOLD_C) {
+                ESP_LOGE(TAG, "Kiln not rising: only %.1f°C in 15 min (need %.0f°C)", temp_rise, RISING_THRESHOLD_C);
+                s_last_error_code = FIRING_ERR_NOT_RISING;
+                safety_emergency_stop();
+            }
+            /* Reset window */
+            s_state.check_start_temp = current_temp;
+            s_state.check_start_time_us = now_us;
+        }
+    }
+
+    /* ── Safety: rate-of-rise runaway check ──────────────────────────── */
+    if (status == FIRING_STATUS_HEATING && !s_state.holding && fabsf(seg->ramp_rate) > 0.1f) {
+        float elapsed_seg_s = (float)(now_us - s_state.segment_start_time_us) / 1000000.0f;
+        if (elapsed_seg_s > 300.0f) { /* Only check after 5 minutes in segment */
+            float actual_rate_c_hr = ((current_temp - s_state.segment_start_temp) / elapsed_seg_s) * 3600.0f;
+            if (actual_rate_c_hr > seg->ramp_rate * RUNAWAY_RATE_MULTIPLIER &&
+                actual_rate_c_hr > 50.0f) { /* Ignore when rate < 50°C/hr (noise) */
+                ESP_LOGE(TAG, "Runaway: actual rate %.0f°C/hr vs programmed %.0f°C/hr", actual_rate_c_hr,
+                         seg->ramp_rate);
+                s_last_error_code = FIRING_ERR_RUNAWAY;
+                safety_emergency_stop();
+            }
+        }
+    }
+
+    float setpoint = compute_dynamic_setpoint(seg, s_state.segment_start_temp, s_state.segment_start_time_us, now_us,
+                                              s_state.holding);
+
+    /* PID compute */
+    float output = pid_compute(&s_pid, setpoint, current_temp, dt_s);
+    safety_set_ssr(output);
+
+    /* Accumulate element-on time */
+    if (output > 0.0f) {
+        s_element_on_s += (uint32_t)dt_s;
+        if ((now_us - s_state.last_elem_save_us) >= ELEM_SAVE_INTERVAL_US) {
+            save_element_hours();
+            s_state.last_elem_save_us = now_us;
+        }
+    }
+
+    /* History: record temperature once per minute */
+    if ((now_us - s_state.last_history_sample_us) >= HISTORY_SAMPLE_INTERVAL_US) {
+        history_record_temp(current_temp);
+        s_state.last_history_sample_us = now_us;
+    }
+
+    /* Check segment transitions */
+    bool reached = at_target_predicate(current_temp, setpoint, seg->target_temp);
+
+    if (!s_state.holding && reached) {
+        /* Reached target. hold_time == 0 → pass through (advance next iteration via
+           hold_done below). FIRING_HOLD_INDEFINITE → wait for SKIP_SEGMENT. */
+        s_state.holding = true;
+        s_state.segment_hold_start_time_s = (float)(now_us) / 1000000.0f;
+        progress_lock();
+        s_progress.status = FIRING_STATUS_HOLDING;
+        progress_unlock();
+        if (seg->hold_time == FIRING_HOLD_INDEFINITE) {
+            ESP_LOGI(TAG, "Segment %d: holding at %.0f°C indefinitely (tap skip to advance)", seg_idx,
+                     seg->target_temp);
+        } else if (seg->hold_time == 0) {
+            ESP_LOGI(TAG, "Segment %d: reached %.0f°C, advancing", seg_idx, seg->target_temp);
+        } else {
+            ESP_LOGI(TAG, "Segment %d: holding at %.0f°C for %d min", seg_idx, seg->target_temp, seg->hold_time);
+        }
+    }
+
+    if (s_state.holding) {
+        float hold_elapsed_s = (float)(now_us) / 1000000.0f - s_state.segment_hold_start_time_s;
+        bool infinite_hold = (seg->hold_time == FIRING_HOLD_INDEFINITE);
+        float hold_needed_s = infinite_hold ? 0.0f : (float)seg->hold_time * 60.0f;
+
+        /* FIRING_HOLD_INDEFINITE waits for SKIP_SEGMENT; any finite duration (incl. 0) advances when elapsed. */
+        bool hold_done = !infinite_hold && (hold_elapsed_s >= hold_needed_s);
+
+        if (hold_done) {
+            /* Hold complete — advance to next segment */
+            int next_seg = seg_idx + 1;
+            if (next_seg >= s_state.active_profile.segment_count) {
+                /* Firing complete */
+                safety_set_ssr(0.0f);
+                progress_lock();
+                float peak = s_progress.current_temp;
+                uint32_t dur = s_progress.elapsed_time;
+                s_progress.is_active = false;
+                s_progress.status = FIRING_STATUS_COMPLETE;
+                progress_unlock();
+                history_firing_end(HISTORY_OUTCOME_COMPLETE, peak, dur, 0);
+                save_element_hours();
+                xEventGroupSetBits(safety_get_event_group(), SAFETY_BIT_FIRING_COMPLETE);
+                emit_event(FIRING_EVENT_COMPLETE, peak, dur);
+                ESP_LOGI(TAG, "Firing complete!");
+            } else {
+                start_segment(next_seg, current_temp, now_us);
+                s_state.check_start_temp = current_temp;
+                s_state.check_start_time_us = now_us;
+                progress_lock();
+                s_progress.current_segment = next_seg;
+                /* Determine if next segment is heating or cooling */
+                if (s_state.active_profile.segments[next_seg].ramp_rate >= 0) {
+                    s_progress.status = FIRING_STATUS_HEATING;
+                } else {
+                    s_progress.status = FIRING_STATUS_COOLING;
+                }
+                progress_unlock();
+            }
+        }
+    }
+
+    /* Update progress timing */
+    s_state.elapsed_accum_us += dt_us;
+    progress_lock();
+    s_progress.elapsed_time = (uint32_t)(s_state.elapsed_accum_us / 1000000);
+    s_progress.target_temp = setpoint;
+    if (s_state.active_profile.estimated_duration > 0) {
+        uint32_t est_total_s = s_state.active_profile.estimated_duration * 60;
+        s_progress.estimated_remaining =
+            (s_progress.elapsed_time < est_total_s) ? (est_total_s - s_progress.elapsed_time) : 0;
+    }
+    progress_unlock();
 }
 
 /* Block on the command queue until the next 1 Hz deadline, dispatching any
@@ -783,266 +1074,12 @@ void firing_task(void *param)
 {
     (void)param;
     TickType_t last_wake = xTaskGetTickCount();
-    int64_t last_compute_us = esp_timer_get_time();
+    s_last_compute_us = esp_timer_get_time();
 
     ESP_LOGI(TAG, "firing_task started");
 
     for (;;) {
-        /* Handle delay-start countdown */
-        if (s_delay_active) {
-            int64_t now_us = esp_timer_get_time();
-            if (now_us >= s_delay_start_end_us) {
-                s_delay_active = false;
-                thermocouple_reading_t r;
-                thermocouple_get_latest(&r);
-                kiln_settings_t st;
-                firing_engine_get_settings(&st);
-                float cur_temp = r.temperature_c + st.tc_offset_c;
-                begin_firing(cur_temp, now_us);
-                last_compute_us = now_us;
-                ESP_LOGI(TAG, "Delay expired, firing started: %s", s_active_profile.name);
-            } else {
-                /* Keep vent in sync while waiting for delay to expire. */
-                thermocouple_reading_t r;
-                thermocouple_get_latest(&r);
-                safety_update_vent(true, r.temperature_c);
-                wait_until_next_tick(&last_wake);
-                continue;
-            }
-        }
-
-        /* Get current temperature (with TC offset applied) */
-        thermocouple_reading_t reading;
-        thermocouple_get_latest(&reading);
-        settings_lock();
-        float tc_offset = s_settings.tc_offset_c;
-        settings_unlock();
-        float current_temp = reading.temperature_c + tc_offset;
-
-        /* Drive vent relay once per tick (cheap GPIO write). */
-        progress_lock();
-        bool vent_active = s_progress.is_active;
-        progress_unlock();
-        safety_update_vent(vent_active, current_temp);
-
-        /* Compute dt */
-        int64_t now_us = esp_timer_get_time();
-        int64_t dt_us = now_us - last_compute_us;
-        float dt_s = (float)dt_us / 1000000.0f;
-        last_compute_us = now_us;
-
-        /* Check for emergency stop */
-        if (safety_is_emergency()) {
-            progress_lock();
-            if (s_progress.is_active) {
-                float peak = s_progress.current_temp;
-                uint32_t dur = s_progress.elapsed_time;
-                s_progress.is_active = false;
-                s_progress.status = FIRING_STATUS_ERROR;
-                progress_unlock();
-                if (s_last_error_code == FIRING_ERR_NONE) {
-                    s_last_error_code = FIRING_ERR_EMERGENCY_STOP;
-                }
-                history_firing_end(HISTORY_OUTCOME_ERROR, peak, dur, (int)s_last_error_code);
-                emit_event(FIRING_EVENT_ERROR, peak, dur);
-            } else {
-                progress_unlock();
-            }
-            safety_set_ssr(0.0f);
-            wait_until_next_tick(&last_wake);
-            continue;
-        }
-
-        progress_lock();
-        firing_status_t status = s_progress.status;
-        bool active = s_progress.is_active;
-        int seg_idx = s_progress.current_segment;
-        s_progress.current_temp = current_temp;
-        progress_unlock();
-
-        if (!active || status == FIRING_STATUS_PAUSED || status == FIRING_STATUS_IDLE ||
-            status == FIRING_STATUS_COMPLETE || status == FIRING_STATUS_ERROR) {
-            if (status != FIRING_STATUS_PAUSED) {
-                safety_set_ssr(0.0f);
-            }
-            wait_until_next_tick(&last_wake);
-            continue;
-        }
-
-        /* Auto-tune mode */
-        if (status == FIRING_STATUS_AUTOTUNE) {
-            float output;
-            bool done = pid_autotune_update(&s_autotune, current_temp, &output);
-            safety_set_ssr(output);
-
-            s_elapsed_accum_us += dt_us;
-            progress_lock();
-            s_progress.elapsed_time = (uint32_t)(s_elapsed_accum_us / 1000000);
-            s_progress.target_temp = s_autotune.setpoint;
-            progress_unlock();
-
-            if (done) {
-                if (pid_autotune_is_complete(&s_autotune)) {
-                    /* Save tuned gains */
-                    pid_save_gains(s_autotune.kp_result, s_autotune.ki_result, s_autotune.kd_result);
-                    pid_init(&s_pid, s_autotune.kp_result, s_autotune.ki_result, s_autotune.kd_result, 0.0f, 1.0f);
-                    ESP_LOGI(TAG, "Auto-tune gains applied");
-                }
-                do_stop();
-            }
-            wait_until_next_tick(&last_wake);
-            continue;
-        }
-
-        /* Normal firing: PID control + state machine */
-        firing_segment_t *seg = &s_active_profile.segments[seg_idx];
-
-        /* ── Safety: kiln-not-rising check ──────────────────────────────── */
-        if (status == FIRING_STATUS_HEATING && !s_holding) {
-            if ((now_us - s_check_start_time_us) >= RISING_CHECK_INTERVAL_US) {
-                float temp_rise = current_temp - s_check_start_temp;
-                if (temp_rise < RISING_THRESHOLD_C) {
-                    ESP_LOGE(TAG, "Kiln not rising: only %.1f°C in 15 min (need %.0f°C)", temp_rise,
-                             RISING_THRESHOLD_C);
-                    s_last_error_code = FIRING_ERR_NOT_RISING;
-                    safety_emergency_stop();
-                }
-                /* Reset window */
-                s_check_start_temp = current_temp;
-                s_check_start_time_us = now_us;
-            }
-        }
-
-        /* ── Safety: rate-of-rise runaway check ──────────────────────────── */
-        if (status == FIRING_STATUS_HEATING && !s_holding && fabsf(seg->ramp_rate) > 0.1f) {
-            float elapsed_seg_s = (float)(now_us - s_segment_start_time_us) / 1000000.0f;
-            if (elapsed_seg_s > 300.0f) { /* Only check after 5 minutes in segment */
-                float actual_rate_c_hr = ((current_temp - s_segment_start_temp) / elapsed_seg_s) * 3600.0f;
-                if (actual_rate_c_hr > seg->ramp_rate * RUNAWAY_RATE_MULTIPLIER &&
-                    actual_rate_c_hr > 50.0f) { /* Ignore when rate < 50°C/hr (noise) */
-                    ESP_LOGE(TAG, "Runaway: actual rate %.0f°C/hr vs programmed %.0f°C/hr", actual_rate_c_hr,
-                             seg->ramp_rate);
-                    s_last_error_code = FIRING_ERR_RUNAWAY;
-                    safety_emergency_stop();
-                }
-            }
-        }
-
-        /* Compute dynamic setpoint based on ramp rate */
-        float setpoint;
-        if (s_holding) {
-            setpoint = seg->target_temp;
-        } else {
-            float elapsed_seg_s = (float)(now_us - s_segment_start_time_us) / 1000000.0f;
-            float ramp_per_sec = seg->ramp_rate / 3600.0f;
-            setpoint = s_segment_start_temp + ramp_per_sec * elapsed_seg_s;
-
-            /* Clamp to target */
-            if (seg->ramp_rate >= 0) {
-                if (setpoint > seg->target_temp) {
-                    setpoint = seg->target_temp;
-                }
-            } else {
-                if (setpoint < seg->target_temp) {
-                    setpoint = seg->target_temp;
-                }
-            }
-        }
-
-        /* PID compute */
-        float output = pid_compute(&s_pid, setpoint, current_temp, dt_s);
-        safety_set_ssr(output);
-
-        /* Accumulate element-on time */
-        if (output > 0.0f) {
-            s_element_on_s += (uint32_t)dt_s;
-            if ((now_us - s_last_elem_save_us) >= ELEM_SAVE_INTERVAL_US) {
-                save_element_hours();
-                s_last_elem_save_us = now_us;
-            }
-        }
-
-        /* History: record temperature once per minute */
-        if ((now_us - s_last_history_sample_us) >= HISTORY_SAMPLE_INTERVAL_US) {
-            history_record_temp(current_temp);
-            s_last_history_sample_us = now_us;
-        }
-
-        /* Check segment transitions */
-        bool at_target = fabsf(current_temp - seg->target_temp) < 2.0f && fabsf(setpoint - seg->target_temp) < 0.5f;
-
-        if (!s_holding && at_target) {
-            /* Reached target. hold_time == 0 → pass through (advance next iteration via
-               hold_done below). FIRING_HOLD_INDEFINITE → wait for SKIP_SEGMENT. */
-            s_holding = true;
-            s_segment_hold_start_time_s = (float)(now_us) / 1000000.0f;
-            progress_lock();
-            s_progress.status = FIRING_STATUS_HOLDING;
-            progress_unlock();
-            if (seg->hold_time == FIRING_HOLD_INDEFINITE) {
-                ESP_LOGI(TAG, "Segment %d: holding at %.0f°C indefinitely (tap skip to advance)", seg_idx,
-                         seg->target_temp);
-            } else if (seg->hold_time == 0) {
-                ESP_LOGI(TAG, "Segment %d: reached %.0f°C, advancing", seg_idx, seg->target_temp);
-            } else {
-                ESP_LOGI(TAG, "Segment %d: holding at %.0f°C for %d min", seg_idx, seg->target_temp, seg->hold_time);
-            }
-        }
-
-        if (s_holding) {
-            float hold_elapsed_s = (float)(now_us) / 1000000.0f - s_segment_hold_start_time_s;
-            bool infinite_hold = (seg->hold_time == FIRING_HOLD_INDEFINITE);
-            float hold_needed_s = infinite_hold ? 0.0f : (float)seg->hold_time * 60.0f;
-
-            /* FIRING_HOLD_INDEFINITE waits for SKIP_SEGMENT; any finite duration (incl. 0) advances when elapsed. */
-            bool hold_done = !infinite_hold && (hold_elapsed_s >= hold_needed_s);
-
-            if (hold_done) {
-                /* Hold complete — advance to next segment */
-                int next_seg = seg_idx + 1;
-                if (next_seg >= s_active_profile.segment_count) {
-                    /* Firing complete */
-                    safety_set_ssr(0.0f);
-                    progress_lock();
-                    float peak = s_progress.current_temp;
-                    uint32_t dur = s_progress.elapsed_time;
-                    s_progress.is_active = false;
-                    s_progress.status = FIRING_STATUS_COMPLETE;
-                    progress_unlock();
-                    history_firing_end(HISTORY_OUTCOME_COMPLETE, peak, dur, 0);
-                    save_element_hours();
-                    xEventGroupSetBits(safety_get_event_group(), SAFETY_BIT_FIRING_COMPLETE);
-                    emit_event(FIRING_EVENT_COMPLETE, peak, dur);
-                    ESP_LOGI(TAG, "Firing complete!");
-                } else {
-                    start_segment(next_seg, current_temp);
-                    s_check_start_temp = current_temp;
-                    s_check_start_time_us = now_us;
-                    progress_lock();
-                    s_progress.current_segment = next_seg;
-                    /* Determine if next segment is heating or cooling */
-                    if (s_active_profile.segments[next_seg].ramp_rate >= 0) {
-                        s_progress.status = FIRING_STATUS_HEATING;
-                    } else {
-                        s_progress.status = FIRING_STATUS_COOLING;
-                    }
-                    progress_unlock();
-                }
-            }
-        }
-
-        /* Update progress timing */
-        s_elapsed_accum_us += dt_us;
-        progress_lock();
-        s_progress.elapsed_time = (uint32_t)(s_elapsed_accum_us / 1000000);
-        s_progress.target_temp = setpoint;
-        if (s_active_profile.estimated_duration > 0) {
-            uint32_t est_total_s = s_active_profile.estimated_duration * 60;
-            s_progress.estimated_remaining =
-                (s_progress.elapsed_time < est_total_s) ? (est_total_s - s_progress.elapsed_time) : 0;
-        }
-        progress_unlock();
-
+        firing_tick(esp_timer_get_time());
         wait_until_next_tick(&last_wake);
     }
 }
