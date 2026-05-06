@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/BenSeverson/bisque/actions/workflows/build.yml"><img src="https://github.com/BenSeverson/bisque/actions/workflows/build.yml/badge.svg" alt="Build Status" /></a>
-  <img src="https://img.shields.io/badge/ESP--IDF-v6.0-blue" alt="ESP-IDF v6.0" />
+  <img src="https://img.shields.io/badge/ESP--IDF-v6.0.1-blue" alt="ESP-IDF v6.0.1" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License" /></a>
 </p>
 
@@ -146,7 +146,7 @@ See also: [Wiring Diagram](docs/wiring-diagram.svg) | [Perfboard Layout](docs/pe
 
 ### Prerequisites
 
-- [ESP-IDF v6.0](https://docs.espressif.com/projects/esp-idf/en/v6.0/esp32s3/get-started/)
+- [ESP-IDF v6.0.1](https://docs.espressif.com/projects/esp-idf/en/v6.0.1/esp32s3/get-started/)
 - Node.js 18+
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) (for iOS development)
 
@@ -160,7 +160,7 @@ cd web_ui && npm install && npm run build && cd ..
 gzip -k -9 spiffs_data/www/assets/*.js spiffs_data/www/assets/*.css
 
 # Build and flash firmware
-source ~/.espressif/v6.0/esp-idf/export.sh
+source ~/.espressif/v6.0.1/esp-idf/export.sh
 idf.py build
 idf.py flash monitor
 ```

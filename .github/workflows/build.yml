@@ -79,7 +79,7 @@ jobs:
       - name: Build firmware
         uses: espressif/esp-idf-ci-action@v1
         with:
-          esp_idf_version: v6.0
+          esp_idf_version: v6.0.1
           target: esp32s3
 
       - name: Fix build directory permissions
@@ -91,13 +91,13 @@ jobs:
       - name: Run clang-tidy
         uses: espressif/esp-idf-ci-action@v1
         with:
-          esp_idf_version: v6.0
+          esp_idf_version: v6.0.1
           target: esp32s3
           command: idf_tools.py install esp-clang && eval "$(idf_tools.py export)" && idf.py clang-check --run-clang-tidy-options="-warnings-as-errors=*"
       - name: Run cppcheck
         uses: espressif/esp-idf-ci-action@v1
         with:
-          esp_idf_version: v6.0
+          esp_idf_version: v6.0.1
           target: esp32s3
           command: |
             apt-get update && apt-get install -y cppcheck &&
