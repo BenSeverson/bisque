@@ -4,6 +4,7 @@
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "driver/gpio.h"
+#include "driver/ledc.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
@@ -15,6 +16,17 @@ static const char *TAG = "safety";
 
 /* Vent active below this temperature during firing */
 #define VENT_MAX_TEMP_C 700.0f
+
+/* Piezo buzzer tone driven via LEDC. The buzzer needs an AC waveform to
+   produce sound; static GPIO levels won't work. 4 kHz matched the resonance
+   peak of the buzzer used during bench testing — adjust if a different
+   buzzer is fitted. */
+#define ALARM_TONE_FREQ_HZ    4000
+#define ALARM_TONE_DUTY_RES   LEDC_TIMER_10_BIT
+#define ALARM_TONE_DUTY_50PCT (1U << (ALARM_TONE_DUTY_RES - 1))
+#define ALARM_LEDC_TIMER      LEDC_TIMER_0
+#define ALARM_LEDC_CHANNEL    LEDC_CHANNEL_0
+#define ALARM_LEDC_MODE       LEDC_LOW_SPEED_MODE
 
 static int s_ssr_pin = -1;
 static int s_alarm_gpio = -1;
@@ -28,22 +40,43 @@ static float s_ssr_duty = 0.0f;
 static int64_t s_ssr_window_start_us = 0;
 #define SSR_WINDOW_US ((int64_t)APP_SSR_WINDOW_MS * 1000LL)
 
+static void alarm_tone_on(void)
+{
+    ledc_set_duty(ALARM_LEDC_MODE, ALARM_LEDC_CHANNEL, ALARM_TONE_DUTY_50PCT);
+    ledc_update_duty(ALARM_LEDC_MODE, ALARM_LEDC_CHANNEL);
+}
+
+static void alarm_tone_off(void)
+{
+    ledc_set_duty(ALARM_LEDC_MODE, ALARM_LEDC_CHANNEL, 0);
+    ledc_update_duty(ALARM_LEDC_MODE, ALARM_LEDC_CHANNEL);
+}
+
 void safety_init_io(int alarm_gpio, int vent_gpio)
 {
     s_alarm_gpio = alarm_gpio;
     s_vent_gpio = vent_gpio;
 
     if (alarm_gpio >= 0) {
-        gpio_config_t io = {
-            .pin_bit_mask = (1ULL << alarm_gpio),
-            .mode = GPIO_MODE_OUTPUT,
-            .pull_up_en = GPIO_PULLUP_DISABLE,
-            .pull_down_en = GPIO_PULLDOWN_ENABLE,
-            .intr_type = GPIO_INTR_DISABLE,
+        const ledc_timer_config_t timer = {
+            .speed_mode = ALARM_LEDC_MODE,
+            .timer_num = ALARM_LEDC_TIMER,
+            .duty_resolution = ALARM_TONE_DUTY_RES,
+            .freq_hz = ALARM_TONE_FREQ_HZ,
+            .clk_cfg = LEDC_AUTO_CLK,
         };
-        gpio_config(&io);
-        gpio_set_level(alarm_gpio, 0);
-        ESP_LOGI(TAG, "Alarm GPIO %d configured", alarm_gpio);
+        const ledc_channel_config_t channel = {
+            .speed_mode = ALARM_LEDC_MODE,
+            .channel = ALARM_LEDC_CHANNEL,
+            .timer_sel = ALARM_LEDC_TIMER,
+            .intr_type = LEDC_INTR_DISABLE,
+            .gpio_num = alarm_gpio,
+            .duty = 0,
+            .hpoint = 0,
+        };
+        ESP_ERROR_CHECK(ledc_timer_config(&timer));
+        ESP_ERROR_CHECK(ledc_channel_config(&channel));
+        ESP_LOGI(TAG, "Alarm GPIO %d configured (LEDC %d Hz tone)", alarm_gpio, ALARM_TONE_FREQ_HZ);
     }
 
     if (vent_gpio >= 0) {
@@ -66,33 +99,32 @@ void safety_trigger_alarm(int pattern)
         return;
     }
 
-    /* Simple patterns: drive GPIO high for a duration */
     switch (pattern) {
     case 0: /* short beep */
-        gpio_set_level(s_alarm_gpio, 1);
+        alarm_tone_on();
         vTaskDelay(pdMS_TO_TICKS(200));
-        gpio_set_level(s_alarm_gpio, 0);
+        alarm_tone_off();
         break;
     case 1: /* long beep (completion) */
         for (int i = 0; i < 3; i++) {
-            gpio_set_level(s_alarm_gpio, 1);
+            alarm_tone_on();
             vTaskDelay(pdMS_TO_TICKS(500));
-            gpio_set_level(s_alarm_gpio, 0);
+            alarm_tone_off();
             vTaskDelay(pdMS_TO_TICKS(200));
         }
         break;
     case 2: /* error pattern */
         for (int i = 0; i < 5; i++) {
-            gpio_set_level(s_alarm_gpio, 1);
+            alarm_tone_on();
             vTaskDelay(pdMS_TO_TICKS(100));
-            gpio_set_level(s_alarm_gpio, 0);
+            alarm_tone_off();
             vTaskDelay(pdMS_TO_TICKS(100));
         }
         break;
     default:
-        gpio_set_level(s_alarm_gpio, 1);
+        alarm_tone_on();
         vTaskDelay(pdMS_TO_TICKS(300));
-        gpio_set_level(s_alarm_gpio, 0);
+        alarm_tone_off();
         break;
     }
 }
