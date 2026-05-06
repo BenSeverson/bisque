@@ -195,6 +195,7 @@
   <circle cx="270" cy="96" r="4" class="header-pin"/><circle cx="295" cy="96" r="4" class="header-pin"/>
   <text x="270" y="117" class="pin-label">GND</text>
   <text x="295" y="117" class="pin-label">ALM</text>
+  <text x="295" y="128" class="gpio-label">GP7</text>
   <text x="283" y="83" class="section-label" fill="#ff6600">ALARM</text>
 
   <!-- ==================== VENT HEADER (top-left area) ==================== -->

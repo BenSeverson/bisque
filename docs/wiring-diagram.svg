@@ -134,7 +134,7 @@
 
     <!-- Future -->
     <circle cx="620" cy="450" r="3" fill="#ff6600" opacity="0.5"/>
-    <text x="605" y="453" class="pin-text-r" opacity="0.6">GPIO TBD</text>
+    <text x="605" y="453" class="pin-text-r" opacity="0.6">GPIO 7</text>
     <text x="605" y="443" class="gpio-text-r" opacity="0.6">ALARM</text>
 
     <circle cx="620" cy="490" r="3" fill="#6666ff" opacity="0.5"/>
@@ -281,7 +281,7 @@
   <text x="115" y="615" class="comp-label" fill="#ff6600" opacity="0.7">ALARM</text>
   <text x="115" y="632" class="comp-sublabel" opacity="0.5">(future)</text>
   <circle cx="180" cy="630" r="3" fill="#ff6600" opacity="0.5"/>
-  <text x="115" y="655" class="note">GPIO TBD + GND</text>
+  <text x="115" y="655" class="note">GP7 + GND</text>
 
   <!-- ==================== VENT (bottom-right of left) ==================== -->
   <rect x="200" y="590" width="130" height="80" class="comp-box" fill="#0a0a1a" stroke="#6666ff" opacity="0.7"/>
