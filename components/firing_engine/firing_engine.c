@@ -1,4 +1,5 @@
 #include "firing_engine.h"
+#include "firing_engine_internal.h"
 #include "app_config.h"
 #include "thermocouple.h"
 #include "pid_control.h"
@@ -771,41 +772,9 @@ static void handle_cmd(const firing_cmd_t *cmd)
     }
 }
 
-/* ── Pure helpers ───────────────────────────────────
- * No I/O, no globals — easy to unit test. Kept file-static for now; an
- * internal header will expose them once host-test harness lands. */
-
-/* Linear ramp from segment_start_temp toward seg->target_temp at seg->ramp_rate
- * (°C/hr), clamped at target. When holding, the setpoint is fixed at target. */
-static float compute_dynamic_setpoint(const firing_segment_t *seg, float seg_start_temp, int64_t seg_start_time_us,
-                                      int64_t now_us, bool holding)
-{
-    if (holding) {
-        return seg->target_temp;
-    }
-    float elapsed_seg_s = (float)(now_us - seg_start_time_us) / 1000000.0f;
-    float ramp_per_sec = seg->ramp_rate / 3600.0f;
-    float setpoint = seg_start_temp + ramp_per_sec * elapsed_seg_s;
-
-    if (seg->ramp_rate >= 0) {
-        if (setpoint > seg->target_temp) {
-            setpoint = seg->target_temp;
-        }
-    } else {
-        if (setpoint < seg->target_temp) {
-            setpoint = seg->target_temp;
-        }
-    }
-    return setpoint;
-}
-
-/* True once both the measured temperature and the planned setpoint are within
- * the small target band — keeps us from declaring "at target" while the ramp
- * is still climbing toward it. */
-static bool at_target_predicate(float current_temp, float setpoint, float target_temp)
-{
-    return fabsf(current_temp - target_temp) < 2.0f && fabsf(setpoint - target_temp) < 0.5f;
-}
+/* compute_dynamic_setpoint and at_target_predicate live in firing_helpers.c
+ * (declared in firing_engine_internal.h) so the host test harness can link
+ * just those translation units. */
 
 /* ── Firing tick ────────────────────────────────────
  * Single iteration of the firing loop. firing_task drives this once per
