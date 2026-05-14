@@ -11,6 +11,8 @@
     "typecheck": "tsc --noEmit",
     "format": "prettier --write 'src/**/*.{ts,tsx,css}'",
     "format:check": "prettier --check 'src/**/*.{ts,tsx,css}'",
+    "test": "vitest",
+    "test:run": "vitest run",
     "mock-server": "tsx mock-server/standalone.ts"
   },
   "dependencies": {
@@ -48,12 +50,14 @@
     "eslint": "^10.3.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
+    "jsdom": "^29.1.1",
     "prettier": "^3.8.3",
     "tailwindcss": "4.3.0",
     "tsx": "^4.21.0",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.59.2",
     "vite": "^8.0.11",
+    "vitest": "^4.1.6",
     "ws": "^8.20.0"
   }
 }
