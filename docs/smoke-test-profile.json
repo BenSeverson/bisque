@@ -1,0 +1,23 @@
+{
+  "id": "smoke-test",
+  "name": "Smoke Test",
+  "description": "Bench smoke test — short two-segment firing used to verify SSR, thermocouple, segment advancement, and history persistence end-to-end on real hardware. Peak 50°C. Total wall-clock time depends on the kiln's actual heat-up rate; typically 3-8 minutes for an empty bench kiln. See docs/bench-smoke-test.md.",
+  "segments": [
+    {
+      "id": "smoke-seg-heat",
+      "name": "Heat to 50°C",
+      "rampRate": 600,
+      "targetTemp": 50,
+      "holdTime": 0
+    },
+    {
+      "id": "smoke-seg-cool",
+      "name": "Cool to 30°C",
+      "rampRate": -300,
+      "targetTemp": 30,
+      "holdTime": 0
+    }
+  ],
+  "maxTemp": 50,
+  "estimatedDuration": 8
+}

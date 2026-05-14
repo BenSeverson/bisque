@@ -263,8 +263,21 @@ components/
 web_ui/               React/TypeScript web dashboard
 ios/Bisque/           SwiftUI iOS app
 simulator/            LVGL SDL2 desktop simulator
-docs/                 Wiring diagrams, screenshots
+tests/host/           Pure-logic + accelerated firing unit tests (CMake/Unity)
+docs/                 Wiring diagrams, screenshots, bench smoke test
 ```
+
+## Testing
+
+CI runs five automated test layers on every PR — pure-logic unit tests
+and accelerated firing scenarios (`tests/host/`), a UI screenshot
+regression suite (`simulator/ --diff`), web UI unit tests, and a
+cross-language API contract test that validates firmware JSON output
+against the frontend's zod schemas.
+
+Before tagging a release, run the [bench smoke test](docs/bench-smoke-test.md) — a 3-8 minute hardware
+run that verifies the parts CI can't touch: real SSR clicks, real
+thermocouple readings, history persistence across reboot.
 
 ## License
 
