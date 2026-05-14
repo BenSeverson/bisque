@@ -88,11 +88,7 @@ void mock_set_error_code(firing_error_code_t code)
 /* ── Mock profiles ───────────────────────────────────────────────────────── */
 
 static const char *s_mock_profile_names[] = {
-    "Bisque Cone 04",
-    "Glaze Cone 6",
-    "Glaze Cone 10",
-    "Low Fire",
-    "Crystalline",
+    "Bisque Cone 04", "Glaze Cone 6", "Glaze Cone 10", "Low Fire", "Crystalline",
 };
 static const float s_mock_profile_max_temp[] = {1060.0f, 1222.0f, 1305.0f, 999.0f, 1260.0f};
 static const uint32_t s_mock_profile_minutes[] = {540, 480, 600, 420, 720};
@@ -178,5 +174,19 @@ void mock_set_last_firing(const history_record_t *r)
         s_mock_has_last_firing = true;
     } else {
         s_mock_has_last_firing = false;
+    }
+}
+
+const char *history_outcome_to_string(history_outcome_t outcome)
+{
+    switch (outcome) {
+    case HISTORY_OUTCOME_COMPLETE:
+        return "complete";
+    case HISTORY_OUTCOME_ERROR:
+        return "error";
+    case HISTORY_OUTCOME_ABORTED:
+        return "aborted";
+    default:
+        return "unknown";
     }
 }

@@ -8,6 +8,7 @@
 #include "firing_history.h"
 #include "esp_log.h"
 #include <stdio.h>
+#include <string.h>
 
 extern lv_group_t *g_input_group;
 
