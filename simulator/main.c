@@ -33,11 +33,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <stdbool.h>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
 /* mock_esp.c defines these — main.c is what ties them to LVGL objects. */
 extern lv_indev_t *g_indev_encoder;
@@ -113,8 +117,8 @@ static void apply_preset(int idx)
     prog.elapsed_time = p->elapsed_s;
     prog.estimated_remaining = p->remaining_s;
     prog.is_active = (p->status == FIRING_STATUS_HEATING || p->status == FIRING_STATUS_HOLDING ||
-                     p->status == FIRING_STATUS_COOLING || p->status == FIRING_STATUS_PAUSED ||
-                     p->status == FIRING_STATUS_AUTOTUNE);
+                      p->status == FIRING_STATUS_COOLING || p->status == FIRING_STATUS_PAUSED ||
+                      p->status == FIRING_STATUS_AUTOTUNE);
     if (p->profile_id) {
         strncpy(prog.profile_id, p->profile_id, FIRING_ID_LEN - 1);
     }
@@ -170,13 +174,15 @@ static void encoder_step(int diff)
     pump_frames(3);
 }
 
-/* ── Screenshot save ─────────────────────────────────────────────────────── */
+/* ── Render / save / diff ────────────────────────────────────────────────── */
 
-static bool save_screenshot(lv_display_t *disp, const char *path)
+/* Allocate-and-fill a pixel buffer from the SDL back buffer. Caller owns the
+ * returned buffer; returns NULL on failure. */
+static unsigned char *read_current_pixels(lv_display_t *disp)
 {
     void *renderer = lv_sdl_window_get_renderer(disp);
     if (!renderer) {
-        return false;
+        return NULL;
     }
     /* Two refresh passes so the current frame is in the back buffer that
      * SDL_RenderReadPixels samples from. */
@@ -190,14 +196,23 @@ static bool save_screenshot(lv_display_t *disp, const char *path)
     int stride = w * 4;
     unsigned char *pixels = (unsigned char *)malloc((size_t)stride * (size_t)h);
     if (!pixels) {
-        return false;
+        return NULL;
     }
     /* SDL_PIXELFORMAT_RGBA32 is byte-order R,G,B,A regardless of endianness — what stb_image_write expects. */
     if (SDL_RenderReadPixels(renderer, NULL, SDL_PIXELFORMAT_RGBA32, pixels, stride) != 0) {
         free(pixels);
+        return NULL;
+    }
+    return pixels;
+}
+
+static bool save_screenshot(lv_display_t *disp, const char *path)
+{
+    unsigned char *pixels = read_current_pixels(disp);
+    if (!pixels) {
         return false;
     }
-    int rc = stbi_write_png(path, w, h, 4, pixels, stride);
+    int rc = stbi_write_png(path, APP_LCD_H_RES, APP_LCD_V_RES, 4, pixels, APP_LCD_H_RES * 4);
     free(pixels);
     return rc != 0;
 }
@@ -212,6 +227,48 @@ static void shoot(lv_display_t *disp, const char *name)
         fprintf(stderr, "Failed to save %s: %s\n", path, SDL_GetError());
     }
 }
+
+/* Compute per-pixel max/mean abs difference between two RGBA buffers of the
+ * same dimensions. */
+typedef struct {
+    int max_channel_diff;
+    double mean_abs_diff;
+    int differing_pixels;
+} pixel_diff_t;
+
+static void compute_diff(const unsigned char *a, const unsigned char *b, int w, int h, pixel_diff_t *out)
+{
+    long total_abs = 0;
+    out->max_channel_diff = 0;
+    out->differing_pixels = 0;
+    int n = w * h;
+    for (int i = 0; i < n; i++) {
+        bool any = false;
+        for (int c = 0; c < 4; c++) {
+            int d = (int)a[i * 4 + c] - (int)b[i * 4 + c];
+            if (d < 0) {
+                d = -d;
+            }
+            if (d > out->max_channel_diff) {
+                out->max_channel_diff = d;
+            }
+            total_abs += d;
+            if (d > 0) {
+                any = true;
+            }
+        }
+        if (any) {
+            out->differing_pixels++;
+        }
+    }
+    out->mean_abs_diff = (double)total_abs / (double)(n * 4);
+}
+
+/* Tolerance for a "pass": small per-pixel deltas from PNG re-encoding or
+ * minor AA differences are accepted; structural changes are not. Bumps in
+ * these limits should be paired with a comment explaining why. */
+#define DIFF_MAX_CHANNEL_DELTA 12
+#define DIFF_MEAN_ABS_DELTA    0.6
 
 /* ── Init ────────────────────────────────────────────────────────────────── */
 
@@ -236,13 +293,19 @@ static lv_display_t *init_lvgl_sdl(void)
 
 /* ── Modes ───────────────────────────────────────────────────────────────── */
 
-static int run_screenshot_mode(lv_display_t *disp)
+/* Scene iteration is shared between --screenshot and --diff so the two modes
+ * stay byte-perfectly aligned. `action` is called once per scene, after the
+ * UI has settled, with a canonical short name (the basename used in
+ * docs/screenshots/lcd-<name>.png). */
+typedef void (*scene_action_fn)(lv_display_t *disp, const char *name, void *ctx);
+
+static void for_each_scene(lv_display_t *disp, scene_action_fn action, void *ctx)
 {
-    /* Capture every state preset. */
+    /* Every state preset. */
     for (int i = 0; i < (int)PRESET_COUNT; i++) {
         apply_preset(i);
         pump_frames(8);
-        shoot(disp, presets[i].name);
+        action(disp, presets[i].name, ctx);
     }
 
     /* Modal: profile picker (from IDLE). */
@@ -250,12 +313,12 @@ static int run_screenshot_mode(lv_display_t *disp)
     pump_frames(4);
     modal_profile_picker_open();
     pump_frames(4);
-    shoot(disp, "modal-picker");
+    action(disp, "modal-picker", ctx);
 
     /* Push start-confirm by pressing SELECT on the focused profile. */
     encoder_press();
     pump_frames(2);
-    shoot(disp, "modal-start-confirm");
+    action(disp, "modal-start-confirm", ctx);
     dashboard_modal_close_all();
     pump_frames(2);
 
@@ -264,17 +327,110 @@ static int run_screenshot_mode(lv_display_t *disp)
     pump_frames(4);
     modal_action_menu_open(FIRING_STATUS_HEATING);
     pump_frames(4);
-    shoot(disp, "modal-actions");
+    action(disp, "modal-actions", ctx);
 
     /* Step focus down twice (Pause → Skip Segment → Stop), then SELECT to push stop-confirm. */
     encoder_step(2);
     encoder_press();
     pump_frames(2);
-    shoot(disp, "modal-stop-confirm");
+    action(disp, "modal-stop-confirm", ctx);
     dashboard_modal_close_all();
     pump_frames(2);
+}
 
+static void scene_shoot(lv_display_t *disp, const char *name, void *ctx)
+{
+    (void)ctx;
+    shoot(disp, name);
+}
+
+static int run_screenshot_mode(lv_display_t *disp)
+{
+    for_each_scene(disp, scene_shoot, NULL);
     return 0;
+}
+
+typedef struct {
+    int total;
+    int passed;
+    int failed;
+    int missing_baseline;
+} diff_summary_t;
+
+static void scene_diff(lv_display_t *disp, const char *name, void *ctx)
+{
+    diff_summary_t *s = (diff_summary_t *)ctx;
+    s->total++;
+
+    char baseline_path[256];
+    snprintf(baseline_path, sizeof(baseline_path), "docs/screenshots/lcd-%s.png", name);
+
+    /* Capture current render. */
+    unsigned char *current = read_current_pixels(disp);
+    if (!current) {
+        fprintf(stderr, "[%s] failed to read current render\n", name);
+        s->failed++;
+        return;
+    }
+
+    /* Load baseline. */
+    int bw, bh, bc;
+    unsigned char *baseline = stbi_load(baseline_path, &bw, &bh, &bc, 4);
+    if (!baseline) {
+        printf("[%s] MISSING baseline at %s\n", name, baseline_path);
+        s->missing_baseline++;
+        free(current);
+        return;
+    }
+    if (bw != APP_LCD_H_RES || bh != APP_LCD_V_RES) {
+        fprintf(stderr, "[%s] baseline size %dx%d != expected %dx%d\n", name, bw, bh, APP_LCD_H_RES, APP_LCD_V_RES);
+        stbi_image_free(baseline);
+        free(current);
+        s->failed++;
+        return;
+    }
+
+    pixel_diff_t diff;
+    compute_diff(current, baseline, APP_LCD_H_RES, APP_LCD_V_RES, &diff);
+
+    bool ok = diff.max_channel_diff <= DIFF_MAX_CHANNEL_DELTA && diff.mean_abs_diff <= DIFF_MEAN_ABS_DELTA;
+    if (ok) {
+        printf("[%s] OK (max=%d mean=%.3f diff_px=%d)\n", name, diff.max_channel_diff, diff.mean_abs_diff,
+               diff.differing_pixels);
+        s->passed++;
+    } else {
+        printf("[%s] FAIL (max=%d mean=%.3f diff_px=%d) — tolerance max≤%d mean≤%.2f\n", name, diff.max_channel_diff,
+               diff.mean_abs_diff, diff.differing_pixels, DIFF_MAX_CHANNEL_DELTA, DIFF_MEAN_ABS_DELTA);
+        s->failed++;
+        /* Save the actual render so CI can upload it as an artifact for
+         * inspection. Goes into docs/screenshots/actual/ which is gitignored
+         * so dev runs don't leak diagnostic PNGs into the repo. */
+        char actual_path[256];
+        snprintf(actual_path, sizeof(actual_path), "docs/screenshots/actual/lcd-%s.png", name);
+        stbi_write_png(actual_path, APP_LCD_H_RES, APP_LCD_V_RES, 4, current, APP_LCD_H_RES * 4);
+        printf("       actual render saved to %s\n", actual_path);
+    }
+
+    stbi_image_free(baseline);
+    free(current);
+}
+
+static int run_diff_mode(lv_display_t *disp)
+{
+    /* Ensure the actual-render dir exists so scene_diff can dump failures
+     * even when invoked from a fresh worktree. mkdir(2) on POSIX returns
+     * EEXIST harmlessly. */
+    (void)mkdir("docs/screenshots/actual", 0755);
+
+    diff_summary_t s = {0};
+    for_each_scene(disp, scene_diff, &s);
+    printf("\n== Screenshot diff summary ==\n");
+    printf("  total:    %d\n", s.total);
+    printf("  passed:   %d\n", s.passed);
+    printf("  failed:   %d\n", s.failed);
+    printf("  missing:  %d\n", s.missing_baseline);
+    printf("  tolerance: max channel diff ≤ %d, mean abs diff ≤ %.2f\n", DIFF_MAX_CHANNEL_DELTA, DIFF_MEAN_ABS_DELTA);
+    return (s.failed > 0 || s.missing_baseline > 0) ? 1 : 0;
 }
 
 static int run_interactive(lv_display_t *disp)
@@ -350,10 +506,12 @@ static int run_interactive(lv_display_t *disp)
 
 int main(int argc, char *argv[])
 {
-    bool screenshot_mode = false;
+    enum { MODE_INTERACTIVE, MODE_SCREENSHOT, MODE_DIFF } mode = MODE_INTERACTIVE;
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--screenshot") == 0) {
-            screenshot_mode = true;
+            mode = MODE_SCREENSHOT;
+        } else if (strcmp(argv[i], "--diff") == 0) {
+            mode = MODE_DIFF;
         }
     }
 
@@ -363,10 +521,17 @@ int main(int argc, char *argv[])
     dashboard_create();
 
     int rc;
-    if (screenshot_mode) {
+    switch (mode) {
+    case MODE_SCREENSHOT:
         rc = run_screenshot_mode(disp);
-    } else {
+        break;
+    case MODE_DIFF:
+        rc = run_diff_mode(disp);
+        break;
+    case MODE_INTERACTIVE:
+    default:
         rc = run_interactive(disp);
+        break;
     }
 
     lv_sdl_quit();

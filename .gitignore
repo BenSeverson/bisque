@@ -1,5 +1,8 @@
 # ESP-IDF build output
 build/
+
+# Simulator --diff scratch output
+docs/screenshots/actual/
 sdkconfig
 sdkconfig.old
 sdkconfig.defaults.local
