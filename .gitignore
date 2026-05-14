@@ -30,6 +30,5 @@ xcuserdata/
 *.swo
 
 # Generated / stray
-partition_table/
 .python-version
 .superpowers/

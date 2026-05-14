@@ -35,7 +35,7 @@ components/
 main/               # Entry point, task creation
 web_ui/             # Frontend web dashboard (separate from LVGL UI)
 spiffs_data/        # SPIFFS filesystem image for web assets
-partition_table/    # ESP32 partition layout
+partitions.csv      # ESP32 partition table (16MB, OTA-enabled)
 ```
 
 ## Display / UI System
