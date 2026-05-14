@@ -23,6 +23,8 @@ jobs:
         working-directory: web_ui
       - run: npm run format:check
         working-directory: web_ui
+      - run: npm run test:run
+        working-directory: web_ui
 
   lint-c:
     runs-on: ubuntu-latest
