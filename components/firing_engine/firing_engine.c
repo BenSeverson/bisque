@@ -785,7 +785,7 @@ static void handle_cmd(const firing_cmd_t *cmd)
  * from esp_timer_get_time() before entering the loop. */
 static int64_t s_last_compute_us = 0;
 
-static void firing_tick(int64_t now_us)
+void firing_tick(int64_t now_us)
 {
     /* Handle delay-start countdown */
     if (s_state.delay_active) {
@@ -1050,5 +1050,42 @@ void firing_task(void *param)
     for (;;) {
         firing_tick(esp_timer_get_time());
         wait_until_next_tick(&last_wake);
+    }
+}
+
+/* ── Test-only entry points ────────────────────────────────
+ * Exposed via firing_engine_internal.h so the host harness can drive the
+ * engine without spinning up firing_task. Behavior in production is
+ * unchanged because the public API still routes through the cmd queue. */
+
+void firing_engine_dispatch_cmd_for_test(const firing_cmd_t *cmd)
+{
+    if (cmd) {
+        handle_cmd(cmd);
+    }
+}
+
+void firing_engine_reset_for_test(void)
+{
+    memset(&s_state, 0, sizeof(s_state));
+    memset(&s_progress, 0, sizeof(s_progress));
+    s_progress.status = FIRING_STATUS_IDLE;
+    s_last_error_code = FIRING_ERR_NONE;
+    s_element_on_s = 0;
+    s_last_compute_us = 0;
+    pid_reset(&s_pid);
+    memset(&s_autotune, 0, sizeof(s_autotune));
+    s_autotune.state = AUTOTUNE_IDLE;
+
+    /* Drain any pending commands/events left over from a prior test. */
+    if (s_cmd_queue) {
+        firing_cmd_t cmd;
+        while (xQueueReceive(s_cmd_queue, &cmd, 0) == pdTRUE) {
+        }
+    }
+    if (s_event_queue) {
+        firing_event_t evt;
+        while (xQueueReceive(s_event_queue, &evt, 0) == pdTRUE) {
+        }
     }
 }

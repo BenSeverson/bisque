@@ -21,8 +21,18 @@ target_include_directories(unity PUBLIC unity)
 # In-memory NVS, virtual esp_timer clock, no-op esp_log. Tests that need to
 # manipulate the clock or wipe NVS call host_clock_set / nvs_reset_for_test
 # (declared in the headers).
-add_library(host_stubs STATIC stubs/esp_timer.c stubs/nvs.c)
-target_include_directories(host_stubs PUBLIC stubs)
+add_library(host_stubs STATIC
+    stubs/esp_timer.c
+    stubs/nvs.c
+    stubs/freertos_stub.c
+    stubs/thermocouple_host.c
+    stubs/safety_host.c
+    stubs/history_host.c)
+target_include_directories(host_stubs PUBLIC
+    stubs
+    ${ROOT}/components/thermocouple/include
+    ${ROOT}/components/safety/include
+    ${ROOT}/components/history/include)
 
 # Convenience: every test gets unity + host_stubs + the component include
 # directories.
@@ -54,3 +64,14 @@ add_host_test(test_cone_table
 # pid_control — pid_compute properties, NVS roundtrip, autotune state machine.
 add_host_test(test_pid
     SOURCES test_pid.c ${ROOT}/components/pid_control/pid_control.c)
+
+# firing_scenarios — accelerated end-to-end firings driven through firing_tick.
+# Compiles the real firing_engine.c against host stubs of safety, thermocouple,
+# history, FreeRTOS, NVS, and esp_timer.
+add_host_test(test_firing_scenarios
+    SOURCES test_firing_scenarios.c
+            scenario_helpers.c
+            plant.c
+            ${ROOT}/components/firing_engine/firing_engine.c
+            ${ROOT}/components/firing_engine/firing_helpers.c
+            ${ROOT}/components/pid_control/pid_control.c)
