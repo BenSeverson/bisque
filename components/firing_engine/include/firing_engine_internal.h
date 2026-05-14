@@ -39,6 +39,33 @@ float compute_dynamic_setpoint(const firing_segment_t *seg, float seg_start_temp
  */
 bool at_target_predicate(float current_temp, float setpoint, float target_temp);
 
+/**
+ * Advance the firing engine by one tick using `now_us` as wall-clock time.
+ *
+ * On the firmware, firing_task() calls this once per second from the virtual
+ * `esp_timer_get_time()` value; the host harness calls it directly with a
+ * virtual clock so an 8-hour firing finishes in <1s of real time.
+ *
+ * Reads s_state, s_progress, the PID/autotune state, and emits SSR / vent /
+ * history / safety side effects via the usual driver headers (which the host
+ * harness link-replaces).
+ */
+void firing_tick(int64_t now_us);
+
+/**
+ * Dispatch a command synchronously (the firmware does this via the cmd queue
+ * drained inside firing_task). Test-only entry point — production callers
+ * still use the queue.
+ */
+void firing_engine_dispatch_cmd_for_test(const firing_cmd_t *cmd);
+
+/**
+ * Reset all firing-engine state (active profile, timing, errors, element
+ * hours, PID, autotune, progress). Use between tests to keep cases
+ * independent. Does NOT touch NVS — call nvs_reset_for_test() separately.
+ */
+void firing_engine_reset_for_test(void);
+
 #ifdef __cplusplus
 }
 #endif
