@@ -42,6 +42,33 @@ jobs:
       - name: Run
         run: ctest --test-dir tests/host/build --output-on-failure
 
+  ui-screenshots:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install SDL2
+        run: sudo apt-get update && sudo apt-get install -y libsdl2-dev
+      - name: Fetch LVGL (version resolved in dependencies.lock)
+        run: |
+          LVGL_VERSION=$(awk '/^  lvgl\/lvgl:/{f=1; next} f && /version:/{print $2; exit}' dependencies.lock)
+          echo "Cloning LVGL v${LVGL_VERSION}"
+          mkdir -p managed_components
+          git clone --depth 1 --branch v${LVGL_VERSION} https://github.com/lvgl/lvgl.git managed_components/lvgl__lvgl
+      - name: Configure
+        run: cmake -S simulator -B simulator/build
+      - name: Build simulator
+        run: cmake --build simulator/build
+      - name: Prepare actual-render dir
+        run: mkdir -p docs/screenshots/actual
+      - name: Diff against baselines
+        run: ./simulator/build/bisque_sim --diff
+      - name: Upload renders on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ui-screenshots-actual
+          path: docs/screenshots/actual/lcd-*.png
+
   build-ios:
     runs-on: macos-15
     steps:
@@ -61,7 +88,7 @@ jobs:
         working-directory: ios/Bisque
 
   build:
-    needs: [lint-web, lint-c, unit-host]
+    needs: [lint-web, lint-c, unit-host, ui-screenshots]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6

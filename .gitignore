@@ -1,12 +1,14 @@
 # ESP-IDF build output
 build/
+
+# Simulator --diff scratch output
+docs/screenshots/actual/
 sdkconfig
 sdkconfig.old
 sdkconfig.defaults.local
 
 # Managed components (fetched during build)
 managed_components/
-dependencies.lock
 
 # SPIFFS built assets (generated from web_ui)
 spiffs_data/www/
