@@ -17,12 +17,49 @@ set(ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 add_library(unity STATIC unity/unity.c)
 target_include_directories(unity PUBLIC unity)
 
-# ── cJSON (vendored, MIT — copied from managed_components/espressif__cjson) ─
-# Used by the API contract test (test_api_json.c) to validate the JSON
-# builders extracted into components/web_server/api_json.c.
-add_library(cjson STATIC cjson/cJSON.c)
-target_include_directories(cjson PUBLIC cjson)
-target_compile_options(cjson PRIVATE -Wno-unused-but-set-variable)
+# ── cJSON (fetched at configure time, MIT) ──────────────────────────────
+# Espressif's component registry pins a version like '1.7.19~2' — the
+# trailing '~N' is their downstream patch counter on top of upstream
+# 1.7.19. The host build only needs upstream cJSON (no ESP-IDF
+# integration), so strip the suffix and fetch the matching upstream tag.
+# Doing it this way keeps the host test tied to whatever dependencies.lock
+# pins, so a future firmware bump of cJSON doesn't silently drift away
+# from the host tests.
+include(FetchContent)
+# We intentionally call FetchContent_Populate (not MakeAvailable) so cJSON's
+# own CMakeLists isn't processed — it would force -Werror and add targets we
+# don't want. CMake 3.30+ marks this deprecated; set the policy explicitly.
+if(POLICY CMP0169)
+    cmake_policy(SET CMP0169 OLD)
+endif()
+# Match the outer 4-space-indented `version:` line, not the inner one nested
+# under `dependencies:` (which is the ESP-IDF version range, not cJSON's).
+execute_process(
+    COMMAND awk "/espressif\\/cjson:/{f=1; next} f && /^[^ ]/{exit} f && /^    version:/{print $2; exit}"
+            ${ROOT}/dependencies.lock
+    OUTPUT_VARIABLE CJSON_VERSION_RAW
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT CJSON_VERSION_RAW)
+    message(FATAL_ERROR "Could not parse cJSON version from ${ROOT}/dependencies.lock")
+endif()
+string(REGEX REPLACE "~.*$" "" CJSON_VERSION "${CJSON_VERSION_RAW}")
+message(STATUS "Fetching cJSON v${CJSON_VERSION} (from dependencies.lock: ${CJSON_VERSION_RAW})")
+FetchContent_Declare(
+    cjson_src
+    GIT_REPOSITORY https://github.com/DaveGamble/cJSON.git
+    GIT_TAG v${CJSON_VERSION}
+    GIT_SHALLOW TRUE
+)
+FetchContent_GetProperties(cjson_src)
+if(NOT cjson_src_POPULATED)
+    FetchContent_Populate(cjson_src)
+endif()
+# Skip cJSON's own CMakeLists (it would build shared/static libs and run its
+# tests). We only want cJSON.c / cJSON.h compiled into our own static lib.
+add_library(cjson STATIC ${cjson_src_SOURCE_DIR}/cJSON.c)
+target_include_directories(cjson PUBLIC ${cjson_src_SOURCE_DIR})
+target_compile_options(cjson PRIVATE -Wno-unused-but-set-variable -Wno-unused-parameter)
 
 # ── ESP-IDF host stubs ──────────────────────────────────────────────────
 # In-memory NVS, virtual esp_timer clock, no-op esp_log. Tests that need to
