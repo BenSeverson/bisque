@@ -48,13 +48,10 @@ jobs:
       - uses: actions/checkout@v6
       - name: Install SDL2
         run: sudo apt-get update && sudo apt-get install -y libsdl2-dev
-      - name: Fetch LVGL
-        env:
-          # Bump alongside the version resolved by idf.py for the firmware
-          # build (see components/display/idf_component.yml constraint).
-          # dependencies.lock is gitignored so we can't derive this at runtime.
-          LVGL_VERSION: '9.5.0'
+      - name: Fetch LVGL (version resolved in dependencies.lock)
         run: |
+          LVGL_VERSION=$(awk '/^  lvgl\/lvgl:/{f=1; next} f && /version:/{print $2; exit}' dependencies.lock)
+          echo "Cloning LVGL v${LVGL_VERSION}"
           mkdir -p managed_components
           git clone --depth 1 --branch v${LVGL_VERSION} https://github.com/lvgl/lvgl.git managed_components/lvgl__lvgl
       - name: Configure
