@@ -23,6 +23,13 @@ jobs:
         working-directory: web_ui
       - run: npm run format:check
         working-directory: web_ui
+      # Generate JSON fixtures from the C-side API builders so the cross-
+      # language contract test in web_ui/test/contracts/ has something to
+      # validate. Without this, the contract suite skips with a notice.
+      - name: Build host API fixtures
+        run: |
+          cmake -S tests/host -B tests/host/build
+          cmake --build tests/host/build --target api_fixtures
       - run: npm run test:run
         working-directory: web_ui
 

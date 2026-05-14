@@ -10,6 +10,14 @@ import { AddressInfo } from "net";
 import { z } from "zod";
 import { handleRequest } from "./handlers";
 import { firingProfileSchema, settingsSchema } from "../src/app/schemas/kiln";
+import {
+  autotuneStatusSchema,
+  coneEntrySchema,
+  firingProgressResponseSchema,
+  historyRecordSchema,
+  systemInfoSchema,
+  thermocoupleDiagSchema,
+} from "../test/contracts/responseSchemas";
 
 let server: Server;
 let baseUrl: string;
@@ -48,84 +56,6 @@ async function post(path: string, body: unknown = {}) {
   });
   return { ok: r.ok, status: r.status, body: await r.json() };
 }
-
-// --- Response shape schemas (the contract the frontend relies on) -----------
-
-const firingProgressResponseSchema = z.object({
-  isActive: z.boolean(),
-  profileId: z.string(),
-  currentTemp: z.number(),
-  targetTemp: z.number(),
-  currentSegment: z.number(),
-  totalSegments: z.number(),
-  elapsedTime: z.number(),
-  estimatedTimeRemaining: z.number(),
-  status: z.string(),
-  thermocouple: z.object({
-    temperature: z.number(),
-    internalTemp: z.number(),
-    fault: z.boolean(),
-    openCircuit: z.boolean(),
-    shortGnd: z.boolean(),
-    shortVcc: z.boolean(),
-  }),
-});
-
-const coneEntrySchema = z.object({
-  id: z.number(),
-  name: z.string(),
-  slowTempC: z.number(),
-  mediumTempC: z.number(),
-  fastTempC: z.number(),
-});
-
-const historyRecordSchema = z.object({
-  id: z.number(),
-  startTime: z.number(),
-  profileName: z.string(),
-  profileId: z.string(),
-  peakTemp: z.number(),
-  durationS: z.number(),
-  outcome: z.enum(["complete", "error", "aborted"]),
-  errorCode: z.number(),
-});
-
-const systemInfoSchema = z.object({
-  firmware: z.string(),
-  model: z.string(),
-  uptimeSeconds: z.number(),
-  freeHeap: z.number(),
-  emergencyStop: z.boolean(),
-  lastErrorCode: z.number(),
-  elementHoursS: z.number(),
-  spiffsTotal: z.number(),
-  spiffsUsed: z.number(),
-  boardTempC: z.number(),
-});
-
-const autotuneStatusSchema = z.object({
-  state: z.enum(["idle", "running", "complete"]),
-  elapsedTime: z.number(),
-  targetTemp: z.number(),
-  currentTemp: z.number(),
-  currentGains: z.object({
-    kp: z.number(),
-    ki: z.number(),
-    kd: z.number(),
-  }),
-});
-
-const thermocoupleDiagSchema = z.object({
-  temperatureC: z.number(),
-  internalTempC: z.number(),
-  fault: z.boolean(),
-  openCircuit: z.boolean(),
-  shortGnd: z.boolean(),
-  shortVcc: z.boolean(),
-  readingAgeMs: z.number(),
-  tcOffsetC: z.number(),
-  temperatureAdjustedC: z.number(),
-});
 
 // --- GET endpoints -----------------------------------------------------------
 
