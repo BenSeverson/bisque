@@ -876,8 +876,7 @@ static esp_err_t handle_ota_upload(httpd_req_t *req)
 
     const esp_partition_t *update_partition = esp_ota_get_next_update_partition(NULL);
     if (!update_partition) {
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR,
-                            "No OTA partition. Update partitions.csv to enable OTA.");
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "No update partition available");
         return ESP_FAIL;
     }
 
