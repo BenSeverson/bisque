@@ -17,6 +17,13 @@ set(ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 add_library(unity STATIC unity/unity.c)
 target_include_directories(unity PUBLIC unity)
 
+# ── cJSON (vendored, MIT — copied from managed_components/espressif__cjson) ─
+# Used by the API contract test (test_api_json.c) to validate the JSON
+# builders extracted into components/web_server/api_json.c.
+add_library(cjson STATIC cjson/cJSON.c)
+target_include_directories(cjson PUBLIC cjson)
+target_compile_options(cjson PRIVATE -Wno-unused-but-set-variable)
+
 # ── ESP-IDF host stubs ──────────────────────────────────────────────────
 # In-memory NVS, virtual esp_timer clock, no-op esp_log. Tests that need to
 # manipulate the clock or wipe NVS call host_clock_set / nvs_reset_for_test
@@ -75,3 +82,28 @@ add_host_test(test_firing_scenarios
             ${ROOT}/components/firing_engine/firing_engine.c
             ${ROOT}/components/firing_engine/firing_helpers.c
             ${ROOT}/components/pid_control/pid_control.c)
+
+# api_json — REST-API JSON builders extracted from api_handlers.c. Drives
+# each builder with a fixture input, asserts the shape via cJSON, and (when
+# BISQUE_FIXTURE_DIR is set) dumps the JSON for the cross-language
+# contract validator in web_ui/.
+add_host_test(test_api_json
+    SOURCES test_api_json.c
+            ${ROOT}/components/web_server/api_json.c
+            ${ROOT}/components/cone_table/cone_table.c)
+target_link_libraries(test_api_json PRIVATE cjson)
+target_include_directories(test_api_json PRIVATE
+    ${ROOT}/components/web_server/include
+    ${ROOT}/components/history/include
+    ${ROOT}/components/thermocouple/include
+    stubs)
+
+# Generated-fixture target: runs test_api_json with BISQUE_FIXTURE_DIR set so
+# its dump_fixture() calls land in ${CMAKE_CURRENT_BINARY_DIR}/fixtures/api.
+# Used by the web_ui contract test (web_ui/test/contracts/firmwareContract.test.ts).
+add_custom_target(api_fixtures
+    COMMAND ${CMAKE_COMMAND} -E env BISQUE_FIXTURE_DIR=${CMAKE_CURRENT_BINARY_DIR}/fixtures/api
+            $<TARGET_FILE:test_api_json>
+    DEPENDS test_api_json
+    BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/fixtures/api
+    COMMENT "Generating API JSON fixtures for web_ui contract test")

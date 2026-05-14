@@ -5,35 +5,12 @@
 #include <sys/stat.h>
 #include <stdio.h>
 
+/* firing_status_to_string and json_add_progress_fields live in api_json.c so
+ * host contract tests can link them without dragging in esp_http_server. */
+
 static const char *TAG = "web_server";
 
 static httpd_handle_t s_server = NULL;
-
-/* ── Shared status string helper ─────────────────── */
-
-const char *firing_status_to_string(firing_status_t s)
-{
-    switch (s) {
-    case FIRING_STATUS_IDLE:
-        return "idle";
-    case FIRING_STATUS_HEATING:
-        return "heating";
-    case FIRING_STATUS_HOLDING:
-        return "holding";
-    case FIRING_STATUS_COOLING:
-        return "cooling";
-    case FIRING_STATUS_COMPLETE:
-        return "complete";
-    case FIRING_STATUS_ERROR:
-        return "error";
-    case FIRING_STATUS_PAUSED:
-        return "paused";
-    case FIRING_STATUS_AUTOTUNE:
-        return "autotune";
-    default:
-        return "unknown";
-    }
-}
 
 /* ── MIME type lookup ──────────────────────────────── */
 
