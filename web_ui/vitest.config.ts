@@ -13,6 +13,6 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: false,
-    include: ["src/**/*.test.{ts,tsx}", "mock-server/**/*.test.ts"],
+    include: ["src/**/*.test.{ts,tsx}", "mock-server/**/*.test.ts", "test/**/*.test.ts"],
   },
 });

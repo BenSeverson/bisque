@@ -1,4 +1,5 @@
 #include "web_server.h"
+#include "api_json.h"
 #include "firing_engine.h"
 #include "firing_types.h"
 #include "thermocouple.h"
@@ -166,44 +167,7 @@ static esp_err_t send_json(httpd_req_t *req, cJSON *root)
     return ESP_OK;
 }
 
-/* ── Shared JSON helpers ──────────────────────────── */
-
-void json_add_progress_fields(cJSON *target, const firing_progress_t *prog, float current_temp)
-{
-    cJSON_AddBoolToObject(target, "isActive", prog->is_active);
-    cJSON_AddStringToObject(target, "profileId", prog->profile_id);
-    cJSON_AddNumberToObject(target, "currentTemp", current_temp);
-    cJSON_AddNumberToObject(target, "targetTemp", prog->target_temp);
-    cJSON_AddNumberToObject(target, "currentSegment", prog->current_segment);
-    cJSON_AddNumberToObject(target, "totalSegments", prog->total_segments);
-    cJSON_AddNumberToObject(target, "elapsedTime", prog->elapsed_time);
-    cJSON_AddNumberToObject(target, "estimatedTimeRemaining", prog->estimated_remaining);
-    cJSON_AddStringToObject(target, "status", firing_status_to_string(prog->status));
-}
-
-/* ── Profile JSON helpers ─────────────────────────── */
-
-static cJSON *profile_to_json(const firing_profile_t *profile)
-{
-    cJSON *p = cJSON_CreateObject();
-    cJSON_AddStringToObject(p, "id", profile->id);
-    cJSON_AddStringToObject(p, "name", profile->name);
-    cJSON_AddStringToObject(p, "description", profile->description);
-    cJSON_AddNumberToObject(p, "maxTemp", profile->max_temp);
-    cJSON_AddNumberToObject(p, "estimatedDuration", profile->estimated_duration);
-
-    cJSON *segs = cJSON_AddArrayToObject(p, "segments");
-    for (int i = 0; i < profile->segment_count; i++) {
-        cJSON *s = cJSON_CreateObject();
-        cJSON_AddStringToObject(s, "id", profile->segments[i].id);
-        cJSON_AddStringToObject(s, "name", profile->segments[i].name);
-        cJSON_AddNumberToObject(s, "rampRate", profile->segments[i].ramp_rate);
-        cJSON_AddNumberToObject(s, "targetTemp", profile->segments[i].target_temp);
-        cJSON_AddNumberToObject(s, "holdTime", profile->segments[i].hold_time);
-        cJSON_AddItemToArray(segs, s);
-    }
-    return p;
-}
+/* ── Profile parsing helper (inverse of build_profile_json) ──────────── */
 
 static bool profile_from_json(cJSON *root, firing_profile_t *out)
 {
@@ -311,19 +275,7 @@ static esp_err_t handle_get_status(httpd_req_t *req)
     thermocouple_reading_t tc;
     thermocouple_get_latest(&tc);
 
-    cJSON *root = cJSON_CreateObject();
-    json_add_progress_fields(root, &prog, tc.fault ? 0.0f : tc.temperature_c);
-
-    /* Thermocouple details */
-    cJSON *tc_obj = cJSON_AddObjectToObject(root, "thermocouple");
-    cJSON_AddNumberToObject(tc_obj, "temperature", tc.temperature_c);
-    cJSON_AddNumberToObject(tc_obj, "internalTemp", tc.internal_temp_c);
-    cJSON_AddBoolToObject(tc_obj, "fault", tc.fault != 0);
-    cJSON_AddBoolToObject(tc_obj, "openCircuit", (tc.fault & TC_FAULT_OPEN_CIRCUIT) != 0);
-    cJSON_AddBoolToObject(tc_obj, "shortGnd", (tc.fault & TC_FAULT_SHORT_GND) != 0);
-    cJSON_AddBoolToObject(tc_obj, "shortVcc", (tc.fault & TC_FAULT_SHORT_VCC) != 0);
-
-    return send_json(req, root);
+    return send_json(req, build_status_json(&prog, &tc));
 }
 
 /* ── GET /api/v1/profiles ──────────────────────────── */
@@ -340,7 +292,7 @@ static esp_err_t handle_get_profiles(httpd_req_t *req)
     for (int i = 0; i < count; i++) {
         firing_profile_t profile;
         if (firing_engine_load_profile(ids[i], &profile) == ESP_OK) {
-            cJSON_AddItemToArray(arr, profile_to_json(&profile));
+            cJSON_AddItemToArray(arr, build_profile_json(&profile));
         }
     }
 
@@ -387,7 +339,7 @@ static esp_err_t handle_get_profile(httpd_req_t *req)
     }
 
     /* Build profile JSON (shared between GET and export) */
-    cJSON *p = profile_to_json(&profile);
+    cJSON *p = build_profile_json(&profile);
 
     if (is_export) {
         /* For export, set Content-Disposition header to trigger download */
@@ -574,22 +526,7 @@ static esp_err_t handle_get_settings(httpd_req_t *req)
     }
     kiln_settings_t settings;
     firing_engine_get_settings(&settings);
-
-    cJSON *root = cJSON_CreateObject();
-    char unit_str[2] = {settings.temp_unit, '\0'};
-    cJSON_AddStringToObject(root, "tempUnit", unit_str);
-    cJSON_AddNumberToObject(root, "maxSafeTemp", settings.max_safe_temp);
-    cJSON_AddBoolToObject(root, "alarmEnabled", settings.alarm_enabled);
-    cJSON_AddBoolToObject(root, "autoShutdown", settings.auto_shutdown);
-    cJSON_AddBoolToObject(root, "notificationsEnabled", settings.notifications_enabled);
-    cJSON_AddNumberToObject(root, "tcOffsetC", settings.tc_offset_c);
-    cJSON_AddStringToObject(root, "webhookUrl", settings.webhook_url);
-    /* Don't expose the API token value, just whether it's set */
-    cJSON_AddBoolToObject(root, "apiTokenSet", settings.api_token[0] != '\0');
-    cJSON_AddNumberToObject(root, "elementWatts", settings.element_watts);
-    cJSON_AddNumberToObject(root, "electricityCostKwh", settings.electricity_cost_kwh);
-
-    return send_json(req, root);
+    return send_json(req, build_settings_json(&settings));
 }
 
 /* ── POST /api/v1/settings ─────────────────────────── */
@@ -797,7 +734,7 @@ static esp_err_t handle_cone_fire(httpd_req_t *req)
         firing_engine_save_profile(&profile);
     }
 
-    return send_json(req, profile_to_json(&profile));
+    return send_json(req, build_profile_json(&profile));
 }
 
 /* ── GET /api/v1/history ───────────────────────────── */
@@ -812,18 +749,8 @@ static esp_err_t handle_get_history(httpd_req_t *req)
 
     cJSON *arr = cJSON_CreateArray();
     for (int i = 0; i < count; i++) {
-        cJSON *item = cJSON_CreateObject();
-        cJSON_AddNumberToObject(item, "id", records[i].id);
-        cJSON_AddNumberToObject(item, "startTime", (double)records[i].start_time);
-        cJSON_AddStringToObject(item, "profileName", records[i].profile_name);
-        cJSON_AddStringToObject(item, "profileId", records[i].profile_id);
-        cJSON_AddNumberToObject(item, "peakTemp", records[i].peak_temp_c);
-        cJSON_AddNumberToObject(item, "durationS", records[i].duration_s);
-        cJSON_AddStringToObject(item, "outcome", history_outcome_to_string(records[i].outcome));
-        cJSON_AddNumberToObject(item, "errorCode", records[i].error_code);
-        cJSON_AddItemToArray(arr, item);
+        cJSON_AddItemToArray(arr, build_history_record_json(&records[i]));
     }
-
     return send_json(req, arr);
 }
 
@@ -993,22 +920,10 @@ static esp_err_t handle_diag_thermocouple(httpd_req_t *req)
     int64_t now_us = esp_timer_get_time();
     int64_t age_ms = (tc.timestamp_us > 0) ? ((now_us - tc.timestamp_us) / 1000) : -1;
 
-    cJSON *root = cJSON_CreateObject();
-    cJSON_AddNumberToObject(root, "temperatureC", tc.temperature_c);
-    cJSON_AddNumberToObject(root, "internalTempC", tc.internal_temp_c);
-    cJSON_AddBoolToObject(root, "fault", tc.fault != 0);
-    cJSON_AddBoolToObject(root, "openCircuit", (tc.fault & TC_FAULT_OPEN_CIRCUIT) != 0);
-    cJSON_AddBoolToObject(root, "shortGnd", (tc.fault & TC_FAULT_SHORT_GND) != 0);
-    cJSON_AddBoolToObject(root, "shortVcc", (tc.fault & TC_FAULT_SHORT_VCC) != 0);
-    cJSON_AddNumberToObject(root, "readingAgeMs", (double)age_ms);
-
-    /* Also return offset-adjusted temperature */
     kiln_settings_t settings;
     firing_engine_get_settings(&settings);
-    cJSON_AddNumberToObject(root, "temperatureAdjustedC", tc.temperature_c + settings.tc_offset_c);
-    cJSON_AddNumberToObject(root, "tcOffsetC", settings.tc_offset_c);
 
-    return send_json(req, root);
+    return send_json(req, build_thermocouple_diag_json(&tc, age_ms, settings.tc_offset_c));
 }
 
 /* ── GET /api/v1/cone-table ────────────────────────── */
@@ -1019,18 +934,7 @@ static esp_err_t handle_get_cone_table(httpd_req_t *req)
         return ESP_FAIL;
     }
 
-    cJSON *arr = cJSON_CreateArray();
-    for (int i = 0; i < CONE_COUNT; i++) {
-        cJSON *item = cJSON_CreateObject();
-        cJSON_AddNumberToObject(item, "id", i);
-        cJSON_AddStringToObject(item, "name", cone_name((cone_id_t)i));
-        cJSON_AddNumberToObject(item, "slowTempC", cone_target_temp_c((cone_id_t)i, CONE_SPEED_SLOW));
-        cJSON_AddNumberToObject(item, "mediumTempC", cone_target_temp_c((cone_id_t)i, CONE_SPEED_MEDIUM));
-        cJSON_AddNumberToObject(item, "fastTempC", cone_target_temp_c((cone_id_t)i, CONE_SPEED_FAST));
-        cJSON_AddItemToArray(arr, item);
-    }
-
-    return send_json(req, arr);
+    return send_json(req, build_cone_table_json());
 }
 
 /* ── POST /api/v1/autotune/start ───────────────────── */
@@ -1095,30 +999,15 @@ static esp_err_t handle_autotune_status(httpd_req_t *req)
     if (!require_auth(req)) {
         return ESP_FAIL;
     }
-    /* Access autotune state via progress */
+    /* Access autotune state via progress; the autotune struct is internal to
+       firing_engine, so we expose it via the progress status + the current
+       PID gains. */
     firing_progress_t prog;
     firing_engine_get_progress(&prog);
 
-    /* The autotune struct is internal to firing_engine, so we expose it via the
-       progress status + dedicated fields. For now, return the progress-based view. */
-    cJSON *root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "state",
-                            prog.status == FIRING_STATUS_AUTOTUNE ? "running"
-                            : prog.status == FIRING_STATUS_IDLE   ? "idle"
-                                                                  : "stopped");
-    cJSON_AddNumberToObject(root, "elapsedTime", prog.elapsed_time);
-    cJSON_AddNumberToObject(root, "targetTemp", prog.target_temp);
-    cJSON_AddNumberToObject(root, "currentTemp", prog.current_temp);
-
-    /* PID gains (current) */
     float kp, ki, kd;
     pid_load_gains(&kp, &ki, &kd);
-    cJSON *gains = cJSON_AddObjectToObject(root, "currentGains");
-    cJSON_AddNumberToObject(gains, "kp", kp);
-    cJSON_AddNumberToObject(gains, "ki", ki);
-    cJSON_AddNumberToObject(gains, "kd", kd);
-
-    return send_json(req, root);
+    return send_json(req, build_autotune_status_json(&prog, kp, ki, kd));
 }
 
 /* ── GET /api/v1/ota/status ───────────────────────── */
