@@ -5,6 +5,12 @@ on:
   pull_request:
     branches: [main]
 
+# Cancel superseded PR runs to keep CI minutes bounded. Pushes to `main`
+# are not cancelled so each merge produces a complete artifact run.
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   lint-web:
     runs-on: ubuntu-latest
@@ -78,6 +84,10 @@ jobs:
           name: ui-screenshots-actual
           path: docs/screenshots/actual/lcd-*.png
 
+  # iOS companion-app build. Intentionally NOT in `build.needs:` — iOS
+  # regressions don't block firmware merges. Keep that policy explicit;
+  # if iOS becomes a release-blocking platform, add `build-ios` to the
+  # `needs:` list on the `build` job below.
   build-ios:
     runs-on: macos-15
     steps:

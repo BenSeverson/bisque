@@ -3,6 +3,12 @@ on:
   push:
     tags: ['v*']
 
+# Serialize releases for the same tag. Tags are unique so this almost
+# never fires, but it guards against accidental retag/force-push races.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
