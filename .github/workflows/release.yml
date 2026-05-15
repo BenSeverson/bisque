@@ -52,6 +52,13 @@ jobs:
           cp build/bootloader/bootloader.bin release/bisque-bootloader-${BISQUE_VERSION}.bin
           cp build/partition_table/partition-table.bin release/bisque-partitions-${BISQUE_VERSION}.bin
 
+      # Publish checksums alongside the binaries so downloaders can verify
+      # integrity. Generated relative to release/ so paths in the file are
+      # just the bare filenames.
+      - name: Generate SHA256SUMS
+        working-directory: release
+        run: sha256sum * > SHA256SUMS
+
       - uses: softprops/action-gh-release@v3
         with:
           files: release/*
