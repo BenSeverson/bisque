@@ -96,11 +96,11 @@ static void confirm_builder(lv_obj_t *root, void *ctx)
     lv_obj_align(details, LV_ALIGN_TOP_MID, 0, 130);
 
     lv_obj_t *start_btn = make_modal_button(root, "Start", UI_COLOR_HEATING, UI_COLOR_ON_ACCENT);
-    lv_obj_align(start_btn, LV_ALIGN_CENTER, -80, 30);
+    lv_obj_align(start_btn, LV_ALIGN_CENTER, -80, 50);
     lv_obj_add_event_cb(start_btn, on_start_clicked, LV_EVENT_CLICKED, NULL);
 
     lv_obj_t *cancel_btn = make_modal_button(root, "Cancel", UI_COLOR_BUTTON_BG, UI_COLOR_TEXT);
-    lv_obj_align(cancel_btn, LV_ALIGN_CENTER, 80, 30);
+    lv_obj_align(cancel_btn, LV_ALIGN_CENTER, 80, 50);
     lv_obj_add_event_cb(cancel_btn, on_cancel_clicked, LV_EVENT_CLICKED, NULL);
 
     lv_group_focus_obj(start_btn);
@@ -136,8 +136,8 @@ static void picker_builder(lv_obj_t *root, void *ctx)
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 16);
 
     lv_obj_t *list = lv_list_create(root);
-    lv_obj_set_size(list, UI_LCD_W - 32, UI_LCD_H - 140);
-    lv_obj_align(list, LV_ALIGN_TOP_MID, 0, 60);
+    lv_obj_set_size(list, UI_LCD_W - 32, 160);
+    lv_obj_align(list, LV_ALIGN_TOP_MID, 0, 50);
 
     for (int i = 0; i < s_profile_count; i++) {
         firing_profile_t p;

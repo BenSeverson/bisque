@@ -185,10 +185,14 @@ static unsigned char *read_current_pixels(lv_display_t *disp)
         return NULL;
     }
     /* Two refresh passes so the current frame is in the back buffer that
-     * SDL_RenderReadPixels samples from. */
+     * SDL_RenderReadPixels samples from. Invalidate both the active screen
+     * and lv_layer_top so any open modal redraws too — without this, a
+     * fully-opaque modal stays clean and the screen redraw paints over it. */
     lv_obj_invalidate(lv_screen_active());
+    lv_obj_invalidate(lv_layer_top());
     lv_refr_now(disp);
     lv_obj_invalidate(lv_screen_active());
+    lv_obj_invalidate(lv_layer_top());
     lv_refr_now(disp);
 
     int w = APP_LCD_H_RES;

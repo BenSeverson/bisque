@@ -61,6 +61,7 @@ static lv_obj_t *s_active_temp = NULL;
 static lv_obj_t *s_active_target = NULL;
 static lv_obj_t *s_active_elapsed = NULL;
 static lv_obj_t *s_active_remaining = NULL;
+static lv_obj_t *s_active_remaining_hdr = NULL;
 static lv_obj_t *s_chart = NULL;
 static lv_chart_series_t *s_chart_actual = NULL;
 static lv_chart_series_t *s_chart_planned = NULL;
@@ -177,6 +178,7 @@ static void clear_view_widgets(void)
     s_active_target = NULL;
     s_active_elapsed = NULL;
     s_active_remaining = NULL;
+    s_active_remaining_hdr = NULL;
     s_chart = NULL;
     s_chart_actual = NULL;
     s_chart_planned = NULL;
@@ -313,8 +315,8 @@ static void build_view_active(void)
     s_active_elapsed = ui_make_label(s_content, UI_FONT_MEDIUM, UI_COLOR_TEXT, "0m 00s");
     lv_obj_align(s_active_elapsed, LV_ALIGN_TOP_LEFT, LEFT_COL_X, 192 - CONTENT_Y);
 
-    lv_obj_t *remaining_hdr = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "REMAINING");
-    lv_obj_align(remaining_hdr, LV_ALIGN_TOP_LEFT, LEFT_COL_X, 232 - CONTENT_Y);
+    s_active_remaining_hdr = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "REMAINING");
+    lv_obj_align(s_active_remaining_hdr, LV_ALIGN_TOP_LEFT, LEFT_COL_X, 232 - CONTENT_Y);
 
     s_active_remaining = ui_make_label(s_content, UI_FONT_MEDIUM, UI_COLOR_TEXT, "-");
     lv_obj_align(s_active_remaining, LV_ALIGN_TOP_LEFT, LEFT_COL_X, 256 - CONTENT_Y);
@@ -384,8 +386,15 @@ static void update_view_active(const thermocouple_reading_t *tc, const firing_pr
     if (prog->estimated_remaining > 0) {
         format_duration(prog->estimated_remaining, buf, sizeof(buf), "~");
         lv_label_set_text(s_active_remaining, buf);
+        lv_obj_clear_flag(s_active_remaining, LV_OBJ_FLAG_HIDDEN);
+        if (s_active_remaining_hdr) {
+            lv_obj_clear_flag(s_active_remaining_hdr, LV_OBJ_FLAG_HIDDEN);
+        }
     } else {
-        lv_label_set_text(s_active_remaining, "-");
+        lv_obj_add_flag(s_active_remaining, LV_OBJ_FLAG_HIDDEN);
+        if (s_active_remaining_hdr) {
+            lv_obj_add_flag(s_active_remaining_hdr, LV_OBJ_FLAG_HIDDEN);
+        }
     }
 
     if (s_chart && s_chart_actual && s_cached_total_dur_s > 0 && !tc->fault) {
@@ -455,15 +464,18 @@ static void build_view_error(const firing_progress_t *prog)
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 80 - CONTENT_Y);
 
     lv_obj_t *err = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT, desc);
+    lv_obj_set_width(err, UI_LCD_W - 40);
+    lv_label_set_long_mode(err, LV_LABEL_LONG_WRAP);
+    lv_obj_set_style_text_align(err, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(err, LV_ALIGN_TOP_MID, 0, 132 - CONTENT_Y);
 
     s_error_now_temp = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT, "");
-    lv_obj_align(s_error_now_temp, LV_ALIGN_TOP_MID, 0, 176 - CONTENT_Y);
+    lv_obj_align(s_error_now_temp, LV_ALIGN_TOP_MID, 0, 196 - CONTENT_Y);
 
     if (s_cached_profile_valid && s_cached_profile.name[0] != '\0') {
         lv_obj_t *prof = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, "");
         lv_label_set_text_fmt(prof, "Profile: %s", s_cached_profile.name);
-        lv_obj_align(prof, LV_ALIGN_TOP_MID, 0, 204 - CONTENT_Y);
+        lv_obj_align(prof, LV_ALIGN_TOP_MID, 0, 224 - CONTENT_Y);
     }
 
     if (prog->total_segments > 0) {
@@ -472,7 +484,7 @@ static void build_view_error(const firing_progress_t *prog)
         format_duration(prog->elapsed_time, dur_buf, sizeof(dur_buf), "");
         snprintf(buf, sizeof(buf), "Stopped at Seg %u / %s", (unsigned)(prog->current_segment + 1), dur_buf);
         lv_obj_t *seg = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, buf);
-        lv_obj_align(seg, LV_ALIGN_TOP_MID, 0, 232 - CONTENT_Y);
+        lv_obj_align(seg, LV_ALIGN_TOP_MID, 0, 252 - CONTENT_Y);
     }
 }
 
