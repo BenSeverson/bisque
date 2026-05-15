@@ -34,7 +34,7 @@ static void build_frame(const modal_frame_t *frame)
     lv_obj_set_size(s_root, UI_LCD_W, UI_LCD_H);
     lv_obj_set_pos(s_root, 0, 0);
     lv_obj_set_style_bg_color(s_root, UI_COLOR_BG, 0);
-    lv_obj_set_style_bg_opa(s_root, LV_OPA_90, 0);
+    lv_obj_set_style_bg_opa(s_root, LV_OPA_COVER, 0);
     lv_obj_clear_flag(s_root, LV_OBJ_FLAG_SCROLLABLE);
 
     /* New widgets default to the modal group so the builder doesn't have to
