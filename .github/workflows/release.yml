@@ -32,8 +32,7 @@ jobs:
       - run: npm run build
         working-directory: web_ui
       - name: Gzip web assets
-        working-directory: spiffs_data/www
-        run: find . -type f \( -name "*.js" -o -name "*.css" -o -name "*.html" -o -name "*.svg" \) -exec gzip -9 -f {} \;
+        run: make gzip
 
       # Firmware
       - name: Build firmware

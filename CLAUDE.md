@@ -14,6 +14,8 @@ idf.py flash monitor  # Flash and monitor
 
 Build system: **CMake** via ESP-IDF's `idf.py`. Each `components/` subdirectory is an ESP-IDF component with its own `CMakeLists.txt`.
 
+The top-level `Makefile` is a thin dispatcher over the existing scripts and `idf.py` — `make help` lists every developer entry point (`build`, `web`, `firmware`, `sim`, `test`, `lint`, `format`, `size`, `clang-tidy`, `cppcheck`, `ci`, `clean`). CI calls the same targets, so `make ci` is the closest local approximation of the PR check.
+
 ## Code Style
 
 After editing any firmware C/H files under `main/` or `components/`, run `clang-format -i` on the changed files (or `./scripts/format.sh` to format all firmware + web sources). The CI format check uses the repo's `.clang-format`; unformatted code will fail the `clang-format` job.
