@@ -111,8 +111,12 @@ jobs:
         run: xcodebuild -scheme Bisque -sdk iphoneos -arch arm64 CODE_SIGNING_ALLOWED=NO -quiet
         working-directory: ios/Bisque
 
+  # Gate only on the cheap smoke checks (~13s combined) so the long
+  # firmware build starts almost immediately. lint-web and ui-screenshots
+  # still run in parallel and still gate the overall workflow result;
+  # they just no longer delay this job's start.
   build:
-    needs: [lint-web, lint-c, unit-host, ui-screenshots]
+    needs: [lint-c, unit-host]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -136,6 +140,20 @@ jobs:
       - name: Check SPIFFS size
         run: make size-spiffs
 
+      # Persist the compiler cache across runs so unchanged translation
+      # units are not recompiled. CCACHE_DIR lives inside the workspace
+      # ($GITHUB_WORKSPACE resolves to /github/workspace inside the action
+      # container) so the dir survives for actions/cache to pick up after
+      # the container exits. restore-keys takes the most recent prior
+      # cache when there is no exact SHA hit.
+      - name: Cache ccache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: .ccache
+          key: esp-idf-ccache-${{ github.sha }}
+          restore-keys: |
+            esp-idf-ccache-
+
       # Build firmware and run clang-tidy in one IDF action invocation
       # so the toolchain is only bootstrapped once.
       # esp-idf-ci-action publishes a moving `v1` *branch* (no `v1` tag),
@@ -147,13 +165,20 @@ jobs:
           esp_idf_version: v6.0.1
           target: esp32s3
           command: |
+            export IDF_CCACHE_ENABLE=1
+            export CCACHE_DIR="$GITHUB_WORKSPACE/.ccache"
+            export CCACHE_MAXSIZE=500M
             idf.py build && \
+            ccache --show-stats && \
             idf_tools.py install esp-clang && \
             eval "$(idf_tools.py export)" && \
             idf.py clang-check --run-clang-tidy-options="-warnings-as-errors=*"
 
+      # The action container runs as root; chown the dirs it wrote so the
+      # later size check and the actions/cache post step (runner user) can
+      # read them.
       - name: Fix build directory permissions
-        run: sudo chown -R $(id -u):$(id -g) build
+        run: sudo chown -R $(id -u):$(id -g) build .ccache
       - name: Check firmware size
         run: make size-firmware
 
