@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 @MainActor @Observable
 final class SettingsViewModel {
@@ -10,10 +11,18 @@ final class SettingsViewModel {
     var autotuneStatus: AutotuneStatus?
     var isAutotunePolling = false
 
-    // OTA
+    // OTA — manual upload
     var otaProgress: Double = 0
     var isUploading = false
     var otaMessage: String?
+
+    // OTA — GitHub update check / install
+    var availableUpdate: OtaCheckResponse?
+    var isCheckingUpdate = false
+    var isInstalling = false
+    var installProgress: Double?
+
+    @ObservationIgnored private var otaCancellable: AnyCancellable?
 
     // Diagnostics
     var tcDiag: DiagThermocouple?
@@ -93,6 +102,57 @@ final class SettingsViewModel {
         } catch {
             self.error = error.localizedDescription
             isUploading = false
+        }
+    }
+
+    // MARK: - OTA (GitHub update)
+
+    func checkForUpdate(using client: KilnAPIClient) async {
+        isCheckingUpdate = true
+        error = nil
+        otaMessage = nil
+        do {
+            let result = try await client.checkOTA()
+            availableUpdate = result
+            if !result.updateAvailable {
+                otaMessage = "You're on the latest version (\(result.current))."
+            }
+        } catch {
+            self.error = error.localizedDescription
+        }
+        isCheckingUpdate = false
+    }
+
+    func installUpdate(using client: KilnAPIClient, ws: KilnWebSocketManager) async {
+        isInstalling = true
+        installProgress = 0
+        error = nil
+        otaMessage = nil
+
+        otaCancellable = ws.otaSubject
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] event in
+                guard let self else { return }
+                switch event {
+                case .progress(let pct):
+                    self.installProgress = pct
+                case .complete:
+                    self.installProgress = 100
+                    self.otaMessage = "Update installed. Kiln is rebooting..."
+                case .failed(let message):
+                    self.error = message
+                    self.isInstalling = false
+                    self.installProgress = nil
+                }
+            }
+
+        do {
+            _ = try await client.installOTA()
+        } catch {
+            self.error = error.localizedDescription
+            isInstalling = false
+            installProgress = nil
+            otaCancellable = nil
         }
     }
 

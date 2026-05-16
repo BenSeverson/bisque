@@ -11,6 +11,7 @@ idf_component_register(
         wifi_manager
         history
         status_led
+        ota
         mdns
         esp_netif
         lwip

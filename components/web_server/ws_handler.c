@@ -5,6 +5,7 @@
 #include "cJSON.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include <stdlib.h>
 #include <string.h>
 
 static const char *TAG = "ws";
@@ -111,6 +112,41 @@ void ws_broadcast_status(void)
     char *json = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
 
+    if (json) {
+        ws_broadcast(json, strlen(json));
+        free(json);
+    }
+}
+
+/* ── OTA progress events ────────────────────────────── */
+
+void ws_send_ota_event(ota_phase_t phase, int percent, const char *err)
+{
+    cJSON *root = cJSON_CreateObject();
+    cJSON *data = cJSON_AddObjectToObject(root, "data");
+
+    switch (phase) {
+    case OTA_PHASE_DOWNLOAD:
+    case OTA_PHASE_FLASH:
+        cJSON_AddStringToObject(root, "type", "ota_progress");
+        cJSON_AddStringToObject(data, "phase", phase == OTA_PHASE_FLASH ? "flash" : "download");
+        cJSON_AddNumberToObject(data, "percent", percent);
+        break;
+    case OTA_PHASE_COMPLETE:
+        cJSON_AddStringToObject(root, "type", "ota_complete");
+        cJSON_AddNumberToObject(data, "percent", 100);
+        break;
+    case OTA_PHASE_ERROR:
+        cJSON_AddStringToObject(root, "type", "ota_error");
+        cJSON_AddStringToObject(data, "message", err ? err : "Update failed");
+        break;
+    default:
+        cJSON_Delete(root);
+        return;
+    }
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
     if (json) {
         ws_broadcast(json, strlen(json));
         free(json);
