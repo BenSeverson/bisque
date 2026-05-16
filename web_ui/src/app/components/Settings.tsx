@@ -13,7 +13,7 @@ import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
 import { setApiToken } from "../services/api";
 import { toast } from "sonner";
-import { Upload, Zap, Thermometer, AlertTriangle } from "lucide-react";
+import { Upload, Zap, Thermometer, AlertTriangle, RefreshCw, Download } from "lucide-react";
 import { settingsSchema, SettingsFormValues } from "../schemas/kiln";
 import {
   useSettings,
@@ -24,8 +24,11 @@ import {
   useStopAutotune,
   useTestRelay,
   useUploadOta,
+  useCheckOta,
+  useInstallOta,
 } from "../hooks/queries";
-import { api, DiagThermocouple } from "../services/api";
+import { api, DiagThermocouple, OtaCheckResponse } from "../services/api";
+import { kilnWS } from "../services/websocket";
 
 export function Settings() {
   const { data: settings } = useSettings();
@@ -40,6 +43,8 @@ export function Settings() {
   const stopAutotune = useStopAutotune();
   const testRelay = useTestRelay();
   const uploadOta = useUploadOta();
+  const checkOta = useCheckOta();
+  const installOta = useInstallOta();
 
   // TC diagnostics
   const [tcDiag, setTcDiag] = useState<DiagThermocouple | null>(null);
@@ -48,6 +53,9 @@ export function Settings() {
   const [otaFile, setOtaFile] = useState<File | null>(null);
   const [otaProgress, setOtaProgress] = useState<number | null>(null);
   const otaInputRef = useRef<HTMLInputElement>(null);
+  const [otaCheck, setOtaCheck] = useState<OtaCheckResponse | null>(null);
+  const [otaInstalling, setOtaInstalling] = useState(false);
+  const [otaInstallPct, setOtaInstallPct] = useState<number | null>(null);
 
   // API token local state
   const [newToken, setNewToken] = useState("");
@@ -164,6 +172,48 @@ export function Settings() {
       setOtaProgress(null);
     }
   }, [otaFile, uploadOta]);
+
+  const handleCheckOta = useCallback(async () => {
+    setOtaCheck(null);
+    try {
+      const result = await checkOta.mutateAsync();
+      setOtaCheck(result);
+      if (!result.updateAvailable) {
+        toast.success(`You're on the latest version (${result.current})`);
+      }
+    } catch (e) {
+      toast.error(`Update check failed: ${toErrorMessage(e)}`);
+    }
+  }, [checkOta]);
+
+  const handleInstallOta = useCallback(async () => {
+    setOtaInstalling(true);
+    setOtaInstallPct(0);
+    try {
+      await installOta.mutateAsync();
+    } catch (e) {
+      toast.error(`Update failed: ${toErrorMessage(e)}`);
+      setOtaInstalling(false);
+      setOtaInstallPct(null);
+    }
+  }, [installOta]);
+
+  // Stream OTA install progress from the WebSocket while an install runs.
+  useEffect(() => {
+    if (!otaInstalling) return;
+    return kilnWS.subscribe((msg) => {
+      if (msg.type === "ota_progress") {
+        setOtaInstallPct(msg.data.percent);
+      } else if (msg.type === "ota_complete") {
+        setOtaInstallPct(100);
+        toast.success("Update installed — controller is rebooting");
+      } else if (msg.type === "ota_error") {
+        toast.error(`Update failed: ${msg.data.message}`);
+        setOtaInstalling(false);
+        setOtaInstallPct(null);
+      }
+    });
+  }, [otaInstalling]);
 
   const formatBytes = (bytes: number) => {
     if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -531,15 +581,84 @@ export function Settings() {
         </CardContent>
       </Card>
 
-      {/* OTA Firmware Update */}
+      {/* Firmware Update — check GitHub for a new release */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <RefreshCw className="h-5 w-5" />
+            Check for Updates
+          </CardTitle>
+          <CardDescription>
+            Check GitHub for a newer firmware release and install it over Wi-Fi
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex justify-between py-2 border-b">
+            <span className="text-sm font-medium">Current Version</span>
+            <span className="text-sm text-muted-foreground">{systemInfo?.firmware || "--"}</span>
+          </div>
+
+          {otaCheck?.updateAvailable && (
+            <div className="flex justify-between py-2 border-b">
+              <span className="text-sm font-medium">Available Version</span>
+              <Badge>{otaCheck.latest}</Badge>
+            </div>
+          )}
+
+          {otaCheck && !otaCheck.updateAvailable && (
+            <p className="text-sm text-muted-foreground">You're running the latest version.</p>
+          )}
+
+          {otaInstallPct !== null && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Installing update...</span>
+                <span>{Math.round(otaInstallPct)}%</span>
+              </div>
+              <Progress value={otaInstallPct} />
+            </div>
+          )}
+
+          <div className="flex gap-3 flex-wrap">
+            <Button
+              variant="outline"
+              onClick={handleCheckOta}
+              disabled={checkOta.isPending || otaInstalling}
+              className="gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              {checkOta.isPending ? "Checking..." : "Check for Updates"}
+            </Button>
+
+            {otaCheck?.updateAvailable && (
+              <Button
+                onClick={handleInstallOta}
+                disabled={otaInstalling}
+                variant="default"
+                className="gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Install {otaCheck.latest}
+              </Button>
+            )}
+          </div>
+
+          <p className="text-sm text-muted-foreground">
+            The controller restarts automatically after installing. Do not power off during the
+            update. Updates are blocked while a firing is active.
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* OTA Firmware Update — manual binary upload */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Upload className="h-5 w-5" />
-            Firmware Update (OTA)
+            Manual Firmware Update
           </CardTitle>
           <CardDescription>
-            Upload a new firmware binary (.bin) to update the controller over Wi-Fi
+            Upload a firmware binary (.bin) directly to update the controller over Wi-Fi
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

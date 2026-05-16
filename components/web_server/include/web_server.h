@@ -4,6 +4,7 @@
 #include "esp_http_server.h"
 #include "firing_types.h"
 #include "cJSON.h"
+#include "ota_manager.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -50,6 +51,12 @@ void ws_broadcast_notify(void);
  * Start the WebSocket broadcast worker task. Call once after web_server_start().
  */
 esp_err_t ws_handler_start(void);
+
+/**
+ * Broadcast an OTA progress/completion/error event to WebSocket clients.
+ * Matches ota_progress_cb_t; registered with ota_set_progress_cb().
+ */
+void ws_send_ota_event(ota_phase_t phase, int percent, const char *err);
 
 /**
  * Start the firing-event consumer task. Drains firing_engine_get_event_queue()

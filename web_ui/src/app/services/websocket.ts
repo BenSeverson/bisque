@@ -9,10 +9,24 @@ export interface TempUpdateData {
   isActive: boolean;
 }
 
-export interface WSMessage {
-  type: "temp_update";
-  data: TempUpdateData;
+export interface OtaProgressData {
+  phase: "download" | "flash";
+  percent: number;
 }
+
+export interface OtaCompleteData {
+  percent: number;
+}
+
+export interface OtaErrorData {
+  message: string;
+}
+
+export type WSMessage =
+  | { type: "temp_update"; data: TempUpdateData }
+  | { type: "ota_progress"; data: OtaProgressData }
+  | { type: "ota_complete"; data: OtaCompleteData }
+  | { type: "ota_error"; data: OtaErrorData };
 
 type MessageHandler = (msg: WSMessage) => void;
 
