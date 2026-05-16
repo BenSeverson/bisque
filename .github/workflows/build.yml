@@ -141,10 +141,7 @@ jobs:
         run: make size-spiffs
 
       # Persist the compiler cache across runs so unchanged translation
-      # units are not recompiled. CCACHE_DIR lives inside the workspace
-      # ($GITHUB_WORKSPACE resolves to /github/workspace inside the action
-      # container) so the dir survives for actions/cache to pick up after
-      # the container exits. restore-keys takes the most recent prior
+      # units are not recompiled. restore-keys takes the most recent prior
       # cache when there is no exact SHA hit.
       - name: Cache ccache
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
@@ -153,6 +150,10 @@ jobs:
           key: esp-idf-ccache-${{ github.sha }}
           restore-keys: |
             esp-idf-ccache-
+      # Ensure the dir exists even on a cache miss so the chown step below
+      # never fails on a missing path.
+      - name: Create ccache dir
+        run: mkdir -p .ccache
 
       # Build firmware and run clang-tidy in one IDF action invocation
       # so the toolchain is only bootstrapped once.
@@ -166,7 +167,12 @@ jobs:
           target: esp32s3
           command: |
             export IDF_CCACHE_ENABLE=1
-            export CCACHE_DIR="$GITHUB_WORKSPACE/.ccache"
+            # The command runs with cwd = the repo root mounted into the
+            # action container; $PWD/.ccache therefore maps back to the
+            # runner workspace's .ccache for actions/cache to persist.
+            # ($GITHUB_WORKSPACE points at the runner path, which does not
+            # exist inside the container, so it cannot be used here.)
+            export CCACHE_DIR="$PWD/.ccache"
             export CCACHE_MAXSIZE=500M
             idf.py build && \
             ccache --show-stats && \
