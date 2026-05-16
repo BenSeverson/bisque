@@ -1,6 +1,13 @@
 # ESP-IDF build output
 build/
 
+# Host unit tests / simulator build dirs
+tests/host/build/
+simulator/build/
+
+# CLion / generic CMake debug build dir
+cmake-build-debug/
+
 # Simulator --diff scratch output
 docs/screenshots/actual/
 sdkconfig
