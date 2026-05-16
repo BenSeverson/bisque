@@ -42,6 +42,8 @@ set(BISQUE_UI_SRC
     ${BISQUE_DISPLAY_DIR}/modal.c
     ${BISQUE_DISPLAY_DIR}/modal_profile_picker.c
     ${BISQUE_DISPLAY_DIR}/modal_action_menu.c
+    ${BISQUE_DISPLAY_DIR}/splash.c
+    ${BISQUE_DISPLAY_DIR}/assets/flame_icon.c
     ${BISQUE_DISPLAY_DIR}/ui_widgets.c
     ${BISQUE_DISPLAY_DIR}/ui_theme.c
 )
