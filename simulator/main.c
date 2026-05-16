@@ -14,8 +14,8 @@
  *   Q / Esc / close      quit
  *
  * Screenshot mode (--screenshot):
- *   Dumps every state preset and every modal to docs/screenshots/lcd-*.bmp
- *   then exits.
+ *   Dumps the boot splash, every state preset and every modal to
+ *   docs/screenshots/lcd-*.png then exits.
  */
 #include "lvgl.h"
 #include "app_config.h"
@@ -23,6 +23,7 @@
 #include "modal.h"
 #include "modal_profile_picker.h"
 #include "modal_action_menu.h"
+#include "splash.h"
 #include "thermocouple.h"
 #include "firing_types.h"
 #include "firing_engine.h"
@@ -305,6 +306,17 @@ typedef void (*scene_action_fn)(lv_display_t *disp, const char *name, void *ctx)
 
 static void for_each_scene(lv_display_t *disp, scene_action_fn action, void *ctx)
 {
+    /* Boot splash — overlays the dashboard, then is torn down. Warm up the
+     * renderer first (the very first capture of a run otherwise comes back
+     * blank), then pump 8 frames so the freshly-created subtree fully draws. */
+    pump_frames(4);
+    splash_create();
+    splash_set_status("Connecting Wi-Fi...");
+    pump_frames(8);
+    action(disp, "splash", ctx);
+    splash_destroy();
+    pump_frames(2);
+
     /* Every state preset. */
     for (int i = 0; i < (int)PRESET_COUNT; i++) {
         apply_preset(i);
@@ -338,6 +350,24 @@ static void for_each_scene(lv_display_t *disp, scene_action_fn action, void *ctx
     encoder_press();
     pump_frames(2);
     action(disp, "modal-stop-confirm", ctx);
+    dashboard_modal_close_all();
+    pump_frames(2);
+
+    /* Modal: action menu (from PAUSED) — swaps the "Pause" item for "Resume". */
+    apply_preset(5); /* paused */
+    pump_frames(4);
+    modal_action_menu_open(FIRING_STATUS_PAUSED);
+    pump_frames(4);
+    action(disp, "modal-actions-paused", ctx);
+    dashboard_modal_close_all();
+    pump_frames(2);
+
+    /* Modal: action menu (from AUTOTUNE) — only "Stop Autotune" + Cancel. */
+    apply_preset(8); /* autotune */
+    pump_frames(4);
+    modal_action_menu_open(FIRING_STATUS_AUTOTUNE);
+    pump_frames(4);
+    action(disp, "modal-actions-autotune", ctx);
     dashboard_modal_close_all();
     pump_frames(2);
 }

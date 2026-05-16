@@ -34,7 +34,8 @@ static void ws_broadcast_timer_cb(void *arg)
 
 void app_main(void)
 {
-    ESP_LOGI(TAG, "=== Bisque v%s ===", esp_app_get_description()->version);
+    /* version already carries a leading 'v' (git describe of v* tags). */
+    ESP_LOGI(TAG, "=== Bisque %s ===", esp_app_get_description()->version);
 
     /* ── NVS Init ──────────────────────────────────── */
     esp_err_t ret = nvs_flash_init();
