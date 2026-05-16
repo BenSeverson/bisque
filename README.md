@@ -57,16 +57,19 @@
 
 **LCD Display** (LVGL on 3.5" TFT)
 <p align="center">
+  <img src="docs/screenshots/lcd-splash.png" width="160" alt="Boot splash" />
   <img src="docs/screenshots/lcd-idle.png" width="160" alt="LCD idle" />
   <img src="docs/screenshots/lcd-heating.png" width="160" alt="LCD heating" />
   <img src="docs/screenshots/lcd-paused.png" width="160" alt="LCD paused" />
   <img src="docs/screenshots/lcd-complete.png" width="160" alt="LCD complete" />
+  <img src="docs/screenshots/lcd-error.png" width="160" alt="LCD error" />
 </p>
 <p align="center">
   <img src="docs/screenshots/lcd-modal-picker.png" width="160" alt="Profile picker modal" />
   <img src="docs/screenshots/lcd-modal-start-confirm.png" width="160" alt="Start confirm modal" />
   <img src="docs/screenshots/lcd-modal-actions.png" width="160" alt="Action menu modal" />
-  <img src="docs/screenshots/lcd-error.png" width="160" alt="LCD error" />
+  <img src="docs/screenshots/lcd-modal-actions-paused.png" width="160" alt="Action menu modal (paused)" />
+  <img src="docs/screenshots/lcd-modal-actions-autotune.png" width="160" alt="Action menu modal (autotune)" />
 </p>
 
 **iOS App** (SwiftUI)
