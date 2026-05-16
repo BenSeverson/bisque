@@ -165,13 +165,12 @@ jobs:
         with:
           esp_idf_version: v6.0.1
           target: esp32s3
+          # NOTE: the action wraps this whole block in bash -c '...', so it
+          # must contain no apostrophes. cwd is the mounted repo root, so
+          # $PWD/.ccache maps back to the runner workspace for actions/cache;
+          # $GITHUB_WORKSPACE (a runner path) does not exist in the container.
           command: |
             export IDF_CCACHE_ENABLE=1
-            # The command runs with cwd = the repo root mounted into the
-            # action container; $PWD/.ccache therefore maps back to the
-            # runner workspace's .ccache for actions/cache to persist.
-            # ($GITHUB_WORKSPACE points at the runner path, which does not
-            # exist inside the container, so it cannot be used here.)
             export CCACHE_DIR="$PWD/.ccache"
             export CCACHE_MAXSIZE=500M
             idf.py build && \
