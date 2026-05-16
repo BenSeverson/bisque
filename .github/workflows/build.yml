@@ -5,12 +5,18 @@ on:
   pull_request:
     branches: [main]
 
+# Cancel superseded PR runs to keep CI minutes bounded. Pushes to `main`
+# are not cancelled so each merge produces a complete artifact run.
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   lint-web:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 20
           cache: npm
@@ -27,42 +33,47 @@ jobs:
       # language contract test in web_ui/test/contracts/ has something to
       # validate. Without this, the contract suite skips with a notice.
       - name: Build host API fixtures
-        run: |
-          cmake -S tests/host -B tests/host/build
-          cmake --build tests/host/build --target api_fixtures
+        run: make fixtures
       - run: npm run test:run
         working-directory: web_ui
 
   lint-c:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Check C formatting
-        run: find main components \( -path '*/assets/*' -prune \) -o \( -name '*.c' -o -name '*.h' \) -print | xargs clang-format --dry-run --Werror
+        run: make lint-c
 
   unit-host:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - name: Configure
-        run: cmake -S tests/host -B tests/host/build
-      - name: Build
-        run: cmake --build tests/host/build
-      - name: Run
-        run: ctest --test-dir tests/host/build --output-on-failure
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Host unit tests
+        run: make test-host
 
   ui-screenshots:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Install SDL2
         run: sudo apt-get update && sudo apt-get install -y libsdl2-dev
-      - name: Fetch LVGL (version resolved in dependencies.lock)
+      - name: Resolve LVGL version
+        id: lvgl
         run: |
           LVGL_VERSION=$(awk '/^  lvgl\/lvgl:/{f=1; next} f && /version:/{print $2; exit}' dependencies.lock)
-          echo "Cloning LVGL v${LVGL_VERSION}"
+          echo "version=${LVGL_VERSION}" >> "$GITHUB_OUTPUT"
+      - name: Cache LVGL clone
+        id: lvgl-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: managed_components/lvgl__lvgl
+          key: lvgl-v${{ steps.lvgl.outputs.version }}
+      - name: Fetch LVGL
+        if: steps.lvgl-cache.outputs.cache-hit != 'true'
+        run: |
           mkdir -p managed_components
-          git clone --depth 1 --branch v${LVGL_VERSION} https://github.com/lvgl/lvgl.git managed_components/lvgl__lvgl
+          git clone --depth 1 --branch v${{ steps.lvgl.outputs.version }} \
+            https://github.com/lvgl/lvgl.git managed_components/lvgl__lvgl
       - name: Configure
         run: cmake -S simulator -B simulator/build
       - name: Build simulator
@@ -73,15 +84,19 @@ jobs:
         run: ./simulator/build/bisque_sim --diff
       - name: Upload renders on failure
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ui-screenshots-actual
           path: docs/screenshots/actual/lcd-*.png
 
+  # iOS companion-app build. Intentionally NOT in `build.needs:` — iOS
+  # regressions don't block firmware merges. Keep that policy explicit;
+  # if iOS becomes a release-blocking platform, add `build-ios` to the
+  # `needs:` list on the `build` job below.
   build-ios:
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
       - name: Compute version
@@ -100,14 +115,14 @@ jobs:
     needs: [lint-web, lint-c, unit-host, ui-screenshots]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
       - name: Compute version
         run: echo "BISQUE_VERSION=$(./scripts/version.sh)" >> $GITHUB_ENV
 
       # Build web UI
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 20
           cache: npm
@@ -117,46 +132,40 @@ jobs:
       - run: npm run build
         working-directory: web_ui
       - name: Gzip web assets
-        working-directory: spiffs_data/www
-        run: find . -type f \( -name "*.js" -o -name "*.css" -o -name "*.html" -o -name "*.svg" \) -exec gzip -9 -f {} \;
+        run: make gzip
       - name: Check SPIFFS size
-        run: ./scripts/check-spiffs-size.sh spiffs_data/www
+        run: make size-spiffs
 
-      # Build firmware
-      - name: Build firmware
-        uses: espressif/esp-idf-ci-action@v1
-        with:
-          esp_idf_version: v6.0.1
-          target: esp32s3
-
-      - name: Fix build directory permissions
-        run: sudo chown -R $(id -u):$(id -g) build
-      - name: Check firmware size
-        run: ./scripts/check-firmware-size.sh build/bisque.bin
-
-      # Static analysis
-      - name: Run clang-tidy
-        uses: espressif/esp-idf-ci-action@v1
-        with:
-          esp_idf_version: v6.0.1
-          target: esp32s3
-          command: idf_tools.py install esp-clang && eval "$(idf_tools.py export)" && idf.py clang-check --run-clang-tidy-options="-warnings-as-errors=*"
-      - name: Run cppcheck
+      # Build firmware and run clang-tidy in one IDF action invocation
+      # so the toolchain is only bootstrapped once.
+      # esp-idf-ci-action publishes a moving `v1` *branch* (no `v1` tag),
+      # so it stays a branch ref rather than a SHA pin — the branch is
+      # upstream's stable v1 line and auto-receives fixes.
+      - name: Build firmware + clang-tidy
         uses: espressif/esp-idf-ci-action@v1
         with:
           esp_idf_version: v6.0.1
           target: esp32s3
           command: |
-            apt-get update && apt-get install -y cppcheck &&
-            cppcheck \
-              --enable=warning,style,performance \
-              --error-exitcode=1 \
-              --suppress=missingIncludeSystem \
-              --suppress=unusedFunction \
-              main/ components/
+            idf.py build && \
+            idf_tools.py install esp-clang && \
+            eval "$(idf_tools.py export)" && \
+            idf.py clang-check --run-clang-tidy-options="-warnings-as-errors=*"
+
+      - name: Fix build directory permissions
+        run: sudo chown -R $(id -u):$(id -g) build
+      - name: Check firmware size
+        run: make size-firmware
+
+      # cppcheck does not need the IDF toolchain — run it directly on the
+      # source dirs to skip another IDF bootstrap.
+      - name: Run cppcheck
+        run: |
+          sudo apt-get update && sudo apt-get install -y cppcheck
+          make cppcheck
 
       # Upload binary
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: bisque-firmware-${{ env.BISQUE_VERSION }}
           path: |

@@ -18,6 +18,19 @@ PERCENT=$(( ACTUAL_SIZE * 100 / PARTITION_SIZE ))
 
 echo "Firmware size: ${ACTUAL_SIZE} / ${PARTITION_SIZE} bytes (${PERCENT}%)"
 
+# Append to the GitHub Actions step summary so PR reviewers can see
+# partition utilization without digging into the log.
+if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+    {
+        echo "### Firmware (OTA partition)"
+        echo ""
+        echo "| Used | Capacity | Utilization |"
+        echo "|---:|---:|---:|"
+        printf "| %s B | %s B | **%d%%** |\n" "$ACTUAL_SIZE" "$PARTITION_SIZE" "$PERCENT"
+        echo ""
+    } >> "$GITHUB_STEP_SUMMARY"
+fi
+
 if [ "$ACTUAL_SIZE" -gt "$FAIL_THRESHOLD" ]; then
     echo "::error::Firmware binary at ${PERCENT}% of OTA partition — exceeds 99% limit"
     exit 1
