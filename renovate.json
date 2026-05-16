@@ -1,10 +1,11 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "Renovate complements Dependabot for what Dependabot can't see: the ESP-IDF version is a string inside workflow YAML, not a package manifest entry, so only a regex manager catches it. Install the Renovate GitHub App on this repo to enable.",
+  "description": "Renovate is scoped to ONLY the ESP-IDF version regex below — the one dependency Dependabot can't see (it lives in workflow YAML, not a manifest). npm and GitHub Actions stay with Dependabot (.github/dependabot.yml); enabledManagers keeps Renovate from opening duplicate PRs for them.",
   "extends": [
     "config:recommended",
     ":dependencyDashboard"
   ],
+  "enabledManagers": ["custom.regex"],
   "labels": ["dependencies"],
   "schedule": ["before 9am on monday"],
   "prConcurrentLimit": 3,
