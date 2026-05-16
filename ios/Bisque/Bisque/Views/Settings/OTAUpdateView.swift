@@ -7,7 +7,37 @@ struct OTAUpdateView: View {
 
     var body: some View {
         Form {
-            Section("Firmware Update") {
+            Section("Check for Updates") {
+                if let update = viewModel.availableUpdate, update.updateAvailable {
+                    LabeledContent("Current", value: update.current)
+                    LabeledContent("Available", value: update.latest)
+                    Button("Install \(update.latest)") {
+                        guard let client = connection.apiClient else { return }
+                        Task { await viewModel.installUpdate(using: client, ws: connection.webSocket) }
+                    }
+                    .disabled(viewModel.isInstalling)
+                } else {
+                    Button("Check for Updates") {
+                        guard let client = connection.apiClient else { return }
+                        Task { await viewModel.checkForUpdate(using: client) }
+                    }
+                    .disabled(viewModel.isCheckingUpdate || viewModel.isInstalling)
+                }
+                Text("Updates are blocked while a firing is active.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if let pct = viewModel.installProgress {
+                Section("Install Progress") {
+                    ProgressView(value: pct, total: 100)
+                    Text("\(Int(pct))%")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Section("Manual Firmware Update") {
                 Button("Select Firmware File (.bin)") {
                     showFilePicker = true
                 }

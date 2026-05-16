@@ -41,6 +41,22 @@ struct RelayTestRequest: Codable {
     let durationSeconds: Int
 }
 
+struct OtaCheckResponse: Codable, Sendable {
+    let current: String
+    let latest: String
+    let updateAvailable: Bool
+    let url: String
+    let sha256: String
+    let size: Int
+    let notes: String
+}
+
+struct OtaInstallResponse: Codable {
+    let ok: Bool
+    let version: String
+    let message: String
+}
+
 actor KilnAPIClient {
     private let baseURL: URL
     private let session: URLSession
@@ -265,6 +281,14 @@ actor KilnAPIClient {
         }
 
         return try JSONDecoder().decode(OkResponse.self, from: data)
+    }
+
+    func checkOTA() async throws -> OtaCheckResponse {
+        try await request(method: "POST", path: "/ota/check")
+    }
+
+    func installOTA() async throws -> OtaInstallResponse {
+        try await request(method: "POST", path: "/ota/install")
     }
 
     // MARK: - Diagnostics

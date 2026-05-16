@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import type { WSMessage } from "../services/websocket";
+import type { WSMessage, TempUpdateData } from "../services/websocket";
 
 // Capture the handler the store registers on the mocked WS so tests can pump
 // frames directly into the store.
@@ -37,7 +37,7 @@ function resetStore() {
   disconnectSpy.mockClear();
 }
 
-function tempFrame(overrides: Partial<WSMessage["data"]> = {}): WSMessage {
+function tempFrame(overrides: Partial<TempUpdateData> = {}): WSMessage {
   return {
     type: "temp_update",
     data: {

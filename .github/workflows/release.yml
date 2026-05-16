@@ -57,6 +57,24 @@ jobs:
           cp build/bootloader/bootloader.bin release/bisque-bootloader-${BISQUE_VERSION}.bin
           cp build/partition_table/partition-table.bin release/bisque-partitions-${BISQUE_VERSION}.bin
 
+      # OTA update manifest. Devices fetch this via the stable
+      # /releases/latest/download/manifest.json URL to discover new firmware.
+      - name: Generate OTA manifest
+        working-directory: release
+        run: |
+          SHA=$(sha256sum "bisque-${BISQUE_VERSION}.bin" | awk '{print $1}')
+          SIZE=$(stat -c%s "bisque-${BISQUE_VERSION}.bin")
+          cat > manifest.json <<EOF
+          {
+            "version": "${BISQUE_VERSION}",
+            "url": "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/bisque-${BISQUE_VERSION}.bin",
+            "sha256": "${SHA}",
+            "size": ${SIZE},
+            "notes": ""
+          }
+          EOF
+          cat manifest.json
+
       # Publish checksums alongside the binaries so downloaders can verify
       # integrity. Generated relative to release/ so paths in the file are
       # just the bare filenames.

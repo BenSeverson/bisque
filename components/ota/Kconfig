@@ -1,0 +1,26 @@
+menu "Bisque OTA"
+
+config OTA_MANIFEST_URL
+    string "Firmware update manifest URL"
+    default "https://github.com/BenSeverson/bisque/releases/latest/download/manifest.json"
+    help
+        Stable URL of the release manifest JSON. GitHub redirects the
+        /releases/latest/download/ path to the newest release's asset, so
+        this value never has to change between releases. Point it at a fork
+        to distribute custom firmware.
+
+config OTA_CONFIRM_DELAY_SECONDS
+    int "Healthy-uptime delay before confirming a new image"
+    default 60
+    range 10 600
+    help
+        After an OTA reboot the new image runs unconfirmed for this many
+        seconds. If it survives the window, rollback is canceled; otherwise
+        the bootloader reverts to the previous firmware on the next boot.
+
+config OTA_CONNECT_TIMEOUT_MS
+    int "OTA HTTP connect/transfer timeout (ms)"
+    default 15000
+    range 2000 120000
+
+endmenu

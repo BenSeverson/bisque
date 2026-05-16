@@ -15,6 +15,7 @@
 #include "esp_ota_ops.h"
 #include "esp_app_desc.h"
 #include "esp_http_client.h"
+#include "ota_manager.h"
 #include "esp_system.h"
 #include "driver/temperature_sensor.h"
 #include <inttypes.h>
@@ -793,11 +794,31 @@ static esp_err_t handle_get_history_trace(httpd_req_t *req)
     return ESP_OK;
 }
 
-/* ── POST /api/v1/ota ──────────────────────────────── */
+/* ── OTA firmware update ───────────────────────────── */
+
+/*
+ * Refuse firmware updates while a firing is active — an OTA reboots the
+ * controller. Sends a 409 response and returns true if blocked.
+ */
+static bool ota_blocked_by_firing(httpd_req_t *req)
+{
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    if (prog.is_active) {
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_set_type(req, "text/plain");
+        httpd_resp_sendstr(req, "Cannot update firmware during a firing");
+        return true;
+    }
+    return false;
+}
 
 static esp_err_t handle_ota_upload(httpd_req_t *req)
 {
     if (!require_auth(req)) {
+        return ESP_FAIL;
+    }
+    if (ota_blocked_by_firing(req)) {
         return ESP_FAIL;
     }
 
@@ -858,6 +879,74 @@ static esp_err_t handle_ota_upload(httpd_req_t *req)
     vTaskDelay(pdMS_TO_TICKS(500));
     esp_restart();
     return ESP_OK;
+}
+
+/* POST /api/v1/ota/check — fetch the release manifest, compare versions. */
+static esp_err_t handle_ota_check(httpd_req_t *req)
+{
+    if (!require_auth(req)) {
+        return ESP_FAIL;
+    }
+    if (ota_is_busy()) {
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_set_type(req, "text/plain");
+        httpd_resp_sendstr(req, "An OTA operation is already in progress");
+        return ESP_FAIL;
+    }
+
+    ota_manifest_t manifest;
+    if (ota_check(&manifest) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Could not fetch update manifest");
+        return ESP_FAIL;
+    }
+
+    const char *current = ota_current_version();
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "current", current);
+    cJSON_AddStringToObject(root, "latest", manifest.version);
+    cJSON_AddBoolToObject(root, "updateAvailable", strcmp(current, manifest.version) != 0);
+    cJSON_AddStringToObject(root, "url", manifest.url);
+    cJSON_AddStringToObject(root, "sha256", manifest.sha256);
+    cJSON_AddNumberToObject(root, "size", manifest.size);
+    cJSON_AddStringToObject(root, "notes", manifest.notes);
+    return send_json(req, root);
+}
+
+/* POST /api/v1/ota/install — fetch latest manifest, then install in background. */
+static esp_err_t handle_ota_install(httpd_req_t *req)
+{
+    if (!require_auth(req)) {
+        return ESP_FAIL;
+    }
+    if (ota_blocked_by_firing(req)) {
+        return ESP_FAIL;
+    }
+    if (ota_is_busy()) {
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_set_type(req, "text/plain");
+        httpd_resp_sendstr(req, "An OTA operation is already in progress");
+        return ESP_FAIL;
+    }
+
+    ota_manifest_t manifest;
+    if (ota_check(&manifest) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Could not fetch update manifest");
+        return ESP_FAIL;
+    }
+    if (strcmp(ota_current_version(), manifest.version) == 0) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Already on the latest version");
+        return ESP_FAIL;
+    }
+    if (ota_install_from_manifest(&manifest) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Could not start update");
+        return ESP_FAIL;
+    }
+
+    cJSON *resp = cJSON_CreateObject();
+    cJSON_AddBoolToObject(resp, "ok", true);
+    cJSON_AddStringToObject(resp, "version", manifest.version);
+    cJSON_AddStringToObject(resp, "message", "Update started. Watch progress over WebSocket.");
+    return send_json(req, resp);
 }
 
 /* ── POST /api/v1/diagnostics/relay ───────────────── */
@@ -1054,6 +1143,7 @@ static esp_err_t handle_ota_status(httpd_req_t *req)
         esp_ota_img_states_t state;
         if (esp_ota_get_state_partition(running, &state) == ESP_OK) {
             cJSON_AddStringToObject(run, "state", ota_state_to_string(state));
+            cJSON_AddBoolToObject(root, "pendingVerify", state == ESP_OTA_IMG_PENDING_VERIFY);
         }
 
         /* Get app description for version info */
@@ -1267,6 +1357,8 @@ esp_err_t api_handlers_register(httpd_handle_t server)
 
     /* OTA */
     REGISTER_API("/api/v1/ota", HTTP_POST, handle_ota_upload);
+    REGISTER_API("/api/v1/ota/check", HTTP_POST, handle_ota_check);
+    REGISTER_API("/api/v1/ota/install", HTTP_POST, handle_ota_install);
     REGISTER_API("/api/v1/ota/status", HTTP_GET, handle_ota_status);
     REGISTER_API("/api/v1/ota/rollback", HTTP_POST, handle_ota_rollback);
     REGISTER_API("/api/v1/ota/confirm", HTTP_POST, handle_ota_confirm);
@@ -1280,6 +1372,6 @@ esp_err_t api_handlers_register(httpd_handle_t server)
     REGISTER_API("/api/v1/wifi", HTTP_POST, handle_post_wifi);
     REGISTER_API("/api/v1/wifi", HTTP_DELETE, handle_delete_wifi);
 
-    ESP_LOGI(TAG, "API handlers registered (%d endpoints)", 31);
+    ESP_LOGI(TAG, "API handlers registered (%d endpoints)", 33);
     return ESP_OK;
 }
