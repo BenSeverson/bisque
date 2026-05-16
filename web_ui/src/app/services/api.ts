@@ -107,6 +107,24 @@ export interface AutotuneStatus {
   currentGains: { kp: number; ki: number; kd: number };
 }
 
+export interface OtaCheckResponse {
+  current: string;
+  latest: string;
+  updateAvailable: boolean;
+  url: string;
+  sha256: string;
+  size: number;
+  notes: string;
+}
+
+export interface OtaStatus {
+  running?: { label: string; version?: string; state?: string };
+  nextUpdate?: { label: string };
+  bootPartition?: string;
+  pendingVerify?: boolean;
+  rollbackAvailable: boolean;
+}
+
 export interface DiagThermocouple {
   temperatureC: number;
   internalTempC: number;
@@ -220,6 +238,10 @@ export const api = {
       xhr.send(file);
     });
   },
+  checkOta: () => request<OtaCheckResponse>("/ota/check", { method: "POST" }),
+  installOta: () =>
+    request<{ ok: boolean; version: string; message: string }>("/ota/install", { method: "POST" }),
+  otaStatus: () => request<OtaStatus>("/ota/status"),
 
   // Diagnostics
   testRelay: (durationSeconds = 2) =>

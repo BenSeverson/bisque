@@ -5,8 +5,8 @@
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "nvs_flash.h"
-#include "esp_ota_ops.h"
 #include "esp_app_desc.h"
+#include "ota_manager.h"
 #include "driver/spi_master.h"
 #include "mdns.h"
 #include "esp_sntp.h"
@@ -194,17 +194,11 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_timer_start_periodic(ws_timer, 1000000)); /* 1s broadcast interval */
 
     /* ── OTA Rollback Validation ─────────────────────── */
-    /* If we booted after an OTA update, mark firmware as valid now that
-       all subsystems initialized successfully. If this isn't called within
-       the bootloader's rollback timeout, it will revert to the previous firmware. */
-    const esp_partition_t *running = esp_ota_get_running_partition();
-    esp_ota_img_states_t ota_state;
-    if (esp_ota_get_state_partition(running, &ota_state) == ESP_OK) {
-        if (ota_state == ESP_OTA_IMG_PENDING_VERIFY) {
-            ESP_LOGI(TAG, "OTA: confirming new firmware as valid");
-            esp_ota_mark_app_valid_cancel_rollback();
-        }
-    }
+    /* If we booted after an OTA update, defer confirmation to a task that
+       observes a healthy-uptime window before canceling rollback. A boot
+       loop or panic reboots before the window elapses, so the bootloader
+       reverts to the previous firmware. */
+    ota_confirm_task_start();
 
     boot_status_set("Ready");
     boot_status_mark_ready();

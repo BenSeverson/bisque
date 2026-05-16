@@ -209,3 +209,15 @@ export function useUploadOta() {
       api.uploadOta(file, onProgress),
   });
 }
+
+export function useCheckOta() {
+  return useMutation({
+    mutationFn: () => api.checkOta(),
+  });
+}
+
+export function useInstallOta() {
+  return useMutation({
+    mutationFn: () => api.installOta(),
+  });
+}

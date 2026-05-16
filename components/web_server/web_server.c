@@ -1,4 +1,5 @@
 #include "web_server.h"
+#include "ota_manager.h"
 #include "esp_log.h"
 #include "esp_spiffs.h"
 #include <string.h>
@@ -207,6 +208,9 @@ esp_err_t web_server_start(void)
     /* Register API + WebSocket handlers first (more specific routes) */
     api_handlers_register(s_server);
     ws_handler_register(s_server);
+
+    /* Stream OTA progress to WebSocket clients. */
+    ota_set_progress_cb(ws_send_ota_event);
 
     /* Wildcard static file handler last (catch-all) */
     httpd_uri_t static_uri = {

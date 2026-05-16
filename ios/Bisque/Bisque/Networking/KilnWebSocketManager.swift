@@ -15,6 +15,7 @@ final class KilnWebSocketManager {
     private var shouldReconnect = false
 
     let updateSubject = PassthroughSubject<TempUpdateData, Never>()
+    let otaSubject = PassthroughSubject<OTAEvent, Never>()
 
     func connect(host: String, port: Int = 80) {
         guard let url = URL(string: "ws://\(host):\(port)/api/v1/ws") else { return }
@@ -55,22 +56,33 @@ final class KilnWebSocketManager {
         while !Task.isCancelled {
             do {
                 let message = try await task.receive()
-                let update: TempUpdateData? = switch message {
-                case .string(let text):
-                    text.data(using: .utf8).flatMap { try? JSONDecoder().decode(WebSocketMessage.self, from: $0) }
-                        .flatMap { $0.type == "temp_update" ? $0.data : nil }
-                case .data(let data):
-                    (try? JSONDecoder().decode(WebSocketMessage.self, from: data))
-                        .flatMap { $0.type == "temp_update" ? $0.data : nil }
-                @unknown default:
-                    nil
+                let raw: Data? = switch message {
+                case .string(let text): text.data(using: .utf8)
+                case .data(let data): data
+                @unknown default: nil
+                }
+                guard let raw,
+                      let envelope = try? JSONDecoder().decode(WSTypeEnvelope.self, from: raw) else {
+                    continue
                 }
 
-                if let update {
-                    await MainActor.run { [weak self] in
-                        self?.lastUpdate = update
-                        self?.updateSubject.send(update)
+                switch envelope.type {
+                case "temp_update":
+                    if let msg = try? JSONDecoder().decode(WebSocketMessage.self, from: raw) {
+                        await MainActor.run { [weak self] in
+                            self?.lastUpdate = msg.data
+                            self?.updateSubject.send(msg.data)
+                        }
                     }
+                case "ota_progress", "ota_complete", "ota_error":
+                    if let ota = try? JSONDecoder().decode(OTAWebSocketMessage.self, from: raw),
+                       let event = ota.event {
+                        await MainActor.run { [weak self] in
+                            self?.otaSubject.send(event)
+                        }
+                    }
+                default:
+                    break
                 }
             } catch {
                 await MainActor.run { [weak self] in
