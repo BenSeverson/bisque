@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "//": "Renovate complements Dependabot for what Dependabot can't see: the ESP-IDF version is a string inside workflow YAML, not a package manifest entry, so only a regex manager catches it. Install the Renovate GitHub App on this repo to enable.",
+  "description": "Renovate complements Dependabot for what Dependabot can't see: the ESP-IDF version is a string inside workflow YAML, not a package manifest entry, so only a regex manager catches it. Install the Renovate GitHub App on this repo to enable.",
   "extends": [
     "config:recommended",
     ":dependencyDashboard"
