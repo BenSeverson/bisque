@@ -1,0 +1,7 @@
+name: Bisque CodeQL config
+
+# Vendored third-party single-header libraries used only by the desktop
+# simulator. Their warnings are upstream's to fix, not ours.
+paths-ignore:
+  - simulator/stb_image.h
+  - simulator/stb_image_write.h
