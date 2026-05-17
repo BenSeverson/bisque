@@ -11,6 +11,11 @@ concurrency:
   group: build-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# Read-only token for all jobs; artifact upload uses the actions API and
+# needs no extra scopes.
+permissions:
+  contents: read
+
 jobs:
   lint-web:
     runs-on: ubuntu-latest
