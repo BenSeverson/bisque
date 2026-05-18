@@ -182,7 +182,7 @@ jobs:
             ccache --show-stats && \
             idf_tools.py install esp-clang && \
             eval "$(idf_tools.py export)" && \
-            idf.py clang-check --run-clang-tidy-options="-warnings-as-errors=*"
+            idf.py clang-check --run-clang-tidy-options="-warnings-as-errors=*" --exclude-paths managed_components
 
       # The action container runs as root; chown the dirs it wrote so the
       # later size check and the actions/cache post step (runner user) can
