@@ -3,7 +3,6 @@
 #include "esp_log.h"
 #include "esp_spiffs.h"
 #include <string.h>
-#include <sys/stat.h>
 #include <stdio.h>
 
 /* firing_status_to_string and json_add_progress_fields live in api_json.c so
@@ -91,36 +90,21 @@ static esp_err_t static_file_handler(httpd_req_t *req)
     char gz_path[132];
     snprintf(gz_path, sizeof(gz_path), "%s.gz", filepath);
 
-    struct stat st;
     bool is_gzipped = false;
-    FILE *f = NULL;
-
-    if (stat(gz_path, &st) == 0) {
-        f = fopen(gz_path, "r");
-        if (f) {
-            is_gzipped = true;
-        }
-    }
-
-    if (!f) {
-        if (stat(filepath, &st) == 0) {
-            f = fopen(filepath, "r");
-        }
+    FILE *f = fopen(gz_path, "r");
+    if (f) {
+        is_gzipped = true;
+    } else {
+        f = fopen(filepath, "r");
     }
 
     /* SPA fallback: serve index.html for unknown paths */
     if (!f) {
-        const char *fallback = "/www/index.html";
-        const char *gz_fallback = "/www/index.html.gz";
-
-        if (stat(gz_fallback, &st) == 0) {
-            f = fopen(gz_fallback, "r");
-            if (f) {
-                is_gzipped = true;
-            }
-        }
-        if (!f && stat(fallback, &st) == 0) {
-            f = fopen(fallback, "r");
+        f = fopen("/www/index.html.gz", "r");
+        if (f) {
+            is_gzipped = true;
+        } else {
+            f = fopen("/www/index.html", "r");
         }
         if (f) {
             /* Set Content-Type for index.html */
