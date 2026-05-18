@@ -85,7 +85,7 @@ format:  ## Auto-format C and web sources
 
 clang-tidy:  ## Run clang-tidy with -warnings-as-errors=* (needs firmware build)
 	idf_tools.py install esp-clang
-	@bash -c 'eval "$$(idf_tools.py export)" && idf.py clang-check --run-clang-tidy-options="-warnings-as-errors=*"'
+	@bash -c 'eval "$$(idf_tools.py export)" && idf.py clang-check --run-clang-tidy-options="-warnings-as-errors=*" --exclude-paths managed_components'
 
 cppcheck:  ## Run cppcheck across main/ and components/
 	cppcheck --enable=warning,style,performance --error-exitcode=1 \
