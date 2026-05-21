@@ -49,6 +49,11 @@ jobs:
       - name: Fix build directory permissions
         run: sudo chown -R $(id -u):$(id -g) build
 
+      # Fail the release rather than publish a binary that overflows its
+      # partition. `size` = size-firmware (OTA slot) + size-spiffs (web assets).
+      - name: Check partition sizes
+        run: make size
+
       - name: Stage release artifacts
         run: |
           mkdir -p release
@@ -56,6 +61,7 @@ jobs:
           cp build/storage.bin    release/bisque-spiffs-${BISQUE_VERSION}.bin
           cp build/bootloader/bootloader.bin release/bisque-bootloader-${BISQUE_VERSION}.bin
           cp build/partition_table/partition-table.bin release/bisque-partitions-${BISQUE_VERSION}.bin
+          cp build/ota_data_initial.bin release/bisque-otadata-${BISQUE_VERSION}.bin
 
       # OTA update manifest. Devices fetch this via the stable
       # /releases/latest/download/manifest.json URL to discover new firmware.
@@ -92,7 +98,18 @@ jobs:
             release/bisque-*.bin
             release/SHA256SUMS
 
+      # Publish as a draft so a human can review the artifacts and notes
+      # before the release goes live. Until the draft is published, the
+      # `/releases/latest/download/` OTA URLs do not resolve, so devices
+      # only see new firmware after a deliberate publish. `prerelease`
+      # auto-flags rc-style tags (e.g. v2.1.0-rc1); those never become
+      # `latest`, so they are not served over OTA. The static body
+      # (flashing/verification steps) is followed by auto-generated notes
+      # from merged PRs since the last tag.
       - uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
         with:
           files: release/*
+          draft: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          body_path: .github/release-body.md
           generate_release_notes: true
