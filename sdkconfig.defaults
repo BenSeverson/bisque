@@ -43,6 +43,14 @@ CONFIG_ESP_TASK_WDT_TIMEOUT_S=10
 # OTA rollback support
 CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
 
+# mbedTLS memory allocation: route all TLS/crypto allocations to the 8MB
+# PSRAM instead of internal RAM. The default INTERNAL_MEM_ALLOC exhausts
+# internal RAM across GitHub's multi-hop OTA redirect chain (each hop is a
+# fresh TLS handshake), so certificate signature verification fails with
+# PSA_ERROR_INSUFFICIENT_MEMORY (-141). This also gives the 1.5MB firmware
+# download headroom. Requires SPIRAM_USE_MALLOC (set above).
+CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC=y
+
 # LWIP
 CONFIG_LWIP_MAX_SOCKETS=16
 
