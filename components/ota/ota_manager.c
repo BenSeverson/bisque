@@ -129,6 +129,12 @@ esp_err_t ota_check(ota_manifest_t *out_manifest)
         .event_handler = manifest_http_event,
         .user_data = accum,
         .keep_alive_enable = false,
+        /* GitHub redirects /releases/latest/download/ to a signed CDN URL
+         * whose query string alone exceeds the 512-byte default TX buffer.
+         * The request line for that redirect target must fit here or
+         * esp_http_client aborts with "Out of buffer" while following the
+         * 302 (status stays 302, perform() returns ESP_FAIL). */
+        .buffer_size_tx = 2048,
     };
 
     esp_err_t err = ESP_FAIL;
@@ -241,6 +247,9 @@ static void install_task(void *arg)
         .event_handler = install_http_event,
         .user_data = &ctx,
         .buffer_size = 4096,
+        /* Same redirect as the manifest fetch: the signed CDN request line
+         * overflows the 512-byte default TX buffer without this. */
+        .buffer_size_tx = 2048,
         .keep_alive_enable = false,
     };
     esp_http_client_handle_t client = esp_http_client_init(&cfg);
