@@ -7,7 +7,6 @@
 #include "cJSON.h"
 #include "esp_app_desc.h"
 #include "esp_crt_bundle.h"
-#include "esp_heap_caps.h"
 #include "esp_http_client.h"
 #include "esp_log.h"
 #include "esp_ota_ops.h"
@@ -137,15 +136,6 @@ esp_err_t ota_check(ota_manifest_t *out_manifest)
          * 302 (status stays 302, perform() returns ESP_FAIL). */
         .buffer_size_tx = 2048,
     };
-
-    /* Diagnostic: TLS cert verification across GitHub's redirect chain has
-     * failed with PSA_ERROR_INSUFFICIENT_MEMORY (-141). Log the heap split
-     * so we can tell internal-RAM exhaustion (fix: mbedTLS->PSRAM) apart
-     * from a hardware-MPI/PSA failure (plenty free, different root cause). */
-    ESP_LOGI(TAG, "Pre-fetch heap: internal=%u B (largest block %u B), psram=%u B",
-             (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
-             (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
-             (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
 
     esp_err_t err = ESP_FAIL;
     esp_http_client_handle_t client = esp_http_client_init(&cfg);
