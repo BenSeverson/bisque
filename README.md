@@ -282,6 +282,13 @@ Before tagging a release, run the [bench smoke test](docs/bench-smoke-test.md) â
 run that verifies the parts CI can't touch: real SSR clicks, real
 thermocouple readings, history persistence across reboot.
 
+## Releases
+
+Firmware is distributed as [GitHub Releases](https://github.com/BenSeverson/bisque/releases),
+each with a full ESP32-S3 flash kit and Sigstore build-provenance
+attestations. See [RELEASING.md](RELEASING.md) for the versioning scheme and
+the procedure for cutting a release.
+
 ## License
 
 [MIT](LICENSE)
