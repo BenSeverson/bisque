@@ -1,5 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
+import { WifiSetupBanner } from "./components/WifiSetupBanner";
 import { FiringDashboard } from "./components/FiringDashboard";
 import { FiringProfiles } from "./components/FiringProfiles";
 import { ProfileBuilder } from "./components/ProfileBuilder";
@@ -11,6 +12,7 @@ import { useKilnStore } from "./stores/kilnStore";
 
 export default function App() {
   const initWebSocket = useKilnStore((s) => s.initWebSocket);
+  const [activeTab, setActiveTab] = useState("dashboard");
 
   useEffect(() => {
     return initWebSocket();
@@ -19,6 +21,8 @@ export default function App() {
   return (
     <div className="min-h-screen bg-background">
       <Toaster />
+
+      <WifiSetupBanner onGoToSettings={() => setActiveTab("settings")} />
 
       {/* Header */}
       <header className="border-b bg-card">
@@ -37,7 +41,7 @@ export default function App() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
-        <Tabs defaultValue="dashboard" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
             <TabsTrigger value="dashboard" className="gap-2">
               <Flame className="h-4 w-4" />

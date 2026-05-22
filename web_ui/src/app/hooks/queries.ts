@@ -26,6 +26,7 @@ export const queryKeys = {
   history: ["history"] as const,
   coneTable: ["coneTable"] as const,
   thermocoupleDiag: ["thermocoupleDiag"] as const,
+  wifi: ["wifi"] as const,
 };
 
 // --- Queries ---
@@ -83,6 +84,15 @@ export function useConeTable() {
     queryFn: () => api.getConeTable(),
     retry: false,
     staleTime: Infinity,
+  });
+}
+
+export function useWifi() {
+  return useQuery({
+    queryKey: queryKeys.wifi,
+    queryFn: () => api.getWifi(),
+    refetchInterval: 10000,
+    retry: false,
   });
 }
 
@@ -156,6 +166,33 @@ export function useSaveSettings() {
       if (context?.previous) {
         queryClient.setQueryData(queryKeys.settings, context.previous);
       }
+    },
+  });
+}
+
+export function useSaveWifi() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ ssid, password }: { ssid: string; password: string }) =>
+      api.saveWifi(ssid, password),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.wifi });
+    },
+  });
+}
+
+export function useReboot() {
+  return useMutation({
+    mutationFn: () => api.reboot(),
+  });
+}
+
+export function useClearWifi() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.clearWifi(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.wifi });
     },
   });
 }
