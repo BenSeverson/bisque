@@ -252,6 +252,9 @@ export const api = {
     }),
   clearWifi: () => request<{ ok: boolean; message: string }>("/wifi", { method: "DELETE" }),
 
+  // Reboot the controller (e.g. to apply newly-saved Wi-Fi credentials).
+  reboot: () => request<{ ok: boolean; message: string }>("/reboot", { method: "POST" }),
+
   // Diagnostics
   testRelay: (durationSeconds = 2) =>
     request<{ ok: boolean; durationSeconds: number }>("/diagnostics/relay", {
