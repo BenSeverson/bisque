@@ -72,6 +72,13 @@ export const state = {
     completed: false,
   } as AutotuneState,
 
+  wifi: {
+    connected: true,
+    apMode: false,
+    ip: '192.168.1.50',
+    savedSsid: 'HomeNetwork' as string | undefined,
+  },
+
   wss: null as WebSocketServer | null,
   interval: null as ReturnType<typeof setInterval> | null,
   startupTime: Date.now(),

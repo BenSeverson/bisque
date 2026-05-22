@@ -48,3 +48,15 @@ export const settingsSchema = z.object({
 });
 
 export type SettingsFormValues = z.infer<typeof settingsSchema>;
+
+// Wi-Fi provisioning credentials. SSID 1–32 chars; WPA2 passphrase 0–63
+// (empty allowed for open networks). Mirrors POST /api/v1/wifi.
+export const wifiCredentialsSchema = z.object({
+  ssid: z
+    .string()
+    .min(1, "Network name is required")
+    .max(32, "SSID must be 32 characters or fewer"),
+  password: z.string().max(63, "Password must be 63 characters or fewer"),
+});
+
+export type WifiCredentialsFormValues = z.infer<typeof wifiCredentialsSchema>;

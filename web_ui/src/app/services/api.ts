@@ -1,4 +1,4 @@
-import { FiringProfile, KilnSettings, ConeEntry, HistoryRecord } from "../types/kiln";
+import { FiringProfile, KilnSettings, ConeEntry, HistoryRecord, WifiInfo } from "../types/kiln";
 import { kilnWS } from "./websocket";
 
 const API_BASE = "/api/v1";
@@ -242,6 +242,18 @@ export const api = {
   installOta: () =>
     request<{ ok: boolean; version: string; message: string }>("/ota/install", { method: "POST" }),
   otaStatus: () => request<OtaStatus>("/ota/status"),
+
+  // Wi-Fi provisioning
+  getWifi: () => request<WifiInfo>("/wifi"),
+  saveWifi: (ssid: string, password: string) =>
+    request<{ ok: boolean; message: string }>("/wifi", {
+      method: "POST",
+      body: JSON.stringify({ ssid, password }),
+    }),
+  clearWifi: () => request<{ ok: boolean; message: string }>("/wifi", { method: "DELETE" }),
+
+  // Reboot the controller (e.g. to apply newly-saved Wi-Fi credentials).
+  reboot: () => request<{ ok: boolean; message: string }>("/reboot", { method: "POST" }),
 
   // Diagnostics
   testRelay: (durationSeconds = 2) =>
