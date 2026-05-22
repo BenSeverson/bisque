@@ -72,6 +72,15 @@ export interface KilnSettings {
   electricityCostKwh: number;
 }
 
+/** Wi-Fi connection state, mirrors GET /api/v1/wifi (api_handlers.c handle_get_wifi). */
+export interface WifiInfo {
+  connected: boolean;
+  apMode: boolean;
+  ip: string;
+  hasSavedCredentials: boolean;
+  savedSsid?: string; // present only when credentials are saved
+}
+
 export interface TemperatureDataPoint {
   time: number; // minutes
   temp: number;

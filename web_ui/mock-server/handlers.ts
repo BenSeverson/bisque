@@ -406,6 +406,41 @@ export async function handleRequest(
       return json(res, { ok: true });
     }
 
+    // GET /wifi
+    if (method === 'GET' && apiPath === '/wifi') {
+      const w = state.wifi;
+      const hasSaved = !!w.savedSsid;
+      return json(res, {
+        connected: w.connected,
+        apMode: w.apMode,
+        ip: w.ip,
+        hasSavedCredentials: hasSaved,
+        ...(hasSaved ? { savedSsid: w.savedSsid } : {}),
+      });
+    }
+
+    // POST /wifi
+    if (method === 'POST' && apiPath === '/wifi') {
+      const body = await parseBody(req);
+      if (!body.ssid) {
+        return json(res, { error: 'Missing ssid' }, 400);
+      }
+      state.wifi.savedSsid = body.ssid;
+      return json(res, { ok: true, message: 'Wi-Fi credentials saved. Reboot to connect.' });
+    }
+
+    // DELETE /wifi
+    if (method === 'DELETE' && apiPath === '/wifi') {
+      state.wifi.savedSsid = undefined;
+      state.wifi.connected = false;
+      state.wifi.apMode = true;
+      state.wifi.ip = '192.168.4.1';
+      return json(res, {
+        ok: true,
+        message: 'Wi-Fi credentials cleared. Will start in AP mode after reboot.',
+      });
+    }
+
     // POST /diagnostics/relay
     if (method === 'POST' && apiPath === '/diagnostics/relay') {
       const body = await parseBody(req);
