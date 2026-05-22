@@ -29,6 +29,7 @@ import {
 } from "../hooks/queries";
 import { api, DiagThermocouple, OtaCheckResponse } from "../services/api";
 import { kilnWS } from "../services/websocket";
+import { WifiCard } from "./WifiCard";
 
 export function Settings() {
   const { data: settings } = useSettings();
@@ -406,6 +407,9 @@ export function Settings() {
           <Button type="submit">Save Settings</Button>
         </div>
       </form>
+
+      {/* Wi-Fi Network */}
+      <WifiCard />
 
       {/* API Security */}
       <Card>
