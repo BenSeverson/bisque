@@ -181,6 +181,12 @@ export function useSaveWifi() {
   });
 }
 
+export function useReboot() {
+  return useMutation({
+    mutationFn: () => api.reboot(),
+  });
+}
+
 export function useClearWifi() {
   const queryClient = useQueryClient();
   return useMutation({

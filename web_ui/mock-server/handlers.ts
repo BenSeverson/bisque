@@ -441,6 +441,11 @@ export async function handleRequest(
       });
     }
 
+    // POST /reboot
+    if (method === 'POST' && apiPath === '/reboot') {
+      return json(res, { ok: true, message: 'Rebooting...' });
+    }
+
     // POST /diagnostics/relay
     if (method === 'POST' && apiPath === '/diagnostics/relay') {
       const body = await parseBody(req);

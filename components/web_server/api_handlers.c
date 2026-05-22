@@ -1300,6 +1300,34 @@ static esp_err_t handle_delete_wifi(httpd_req_t *req)
     return send_json(req, resp);
 }
 
+/* ── POST /api/v1/reboot ──────────────────────────── */
+
+/*
+ * Restart the controller. Used after saving Wi-Fi credentials so the device
+ * reconnects with the new network without a manual power cycle. Blocked
+ * during a firing (a reboot would drop kiln control), mirroring OTA. The
+ * response is flushed before the short delay + esp_restart() so the client
+ * sees the ack.
+ */
+static esp_err_t handle_reboot(httpd_req_t *req)
+{
+    if (!require_auth(req)) {
+        return ESP_FAIL;
+    }
+    if (ota_blocked_by_firing(req)) {
+        return ESP_FAIL;
+    }
+
+    cJSON *resp = cJSON_CreateObject();
+    cJSON_AddBoolToObject(resp, "ok", true);
+    cJSON_AddStringToObject(resp, "message", "Rebooting...");
+    send_json(req, resp);
+
+    vTaskDelay(pdMS_TO_TICKS(500));
+    esp_restart();
+    return ESP_OK;
+}
+
 /* ── Register All Handlers ─────────────────────────── */
 
 #define REGISTER_API(path, http_method, fn)                                                    \
@@ -1371,7 +1399,8 @@ esp_err_t api_handlers_register(httpd_handle_t server)
     REGISTER_API("/api/v1/wifi", HTTP_GET, handle_get_wifi);
     REGISTER_API("/api/v1/wifi", HTTP_POST, handle_post_wifi);
     REGISTER_API("/api/v1/wifi", HTTP_DELETE, handle_delete_wifi);
+    REGISTER_API("/api/v1/reboot", HTTP_POST, handle_reboot);
 
-    ESP_LOGI(TAG, "API handlers registered (%d endpoints)", 33);
+    ESP_LOGI(TAG, "API handlers registered (%d endpoints)", 34);
     return ESP_OK;
 }

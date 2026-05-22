@@ -9,12 +9,13 @@ import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { wifiCredentialsSchema, WifiCredentialsFormValues } from "../schemas/kiln";
-import { useWifi, useSaveWifi, useClearWifi } from "../hooks/queries";
+import { useWifi, useSaveWifi, useClearWifi, useReboot } from "../hooks/queries";
 
 export function WifiCard() {
   const { data: wifi } = useWifi();
   const saveWifi = useSaveWifi();
   const clearWifi = useClearWifi();
+  const reboot = useReboot();
 
   const {
     register,
@@ -34,10 +35,21 @@ export function WifiCard() {
 
   const onSubmit = async (data: WifiCredentialsFormValues) => {
     try {
-      const resp = await saveWifi.mutateAsync(data);
-      toast.success(resp.message ?? "Wi-Fi credentials saved");
+      await saveWifi.mutateAsync(data);
     } catch {
       toast.error("Failed to save Wi-Fi credentials");
+      return;
+    }
+    // Credentials are saved; reboot so they take effect. The controller leaves
+    // this network on restart, so this is the last response we'll get.
+    try {
+      await reboot.mutateAsync();
+      toast.success(
+        `Saved. Restarting to join "${data.ssid}" — reconnect to your network, then reopen bisque.local.`,
+      );
+    } catch {
+      // Most likely a firing is active (the endpoint blocks reboots then).
+      toast.warning("Saved, but the controller is busy. Power-cycle it later to join the network.");
     }
   };
 
@@ -110,8 +122,8 @@ export function WifiCard() {
           </div>
 
           <div className="flex gap-3 flex-wrap">
-            <Button type="submit" disabled={saveWifi.isPending}>
-              {saveWifi.isPending ? "Saving..." : "Save Network"}
+            <Button type="submit" disabled={saveWifi.isPending || reboot.isPending}>
+              {saveWifi.isPending || reboot.isPending ? "Saving..." : "Save & Restart"}
             </Button>
             {wifi?.hasSavedCredentials && (
               <Button
@@ -126,7 +138,8 @@ export function WifiCard() {
           </div>
 
           <p className="text-sm text-muted-foreground">
-            Power-cycle the controller after saving for it to join the new network.
+            Saving restarts the controller so it joins the new network. It will briefly go offline;
+            reconnect to your network afterward.
           </p>
         </form>
       </CardContent>
