@@ -110,6 +110,11 @@ void app_main(void)
         sta_ssid = CONFIG_KILN_WIFI_STA_SSID;
         sta_pass = CONFIG_KILN_WIFI_STA_PASS;
         ESP_LOGI(TAG, "Using compile-time Wi-Fi credentials");
+        if (sta_ssid[0]) {
+            /* Seed NVS so the credentials persist across firmware updates even
+               if later removed from sdkconfig.local. */
+            wifi_manager_save_creds(sta_ssid, sta_pass);
+        }
 #else
         ESP_LOGI(TAG, "No Wi-Fi credentials configured, starting in AP mode");
 #endif
