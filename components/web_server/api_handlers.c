@@ -410,11 +410,30 @@ static esp_err_t handle_delete_profile(httpd_req_t *req)
     return send_json(req, resp);
 }
 
+/*
+ * Refuse to start a kiln operation while a firmware update is running — an
+ * OTA install downloads in the background and then reboots, which would kill
+ * a firing mid-cycle. Sends a 409 response and returns true if blocked.
+ */
+static bool firing_blocked_by_ota(httpd_req_t *req)
+{
+    if (ota_is_busy()) {
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_set_type(req, "text/plain");
+        httpd_resp_sendstr(req, "Cannot start while a firmware update is in progress");
+        return true;
+    }
+    return false;
+}
+
 /* ── POST /api/v1/firing/start ─────────────────────── */
 
 static esp_err_t handle_firing_start(httpd_req_t *req)
 {
     if (!require_auth(req)) {
+        return ESP_FAIL;
+    }
+    if (firing_blocked_by_ota(req)) {
         return ESP_FAIL;
     }
     char buf[128];
@@ -887,6 +906,9 @@ static esp_err_t handle_ota_check(httpd_req_t *req)
     if (!require_auth(req)) {
         return ESP_FAIL;
     }
+    if (ota_blocked_by_firing(req)) {
+        return ESP_FAIL;
+    }
     if (ota_is_busy()) {
         httpd_resp_set_status(req, "409 Conflict");
         httpd_resp_set_type(req, "text/plain");
@@ -1031,6 +1053,9 @@ static esp_err_t handle_get_cone_table(httpd_req_t *req)
 static esp_err_t handle_autotune_start(httpd_req_t *req)
 {
     if (!require_auth(req)) {
+        return ESP_FAIL;
+    }
+    if (firing_blocked_by_ota(req)) {
         return ESP_FAIL;
     }
     char buf[128];
@@ -1179,6 +1204,9 @@ static esp_err_t handle_ota_status(httpd_req_t *req)
 static esp_err_t handle_ota_rollback(httpd_req_t *req)
 {
     if (!require_auth(req)) {
+        return ESP_FAIL;
+    }
+    if (ota_blocked_by_firing(req)) {
         return ESP_FAIL;
     }
 
