@@ -5,6 +5,7 @@
 #include "pid_control.h"
 #include "safety.h"
 #include "firing_history.h"
+#include "ota_manager.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "nvs.h"
@@ -624,6 +625,15 @@ static void handle_cmd(const firing_cmd_t *cmd)
             break;
         }
 
+        /* Refuse to start while a firmware update is downloading: an OTA
+           install reboots the controller on completion, which would kill the
+           firing mid-cycle. The HTTP layer also gates this, but the display
+           modal queues START directly and bypasses that path. */
+        if (ota_is_busy()) {
+            ESP_LOGW(TAG, "START rejected: firmware update in progress");
+            break;
+        }
+
         /* Sanity-check the profile so a malformed one never reaches
            begin_firing(). The HTTP validator is stricter; these are
            the floor any caller must clear. */
@@ -755,6 +765,12 @@ static void handle_cmd(const firing_cmd_t *cmd)
     }
 
     case FIRING_CMD_AUTOTUNE_START:
+        /* Same OTA guard as FIRING_CMD_START: autotune energizes the elements
+           and a mid-run reboot would leave them in an undefined state. */
+        if (ota_is_busy()) {
+            ESP_LOGW(TAG, "AUTOTUNE rejected: firmware update in progress");
+            break;
+        }
         pid_autotune_start(&s_autotune, cmd->autotune.setpoint, cmd->autotune.hysteresis);
         progress_lock();
         s_progress.is_active = true;
