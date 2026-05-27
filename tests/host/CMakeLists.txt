@@ -71,12 +71,14 @@ add_library(host_stubs STATIC
     stubs/freertos_stub.c
     stubs/thermocouple_host.c
     stubs/safety_host.c
-    stubs/history_host.c)
+    stubs/history_host.c
+    stubs/ota_host.c)
 target_include_directories(host_stubs PUBLIC
     stubs
     ${ROOT}/components/thermocouple/include
     ${ROOT}/components/safety/include
-    ${ROOT}/components/history/include)
+    ${ROOT}/components/history/include
+    ${ROOT}/components/ota/include)
 
 # Convenience: every test gets unity + host_stubs + the component include
 # directories.
