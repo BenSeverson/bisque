@@ -12,6 +12,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
+#include <stdio.h>
 #include <string.h>
 #include <math.h>
 #include <time.h>
@@ -404,8 +405,7 @@ esp_err_t firing_engine_save_profile(const firing_profile_t *profile)
         }
     }
     if (!found && count < FIRING_MAX_PROFILES) {
-        strncpy(ids[count], profile->id, FIRING_ID_LEN - 1);
-        ids[count][FIRING_ID_LEN - 1] = '\0';
+        snprintf(ids[count], FIRING_ID_LEN, "%s", profile->id);
         count++;
         nvs_set_blob(handle, NVS_KEY_INDEX, ids, count * FIRING_ID_LEN);
     }
@@ -679,7 +679,7 @@ static void handle_cmd(const firing_cmd_t *cmd)
             progress_lock();
             s_progress.is_active = true;
             s_progress.status = FIRING_STATUS_IDLE; /* show as idle during delay */
-            strncpy(s_progress.profile_id, s_state.active_profile.id, FIRING_ID_LEN - 1);
+            snprintf(s_progress.profile_id, FIRING_ID_LEN, "%s", s_state.active_profile.id);
             s_progress.current_segment = 0;
             s_progress.total_segments = s_state.active_profile.segment_count;
             s_progress.elapsed_time = 0;
@@ -689,7 +689,7 @@ static void handle_cmd(const firing_cmd_t *cmd)
         } else {
             progress_lock();
             s_progress.is_active = true;
-            strncpy(s_progress.profile_id, s_state.active_profile.id, FIRING_ID_LEN - 1);
+            snprintf(s_progress.profile_id, FIRING_ID_LEN, "%s", s_state.active_profile.id);
             s_progress.current_segment = 0;
             s_progress.total_segments = s_state.active_profile.segment_count;
             s_progress.elapsed_time = 0;

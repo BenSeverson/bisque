@@ -17,6 +17,11 @@ CONFIG_SPIRAM_SPEED_80M=y
 CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
 CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ=240
 
+# Compiler optimization: -O2 (release/perf) instead of the -Og default.
+# Faster code (snappier UI, faster TLS/OTA); slightly larger but flash is
+# not a constraint (~2.4MB free in the 4MB OTA slot). Assertions kept on.
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+
 # SPIFFS
 CONFIG_SPIFFS_MAX_PARTITIONS=1
 
