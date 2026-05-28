@@ -8,12 +8,24 @@ SPIFFS_DIR="$SCRIPT_DIR/spiffs_data/www"
 export BISQUE_VERSION="${BISQUE_VERSION:-$("$SCRIPT_DIR/scripts/version.sh")}"
 
 # Build profile: release (default, -O2) or debug (-Og + LVGL perf/mem overlays).
-BISQUE_PROFILE="${BISQUE_PROFILE:-release}"
+# CMakeLists.txt reads BISQUE_PROFILE from env and inserts the matching
+# sdkconfig.defaults.* file into SDKCONFIG_DEFAULTS, so we just need to export.
+export BISQUE_PROFILE="${BISQUE_PROFILE:-release}"
 case "$BISQUE_PROFILE" in
-    release) ;;
-    debug) export SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.debug" ;;
+    release|debug) ;;
     *) echo "error: BISQUE_PROFILE must be 'release' or 'debug' (got '$BISQUE_PROFILE')" >&2; exit 1 ;;
 esac
+
+# Switching profiles requires invalidating both sdkconfig (so new defaults
+# merge) and the build/ tree (so CMake re-evaluates the env var). The marker
+# tracks the last profile used.
+PROFILE_MARKER="$SCRIPT_DIR/.bisque_profile"
+if [ -f "$PROFILE_MARKER" ] && [ "$(cat "$PROFILE_MARKER")" != "$BISQUE_PROFILE" ]; then
+    echo "--- Profile changed ($(cat "$PROFILE_MARKER") -> $BISQUE_PROFILE); clearing sdkconfig + build/ ---"
+    rm -f "$SCRIPT_DIR/sdkconfig"
+    rm -rf "$SCRIPT_DIR/build"
+fi
+echo "$BISQUE_PROFILE" > "$PROFILE_MARKER"
 
 echo "=== Building Bisque $BISQUE_VERSION (profile: $BISQUE_PROFILE) ==="
 

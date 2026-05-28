@@ -7,5 +7,7 @@ CONFIG_COMPILER_OPTIMIZATION_DEBUG=y
 CONFIG_COMPILER_OPTIMIZATION_ASSERTION_LEVEL=2
 
 # LVGL on-screen overlays (FPS + CPU, heap used/frag) in the bottom corners.
+# Both overlays depend on SYSMON; without it Kconfig silently drops them.
+CONFIG_LV_USE_SYSMON=y
 CONFIG_LV_USE_PERF_MONITOR=y
 CONFIG_LV_USE_MEM_MONITOR=y
