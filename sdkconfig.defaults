@@ -64,7 +64,15 @@ CONFIG_LV_COLOR_DEPTH_16=y
 CONFIG_LV_OS_FREERTOS=y
 CONFIG_LV_USE_FREERTOS_TASK_NOTIFY=y
 CONFIG_LV_DRAW_THREAD_PRIO=2
+# Dual-core software rendering: display_task runs on core 0, the second draw
+# unit gets to schedule on core 1, parallelizing blit work with UI bookkeeping.
+CONFIG_LV_DRAW_SW_DRAW_UNIT_CNT=2
 CONFIG_LV_USE_DRAW_SW=y
+# Theme is flat: no shadows, gradients, or alpha masks. Drop the complex SW
+# renderer path to shrink the binary and trim the blend loop.
+CONFIG_LV_DRAW_SW_COMPLEX=n
+# Only one button radius (6 px) is in use; a 1-entry circle cache suffices.
+CONFIG_LV_DRAW_SW_CIRCLE_CACHE_SIZE=1
 CONFIG_LV_DRAW_SW_SUPPORT_RGB565=y
 CONFIG_LV_DRAW_SW_SUPPORT_RGB565_SWAPPED=y
 CONFIG_LV_DRAW_SW_SUPPORT_RGB565A8=n
@@ -76,7 +84,9 @@ CONFIG_LV_DRAW_SW_SUPPORT_L8=n
 CONFIG_LV_DRAW_SW_SUPPORT_AL88=n
 CONFIG_LV_DRAW_SW_SUPPORT_A8=n
 CONFIG_LV_DRAW_SW_SUPPORT_I1=n
-CONFIG_LV_MEM_SIZE_KILOBYTES=32
+# Right-sized for the small widget set (label, button, list, chart, image, modal
+# containers). If LV_USE_ASSERT_MALLOC trips, bump back to 32.
+CONFIG_LV_MEM_SIZE_KILOBYTES=24
 CONFIG_LV_FONT_MONTSERRAT_14=n
 CONFIG_LV_FONT_MONTSERRAT_24=y
 CONFIG_LV_FONT_MONTSERRAT_36=y
@@ -85,6 +95,9 @@ CONFIG_LV_FONT_DEFAULT_MONTSERRAT_24=y
 CONFIG_LV_USE_CHART=y
 CONFIG_LV_USE_LIST=y
 CONFIG_LV_USE_LABEL=y
+# Read-only UI: no text selection, and no label long enough to need scroll hints.
+CONFIG_LV_LABEL_TEXT_SELECTION=n
+CONFIG_LV_LABEL_LONG_TXT_HINT=n
 CONFIG_LV_USE_BUTTON=y
 CONFIG_LV_USE_BUTTONMATRIX=y
 CONFIG_LV_USE_ANIMIMG=n
@@ -116,6 +129,7 @@ CONFIG_LV_USE_WIN=n
 CONFIG_LV_USE_LED=n
 CONFIG_LV_USE_THEME_DEFAULT=n
 CONFIG_LV_USE_THEME_SIMPLE=y
+# Flex is used by modal_profile_picker.c to stack each row's name+subtitle.
 CONFIG_LV_USE_FLEX=y
 CONFIG_LV_USE_GRID=n
 CONFIG_LV_USE_OBSERVER=n
