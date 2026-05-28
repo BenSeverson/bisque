@@ -1,0 +1,11 @@
+# Debug build profile — overlaid on sdkconfig.defaults via:
+#   BISQUE_PROFILE=debug ./build.sh
+# Re-enables -Og + full assertions and turns on the LVGL on-screen perf/mem
+# overlays for on-device profiling. The default (release) build uses -O2.
+
+CONFIG_COMPILER_OPTIMIZATION_DEBUG=y
+CONFIG_COMPILER_OPTIMIZATION_ASSERTION_LEVEL=2
+
+# LVGL on-screen overlays (FPS + CPU, heap used/frag) in the bottom corners.
+CONFIG_LV_USE_PERF_MONITOR=y
+CONFIG_LV_USE_MEM_MONITOR=y

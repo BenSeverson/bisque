@@ -6,7 +6,16 @@ WEB_DIR="$SCRIPT_DIR/web_ui"
 SPIFFS_DIR="$SCRIPT_DIR/spiffs_data/www"
 
 export BISQUE_VERSION="${BISQUE_VERSION:-$("$SCRIPT_DIR/scripts/version.sh")}"
-echo "=== Building Bisque $BISQUE_VERSION ==="
+
+# Build profile: release (default, -O2) or debug (-Og + LVGL perf/mem overlays).
+BISQUE_PROFILE="${BISQUE_PROFILE:-release}"
+case "$BISQUE_PROFILE" in
+    release) ;;
+    debug) export SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.debug" ;;
+    *) echo "error: BISQUE_PROFILE must be 'release' or 'debug' (got '$BISQUE_PROFILE')" >&2; exit 1 ;;
+esac
+
+echo "=== Building Bisque $BISQUE_VERSION (profile: $BISQUE_PROFILE) ==="
 
 # Step 1: Build web UI
 echo "--- Building Web UI ---"
