@@ -7,7 +7,10 @@ CONFIG_COMPILER_OPTIMIZATION_DEBUG=y
 CONFIG_COMPILER_OPTIMIZATION_ASSERTION_LEVEL=2
 
 # LVGL on-screen overlays (FPS + CPU, heap used/frag) in the bottom corners.
-# Both overlays depend on SYSMON; without it Kconfig silently drops them.
+# Dependency chain: PERF_MONITOR/MEM_MONITOR -> SYSMON -> OBSERVER.
+# SYSMON's Kconfig doesn't declare the OBSERVER dep but its headers #error
+# without it, so we have to enable both explicitly here.
+CONFIG_LV_USE_OBSERVER=y
 CONFIG_LV_USE_SYSMON=y
 CONFIG_LV_USE_PERF_MONITOR=y
 CONFIG_LV_USE_MEM_MONITOR=y

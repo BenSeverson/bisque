@@ -16,12 +16,15 @@ case "$BISQUE_PROFILE" in
     *) echo "error: BISQUE_PROFILE must be 'release' or 'debug' (got '$BISQUE_PROFILE')" >&2; exit 1 ;;
 esac
 
-# Switching profiles requires invalidating both sdkconfig (so new defaults
-# merge) and the build/ tree (so CMake re-evaluates the env var). The marker
-# tracks the last profile used.
+# IDF only merges sdkconfig.defaults when sdkconfig doesn't exist, and CMake
+# caches SDKCONFIG_DEFAULTS in build/CMakeCache.txt. To make profile switches
+# (and edits to the defaults files) actually take effect, clear sdkconfig and
+# the build tree when the marker doesn't match — including when it's absent,
+# which is the case after a stale/aborted build or after editing the defaults.
 PROFILE_MARKER="$SCRIPT_DIR/.bisque_profile"
-if [ -f "$PROFILE_MARKER" ] && [ "$(cat "$PROFILE_MARKER")" != "$BISQUE_PROFILE" ]; then
-    echo "--- Profile changed ($(cat "$PROFILE_MARKER") -> $BISQUE_PROFILE); clearing sdkconfig + build/ ---"
+if [ ! -f "$PROFILE_MARKER" ] || [ "$(cat "$PROFILE_MARKER")" != "$BISQUE_PROFILE" ]; then
+    prev=$([ -f "$PROFILE_MARKER" ] && cat "$PROFILE_MARKER" || echo "<none>")
+    echo "--- Profile $prev -> $BISQUE_PROFILE; clearing sdkconfig + build/ to force defaults merge ---"
     rm -f "$SCRIPT_DIR/sdkconfig"
     rm -rf "$SCRIPT_DIR/build"
 fi
