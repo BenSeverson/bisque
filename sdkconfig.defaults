@@ -68,11 +68,6 @@ CONFIG_LV_DRAW_THREAD_PRIO=2
 # unit gets to schedule on core 1, parallelizing blit work with UI bookkeeping.
 CONFIG_LV_DRAW_SW_DRAW_UNIT_CNT=2
 CONFIG_LV_USE_DRAW_SW=y
-# Theme is flat: no shadows, gradients, or alpha masks. Drop the complex SW
-# renderer path to shrink the binary and trim the blend loop.
-CONFIG_LV_DRAW_SW_COMPLEX=n
-# Only one button radius (6 px) is in use; a 1-entry circle cache suffices.
-CONFIG_LV_DRAW_SW_CIRCLE_CACHE_SIZE=1
 CONFIG_LV_DRAW_SW_SUPPORT_RGB565=y
 CONFIG_LV_DRAW_SW_SUPPORT_RGB565_SWAPPED=y
 CONFIG_LV_DRAW_SW_SUPPORT_RGB565A8=n
