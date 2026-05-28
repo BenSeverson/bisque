@@ -59,15 +59,6 @@ static void dashboard_tick_cb(lv_timer_t *t)
 
     dashboard_update(&tc, &prog);
 
-    /* Log LVGL heap usage to help right-size CONFIG_LV_MEM_SIZE_KILOBYTES (currently 64 KB).
-     * Once you know peak usage, shrink the pool to reclaim DIRAM for the system heap.
-     * TODO: remove this
-     */
-    lv_mem_monitor_t mon;
-    lv_mem_monitor(&mon);
-    ESP_LOGD(TAG, "LVGL mem: %lu used, %lu free, %d%% frag", (unsigned long)(mon.total_size - mon.free_size),
-             (unsigned long)mon.free_size, mon.frag_pct);
-
     float temp = tc.fault ? 0 : tc.temperature_c;
     uint32_t hours = prog.elapsed_time / 3600;
     uint32_t mins = (prog.elapsed_time % 3600) / 60;
@@ -84,17 +75,13 @@ static void run_splash_phase(void)
     splash_create();
     lv_unlock();
 
-    /* Pump LVGL until the first frame is fully flushed, then raise the backlight.
-     * Partial render mode pushes the 320 rows in 8 chunks via async DMA; running
-     * the handler ~10 times with a short delay between calls covers the chunks
-     * plus their on_color_trans_done callbacks. Without this warm-up the panel
-     * shows uninitialized VRAM (static) when the backlight first comes on. */
-    for (int i = 0; i < 10; i++) {
-        lv_lock();
-        lv_timer_handler();
-        lv_unlock();
-        vTaskDelay(pdMS_TO_TICKS(10));
-    }
+    /* Force a full synchronous refresh so the splash is actually on the panel
+     * before the backlight comes up — otherwise the panel shows uninitialized
+     * VRAM (static). The vTaskDelay drains the last async DMA chunk. */
+    lv_lock();
+    lv_refr_now(NULL);
+    lv_unlock();
+    vTaskDelay(pdMS_TO_TICKS(20));
     display_backlight_on();
 
     int64_t shown_at_us = esp_timer_get_time();
@@ -136,11 +123,17 @@ void display_task(void *param)
     lv_timer_create(dashboard_tick_cb, 500, NULL);
     lv_unlock();
 
-    TickType_t last_wake = xTaskGetTickCount();
-
     for (;;) {
-        lv_timer_handler();
+        /* lv_timer_handler() takes the LVGL lock internally (LV_OS_FREERTOS) and
+         * returns ms until the next due timer. Sleep that long, clamped so input
+         * polling stays responsive (<=30ms) and we never busy-spin (>=5ms). */
+        uint32_t next_ms = lv_timer_handler();
         route_lr_focus();
-        xTaskDelayUntil(&last_wake, pdMS_TO_TICKS(30));
+        if (next_ms > 30) {
+            next_ms = 30;
+        } else if (next_ms < 5) {
+            next_ms = 5;
+        }
+        vTaskDelay(pdMS_TO_TICKS(next_ms));
     }
 }
