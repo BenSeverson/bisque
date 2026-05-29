@@ -8,6 +8,7 @@
 #include "esp_lcd_panel_ops.h"
 #include "esp_lcd_st7796.h"
 #include "driver/gpio.h"
+#include "esp_heap_caps.h"
 #include "lvgl.h"
 #include <string.h>
 
@@ -23,10 +24,10 @@ static esp_lcd_panel_handle_t s_panel = NULL;
 static lv_display_t *s_disp = NULL;
 static int s_bl_pin = -1;
 
-/* Double-buffered DMA draw buffers: 40 rows each */
-#define DRAW_BUF_LINES 40
-static uint8_t s_buf1[UI_LCD_W * DRAW_BUF_LINES * 2] __attribute__((aligned(4)));
-static uint8_t s_buf2[UI_LCD_W * DRAW_BUF_LINES * 2] __attribute__((aligned(4)));
+/* Double-buffered DMA draw buffers: 30 rows each (~1/10.7 of the screen, above
+ * LVGL's 1/10 floor). Allocated from DMA-capable internal SRAM in display_init();
+ * PSRAM is too slow for the flush DMA hot path. */
+#define DRAW_BUF_LINES 30
 
 /* Button debounce state — 5-way nav switch */
 enum { BTN_UP = 0, BTN_DOWN, BTN_SELECT, BTN_LEFT, BTN_RIGHT, BTN_COUNT };
@@ -80,25 +81,44 @@ static bool btn_is_pressed(int idx)
     return s_buttons[idx].pressed;
 }
 
+/* Long-press auto-repeat so holding UP/DOWN keeps scrolling a focus group
+ * instead of requiring one press per step. */
+#define BTN_REPEAT_INITIAL_US 400000 /* 400ms before repeat kicks in */
+#define BTN_REPEAT_PERIOD_US  80000  /* 80ms between repeats */
+
+/* Returns the encoder step (-1/0/+1) for one held direction, generating a step
+ * on the press edge and then again on the auto-repeat cadence while held. */
+static int8_t encoder_axis_step(bool held, int8_t dir, int64_t now, int64_t *held_since_us, int64_t *last_repeat_us)
+{
+    if (!held) {
+        *held_since_us = 0;
+        return 0;
+    }
+    if (*held_since_us == 0) {
+        *held_since_us = now;
+        *last_repeat_us = now;
+        return dir;
+    }
+    if (now - *held_since_us > BTN_REPEAT_INITIAL_US && now - *last_repeat_us > BTN_REPEAT_PERIOD_US) {
+        *last_repeat_us = now;
+        return dir;
+    }
+    return 0;
+}
+
 static void encoder_read_cb(lv_indev_t *indev, lv_indev_data_t *data)
 {
     (void)indev;
-    static bool prev_up = false, prev_down = false;
+    static int64_t up_held_us = 0, up_repeat_us = 0;
+    static int64_t down_held_us = 0, down_repeat_us = 0;
 
+    int64_t now = esp_timer_get_time();
     bool up = btn_is_pressed(BTN_UP);
     bool down = btn_is_pressed(BTN_DOWN);
     bool sel = btn_is_pressed(BTN_SELECT);
 
-    /* Encoder diff: generate ±1 on press edge */
-    data->enc_diff = 0;
-    if (up && !prev_up) {
-        data->enc_diff = -1;
-    }
-    if (down && !prev_down) {
-        data->enc_diff = 1;
-    }
-    prev_up = up;
-    prev_down = down;
+    data->enc_diff = encoder_axis_step(up, -1, now, &up_held_us, &up_repeat_us) +
+                     encoder_axis_step(down, 1, now, &down_held_us, &down_repeat_us);
 
     data->state = sel ? LV_INDEV_STATE_PRESSED : LV_INDEV_STATE_RELEASED;
 }
@@ -160,7 +180,8 @@ esp_err_t display_init(spi_host_device_t host, int cs_pin, int dc_pin, int rst_p
         .lcd_cmd_bits = 8,
         .lcd_param_bits = 8,
         .spi_mode = 0,
-        .trans_queue_depth = 10,
+        /* Partial + double-buffer keeps at most 2 transfers in flight; 4 is headroom. */
+        .trans_queue_depth = 4,
         .on_color_trans_done = NULL, /* registered after display is created */
         .user_ctx = NULL,
     };
@@ -197,7 +218,15 @@ esp_err_t display_init(spi_host_device_t host, int cs_pin, int dc_pin, int rst_p
     /* Create display */
     s_disp = lv_display_create(UI_LCD_W, UI_LCD_H);
     lv_display_set_flush_cb(s_disp, flush_cb);
-    lv_display_set_buffers(s_disp, s_buf1, s_buf2, sizeof(s_buf1), LV_DISPLAY_RENDER_MODE_PARTIAL);
+
+    size_t buf_sz = UI_LCD_W * DRAW_BUF_LINES * sizeof(uint16_t);
+    uint8_t *buf1 = heap_caps_aligned_alloc(4, buf_sz, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+    uint8_t *buf2 = heap_caps_aligned_alloc(4, buf_sz, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+    if (!buf1 || !buf2) {
+        ESP_LOGE(TAG, "draw-buffer alloc failed (%zu bytes each)", buf_sz);
+        return ESP_ERR_NO_MEM;
+    }
+    lv_display_set_buffers(s_disp, buf1, buf2, buf_sz, LV_DISPLAY_RENDER_MODE_PARTIAL);
     lv_display_set_color_format(s_disp, LV_COLOR_FORMAT_RGB565_SWAPPED);
 
     /* Install the UI theme before any widget is created so every widget picks up

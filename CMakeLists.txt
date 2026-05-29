@@ -2,10 +2,18 @@ cmake_minimum_required(VERSION 3.16)
 
 set(EXTRA_COMPONENT_DIRS "components")
 
-# Layer an untracked sdkconfig.defaults.local on top of sdkconfig.defaults so
-# local-only settings (e.g. Wi-Fi creds) persist without being committed. Only
-# include the local file when it exists — ESP-IDF errors on missing entries.
+# Build the sdkconfig defaults list. Order matters — later files win.
+#  1. sdkconfig.defaults                 — committed base
+#  2. sdkconfig.defaults.debug           — only when BISQUE_PROFILE=debug;
+#                                          enables -Og + LVGL FPS/heap overlays
+#  3. sdkconfig.defaults.local           — untracked per-developer overrides
+#                                          (e.g. Wi-Fi creds); included only
+#                                          when it exists since IDF errors on
+#                                          missing entries.
 set(SDKCONFIG_DEFAULTS "sdkconfig.defaults")
+if("$ENV{BISQUE_PROFILE}" STREQUAL "debug")
+    list(APPEND SDKCONFIG_DEFAULTS "sdkconfig.defaults.debug")
+endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/sdkconfig.defaults.local")
     list(APPEND SDKCONFIG_DEFAULTS "sdkconfig.defaults.local")
 endif()

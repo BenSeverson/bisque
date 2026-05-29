@@ -52,6 +52,8 @@ static lv_obj_t *s_select_trap = NULL;
 static lv_obj_t *s_content = NULL;
 static view_id_t s_current_view = VIEW_NONE;
 static view_id_t s_prev_view = VIEW_NONE;
+/* Last status painted onto the status bar; sentinel forces a repaint on first update. */
+static firing_status_t s_prev_status = (firing_status_t)-1;
 
 /* IDLE view widgets. */
 static lv_obj_t *s_idle_temp = NULL;
@@ -606,6 +608,7 @@ void dashboard_create(void)
     lv_screen_load(s_screen);
     switch_view(VIEW_IDLE, NULL);
     s_prev_view = VIEW_IDLE;
+    s_prev_status = (firing_status_t)-1;
 
     ESP_LOGI(TAG, "dashboard created");
 }
@@ -637,13 +640,17 @@ void dashboard_update(const thermocouple_reading_t *tc, const firing_progress_t 
         s_active_peak_c = tc->temperature_c;
     }
 
-    /* Status bar color + text. */
-    lv_color_t bar_color = ui_status_color(prog->status);
-    lv_color_t text_color = status_text_color(prog->status);
-    lv_obj_set_style_bg_color(s_status_bar, bar_color, 0);
-    lv_obj_set_style_text_color(s_status_label, text_color, 0);
-    lv_obj_set_style_text_color(s_seg_label, text_color, 0);
-    lv_label_set_text(s_status_label, ui_status_label(prog->status));
+    /* Status bar color + text — only repaint when status actually changes; it's
+     * stable for hours during a ramp/hold and each set_style forces a redraw. */
+    if (prog->status != s_prev_status) {
+        lv_color_t bar_color = ui_status_color(prog->status);
+        lv_color_t text_color = status_text_color(prog->status);
+        lv_obj_set_style_bg_color(s_status_bar, bar_color, 0);
+        lv_obj_set_style_text_color(s_status_label, text_color, 0);
+        lv_obj_set_style_text_color(s_seg_label, text_color, 0);
+        lv_label_set_text(s_status_label, ui_status_label(prog->status));
+        s_prev_status = prog->status;
+    }
 
     if (view_is_active_family(s_current_view)) {
         lv_label_set_text_fmt(s_seg_label, "SEGMENT %u/%u", (unsigned)(prog->current_segment + 1),

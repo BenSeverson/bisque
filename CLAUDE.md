@@ -12,6 +12,8 @@ idf.py build        # Firmware-only rebuild (skips web UI)
 idf.py flash monitor  # Flash and monitor
 ```
 
+Build profile: `./build.sh` builds release (`-O2`) by default. `BISQUE_PROFILE=debug ./build.sh` overlays `sdkconfig.defaults.debug` (`-Og`, full assertions, and the LVGL on-screen FPS/heap overlays) for on-device profiling.
+
 Build system: **CMake** via ESP-IDF's `idf.py`. Each `components/` subdirectory is an ESP-IDF component with its own `CMakeLists.txt`.
 
 The top-level `Makefile` is a thin dispatcher over the existing scripts and `idf.py` — `make help` lists every developer entry point (`build`, `web`, `firmware`, `sim`, `test`, `lint`, `format`, `size`, `clang-tidy`, `cppcheck`, `ci`, `clean`). CI calls the same targets, so `make ci` is the closest local approximation of the PR check.
@@ -59,7 +61,7 @@ partitions.csv      # ESP32 partition table (16MB, OTA-enabled)
 - Memory pool: 32KB
 - Fonts enabled: Montserrat 24, 36, 48 (default: 24)
 - Widgets in use: label, chart, list, buttonmatrix, obj (containers/dots)
-- Layout: absolute positioning via `lv_obj_set_pos()`/`lv_obj_align()` (flex/grid compiled in but unused)
+- Layout: mostly absolute positioning via `lv_obj_set_pos()`/`lv_obj_align()`. Flex (`LV_USE_FLEX`) is enabled and used by `modal_profile_picker.c` to stack each list row's name+subtitle; grid is compiled out.
 - Theme: a custom theme registered via `lv_display_set_theme()`. Source: `components/display/ui_theme.c`. It applies shared `lv_style_t` defaults by widget class — screen baseline (white bg, black text, base font), plain panels (transparent + chrome-free), buttons (radius + bg_opa + focused outline), lists and list buttons (with focused state), and chart parts (frame + grid + items + indicator). Tweak the styles there to retune the whole UI.
 
 ### Design Tokens (defined in `components/display/ui_common.h`)

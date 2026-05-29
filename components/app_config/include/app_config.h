@@ -26,9 +26,11 @@
 #define APP_PIN_LCD_RST CONFIG_KILN_PIN_LCD_RST
 #define APP_PIN_LCD_BL  CONFIG_KILN_PIN_LCD_BL
 
-#define APP_LCD_H_RES       480
-#define APP_LCD_V_RES       320
-#define APP_LCD_SPI_FREQ_HZ (80 * 1000 * 1000)
+#define APP_LCD_H_RES 480
+#define APP_LCD_V_RES 320
+/* ST7796S datasheet rates the write cycle at 66 MHz (Tcycw=15ns); 40 MHz stays
+ * within spec for the hand-soldered perfboard wiring in a noisy kiln environment. */
+#define APP_LCD_SPI_FREQ_HZ (40 * 1000 * 1000)
 
 /* --- PID Defaults --- */
 #define APP_PID_KP_DEFAULT 2.0f
