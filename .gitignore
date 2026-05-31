@@ -32,7 +32,10 @@ web_ui/dist/
 .idea/
 xcuserdata/
 .cache/
-.claude/
+# Ignore local .claude state, but share the web-session start hook + its settings.
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
 *.swp
 *.swo
 
