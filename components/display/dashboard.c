@@ -265,8 +265,8 @@ static void build_view_idle(void)
         char dur_buf[24];
         format_duration(last.duration_s, dur_buf, sizeof(dur_buf), "");
         char details[96];
-        snprintf(details, sizeof(details), "Peak %.0f°C  -  %s  -  %s", (double)last.peak_temp_c, dur_buf,
-                 history_outcome_to_string(last.outcome));
+        snprintf(details, sizeof(details), "Peak %.0f%s  -  %s  -  %s", (double)ui_temp_value(last.peak_temp_c),
+                 ui_temp_suffix(), dur_buf, history_outcome_to_string(last.outcome));
         lv_obj_t *details_label = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, details);
         lv_obj_align(details_label, LV_ALIGN_TOP_MID, 0, 244 - CONTENT_Y);
     }
@@ -291,7 +291,7 @@ static void update_view_idle(const thermocouple_reading_t *tc)
         lv_label_set_text(s_idle_temp, "-");
     } else {
         char buf[16];
-        snprintf(buf, sizeof(buf), "%.0f°C", (double)tc->temperature_c);
+        snprintf(buf, sizeof(buf), "%.0f%s", (double)ui_temp_value(tc->temperature_c), ui_temp_suffix());
         lv_label_set_text(s_idle_temp, buf);
     }
 }
@@ -375,11 +375,11 @@ static void update_view_active(const thermocouple_reading_t *tc, const firing_pr
     if (tc->fault) {
         lv_label_set_text(s_active_temp, "-");
     } else {
-        snprintf(buf, sizeof(buf), "%.0f°C", (double)tc->temperature_c);
+        snprintf(buf, sizeof(buf), "%.0f%s", (double)ui_temp_value(tc->temperature_c), ui_temp_suffix());
         lv_label_set_text(s_active_temp, buf);
     }
 
-    snprintf(buf, sizeof(buf), LV_SYMBOL_RIGHT " %.0f°C", (double)prog->target_temp);
+    snprintf(buf, sizeof(buf), LV_SYMBOL_RIGHT " %.0f%s", (double)ui_temp_value(prog->target_temp), ui_temp_suffix());
     lv_label_set_text(s_active_target, buf);
 
     format_duration(prog->elapsed_time, buf, sizeof(buf), "");
@@ -426,7 +426,7 @@ static void build_view_complete(const firing_progress_t *prog)
     lv_obj_align(prof, LV_ALIGN_TOP_MID, 0, 132 - CONTENT_Y);
 
     char peak_buf[24];
-    snprintf(peak_buf, sizeof(peak_buf), "Peak %.0f°C", (double)s_active_peak_c);
+    snprintf(peak_buf, sizeof(peak_buf), "Peak %.0f%s", (double)ui_temp_value(s_active_peak_c), ui_temp_suffix());
     lv_obj_t *peak = ui_make_label(s_content, UI_FONT_SMALL, UI_COLOR_TEXT, peak_buf);
     lv_obj_align(peak, LV_ALIGN_TOP_MID, 0, 180 - CONTENT_Y);
 
@@ -448,7 +448,7 @@ static void update_view_complete(const thermocouple_reading_t *tc)
         lv_label_set_text(s_complete_now_temp, "");
     } else {
         char buf[32];
-        snprintf(buf, sizeof(buf), "Now %.0f°C, cooling", (double)tc->temperature_c);
+        snprintf(buf, sizeof(buf), "Now %.0f%s, cooling", (double)ui_temp_value(tc->temperature_c), ui_temp_suffix());
         lv_label_set_text(s_complete_now_temp, buf);
     }
 }
@@ -499,7 +499,7 @@ static void update_view_error(const thermocouple_reading_t *tc)
         lv_label_set_text(s_error_now_temp, "Last reading -");
     } else {
         char buf[32];
-        snprintf(buf, sizeof(buf), "Last reading %.0f°C", (double)tc->temperature_c);
+        snprintf(buf, sizeof(buf), "Last reading %.0f%s", (double)ui_temp_value(tc->temperature_c), ui_temp_suffix());
         lv_label_set_text(s_error_now_temp, buf);
     }
 }

@@ -3,9 +3,10 @@ import { api } from "../services/api";
 import { FiringProfile, KilnSettings } from "../types/kiln";
 import { useKilnStore } from "../stores/kilnStore";
 import { mockProfiles } from "../data/mockProfiles";
+import { TempUnit } from "../utils/temperature";
 
 export const DEFAULT_SETTINGS: KilnSettings = {
-  tempUnit: "C",
+  tempUnit: "F",
   maxSafeTemp: 1400,
   alarmEnabled: true,
   autoShutdown: true,
@@ -51,6 +52,16 @@ export function useSettings() {
     queryFn: () => api.getSettings(),
     placeholderData: DEFAULT_SETTINGS,
   });
+}
+
+/**
+ * The active temperature display unit. Convenience wrapper over useSettings()
+ * for the many components that only need the unit to format temperatures.
+ * Falls back to the default until settings load.
+ */
+export function useTempUnit(): TempUnit {
+  const { data } = useSettings();
+  return data?.tempUnit ?? DEFAULT_SETTINGS.tempUnit;
 }
 
 export function useSystemInfo() {

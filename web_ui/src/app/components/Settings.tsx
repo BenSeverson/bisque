@@ -15,6 +15,14 @@ import { setApiToken } from "../services/api";
 import { toast } from "sonner";
 import { Upload, Zap, Thermometer, AlertTriangle, RefreshCw, Download } from "lucide-react";
 import { settingsSchema, SettingsFormValues } from "../schemas/kiln";
+import { TemperatureField } from "./TemperatureField";
+import {
+  formatTemp,
+  toDisplayTemp,
+  fromDisplayTemp,
+  toDisplayRate,
+  unitLabel,
+} from "../utils/temperature";
 import {
   useSettings,
   useSaveSettings,
@@ -71,7 +79,7 @@ export function Settings() {
     }
   }, [autotuneStatus, autotuneRunning]);
 
-  const { register, handleSubmit, watch, setValue, reset } = useForm<SettingsFormValues>({
+  const { register, handleSubmit, watch, setValue, reset, control } = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsSchema),
     defaultValues: settings,
   });
@@ -83,6 +91,7 @@ export function Settings() {
   }, [settings, reset]);
 
   const watchedSettings = watch();
+  const unit = watchedSettings.tempUnit ?? "F";
 
   const onSubmit = async (data: SettingsFormValues) => {
     try {
@@ -120,7 +129,7 @@ export function Settings() {
 
   const handleStartAutotune = useCallback(async () => {
     if (!Number.isFinite(autotuneSetpoint) || autotuneSetpoint <= 0) {
-      toast.error("Enter a valid setpoint above 0°C");
+      toast.error("Enter a valid setpoint above 0");
       return;
     }
     try {
@@ -257,24 +266,24 @@ export function Settings() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="max-temp">Maximum Safe Temperature (°C)</Label>
-              <Input
-                id="max-temp"
-                type="number"
-                {...register("maxSafeTemp", { valueAsNumber: true })}
-              />
+              <Label htmlFor="max-temp">Maximum Safe Temperature ({unitLabel(unit)})</Label>
+              <TemperatureField id="max-temp" control={control} name="maxSafeTemp" unit={unit} />
               <p className="text-sm text-muted-foreground">
-                The kiln will shut down if this temperature is exceeded. Hardware max: 1400°C.
+                The kiln will shut down if this temperature is exceeded. Hardware max:{" "}
+                {formatTemp(1400, unit)}.
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="tc-offset">Thermocouple Offset (°C)</Label>
-              <Input
+              <Label htmlFor="tc-offset">Thermocouple Offset ({unitLabel(unit)})</Label>
+              <TemperatureField
                 id="tc-offset"
-                type="number"
+                control={control}
+                name="tcOffsetC"
+                unit={unit}
+                kind="delta"
+                digits={1}
                 step="0.5"
-                {...register("tcOffsetC", { valueAsNumber: true })}
               />
               <p className="text-sm text-muted-foreground">
                 Calibration offset added to raw TC reading. Use a reference thermometer to determine
@@ -485,22 +494,28 @@ export function Settings() {
             <div className="flex items-center gap-2">
               <Badge variant="default">Running</Badge>
               <span className="text-sm text-muted-foreground">
-                Temp: {autotuneStatus?.currentTemp?.toFixed(1)}°C /{" "}
-                {autotuneStatus?.targetTemp?.toFixed(0)}°C
+                Temp:{" "}
+                {autotuneStatus?.currentTemp != null
+                  ? formatTemp(autotuneStatus.currentTemp, unit, 1)
+                  : "--"}{" "}
+                /{" "}
+                {autotuneStatus?.targetTemp != null
+                  ? formatTemp(autotuneStatus.targetTemp, unit)
+                  : "--"}
               </span>
             </div>
           )}
 
           <div className="flex items-end gap-4">
             <div className="space-y-2 flex-1">
-              <Label htmlFor="autotune-setpoint">Setpoint Temperature (°C)</Label>
+              <Label htmlFor="autotune-setpoint">Setpoint Temperature ({unitLabel(unit)})</Label>
               <Input
                 id="autotune-setpoint"
                 type="number"
-                value={autotuneSetpoint}
+                value={Number(toDisplayTemp(autotuneSetpoint, unit).toFixed(0))}
                 onChange={(e) => {
                   const v = parseFloat(e.target.value);
-                  setAutotuneSetpoint(Number.isFinite(v) ? v : 0);
+                  setAutotuneSetpoint(Number.isFinite(v) ? fromDisplayTemp(v, unit) : 0);
                 }}
                 disabled={autotuneRunning}
               />
@@ -545,19 +560,24 @@ export function Settings() {
             <div className="mt-3 p-4 bg-muted/50 rounded-lg space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">TC Temperature</span>
-                <span className="font-mono">{tcDiag.temperatureC.toFixed(1)}°C</span>
+                <span className="font-mono">{formatTemp(tcDiag.temperatureC, unit, 1)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Adjusted Temperature</span>
-                <span className="font-mono">{tcDiag.temperatureAdjustedC.toFixed(1)}°C</span>
+                <span className="font-mono">
+                  {formatTemp(tcDiag.temperatureAdjustedC, unit, 1)}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Cold Junction</span>
-                <span className="font-mono">{tcDiag.internalTempC.toFixed(1)}°C</span>
+                <span className="font-mono">{formatTemp(tcDiag.internalTempC, unit, 1)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">TC Offset</span>
-                <span className="font-mono">{tcDiag.tcOffsetC.toFixed(1)}°C</span>
+                <span className="font-mono">
+                  {toDisplayRate(tcDiag.tcOffsetC, unit).toFixed(1)}
+                  {unitLabel(unit)}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Reading Age</span>
@@ -787,7 +807,7 @@ export function Settings() {
           <div className="flex justify-between py-2">
             <span className="text-sm font-medium">Board Temperature</span>
             <span className="text-sm text-muted-foreground">
-              {systemInfo?.boardTempC != null ? `${systemInfo.boardTempC.toFixed(1)}°C` : "--"}
+              {systemInfo?.boardTempC != null ? formatTemp(systemInfo.boardTempC, unit, 1) : "--"}
             </span>
           </div>
         </CardContent>

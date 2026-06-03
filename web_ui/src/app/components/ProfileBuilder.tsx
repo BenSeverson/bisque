@@ -20,7 +20,10 @@ import {
   useDeleteProfile,
   useConeTable,
   useGenerateConeFire,
+  useTempUnit,
 } from "../hooks/queries";
+import { formatTemp, formatRate, unitLabel, rateLabel } from "../utils/temperature";
+import { TemperatureField } from "./TemperatureField";
 
 // UUID v4 backed by crypto.getRandomValues. Works in non-secure (HTTP) contexts
 // where crypto.randomUUID() is unavailable, and uses real entropy unlike Math.random.
@@ -35,6 +38,7 @@ function generateId(): string {
 
 export function ProfileBuilder() {
   const { data: profiles = [] } = useProfiles();
+  const unit = useTempUnit();
   const saveProfile = useSaveProfile();
   const deleteProfile = useDeleteProfile();
   const { data: coneEntries = [] } = useConeTable();
@@ -291,7 +295,7 @@ export function ProfileBuilder() {
             {coneTargetTemp !== null && (
               <div className="p-3 bg-muted/50 rounded-lg text-sm">
                 Cone {selectedCone?.name} @ {speedLabel(coneSpeed)}: target{" "}
-                <span className="font-semibold">{coneTargetTemp}°C</span>
+                <span className="font-semibold">{formatTemp(coneTargetTemp, unit)}</span>
               </div>
             )}
 
@@ -300,7 +304,7 @@ export function ProfileBuilder() {
                 <div className="space-y-0.5">
                   <Label>Preheat Segment</Label>
                   <p className="text-xs text-muted-foreground">
-                    80°C/hr to 120°C with 30-min moisture hold
+                    {formatRate(80, unit)} to {formatTemp(120, unit)} with 30-min moisture hold
                   </p>
                 </div>
                 <Switch checked={preheat} onCheckedChange={setPreheat} />
@@ -309,7 +313,7 @@ export function ProfileBuilder() {
                 <div className="space-y-0.5">
                   <Label>Slow Cool</Label>
                   <p className="text-xs text-muted-foreground">
-                    −150°C/hr through quartz inversion (573°C)
+                    {formatRate(-150, unit)} through quartz inversion ({formatTemp(573, unit)})
                   </p>
                 </div>
                 <Switch checked={slowCool} onCheckedChange={setSlowCool} />
@@ -383,7 +387,7 @@ export function ProfileBuilder() {
                 <div className="grid grid-cols-2 gap-4 pt-2 border-t">
                   <div>
                     <p className="text-sm text-muted-foreground">Max Temperature</p>
-                    <p className="text-2xl font-semibold">{calculateMaxTemp()}°C</p>
+                    <p className="text-2xl font-semibold">{formatTemp(calculateMaxTemp(), unit)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Estimated Duration</p>
@@ -470,10 +474,12 @@ export function ProfileBuilder() {
 
                     <div className="grid grid-cols-3 gap-4">
                       <div className="space-y-2">
-                        <Label>Ramp Rate (°C/hr)</Label>
-                        <Input
-                          type="number"
-                          {...register(`segments.${index}.rampRate`, { valueAsNumber: true })}
+                        <Label>Ramp Rate ({rateLabel(unit)})</Label>
+                        <TemperatureField
+                          control={control}
+                          name={`segments.${index}.rampRate`}
+                          unit={unit}
+                          kind="delta"
                         />
                         {errors.segments?.[index]?.rampRate ? (
                           <p className="text-xs text-destructive">
@@ -487,10 +493,12 @@ export function ProfileBuilder() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Target Temp (°C)</Label>
-                        <Input
-                          type="number"
-                          {...register(`segments.${index}.targetTemp`, { valueAsNumber: true })}
+                        <Label>Target Temp ({unitLabel(unit)})</Label>
+                        <TemperatureField
+                          control={control}
+                          name={`segments.${index}.targetTemp`}
+                          unit={unit}
+                          kind="absolute"
                         />
                         {errors.segments?.[index]?.targetTemp && (
                           <p className="text-xs text-destructive">

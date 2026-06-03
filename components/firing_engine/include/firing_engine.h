@@ -54,6 +54,13 @@ void firing_engine_get_settings(kiln_settings_t *out);
  */
 esp_err_t firing_engine_set_settings(const kiln_settings_t *settings);
 
+/**
+ * Get the active temperature display unit ('C' or 'F'). Thread-safe, cheap —
+ * intended for presentation-layer formatting (the LVGL display reads this
+ * every refresh). All internal temperatures remain Celsius.
+ */
+char firing_engine_get_temp_unit(void);
+
 /* ── Profile Storage (NVS) ─────────────────────────── */
 
 /**
