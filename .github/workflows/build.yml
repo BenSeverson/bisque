@@ -120,9 +120,24 @@ jobs:
   # firmware build starts almost immediately. lint-web and ui-screenshots
   # still run in parallel and still gate the overall workflow result;
   # they just no longer delay this job's start.
+  #
+  # This job runs entirely inside the espressif/idf:v6.0.1 image — the
+  # same image espressif/esp-idf-ci-action uses internally — and embeds
+  # github/codeql-action/init + analyze so the single traced idf.py build
+  # produces both bisque.bin and the CodeQL C/C++ database. This replaces
+  # the separate Analyze (c-cpp) job that previously compiled the whole
+  # firmware a second time in parallel under a native ESP-IDF install.
   build:
     needs: [lint-c, unit-host]
     runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:v6.0.1
+    # Override the workflow-level `contents: read` so CodeQL can upload
+    # its SARIF results from this job.
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -130,7 +145,8 @@ jobs:
       - name: Compute version
         run: echo "BISQUE_VERSION=$(./scripts/version.sh)" >> $GITHUB_ENV
 
-      # Build web UI
+      # Build web UI (idf.py build bundles the gzipped assets into the
+      # SPIFFS image, so this must precede the firmware build).
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 24
@@ -155,48 +171,55 @@ jobs:
           key: esp-idf-ccache-${{ github.sha }}
           restore-keys: |
             esp-idf-ccache-
-      # Ensure the dir exists even on a cache miss so the chown step below
-      # never fails on a missing path.
       - name: Create ccache dir
         run: mkdir -p .ccache
 
-      # Build firmware and run clang-tidy in one IDF action invocation
-      # so the toolchain is only bootstrapped once.
-      # esp-idf-ci-action publishes a moving `v1` *branch* (no `v1` tag),
-      # so it stays a branch ref rather than a SHA pin — the branch is
-      # upstream's stable v1 line and auto-receives fixes.
-      - name: Build firmware + clang-tidy
-        uses: espressif/esp-idf-ci-action@v1
+      # CodeQL init sits between the web build and the firmware build so
+      # only the C/C++ compile is traced — npm is covered by codeql.yml's
+      # javascript-typescript analysis.
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
         with:
-          esp_idf_version: v6.0.1
-          target: esp32s3
-          # NOTE: the action wraps this whole block in bash -c '...', so it
-          # must contain no apostrophes. cwd is the mounted repo root, so
-          # $PWD/.ccache maps back to the runner workspace for actions/cache;
-          # $GITHUB_WORKSPACE (a runner path) does not exist in the container.
-          command: |
-            export IDF_CCACHE_ENABLE=1
-            export CCACHE_DIR="$PWD/.ccache"
-            export CCACHE_MAXSIZE=500M
-            idf.py build && \
-            ccache --show-stats && \
-            idf_tools.py install esp-clang && \
-            eval "$(idf_tools.py export)" && \
-            idf.py clang-check --run-clang-tidy-options="-warnings-as-errors=*" --exclude-paths managed_components
+          languages: c-cpp
+          build-mode: manual
+          config-file: ./.github/codeql/codeql-config.yml
 
-      # The action container runs as root; chown the dirs it wrote so the
-      # later size check and the actions/cache post step (runner user) can
-      # read them.
-      - name: Fix build directory permissions
-        run: sudo chown -R $(id -u):$(id -g) build .ccache
+      # The one firmware build, traced by CodeQL. GitHub bypasses the
+      # image entrypoint for container jobs, so we source export.sh
+      # explicitly to put idf.py and the xtensa toolchain on PATH.
+      - name: Build firmware
+        run: |
+          export IDF_CCACHE_ENABLE=1
+          export CCACHE_DIR="$PWD/.ccache"
+          export CCACHE_MAXSIZE=500M
+          . "$IDF_PATH/export.sh"
+          idf.py set-target esp32s3
+          idf.py build
+          ccache --show-stats
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
+        with:
+          category: "/language:c-cpp"
+
       - name: Check firmware size
         run: make size-firmware
 
-      # cppcheck does not need the IDF toolchain — run it directly on the
-      # source dirs to skip another IDF bootstrap.
+      # clang-tidy reuses the toolchain in the image. It runs after the
+      # CodeQL analysis so its compiler invocations stay outside the
+      # trace, and so a lint regression doesn't gate the SARIF upload.
+      - name: Run clang-tidy
+        run: |
+          . "$IDF_PATH/export.sh"
+          idf_tools.py install esp-clang
+          eval "$(idf_tools.py export)"
+          idf.py clang-check --run-clang-tidy-options="-warnings-as-errors=*" --exclude-paths managed_components
+
+      # cppcheck does not need the IDF toolchain. We're already root in
+      # the container; no sudo (it's not installed in the image).
       - name: Run cppcheck
         run: |
-          sudo apt-get update && sudo apt-get install -y cppcheck
+          apt-get update && apt-get install -y cppcheck
           make cppcheck
 
       # Upload binary
