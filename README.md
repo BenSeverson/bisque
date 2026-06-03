@@ -8,6 +8,10 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License" /></a>
 </p>
 
+<p align="center">
+  <a href="https://benseverson.github.io/bisque/"><b>▶ Try the live web UI demo</b></a> — interactive, no hardware required
+</p>
+
 ## Features
 
 **Temperature Control**

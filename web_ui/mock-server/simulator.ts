@@ -1,7 +1,7 @@
 import { state } from './state';
 import { AMBIENT, updateTemperature, coolingTemperature } from './physics';
 
-const speed = () => parseInt(process.env.VITE_MOCK_SPEED || '60', 10);
+const speed = () => state.speed;
 
 export function startFiring(profileId: string): boolean {
   const profile = state.profiles.find((p) => p.id === profileId);
@@ -201,7 +201,7 @@ function advanceSegment(): void {
 
 function broadcast(): void {
   const f = state.firing;
-  if (!state.wss) return;
+  if (state.subscribers.size === 0) return;
 
   const msg = JSON.stringify({
     type: 'temp_update',
@@ -217,10 +217,8 @@ function broadcast(): void {
     },
   });
 
-  for (const client of state.wss.clients) {
-    if (client.readyState === 1 /* OPEN */) {
-      client.send(msg);
-    }
+  for (const send of state.subscribers) {
+    send(msg);
   }
 }
 

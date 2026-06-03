@@ -408,8 +408,8 @@ export function Settings() {
         </div>
       </form>
 
-      {/* Wi-Fi Network */}
-      <WifiCard />
+      {/* Wi-Fi Network — hidden in the demo (provisioning needs hardware) */}
+      {!__DEMO__ && <WifiCard />}
 
       {/* API Security */}
       <Card>
@@ -528,10 +528,13 @@ export function Settings() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-3 flex-wrap">
-            <Button variant="outline" className="gap-2" onClick={handleTestRelay}>
-              <Zap className="h-4 w-4" />
-              Test Relay (2 s)
-            </Button>
+            {/* Relay test needs hardware — hidden in the demo. */}
+            {!__DEMO__ && (
+              <Button variant="outline" className="gap-2" onClick={handleTestRelay}>
+                <Zap className="h-4 w-4" />
+                Test Relay (2 s)
+              </Button>
+            )}
             <Button variant="outline" className="gap-2" onClick={handleReadTC}>
               <Thermometer className="h-4 w-4" />
               Read Thermocouple
@@ -585,131 +588,138 @@ export function Settings() {
         </CardContent>
       </Card>
 
-      {/* Firmware Update — check GitHub for a new release */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <RefreshCw className="h-5 w-5" />
-            Check for Updates
-          </CardTitle>
-          <CardDescription>
-            Check GitHub for a newer firmware release and install it over Wi-Fi
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex justify-between py-2 border-b">
-            <span className="text-sm font-medium">Current Version</span>
-            <span className="text-sm text-muted-foreground">{systemInfo?.firmware || "--"}</span>
-          </div>
-
-          {otaCheck?.updateAvailable && (
-            <div className="flex justify-between py-2 border-b">
-              <span className="text-sm font-medium">Available Version</span>
-              <Badge>{otaCheck.latest}</Badge>
-            </div>
-          )}
-
-          {otaCheck && !otaCheck.updateAvailable && (
-            <p className="text-sm text-muted-foreground">You're running the latest version.</p>
-          )}
-
-          {otaInstallPct !== null && (
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Installing update...</span>
-                <span>{Math.round(otaInstallPct)}%</span>
+      {/* Firmware update & manual OTA — hidden in the demo (require hardware) */}
+      {!__DEMO__ && (
+        <>
+          {/* Firmware Update — check GitHub for a new release */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <RefreshCw className="h-5 w-5" />
+                Check for Updates
+              </CardTitle>
+              <CardDescription>
+                Check GitHub for a newer firmware release and install it over Wi-Fi
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex justify-between py-2 border-b">
+                <span className="text-sm font-medium">Current Version</span>
+                <span className="text-sm text-muted-foreground">
+                  {systemInfo?.firmware || "--"}
+                </span>
               </div>
-              <Progress value={otaInstallPct} />
-            </div>
-          )}
 
-          <div className="flex gap-3 flex-wrap">
-            <Button
-              variant="outline"
-              onClick={handleCheckOta}
-              disabled={checkOta.isPending || otaInstalling}
-              className="gap-2"
-            >
-              <RefreshCw className="h-4 w-4" />
-              {checkOta.isPending ? "Checking..." : "Check for Updates"}
-            </Button>
+              {otaCheck?.updateAvailable && (
+                <div className="flex justify-between py-2 border-b">
+                  <span className="text-sm font-medium">Available Version</span>
+                  <Badge>{otaCheck.latest}</Badge>
+                </div>
+              )}
 
-            {otaCheck?.updateAvailable && (
+              {otaCheck && !otaCheck.updateAvailable && (
+                <p className="text-sm text-muted-foreground">You're running the latest version.</p>
+              )}
+
+              {otaInstallPct !== null && (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Installing update...</span>
+                    <span>{Math.round(otaInstallPct)}%</span>
+                  </div>
+                  <Progress value={otaInstallPct} />
+                </div>
+              )}
+
+              <div className="flex gap-3 flex-wrap">
+                <Button
+                  variant="outline"
+                  onClick={handleCheckOta}
+                  disabled={checkOta.isPending || otaInstalling}
+                  className="gap-2"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  {checkOta.isPending ? "Checking..." : "Check for Updates"}
+                </Button>
+
+                {otaCheck?.updateAvailable && (
+                  <Button
+                    onClick={handleInstallOta}
+                    disabled={otaInstalling}
+                    variant="default"
+                    className="gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    Install {otaCheck.latest}
+                  </Button>
+                )}
+              </div>
+
+              <p className="text-sm text-muted-foreground">
+                The controller restarts automatically after installing. Do not power off during the
+                update. Updates are blocked while a firing is active.
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* OTA Firmware Update — manual binary upload */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="h-5 w-5" />
+                Manual Firmware Update
+              </CardTitle>
+              <CardDescription>
+                Upload a firmware binary (.bin) directly to update the controller over Wi-Fi
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <input
+                ref={otaInputRef}
+                type="file"
+                accept=".bin"
+                className="hidden"
+                onChange={(e) => setOtaFile(e.target.files?.[0] || null)}
+              />
+              <div className="flex gap-3 items-center flex-wrap">
+                <Button variant="outline" onClick={() => otaInputRef.current?.click()}>
+                  Choose File
+                </Button>
+                {otaFile && (
+                  <span className="text-sm text-muted-foreground">
+                    {otaFile.name} ({Math.round(otaFile.size / 1024)} KB)
+                  </span>
+                )}
+              </div>
+
+              {otaProgress !== null && (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Uploading firmware...</span>
+                    <span>{Math.round(otaProgress)}%</span>
+                  </div>
+                  <Progress value={otaProgress} />
+                </div>
+              )}
+
               <Button
-                onClick={handleInstallOta}
-                disabled={otaInstalling}
+                onClick={handleOtaUpload}
+                disabled={!otaFile || otaProgress !== null}
                 variant="default"
                 className="gap-2"
               >
-                <Download className="h-4 w-4" />
-                Install {otaCheck.latest}
+                <Upload className="h-4 w-4" />
+                Upload Firmware
               </Button>
-            )}
-          </div>
 
-          <p className="text-sm text-muted-foreground">
-            The controller restarts automatically after installing. Do not power off during the
-            update. Updates are blocked while a firing is active.
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* OTA Firmware Update — manual binary upload */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Upload className="h-5 w-5" />
-            Manual Firmware Update
-          </CardTitle>
-          <CardDescription>
-            Upload a firmware binary (.bin) directly to update the controller over Wi-Fi
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <input
-            ref={otaInputRef}
-            type="file"
-            accept=".bin"
-            className="hidden"
-            onChange={(e) => setOtaFile(e.target.files?.[0] || null)}
-          />
-          <div className="flex gap-3 items-center flex-wrap">
-            <Button variant="outline" onClick={() => otaInputRef.current?.click()}>
-              Choose File
-            </Button>
-            {otaFile && (
-              <span className="text-sm text-muted-foreground">
-                {otaFile.name} ({Math.round(otaFile.size / 1024)} KB)
-              </span>
-            )}
-          </div>
-
-          {otaProgress !== null && (
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Uploading firmware...</span>
-                <span>{Math.round(otaProgress)}%</span>
-              </div>
-              <Progress value={otaProgress} />
-            </div>
-          )}
-
-          <Button
-            onClick={handleOtaUpload}
-            disabled={!otaFile || otaProgress !== null}
-            variant="default"
-            className="gap-2"
-          >
-            <Upload className="h-4 w-4" />
-            Upload Firmware
-          </Button>
-
-          <p className="text-sm text-muted-foreground">
-            The controller will restart automatically after a successful upload. Do not power off
-            during the update.
-          </p>
-        </CardContent>
-      </Card>
+              <p className="text-sm text-muted-foreground">
+                The controller will restart automatically after a successful upload. Do not power
+                off during the update.
+              </p>
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       {/* Controller Information */}
       <Card>

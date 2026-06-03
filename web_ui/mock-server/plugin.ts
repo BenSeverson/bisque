@@ -14,8 +14,17 @@ export function kilnMockPlugin(): Plugin {
       const speedStr = process.env.VITE_MOCK_SPEED || '60';
       console.log(`\n  Mock kiln server enabled (${speedStr}x speed)\n`);
 
+      state.speed = parseInt(speedStr, 10);
+
       const wss = new WebSocketServer({ noServer: true });
       state.wss = wss;
+
+      // Forward simulator broadcasts to every connected WS client.
+      state.subscribers.add((msg) => {
+        for (const client of wss.clients) {
+          if (client.readyState === 1 /* OPEN */) client.send(msg);
+        }
+      });
 
       wss.on('connection', (ws) => {
         console.log('[mock] WebSocket client connected');
