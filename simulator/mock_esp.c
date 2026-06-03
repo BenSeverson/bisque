@@ -57,6 +57,13 @@ void firing_engine_get_progress(firing_progress_t *out)
     *out = s_mock_progress;
 }
 
+/* Display unit for rendered temperatures. Mirrors the firmware default ('F').
+ * All mock temperatures above are Celsius; the display helpers convert. */
+char firing_engine_get_temp_unit(void)
+{
+    return 'F';
+}
+
 void mock_set_progress(const firing_progress_t *p)
 {
     s_mock_progress = *p;
