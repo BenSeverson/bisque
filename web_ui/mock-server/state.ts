@@ -82,4 +82,16 @@ export const state = {
   wss: null as WebSocketServer | null,
   interval: null as ReturnType<typeof setInterval> | null,
   startupTime: Date.now(),
+
+  // Simulation speed multiplier (real-seconds per tick). Node adapters set this
+  // from VITE_MOCK_SPEED/MOCK_SPEED; the browser demo sets it in installDemo().
+  speed: 60,
+
+  // Transport-agnostic broadcast fan-out. Each subscriber receives the
+  // already-serialized WS message string. The Node adapters register a
+  // subscriber that forwards to wss.clients; the browser demo registers one
+  // that feeds its in-page fake WebSocket. This is what lets a single
+  // simulator core drive the dev server, the iOS standalone mock, and the
+  // serverless GitHub Pages demo.
+  subscribers: new Set<(msg: string) => void>(),
 };

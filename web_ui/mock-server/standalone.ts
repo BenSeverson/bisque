@@ -15,8 +15,7 @@ import { state } from './state';
 const port = parseInt(process.env.MOCK_PORT || '8080', 10);
 const speed = process.env.MOCK_SPEED || '60';
 
-// Set VITE_MOCK_SPEED so the simulator module picks it up
-process.env.VITE_MOCK_SPEED = speed;
+state.speed = parseInt(speed, 10);
 
 const server = createServer((req, res) => {
   // CORS headers for local development
@@ -42,6 +41,13 @@ const server = createServer((req, res) => {
 
 const wss = new WebSocketServer({ noServer: true });
 state.wss = wss;
+
+// Forward simulator broadcasts to every connected WS client.
+state.subscribers.add((msg) => {
+  for (const client of wss.clients) {
+    if (client.readyState === 1 /* OPEN */) client.send(msg);
+  }
+});
 
 wss.on('connection', (ws) => {
   console.log('[mock] WebSocket client connected');

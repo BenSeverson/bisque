@@ -13,8 +13,21 @@ const queryClient = new QueryClient({
   },
 });
 
-createRoot(document.getElementById("root")!).render(
-  <QueryClientProvider client={queryClient}>
-    <App />
-  </QueryClientProvider>,
-);
+async function bootstrap() {
+  // In the static demo build, install the in-browser mock backend BEFORE the
+  // app mounts and makes its first request/WebSocket connection. The dynamic
+  // import keeps the simulator out of the firmware bundle (__DEMO__ folds to
+  // false there, so this branch and its import are dropped).
+  if (__DEMO__) {
+    const { installDemo } = await import("./app/mock/installDemo");
+    installDemo();
+  }
+
+  createRoot(document.getElementById("root")!).render(
+    <QueryClientProvider client={queryClient}>
+      <App />
+    </QueryClientProvider>,
+  );
+}
+
+void bootstrap();

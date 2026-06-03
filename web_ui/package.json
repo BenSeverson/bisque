@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "vite build",
+    "build:demo": "BISQUE_DEMO=true vite build",
     "dev": "vite",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

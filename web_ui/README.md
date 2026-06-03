@@ -2,6 +2,14 @@
 
 Web dashboard for the Bisque kiln controller. Built with React, Tailwind CSS, and Recharts.
 
+## Live demo
+
+A static, fully interactive build runs on GitHub Pages — no hardware required:
+
+**https://benseverson.github.io/bisque/**
+
+It's the exact same UI, driven by the in-browser kiln simulator (`mock-server/`, shared with the dev server). Start a firing and watch the chart update live; changes reset on reload. Hardware-only controls (firmware update, Wi-Fi setup, relay test) are hidden in the demo. Published by [`.github/workflows/pages.yml`](../.github/workflows/pages.yml) on every push to `main`.
+
 ## Development
 
 ```bash
@@ -48,6 +56,19 @@ npm run build
 ```
 
 Output goes to `../spiffs_data/www/` for flashing onto the ESP32.
+
+### Static demo build (GitHub Pages)
+
+```bash
+npm run build:demo
+```
+
+Sets `BISQUE_DEMO=true`, which bundles the in-browser mock (`__DEMO__`), uses base path `/bisque/`, and writes to `web_ui/dist/`. The normal `npm run build` is unaffected. To preview it the way Pages serves it (under the `/bisque/` subpath):
+
+```bash
+npm run build:demo
+npx serve dist            # then open http://localhost:3000/bisque/
+```
 
 ## Other commands
 

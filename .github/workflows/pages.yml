@@ -1,0 +1,58 @@
+name: Deploy demo to GitHub Pages
+
+# Publishes the static, serverless web-UI demo to
+# https://benseverson.github.io/bisque/. The demo bundles the in-browser kiln
+# simulator (BISQUE_DEMO=true → __DEMO__), so it is fully interactive without
+# hardware. The firmware build is untouched (it runs in build.yml).
+#
+# One-time setup: repo Settings → Pages → Source = "GitHub Actions".
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# OIDC publish to Pages; everything else read-only.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One Pages deploy at a time. Do NOT cancel an in-progress deploy — cancelling
+# mid-publish can leave the site half-updated.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Compute demo version
+        run: echo "BISQUE_VERSION=demo-$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web_ui/package-lock.json
+      - run: npm ci
+        working-directory: web_ui
+      - name: Build static demo
+        run: npm run build:demo
+        working-directory: web_ui
+      # First-party GitHub Pages actions, pinned to their major tags as in the
+      # official Pages workflow template; Dependabot keeps them current.
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web_ui/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

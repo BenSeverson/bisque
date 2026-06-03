@@ -22,6 +22,18 @@ export default function App() {
     <div className="min-h-screen bg-background">
       <Toaster />
 
+      {__DEMO__ && (
+        <div className="border-b border-orange-300 bg-orange-50 text-orange-900">
+          <div className="container mx-auto flex items-center gap-2 px-4 py-2 text-sm">
+            <Flame className="h-4 w-4 shrink-0" />
+            <p>
+              <span className="font-medium">Live demo</span> — simulated kiln, no hardware
+              connected. Changes reset on reload.
+            </p>
+          </div>
+        </div>
+      )}
+
       <WifiSetupBanner onGoToSettings={() => setActiveTab("settings")} />
 
       {/* Header */}
@@ -93,7 +105,10 @@ export default function App() {
       <footer className="border-t mt-12">
         <div className="container mx-auto px-4 py-6">
           <div className="text-sm text-muted-foreground">
-            <p>Bisque ESP32-S3 · {__APP_VERSION__}</p>
+            <p>
+              Bisque ESP32-S3 · {__APP_VERSION__}
+              {__DEMO__ ? " · demo" : ""}
+            </p>
           </div>
         </div>
       </footer>
