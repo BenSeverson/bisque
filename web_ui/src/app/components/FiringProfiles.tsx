@@ -11,10 +11,12 @@ import { formatDurationFromMinutes } from "../utils/time";
 import { downloadBlob } from "../utils/download";
 import { toErrorMessage } from "../utils/error";
 import { useKilnStore } from "../stores/kilnStore";
-import { useProfiles, useDuplicateProfile, useImportProfile } from "../hooks/queries";
+import { useProfiles, useDuplicateProfile, useImportProfile, useTempUnit } from "../hooks/queries";
+import { formatTemp, formatRate } from "../utils/temperature";
 
 export function FiringProfiles() {
   const { selectedProfileId, setSelectedProfileId } = useKilnStore();
+  const unit = useTempUnit();
   const { data: profiles = [] } = useProfiles();
   const selectedProfile = useMemo(
     () => profiles.find((p) => p.id === selectedProfileId) ?? null,
@@ -115,7 +117,7 @@ export function FiringProfiles() {
             <CardContent className="space-y-3">
               <div className="flex items-center gap-2 text-sm">
                 <Flame className="h-4 w-4 text-orange-500" />
-                <span>Max Temperature: {profile.maxTemp}°C</span>
+                <span>Max Temperature: {formatTemp(profile.maxTemp, unit)}</span>
               </div>
 
               <div className="flex items-center gap-2 text-sm">
@@ -136,7 +138,8 @@ export function FiringProfiles() {
                       <div className="font-medium">{segment.name}</div>
                       <div className="text-muted-foreground">
                         {segment.rampRate > 0 ? "+" : ""}
-                        {segment.rampRate}°C/hr → {segment.targetTemp}°C
+                        {formatRate(segment.rampRate, unit)} →{" "}
+                        {formatTemp(segment.targetTemp, unit)}
                         {segment.holdTime === HOLD_UNTIL_SKIP && ` (hold until skip)`}
                         {segment.holdTime > 0 &&
                           segment.holdTime !== HOLD_UNTIL_SKIP &&

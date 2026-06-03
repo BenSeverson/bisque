@@ -169,7 +169,7 @@ esp_err_t firing_engine_init(void)
     s_progress.status = FIRING_STATUS_IDLE;
 
     /* Load settings from NVS */
-    s_settings.temp_unit = 'C';
+    s_settings.temp_unit = 'F';
     s_settings.max_safe_temp = 1300.0f;
     s_settings.alarm_enabled = true;
     s_settings.auto_shutdown = true;
@@ -282,6 +282,14 @@ void firing_engine_get_settings(kiln_settings_t *out)
     settings_lock();
     *out = s_settings;
     settings_unlock();
+}
+
+char firing_engine_get_temp_unit(void)
+{
+    settings_lock();
+    char unit = s_settings.temp_unit;
+    settings_unlock();
+    return unit;
 }
 
 firing_error_code_t firing_engine_get_error_code(void)

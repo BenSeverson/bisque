@@ -90,8 +90,8 @@ static void confirm_builder(lv_obj_t *root, void *ctx)
 
     char dur_buf[24];
     format_duration_minutes(s_selected_profile.estimated_duration, dur_buf, sizeof(dur_buf));
-    snprintf(buf, sizeof(buf), "Max %.0f°C   ~%s   %u segments", (double)s_selected_profile.max_temp, dur_buf,
-             (unsigned)s_selected_profile.segment_count);
+    snprintf(buf, sizeof(buf), "Max %.0f%s   ~%s   %u segments", (double)ui_temp_value(s_selected_profile.max_temp),
+             ui_temp_suffix(), dur_buf, (unsigned)s_selected_profile.segment_count);
     lv_obj_t *details = ui_make_label(root, UI_FONT_SMALL, UI_COLOR_TEXT_DIM, buf);
     lv_obj_align(details, LV_ALIGN_TOP_MID, 0, 130);
 
@@ -147,7 +147,8 @@ static void picker_builder(lv_obj_t *root, void *ctx)
         char dur_buf[24];
         format_duration_minutes(p.estimated_duration, dur_buf, sizeof(dur_buf));
         char subtitle[64];
-        snprintf(subtitle, sizeof(subtitle), "%.0f°C   ~%s", (double)p.max_temp, dur_buf);
+        snprintf(subtitle, sizeof(subtitle), "%.0f%s   ~%s", (double)ui_temp_value(p.max_temp), ui_temp_suffix(),
+                 dur_buf);
 
         lv_obj_t *btn = lv_list_add_button(list, NULL, NULL);
         lv_obj_set_layout(btn, LV_LAYOUT_FLEX);

@@ -18,10 +18,12 @@ import { toast } from "sonner";
 import { formatDuration } from "../utils/time";
 import { downloadBlob } from "../utils/download";
 import { toErrorMessage } from "../utils/error";
-import { useHistory } from "../hooks/queries";
+import { useHistory, useTempUnit } from "../hooks/queries";
+import { formatTemp, toDisplayTemp, unitLabel } from "../utils/temperature";
 
 export function FiringHistory() {
   const { data: records = [], isLoading } = useHistory();
+  const unit = useTempUnit();
   const [selectedRecord, setSelectedRecord] = useState<HistoryRecord | null>(null);
   const [traceData, setTraceData] = useState<{ time_s: number; temp_c: number }[]>([]);
 
@@ -115,7 +117,7 @@ export function FiringHistory() {
                   <div className="flex gap-3 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Thermometer className="h-3 w-3" />
-                      {Math.round(record.peakTemp)}°C
+                      {formatTemp(record.peakTemp, unit)}
                     </span>
                     <span className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
@@ -161,7 +163,9 @@ export function FiringHistory() {
                   <div className="grid grid-cols-3 gap-4 mb-4">
                     <div className="text-center p-3 bg-muted/50 rounded-lg">
                       <p className="text-xs text-muted-foreground">Peak Temp</p>
-                      <p className="text-xl font-bold">{Math.round(selectedRecord.peakTemp)}°C</p>
+                      <p className="text-xl font-bold">
+                        {formatTemp(selectedRecord.peakTemp, unit)}
+                      </p>
                     </div>
                     <div className="text-center p-3 bg-muted/50 rounded-lg">
                       <p className="text-xs text-muted-foreground">Duration</p>
@@ -177,21 +181,32 @@ export function FiringHistory() {
 
                   {traceData.length > 0 ? (
                     <ResponsiveContainer width="100%" height={300}>
-                      <LineChart data={traceData}>
+                      <LineChart
+                        data={traceData.map((d) => ({
+                          time_s: d.time_s,
+                          temp: Math.round(toDisplayTemp(d.temp_c, unit)),
+                        }))}
+                      >
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis
                           dataKey="time_s"
                           tickFormatter={(v) => `${Math.round(v / 60)}m`}
                           label={{ value: "Time", position: "insideBottom", offset: -5 }}
                         />
-                        <YAxis label={{ value: "Temp (°C)", angle: -90, position: "insideLeft" }} />
+                        <YAxis
+                          label={{
+                            value: `Temp (${unitLabel(unit)})`,
+                            angle: -90,
+                            position: "insideLeft",
+                          }}
+                        />
                         <Tooltip
-                          formatter={(v) => [`${v}°C`, "Temperature"]}
+                          formatter={(v) => [`${v}${unitLabel(unit)}`, "Temperature"]}
                           labelFormatter={(v) => `${Math.round(Number(v) / 60)} min`}
                         />
                         <Line
                           type="monotone"
-                          dataKey="temp_c"
+                          dataKey="temp"
                           stroke="var(--chart-1)"
                           strokeWidth={2}
                           dot={false}

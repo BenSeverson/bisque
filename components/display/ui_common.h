@@ -3,6 +3,7 @@
 #include "lvgl.h"
 #include "app_config.h"
 #include "firing_types.h"
+#include "firing_engine.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -90,6 +91,31 @@ static inline const char *ui_status_label(firing_status_t status)
     default:
         return "UNKNOWN";
     }
+}
+
+/* --- Temperature unit presentation helpers ---
+ *
+ * All internal temperatures are Celsius; these convert to the user's active
+ * display unit (firing_engine_get_temp_unit(), 'C' or 'F') only for rendering.
+ * Use ui_temp_value() + ui_temp_suffix() at every °C format site. */
+
+static inline float ui_temp_value(float celsius)
+{
+    return firing_engine_get_temp_unit() == 'F' ? celsius * 9.0f / 5.0f + 32.0f : celsius;
+}
+
+/* Delta/rate conversion (e.g. ramp rate): scale only, no +32 offset. */
+static inline float ui_temp_rate(float celsius_per_unit)
+{
+    return firing_engine_get_temp_unit() == 'F' ? celsius_per_unit * 9.0f / 5.0f : celsius_per_unit;
+}
+
+static inline const char *ui_temp_suffix(void)
+{
+    return firing_engine_get_temp_unit() == 'F' ? "\xC2\xB0"
+                                                  "F"
+                                                : "\xC2\xB0"
+                                                  "C";
 }
 
 #ifdef __cplusplus

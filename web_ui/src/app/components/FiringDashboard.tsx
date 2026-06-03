@@ -44,7 +44,9 @@ import {
   useStopFiring,
   usePauseFiring,
   useSkipSegment,
+  useTempUnit,
 } from "../hooks/queries";
+import { formatTemp, formatRate, toDisplayTemp, unitLabel } from "../utils/temperature";
 
 interface ChartPoint {
   time: number;
@@ -62,6 +64,7 @@ export function FiringDashboard() {
     resetTempData,
   } = useKilnStore();
   const { data: profiles = [] } = useProfiles();
+  const unit = useTempUnit();
   const selectedProfile = useMemo(
     () => profiles.find((p) => p.id === selectedProfileId) ?? null,
     [profiles, selectedProfileId],
@@ -233,23 +236,28 @@ export function FiringDashboard() {
     }
 
     const map = new Map<number, ChartPoint>();
+    const conv = (c: number) => Math.round(toDisplayTemp(c, unit));
 
     profilePath.forEach((point) => {
-      map.set(point.time, { time: point.time, profile: point.temp });
+      map.set(point.time, { time: point.time, profile: conv(point.temp) });
     });
 
     currentTempData.forEach((point) => {
       const existing = map.get(point.time);
       if (existing) {
-        existing.current = point.temp;
-        existing.target = point.target;
+        existing.current = conv(point.temp);
+        existing.target = conv(point.target);
       } else {
-        map.set(point.time, { time: point.time, current: point.temp, target: point.target });
+        map.set(point.time, {
+          time: point.time,
+          current: conv(point.temp),
+          target: conv(point.target),
+        });
       }
     });
 
     return Array.from(map.values()).sort((a, b) => a.time - b.time);
-  }, [selectedProfile, profilePath, currentTempData]);
+  }, [selectedProfile, profilePath, currentTempData, unit]);
 
   return (
     <div className="space-y-6">
@@ -260,7 +268,7 @@ export function FiringDashboard() {
             <CardDescription>Current Temperature</CardDescription>
             <CardTitle className="flex items-center gap-2 text-3xl">
               <ThermometerSun className="h-6 w-6" />
-              {Math.round(firingProgress.currentTemp)}&deg;C
+              {formatTemp(firingProgress.currentTemp, unit)}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -270,7 +278,7 @@ export function FiringDashboard() {
             <CardDescription>Target Temperature</CardDescription>
             <CardTitle className="flex items-center gap-2 text-3xl">
               <Flame className="h-6 w-6" />
-              {Math.round(firingProgress.targetTemp)}&deg;C
+              {formatTemp(firingProgress.targetTemp, unit)}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -435,7 +443,8 @@ export function FiringDashboard() {
                   </div>
                   <div className="text-sm text-muted-foreground mt-1">
                     {segment.rampRate > 0 ? "+" : ""}
-                    {segment.rampRate}&deg;C/hr &rarr; {segment.targetTemp}&deg;C
+                    {formatRate(segment.rampRate, unit)} &rarr;{" "}
+                    {formatTemp(segment.targetTemp, unit)}
                     {segment.holdTime === HOLD_UNTIL_SKIP && " (hold until skip)"}
                     {segment.holdTime > 0 &&
                       segment.holdTime !== HOLD_UNTIL_SKIP &&
@@ -480,7 +489,11 @@ export function FiringDashboard() {
                 label={{ value: "Time (hours)", position: "insideBottom", offset: -5 }}
               />
               <YAxis
-                label={{ value: "Temperature (\u00B0C)", angle: -90, position: "insideLeft" }}
+                label={{
+                  value: `Temperature (${unitLabel(unit)})`,
+                  angle: -90,
+                  position: "insideLeft",
+                }}
               />
               <Tooltip
                 labelFormatter={(label) => {
@@ -489,7 +502,7 @@ export function FiringDashboard() {
                   const m = min % 60;
                   return h > 0 ? `${h}h ${m}m` : `${m}m`;
                 }}
-                formatter={(value, name) => [`${value}°C`, name as string]}
+                formatter={(value, name) => [`${value}${unitLabel(unit)}`, name as string]}
               />
               <Legend />
               <Line
