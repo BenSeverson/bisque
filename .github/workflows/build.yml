@@ -208,12 +208,37 @@ jobs:
       # clang-tidy reuses the toolchain in the image. It runs after the
       # CodeQL analysis so its compiler invocations stay outside the
       # trace, and so a lint regression doesn't gate the SARIF upload.
+      #
+      # `idf.py clang-check` always exits 0 (it only generates a report), so
+      # it cannot gate on its own — a real lint regression would pass
+      # silently. We capture its output and fail the job if any genuine
+      # clang-tidy finding is present.
+      #
+      # clang-diagnostic-* lines are filtered out: esp-clang is fed the
+      # xtensa-gcc compile DB, so it chokes on gcc-15 driver flags it doesn't
+      # recognise and on newlib headers it can't locate. That noise can't be
+      # cleanly removed in this container and is not project lint. Real
+      # findings carry a `file:line:col:` prefix and a `[check-name]` tag
+      # (e.g. `[readability-braces-around-statements]`); the toolchain errors
+      # either lack the location prefix or are tagged `[clang-diagnostic-*]`,
+      # so this filter keeps the former and drops the latter. Limitation:
+      # checks that need full semantic analysis (clang-analyzer-*) are
+      # unreliable while the parse is broken, but the AST/syntactic checks
+      # the project enables (readability-*, misc-redundant-expression, …)
+      # fire correctly and are gated here.
       - name: Run clang-tidy
         run: |
           . "$IDF_PATH/export.sh"
           idf_tools.py install esp-clang
           eval "$(idf_tools.py export)"
-          idf.py clang-check --run-clang-tidy-options="-warnings-as-errors=*" --exclude-paths managed_components
+          idf.py clang-check --run-clang-tidy-options="-warnings-as-errors=*" \
+            --exclude-paths managed_components 2>&1 | tee clang-tidy.log
+          if grep -E ':[0-9]+:[0-9]+: (warning|error): ' clang-tidy.log \
+               | grep -v 'clang-diagnostic-'; then
+            echo "::error::clang-tidy reported lint violations (see the lines above)"
+            exit 1
+          fi
+          echo "clang-tidy: no project lint findings"
 
       # cppcheck does not need the IDF toolchain. We're already root in
       # the container; no sudo (it's not installed in the image).

@@ -74,10 +74,11 @@ void status_led_task(void *param)
         /* Priority 2: Thermocouple fault */
         EventBits_t safety_bits = xEventGroupGetBits(safety_get_event_group());
         if (safety_bits & SAFETY_BIT_TEMP_FAULT) {
-            if (blink_1hz)
+            if (blink_1hz) {
                 set_color(LED_BRIGHTNESS, 0, 0);
-            else
+            } else {
                 set_off();
+            }
             continue;
         }
 
@@ -85,10 +86,11 @@ void status_led_task(void *param)
         firing_progress_t progress;
         firing_engine_get_progress(&progress);
         if (progress.status == FIRING_STATUS_ERROR) {
-            if (blink_2hz)
+            if (blink_2hz) {
                 set_color(LED_BRIGHTNESS, 0, 0);
-            else
+            } else {
                 set_off();
+            }
             continue;
         }
 
@@ -100,10 +102,11 @@ void status_led_task(void *param)
 
         /* Priority 5: WiFi AP mode */
         if (wifi_manager_is_ap_mode()) {
-            if (blink_1hz)
+            if (blink_1hz) {
                 set_color(LED_BRIGHTNESS, LED_BRIGHTNESS / 2, 0);
-            else
+            } else {
                 set_off();
+            }
             continue;
         }
 

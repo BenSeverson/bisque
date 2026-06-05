@@ -1054,10 +1054,12 @@ static void wait_until_next_tick(TickType_t *last_wake)
     for (;;) {
         TickType_t now = xTaskGetTickCount();
         int32_t remaining = (int32_t)(deadline - now);
-        if (remaining <= 0)
+        if (remaining <= 0) {
             break;
-        if (xQueueReceive(s_cmd_queue, &cmd, (TickType_t)remaining) != pdTRUE)
+        }
+        if (xQueueReceive(s_cmd_queue, &cmd, (TickType_t)remaining) != pdTRUE) {
             break;
+        }
         handle_cmd(&cmd);
     }
     *last_wake = deadline;
