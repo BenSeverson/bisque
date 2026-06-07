@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
@@ -58,7 +58,6 @@ export function ProfileBuilder() {
     handleSubmit,
     control,
     reset,
-    watch,
     formState: { errors },
   } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -74,8 +73,8 @@ export function ProfileBuilder() {
     name: "segments",
   });
 
-  const segments = watch("segments");
-  const profileName = watch("name");
+  const segments = useWatch({ control, name: "segments" });
+  const profileName = useWatch({ control, name: "name" });
 
   const isEditing = fields.length > 0 || Boolean(profileName);
 

@@ -38,10 +38,8 @@ export function kilnMockPlugin(): Plugin {
       const httpServer = server.httpServer;
       if (httpServer) {
         const originalEmit = httpServer.emit.bind(httpServer);
-        (httpServer as any).emit = function (
-          event: string,
-          ...args: any[]
-        ): boolean {
+        const patchable = httpServer as unknown as { emit: typeof originalEmit };
+        patchable.emit = function (event: string | symbol, ...args: unknown[]): boolean {
           if (event === 'upgrade') {
             const req = args[0] as IncomingMessage;
             if (req.url === '/api/v1/ws') {
