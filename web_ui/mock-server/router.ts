@@ -9,6 +9,7 @@
  * interceptor. Keeping the routing here means one simulation core serves the
  * Vite dev server, the iOS standalone mock, and the static GitHub Pages demo.
  */
+import type { FiringProfile, FiringSegment, KilnSettings } from '../src/app/types/kiln';
 import { state } from './state';
 import { startFiring, stopFiring, pauseFiring, getStatusResponse } from './simulator';
 
@@ -113,14 +114,16 @@ function generateTraceCsv(record: typeof mockHistory[0]): string {
   return lines.join('\n');
 }
 
-// Generate a cone fire profile from cone entry + options
-function generateConeFire(params: {
+interface ConeFireParams {
   coneId: number;
   speed: number;
   preheat: boolean;
   slowCool: boolean;
   save: boolean;
-}): any {
+}
+
+// Generate a cone fire profile from cone entry + options
+function generateConeFire(params: ConeFireParams): FiringProfile | null {
   const cone = CONE_TABLE.find((c) => c.id === params.coneId);
   if (!cone) return null;
 
@@ -128,7 +131,7 @@ function generateConeFire(params: {
   const speedLabel = ['slow', 'medium', 'fast'][params.speed] ?? 'medium';
   const rampRates = [60, 100, 150][params.speed] ?? 100;
 
-  const segments: any[] = [];
+  const segments: FiringSegment[] = [];
   let id = 1;
 
   if (params.preheat) {
@@ -205,7 +208,7 @@ function generateConeFire(params: {
  * body is already parsed by the caller. Side effects on `state` (and timers for
  * firing/autotune) are intentional.
  */
-export function dispatch(method: string, apiPath: string, body: any): DispatchResult {
+export function dispatch(method: string, apiPath: string, body: unknown): DispatchResult {
   // GET /status
   if (method === 'GET' && apiPath === '/status') {
     return { status: 200, json: getStatusResponse() };
@@ -223,20 +226,22 @@ export function dispatch(method: string, apiPath: string, body: any): DispatchRe
 
   // POST /profiles/import
   if (method === 'POST' && apiPath === '/profiles/import') {
-    const idx = state.profiles.findIndex((p) => p.id === body.id);
+    const profile = body as FiringProfile;
+    const idx = state.profiles.findIndex((p) => p.id === profile.id);
     if (idx >= 0) {
-      state.profiles[idx] = body;
+      state.profiles[idx] = profile;
     } else {
-      state.profiles.push(body);
+      state.profiles.push(profile);
     }
-    return { status: 200, json: { ok: true, id: body.id } };
+    return { status: 200, json: { ok: true, id: profile.id } };
   }
 
   // POST /profiles/cone-fire
   if (method === 'POST' && apiPath === '/profiles/cone-fire') {
-    const profile = generateConeFire(body);
+    const params = body as ConeFireParams;
+    const profile = generateConeFire(params);
     if (!profile) return { status: 400, json: { error: 'Invalid cone ID' } };
-    if (body.save) {
+    if (params.save) {
       state.profiles.push(profile);
     }
     return { status: 200, json: profile };
@@ -267,13 +272,14 @@ export function dispatch(method: string, apiPath: string, body: any): DispatchRe
 
   // POST /profiles (upsert)
   if (method === 'POST' && apiPath === '/profiles') {
-    const idx = state.profiles.findIndex((p) => p.id === body.id);
+    const profile = body as FiringProfile;
+    const idx = state.profiles.findIndex((p) => p.id === profile.id);
     if (idx >= 0) {
-      state.profiles[idx] = body;
+      state.profiles[idx] = profile;
     } else {
-      state.profiles.push(body);
+      state.profiles.push(profile);
     }
-    return { status: 200, json: { ok: true, id: body.id } };
+    return { status: 200, json: { ok: true, id: profile.id } };
   }
 
   // DELETE /profiles/:id
@@ -284,7 +290,7 @@ export function dispatch(method: string, apiPath: string, body: any): DispatchRe
 
   // POST /firing/start
   if (method === 'POST' && apiPath === '/firing/start') {
-    const ok = startFiring(body.profileId);
+    const ok = startFiring((body as { profileId: string }).profileId);
     if (!ok) return { status: 400, json: { ok: false, error: 'Profile not found' } };
     return { status: 200, json: { ok: true } };
   }
@@ -338,11 +344,11 @@ export function dispatch(method: string, apiPath: string, body: any): DispatchRe
       status: 200,
       json: {
         ...state.settings,
-        tcOffsetC: (state.settings as any).tcOffsetC ?? 0,
-        webhookUrl: (state.settings as any).webhookUrl ?? '',
+        tcOffsetC: state.settings.tcOffsetC ?? 0,
+        webhookUrl: state.settings.webhookUrl ?? '',
         apiTokenSet: false,
-        elementWatts: (state.settings as any).elementWatts ?? 0,
-        electricityCostKwh: (state.settings as any).electricityCostKwh ?? 0,
+        elementWatts: state.settings.elementWatts ?? 0,
+        electricityCostKwh: state.settings.electricityCostKwh ?? 0,
       },
     };
   }
@@ -350,10 +356,10 @@ export function dispatch(method: string, apiPath: string, body: any): DispatchRe
   // POST /settings
   if (method === 'POST' && apiPath === '/settings') {
     // Never store the raw api token in state — just note it's been set
-    const { apiToken, ...rest } = body;
+    const { apiToken, ...rest } = body as Partial<KilnSettings> & { apiToken?: string };
     Object.assign(state.settings, rest);
     if (apiToken !== undefined) {
-      (state.settings as any).apiTokenSet = !!apiToken;
+      state.settings.apiTokenSet = !!apiToken;
     }
     return { status: 200, json: { ok: true } };
   }
@@ -379,7 +385,8 @@ export function dispatch(method: string, apiPath: string, body: any): DispatchRe
 
   // POST /autotune/start
   if (method === 'POST' && apiPath === '/autotune/start') {
-    startAutotune(body.setpoint, body.hysteresis);
+    const { setpoint, hysteresis } = body as { setpoint: number; hysteresis: number };
+    startAutotune(setpoint, hysteresis);
     return { status: 200, json: { ok: true } };
   }
 
@@ -417,10 +424,11 @@ export function dispatch(method: string, apiPath: string, body: any): DispatchRe
 
   // POST /wifi
   if (method === 'POST' && apiPath === '/wifi') {
-    if (!body.ssid) {
+    const { ssid } = body as { ssid?: string };
+    if (!ssid) {
       return { status: 400, json: { error: 'Missing ssid' } };
     }
-    state.wifi.savedSsid = body.ssid;
+    state.wifi.savedSsid = ssid;
     return { status: 200, json: { ok: true, message: 'Wi-Fi credentials saved. Reboot to connect.' } };
   }
 
@@ -446,7 +454,7 @@ export function dispatch(method: string, apiPath: string, body: any): DispatchRe
 
   // POST /diagnostics/relay
   if (method === 'POST' && apiPath === '/diagnostics/relay') {
-    const durationSeconds = body.durationSeconds ?? 2;
+    const durationSeconds = (body as { durationSeconds?: number }).durationSeconds ?? 2;
     return { status: 200, json: { ok: true, durationSeconds } };
   }
 
@@ -463,8 +471,8 @@ export function dispatch(method: string, apiPath: string, body: any): DispatchRe
         shortGnd: false,
         shortVcc: false,
         readingAgeMs: Math.round(Math.random() * 250),
-        tcOffsetC: (state.settings as any).tcOffsetC ?? 0,
-        temperatureAdjustedC: temp + ((state.settings as any).tcOffsetC ?? 0),
+        tcOffsetC: state.settings.tcOffsetC ?? 0,
+        temperatureAdjustedC: temp + (state.settings.tcOffsetC ?? 0),
       },
     };
   }

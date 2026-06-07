@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { useForm, type Path, type PathValue } from "react-hook-form";
+import { useForm, useWatch, type Path, type PathValue } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { formatUptime } from "../utils/time";
 import { toErrorMessage } from "../utils/error";
@@ -69,9 +69,14 @@ export function Settings() {
   // API token local state
   const [newToken, setNewToken] = useState("");
 
-  // Initialize autotuneRunning from query
+  // Synchronize the local polling-enable flag with the polled autotune status
+  // and fire a one-time completion toast on the running -> done transition.
+  // This is a genuine external-system sync (the flag gates the polling query),
+  // so it can't be derived during render — deriving it would be circular with
+  // the query's `enabled`. Hence the targeted set-state-in-effect exemption.
   useEffect(() => {
     if (autotuneStatus?.state === "running") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- see comment above
       setAutotuneRunning(true);
     } else if (autotuneStatus && autotuneStatus.state !== "running" && autotuneRunning) {
       setAutotuneRunning(false);
@@ -79,10 +84,11 @@ export function Settings() {
     }
   }, [autotuneStatus, autotuneRunning]);
 
-  const { register, handleSubmit, watch, setValue, reset, control } = useForm<SettingsFormValues>({
-    resolver: zodResolver(settingsSchema),
-    defaultValues: settings,
-  });
+  const { register, handleSubmit, setValue, reset, control, getValues } =
+    useForm<SettingsFormValues>({
+      resolver: zodResolver(settingsSchema),
+      defaultValues: settings,
+    });
 
   // Sync form when server data arrives. keepDirtyValues prevents a refetch (e.g.
   // on window focus) from stomping unsaved edits the user is in the middle of.
@@ -90,7 +96,11 @@ export function Settings() {
     if (settings) reset(settings, { keepDirtyValues: true });
   }, [settings, reset]);
 
-  const watchedSettings = watch();
+  // Reactive form snapshot for display. useWatch (not the form's watch())
+  // keeps this React Compiler-friendly; imperative reads in handlers use
+  // getValues() instead. Mutations that need the full settings shape build
+  // their payload from getValues().
+  const watchedSettings = useWatch({ control });
   const unit = watchedSettings.tempUnit ?? "F";
 
   const onSubmit = async (data: SettingsFormValues) => {
@@ -108,24 +118,24 @@ export function Settings() {
     value: PathValue<SettingsFormValues, K>,
   ) {
     setValue(field, value);
-    saveSettings.mutate({ ...watchedSettings, [field]: value });
+    saveSettings.mutate({ ...getValues(), [field]: value });
   }
 
   const handleSetToken = useCallback(async () => {
     if (!newToken.trim()) return;
-    const updated = { ...watchedSettings, apiToken: newToken.trim() };
+    const updated = { ...getValues(), apiToken: newToken.trim() };
     saveSettings.mutate(updated);
     setApiToken(newToken.trim());
     setNewToken("");
     toast.success("API token set");
-  }, [newToken, watchedSettings, saveSettings]);
+  }, [newToken, getValues, saveSettings]);
 
   const handleClearToken = useCallback(async () => {
-    const updated = { ...watchedSettings, apiToken: "", apiTokenSet: false };
+    const updated = { ...getValues(), apiToken: "", apiTokenSet: false };
     saveSettings.mutate(updated);
     setApiToken(null);
     toast.success("API token cleared");
-  }, [watchedSettings, saveSettings]);
+  }, [getValues, saveSettings]);
 
   const handleStartAutotune = useCallback(async () => {
     if (!Number.isFinite(autotuneSetpoint) || autotuneSetpoint <= 0) {

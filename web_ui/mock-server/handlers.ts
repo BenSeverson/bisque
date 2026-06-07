@@ -10,7 +10,7 @@
 import type { IncomingMessage, ServerResponse } from 'http';
 import { dispatch } from './router';
 
-function parseBody(req: IncomingMessage): Promise<any> {
+function parseBody(req: IncomingMessage): Promise<unknown> {
   return new Promise((resolve, reject) => {
     let body = '';
     req.on('data', (chunk: Buffer) => {
