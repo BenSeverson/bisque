@@ -42,7 +42,7 @@ jobs:
         working-directory: web_ui
       # First-party GitHub Pages actions, pinned to their major tags as in the
       # official Pages workflow template; Dependabot keeps them current.
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:
           path: web_ui/dist
