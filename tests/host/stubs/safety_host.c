@@ -76,6 +76,11 @@ float safety_get_max_temp(void)
     return s_max_temp;
 }
 
+void safety_set_tc_offset(float offset_c)
+{
+    (void)offset_c;
+}
+
 void safety_set_ssr(float duty)
 {
     if (s_emergency) {

@@ -1,8 +1,10 @@
 #include "esp_timer.h"
 #include "firing_engine.h"
+#include "firing_engine_internal.h"
 #include "history_host.h"
 #include "safety_host.h"
 #include "scenario_helpers.h"
+#include "thermocouple.h"
 #include "thermocouple_host.h"
 #include "unity.h"
 
@@ -327,6 +329,103 @@ static void test_runaway_trips_emergency_stop(void)
     TEST_ASSERT_EQUAL(FIRING_ERR_RUNAWAY, firing_engine_get_error_code());
 }
 
+/* ── TC fault gate: a faulted reading holds the SSR off, no PID full-power ─ */
+
+static void test_tc_fault_holds_ssr_off(void)
+{
+    firing_profile_t p = scenario_short_profile();
+    scenario_start(&p, 0);
+    TEST_ASSERT_TRUE(scenario_run_until_status(&g_plant, FIRING_STATUS_HEATING, 30));
+
+    /* The kiln is below target, so the engine is actively driving heat. */
+    TEST_ASSERT_TRUE(safety_test_last_duty() > 0.0f);
+
+    /* Inject a thermocouple fault and run one tick by hand — the scenario
+     * helper would reset the fault flag at the end of each tick. A faulted
+     * MAX31855 reports 0°C; without the gate the PID sees 0°C vs a hot setpoint
+     * and commands full power. */
+    thermocouple_test_set(0.0f, TC_FAULT_OPEN_CIRCUIT);
+    host_clock_advance(HARNESS_TICK_US);
+    firing_tick(esp_timer_get_time());
+
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, safety_test_last_duty());
+
+    /* The engine itself does not emergency-stop on a fault — that's safety_task's
+     * job after the persistence window — so the firing is still active. */
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_TRUE(prog.is_active);
+}
+
+/* ── Pause freeze: a long pause must not trip the not-rising safety check ── */
+
+static void test_long_pause_does_not_trip_not_rising(void)
+{
+    firing_profile_t p = {0};
+    strncpy(p.id, "pause-rise", FIRING_ID_LEN - 1);
+    strncpy(p.name, "Pause Rise", FIRING_NAME_LEN - 1);
+    p.segment_count = 1;
+    p.max_temp = 600.0f;
+    p.estimated_duration = 600;
+    p.segments[0].ramp_rate = 60.0f; /* slow: ~1°C/min, so the rising window is tight */
+    p.segments[0].target_temp = 600.0f;
+    p.segments[0].hold_time = 0;
+
+    scenario_start(&p, 0);
+    TEST_ASSERT_TRUE(scenario_run_until_status(&g_plant, FIRING_STATUS_HEATING, 5));
+
+    /* Heat briefly, then pause for 16 simulated minutes — longer than the
+     * 15-minute not-rising window. Without the resume-time anchor shift, the
+     * window (started at segment begin) has aged past 15 min while the kiln
+     * barely moved, so the first heating tick after resume trips NOT_RISING. */
+    scenario_run_ticks(&g_plant, 100);
+    scenario_pause();
+    scenario_run_ticks(&g_plant, 16 * 60);
+    scenario_resume();
+    scenario_run_ticks(&g_plant, 5);
+
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL_MESSAGE(FIRING_STATUS_HEATING, prog.status, "spurious trip after long pause");
+    TEST_ASSERT_EQUAL(FIRING_ERR_NONE, firing_engine_get_error_code());
+}
+
+/* ── Pause freeze: the ramp setpoint resumes where it left off, no jump ──── */
+
+static void test_pause_does_not_jump_setpoint(void)
+{
+    firing_profile_t p = {0};
+    strncpy(p.id, "pause-sp", FIRING_ID_LEN - 1);
+    strncpy(p.name, "Pause Setpoint", FIRING_NAME_LEN - 1);
+    p.segment_count = 1;
+    p.max_temp = 1000.0f;
+    p.estimated_duration = 600;
+    p.segments[0].ramp_rate = 600.0f; /* 0.1667°C/s */
+    p.segments[0].target_temp = 1000.0f;
+    p.segments[0].hold_time = 0;
+
+    scenario_start(&p, 0);
+    TEST_ASSERT_TRUE(scenario_run_until_status(&g_plant, FIRING_STATUS_HEATING, 5));
+    scenario_run_ticks(&g_plant, 60);
+
+    firing_progress_t before;
+    firing_engine_get_progress(&before);
+
+    /* Pause 5 minutes, resume, step a couple ticks. The dynamic setpoint should
+     * have advanced only by those couple ticks, not by the whole pause (which
+     * at 600°C/hr would be a ~50°C jump). */
+    scenario_pause();
+    scenario_run_ticks(&g_plant, 300);
+    scenario_resume();
+    scenario_run_ticks(&g_plant, 2);
+
+    firing_progress_t after;
+    firing_engine_get_progress(&after);
+
+    float jump = after.target_temp - before.target_temp;
+    TEST_ASSERT_TRUE_MESSAGE(jump >= 0.0f && jump < 5.0f, "setpoint jumped across the pause");
+}
+
 int main(void)
 {
     /* Init firing engine once for the whole binary — queues/mutexes are
@@ -345,5 +444,8 @@ int main(void)
     RUN_TEST(test_tc_fault_triggers_emergency_stop);
     RUN_TEST(test_kiln_not_rising_trips_emergency_stop);
     RUN_TEST(test_runaway_trips_emergency_stop);
+    RUN_TEST(test_tc_fault_holds_ssr_off);
+    RUN_TEST(test_long_pause_does_not_trip_not_rising);
+    RUN_TEST(test_pause_does_not_jump_setpoint);
     return UNITY_END();
 }

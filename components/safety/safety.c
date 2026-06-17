@@ -32,6 +32,7 @@ static int s_ssr_pin = -1;
 static int s_alarm_gpio = -1;
 static int s_vent_gpio = -1;
 static float s_max_safe_temp = 1300.0f;
+static float s_tc_offset_c = 0.0f;
 static EventGroupHandle_t s_event_group;
 static portMUX_TYPE s_safety_mux = portMUX_INITIALIZER_UNLOCKED;
 
@@ -39,6 +40,13 @@ static portMUX_TYPE s_safety_mux = portMUX_INITIALIZER_UNLOCKED;
 static float s_ssr_duty = 0.0f;
 static int64_t s_ssr_window_start_us = 0;
 #define SSR_WINDOW_US ((int64_t)APP_SSR_WINDOW_MS * 1000LL)
+
+/* Control-loop heartbeat: safety_set_ssr() is called every firing tick (1 Hz).
+ * If it goes silent while the element is commanded on, the firing task has
+ * wedged with the SSR latched — safety_task forces the output off (and trips an
+ * emergency stop). 3 s ≈ three missed control ticks. */
+static int64_t s_last_ssr_cmd_us = 0;
+#define SSR_HEARTBEAT_TIMEOUT_US (3LL * 1000000)
 
 static void alarm_tone_on(void)
 {
@@ -218,6 +226,13 @@ float safety_get_max_temp(void)
     return val;
 }
 
+void safety_set_tc_offset(float offset_c)
+{
+    portENTER_CRITICAL(&s_safety_mux);
+    s_tc_offset_c = offset_c;
+    portEXIT_CRITICAL(&s_safety_mux);
+}
+
 void safety_set_ssr(float duty)
 {
     if (safety_is_emergency()) {
@@ -232,12 +247,13 @@ void safety_set_ssr(float duty)
         duty = 1.0f;
     }
 
+    int64_t now = esp_timer_get_time();
     portENTER_CRITICAL(&s_safety_mux);
     s_ssr_duty = duty;
+    s_last_ssr_cmd_us = now; /* feed the control-loop heartbeat */
     portEXIT_CRITICAL(&s_safety_mux);
 
     /* Time-proportional output: within a 2-second window, SSR is on for (duty * window) */
-    int64_t now = esp_timer_get_time();
     int64_t elapsed = now - s_ssr_window_start_us;
     if (elapsed >= SSR_WINDOW_US) {
         s_ssr_window_start_us = now;
@@ -273,14 +289,21 @@ void safety_task(void *param)
             last_valid_reading_us = reading.timestamp_us;
             xEventGroupClearBits(s_event_group, SAFETY_BIT_TEMP_FAULT);
 
-            /* Over-temperature check */
-            float max_temp;
+            /* Over-temperature check. Compare the calibration-corrected
+             * temperature against the user limit — the control loop acts on the
+             * corrected value, so safety must too or a nonzero offset lets the
+             * kiln run hotter than max_safe_temp before tripping. The absolute
+             * hardware ceiling stays on the raw reading as a backstop. */
+            float max_temp, offset;
             portENTER_CRITICAL(&s_safety_mux);
             max_temp = s_max_safe_temp;
+            offset = s_tc_offset_c;
             portEXIT_CRITICAL(&s_safety_mux);
 
-            if (reading.temperature_c > max_temp || reading.temperature_c > APP_HARDWARE_MAX_TEMP_C) {
-                ESP_LOGE(TAG, "Over-temp: %.1f°C exceeds limit %.1f°C", reading.temperature_c, max_temp);
+            float corrected = reading.temperature_c + offset;
+            if (corrected > max_temp || reading.temperature_c > APP_HARDWARE_MAX_TEMP_C) {
+                ESP_LOGE(TAG, "Over-temp: %.1f°C (corrected %.1f°C) exceeds limit %.1f°C", reading.temperature_c,
+                         corrected, max_temp);
                 safety_emergency_stop();
             }
         }
@@ -290,6 +313,28 @@ void safety_task(void *param)
             ESP_LOGE(TAG, "No thermocouple data for >5s, emergency stop");
             xEventGroupSetBits(s_event_group, SAFETY_BIT_TEMP_FAULT);
             safety_emergency_stop();
+        }
+
+        /* Control-loop heartbeat. safety_set_ssr() runs every firing tick; if it
+         * stops while the element is commanded on, the firing task has wedged
+         * with the SSR latched. Force the output off and escalate. A stale
+         * heartbeat with the last duty at 0 (idle/paused) is harmless, so only
+         * trip the emergency stop when heat was actually being commanded. */
+        float last_duty;
+        int64_t last_cmd_us;
+        portENTER_CRITICAL(&s_safety_mux);
+        last_duty = s_ssr_duty;
+        last_cmd_us = s_last_ssr_cmd_us;
+        portEXIT_CRITICAL(&s_safety_mux);
+        if (last_cmd_us != 0 && (now - last_cmd_us) > SSR_HEARTBEAT_TIMEOUT_US) {
+            if (s_ssr_pin >= 0) {
+                gpio_set_level(s_ssr_pin, 0);
+            }
+            if (last_duty > 0.0f && !safety_is_emergency()) {
+                ESP_LOGE(TAG, "Control loop stalled (%lldms since last SSR command, duty=%.2f), emergency stop",
+                         (long long)((now - last_cmd_us) / 1000), last_duty);
+                safety_emergency_stop();
+            }
         }
 
         xTaskDelayUntil(&last_wake, pdMS_TO_TICKS(500));

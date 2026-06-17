@@ -71,6 +71,7 @@ void app_main(void)
     kiln_settings_t settings;
     firing_engine_get_settings(&settings);
     safety_set_max_temp(settings.max_safe_temp);
+    safety_set_tc_offset(settings.tc_offset_c);
 
     /* ── Display Init ──────────────────────────────── */
     ret = display_init(APP_SPI_HOST, APP_PIN_LCD_CS, APP_PIN_LCD_DC, APP_PIN_LCD_RST, APP_PIN_LCD_BL);
