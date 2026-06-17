@@ -39,6 +39,20 @@ bool ota_is_busy(void)
     return s_busy;
 }
 
+bool ota_busy_acquire(void)
+{
+    if (s_busy) {
+        return false;
+    }
+    s_busy = true;
+    return true;
+}
+
+void ota_busy_release(void)
+{
+    s_busy = false;
+}
+
 static void report(ota_phase_t phase, int percent, const char *err)
 {
     if (s_progress_cb) {

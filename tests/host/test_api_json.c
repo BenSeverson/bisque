@@ -115,8 +115,14 @@ static void test_status_full_shape(void)
         .timestamp_us = 1234567,
     };
 
-    cJSON *root = build_status_json(&prog, &tc);
+    cJSON *root = build_status_json(&prog, &tc, 5.0f);
     TEST_ASSERT_NOT_NULL(root);
+
+    /* currentTemp carries the tc offset so it matches the WebSocket feed; the
+       nested thermocouple block keeps the raw reading. */
+    TEST_ASSERT_EQUAL_FLOAT(728.4f, cJSON_GetObjectItem(root, "currentTemp")->valuedouble);
+    TEST_ASSERT_EQUAL_FLOAT(723.4f,
+                            cJSON_GetObjectItem(cJSON_GetObjectItem(root, "thermocouple"), "temperature")->valuedouble);
 
     assert_bool_field(root, "isActive");
     assert_string_field(root, "profileId");
@@ -151,11 +157,11 @@ static void test_status_zeros_temp_when_fault(void)
         .temperature_c = 999.0f,
         .fault = TC_FAULT_OPEN_CIRCUIT,
     };
-    cJSON *root = build_status_json(&prog, &tc);
+    cJSON *root = build_status_json(&prog, &tc, 5.0f);
 
     /* Top-level currentTemp is zero-clamped on fault (UI shouldn't render the
-     * stale last-read temp). Inner thermocouple.temperature still exposes the
-     * raw value for diagnostics. */
+     * stale last-read temp) — the offset is not applied through a fault. Inner
+     * thermocouple.temperature still exposes the raw value for diagnostics. */
     TEST_ASSERT_EQUAL_FLOAT(0.0f, cJSON_GetObjectItem(root, "currentTemp")->valuedouble);
     TEST_ASSERT_EQUAL_FLOAT(999.0f,
                             cJSON_GetObjectItem(cJSON_GetObjectItem(root, "thermocouple"), "temperature")->valuedouble);

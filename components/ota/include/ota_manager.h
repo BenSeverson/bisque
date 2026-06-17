@@ -59,6 +59,17 @@ esp_err_t ota_install_from_manifest(const ota_manifest_t *manifest);
 bool ota_is_busy(void);
 
 /*
+ * Claim/release the OTA-busy flag for a foreground operation that doesn't go
+ * through ota_check()/ota_install_from_manifest() — e.g. the direct firmware
+ * upload handler. ota_busy_acquire() returns false if an OTA op is already
+ * running. Holding the flag also makes firing-start guards (which test
+ * ota_is_busy()) refuse to start a firing mid-upload. Pair a successful acquire
+ * with a release on every failure path.
+ */
+bool ota_busy_acquire(void);
+void ota_busy_release(void);
+
+/*
  * Spawn the one-shot confirm task. If the running image is pending
  * verification, the task waits a healthy-uptime window and then cancels
  * rollback. Call once after core services are up.

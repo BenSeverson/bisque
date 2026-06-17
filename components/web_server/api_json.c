@@ -51,10 +51,13 @@ void json_add_progress_fields(cJSON *target, const firing_progress_t *prog, floa
     cJSON_AddStringToObject(target, "status", firing_status_to_string(prog->status));
 }
 
-cJSON *build_status_json(const firing_progress_t *prog, const thermocouple_reading_t *tc)
+cJSON *build_status_json(const firing_progress_t *prog, const thermocouple_reading_t *tc, float tc_offset_c)
 {
     cJSON *root = cJSON_CreateObject();
-    json_add_progress_fields(root, prog, tc->fault ? 0.0f : tc->temperature_c);
+    /* Offset-correct the published temperature (and zero it on fault) so the
+       REST status matches the WebSocket temp_update feed. */
+    float current_temp = tc->fault ? 0.0f : (tc->temperature_c + tc_offset_c);
+    json_add_progress_fields(root, prog, current_temp);
 
     cJSON *tc_obj = cJSON_AddObjectToObject(root, "thermocouple");
     cJSON_AddNumberToObject(tc_obj, "temperature", tc->temperature_c);

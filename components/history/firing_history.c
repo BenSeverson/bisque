@@ -262,25 +262,24 @@ void history_firing_end(history_outcome_t outcome, float peak_temp, uint32_t dur
     }
     s_recording = false;
 
-    /* Load existing records, prepend new one, trim to max, save */
+    /* Load all existing records, then prepend the new one. If already at the
+       cap, the oldest record (last in the list) is evicted by the prepend —
+       delete its trace file first so it doesn't orphan in SPIFFS. */
     history_record_t records[HISTORY_MAX_RECORDS];
     int count = 0;
-    load_records_from_json(records, HISTORY_MAX_RECORDS - 1, &count);
+    load_records_from_json(records, HISTORY_MAX_RECORDS, &count);
+
+    if (count == HISTORY_MAX_RECORDS) {
+        char old_trace[TRACE_PATH_LEN];
+        make_trace_path(records[count - 1].id, old_trace, sizeof(old_trace));
+        remove(old_trace);
+        count--; /* drop the slot the prepend will reclaim */
+    }
 
     /* Shift existing records down, prepend new */
     memmove(&records[1], &records[0], count * sizeof(history_record_t));
     records[0] = s_current;
     count++;
-    if (count > HISTORY_MAX_RECORDS) {
-        count = HISTORY_MAX_RECORDS;
-    }
-
-    /* Delete oldest trace if we exceeded the limit */
-    if (count == HISTORY_MAX_RECORDS) {
-        char old_trace[TRACE_PATH_LEN];
-        make_trace_path(records[count - 1].id, old_trace, sizeof(old_trace));
-        remove(old_trace);
-    }
 
     save_records_to_json(records, count);
     unlock();
