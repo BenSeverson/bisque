@@ -329,6 +329,7 @@ esp_err_t firing_engine_set_settings(const kiln_settings_t *settings)
 
     /* Update safety module */
     safety_set_max_temp(safe.max_safe_temp);
+    safety_set_tc_offset(safe.tc_offset_c);
 
     /* Persist to NVS */
     nvs_handle_t handle;
@@ -554,6 +555,11 @@ typedef struct {
     int64_t delay_start_end_us;
     bool delay_active;
 
+    /* Pause bookkeeping: wall-clock when the active firing was paused. On
+     * resume the elapsed pause is added back to every time anchor below so the
+     * pause doesn't count as firing time. */
+    int64_t pause_start_us;
+
     /* Safety: kiln-not-rising window (also used for runaway baseline). */
     float check_start_temp;
     int64_t check_start_time_us;
@@ -725,24 +731,48 @@ static void handle_cmd(const firing_cmd_t *cmd)
         break;
     }
 
-    case FIRING_CMD_PAUSE:
+    case FIRING_CMD_PAUSE: {
+        bool did_pause = false;
         progress_lock();
         if (s_progress.is_active && s_progress.status != FIRING_STATUS_PAUSED) {
             s_progress.status = FIRING_STATUS_PAUSED;
-            safety_set_ssr(0.0f);
-            ESP_LOGI(TAG, "Firing paused");
+            did_pause = true;
         }
         progress_unlock();
+        if (did_pause) {
+            safety_set_ssr(0.0f);
+            s_state.pause_start_us = esp_timer_get_time();
+            ESP_LOGI(TAG, "Firing paused");
+        }
         break;
+    }
 
-    case FIRING_CMD_RESUME:
+    case FIRING_CMD_RESUME: {
+        bool did_resume = false;
         progress_lock();
         if (s_progress.status == FIRING_STATUS_PAUSED) {
             s_progress.status = s_state.holding ? FIRING_STATUS_HOLDING : FIRING_STATUS_HEATING;
-            ESP_LOGI(TAG, "Firing resumed");
+            did_resume = true;
         }
         progress_unlock();
+        if (did_resume) {
+            /* Shift the segment clock and safety windows forward by the paused
+             * duration so the ramp setpoint, not-rising window, runaway baseline,
+             * and hold timer all resume where they left off. Without this, a long
+             * pause makes the engine think the kiln stalled (NOT_RISING) or that
+             * the setpoint should jump far ahead. */
+            int64_t paused_us = esp_timer_get_time() - s_state.pause_start_us;
+            if (paused_us > 0) {
+                s_state.segment_start_time_us += paused_us;
+                s_state.check_start_time_us += paused_us;
+                if (s_state.holding) {
+                    s_state.segment_hold_start_time_s += (float)paused_us / 1000000.0f;
+                }
+            }
+            ESP_LOGI(TAG, "Firing resumed");
+        }
         break;
+    }
 
     case FIRING_CMD_SKIP_SEGMENT: {
         progress_lock();
@@ -886,6 +916,16 @@ void firing_tick(int64_t now_us)
         if (status != FIRING_STATUS_PAUSED) {
             safety_set_ssr(0.0f);
         }
+        return;
+    }
+
+    /* Thermocouple fault: a faulted MAX31855 read reports 0°C (see
+     * thermocouple_read). Feeding that into the PID against a hot setpoint
+     * would command full power, so hold the element off until the reading
+     * recovers. safety_task escalates to an emergency stop if the fault
+     * persists past APP_TEMP_FAULT_TIMEOUT_MS. */
+    if (reading.fault != 0) {
+        safety_set_ssr(0.0f);
         return;
     }
 

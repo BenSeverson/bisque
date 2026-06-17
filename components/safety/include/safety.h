@@ -74,6 +74,12 @@ void safety_set_max_temp(float max_safe_temp);
 float safety_get_max_temp(void);
 
 /**
+ * Set the thermocouple calibration offset (°C) used by the over-temp check so
+ * safety compares the same corrected temperature the control loop acts on.
+ */
+void safety_set_tc_offset(float offset_c);
+
+/**
  * Set the SSR output. Respects emergency stop (output forced to 0 during emergency).
  * @param duty 0.0 to 1.0
  */
