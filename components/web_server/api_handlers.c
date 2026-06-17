@@ -129,12 +129,21 @@ static int read_body(httpd_req_t *req, char *buf, size_t buf_size)
     if (remaining <= 0 || (size_t)remaining >= buf_size) {
         return -1;
     }
-    int received = httpd_req_recv(req, buf, remaining);
-    if (received <= 0) {
-        return -1;
+    /* httpd_req_recv may return fewer bytes than asked when the body spans
+       multiple TCP segments, so loop until the whole body is read. */
+    int total = 0;
+    while (total < remaining) {
+        int received = httpd_req_recv(req, buf + total, remaining - total);
+        if (received == HTTPD_SOCK_ERR_TIMEOUT) {
+            continue;
+        }
+        if (received <= 0) {
+            return -1;
+        }
+        total += received;
     }
-    buf[received] = '\0';
-    return received;
+    buf[total] = '\0';
+    return total;
 }
 
 /* Helper: read POST body and parse as JSON. On error, sends a 400 response and
@@ -276,7 +285,10 @@ static esp_err_t handle_get_status(httpd_req_t *req)
     thermocouple_reading_t tc;
     thermocouple_get_latest(&tc);
 
-    return send_json(req, build_status_json(&prog, &tc));
+    kiln_settings_t settings;
+    firing_engine_get_settings(&settings);
+
+    return send_json(req, build_status_json(&prog, &tc, settings.tc_offset_c));
 }
 
 /* ── GET /api/v1/profiles ──────────────────────────── */
@@ -374,6 +386,12 @@ static esp_err_t handle_post_profile(httpd_req_t *req)
     cJSON_Delete(root);
 
     esp_err_t err = firing_engine_save_profile(&profile);
+    if (err == ESP_ERR_INVALID_STATE) {
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_set_type(req, "text/plain");
+        httpd_resp_sendstr(req, "Profile id collides with an existing profile");
+        return ESP_FAIL;
+    }
     if (err != ESP_OK) {
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to save");
         return ESP_FAIL;
@@ -685,6 +703,12 @@ static esp_err_t handle_profile_import(httpd_req_t *req)
     cJSON_Delete(root);
 
     esp_err_t err = firing_engine_save_profile(&profile);
+    if (err == ESP_ERR_INVALID_STATE) {
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_set_type(req, "text/plain");
+        httpd_resp_sendstr(req, "Profile id collides with an existing profile");
+        return ESP_FAIL;
+    }
     if (err != ESP_OK) {
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to save");
         return ESP_FAIL;
@@ -840,9 +864,20 @@ static esp_err_t handle_ota_upload(httpd_req_t *req)
     if (ota_blocked_by_firing(req)) {
         return ESP_FAIL;
     }
+    /* Claim the OTA-busy flag for the whole upload. This both rejects a
+       concurrent manifest install and (because firing-start checks
+       ota_is_busy()) blocks a firing from starting mid-upload — the upload
+       reboots the controller when it finishes. */
+    if (!ota_busy_acquire()) {
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_set_type(req, "text/plain");
+        httpd_resp_sendstr(req, "An OTA operation is already in progress");
+        return ESP_FAIL;
+    }
 
     const esp_partition_t *update_partition = esp_ota_get_next_update_partition(NULL);
     if (!update_partition) {
+        ota_busy_release();
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "No update partition available");
         return ESP_FAIL;
     }
@@ -850,6 +885,7 @@ static esp_err_t handle_ota_upload(httpd_req_t *req)
     esp_ota_handle_t ota_handle = 0;
     esp_err_t err = esp_ota_begin(update_partition, OTA_WITH_SEQUENTIAL_WRITES, &ota_handle);
     if (err != ESP_OK) {
+        ota_busy_release();
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OTA begin failed");
         return ESP_FAIL;
     }
@@ -857,6 +893,7 @@ static esp_err_t handle_ota_upload(httpd_req_t *req)
     char *buf = malloc(4096);
     if (!buf) {
         esp_ota_abort(ota_handle);
+        ota_busy_release();
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Out of memory");
         return ESP_FAIL;
     }
@@ -866,6 +903,9 @@ static esp_err_t handle_ota_upload(httpd_req_t *req)
     while (remaining > 0 && ota_ok) {
         int to_recv = (remaining > 4096) ? 4096 : remaining;
         int received = httpd_req_recv(req, buf, to_recv);
+        if (received == HTTPD_SOCK_ERR_TIMEOUT) {
+            continue;
+        }
         if (received <= 0) {
             ota_ok = false;
             break;
@@ -878,13 +918,24 @@ static esp_err_t handle_ota_upload(httpd_req_t *req)
     }
     free(buf);
 
-    if (!ota_ok || esp_ota_end(ota_handle) != ESP_OK) {
+    /* On any write/recv failure, abort to release the OTA handle (esp_ota_end
+       is only valid on a fully-written image). esp_ota_end frees the handle on
+       both success and failure. */
+    if (!ota_ok) {
+        esp_ota_abort(ota_handle);
+        ota_busy_release();
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OTA write failed");
+        return ESP_FAIL;
+    }
+    if (esp_ota_end(ota_handle) != ESP_OK) {
+        ota_busy_release();
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OTA image verification failed");
         return ESP_FAIL;
     }
 
     err = esp_ota_set_boot_partition(update_partition);
     if (err != ESP_OK) {
+        ota_busy_release();
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OTA set boot failed");
         return ESP_FAIL;
     }

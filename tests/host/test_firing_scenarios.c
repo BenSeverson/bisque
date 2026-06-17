@@ -426,6 +426,61 @@ static void test_pause_does_not_jump_setpoint(void)
     TEST_ASSERT_TRUE_MESSAGE(jump >= 0.0f && jump < 5.0f, "setpoint jumped across the pause");
 }
 
+/* ── Element-hours: sub-second ticks are not truncated away ─────────────── */
+
+static void test_element_hours_accumulate_subsecond_ticks(void)
+{
+    firing_profile_t p = scenario_short_profile();
+    scenario_start(&p, 0);
+    TEST_ASSERT_TRUE(scenario_run_until_status(&g_plant, FIRING_STATUS_HEATING, 30));
+
+    /* Drive 20 half-second ticks by hand (the scenario helper only does whole
+     * seconds). The plant isn't stepped, so the kiln stays below the climbing
+     * setpoint and the PID keeps commanding heat. The old code truncated each
+     * (uint32_t)0.5 to 0 and accumulated nothing. */
+    uint32_t before = firing_engine_get_element_hours_s();
+    for (int i = 0; i < 20; i++) {
+        host_clock_advance(HARNESS_TICK_US / 2);
+        firing_tick(esp_timer_get_time());
+    }
+    uint32_t gained = firing_engine_get_element_hours_s() - before;
+    TEST_ASSERT_TRUE_MESSAGE(gained >= 8, "element-on time lost to sub-second truncation");
+}
+
+/* ── Profile key collision: distinct IDs sharing a 15-char NVS key rejected ─ */
+
+static void test_profile_key_collision_rejected(void)
+{
+    firing_profile_t a = {0};
+    strncpy(a.id, "verylongprofile-AAA", FIRING_ID_LEN - 1); /* first 15 chars: "verylongprofile" */
+    strncpy(a.name, "Profile A", FIRING_NAME_LEN - 1);
+    a.segment_count = 1;
+    a.segments[0].ramp_rate = 100.0f;
+    a.segments[0].target_temp = 500.0f;
+
+    firing_profile_t b = a;
+    strncpy(b.id, "verylongprofile-BBB", FIRING_ID_LEN - 1);
+    strncpy(b.name, "Profile B", FIRING_NAME_LEN - 1);
+
+    TEST_ASSERT_EQUAL(ESP_OK, firing_engine_save_profile(&a));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, firing_engine_save_profile(&b));
+
+    char ids[FIRING_MAX_PROFILES][FIRING_ID_LEN];
+    TEST_ASSERT_EQUAL_INT(1, firing_engine_list_profiles(ids, FIRING_MAX_PROFILES));
+
+    /* A's blob must be intact — not silently overwritten by B. */
+    firing_profile_t loaded;
+    TEST_ASSERT_EQUAL(ESP_OK, firing_engine_load_profile("verylongprofile-AAA", &loaded));
+    TEST_ASSERT_EQUAL_STRING("Profile A", loaded.name);
+
+    /* A non-colliding ID still saves. */
+    firing_profile_t c = a;
+    strncpy(c.id, "shortid", FIRING_ID_LEN - 1);
+    strncpy(c.name, "Profile C", FIRING_NAME_LEN - 1);
+    TEST_ASSERT_EQUAL(ESP_OK, firing_engine_save_profile(&c));
+    TEST_ASSERT_EQUAL_INT(2, firing_engine_list_profiles(ids, FIRING_MAX_PROFILES));
+}
+
 int main(void)
 {
     /* Init firing engine once for the whole binary — queues/mutexes are
@@ -447,5 +502,7 @@ int main(void)
     RUN_TEST(test_tc_fault_holds_ssr_off);
     RUN_TEST(test_long_pause_does_not_trip_not_rising);
     RUN_TEST(test_pause_does_not_jump_setpoint);
+    RUN_TEST(test_element_hours_accumulate_subsecond_ticks);
+    RUN_TEST(test_profile_key_collision_rejected);
     return UNITY_END();
 }

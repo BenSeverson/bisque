@@ -43,8 +43,12 @@ static pid_autotune_t s_autotune;
 /* Last error code */
 static firing_error_code_t s_last_error_code = FIRING_ERR_NONE;
 
-/* Accumulated element-on seconds (SSR duty > 0), persisted to NVS */
+/* Accumulated element-on time (SSR duty > 0), persisted to NVS as whole
+ * seconds. The fine-grained accumulator sums raw int64 µs deltas so sub-second
+ * per-tick jitter isn't truncated away (the same reason elapsed time uses a µs
+ * accumulator); s_element_on_s is published as floor(accum_us / 1e6). */
 static uint32_t s_element_on_s = 0;
+static uint64_t s_element_on_accum_us = 0;
 
 /* ── Internal helpers ──────────────────────────────── */
 
@@ -226,6 +230,7 @@ esp_err_t firing_engine_init(void)
         }
         nvs_close(nvs_diag);
     }
+    s_element_on_accum_us = (uint64_t)s_element_on_s * 1000000ULL;
 
     /* Initialize PID */
     float kp, ki, kd;
@@ -395,24 +400,34 @@ esp_err_t firing_engine_save_profile(const firing_profile_t *profile)
     char key[16];
     make_nvs_key(profile->id, key, sizeof(key));
 
+    /* NVS keys are capped at 15 chars, so two different profile IDs can map to
+       the same key and would otherwise share one blob — silently overwriting
+       each other while both show up in the index. Load the index first and
+       reject a save whose key collides with a *different* stored ID. */
+    char ids[FIRING_MAX_PROFILES][FIRING_ID_LEN];
+    int count = load_profile_index(handle, ids);
+
+    bool found = false;
+    for (int i = 0; i < count; i++) {
+        if (strcmp(ids[i], profile->id) == 0) {
+            found = true;
+            continue;
+        }
+        char other_key[16];
+        make_nvs_key(ids[i], other_key, sizeof(other_key));
+        if (strcmp(other_key, key) == 0) {
+            nvs_close(handle);
+            ESP_LOGW(TAG, "Profile '%s' NVS key collides with existing '%s'; rejecting save", profile->id, ids[i]);
+            return ESP_ERR_INVALID_STATE;
+        }
+    }
+
     err = nvs_set_blob(handle, key, profile, sizeof(firing_profile_t));
     if (err != ESP_OK) {
         nvs_close(handle);
         return err;
     }
 
-    /* Update index: load existing, add if not present */
-    char ids[FIRING_MAX_PROFILES][FIRING_ID_LEN];
-    int count = load_profile_index(handle, ids);
-
-    /* Check if already in index */
-    bool found = false;
-    for (int i = 0; i < count; i++) {
-        if (strcmp(ids[i], profile->id) == 0) {
-            found = true;
-            break;
-        }
-    }
     if (!found && count < FIRING_MAX_PROFILES) {
         snprintf(ids[count], FIRING_ID_LEN, "%s", profile->id);
         count++;
@@ -617,6 +632,9 @@ static void do_stop(void)
 {
     safety_set_ssr(0.0f);
     pid_reset(&s_pid);
+    /* Flush element-on time so a manual STOP doesn't drop up to one save
+       interval of accumulated hours. */
+    save_element_hours();
     progress_lock();
     s_progress.is_active = false;
     s_progress.status = FIRING_STATUS_IDLE;
@@ -993,9 +1011,10 @@ void firing_tick(int64_t now_us)
     float output = pid_compute(&s_pid, setpoint, current_temp, dt_s);
     safety_set_ssr(output);
 
-    /* Accumulate element-on time */
+    /* Accumulate element-on time (sum raw µs so sub-second ticks aren't lost) */
     if (output > 0.0f) {
-        s_element_on_s += (uint32_t)dt_s;
+        s_element_on_accum_us += (uint64_t)dt_us;
+        s_element_on_s = (uint32_t)(s_element_on_accum_us / 1000000ULL);
         if ((now_us - s_state.last_elem_save_us) >= ELEM_SAVE_INTERVAL_US) {
             save_element_hours();
             s_state.last_elem_save_us = now_us;
@@ -1138,6 +1157,7 @@ void firing_engine_reset_for_test(void)
     s_progress.status = FIRING_STATUS_IDLE;
     s_last_error_code = FIRING_ERR_NONE;
     s_element_on_s = 0;
+    s_element_on_accum_us = 0;
     s_last_compute_us = 0;
     pid_reset(&s_pid);
     memset(&s_autotune, 0, sizeof(s_autotune));

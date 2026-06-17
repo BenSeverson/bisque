@@ -26,8 +26,10 @@
 extern "C" {
 #endif
 
-/** GET /api/v1/status — firing progress plus thermocouple block. */
-cJSON *build_status_json(const firing_progress_t *prog, const thermocouple_reading_t *tc);
+/** GET /api/v1/status — firing progress plus thermocouple block. `tc_offset_c`
+ *  is applied to the top-level currentTemp so it matches the WebSocket feed; the
+ *  nested thermocouple block keeps the raw reading for diagnostics. */
+cJSON *build_status_json(const firing_progress_t *prog, const thermocouple_reading_t *tc, float tc_offset_c);
 
 /** GET /api/v1/profiles/:id, POST /api/v1/profiles/cone-fire — one firing profile. */
 cJSON *build_profile_json(const firing_profile_t *profile);
