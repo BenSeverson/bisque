@@ -140,6 +140,10 @@ bool pid_autotune_update(pid_autotune_t *at, float current_temp, float *output)
             at->last_crossing_us = now;
             at->peak_high = current_temp;
             at->peak_low = current_temp;
+            /* Restart the timeout budget for the cycling phase. Otherwise a long
+               heat-up to a high setpoint eats into the same 60-minute window and
+               the 5 relay cycles almost never finish in time. */
+            at->start_time_us = now;
             ESP_LOGI(TAG, "Reached setpoint, starting relay cycling");
         }
         return false;
@@ -191,8 +195,12 @@ bool pid_autotune_update(pid_autotune_t *at, float current_temp, float *output)
                         return true;
                     }
 
-                    /* Ku = 4d / (pi * a), where d = 1.0 (full relay amplitude) */
-                    float ku = 4.0f / ((float)M_PI * avg_amplitude);
+                    /* Ku = 4d / (pi * a), where d is the relay *half*-amplitude.
+                       The relay swings between 0 and 1, so d = 0.5 and the
+                       numerator is 4 * 0.5 = 2.0. (Using 4.0 here treated the
+                       full 0..1 swing as the half-amplitude and doubled every
+                       gain.) */
+                    float ku = 2.0f / ((float)M_PI * avg_amplitude);
                     float pu = avg_period;
 
                     at->kp_result = 0.6f * ku;

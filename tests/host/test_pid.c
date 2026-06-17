@@ -187,6 +187,51 @@ static void test_autotune_completes_with_sane_gains_under_synthetic_oscillation(
     TEST_ASSERT_TRUE(isfinite(at.kd_result));
 }
 
+static void test_autotune_ku_uses_relay_half_amplitude(void)
+{
+    pid_autotune_t at;
+    pid_autotune_start(&at, 100.0f, 5.0f);
+    float out = 0.0f;
+    pid_autotune_update(&at, 95.0f, &out); /* enter relay cycling */
+
+    /* Drive a clean square oscillation: 110°C for 20 s, 90°C for 20 s, so every
+       measured cycle has amplitude exactly 10°C. */
+    for (int s = 1; s <= 400 && at.state == AUTOTUNE_RELAY_CYCLING; s++) {
+        host_clock_advance(1000000);
+        float t = (((s - 1) / 20) % 2 == 0) ? 110.0f : 90.0f;
+        pid_autotune_update(&at, t, &out);
+    }
+
+    TEST_ASSERT_EQUAL(AUTOTUNE_COMPLETE, at.state);
+    /* Ku = 4d/(πa) with relay half-amplitude d = 0.5 → Ku = 2/(π·10) = 0.063662,
+       so kp = 0.6·Ku = 0.038197. The pre-fix numerator of 4.0 would double this
+       to ~0.0764. kp depends only on amplitude, so the assertion is tight. */
+    TEST_ASSERT_FLOAT_WITHIN(0.0005f, 0.038197f, at.kp_result);
+}
+
+static void test_autotune_timeout_resets_when_cycling_starts(void)
+{
+    pid_autotune_t at;
+    pid_autotune_start(&at, 100.0f, 5.0f);
+    float out = 0.0f;
+
+    /* Spend 50 min heating to setpoint (under the 60-min heat-up budget). */
+    host_clock_advance(50LL * 60 * 1000000);
+    pid_autotune_update(&at, 20.0f, &out);
+    TEST_ASSERT_EQUAL(AUTOTUNE_HEATING_TO_SETPOINT, at.state);
+
+    /* Reach setpoint → cycling. The cycling timeout must start fresh; if it
+       inherited the 50 min already elapsed, 30 more min would trip the 60-min
+       cap and fail. */
+    pid_autotune_update(&at, 96.0f, &out);
+    TEST_ASSERT_EQUAL(AUTOTUNE_RELAY_CYCLING, at.state);
+
+    host_clock_advance(30LL * 60 * 1000000);
+    bool done = pid_autotune_update(&at, 101.0f, &out);
+    TEST_ASSERT_FALSE(done);
+    TEST_ASSERT_EQUAL(AUTOTUNE_RELAY_CYCLING, at.state);
+}
+
 static void test_autotune_times_out_after_60_minutes(void)
 {
     pid_autotune_t at;
@@ -230,6 +275,8 @@ int main(void)
     RUN_TEST(test_autotune_starts_in_heating_state);
     RUN_TEST(test_autotune_transitions_to_relay_cycling_at_setpoint);
     RUN_TEST(test_autotune_completes_with_sane_gains_under_synthetic_oscillation);
+    RUN_TEST(test_autotune_ku_uses_relay_half_amplitude);
+    RUN_TEST(test_autotune_timeout_resets_when_cycling_starts);
     RUN_TEST(test_autotune_times_out_after_60_minutes);
     RUN_TEST(test_autotune_cancel_returns_to_idle);
     return UNITY_END();
