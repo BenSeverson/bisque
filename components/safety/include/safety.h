@@ -14,6 +14,17 @@ extern "C" {
 #define SAFETY_BIT_TEMP_FAULT      (1 << 1)
 #define SAFETY_BIT_FIRING_COMPLETE (1 << 2)
 
+/* Why the most recent emergency stop tripped. The firing engine maps this onto
+ * its own error code so the UI can show a specific cause; SAFETY_TRIP_OTHER
+ * covers engine-initiated trips (not-rising, runaway) that already set their
+ * own code, and control-loop stalls. */
+typedef enum {
+    SAFETY_TRIP_NONE = 0,
+    SAFETY_TRIP_TC_FAULT,
+    SAFETY_TRIP_OVER_TEMP,
+    SAFETY_TRIP_OTHER,
+} safety_trip_cause_t;
+
 /**
  * Initialize the safety system.
  * @param ssr_pin       GPIO that drives the SSR (set LOW on emergency stop)
@@ -50,8 +61,20 @@ EventGroupHandle_t safety_get_event_group(void);
 
 /**
  * Trigger an emergency stop. Immediately drives SSR LOW and sets event bit.
+ * Equivalent to safety_emergency_stop_cause(SAFETY_TRIP_OTHER).
  */
 void safety_emergency_stop(void);
+
+/**
+ * Like safety_emergency_stop(), but records why it tripped. The cause is latched
+ * (first cause wins until safety_clear_emergency()).
+ */
+void safety_emergency_stop_cause(safety_trip_cause_t cause);
+
+/**
+ * Cause of the latched emergency stop, or SAFETY_TRIP_NONE if not tripped.
+ */
+safety_trip_cause_t safety_get_trip_cause(void);
 
 /**
  * Clear the emergency stop condition (after user acknowledges).

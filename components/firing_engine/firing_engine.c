@@ -52,6 +52,19 @@ static uint64_t s_element_on_accum_us = 0;
 
 /* ── Internal helpers ──────────────────────────────── */
 
+/* Map a safety trip cause onto the firing error code shown in the UI. */
+static firing_error_code_t firing_err_from_trip(safety_trip_cause_t cause)
+{
+    switch (cause) {
+    case SAFETY_TRIP_TC_FAULT:
+        return FIRING_ERR_TC_FAULT;
+    case SAFETY_TRIP_OVER_TEMP:
+        return FIRING_ERR_OVER_TEMP;
+    default:
+        return FIRING_ERR_EMERGENCY_STOP;
+    }
+}
+
 static void progress_lock(void)
 {
     xSemaphoreTake(s_progress_mutex, portMAX_DELAY);
@@ -256,23 +269,6 @@ QueueHandle_t firing_engine_get_cmd_queue(void)
 QueueHandle_t firing_engine_get_event_queue(void)
 {
     return s_event_queue;
-}
-
-static void emit_event(firing_event_kind_t kind, float peak_temp, uint32_t duration_s)
-{
-    firing_event_t evt = {
-        .kind = kind,
-        .peak_temp = peak_temp,
-        .duration_s = duration_s,
-    };
-    progress_lock();
-    strncpy(evt.profile_id, s_progress.profile_id, FIRING_ID_LEN - 1);
-    evt.profile_id[FIRING_ID_LEN - 1] = '\0';
-    progress_unlock();
-
-    if (xQueueSend(s_event_queue, &evt, 0) != pdTRUE) {
-        ESP_LOGW(TAG, "event queue full, dropping %s", kind == FIRING_EVENT_COMPLETE ? "complete" : "error");
-    }
 }
 
 void firing_engine_get_progress(firing_progress_t *out)
@@ -563,6 +559,10 @@ typedef struct {
     float segment_hold_start_time_s;
     bool holding;
 
+    /* Highest temperature seen this firing — reported as the event peak (the
+     * value at completion can be well below the peak for cool-down segments). */
+    float peak_temp_c;
+
     /* Elapsed-time accumulator. */
     int64_t elapsed_accum_us;
 
@@ -588,6 +588,27 @@ typedef struct {
 
 static firing_state_t s_state;
 
+static void emit_event(firing_event_kind_t kind, float peak_temp, uint32_t duration_s)
+{
+    firing_event_t evt = {
+        .kind = kind,
+        .peak_temp = peak_temp,
+        .duration_s = duration_s,
+    };
+    progress_lock();
+    strncpy(evt.profile_id, s_progress.profile_id, FIRING_ID_LEN - 1);
+    evt.profile_id[FIRING_ID_LEN - 1] = '\0';
+    progress_unlock();
+    /* Carry the human-readable name too, so webhook payloads report e.g.
+       "Bisque Cone 04" rather than the slug "bisque-04". */
+    strncpy(evt.profile_name, s_state.active_profile.name, FIRING_NAME_LEN - 1);
+    evt.profile_name[FIRING_NAME_LEN - 1] = '\0';
+
+    if (xQueueSend(s_event_queue, &evt, 0) != pdTRUE) {
+        ESP_LOGW(TAG, "event queue full, dropping %s", kind == FIRING_EVENT_COMPLETE ? "complete" : "error");
+    }
+}
+
 static void start_segment(int segment_idx, float current_temp, int64_t now_us)
 {
     s_state.segment_start_time_us = now_us;
@@ -607,6 +628,7 @@ static void begin_firing(float cur_temp, int64_t now_us)
     s_state.check_start_temp = cur_temp;
     s_state.check_start_time_us = now_us;
     s_state.last_history_sample_us = now_us;
+    s_state.peak_temp_c = cur_temp;
     history_firing_start(s_state.active_profile.id, s_state.active_profile.name);
     progress_lock();
     s_progress.status = FIRING_STATUS_HEATING;
@@ -738,9 +760,9 @@ static void handle_cmd(const firing_cmd_t *cmd)
         bool was_active;
         progress_lock();
         was_active = s_progress.is_active;
-        float peak = s_progress.current_temp;
         uint32_t dur = s_progress.elapsed_time;
         progress_unlock();
+        float peak = s_state.peak_temp_c;
         if (was_active) {
             history_firing_end(HISTORY_OUTCOME_ABORTED, peak, dur, 0);
         }
@@ -750,6 +772,11 @@ static void handle_cmd(const firing_cmd_t *cmd)
     }
 
     case FIRING_CMD_PAUSE: {
+        /* Nothing to pause while a delayed start is still counting down. */
+        if (s_state.delay_active) {
+            ESP_LOGW(TAG, "PAUSE ignored: firing has not started (delay armed)");
+            break;
+        }
         bool did_pause = false;
         progress_lock();
         if (s_progress.is_active && s_progress.status != FIRING_STATUS_PAUSED) {
@@ -793,6 +820,12 @@ static void handle_cmd(const firing_cmd_t *cmd)
     }
 
     case FIRING_CMD_SKIP_SEGMENT: {
+        /* No segment is running yet during a delayed start; skipping here would
+           wrongly start_segment() and then begin_firing() would restart it. */
+        if (s_state.delay_active) {
+            ESP_LOGW(TAG, "SKIP ignored: firing has not started (delay armed)");
+            break;
+        }
         progress_lock();
         bool active = s_progress.is_active;
         int seg_idx = s_progress.current_segment;
@@ -812,10 +845,9 @@ static void handle_cmd(const firing_cmd_t *cmd)
         } else if (active && seg_idx + 1 >= total) {
             /* Skip last segment → firing complete */
             progress_lock();
-            float peak = s_progress.current_temp;
             uint32_t dur = s_progress.elapsed_time;
             progress_unlock();
-            complete_firing(peak, dur, false);
+            complete_firing(s_state.peak_temp_c, dur, false);
         }
         break;
     }
@@ -861,6 +893,21 @@ void firing_tick(int64_t now_us)
 {
     /* Handle delay-start countdown */
     if (s_state.delay_active) {
+        /* A latched emergency cancels the armed firing before it starts, so it
+           never energizes the kiln a tick later and then errors out. No history
+           was opened during the delay, so just clear the armed state. */
+        if (safety_is_emergency()) {
+            s_state.delay_active = false;
+            progress_lock();
+            s_progress.is_active = false;
+            s_progress.status = FIRING_STATUS_ERROR;
+            progress_unlock();
+            if (s_last_error_code == FIRING_ERR_NONE) {
+                s_last_error_code = firing_err_from_trip(safety_get_trip_cause());
+            }
+            safety_set_ssr(0.0f);
+            return;
+        }
         if (now_us >= s_state.delay_start_end_us) {
             s_state.delay_active = false;
             thermocouple_reading_t r;
@@ -905,13 +952,16 @@ void firing_tick(int64_t now_us)
     if (safety_is_emergency()) {
         progress_lock();
         if (s_progress.is_active) {
-            float peak = s_progress.current_temp;
+            float peak = s_state.peak_temp_c;
             uint32_t dur = s_progress.elapsed_time;
             s_progress.is_active = false;
             s_progress.status = FIRING_STATUS_ERROR;
             progress_unlock();
+            /* Attribute the stop. not-rising/runaway set their code before
+               tripping; otherwise translate the safety trip cause (TC fault,
+               over-temp) so the UI shows a specific reason. */
             if (s_last_error_code == FIRING_ERR_NONE) {
-                s_last_error_code = FIRING_ERR_EMERGENCY_STOP;
+                s_last_error_code = firing_err_from_trip(safety_get_trip_cause());
             }
             history_firing_end(HISTORY_OUTCOME_ERROR, peak, dur, (int)s_last_error_code);
             emit_event(FIRING_EVENT_ERROR, peak, dur);
@@ -928,6 +978,11 @@ void firing_tick(int64_t now_us)
     int seg_idx = s_progress.current_segment;
     s_progress.current_temp = current_temp;
     progress_unlock();
+
+    /* Track the running peak for the completion/error event. */
+    if (active && current_temp > s_state.peak_temp_c) {
+        s_state.peak_temp_c = current_temp;
+    }
 
     if (!active || status == FIRING_STATUS_PAUSED || status == FIRING_STATUS_IDLE || status == FIRING_STATUS_COMPLETE ||
         status == FIRING_STATUS_ERROR) {
@@ -1063,11 +1118,11 @@ void firing_tick(int64_t now_us)
                 /* Firing complete */
                 safety_set_ssr(0.0f);
                 progress_lock();
-                float peak = s_progress.current_temp;
                 uint32_t dur = s_progress.elapsed_time;
                 s_progress.is_active = false;
                 s_progress.status = FIRING_STATUS_COMPLETE;
                 progress_unlock();
+                float peak = s_state.peak_temp_c;
                 history_firing_end(HISTORY_OUTCOME_COMPLETE, peak, dur, 0);
                 save_element_hours();
                 xEventGroupSetBits(safety_get_event_group(), SAFETY_BIT_FIRING_COMPLETE);

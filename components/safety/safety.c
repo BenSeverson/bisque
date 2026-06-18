@@ -33,6 +33,7 @@ static int s_alarm_gpio = -1;
 static int s_vent_gpio = -1;
 static float s_max_safe_temp = 1300.0f;
 static float s_tc_offset_c = 0.0f;
+static safety_trip_cause_t s_trip_cause = SAFETY_TRIP_NONE;
 static EventGroupHandle_t s_event_group;
 static portMUX_TYPE s_safety_mux = portMUX_INITIALIZER_UNLOCKED;
 
@@ -202,7 +203,7 @@ EventGroupHandle_t safety_get_event_group(void)
     return s_event_group;
 }
 
-void safety_emergency_stop(void)
+void safety_emergency_stop_cause(safety_trip_cause_t cause)
 {
     if (s_ssr_pin >= 0) {
         gpio_set_level(s_ssr_pin, 0);
@@ -213,14 +214,36 @@ void safety_emergency_stop(void)
     }
     portENTER_CRITICAL(&s_safety_mux);
     s_ssr_duty = 0.0f;
+    /* Latch the first cause — safety_task re-trips every 500 ms while a fault
+       persists, and the engine reads the cause on the first emergency tick. */
+    if (s_trip_cause == SAFETY_TRIP_NONE) {
+        s_trip_cause = cause;
+    }
     portEXIT_CRITICAL(&s_safety_mux);
 
     xEventGroupSetBits(s_event_group, SAFETY_BIT_EMERGENCY_STOP);
-    ESP_LOGE(TAG, "EMERGENCY STOP activated");
+    ESP_LOGE(TAG, "EMERGENCY STOP activated (cause=%d)", (int)cause);
+}
+
+void safety_emergency_stop(void)
+{
+    safety_emergency_stop_cause(SAFETY_TRIP_OTHER);
+}
+
+safety_trip_cause_t safety_get_trip_cause(void)
+{
+    safety_trip_cause_t cause;
+    portENTER_CRITICAL(&s_safety_mux);
+    cause = s_trip_cause;
+    portEXIT_CRITICAL(&s_safety_mux);
+    return cause;
 }
 
 void safety_clear_emergency(void)
 {
+    portENTER_CRITICAL(&s_safety_mux);
+    s_trip_cause = SAFETY_TRIP_NONE;
+    portEXIT_CRITICAL(&s_safety_mux);
     xEventGroupClearBits(s_event_group, SAFETY_BIT_EMERGENCY_STOP);
     ESP_LOGI(TAG, "Emergency stop cleared");
 }
@@ -335,7 +358,7 @@ void safety_task(void *param)
             if ((now - last_valid_reading_us) > TEMP_FAULT_TIMEOUT_US) {
                 ESP_LOGE(TAG, "Thermocouple fault persisted >5s, emergency stop");
                 xEventGroupSetBits(s_event_group, SAFETY_BIT_TEMP_FAULT);
-                safety_emergency_stop();
+                safety_emergency_stop_cause(SAFETY_TRIP_TC_FAULT);
             }
         } else {
             last_valid_reading_us = reading.timestamp_us;
@@ -356,7 +379,7 @@ void safety_task(void *param)
             if (corrected > max_temp || reading.temperature_c > APP_HARDWARE_MAX_TEMP_C) {
                 ESP_LOGE(TAG, "Over-temp: %.1f°C (corrected %.1f°C) exceeds limit %.1f°C", reading.temperature_c,
                          corrected, max_temp);
-                safety_emergency_stop();
+                safety_emergency_stop_cause(SAFETY_TRIP_OVER_TEMP);
             }
         }
 
@@ -364,7 +387,7 @@ void safety_task(void *param)
         if (reading.timestamp_us > 0 && (now - reading.timestamp_us) > TEMP_FAULT_TIMEOUT_US) {
             ESP_LOGE(TAG, "No thermocouple data for >5s, emergency stop");
             xEventGroupSetBits(s_event_group, SAFETY_BIT_TEMP_FAULT);
-            safety_emergency_stop();
+            safety_emergency_stop_cause(SAFETY_TRIP_TC_FAULT);
         }
 
         /* Control-loop heartbeat. safety_set_ssr() runs every firing tick; if it

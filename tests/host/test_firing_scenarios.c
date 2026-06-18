@@ -481,6 +481,109 @@ static void test_profile_key_collision_rejected(void)
     TEST_ASSERT_EQUAL_INT(2, firing_engine_list_profiles(ids, FIRING_MAX_PROFILES));
 }
 
+/* ── Trip cause maps to a specific firing error code (#72) ──────────────── */
+
+static void test_tc_fault_cause_maps_to_tc_fault_error(void)
+{
+    firing_profile_t p = scenario_short_profile();
+    scenario_start(&p, 0);
+    TEST_ASSERT_TRUE(scenario_run_until_status(&g_plant, FIRING_STATUS_HEATING, 30));
+
+    safety_emergency_stop_cause(SAFETY_TRIP_TC_FAULT);
+    scenario_run_ticks(&g_plant, 1);
+
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL(FIRING_STATUS_ERROR, prog.status);
+    TEST_ASSERT_EQUAL(FIRING_ERR_TC_FAULT, firing_engine_get_error_code());
+}
+
+static void test_over_temp_cause_maps_to_over_temp_error(void)
+{
+    firing_profile_t p = scenario_short_profile();
+    scenario_start(&p, 0);
+    TEST_ASSERT_TRUE(scenario_run_until_status(&g_plant, FIRING_STATUS_HEATING, 30));
+
+    safety_emergency_stop_cause(SAFETY_TRIP_OVER_TEMP);
+    scenario_run_ticks(&g_plant, 1);
+
+    TEST_ASSERT_EQUAL(FIRING_ERR_OVER_TEMP, firing_engine_get_error_code());
+}
+
+/* ── Completion event carries the true peak and the profile name (#73) ──── */
+
+static void test_event_reports_true_peak_and_profile_name(void)
+{
+    firing_profile_t p = {0};
+    strncpy(p.id, "peak-name", FIRING_ID_LEN - 1);
+    strncpy(p.name, "Peak Name Test", FIRING_NAME_LEN - 1);
+    p.segment_count = 2;
+    p.max_temp = 250.0f;
+    p.estimated_duration = 20;
+    p.segments[0].ramp_rate = 12000.0f; /* heat to 250 */
+    p.segments[0].target_temp = 250.0f;
+    p.segments[0].hold_time = 0;
+    p.segments[1].ramp_rate = -12000.0f; /* cool to 100 */
+    p.segments[1].target_temp = 100.0f;
+    p.segments[1].hold_time = 0;
+
+    scenario_start(&p, 0);
+    TEST_ASSERT_TRUE(scenario_run_until_status(&g_plant, FIRING_STATUS_COMPLETE, 15 * 60));
+
+    firing_event_t evt;
+    TEST_ASSERT_EQUAL(pdTRUE, xQueueReceive(firing_engine_get_event_queue(), &evt, 0));
+    TEST_ASSERT_EQUAL(FIRING_EVENT_COMPLETE, evt.kind);
+    TEST_ASSERT_EQUAL_STRING("Peak Name Test", evt.profile_name);
+    /* Final temp is ~100°C (cool-down), but the peak reached ~250°C. */
+    TEST_ASSERT_TRUE_MESSAGE(evt.peak_temp > 200.0f, "event peak should be the max reached, not the final temp");
+}
+
+/* ── Delay-start command guards (#74) ───────────────────────────────────── */
+
+static void test_skip_ignored_during_delay(void)
+{
+    firing_profile_t p = scenario_short_profile();
+    scenario_start(&p, 2); /* 2-minute delay */
+    scenario_run_ticks(&g_plant, 30);
+
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL(FIRING_STATUS_IDLE, prog.status);
+    TEST_ASSERT_TRUE(prog.is_active);
+
+    scenario_skip(); /* must be ignored while the start is still armed */
+    scenario_run_ticks(&g_plant, 1);
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL(FIRING_STATUS_IDLE, prog.status);
+    TEST_ASSERT_EQUAL_UINT8(0, prog.current_segment);
+
+    /* Delay still expires and the firing starts cleanly from segment 0. */
+    TEST_ASSERT_TRUE(scenario_run_until_status(&g_plant, FIRING_STATUS_HEATING, 90));
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL_UINT8(0, prog.current_segment);
+}
+
+static void test_emergency_during_delay_cancels_firing(void)
+{
+    firing_profile_t p = scenario_short_profile();
+    scenario_start(&p, 2);
+    scenario_run_ticks(&g_plant, 5);
+
+    safety_emergency_stop();
+    scenario_run_ticks(&g_plant, 1);
+
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL(FIRING_STATUS_ERROR, prog.status);
+    TEST_ASSERT_FALSE(prog.is_active);
+
+    /* Past the delay window, the cancelled firing must not start. */
+    scenario_run_ticks(&g_plant, 3 * 60);
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_FALSE(prog.is_active);
+    TEST_ASSERT_EQUAL(FIRING_STATUS_ERROR, prog.status);
+}
+
 int main(void)
 {
     /* Init firing engine once for the whole binary — queues/mutexes are
@@ -504,5 +607,10 @@ int main(void)
     RUN_TEST(test_pause_does_not_jump_setpoint);
     RUN_TEST(test_element_hours_accumulate_subsecond_ticks);
     RUN_TEST(test_profile_key_collision_rejected);
+    RUN_TEST(test_tc_fault_cause_maps_to_tc_fault_error);
+    RUN_TEST(test_over_temp_cause_maps_to_over_temp_error);
+    RUN_TEST(test_event_reports_true_peak_and_profile_name);
+    RUN_TEST(test_skip_ignored_during_delay);
+    RUN_TEST(test_emergency_during_delay_cancels_firing);
     return UNITY_END();
 }

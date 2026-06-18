@@ -7,6 +7,7 @@ static bool s_emergency;
 static float s_max_temp = 1300.0f;
 static float s_last_duty;
 static bool s_vent_active;
+static safety_trip_cause_t s_trip_cause = SAFETY_TRIP_NONE;
 
 static EventGroupHandle_t event_group_get(void)
 {
@@ -48,16 +49,30 @@ EventGroupHandle_t safety_get_event_group(void)
     return event_group_get();
 }
 
-void safety_emergency_stop(void)
+void safety_emergency_stop_cause(safety_trip_cause_t cause)
 {
     s_emergency = true;
     s_last_duty = 0.0f;
+    if (s_trip_cause == SAFETY_TRIP_NONE) {
+        s_trip_cause = cause;
+    }
     xEventGroupSetBits(event_group_get(), SAFETY_BIT_EMERGENCY_STOP);
+}
+
+void safety_emergency_stop(void)
+{
+    safety_emergency_stop_cause(SAFETY_TRIP_OTHER);
+}
+
+safety_trip_cause_t safety_get_trip_cause(void)
+{
+    return s_trip_cause;
 }
 
 void safety_clear_emergency(void)
 {
     s_emergency = false;
+    s_trip_cause = SAFETY_TRIP_NONE;
     xEventGroupClearBits(event_group_get(), SAFETY_BIT_EMERGENCY_STOP);
 }
 
@@ -119,6 +134,7 @@ void safety_test_reset(void)
     s_max_temp = 1300.0f;
     s_last_duty = 0.0f;
     s_vent_active = false;
+    s_trip_cause = SAFETY_TRIP_NONE;
     if (s_event_group) {
         xEventGroupClearBits(s_event_group, 0xFFFFFFFFU);
     }
