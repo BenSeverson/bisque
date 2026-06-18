@@ -41,6 +41,13 @@ static float s_ssr_duty = 0.0f;
 static int64_t s_ssr_window_start_us = 0;
 #define SSR_WINDOW_US ((int64_t)APP_SSR_WINDOW_MS * 1000LL)
 
+/* Re-evaluate the time-proportional window at 10 Hz so duty resolves to ~1% of
+ * the window instead of the ~3 coarse levels a 1 Hz update produced. */
+static esp_timer_handle_t s_ssr_timer = NULL;
+#define SSR_APPLY_PERIOD_US (100LL * 1000LL)
+
+static void ssr_timer_cb(void *arg);
+
 /* Control-loop heartbeat: safety_set_ssr() is called every firing tick (1 Hz).
  * If it goes silent while the element is commanded on, the firing task has
  * wedged with the SSR latched — safety_task forces the output off (and trips an
@@ -172,6 +179,20 @@ esp_err_t safety_init(int ssr_pin, float max_safe_temp)
         return ESP_ERR_NO_MEM;
     }
 
+    /* Periodic timer that re-applies the time-proportional SSR window. */
+    const esp_timer_create_args_t ssr_timer_args = {
+        .callback = ssr_timer_cb,
+        .name = "ssr_window",
+    };
+    esp_err_t terr = esp_timer_create(&ssr_timer_args, &s_ssr_timer);
+    if (terr != ESP_OK) {
+        return terr;
+    }
+    terr = esp_timer_start_periodic(s_ssr_timer, SSR_APPLY_PERIOD_US);
+    if (terr != ESP_OK) {
+        return terr;
+    }
+
     ESP_LOGI(TAG, "Safety initialized: SSR pin=%d, max_safe_temp=%.0f°C", ssr_pin, s_max_safe_temp);
     return ESP_OK;
 }
@@ -233,6 +254,43 @@ void safety_set_tc_offset(float offset_c)
     portEXIT_CRITICAL(&s_safety_mux);
 }
 
+/* Drive the SSR GPIO from the stored duty using the time-proportional window.
+ * Called both from safety_set_ssr() (for immediate response when the control
+ * loop updates the duty) and from a periodic timer at SSR_APPLY_PERIOD_US so
+ * the on/off edge lands at the right point within the window instead of only at
+ * the 1 Hz control cadence — that 1 Hz sampling collapsed the output to a few
+ * coarse duty levels. */
+static void ssr_window_apply(void)
+{
+    if (s_ssr_pin < 0) {
+        return;
+    }
+    if (safety_is_emergency()) {
+        gpio_set_level(s_ssr_pin, 0);
+        return;
+    }
+
+    int64_t now = esp_timer_get_time();
+    float duty;
+    portENTER_CRITICAL(&s_safety_mux);
+    duty = s_ssr_duty;
+    int64_t elapsed = now - s_ssr_window_start_us;
+    if (elapsed >= SSR_WINDOW_US) {
+        s_ssr_window_start_us = now;
+        elapsed = 0;
+    }
+    portEXIT_CRITICAL(&s_safety_mux);
+
+    int64_t on_time = (int64_t)(duty * SSR_WINDOW_US);
+    gpio_set_level(s_ssr_pin, (elapsed < on_time) ? 1 : 0);
+}
+
+static void ssr_timer_cb(void *arg)
+{
+    (void)arg;
+    ssr_window_apply();
+}
+
 void safety_set_ssr(float duty)
 {
     if (safety_is_emergency()) {
@@ -253,15 +311,9 @@ void safety_set_ssr(float duty)
     s_last_ssr_cmd_us = now; /* feed the control-loop heartbeat */
     portEXIT_CRITICAL(&s_safety_mux);
 
-    /* Time-proportional output: within a 2-second window, SSR is on for (duty * window) */
-    int64_t elapsed = now - s_ssr_window_start_us;
-    if (elapsed >= SSR_WINDOW_US) {
-        s_ssr_window_start_us = now;
-        elapsed = 0;
-    }
-
-    int64_t on_time = (int64_t)(duty * SSR_WINDOW_US);
-    gpio_set_level(s_ssr_pin, (elapsed < on_time) ? 1 : 0);
+    /* Apply immediately for low latency; the periodic timer keeps the window
+       edge accurate between control updates. */
+    ssr_window_apply();
 }
 
 void safety_task(void *param)
