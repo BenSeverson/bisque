@@ -328,22 +328,24 @@ static esp_err_t handle_get_profile(httpd_req_t *req)
     }
     const char *id_start = uri + strlen(prefix);
 
-    /* Detect /export suffix */
+    /* Find the ID's end on the *full* URI before copying — stop at a query
+       string or the "/export" suffix. Doing this on a truncated copy dropped the
+       suffix (and mangled the ID) for IDs near FIRING_ID_LEN. */
     bool is_export = false;
-    char id_buf[FIRING_ID_LEN];
-    strncpy(id_buf, id_start, sizeof(id_buf) - 1);
-    id_buf[sizeof(id_buf) - 1] = '\0';
-    char *q = strchr(id_buf, '?');
-    if (q) {
-        *q = '\0';
-    }
-
-    /* Check if ends with /export */
-    char *export_suffix = strstr(id_buf, "/export");
-    if (export_suffix) {
-        *export_suffix = '\0';
+    const char *id_end = id_start + strcspn(id_start, "?");
+    const char *export_suffix = strstr(id_start, "/export");
+    if (export_suffix && export_suffix < id_end) {
+        id_end = export_suffix;
         is_export = true;
     }
+
+    size_t id_len = (size_t)(id_end - id_start);
+    if (id_len >= FIRING_ID_LEN) {
+        id_len = FIRING_ID_LEN - 1;
+    }
+    char id_buf[FIRING_ID_LEN];
+    memcpy(id_buf, id_start, id_len);
+    id_buf[id_len] = '\0';
 
     firing_profile_t profile;
     if (firing_engine_load_profile(id_buf, &profile) != ESP_OK) {
@@ -1409,6 +1411,8 @@ static esp_err_t handle_reboot(httpd_req_t *req)
 
 /* ── Register All Handlers ─────────────────────────── */
 
+/* Counts successful registrations so the summary log can't drift from the
+   actual endpoint count. `registered` is declared in api_handlers_register(). */
 #define REGISTER_API(path, http_method, fn)                                                    \
     do {                                                                                       \
         /* NOLINTNEXTLINE(bugprone-macro-parentheses) -- struct init, parens not needed */     \
@@ -1416,6 +1420,8 @@ static esp_err_t handle_reboot(httpd_req_t *req)
         esp_err_t e = httpd_register_uri_handler(server, &u);                                  \
         if (e != ESP_OK)                                                                       \
             ESP_LOGW(TAG, "Failed to register %s: %s", path, esp_err_to_name(e));              \
+        else                                                                                   \
+            registered++;                                                                      \
     } while (0)
 
 esp_err_t api_handlers_register(httpd_handle_t server)
@@ -1429,6 +1435,8 @@ esp_err_t api_handlers_register(httpd_handle_t server)
         ESP_LOGW(TAG, "Failed to init board temperature sensor");
         s_board_temp_handle = NULL;
     }
+
+    int registered = 0;
 
     /* Core endpoints */
     REGISTER_API("/api/v1/status", HTTP_GET, handle_get_status);
@@ -1480,6 +1488,6 @@ esp_err_t api_handlers_register(httpd_handle_t server)
     REGISTER_API("/api/v1/wifi", HTTP_DELETE, handle_delete_wifi);
     REGISTER_API("/api/v1/reboot", HTTP_POST, handle_reboot);
 
-    ESP_LOGI(TAG, "API handlers registered (%d endpoints)", 34);
+    ESP_LOGI(TAG, "API handlers registered (%d endpoints)", registered);
     return ESP_OK;
 }

@@ -59,11 +59,20 @@ static void dashboard_tick_cb(lv_timer_t *t)
 
     dashboard_update(&tc, &prog);
 
-    float temp = tc.fault ? 0 : tc.temperature_c;
-    uint32_t hours = prog.elapsed_time / 3600;
-    uint32_t mins = (prog.elapsed_time % 3600) / 60;
-    ESP_LOGI(TAG, "Temp: %.0f°C/%.0f°C | %s | Seg %d/%d | %" PRIu32 "h %" PRIu32 "m", temp, prog.target_temp,
-             ui_status_label(prog.status), prog.current_segment + 1, prog.total_segments, hours, mins);
+    /* This timer fires every 500 ms; logging every tick is ~170k INFO lines per
+       day. Emit a status line only when the status changes or roughly once a
+       minute, which keeps the monitor useful without drowning it. */
+    static firing_status_t last_status = (firing_status_t)-1;
+    static uint32_t ticks_since_log = 0;
+    if (prog.status != last_status || ++ticks_since_log >= 120) {
+        float temp = tc.fault ? 0 : tc.temperature_c;
+        uint32_t hours = prog.elapsed_time / 3600;
+        uint32_t mins = (prog.elapsed_time % 3600) / 60;
+        ESP_LOGI(TAG, "Temp: %.0f°C/%.0f°C | %s | Seg %d/%d | %" PRIu32 "h %" PRIu32 "m", temp, prog.target_temp,
+                 ui_status_label(prog.status), prog.current_segment + 1, prog.total_segments, hours, mins);
+        last_status = prog.status;
+        ticks_since_log = 0;
+    }
 }
 
 /* Render the splash, then loop pumping LVGL until boot is complete and the

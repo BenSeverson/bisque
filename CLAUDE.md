@@ -54,7 +54,7 @@ partitions.csv      # ESP32 partition table (16MB, OTA-enabled)
 - **Interface:** SPI @ 40 MHz (SPI2_HOST)
 - **Pins:** MOSI=11, SCLK=12, CS=8, DC=9, RST=46, BL=3 (active-high)
 - **Input:** 5-way nav switch (Up=GPIO4, Down=GPIO5, Left=GPIO6, Right=GPIO2, Center/Select=GPIO1), active-low with pull-up, 50ms debounce. Source of truth: `components/app_config/include/app_config.h` (`APP_PIN_BTN_*`).
-- **Rendering:** Partial refresh, double-buffered DMA (40 rows), ~30 FPS
+- **Rendering:** Partial refresh, double-buffered DMA (30 rows), ~30 FPS
 
 ### LVGL Configuration
 
