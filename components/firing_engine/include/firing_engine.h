@@ -29,6 +29,7 @@ typedef enum {
 typedef struct {
     firing_event_kind_t kind;
     char profile_id[FIRING_ID_LEN];
+    char profile_name[FIRING_NAME_LEN];
     float peak_temp;
     uint32_t duration_s;
 } firing_event_t;
