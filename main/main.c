@@ -153,12 +153,15 @@ void app_main(void)
     }
 
     /* ── NTP Time Sync ─────────────────────────────── */
-    if (!wifi_manager_is_ap_mode()) {
-        esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
-        esp_sntp_setservername(0, "pool.ntp.org");
-        esp_sntp_init();
-        ESP_LOGI(TAG, "NTP sync started");
-    }
+    /* Start unconditionally: SNTP polls in the background and syncs whenever
+       connectivity appears, so a STA that associates after the 30 s boot wait
+       (or after a later AP→STA transition) still gets the clock set. In pure AP
+       mode there's no route to pool.ntp.org and it simply keeps retrying
+       harmlessly — cheap next to leaving firing-history timestamps at 1970. */
+    esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    esp_sntp_setservername(0, "pool.ntp.org");
+    esp_sntp_init();
+    ESP_LOGI(TAG, "NTP sync started");
 
     /* ── History Init (after SPIFFS, before web server) ── */
     /* Web server mounts SPIFFS; we call history_init after it */
