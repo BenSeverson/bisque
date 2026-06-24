@@ -1150,11 +1150,11 @@ void firing_tick(int64_t now_us)
     progress_lock();
     s_progress.elapsed_time = (uint32_t)(s_state.elapsed_accum_us / 1000000);
     s_progress.target_temp = setpoint;
-    if (s_state.active_profile.estimated_duration > 0) {
-        uint32_t est_total_s = s_state.active_profile.estimated_duration * 60;
-        s_progress.estimated_remaining =
-            (s_progress.elapsed_time < est_total_s) ? (est_total_s - s_progress.elapsed_time) : 0;
-    }
+    /* Live ETA from the current segment/temperature so it stays useful even
+       after the kiln runs past the profile's up-front estimate. */
+    float hold_elapsed_s = s_state.holding ? ((float)now_us / 1000000.0f - s_state.segment_hold_start_time_s) : 0.0f;
+    s_progress.estimated_remaining = firing_remaining_s(&s_state.active_profile, s_progress.current_segment,
+                                                        current_temp, s_state.holding, hold_elapsed_s);
     progress_unlock();
 }
 

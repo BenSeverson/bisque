@@ -40,6 +40,23 @@ float compute_dynamic_setpoint(const firing_segment_t *seg, float seg_start_temp
 bool at_target_predicate(float current_temp, float setpoint, float target_temp);
 
 /**
+ * Estimate seconds remaining in a firing from the *current* state rather than a
+ * fixed up-front guess, so the value stays meaningful even once the kiln has
+ * run past the profile's estimated_duration.
+ *
+ * Sums: the remaining ramp in the current segment (from current_temp to its
+ * target at its ramp rate — only when still moving toward the target) plus its
+ * remaining hold, then the full planned ramp + hold of every later segment
+ * (each starting from the previous target). Indefinite holds contribute 0
+ * (unknown duration). Returns 0 for a NULL/empty profile or an out-of-range
+ * segment.
+ *
+ * Pure: no globals, no I/O.
+ */
+uint32_t firing_remaining_s(const firing_profile_t *profile, int current_segment, float current_temp, bool holding,
+                            float hold_elapsed_s);
+
+/**
  * Advance the firing engine by one tick using `now_us` as wall-clock time.
  *
  * On the firmware, firing_task() calls this once per second from the virtual
