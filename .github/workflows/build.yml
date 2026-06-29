@@ -69,7 +69,7 @@ jobs:
           echo "version=${LVGL_VERSION}" >> "$GITHUB_OUTPUT"
       - name: Cache LVGL clone
         id: lvgl-cache
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: managed_components/lvgl__lvgl
           key: lvgl-v${{ steps.lvgl.outputs.version }}
@@ -165,7 +165,7 @@ jobs:
       # units are not recompiled. restore-keys takes the most recent prior
       # cache when there is no exact SHA hit.
       - name: Cache ccache
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .ccache
           key: esp-idf-ccache-${{ github.sha }}
