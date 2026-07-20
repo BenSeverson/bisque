@@ -12,6 +12,7 @@ module's castellated pads. No BGA, no QFN, no bare chips.
 | `bisque-controller.kicad_sch` | Schematic (A3, netlist-style: functional groups + global labels) |
 | `bisque-controller.kicad_pcb` | Board: placed, fully routed, GND pours on both layers |
 | `preview-board.svg` | Quick visual of placement + routing (generator output, not KiCad-rendered) |
+| `3d/board-3d-*.png` | 3D renders (iso / front / top / underside) |
 | `generator/` | Python scripts that generate both files from one connectivity table |
 
 ## Opening it
@@ -115,6 +116,18 @@ python3 generator/gen_pcb.py bisque-controller.kicad_pcb
 python3 generator/check_pcb.py bisque-controller.kicad_pcb   # must say ALL CHECKS PASS
 python3 generator/render_pcb.py bisque-controller.kicad_pcb preview-board.svg
 ```
+
+For 3D renders (`3d/`): `render_3d.py` parses the board file into a scene —
+board slab with real drilled holes, copper, and stylized per-package bodies —
+and renders it via three.js in headless chromium (software WebGL):
+
+```bash
+./generator/fetch-three.sh            # once: three.min.js from the npm registry
+python3 generator/render_3d.py bisque-controller.kicad_pcb 3d
+```
+
+(For photorealistic renders, KiCad's own 3D viewer with the official
+component models is still the reference — these are quick previews.)
 
 Footprints (`generator/fp/*.kicad_mod`, from kicad-footprints 9.0.9.1) are
 committed; symbol libraries are fetched on demand. Generation is
