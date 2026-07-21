@@ -6,6 +6,9 @@ ephemeral cloud container: the repo is cloned fresh on start and the container
 is reclaimed after inactivity, so **anything worth keeping must be committed and
 pushed**. See the [Claude Code on the web docs][docs].
 
+> Developing locally instead? The VS Code dev container gives you the same
+> toolchain on your own machine — see [devcontainer.md](devcontainer.md).
+
 ## What the SessionStart hook sets up
 
 `.claude/hooks/session-start.sh` runs automatically at the start of every web
