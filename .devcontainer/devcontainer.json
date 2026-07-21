@@ -1,0 +1,41 @@
+{
+  // Local VS Code dev container for Bisque. See docs/devcontainer.md.
+  // Mirrors the CI toolchain (ESP-IDF v6.0.1 + Node 24) and adds the Claude
+  // Code CLI so the full firmware + web workflow works out of the box.
+  "name": "Bisque (ESP-IDF v6.0.1 + web)",
+  "build": { "dockerfile": "Dockerfile" },
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "24" },
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
+  },
+  // ESP-IDF tools live under /opt/esp (root-owned) and CI runs the image as
+  // root — staying root avoids workspace/tool permission friction.
+  "remoteUser": "root",
+  "remoteEnv": { "IDF_TARGET": "esp32s3" },
+  "mounts": [
+    // Reuse host Claude auth/global config. Optional — if the host has no
+    // ~/.claude, remove this line and run `claude` once to log in.
+    "source=${localEnv:HOME}/.claude,target=/root/.claude,type=bind,consistency=cached"
+  ],
+  "postCreateCommand": "bash .devcontainer/postCreate.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "espressif.esp-idf-extension",
+        "ms-vscode.cpptools",
+        "ms-vscode.cmake-tools",
+        "anthropic.claude-code",
+        "xaver.clang-format",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss"
+      ],
+      "settings": {
+        "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json",
+        "idf.espIdfPath": "/opt/esp/idf",
+        "idf.toolsPath": "/opt/esp",
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  }
+}

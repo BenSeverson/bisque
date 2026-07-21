@@ -157,6 +157,15 @@ See also: [Wiring Diagram](docs/wiring-diagram.svg) | [Perfboard Layout](docs/pe
 - Node.js 18+
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) (for iOS development)
 
+### Dev Container (recommended)
+
+The fastest way to a reproducible toolchain is the VS Code dev container — it
+pins the exact ESP-IDF v6.0.1 image CI uses plus Node 24, the static-analysis
+tools, and the Claude Code CLI. Open the repo in VS Code and run **Dev
+Containers: Reopen in Container**. Everything below (firmware build, web UI,
+`make ci`) then works in the container terminal; only flashing needs a bench.
+See [docs/devcontainer.md](docs/devcontainer.md).
+
 ### Firmware
 
 ```bash
