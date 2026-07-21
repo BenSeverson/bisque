@@ -270,6 +270,21 @@ def body(B, fpname, value, fx, fy, frot, pads):
         box(2.54, -0.3, T, T + 10.2, 10.2, 9.8, "green_term")
         for (pn, gx, gy) in pads:
             B.cyl("hole_dark", gx, gy - 0 + 0, T + 10.2, T + 10.28, 1.5, seg=14)
+    elif "Molex_KK" in fpname:
+        # friction-lock header: base, tall latch-ramp wall, square pins
+        if pads:
+            xs = [p[1] for p in pads]
+            ys = [p[2] for p in pads]
+            cx, cy = (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2
+            n = len(pads)
+            L = (n - 1) * 2.54 + 2.9
+            horiz = abs(max(xs) - min(xs)) > abs(max(ys) - min(ys))
+            ang = 0.0 if horiz else 90.0
+            B.box("black", cx, cy, T, T + 1.3, L, 5.84, rot=ang)
+            wx, wy = (cx, cy - 2.45) if horiz else (cx + 2.45, cy)
+            B.box("black", wx, wy, T + 1.3, T + 8.1, L, 0.9, rot=ang)
+            for (pn, gx, gy) in pads:
+                B.box("gold", gx, gy, T + 1.3, T + 7.3, 0.64, 0.64)
     elif "PinHeader" in fpname:
         if pads:
             xs = [p[1] for p in pads]

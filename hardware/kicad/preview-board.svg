@@ -19,10 +19,12 @@
 <line x1="378.000000" y1="1027.600000" x2="378.000000" y2="921.200000" stroke="#2471a3" stroke-width="4.200000" stroke-linecap="round" opacity="0.9"/>
 <line x1="898.800000" y1="982.800000" x2="898.800000" y2="848.400000" stroke="#2471a3" stroke-width="4.200000" stroke-linecap="round" opacity="0.9"/>
 <line x1="898.800000" y1="428.400000" x2="898.800000" y2="406.000000" stroke="#2471a3" stroke-width="4.200000" stroke-linecap="round" opacity="0.9"/>
-<line x1="915.600000" y1="982.800000" x2="915.600000" y2="848.400000" stroke="#2471a3" stroke-width="4.200000" stroke-linecap="round" opacity="0.9"/>
+<line x1="210.000000" y1="1094.800000" x2="210.000000" y2="994.000000" stroke="#2471a3" stroke-width="4.200000" stroke-linecap="round" opacity="0.9"/>
+<line x1="915.600000" y1="893.200000" x2="915.600000" y2="848.400000" stroke="#2471a3" stroke-width="4.200000" stroke-linecap="round" opacity="0.9"/>
 <line x1="915.600000" y1="428.400000" x2="915.600000" y2="406.000000" stroke="#2471a3" stroke-width="4.200000" stroke-linecap="round" opacity="0.9"/>
-<line x1="249.200000" y1="1094.800000" x2="249.200000" y2="994.000000" stroke="#2471a3" stroke-width="4.200000" stroke-linecap="round" opacity="0.9"/>
-<line x1="932.400000" y1="893.200000" x2="932.400000" y2="848.400000" stroke="#2471a3" stroke-width="4.200000" stroke-linecap="round" opacity="0.9"/>
+<line x1="921.200000" y1="982.800000" x2="921.200000" y2="904.400000" stroke="#2471a3" stroke-width="4.200000" stroke-linecap="round" opacity="0.9"/>
+<line x1="921.200000" y1="904.400000" x2="926.800000" y2="904.400000" stroke="#2471a3" stroke-width="4.200000" stroke-linecap="round" opacity="0.9"/>
+<line x1="926.800000" y1="904.400000" x2="926.800000" y2="848.400000" stroke="#2471a3" stroke-width="4.200000" stroke-linecap="round" opacity="0.9"/>
 <line x1="932.400000" y1="428.400000" x2="932.400000" y2="406.000000" stroke="#2471a3" stroke-width="4.200000" stroke-linecap="round" opacity="0.9"/>
 <line x1="1094.800000" y1="378.000000" x2="1229.200000" y2="378.000000" stroke="#2471a3" stroke-width="4.200000" stroke-linecap="round" opacity="0.9"/>
 <line x1="641.200000" y1="1027.600000" x2="641.200000" y2="893.200000" stroke="#2471a3" stroke-width="4.200000" stroke-linecap="round" opacity="0.9"/>
@@ -39,9 +41,9 @@
 <line x1="798.000000" y1="1027.600000" x2="1010.800000" y2="1027.600000" stroke="#2471a3" stroke-width="4.200000" stroke-linecap="round" opacity="0.9"/>
 <line x1="1010.800000" y1="1027.600000" x2="1010.800000" y2="848.400000" stroke="#2471a3" stroke-width="4.200000" stroke-linecap="round" opacity="0.9"/>
 <line x1="1010.800000" y1="848.400000" x2="1016.400000" y2="848.400000" stroke="#2471a3" stroke-width="4.200000" stroke-linecap="round" opacity="0.9"/>
-<line x1="837.200000" y1="1094.800000" x2="837.200000" y2="1072.400000" stroke="#2471a3" stroke-width="4.200000" stroke-linecap="round" opacity="0.9"/>
-<line x1="837.200000" y1="1072.400000" x2="932.400000" y2="1072.400000" stroke="#2471a3" stroke-width="4.200000" stroke-linecap="round" opacity="0.9"/>
-<line x1="932.400000" y1="1072.400000" x2="932.400000" y2="1078.000000" stroke="#2471a3" stroke-width="4.200000" stroke-linecap="round" opacity="0.9"/>
+<line x1="837.200000" y1="1094.800000" x2="837.200000" y2="1066.800000" stroke="#2471a3" stroke-width="4.200000" stroke-linecap="round" opacity="0.9"/>
+<line x1="837.200000" y1="1066.800000" x2="932.400000" y2="1066.800000" stroke="#2471a3" stroke-width="4.200000" stroke-linecap="round" opacity="0.9"/>
+<line x1="932.400000" y1="1066.800000" x2="932.400000" y2="1078.000000" stroke="#2471a3" stroke-width="4.200000" stroke-linecap="round" opacity="0.9"/>
 <line x1="932.400000" y1="1078.000000" x2="1033.200000" y2="1078.000000" stroke="#2471a3" stroke-width="4.200000" stroke-linecap="round" opacity="0.9"/>
 <line x1="1033.200000" y1="1078.000000" x2="1033.200000" y2="859.600000" stroke="#2471a3" stroke-width="4.200000" stroke-linecap="round" opacity="0.9"/>
 <line x1="982.800000" y1="893.200000" x2="982.800000" y2="837.200000" stroke="#2471a3" stroke-width="4.200000" stroke-linecap="round" opacity="0.9"/>
@@ -278,29 +280,30 @@
 <line x1="842.800000" y1="568.400000" x2="842.800000" y2="344.400000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
 <line x1="842.800000" y1="344.400000" x2="870.800000" y2="344.400000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
 <line x1="870.800000" y1="344.400000" x2="871.500000" y2="345.940000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
-<line x1="355.600000" y1="1094.800000" x2="389.200000" y2="1094.800000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
-<line x1="389.200000" y1="1094.800000" x2="389.200000" y2="1111.600000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
-<line x1="389.200000" y1="1111.600000" x2="854.000000" y2="1111.600000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
-<line x1="854.000000" y1="1111.600000" x2="854.000000" y2="1005.200000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
+<line x1="355.600000" y1="1094.800000" x2="383.600000" y2="1094.800000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
+<line x1="383.600000" y1="1094.800000" x2="383.600000" y2="1117.200000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
+<line x1="383.600000" y1="1117.200000" x2="854.000000" y2="1117.200000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
+<line x1="854.000000" y1="1117.200000" x2="854.000000" y2="1005.200000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
 <line x1="854.000000" y1="1005.200000" x2="898.800000" y2="1005.200000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
 <line x1="898.800000" y1="1005.200000" x2="898.800000" y2="982.800000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
 <line x1="898.800000" y1="848.400000" x2="898.800000" y2="428.400000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
 <line x1="898.800000" y1="406.000000" x2="898.800000" y2="400.400000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
 <line x1="898.800000" y1="400.400000" x2="896.210000" y2="399.000000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
-<line x1="210.000000" y1="1094.800000" x2="226.800000" y2="1094.800000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
-<line x1="226.800000" y1="1094.800000" x2="226.800000" y2="1122.800000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
-<line x1="226.800000" y1="1122.800000" x2="926.800000" y2="1122.800000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
-<line x1="926.800000" y1="1122.800000" x2="926.800000" y2="1022.000000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
-<line x1="926.800000" y1="1022.000000" x2="915.600000" y2="1022.000000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
-<line x1="915.600000" y1="1022.000000" x2="915.600000" y2="982.800000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
+<line x1="210.000000" y1="994.000000" x2="210.000000" y2="954.800000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
+<line x1="210.000000" y1="954.800000" x2="826.000000" y2="954.800000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
+<line x1="826.000000" y1="954.800000" x2="826.000000" y2="893.200000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
+<line x1="826.000000" y1="893.200000" x2="915.600000" y2="893.200000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
 <line x1="915.600000" y1="848.400000" x2="915.600000" y2="428.400000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
 <line x1="915.600000" y1="406.000000" x2="915.600000" y2="400.400000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
 <line x1="915.600000" y1="400.400000" x2="913.990000" y2="399.000000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
-<line x1="249.200000" y1="994.000000" x2="249.200000" y2="954.800000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
-<line x1="249.200000" y1="954.800000" x2="826.000000" y2="954.800000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
-<line x1="826.000000" y1="954.800000" x2="826.000000" y2="893.200000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
-<line x1="826.000000" y1="893.200000" x2="932.400000" y2="893.200000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
-<line x1="932.400000" y1="848.400000" x2="932.400000" y2="428.400000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
+<line x1="249.200000" y1="1094.800000" x2="260.400000" y2="1094.800000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
+<line x1="260.400000" y1="1094.800000" x2="260.400000" y2="1128.400000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
+<line x1="260.400000" y1="1128.400000" x2="926.800000" y2="1128.400000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
+<line x1="926.800000" y1="1128.400000" x2="926.800000" y2="1022.000000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
+<line x1="926.800000" y1="1022.000000" x2="921.200000" y2="1022.000000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
+<line x1="921.200000" y1="1022.000000" x2="921.200000" y2="982.800000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
+<line x1="926.800000" y1="848.400000" x2="926.800000" y2="428.400000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
+<line x1="926.800000" y1="428.400000" x2="932.400000" y2="428.400000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
 <line x1="932.400000" y1="406.000000" x2="932.400000" y2="400.400000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
 <line x1="932.400000" y1="400.400000" x2="931.770000" y2="399.000000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
 <line x1="949.200000" y1="400.400000" x2="954.800000" y2="400.400000" stroke="#c0392b" stroke-width="4.200000" stroke-linecap="round" opacity="0.85"/>
@@ -624,33 +627,33 @@
 <rect x="707.700000" y="892.850000" width="14.000000" height="20.300000" fill="#e67e22" opacity="0.9"><title>C10.1 VLED</title></rect>
 <rect x="734.300000" y="892.850000" width="14.000000" height="20.300000" fill="#e67e22" opacity="0.9"><title>C10.2 GND</title></rect>
 <text x="728.000000" y="899.000000" fill="#ecf0f1" font-size="11" text-anchor="middle">C10</text>
-<rect x="93.100000" y="1080.100000" width="23.800000" height="23.800000" fill="#d4ac0d" opacity="0.9"><title>J5.1 +3V3</title></rect>
-<rect x="128.660000" y="1080.100000" width="23.800000" height="23.800000" fill="#d4ac0d" opacity="0.9"><title>J5.2 GND</title></rect>
-<rect x="164.220000" y="1080.100000" width="23.800000" height="23.800000" fill="#d4ac0d" opacity="0.9"><title>J5.3 LCD_CS</title></rect>
-<rect x="199.780000" y="1080.100000" width="23.800000" height="23.800000" fill="#d4ac0d" opacity="0.9"><title>J5.4 LCD_RST</title></rect>
-<rect x="235.340000" y="1080.100000" width="23.800000" height="23.800000" fill="#d4ac0d" opacity="0.9"><title>J5.5 LCD_DC</title></rect>
-<rect x="270.900000" y="1080.100000" width="23.800000" height="23.800000" fill="#d4ac0d" opacity="0.9"><title>J5.6 SPI_MOSI</title></rect>
-<rect x="306.460000" y="1080.100000" width="23.800000" height="23.800000" fill="#d4ac0d" opacity="0.9"><title>J5.7 SPI_SCLK</title></rect>
-<rect x="342.020000" y="1080.100000" width="23.800000" height="23.800000" fill="#d4ac0d" opacity="0.9"><title>J5.8 LCD_BL</title></rect>
+<rect x="92.820000" y="1076.670000" width="24.360000" height="30.660000" fill="#d4ac0d" opacity="0.9"><title>J5.1 +3V3</title></rect>
+<rect x="128.380000" y="1076.670000" width="24.360000" height="30.660000" fill="#d4ac0d" opacity="0.9"><title>J5.2 GND</title></rect>
+<rect x="163.940000" y="1076.670000" width="24.360000" height="30.660000" fill="#d4ac0d" opacity="0.9"><title>J5.3 LCD_CS</title></rect>
+<rect x="199.500000" y="1076.670000" width="24.360000" height="30.660000" fill="#d4ac0d" opacity="0.9"><title>J5.4 LCD_RST</title></rect>
+<rect x="235.060000" y="1076.670000" width="24.360000" height="30.660000" fill="#d4ac0d" opacity="0.9"><title>J5.5 LCD_DC</title></rect>
+<rect x="270.620000" y="1076.670000" width="24.360000" height="30.660000" fill="#d4ac0d" opacity="0.9"><title>J5.6 SPI_MOSI</title></rect>
+<rect x="306.180000" y="1076.670000" width="24.360000" height="30.660000" fill="#d4ac0d" opacity="0.9"><title>J5.7 SPI_SCLK</title></rect>
+<rect x="341.740000" y="1076.670000" width="24.360000" height="30.660000" fill="#d4ac0d" opacity="0.9"><title>J5.8 LCD_BL</title></rect>
 <text x="105.000000" y="1088.000000" fill="#ecf0f1" font-size="11" text-anchor="middle">J5</text>
 <rect x="112.700000" y="1018.850000" width="14.000000" height="20.300000" fill="#e67e22" opacity="0.9"><title>C12.1 +3V3</title></rect>
 <rect x="139.300000" y="1018.850000" width="14.000000" height="20.300000" fill="#e67e22" opacity="0.9"><title>C12.2 GND</title></rect>
 <text x="133.000000" y="1025.000000" fill="#ecf0f1" font-size="11" text-anchor="middle">C12</text>
-<rect x="394.100000" y="1080.100000" width="23.800000" height="23.800000" fill="#d4ac0d" opacity="0.9"><title>J6.1 BTN_UP</title></rect>
-<rect x="429.660000" y="1080.100000" width="23.800000" height="23.800000" fill="#d4ac0d" opacity="0.9"><title>J6.2 BTN_DOWN</title></rect>
-<rect x="465.220000" y="1080.100000" width="23.800000" height="23.800000" fill="#d4ac0d" opacity="0.9"><title>J6.3 BTN_LEFT</title></rect>
-<rect x="500.780000" y="1080.100000" width="23.800000" height="23.800000" fill="#d4ac0d" opacity="0.9"><title>J6.4 BTN_RIGHT</title></rect>
-<rect x="536.340000" y="1080.100000" width="23.800000" height="23.800000" fill="#d4ac0d" opacity="0.9"><title>J6.5 BTN_SEL</title></rect>
-<rect x="571.900000" y="1080.100000" width="23.800000" height="23.800000" fill="#d4ac0d" opacity="0.9"><title>J6.6 GND</title></rect>
+<rect x="393.820000" y="1076.670000" width="24.360000" height="30.660000" fill="#d4ac0d" opacity="0.9"><title>J6.1 BTN_UP</title></rect>
+<rect x="429.380000" y="1076.670000" width="24.360000" height="30.660000" fill="#d4ac0d" opacity="0.9"><title>J6.2 BTN_DOWN</title></rect>
+<rect x="464.940000" y="1076.670000" width="24.360000" height="30.660000" fill="#d4ac0d" opacity="0.9"><title>J6.3 BTN_LEFT</title></rect>
+<rect x="500.500000" y="1076.670000" width="24.360000" height="30.660000" fill="#d4ac0d" opacity="0.9"><title>J6.4 BTN_RIGHT</title></rect>
+<rect x="536.060000" y="1076.670000" width="24.360000" height="30.660000" fill="#d4ac0d" opacity="0.9"><title>J6.5 BTN_SEL</title></rect>
+<rect x="571.620000" y="1076.670000" width="24.360000" height="30.660000" fill="#d4ac0d" opacity="0.9"><title>J6.6 GND</title></rect>
 <text x="406.000000" y="1088.000000" fill="#ecf0f1" font-size="11" text-anchor="middle">J6</text>
-<rect x="646.100000" y="1080.100000" width="23.800000" height="23.800000" fill="#d4ac0d" opacity="0.9"><title>J7.1 +3V3</title></rect>
-<rect x="681.660000" y="1080.100000" width="23.800000" height="23.800000" fill="#d4ac0d" opacity="0.9"><title>J7.2 GND</title></rect>
-<rect x="717.220000" y="1080.100000" width="23.800000" height="23.800000" fill="#d4ac0d" opacity="0.9"><title>J7.3 TXD0</title></rect>
-<rect x="752.780000" y="1080.100000" width="23.800000" height="23.800000" fill="#d4ac0d" opacity="0.9"><title>J7.4 RXD0</title></rect>
-<rect x="788.340000" y="1080.100000" width="23.800000" height="23.800000" fill="#d4ac0d" opacity="0.9"><title>J7.5 VENT</title></rect>
-<rect x="823.900000" y="1080.100000" width="23.800000" height="23.800000" fill="#d4ac0d" opacity="0.9"><title>J7.6 LID_SW</title></rect>
-<rect x="859.460000" y="1080.100000" width="23.800000" height="23.800000" fill="#d4ac0d" opacity="0.9"><title>J7.7 AUX_A</title></rect>
-<rect x="895.020000" y="1080.100000" width="23.800000" height="23.800000" fill="#d4ac0d" opacity="0.9"><title>J7.8 AUX_B</title></rect>
+<rect x="645.820000" y="1076.670000" width="24.360000" height="30.660000" fill="#d4ac0d" opacity="0.9"><title>J7.1 +3V3</title></rect>
+<rect x="681.380000" y="1076.670000" width="24.360000" height="30.660000" fill="#d4ac0d" opacity="0.9"><title>J7.2 GND</title></rect>
+<rect x="716.940000" y="1076.670000" width="24.360000" height="30.660000" fill="#d4ac0d" opacity="0.9"><title>J7.3 TXD0</title></rect>
+<rect x="752.500000" y="1076.670000" width="24.360000" height="30.660000" fill="#d4ac0d" opacity="0.9"><title>J7.4 RXD0</title></rect>
+<rect x="788.060000" y="1076.670000" width="24.360000" height="30.660000" fill="#d4ac0d" opacity="0.9"><title>J7.5 VENT</title></rect>
+<rect x="823.620000" y="1076.670000" width="24.360000" height="30.660000" fill="#d4ac0d" opacity="0.9"><title>J7.6 LID_SW</title></rect>
+<rect x="859.180000" y="1076.670000" width="24.360000" height="30.660000" fill="#d4ac0d" opacity="0.9"><title>J7.7 AUX_A</title></rect>
+<rect x="894.740000" y="1076.670000" width="24.360000" height="30.660000" fill="#d4ac0d" opacity="0.9"><title>J7.8 AUX_B</title></rect>
 <text x="658.000000" y="1088.000000" fill="#ecf0f1" font-size="11" text-anchor="middle">J7</text>
 <rect x="65.800000" y="99.400000" width="11.200000" height="11.200000" fill="#d4ac0d" opacity="0.9"><title>H1.1 GND</title></rect>
 <rect x="75.641216" y="75.641216" width="11.200000" height="11.200000" fill="#d4ac0d" opacity="0.9"><title>H1.1 GND</title></rect>
@@ -717,13 +720,13 @@
 <circle cx="898.800000" cy="848.400000" r="4.200000" fill="#8e44ad"/>
 <circle cx="898.800000" cy="428.400000" r="4.200000" fill="#8e44ad"/>
 <circle cx="898.800000" cy="406.000000" r="4.200000" fill="#8e44ad"/>
-<circle cx="915.600000" cy="982.800000" r="4.200000" fill="#8e44ad"/>
+<circle cx="210.000000" cy="994.000000" r="4.200000" fill="#8e44ad"/>
+<circle cx="915.600000" cy="893.200000" r="4.200000" fill="#8e44ad"/>
 <circle cx="915.600000" cy="848.400000" r="4.200000" fill="#8e44ad"/>
 <circle cx="915.600000" cy="428.400000" r="4.200000" fill="#8e44ad"/>
 <circle cx="915.600000" cy="406.000000" r="4.200000" fill="#8e44ad"/>
-<circle cx="249.200000" cy="994.000000" r="4.200000" fill="#8e44ad"/>
-<circle cx="932.400000" cy="893.200000" r="4.200000" fill="#8e44ad"/>
-<circle cx="932.400000" cy="848.400000" r="4.200000" fill="#8e44ad"/>
+<circle cx="921.200000" cy="982.800000" r="4.200000" fill="#8e44ad"/>
+<circle cx="926.800000" cy="848.400000" r="4.200000" fill="#8e44ad"/>
 <circle cx="932.400000" cy="428.400000" r="4.200000" fill="#8e44ad"/>
 <circle cx="932.400000" cy="406.000000" r="4.200000" fill="#8e44ad"/>
 <circle cx="1094.800000" cy="378.000000" r="4.200000" fill="#8e44ad"/>
@@ -864,11 +867,8 @@
 <circle cx="1173.200000" cy="982.800000" r="4.200000" fill="#27ae60"/>
 <circle cx="1274.000000" cy="982.800000" r="4.200000" fill="#27ae60"/>
 <circle cx="1374.800000" cy="982.800000" r="4.200000" fill="#27ae60"/>
-<circle cx="198.800000" cy="1078.000000" r="4.200000" fill="#27ae60"/>
-<circle cx="490.000000" cy="1078.000000" r="4.200000" fill="#27ae60"/>
 <circle cx="590.800000" cy="1078.000000" r="4.200000" fill="#27ae60"/>
 <circle cx="686.000000" cy="1078.000000" r="4.200000" fill="#27ae60"/>
-<circle cx="781.200000" cy="1078.000000" r="4.200000" fill="#27ae60"/>
 <circle cx="1078.000000" cy="1078.000000" r="4.200000" fill="#27ae60"/>
 <circle cx="1173.200000" cy="1078.000000" r="4.200000" fill="#27ae60"/>
 <circle cx="1274.000000" cy="1078.000000" r="4.200000" fill="#27ae60"/>

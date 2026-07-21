@@ -41,12 +41,20 @@ fabricate the board.
   low-side by an AO3400A (Q1) with 100 Ω gate series and 10 kΩ pull-down so
   the kiln stays **off during boot/reset**. Amber LED shows drive state.
   (The SSR itself and all mains wiring stay outside this board.)
-- **Display**: 8-pin header **J5** for the 3.5" ST7796S SPI module
-  (`3V3 GND CS RST DC SDI SCK BL` — silkscreened per pin).
-- **Nav switch**: 6-pin header **J6** for the panel-mounted 5-way switch
-  (`UP DN LT RT OK GND`, active-low, ESP32 internal pull-ups).
-- **Aux header J7**: `3V3 GND TX RX VNT LID A15 A16` — UART0 plus the
-  optional VENT (IO14) / LID_SWITCH (IO21) firmware GPIOs and two spares.
+- **Display**: 8-pin Molex KK-254 friction-lock header **J5** for the 3.5"
+  ST7796S SPI module (`3V3 GND CS RST DC SDI SCK BL` — silkscreened per pin).
+- **Nav switch**: 6-pin KK-254 friction-lock header **J6** for the
+  panel-mounted 5-way switch (`UP DN LT RT OK GND`, active-low, ESP32
+  internal pull-ups).
+- **Aux header J7** (8-pin KK-254): `3V3 GND TX RX VNT LID A15 A16` — UART0
+  plus the optional VENT (IO14) / LID_SWITCH (IO21) firmware GPIOs and two
+  spares.
+
+  All three headers are polarized: the mating friction-lock housing only
+  latches one way, so the display/nav/aux looms can't be plugged in
+  reversed. Solder the headers with the latch ramp on the board-interior
+  side (as in the 3D renders) so all housings face the same way; pin 1 is
+  the square pad / silk arrow.
 - **USB-C (J1)** for native-USB flashing: 5.1 kΩ CC resistors, USBLC6-2SC6
   ESD protection, VBUS ORed into +5 V. RESET (SW1) and BOOT (SW2) buttons.
 - **Status LED**: WS2812B on IO48; its VDD comes through an SS14 drop diode
@@ -94,8 +102,9 @@ fabricate the board.
 | BZ1 | active buzzer 5 V | 12 mm THT, 7.6 mm pitch |
 | J1 | USB-C 16-pin receptacle | HRO TYPE-C-31-M-12 |
 | J2, J3, J4 | Phoenix MKDS 1,5/2 (or clone) | 5.08 mm screw terminal |
-| J5, J7 | pin header 1×8 | 2.54 mm THT |
-| J6 | pin header 1×6 | 2.54 mm THT |
+| J5, J7 | Molex KK-254 friction-lock header 1×8 (AE-6410-08A / 22-27-2081) | 2.54 mm THT |
+| J6 | Molex KK-254 friction-lock header 1×6 (AE-6410-06A / 22-27-2061) | 2.54 mm THT |
+| — mates | KK-254 housing 1×8 (22-01-3087) ×2, 1×6 (22-01-3067), crimps 08-50-0114 | — |
 | SW1, SW2 | tactile switch | 6 mm THT |
 | H1–H4 | M3 mounting hole, grounded | — |
 
