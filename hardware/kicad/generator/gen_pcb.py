@@ -111,16 +111,20 @@ USB_SEEDS = [  # (net, layer, [(x,y)...], width)
     ("USB_DP", 0, [(88.75, 91.56), (88.75, 90.3), (89.75, 90.3), (89.75, 91.56)], 0.25),
     ("USB_DP", 0, [(89.75, 90.3), (89.75, 89.6), (89.6, 89.6)], 0.25),
     ("CC1", 0, [(87.75, 91.56), (87.75, 89.6), (87.6, 89.6)], 0.25),
-    ("CC2", 0, [(90.75, 91.56), (90.75, 89.6), (90.8, 89.6)], 0.25),
+    ("CC2", 0, [(90.75, 91.56), (90.75, 89.65)], 0.25),
     ("VBUS", 0, [(91.45, 91.56), (91.45, 89.6), (91.6, 89.6)], 0.4),
     ("VBUS", 0, [(86.55, 91.56), (86.55, 90.0), (86.4, 90.0)], 0.4),
+    # U4 pin 2 (GND) sits in a 1.2mm alley between the USB data lines; give
+    # it a pre-seeded escape + via so those nets route around it.
+    ("GND", 0, [(89.0, 83.14), (89.0, 85.4)], 0.3),
 ]
+MANUAL_VIAS = [("GND", 89.0, 85.4)]
 # nets whose J1 pads are replaced by stub terminals (ends grid-aligned)
 USB_STUB_TERMS = {
     "USB_DN": [(88.4, 89.6, (0,))],
     "USB_DP": [(89.6, 89.6, (0,))],
     "CC1": [(87.6, 89.6, (0,))],
-    "CC2": [(90.8, 89.6, (0,))],
+    "CC2": [(90.75, 89.65, (0,))],
     "VBUS": [(91.6, 89.6, (0,)), (86.4, 90.0, (0,))],
 }
 
@@ -209,7 +213,7 @@ def route_all(r, pad_pos):
 def stitch_vias(r, count_target=40):
     r._begin("GND-stitch")
     out = []
-    step = 7.0
+    step = 6.0
     y = BY0 + 4
     while y < BY1 - 3:
         x = BX0 + 4
@@ -298,19 +302,19 @@ def _rot_at(node, frot):
 
 SILK = [
     ("BISQUE KILN CONTROLLER v1.0", 66, 68, 0, 1.5),
-    ("ANTENNA - KEEP CLEAR", 88, 23.2, 0, 1.2),
-    ("5V IN", 23.2, 27.5, 0, 1.0),
+    ("ANTENNA - KEEP CLEAR", 88, 22.6, 0, 1.2),
+    ("5V IN", 23.2, 28.8, 0, 1.0),
     ("+", 31.5, 33, 0, 1.2), ("-", 31.5, 38, 0, 1.5),
     ("SSR", 23.0, 49.5, 0, 1.0),
     ("+", 31.5, 55, 0, 1.2), ("-", 31.5, 60, 0, 1.5),
-    ("TC  K+", 116.5, 60, 90, 1.0), ("K-", 116.5, 68.5, 90, 1.0),
+    ("TC  K+", 117.3, 60, 90, 1.0), ("K-", 117.3, 68.5, 90, 1.0),
     ("DISPLAY", 33.5, 90.6, 0, 1.0),
     ("NAV", 52.3, 90.6, 0, 1.0),
     ("AUX", 72.9, 90.6, 0, 1.0),
-    ("RESET", 58.2, 25, 0, 0.9),
+    ("RESET", 58.2, 25.0, 0, 0.9),
     ("BOOT", 104.2, 49.7, 0, 0.9),
     ("USB", 96.5, 93.5, 0, 0.9),
-    ("STATUS", 75, 89.8, 0, 0.9),
+    ("STATUS", 79.6, 90.6, 0, 0.9),
 ]
 J5_PINS = ["3V3", "GND", "CS", "RST", "DC", "SDI", "SCK", "BL"]
 J6_PINS = ["UP", "DN", "LT", "RT", "OK", "G"]
@@ -318,7 +322,7 @@ J7_PINS = ["3V3", "GND", "TX", "RX", "VNT", "LID", "A15", "A16"]
 for hdr, names in (("J5", J5_PINS), ("J6", J6_PINS), ("J7", J7_PINS)):
     hx = COMPONENTS[hdr]["at"][0]
     for k, t in enumerate(names):
-        SILK.append((t, hx + 2.54 * k, 99.05, 270, 0.7))
+        SILK.append((t, hx + 2.54 * k, 98.95, 0, 0.8))
 
 
 def main(dst):
@@ -326,6 +330,8 @@ def main(dst):
     for (net, layer, pts, w) in USB_SEEDS:
         for a, b in zip(pts, pts[1:]):
             r.add_seg(net, layer, a[0], a[1], b[0], b[1], w)
+    for (net, x, y) in MANUAL_VIAS:
+        r.add_via(net, x, y)
     print("routing...")
     route_all(r, pad_pos)
     r._memo = {}

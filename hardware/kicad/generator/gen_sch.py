@@ -11,6 +11,8 @@ import uuid
 sys.path.insert(0, os.path.dirname(__file__))
 from sexp import parse, find, find_all, Sym, num
 from design import COMPONENTS, PWR_FLAG_NETS
+import inspect_libs
+inspect_libs.SYMDIR = "/usr/share/kicad/symbols"
 from inspect_libs import flatten, pins_of
 
 NS = uuid.UUID("7c9b1f5e-4a4b-4d1a-9c33-bisque00pcb0".replace("bisque00pcb0", "1234567890ab"))
@@ -148,20 +150,20 @@ def main():
                     '\t\t\t(effects (font (size 1.27 1.27)) (justify left))\n\t\t)'
                     % (esc(c["value"]), f(sx + min(xs)), f(top + 1.9)))
         prop.append('\t\t(property "Footprint" "%s" (at %s %s 0)\n'
-                    '\t\t\t(effects (font (size 1.27 1.27)) (hide yes))\n\t\t)'
+                    '\t\t\t(effects (font (size 1.27 1.27)) hide)\n\t\t)'
                     % (esc(c["fp"]), f(sx), f(sy)))
         prop.append('\t\t(property "Datasheet" "%s" (at %s %s 0)\n'
-                    '\t\t\t(effects (font (size 1.27 1.27)) (hide yes))\n\t\t)'
+                    '\t\t\t(effects (font (size 1.27 1.27)) hide)\n\t\t)'
                     % (esc(ds_val), f(sx), f(sy)))
         if desc_val:
             prop.append('\t\t(property "Description" "%s" (at %s %s 0)\n'
-                        '\t\t\t(effects (font (size 1.27 1.27)) (hide yes))\n\t\t)'
+                        '\t\t\t(effects (font (size 1.27 1.27)) hide)\n\t\t)'
                         % (esc(desc_val), f(sx), f(sy)))
-        pin_uuid_lines = "".join('\t\t(pin "%s" (uuid "%s"))\n' % (p[0], uid("pin", ref, p[0]))
+        pin_uuid_lines = "".join('\t\t(pin "%s" (uuid %s))\n' % (p[0], uid("pin", ref, p[0]))
                                  for p in pins)
         emit('\t(symbol (lib_id "%s") (at %s %s 0) (unit 1)\n'
-             '\t\t(exclude_from_sim no) (in_bom yes) (on_board yes) (dnp no)\n'
-             '\t\t(uuid "%s")\n%s\n%s'
+             '\t\t(in_bom yes) (on_board yes) (dnp no)\n'
+             '\t\t(uuid %s)\n%s\n%s'
              '\t\t(instances (project "%s" (path "/%s" (reference "%s") (unit 1))))\n'
              '\t)' % (lib_id, f(sx), f(sy), u, "\n".join(prop), pin_uuid_lines,
                       PROJECT, ROOT, ref))
@@ -175,7 +177,7 @@ def main():
             seen_nopin.add((gx, gy))
             net = pinmap.get(no, None)
             if net is None:
-                emit('\t(no_connect (at %s %s) (uuid "%s"))'
+                emit('\t(no_connect (at %s %s) (uuid %s))'
                      % (f(gx), f(gy), uid("nc", ref, no)))
                 continue
             import math
@@ -184,14 +186,14 @@ def main():
             lx, ly = gx + 2.54 * outv[0], gy + 2.54 * outv[1]
             emit('\t(wire (pts (xy %s %s) (xy %s %s))\n'
                  '\t\t(stroke (width 0) (type default))\n'
-                 '\t\t(uuid "%s")\n\t)'
+                 '\t\t(uuid %s)\n\t)'
                  % (f(gx), f(gy), f(lx), f(ly), uid("wire", ref, no)))
             ang, just = label_angle(outv)
             emit('\t(global_label "%s" (shape %s) (at %s %s %d)\n'
                  '\t\t(effects (font (size 1.27 1.27)) (justify %s))\n'
-                 '\t\t(uuid "%s")\n'
+                 '\t\t(uuid %s)\n'
                  '\t\t(property "Intersheetrefs" "${INTERSHEET_REFS}" (at %s %s 0)\n'
-                 '\t\t\t(effects (font (size 1.27 1.27)) (hide yes))\n\t\t)\n\t)'
+                 '\t\t\t(effects (font (size 1.27 1.27)) hide)\n\t\t)\n\t)'
                  % (esc(net), "passive" if True else "input", f(lx), f(ly), ang,
                     just, uid("lbl", ref, no), f(lx), f(ly)))
 
@@ -204,17 +206,17 @@ def main():
         ref = "#FLG%02d" % (i + 1)
         u = uid("sym", ref)
         emit('\t(symbol (lib_id "power:PWR_FLAG") (at %s %s 0) (unit 1)\n'
-             '\t\t(exclude_from_sim no) (in_bom yes) (on_board yes) (dnp no)\n'
-             '\t\t(uuid "%s")\n'
+             '\t\t(in_bom yes) (on_board yes) (dnp no)\n'
+             '\t\t(uuid %s)\n'
              '\t\t(property "Reference" "%s" (at %s %s 0)\n'
-             '\t\t\t(effects (font (size 1.27 1.27)) (hide yes))\n\t\t)\n'
+             '\t\t\t(effects (font (size 1.27 1.27)) hide)\n\t\t)\n'
              '\t\t(property "Value" "PWR_FLAG" (at %s %s 0)\n'
-             '\t\t\t(effects (font (size 1.27 1.27)) (hide yes))\n\t\t)\n'
+             '\t\t\t(effects (font (size 1.27 1.27)) hide)\n\t\t)\n'
              '\t\t(property "Footprint" "" (at %s %s 0)\n'
-             '\t\t\t(effects (font (size 1.27 1.27)) (hide yes))\n\t\t)\n'
+             '\t\t\t(effects (font (size 1.27 1.27)) hide)\n\t\t)\n'
              '\t\t(property "Datasheet" "~" (at %s %s 0)\n'
-             '\t\t\t(effects (font (size 1.27 1.27)) (hide yes))\n\t\t)\n'
-             '\t\t(pin "1" (uuid "%s"))\n'
+             '\t\t\t(effects (font (size 1.27 1.27)) hide)\n\t\t)\n'
+             '\t\t(pin "1" (uuid %s))\n'
              '\t\t(instances (project "%s" (path "/%s" (reference "%s") (unit 1))))\n'
              '\t)' % (f(sx), f(sy), u, ref, f(sx), f(sy - 4), f(sx), f(sy - 6),
                       f(sx), f(sy), f(sx), f(sy), uid("pin", ref, "1"),
@@ -223,28 +225,28 @@ def main():
         lx, ly = sx, sy + 2.54
         emit('\t(wire (pts (xy %s %s) (xy %s %s))\n'
              '\t\t(stroke (width 0) (type default))\n'
-             '\t\t(uuid "%s")\n\t)' % (f(sx), f(sy), f(lx), f(ly), uid("wire", ref)))
+             '\t\t(uuid %s)\n\t)' % (f(sx), f(sy), f(lx), f(ly), uid("wire", ref)))
         emit('\t(global_label "%s" (shape passive) (at %s %s 270)\n'
              '\t\t(effects (font (size 1.27 1.27)) (justify right))\n'
-             '\t\t(uuid "%s")\n'
+             '\t\t(uuid %s)\n'
              '\t\t(property "Intersheetrefs" "${INTERSHEET_REFS}" (at %s %s 0)\n'
-             '\t\t\t(effects (font (size 1.27 1.27)) (hide yes))\n\t\t)\n\t)'
+             '\t\t\t(effects (font (size 1.27 1.27)) hide)\n\t\t)\n\t)'
              % (esc(net), f(lx), f(ly), uid("lbl", ref), f(lx), f(ly)))
 
     # group titles + notes
     for txt, x, y in GROUP_TEXT:
-        emit('\t(text "%s" (exclude_from_sim no) (at %s %s 0)\n'
-             '\t\t(effects (font (size 2 2) (bold yes)) (justify left))\n'
-             '\t\t(uuid "%s")\n\t)' % (esc(txt), f(x), f(y), uid("txt", txt)))
-    emit('\t(text "%s" (exclude_from_sim no) (at 25 281 0)\n'
+        emit('\t(text "%s" (at %s %s 0)\n'
+             '\t\t(effects (font (size 2 2) bold) (justify left))\n'
+             '\t\t(uuid %s)\n\t)' % (esc(txt), f(x), f(y), uid("txt", txt)))
+    emit('\t(text "%s" (at 25 281 0)\n'
          '\t\t(effects (font (size 1.6 1.6)) (justify left))\n'
-         '\t\t(uuid "%s")\n\t)' % (NOTES, uid("txt", "notes")))
+         '\t\t(uuid %s)\n\t)' % (NOTES, uid("txt", "notes")))
 
     libsyms = out_lib_symbols(symcache)
 
     out = []
-    out.append('(kicad_sch (version 20250114) (generator "eeschema") (generator_version "9.0")')
-    out.append('\t(uuid "%s")' % ROOT)
+    out.append('(kicad_sch (version 20230121) (generator eeschema)')
+    out.append('\t(uuid %s)' % ROOT)
     out.append('\t(paper "A3")')
     out.append('\t(title_block\n\t\t(title "Bisque Kiln Controller")\n'
                '\t\t(date "2026-07-20")\n\t\t(rev "A")\n'

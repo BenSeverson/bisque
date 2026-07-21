@@ -17,12 +17,13 @@ BUCKET = 2.0
 
 class Shape:
     """Axis-aligned rect or circle, on layer set. net None = blocks all."""
-    __slots__ = ("net", "layers", "cx", "cy", "w", "h", "circle")
+    __slots__ = ("net", "layers", "cx", "cy", "w", "h", "circle", "drill")
 
-    def __init__(self, net, layers, cx, cy, w, h, circle=False):
+    def __init__(self, net, layers, cx, cy, w, h, circle=False, drill=0.0):
         self.net, self.layers = net, set(layers)
         self.cx, self.cy, self.w, self.h = cx, cy, w, h
         self.circle = circle
+        self.drill = drill
 
     def dist(self, x, y):
         if self.circle:
@@ -74,8 +75,8 @@ class Router:
             for by in range(by0, by1 + 1):
                 self.buckets.setdefault((bx, by), []).append(obj)
 
-    def add_pad(self, net, layers, cx, cy, w, h, circle=False):
-        s = Shape(net, layers, cx, cy, w, h, circle)
+    def add_pad(self, net, layers, cx, cy, w, h, circle=False, drill=0.0):
+        s = Shape(net, layers, cx, cy, w, h, circle, drill=drill)
         self._insert(s, cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2)
 
     def add_keepout(self, x0, y0, x1, y1):
@@ -89,7 +90,8 @@ class Router:
             self.result_tracks.append(s)
 
     def add_via(self, net, x, y, record=True):
-        s = Shape(net, (0, 1), x, y, VIA_DIA, VIA_DIA, circle=True)
+        s = Shape(net, (0, 1), x, y, VIA_DIA, VIA_DIA, circle=True,
+                  drill=VIA_DRILL)
         self._insert(s, x - VIA_DIA / 2, y - VIA_DIA / 2, x + VIA_DIA / 2, y + VIA_DIA / 2)
         if record:
             self.result_vias.append((net, x, y))
@@ -165,6 +167,13 @@ class Router:
                     break
         if r:
             r = self._clear_of(net, x, y, 0, need, check_layer=False)
+        if r:
+            # hole-to-hole clearance: applies regardless of net
+            for o in self._near(x, y):
+                if isinstance(o, Shape) and o.drill > 0:
+                    if math.hypot(x - o.cx, y - o.cy) - o.drill / 2                        - VIA_DRILL / 2 < 0.3:
+                        r = False
+                        break
         self._memo[key] = r
         return r
 

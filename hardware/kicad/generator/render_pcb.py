@@ -62,6 +62,9 @@ def main(src, dst_svg):
         for pr in find_all(fp, "property"):
             if pr[1] == "Reference":
                 ref = pr[2]
+        for ft in find_all(fp, "fp_text"):
+            if str(ft[1]) == "reference":
+                ref = str(ft[2])
         for p in find_all(fp, "pad"):
             pat = find(p, "at")
             lx, ly = num(pat[1]), num(pat[2])

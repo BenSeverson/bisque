@@ -146,6 +146,9 @@ def load(src):
         for pr in find_all(fp, "property"):
             if pr[1] == "Reference":
                 ref = str(pr[2])
+        for ft in find_all(fp, "fp_text"):
+            if str(ft[1]) == "reference":
+                ref = str(ft[2])
         # courtyard bbox
         cx0, cy0, cx1, cy1 = 1e9, 1e9, -1e9, -1e9
         for key in ("fp_line", "fp_rect", "fp_circle", "fp_arc", "fp_poly"):
@@ -284,14 +287,18 @@ def main(src):
                                [g[:10] for g in groups.values()]))
 
     # 3. keepout (from U1)
+    k = None
     for fp in find_all(doc, "footprint"):
         pr = {p[1]: p[2] for p in find_all(fp, "property")}
+        for ft in find_all(fp, "fp_text"):
+            if str(ft[1]) == "reference":
+                pr["Reference"] = str(ft[2])
         if pr.get("Reference") == "U1":
             at = find(fp, "at")
             fx, fy = num(at[1]), num(at[2])
             k = (fx - 24, by0, fx + 24, fy - 6.8)
     for it in items:
-        if it.net == 0:
+        if k is None or it.net == 0:
             continue
         x0 = min(it.x1, it.x2) - it.w / 2
         x1 = max(it.x1, it.x2) + it.w / 2

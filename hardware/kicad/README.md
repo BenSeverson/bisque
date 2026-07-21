@@ -1,30 +1,39 @@
 # Bisque Kiln Controller — KiCad PCB
 
 A single-board replacement for the perfboard build documented in
-`docs/perfboard-layout.svg` / `docs/wiring-diagram.svg`. Designed for
-**KiCad 9**, 2-layer, 100 × 80 mm, and **hand-solderable throughout**: the
-smallest parts are 0805 passives, SOIC-8, SOT-23 and the ESP32-S3-WROOM-1
-module's castellated pads. No BGA, no QFN, no bare chips.
+`docs/perfboard-layout.svg` / `docs/wiring-diagram.svg`. 2-layer,
+100 × 80 mm, **hand-solderable throughout**: the smallest parts are 0805
+passives, SOIC-8, SOT-23 and the ESP32-S3-WROOM-1 module's castellated
+pads. No BGA, no QFN, no bare chips.
+
+Built and validated with **real KiCad** (7.0.11, pcbnew Python API +
+kicad-cli): footprints come from KiCad's installed libraries, the ground
+pours are filled by KiCad's zone filler, the board passes **KiCad DRC with
+zero errors** (`bisque-controller-drc.rpt`), and the schematic passes a
+netlist round-trip check (KiCad's exported netlist diffed against the
+design's connectivity table — 42 nets, 0 mismatches). Files are KiCad 7
+format and open cleanly in KiCad 7/8/9.
 
 | File | What it is |
 |---|---|
 | `bisque-controller.kicad_pro` | Project (net classes: 0.3 mm signal / 0.7 mm power, 0.2 mm clearance) |
 | `bisque-controller.kicad_sch` | Schematic (A3, netlist-style: functional groups + global labels) |
 | `bisque-controller.kicad_pcb` | Board: placed, fully routed, GND pours on both layers |
-| `preview-board.svg` | Quick visual of placement + routing (generator output, not KiCad-rendered) |
+| `preview-board.svg` | Quick visual of placement + routing |
 | `3d/board-3d-*.png` | 3D renders (iso / front / top / underside) |
-| `generator/` | Python scripts that generate both files from one connectivity table |
+| `bisque-controller-drc.rpt` | KiCad DRC report (0 errors; warnings are silk/lib-path noise) |
+| `gerbers/` | Fabrication outputs (kicad-cli: gerbers + Excellon drill + job file) |
+| `pdf/` | Schematic and board PDFs (kicad-cli) |
+| `jlcpcb/` | Assembly BOM + CPL for JLCPCB |
+| `generator/` | Scripts that build everything from one connectivity table |
 
 ## Opening it
 
-1. Open `bisque-controller.kicad_pro` in KiCad 9 (9.0.8 or newer).
-2. In pcbnew press **B** to fill the GND zones (they ship unfilled).
-3. Run DRC. The zones, thermal reliefs and the module's built-in antenna
-   keep-out are all standard KiCad objects, so DRC is the authority.
-
-Footprints and symbols are **embedded** in the files (taken from the official
-KiCad 9.0.9.1 libraries), so nothing needs to be installed to open or
-fabricate the board.
+Open `bisque-controller.kicad_pro` in KiCad 7 or newer. Zones ship
+**filled** (KiCad's own filler) and the board already passes KiCad DRC;
+re-run it after any edit. The schematic embeds its symbols; the board
+references the standard KiCad footprint libraries (and was generated from
+them).
 
 ## What's on the board
 
@@ -127,7 +136,7 @@ triggers an upcharge:
 | Layers / finish | 2, HASL, 1.6 mm, green | standard |
 
 Bare boards: **~$2–4 for 5 pcs** (their locked 2-layer ≤100×100 mm price)
-plus shipping. Export gerbers from KiCad after filling zones (**B**).
+plus shipping. Ready-to-upload gerbers + drill files are in `gerbers/`.
 
 **Assembly**: `generator/gen_jlc.py` writes `jlcpcb/BOM.csv` +
 `jlcpcb/CPL.csv` for the PCBA upload. Every part is orderable from the
@@ -152,23 +161,27 @@ Cheapest sensible configurations:
 
 ## Regenerating the files
 
-The schematic and board are both generated from
-`generator/design.py` — a single table of components, pin→net connectivity
-and placements — so they can never disagree with each other. The board is
-routed by a small octilinear grid autorouter (`router.py` — 45-degree
-routing with graded bend costs, plus a validated miter pass that chamfers
-any remaining right-angle corners) and verified by an
-independent geometry checker (`check_pcb.py`: clearance ≥ 0.2 mm,
-per-net connectivity, antenna keep-out, board-edge margin, courtyards).
+Everything derives from `generator/design.py` — a single table of
+components, pin→net connectivity and placements — so schematic and board
+can never disagree. Requires KiCad 7+ installed (pcbnew Python module +
+kicad-cli + standard libraries):
 
 ```bash
 cd hardware/kicad
-./generator/fetch-symbols.sh          # once: downloads KiCad symbol libs (~30 MB)
-python3 generator/gen_sch.py bisque-controller.kicad_sch
-python3 generator/gen_pcb.py bisque-controller.kicad_pcb
-python3 generator/check_pcb.py bisque-controller.kicad_pcb   # must say ALL CHECKS PASS
+python3 generator/gen_sch.py bisque-controller.kicad_sch        # schematic
+python3 generator/check_netlist.py bisque-controller.kicad_sch  # KiCad netlist round-trip: must PASS
+python3 generator/kicad_build.py bisque-controller.kicad_pcb    # board via pcbnew API:
+                                                                #   system-library footprints, octilinear
+                                                                #   45-degree autoroute, GND stubs, zone fill,
+                                                                #   pour-island healing, KiCad DRC report
+python3 generator/check_pcb.py bisque-controller.kicad_pcb      # independent checker: ALL CHECKS PASS
 python3 generator/render_pcb.py bisque-controller.kicad_pcb preview-board.svg
+kicad-cli pcb export gerbers -o gerbers/ bisque-controller.kicad_pcb
+kicad-cli sch export pdf -o pdf/bisque-controller-schematic.pdf bisque-controller.kicad_sch
 ```
+
+(`gen_pcb.py` remains as a KiCad-free fallback generator that writes the
+board file textually; `kicad_build.py` is the authoritative path.)
 
 For 3D renders (`3d/`): `render_3d.py` parses the board file into a scene —
 board slab with real drilled holes, copper, and stylized per-package bodies —
@@ -182,11 +195,10 @@ python3 generator/render_3d.py bisque-controller.kicad_pcb 3d
 (For photorealistic renders, KiCad's own 3D viewer with the official
 component models is still the reference — these are quick previews.)
 
-Footprints (`generator/fp/*.kicad_mod`, from kicad-footprints 9.0.9.1) are
-committed; symbol libraries are fetched on demand. Generation is
-deterministic (UUIDv5), so regenerating without changes produces identical
-files. If pin assignments change in `main/Kconfig.projbuild`, update
-`generator/design.py` to match and regenerate.
+If pin assignments change in `main/Kconfig.projbuild`, update
+`generator/design.py` to match and regenerate. (`generator/fp/` keeps a
+snapshot of the KiCad 9 library footprints for the fallback generator;
+`kicad_build.py` uses the installed system libraries instead.)
 
 ## Safety
 

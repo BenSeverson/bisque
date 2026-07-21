@@ -164,6 +164,8 @@ def build_scene(src):
         fx, fy = num(at[1]), num(at[2])
         frot = num(at[3]) if len(at) > 3 else 0.0
         props = {p[1]: str(p[2]) for p in find_all(fp, "property")}
+        for ft in find_all(fp, "fp_text"):
+            props.setdefault({"reference": "Reference", "value": "Value"}.get(str(ft[1]), str(ft[1])), str(ft[2]))
         value = props.get("Value", "")
         npads = []
         for p in find_all(fp, "pad"):
