@@ -20,7 +20,23 @@ import router as R
 from gen_pcb import (USB_SEEDS, USB_STUB_TERMS, ROUTE_ORDER, route_all,
                      stitch_vias, SILK, MANUAL_VIAS)
 
-FPBASE = "/usr/share/kicad/footprints"
+def _find_fp_base():
+    cand = [os.environ.get("KICAD_FOOTPRINT_DIR", "")]
+    cand += ["/usr/share/kicad/footprints",
+             "/usr/local/share/kicad/footprints",
+             "/Applications/KiCad/KiCad.app/Contents/SharedSupport/footprints",
+             r"C:\Program Files\KiCad\10.0\share\kicad\footprints",
+             r"C:\Program Files\KiCad\9.0\share\kicad\footprints"]
+    import glob as _g
+    cand += sorted(_g.glob("/usr/share/kicad*/footprints"), reverse=True)
+    for c in cand:
+        if c and os.path.isdir(c):
+            return c
+    sys.exit("KiCad footprint libraries not found - set KICAD_FOOTPRINT_DIR")
+
+
+import glob
+FPBASE = _find_fp_base()
 MM = pcbnew.FromMM
 
 

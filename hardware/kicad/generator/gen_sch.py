@@ -12,7 +12,23 @@ sys.path.insert(0, os.path.dirname(__file__))
 from sexp import parse, find, find_all, Sym, num
 from design import COMPONENTS, PWR_FLAG_NETS
 import inspect_libs
-inspect_libs.SYMDIR = "/usr/share/kicad/symbols"
+
+
+def _find_sym_base():
+    cand = [os.environ.get("KICAD_SYMBOL_DIR", "")]
+    cand += ["/usr/share/kicad/symbols",
+             "/usr/local/share/kicad/symbols",
+             "/Applications/KiCad/KiCad.app/Contents/SharedSupport/symbols",
+             r"C:\Program Files\KiCad\10.0\share\kicad\symbols",
+             r"C:\Program Files\KiCad\9.0\share\kicad\symbols",
+             os.path.join(os.path.dirname(os.path.abspath(__file__)), "sym")]
+    for c in cand:
+        if c and os.path.isdir(c):
+            return c
+    sys.exit("KiCad symbol libraries not found - set KICAD_SYMBOL_DIR")
+
+
+inspect_libs.SYMDIR = _find_sym_base()
 from inspect_libs import flatten, pins_of
 
 NS = uuid.UUID("7c9b1f5e-4a4b-4d1a-9c33-bisque00pcb0".replace("bisque00pcb0", "1234567890ab"))
