@@ -121,7 +121,7 @@ jobs:
   # still run in parallel and still gate the overall workflow result;
   # they just no longer delay this job's start.
   #
-  # This job runs entirely inside the espressif/idf:v6.0.1 image — the
+  # This job runs entirely inside the espressif/idf:v6.0.2 image — the
   # same image espressif/esp-idf-ci-action uses internally — and embeds
   # github/codeql-action/init + analyze so the single traced idf.py build
   # produces both bisque.bin and the CodeQL C/C++ database. This replaces
@@ -131,7 +131,7 @@ jobs:
     needs: [lint-c, unit-host]
     runs-on: ubuntu-latest
     container:
-      image: espressif/idf:v6.0.1
+      image: espressif/idf:v6.0.2
     # Override the workflow-level `contents: read` so CodeQL can upload
     # its SARIF results from this job.
     permissions:

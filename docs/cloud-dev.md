@@ -41,8 +41,8 @@ the toolchain is installed.
 
 ## Enabling firmware builds in the cloud
 
-`idf.py build` needs the ESP-IDF v6.0.1 toolchain (the version CI pins — see
-`.github/workflows/codeql.yml`). Installing it pulls from Espressif hosts that
+`idf.py build` needs the ESP-IDF v6.0.2 toolchain (the version CI pins — see
+`.github/workflows/build.yml`). Installing it pulls from Espressif hosts that
 are **blocked under the default network policy**:
 
 - `dl.espressif.com` / `*.espressif.com` — compiler & tool downloads
@@ -68,7 +68,7 @@ On the next session start, `install-esp-idf.sh` detects that the registry is
 reachable and installs the toolchain (~2 GB, a few minutes on first run). It:
 
 - installs OS prerequisites via apt (tolerant of blocked third-party PPAs),
-- shallow-clones `esp-idf` at `v6.0.1` and runs `install.sh esp32s3`,
+- shallow-clones `esp-idf` at `v6.0.2` and runs `install.sh esp32s3`,
 - appends `. ~/esp-idf/export.sh` to `$CLAUDE_ENV_FILE` so `idf.py` is on PATH
   for the session.
 
