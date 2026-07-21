@@ -48,7 +48,7 @@ git push origin vX.Y.Z
 
 The workflow then:
 
-1. Builds the web UI + firmware (ESP-IDF v6.0.1, target `esp32s3`).
+1. Builds the web UI + firmware (ESP-IDF v6.0.2, target `esp32s3`).
 2. Runs `make size` — fails the release if a binary overflows its partition.
 3. Stages the flash kit: `bisque-`, `bisque-spiffs-`, `bisque-bootloader-`,
    `bisque-partitions-`, `bisque-otadata-` `.bin`s.

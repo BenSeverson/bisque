@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/BenSeverson/bisque/actions/workflows/build.yml"><img src="https://github.com/BenSeverson/bisque/actions/workflows/build.yml/badge.svg" alt="Build Status" /></a>
-  <img src="https://img.shields.io/badge/ESP--IDF-v6.0.1-blue" alt="ESP-IDF v6.0.1" />
+  <img src="https://img.shields.io/badge/ESP--IDF-v6.0.2-blue" alt="ESP-IDF v6.0.2" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License" /></a>
 </p>
 
@@ -153,14 +153,14 @@ See also: [Wiring Diagram](docs/wiring-diagram.svg) | [Perfboard Layout](docs/pe
 
 ### Prerequisites
 
-- [ESP-IDF v6.0.1](https://docs.espressif.com/projects/esp-idf/en/v6.0.1/esp32s3/get-started/)
+- [ESP-IDF v6.0.2](https://docs.espressif.com/projects/esp-idf/en/v6.0.2/esp32s3/get-started/)
 - Node.js 18+
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) (for iOS development)
 
 ### Dev Container (recommended)
 
 The fastest way to a reproducible toolchain is the VS Code dev container — it
-pins the exact ESP-IDF v6.0.1 image CI uses plus Node 24, the static-analysis
+pins the exact ESP-IDF v6.0.2 image CI uses plus Node 24, the static-analysis
 tools, and the Claude Code CLI. Open the repo in VS Code and run **Dev
 Containers: Reopen in Container**. Everything below (firmware build, web UI,
 `make ci`) then works in the container terminal; only flashing needs a bench.
@@ -176,7 +176,7 @@ cd web_ui && npm install && npm run build && cd ..
 gzip -k -9 spiffs_data/www/assets/*.js spiffs_data/www/assets/*.css
 
 # Build and flash firmware
-source ~/.espressif/v6.0.1/esp-idf/export.sh
+source ~/.espressif/v6.0.2/esp-idf/export.sh
 idf.py build
 idf.py flash monitor
 ```

@@ -1,6 +1,6 @@
 #!/bin/bash
-# Installs the ESP-IDF v6.0.1 toolchain for esp32s3 so `idf.py build` works in
-# the cloud container. Mirrors what .github/workflows/codeql.yml does in CI.
+# Installs the ESP-IDF v6.0.2 toolchain for esp32s3 so `idf.py build` works in
+# the cloud container. Mirrors what .github/workflows/build.yml does in CI.
 #
 # This builds firmware only — flashing/monitoring still needs physical kiln
 # hardware. The install is ~2 GB; container state is cached after the hook
@@ -12,7 +12,7 @@
 # block and exits cleanly without slowing the session — see docs/cloud-dev.md.
 set -euo pipefail
 
-IDF_VERSION="${IDF_VERSION:-v6.0.1}"
+IDF_VERSION="${IDF_VERSION:-v6.0.2}"
 IDF_TARGET="${IDF_TARGET:-esp32s3}"
 IDF_DIR="$HOME/esp-idf"
 

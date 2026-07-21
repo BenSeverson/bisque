@@ -2,7 +2,7 @@
 
 The `.devcontainer/` config gives you a reproducible, full firmware + web
 toolchain locally — no hand-installing ESP-IDF, Node, or the static-analysis
-tools. It pins the **exact image CI uses** (`espressif/idf:v6.0.1`, target
+tools. It pins the **exact image CI uses** (`espressif/idf:v6.0.2`, target
 `esp32s3`) so a local build matches the PR check, and bundles the Claude Code
 CLI so Claude runs inside the same environment.
 
