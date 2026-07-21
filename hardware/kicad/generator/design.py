@@ -118,7 +118,9 @@ COMPONENTS = {
                      "A5": "CC1", "B5": "CC2",
                      "A6": "USB_DP", "B6": "USB_DP",
                      "A7": "USB_DN", "B7": "USB_DN",
-                     "A8": None, "B8": None, "S1": "GND"}),
+                     "A8": None, "B8": None,
+                     # shield pin: "S1" in KiCad <=9 libs, "SH" in KiCad 10
+                     "S1": "GND", "SH": "GND"}),
     "R4": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
                value="5.1k", at=(84.0, 88.0, 90),
                pins={"1": "CC1", "2": "GND"}),
@@ -247,11 +249,11 @@ PWR_FLAG_NETS = ["GND", "+5V", "VBUS", "VIN", "VLED"]
 
 
 def netlist():
-    """net -> [(ref, pin), ...]"""
+    """net -> [(ref, pin), ...] (S1/SH shield aliases collapsed to S1)"""
     nets = {}
     for ref, c in COMPONENTS.items():
         for pin, net in c["pins"].items():
-            if net is None:
+            if net is None or (ref, pin) == ("J1", "SH"):
                 continue
             nets.setdefault(net, []).append((ref, pin))
     return nets

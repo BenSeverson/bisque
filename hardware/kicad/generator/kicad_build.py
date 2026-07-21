@@ -14,6 +14,14 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
+try:
+    # macOS: pcbnew's settings manager needs a live wx app in standalone use
+    import wx
+    _wx_app = wx.App(False)
+    if hasattr(wx, "DisableAsserts"):
+        wx.DisableAsserts()
+except ImportError:
+    pass
 import pcbnew
 from design import COMPONENTS, netlist, BX0, BY0, BX1, BY1
 import router as R
@@ -37,7 +45,23 @@ def _find_fp_base():
 
 import glob
 FPBASE = _find_fp_base()
+
+
+def load_footprint(lib, name):
+    """Version-agnostic footprint load (v7 helper / v10 IO manager)."""
+    path = os.path.join(FPBASE, lib + ".pretty")
+    try:
+        fp = pcbnew.FootprintLoad(path, name)
+        if fp is not None:
+            return fp
+    except AttributeError:
+        pass
+    mgr = pcbnew.PCB_IO_MGR
+    finder = getattr(mgr, "FindPlugin", getattr(mgr, "PluginFind", None))
+    return finder(mgr.KICAD_SEXP).FootprintLoad(path, name)
 MM = pcbnew.FromMM
+UNITS_MM = getattr(pcbnew, 'EDA_UNITS_MM',
+                   getattr(pcbnew, 'EDA_UNITS_MILLIMETRES', 0))
 
 
 def V(x, y):
@@ -63,7 +87,7 @@ def build_board():
     fps = {}
     for ref, c in COMPONENTS.items():
         lib, name = c["fp"].split(":", 1)
-        fp = pcbnew.FootprintLoad(os.path.join(FPBASE, lib + ".pretty"), name)
+        fp = load_footprint(lib, name)
         assert fp is not None, c["fp"]
         fx, fy, frot = c["at"]
         fp.SetReference(ref)
@@ -85,7 +109,9 @@ def build_board():
             # USB shell) — these want maximum copper anyway
             if (ref == "U1" and num in ("1", "40", "41")) or \
                (ref == "J1" and num in ("A1", "B1", "A12", "B12", "S1")):
-                pad.SetZoneConnection(pcbnew.ZONE_CONNECTION_FULL)
+                setzc = getattr(pad, "SetLocalZoneConnection",
+                                getattr(pad, "SetZoneConnection", None))
+                setzc(pcbnew.ZONE_CONNECTION_FULL)
         board.Add(fp)
         fps[ref] = fp
     # tidy silk: smaller refs everywhere, relocate the ones that collide
@@ -257,10 +283,14 @@ def add_zones(board, nets):
         z.SetThermalReliefSpokeWidth(MM(0.4))
         z.SetPadConnection(pcbnew.ZONE_CONNECTION_THERMAL)
         board.Add(z)
+    return
+
+
+def fill_zones_v7(board):
     # KiCad 7 standalone quirk: ZONE_FILLER needs a DRC engine bound to the
     # board; a throwaway WriteDRCReport creates one.
     pcbnew.WriteDRCReport(board, "/tmp/_prefill-drc.rpt",
-                          pcbnew.EDA_UNITS_MILLIMETRES, False)
+                          UNITS_MM, False)
     filler = pcbnew.ZONE_FILLER(board)
     filler.Fill(board.Zones())
 
@@ -312,7 +342,7 @@ def heal_islands(board, nets, r, rounds=3):
                                 v.SetDrill(MM(R.VIA_DRILL))
                                 v.SetWidth(MM(R.VIA_DIA))
                                 v.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
-                                v.SetNet(nets["GND"])
+                                v.SetNet(board.FindNet("GND"))
                                 v.SetIsFree(True)
                                 board.Add(v)
                                 placed = True
@@ -325,14 +355,12 @@ def heal_islands(board, nets, r, rounds=3):
                           % (x0, y0, x1, y1, "F" if layer == pcbnew.F_Cu else "B"))
         if not added:
             break
-        pcbnew.WriteDRCReport(board, "/tmp/_prefill-drc.rpt",
-                              pcbnew.EDA_UNITS_MILLIMETRES, False)
-        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+        fill_zones_v7(board)
     return total
 
 
 def run_drc(board, path):
-    ok = pcbnew.WriteDRCReport(board, path, pcbnew.EDA_UNITS_MILLIMETRES, True)
+    ok = pcbnew.WriteDRCReport(board, path, UNITS_MM, True)
     report = open(path).read()
     import re
     counts = dict(re.findall(r"\*\* Found (\d+) (\w[\w ]*?) \*\*", report))
@@ -343,7 +371,17 @@ def run_drc(board, path):
     return report, counts
 
 
+def summarize(rpt_path):
+    import re
+    report = open(rpt_path).read()
+    counts = dict(re.findall(r"\*\* Found (\d+) (\w[\w ]*?) \*\*", report))
+    for key, v in counts.items():
+        print("  %s: %s" % (v, key.strip()) if False else "  %s: %s" % (key.strip(), v))
+    return counts
+
+
 def main(out):
+    out = os.path.abspath(out)
     board, nets, fps = build_board()
     r, pad_pos = build_router_model(board, fps)
     for (net, layer, pts, w) in USB_SEEDS:
@@ -362,18 +400,46 @@ def main(out):
     add_copper(board, nets, r)
     add_stitching(board, nets, stitches)
     add_outline_and_silk(board)
-    print("filling zones with pcbnew.ZONE_FILLER...")
     add_zones(board, nets)
-    healed = heal_islands(board, nets, r)
-    print("healed %d isolated pour islands" % healed)
-    board.SetFileName(os.path.abspath(out))
-    pcbnew.SaveBoard(os.path.abspath(out), board)
-    print("saved %s" % out)
     rpt_path = os.path.splitext(out)[0] + "-drc.rpt"
-    report, counts = run_drc(board, rpt_path)
+    major = int(pcbnew.Version().split(".")[0])
+    if major < 8:
+        # v7: in-memory fill + python DRC
+        print("filling zones with pcbnew.ZONE_FILLER...")
+        fill_zones_v7(board)
+        healed = heal_islands(board, nets, r)
+        print("healed %d isolated pour islands" % healed)
+        board.SetFileName(out)
+        pcbnew.SaveBoard(out, board)
+        print("saved %s" % out)
+        pcbnew.WriteDRCReport(board, rpt_path, UNITS_MM, True)
+    else:
+        # v8+: standalone python fill/DRC segfault without a project;
+        # kicad-cli fills, saves and checks in one authentic pass.
+        import subprocess
+        board.SetFileName(out)
+        pcbnew.SaveBoard(out, board)
+        print("saved %s (unfilled); fill+DRC via kicad-cli..." % out)
+        for round_no in range(4):
+            subprocess.run(["kicad-cli", "pcb", "drc", "--refill-zones",
+                            "--save-board", "--severity-all",
+                            "--all-track-errors", "-o", rpt_path, out],
+                           check=True, capture_output=True)
+            rpt = open(rpt_path).read()
+            import re
+            m = re.search(r"\*\* Found (\d+) unconnected", rpt)
+            unconnected = int(m.group(1)) if m else 0
+            if unconnected == 0:
+                break
+            print("  %d unconnected after fill; healing islands..." % unconnected)
+            b2 = pcbnew.LoadBoard(out)
+            healed = heal_islands(b2, None, r, rounds=1)
+            print("  healed %d islands" % healed)
+            pcbnew.SaveBoard(out, b2)
+            if healed == 0:
+                break
     print("KiCad DRC report -> %s" % rpt_path)
-    for k, v in counts.items():
-        print("  %s: %s" % (k.strip(), v))
+    summarize(rpt_path)
 
 
 if __name__ == "__main__":

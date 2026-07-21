@@ -82,7 +82,7 @@ def main(src, dst_svg):
             if kind == "np_thru_hole":
                 col = "#7f8c8d"
             netn = find(p, "net")
-            netname = netn[2] if netn else ""
+            netname = (netn[2] if len(netn) > 2 else netn[1]) if netn else ""
             out.append('<rect x="%f" y="%f" width="%f" height="%f" fill="%s" opacity="0.9">'
                        '<title>%s.%s %s</title></rect>'
                        % (X(gx - w / 2), Y(gy - h / 2), w * SCALE, h * SCALE, col,

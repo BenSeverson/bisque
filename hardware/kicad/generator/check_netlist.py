@@ -29,7 +29,10 @@ def main(sch):
             ref = str(find(node, "ref")[1])
             if ref.startswith("#"):
                 continue
-            pins.add((ref, str(find(node, "pin")[1])))
+            pin = str(find(node, "pin")[1])
+            if ref == "J1" and pin == "SH":
+                pin = "S1"  # KiCad 10 renamed the USB-C shield pin
+            pins.add((ref, pin))
         if pins:
             got.setdefault(name, set()).update(pins)
     want = {net: set(p) for net, p in design.netlist().items()}

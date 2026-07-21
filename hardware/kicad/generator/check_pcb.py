@@ -122,7 +122,7 @@ def load(src):
         it.h = it.w
         it.circle = False
         it.layers = {0 if str(find(s, "layer")[1]) == "F.Cu" else 1}
-        it.net = int(find(s, "net")[1])
+        it.net = find(s, "net")[1]
         it.ref = "seg"
         items.append(it)
     for v in find_all(doc, "via"):
@@ -135,7 +135,7 @@ def load(src):
         it.h = it.w
         it.circle = True
         it.layers = {0, 1}
-        it.net = int(find(v, "net")[1])
+        it.net = find(v, "net")[1]
         it.ref = "via"
         items.append(it)
     for fp in find_all(doc, "footprint"):
@@ -198,13 +198,30 @@ def load(src):
                 it.net = -2  # blocks everything
             elif netn is None:
                 it.net = -1  # unconnected pad: unique-ish (treated foreign)
+            elif len(netn) > 2:
+                it.net = str(netn[2])   # (net N "name")
             else:
-                it.net = int(netn[1])
+                it.net = netn[1]        # (net "name") or (net N)
             it.ref = "%s.%s" % (ref, p[1])
             items.append(it)
     netnames = {0: ""}
+    name2num = {"": 0}
     for n in find_all(doc, "net"):
+        try:
+            name2num[str(n[2])] = int(n[1])
+        except (ValueError, IndexError, TypeError):
+            pass
         netnames[int(n[1])] = str(n[2])
+    for it in items:
+        if not isinstance(it.net, int):
+            raw = str(it.net)
+            try:
+                netnum = int(raw)
+                it.net = netnames.get(netnum, raw)
+            except ValueError:
+                it.net = raw          # v10: nets are referenced by name
+        elif it.net in netnames and it.net >= 0:
+            it.net = netnames[it.net]  # normalize numbered nets to names
     return items, netnames, courtyards, edges, doc
 
 
@@ -238,7 +255,7 @@ def main(src):
                 if key in checked:
                     continue
                 checked.add(key)
-                if a.net == b.net and a.net >= 0:
+                if a.net == b.net and a.net not in (-1, -2):
                     continue
                 # NC pads (-1) vs each other: both unconnected, still keep apart
                 if not (a.layers & b.layers):
@@ -246,19 +263,16 @@ def main(src):
                 d = item_dist(a, b)
                 if d < MIN_CLEAR:
                     problems.append("clearance %.3f: %s (%s) vs %s (%s)"
-                                    % (d, a, netnames.get(a.net, a.net),
-                                       b, netnames.get(b.net, b.net)))
+                                    % (d, a, a.net, b, b.net))
 
     # 2. connectivity per net
     from collections import defaultdict
     bynet = defaultdict(list)
     for idx, it in enumerate(items):
-        if it.net > 0:
+        if isinstance(it.net, str) and it.net:
             bynet[it.net].append(idx)
-    gnd = [k for k, v in netnames.items() if v == "GND"]
-    gndnum = gnd[0] if gnd else -99
     for netn, idxs in sorted(bynet.items()):
-        if netn == gndnum:
+        if netn == "GND":
             continue
         parent = list(range(len(idxs)))
 
@@ -283,7 +297,7 @@ def main(src):
             for i in range(len(idxs)):
                 groups[findp(i)].append(items[idxs[i]].ref)
             problems.append("net %s split into %d islands: %s"
-                            % (netnames[netn], len(roots),
+                            % (netn, len(roots),
                                [g[:10] for g in groups.values()]))
 
     # 3. keepout (from U1)
@@ -298,7 +312,7 @@ def main(src):
             fx, fy = num(at[1]), num(at[2])
             k = (fx - 24, by0, fx + 24, fy - 6.8)
     for it in items:
-        if k is None or it.net == 0:
+        if k is None or it.net in (0, ""):
             continue
         x0 = min(it.x1, it.x2) - it.w / 2
         x1 = max(it.x1, it.x2) + it.w / 2

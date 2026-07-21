@@ -6,13 +6,14 @@ A single-board replacement for the perfboard build documented in
 passives, SOIC-8, SOT-23 and the ESP32-S3-WROOM-1 module's castellated
 pads. No BGA, no QFN, no bare chips.
 
-Built and validated with **real KiCad** (7.0.11, pcbnew Python API +
-kicad-cli): footprints come from KiCad's installed libraries, the ground
-pours are filled by KiCad's zone filler, the board passes **KiCad DRC with
-zero errors** (`bisque-controller-drc.rpt`), and the schematic passes a
-netlist round-trip check (KiCad's exported netlist diffed against the
-design's connectivity table — 42 nets, 0 mismatches). Files are KiCad 7
-format and open cleanly in KiCad 7/8/9.
+Built and validated with **real KiCad** (10.0.4, pcbnew Python API +
+kicad-cli): footprints come from KiCad's installed libraries, ground pours
+are filled and checked by `kicad-cli pcb drc --refill-zones` — **zero
+errors, zero unconnected** (`bisque-controller-drc.rpt`) — and the
+schematic passes a netlist round-trip check (KiCad's exported netlist
+diffed against the design's connectivity table — 42 nets, 0 mismatches).
+The 3D renders in `3d/` are raytraced by `kicad-cli pcb render` with the
+official component models.
 
 | File | What it is |
 |---|---|
@@ -20,7 +21,7 @@ format and open cleanly in KiCad 7/8/9.
 | `bisque-controller.kicad_sch` | Schematic (A3, netlist-style: functional groups + global labels) |
 | `bisque-controller.kicad_pcb` | Board: placed, fully routed, GND pours on both layers |
 | `preview-board.svg` | Quick visual of placement + routing |
-| `3d/board-3d-*.png` | 3D renders (iso / front / top / underside) |
+| `3d/board-3d-*.png` | Raytraced renders, kicad-cli (iso / front / top / underside) |
 | `bisque-controller-drc.rpt` | KiCad DRC report (0 errors; warnings are silk/lib-path noise) |
 | `gerbers/` | Fabrication outputs (kicad-cli: gerbers + Excellon drill + job file) |
 | `pdf/` | Schematic and board PDFs (kicad-cli) |
@@ -163,14 +164,16 @@ Cheapest sensible configurations:
 
 Everything derives from `generator/design.py` — a single table of
 components, pin→net connectivity and placements — so schematic and board
-can never disagree. Requires KiCad 7+ installed (pcbnew Python module +
-kicad-cli + standard libraries):
+can never disagree. Requires KiCad installed (pcbnew Python module +
+kicad-cli + standard libraries; v7 and v10 are both supported — the build
+script adapts). On macOS run the board build with KiCad's bundled Python:
+`KPY=/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3`
 
 ```bash
 cd hardware/kicad
 python3 generator/gen_sch.py bisque-controller.kicad_sch        # schematic
 python3 generator/check_netlist.py bisque-controller.kicad_sch  # KiCad netlist round-trip: must PASS
-python3 generator/kicad_build.py bisque-controller.kicad_pcb    # board via pcbnew API:
+"$KPY" generator/kicad_build.py bisque-controller.kicad_pcb     # board via pcbnew API:
                                                                 #   system-library footprints, octilinear
                                                                 #   45-degree autoroute, GND stubs, zone fill,
                                                                 #   pour-island healing, KiCad DRC report
@@ -183,17 +186,9 @@ kicad-cli sch export pdf -o pdf/bisque-controller-schematic.pdf bisque-controlle
 (`gen_pcb.py` remains as a KiCad-free fallback generator that writes the
 board file textually; `kicad_build.py` is the authoritative path.)
 
-For 3D renders (`3d/`): `render_3d.py` parses the board file into a scene —
-board slab with real drilled holes, copper, and stylized per-package bodies —
-and renders it via three.js in headless chromium (software WebGL):
-
-```bash
-./generator/fetch-three.sh            # once: three.min.js from the npm registry
-python3 generator/render_3d.py bisque-controller.kicad_pcb 3d
-```
-
-(For photorealistic renders, KiCad's own 3D viewer with the official
-component models is still the reference — these are quick previews.)
+3D renders: `./generator/render-3d.sh` drives `kicad-cli pcb render`
+(raytraced, official component models). `render_3d.py` remains as a
+KiCad-free fallback (stylized three.js renders via headless chromium).
 
 If pin assignments change in `main/Kconfig.projbuild`, update
 `generator/design.py` to match and regenerate. (`generator/fp/` keeps a

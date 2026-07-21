@@ -1,204 +1,81 @@
-** Drc report for /home/user/bisque/hardware/kicad/bisque-controller.kicad_pcb **
-** Created on 2026-07-21 20:06:16 **
+** Drc report for bisque-controller.kicad_pcb **
+** Created on 2026-07-21T14:02:36 **
+** Report includes: Errors, Warnings, Exclusions **
 
-** Found 62 DRC violations **
-[silk_overlap]: Silkscreen overlap
-    Rule: board setup constraints silk; Severity: warning
-    @(70.0500 mm, 79.5000 mm): Reference 'D3'
-    @(69.0000 mm, 79.8200 mm): Reference 'C10'
-[silk_overlap]: Silkscreen overlap
-    Rule: board setup constraints silk; Severity: warning
-    @(64.7650 mm, 32.2729 mm): Line on F.Silkscreen
-    @(64.6500 mm, 32.5000 mm): Reference 'LED2'
-[silk_overlap]: Silkscreen overlap
-    Rule: board setup constraints silk; Severity: warning
-    @(58.7650 mm, 32.2387 mm): Line on F.Silkscreen
-    @(58.8500 mm, 32.5000 mm): Reference 'C3'
-[silk_overlap]: Silkscreen overlap
-    Rule: board setup constraints silk; Severity: warning
-    @(34.8500 mm, 50.0000 mm): Reference 'R10'
-    @(34.6500 mm, 50.0000 mm): Reference 'LED3'
-[silk_overlap]: Silkscreen overlap
-    Rule: board setup constraints silk; Severity: warning
-    @(117.3000 mm, 68.5000 mm): PCB Text 'K-' on F.Silkscreen
-    @(108.7390 mm, 67.6000 mm): Line on F.Silkscreen
-[silk_overlap]: Silkscreen overlap
-    Rule: board setup constraints silk; Severity: warning
-    @(88.0000 mm, 22.6000 mm): PCB Text 'ANTENNA - KEEP CLEAR' on F.Silkscreen
-    @(97.2000 mm, 20.1000 mm): Line on F.Silkscreen
-[silk_overlap]: Silkscreen overlap
-    Rule: board setup constraints silk; Severity: warning
-    @(88.0000 mm, 22.6000 mm): PCB Text 'ANTENNA - KEEP CLEAR' on F.Silkscreen
-    @(78.8000 mm, 20.1000 mm): Line on F.Silkscreen
-[silk_over_copper]: Silkscreen clipped by solder mask
-    Local override; Severity: warning
-    @(26.5000 mm, 90.6000 mm): Reference 'J5'
-[silk_over_copper]: Silkscreen clipped by solder mask
-    Local override; Severity: warning
-    @(75.1200 mm, 28.0000 mm): Reference 'C6'
-[silk_over_copper]: Silkscreen clipped by solder mask
-    Local override; Severity: warning
-    @(64.6500 mm, 32.5000 mm): Reference 'LED2'
-[silk_over_copper]: Silkscreen clipped by solder mask
-    Local override; Severity: warning
-    @(58.8500 mm, 32.5000 mm): Reference 'C3'
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(115.5000 mm, 95.5000 mm): Footprint H4
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(24.5000 mm, 68.0000 mm): Footprint H3
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(115.5000 mm, 24.5000 mm): Footprint H2
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(24.5000 mm, 24.5000 mm): Footprint H1
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(64.0000 mm, 95.0000 mm): Footprint J7
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(46.0000 mm, 95.0000 mm): Footprint J6
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(26.5000 mm, 90.5000 mm): Footprint C12
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(24.5000 mm, 95.0000 mm): Footprint J5
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(69.0000 mm, 81.5000 mm): Footprint C10
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(72.5500 mm, 79.5000 mm): Footprint D3
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(82.0000 mm, 84.3500 mm): Footprint R3
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(75.0000 mm, 86.0000 mm): Footprint LED1
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(62.0000 mm, 77.5000 mm): Footprint R8
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(58.8000 mm, 74.0000 mm): Footprint R11
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(58.0000 mm, 80.0000 mm): Footprint Q2
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(49.5000 mm, 84.0000 mm): Footprint D4
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(38.0000 mm, 78.0000 mm): Footprint BZ1
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(36.5000 mm, 50.0000 mm): Footprint R10
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(33.0000 mm, 50.0000 mm): Footprint LED3
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(42.0000 mm, 57.0000 mm): Footprint Q1
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(41.0000 mm, 52.0000 mm): Footprint R7
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(46.0000 mm, 53.0000 mm): Footprint R6
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(27.0000 mm, 55.0000 mm): Footprint J4
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(105.3000 mm, 67.5000 mm): Footprint C9
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(100.3000 mm, 62.0000 mm): Footprint C8
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(114.0000 mm, 65.0000 mm): Footprint J3
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(104.5000 mm, 62.0000 mm): Footprint U3
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(89.0000 mm, 82.0000 mm): Footprint U4
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(96.5000 mm, 97.9000 mm): Footprint R5
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(84.0000 mm, 88.0000 mm): Footprint R4
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(89.0000 mm, 95.6000 mm): Footprint J1
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(101.0000 mm, 47.0000 mm): Footprint SW2
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(55.0000 mm, 22.5000 mm): Footprint SW1
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(103.4000 mm, 35.0000 mm): Footprint R2
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(68.0000 mm, 28.7000 mm): Footprint C5
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(64.8000 mm, 28.5000 mm): Footprint R1
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(74.0000 mm, 27.6000 mm): Footprint C7
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(76.8000 mm, 28.0000 mm): Footprint C6
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(65.5000 mm, 32.5000 mm): Footprint R9
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(63.0000 mm, 32.5000 mm): Footprint LED2
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(59.5000 mm, 32.5000 mm): Footprint C4
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(57.0000 mm, 32.5000 mm): Footprint C3
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(44.5000 mm, 32.5000 mm): Footprint C2
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(44.5000 mm, 28.0000 mm): Footprint C1
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(51.0000 mm, 33.5000 mm): Footprint U2
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(95.5000 mm, 86.0000 mm): Footprint D2
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(38.0000 mm, 28.0000 mm): Footprint D1
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(27.0000 mm, 33.0000 mm): Footprint J2
-[lib_footprint_issues]: The current configuration does not include the library ''.
-    Local override; Severity: warning
-    @(88.0000 mm, 33.0000 mm): Footprint U1
-[silk_edge_clearance]: Silkscreen clipped by board edge
-    Rule: board setup constraints silk; Severity: warning
-    @(20.0000 mm, 20.0000 mm): Line on Edge.Cuts
-    @(115.5000 mm, 20.3000 mm): Reference 'H2'
+** Found 16 DRC violations **
 [track_dangling]: Track has unconnected end
-    Local override; Severity: warning
+    Local override; warning
     @(90.7500 mm, 91.5600 mm): Track [CC2] on F.Cu, length 1.9100 mm
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(20.0000 mm, 20.0000 mm): Segment on Edge.Cuts
+    @(115.5000 mm, 20.3500 mm): Reference field of H2
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(88.0000 mm, 22.6000 mm): PCB text 'ANTENNA - KEEP CLEAR' on F.Silkscreen
+    @(97.2000 mm, 20.1000 mm): Segment of U1 on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(117.3000 mm, 68.5000 mm): PCB text 'K-' on F.Silkscreen
+    @(118.7200 mm, 67.6600 mm): Segment of J3 on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(58.8500 mm, 32.5000 mm): Reference field of C3
+    @(58.7650 mm, 32.2387 mm): Segment of C4 on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(64.7650 mm, 32.2729 mm): Segment of R9 on F.Silkscreen
+    @(64.6500 mm, 32.5000 mm): Reference field of LED2
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(34.6500 mm, 50.0000 mm): Reference field of LED3
+    @(34.8500 mm, 50.0000 mm): Reference field of R10
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(78.8000 mm, 20.1000 mm): Segment of U1 on F.Silkscreen
+    @(88.0000 mm, 22.6000 mm): PCB text 'ANTENNA - KEEP CLEAR' on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(69.0000 mm, 79.8200 mm): Reference field of C10
+    @(70.0500 mm, 79.5000 mm): Reference field of D3
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; warning
+    @(26.5000 mm, 90.6000 mm): Reference field of J5
+    @(25.5500 mm, 90.5000 mm): Pad 1 [+3V3] of C12 on F.Cu
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; warning
+    @(26.5000 mm, 90.6000 mm): Reference field of J5
+    @(27.4500 mm, 90.5000 mm): Pad 2 [GND] of C12 on F.Cu
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; warning
+    @(58.8500 mm, 32.5000 mm): Reference field of C3
+    @(59.5000 mm, 33.4500 mm): Pad 2 [GND] of C4 on F.Cu
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; warning
+    @(58.8500 mm, 32.5000 mm): Reference field of C3
+    @(59.5000 mm, 31.5500 mm): Pad 1 [+3V3] of C4 on F.Cu
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; warning
+    @(64.6500 mm, 32.5000 mm): Reference field of LED2
+    @(65.5000 mm, 31.5875 mm): Pad 1 [LEDP_K] of R9 on F.Cu
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; warning
+    @(64.6500 mm, 32.5000 mm): Reference field of LED2
+    @(65.5000 mm, 33.4125 mm): Pad 2 [GND] of R9 on F.Cu
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; warning
+    @(75.1200 mm, 28.0000 mm): Reference field of C6
+    @(74.9500 mm, 27.6000 mm): Pad 2 [GND] of C7 on F.Cu
 
 ** Found 0 unconnected pads **
 
 ** Found 0 Footprint errors **
+
+** Ignored checks **
+    - Footprint has no courtyard defined
+    - Track endpoint not centered on via
+    - Tuning profile track geometries
+    - Footprint doesn't match symbol's footprint filters
+    - Footprint component type doesn't match footprint pads
 
 ** End of Report **
