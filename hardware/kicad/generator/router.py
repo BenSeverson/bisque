@@ -199,14 +199,26 @@ class Router:
                                    % (net, tgt[0], tgt[1]))
             self._commit(net, width, path, tgt, srcs)
 
+    DIRS = ((1, 0, 1.0), (-1, 0, 1.0), (0, 1, 1.0), (0, -1, 1.0),
+            (1, 1, 1.41421), (1, -1, 1.41421), (-1, 1, 1.41421), (-1, -1, 1.41421))
+
+    @staticmethod
+    def _octile(dx, dy):
+        dx, dy = abs(dx), abs(dy)
+        return max(dx, dy) + 0.41421 * min(dx, dy)
+
     def _astar(self, net, width, srcs, goal, goal_layers, via_cost,
                wrong_layer_cost, layer_pref, allow_via):
+        """Octilinear (45-degree) A*. Diagonal steps additionally require both
+        adjacent orthogonal cells to be free so the trace body never clips an
+        obstacle corner. Bend cost is graded: 45-degree turns are cheap,
+        90-degree turns cost more, so paths come out straight or gently
+        mitred rather than stair-stepped."""
         gx, gy = goal
         openq = []
         best = {}
         for (i, j, l) in srcs:
-            h = abs(i - gx) + abs(j - gy)
-            heapq.heappush(openq, (h, 0.0, (i, j, l)))
+            heapq.heappush(openq, (self._octile(i - gx, j - gy), 0.0, (i, j, l)))
             best[(i, j, l)] = (0.0, None)
         visited = set()
         while openq:
@@ -224,25 +236,37 @@ class Router:
                 path.reverse()
                 return path
             par = best[node][1]
-            for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            for di, dj, base in self.DIRS:
                 ni, nj = i + di, j + dj
                 if not (0 <= ni < self.nx and 0 <= nj < self.ny):
                     continue
                 nnode = (ni, nj, l)
                 if nnode in visited:
                     continue
-                if not ((ni, nj) == (gx, gy) and l in goal_layers):
-                    if self.blocked(net, width, ni, nj, l):
+                is_goal = (ni, nj) == (gx, gy) and l in goal_layers
+                if not is_goal and self.blocked(net, width, ni, nj, l):
+                    continue
+                if di and dj:
+                    # no corner-clipping between diagonal neighbours
+                    if self.blocked(net, width, i + di, j, l) or                        self.blocked(net, width, i, j + dj, l):
                         continue
-                step = 1.0 + (wrong_layer_cost if l != layer_pref else 0.0)
+                step = base + (wrong_layer_cost if l != layer_pref else 0.0)
                 if par is not None and par[2] == l:
-                    if (i - par[0], j - par[1]) != (di, dj):
-                        step += 0.15
+                    pdi, pdj = i - par[0], j - par[1]
+                    if (pdi, pdj) != (di, dj):
+                        dot = pdi * di + pdj * dj
+                        if dot > 0:
+                            step += 0.08      # 45-degree turn
+                        elif dot == 0:
+                            step += 0.35      # 90-degree turn
+                        else:
+                            step += 1.5       # reversal / acute: avoid
                 ng = g + step
                 old = best.get(nnode)
                 if old is None or ng < old[0] - 1e-9:
                     best[nnode] = (ng, node)
-                    heapq.heappush(openq, (ng + abs(ni - gx) + abs(nj - gy), ng, nnode))
+                    heapq.heappush(openq, (ng + self._octile(ni - gx, nj - gy),
+                                           ng, nnode))
             if allow_via:
                 nnode = (i, j, 1 - l)
                 if nnode not in visited and self.via_ok(net, i, j):
@@ -250,7 +274,8 @@ class Router:
                     old = best.get(nnode)
                     if old is None or ng < old[0] - 1e-9:
                         best[nnode] = (ng, node)
-                        heapq.heappush(openq, (ng + abs(i - gx) + abs(j - gy), ng, nnode))
+                        heapq.heappush(openq, (ng + self._octile(i - gx, j - gy),
+                                               ng, nnode))
         return None
 
     def _commit(self, net, width, path, tgt, srcs):
@@ -290,3 +315,73 @@ class Router:
         for node in path:
             srcs[node] = None
         # memo entries for own-net copper stay valid (own net never blocks self)
+
+
+    # --- post-pass: 45-degree mitering of remaining right-angle corners ---
+    def miter_corners(self, max_miter=1.0, min_miter=0.25):
+        """Replace 90-degree corners between exactly two same-net segments
+        with a 45-degree chamfer. Each chamfer is validated against the full
+        obstacle model (which still holds the un-mitred copper of every other
+        net, so validation is conservative); applied chamfers are inserted
+        into the model so later chamfers see them."""
+        from collections import defaultdict
+        byend = defaultdict(list)
+        for s in self.result_tracks:
+            byend[(round(s.x1, 3), round(s.y1, 3), s.layer)].append((s, 1))
+            byend[(round(s.x2, 3), round(s.y2, 3), s.layer)].append((s, 2))
+        applied = 0
+        new_segs = []
+        for (px, py, layer), ends in byend.items():
+            if len(ends) != 2:
+                continue
+            (sa, ea), (sb, eb) = ends
+            if sa is sb or sa.net != sb.net or abs(sa.w - sb.w) > 1e-6:
+                continue
+
+            def other(s, e):
+                return (s.x1, s.y1) if e == 2 else (s.x2, s.y2)
+
+            ax, ay = other(sa, ea)
+            bx, by = other(sb, eb)
+            va = (ax - px, ay - py)
+            vb = (bx - px, by - py)
+            la = math.hypot(*va)
+            lb = math.hypot(*vb)
+            if la < 1e-6 or lb < 1e-6:
+                continue
+            if abs(va[0] * vb[0] + va[1] * vb[1]) > 1e-6 * la * lb + 1e-9:
+                continue  # not a right angle
+            m = min(max_miter, la * 0.5, lb * 0.5)
+            if m < min_miter:
+                continue
+            ua = (va[0] / la, va[1] / la)
+            ub = (vb[0] / lb, vb[1] / lb)
+            pax, pay = px + ua[0] * m, py + ua[1] * m
+            pbx, pby = px + ub[0] * m, py + ub[1] * m
+            # validate the chamfer body against foreign copper
+            need = sa.w / 2.0 + CLEAR - 0.005
+            ok = True
+            for t in (0.0, 0.25, 0.5, 0.75, 1.0):
+                sxp = pax + (pbx - pax) * t
+                syp = pay + (pby - pay) * t
+                if not self._clear_of(sa.net, sxp, syp, layer, need):
+                    ok = False
+                    break
+            if not ok:
+                continue
+            # shorten both segments to the chamfer points
+            if ea == 1:
+                sa.x1, sa.y1 = pax, pay
+            else:
+                sa.x2, sa.y2 = pax, pay
+            if eb == 1:
+                sb.x1, sb.y1 = pbx, pby
+            else:
+                sb.x2, sb.y2 = pbx, pby
+            ch = Seg(sa.net, layer, pax, pay, pbx, pby, sa.w)
+            self._insert(ch, min(pax, pbx) - sa.w, min(pay, pby) - sa.w,
+                         max(pax, pbx) + sa.w, max(pay, pby) + sa.w)
+            new_segs.append(ch)
+            applied += 1
+        self.result_tracks.extend(new_segs)
+        return applied

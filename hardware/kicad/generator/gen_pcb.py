@@ -328,6 +328,9 @@ def main(dst):
             r.add_seg(net, layer, a[0], a[1], b[0], b[1], w)
     print("routing...")
     route_all(r, pad_pos)
+    r._memo = {}
+    r._memo_net = None
+    print("mitred %d right-angle corners" % r.miter_corners())
     stitches = stitch_vias(r)
     print("stitch vias: %d" % len(stitches))
 

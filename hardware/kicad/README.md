@@ -113,7 +113,9 @@ fabricate the board.
 The schematic and board are both generated from
 `generator/design.py` — a single table of components, pin→net connectivity
 and placements — so they can never disagree with each other. The board is
-routed by a small grid autorouter (`router.py`) and verified by an
+routed by a small octilinear grid autorouter (`router.py` — 45-degree
+routing with graded bend costs, plus a validated miter pass that chamfers
+any remaining right-angle corners) and verified by an
 independent geometry checker (`check_pcb.py`: clearance ≥ 0.2 mm,
 per-net connectivity, antenna keep-out, board-edge margin, courtyards).
 
