@@ -87,7 +87,7 @@
 				)
 			)
 		)
-		(property "Value" "ESP32-S3-WROOM-1-N8R2"
+		(property "Value" "ESP32-S3-WROOM-1-N16R8"
 			(at 0 14.6 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -2197,7 +2197,7 @@
 				)
 			)
 		)
-		(property "Value" "22uF/10V"
+		(property "Value" "22uF/25V"
 			(at 0 1.85 270)
 			(layer "F.Fab")
 			(effects

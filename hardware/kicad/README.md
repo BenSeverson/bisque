@@ -28,7 +28,9 @@ fabricate the board.
 
 ## What's on the board
 
-- **U1 — ESP32-S3-WROOM-1-N8R2** module at the top edge, antenna keep-out
+- **U1 — ESP32-S3-WROOM-1-N16R8** module (16 MB flash / 8 MB octal
+  PSRAM — matches `sdkconfig.defaults` + the 16 MB OTA partition table) at
+  the top edge, antenna keep-out
   strip kept copper-free (the official footprint's rule area).
 - **Power**: 5 V DC in on screw terminal **J2** (top-left) *or* USB-C; each
   source feeds the +5 V rail through an SS34 Schottky (D1/D2 — also reverse
@@ -77,7 +79,7 @@ fabricate the board.
 
 | Ref | Value / Part | Package |
 |---|---|---|
-| U1 | ESP32-S3-WROOM-1-N8R2 | castellated module |
+| U1 | ESP32-S3-WROOM-1-N16R8 | castellated module |
 | U2 | AMS1117-3.3 | SOT-223 |
 | U3 | MAX31855KASA+ | SOIC-8 |
 | U4 | USBLC6-2SC6 | SOT-23-6 |
@@ -107,6 +109,46 @@ fabricate the board.
 | — mates | KK-254 housing 1×8 (22-01-3087) ×2, 1×6 (22-01-3067), crimps 08-50-0114 | — |
 | SW1, SW2 | tactile switch | 6 mm THT |
 | H1–H4 | M3 mounting hole, grounded | — |
+
+## Fabrication & assembly at JLCPCB
+
+The board was checked against JLCPCB's standard 2-layer capabilities and
+sits comfortably inside the cheapest tier — there is nothing on it that
+triggers an upcharge:
+
+| Parameter | This board | JLCPCB 2-layer limit |
+|---|---|---|
+| Size | 100 × 80 mm | ≤ 100 × 100 mm for the promo price |
+| Min track width | 0.25 mm (USB) | 0.127 mm |
+| Min clearance | 0.20 mm | 0.127 mm |
+| Via | 0.6 mm / 0.3 mm drill | 0.4 mm / 0.3 mm |
+| Min PTH drill | 0.3 mm (vias) | 0.3 mm |
+| Copper-to-edge | ≥ 0.4 mm | 0.2 mm |
+| Layers / finish | 2, HASL, 1.6 mm, green | standard |
+
+Bare boards: **~$2–4 for 5 pcs** (their locked 2-layer ≤100×100 mm price)
+plus shipping. Export gerbers from KiCad after filling zones (**B**).
+
+**Assembly**: `generator/gen_jlc.py` writes `jlcpcb/BOM.csv` +
+`jlcpcb/CPL.csv` for the PCBA upload. Every part is orderable from the
+LCSC/JLCPCB catalog: the passives, AO3400A, SS34/SS14, 1N4148W and
+AMS1117 are cheap **Basic** parts (no feeder-loading fee); the module
+(ESP32-S3-WROOM-1-N16R8, C2913202 — matches the firmware's 16 MB flash +
+octal PSRAM config), MAX31855KASA+T (C52028), USB-C (C165948) and WS2812B
+are stocked **Extended** parts (~$3 loading fee each on standard assembly).
+Generic commodity parts (screw terminals, KK-254 wafers, buzzer, tact
+switches) have many in-stock equivalents — confirm the flagged part
+numbers in JLC's BOM matcher at order time, and verify part rotations in
+their placement preview.
+
+Cheapest sensible configurations:
+1. **SMT-only assembly** (recommended): let JLC place all SMD parts and
+   hand-solder the 6 through-hole parts yourself (terminals, wafers,
+   buzzer, switches — the easy ones). Roughly **$50–70 for 5 boards, 2
+   assembled**, dominated by setup + loading fees + the ~$6–8/board BOM.
+2. Full assembly incl. THT hand-soldering: add roughly $15–25.
+3. Bare boards only: ~$2–4 + parts from LCSC (~$8/board) and a Saturday
+   with an iron — everything was chosen to be hand-solderable.
 
 ## Regenerating the files
 

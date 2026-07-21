@@ -36,7 +36,7 @@ COMPONENTS = {
     # --- MCU -------------------------------------------------------------
     "U1": dict(lib="RF_Module", sym="ESP32-S3-WROOM-1",
                fp="RF_Module:ESP32-S3-WROOM-1", fpf="ESP32-S3-WROOM-1.kicad_mod",
-               value="ESP32-S3-WROOM-1-N8R2", at=(88.0, 33.0, 0),
+               value="ESP32-S3-WROOM-1-N16R8", at=(88.0, 33.0, 0),
                pins={"1": "GND", "2": "+3V3", "3": "EN", "4": "BTN_UP",
                      "5": "BTN_DOWN", "6": "BTN_LEFT", "7": "ALARM",
                      "8": "AUX_A", "9": "AUX_B", "10": "SSR_CTRL",
@@ -72,7 +72,7 @@ COMPONENTS = {
                value="100nF", at=(44.5, 32.5, 90),
                pins={"1": "+5V", "2": "GND"}),
     "C3": dict(lib="Device", sym="C", fp=C1206[0], fpf=C1206[1],
-               value="22uF/10V", at=(57.0, 32.5, 270),
+               value="22uF/25V", at=(57.0, 32.5, 270),
                pins={"1": "+3V3", "2": "GND"}),
     "C4": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
                value="100nF", at=(59.5, 32.5, 270),
