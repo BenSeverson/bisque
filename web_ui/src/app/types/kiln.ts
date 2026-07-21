@@ -20,14 +20,7 @@ export interface FiringProfile {
 }
 
 export type FiringStatus =
-  | "idle"
-  | "heating"
-  | "holding"
-  | "cooling"
-  | "complete"
-  | "error"
-  | "paused"
-  | "autotune";
+  "idle" | "heating" | "holding" | "cooling" | "complete" | "error" | "paused" | "autotune";
 
 const FIRING_STATUSES: ReadonlySet<FiringStatus> = new Set([
   "idle",
