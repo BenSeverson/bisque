@@ -84,3 +84,23 @@ idf.py build
 ```
 
 [docs]: https://code.claude.com/docs/en/claude-code-on-the-web
+
+## KiCad (custom PCB pipeline)
+
+The `hardware/kicad/` generator (`kicad_build.py`, `check_netlist.py`,
+`render-3d.sh`) needs KiCad 9/10 — newer than the base image provides. The
+KiCad PPA is **blocked under the default network policy**:
+
+- `ppa.launchpadcontent.net` — the KiCad 10 package repository
+- `keyserver.ubuntu.com` / `api.launchpad.net` — PPA signing key (optional;
+  the installer falls back to a trusted-repo entry inside the sandbox)
+
+Allow those hosts in the environment's network policy and restart the
+session; `install-kicad.sh` then adds `ppa:kicad/kicad-10.0-releases` and
+installs `kicad`, `kicad-symbols` and `kicad-footprints` (~1.5 GB, cached
+across sessions). Set `KICAD_3D=1` to also pull `kicad-packages3d` (~6 GB)
+if you want component models in `kicad-cli pcb render` output.
+
+Until the policy is enabled the script detects the block and exits in a few
+seconds; the PCB pipeline then falls back to whatever KiCad the base image
+has (Ubuntu universe ships 7.0 — the generator supports both).

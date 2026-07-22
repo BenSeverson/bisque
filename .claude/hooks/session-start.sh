@@ -41,6 +41,12 @@ fi
 bash "$(dirname "$0")/install-esp-idf.sh" || \
   echo "[bisque session-start] esp-idf install step skipped/failed (non-fatal)."
 
+# KiCad 10 for the hardware/kicad generator pipeline. Installs only when the
+# network policy allows the Launchpad PPA host (otherwise detects the block
+# and returns in a few seconds) — see docs/cloud-dev.md.
+bash "$(dirname "$0")/install-kicad.sh" || \
+  echo "[bisque session-start] kicad install step skipped/failed (non-fatal)."
+
 if command -v idf.py >/dev/null 2>&1 || [ -f "$HOME/esp-idf/export.sh" ]; then
   echo "[bisque session-start] ready. In-container: web_ui build/test/lint, C clang-format,"
   echo "  idf.py firmware build, docs & SVG diagrams. Needs a bench: flash + on-hardware tests."
