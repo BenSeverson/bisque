@@ -151,20 +151,15 @@ See also: [Wiring Diagram](docs/wiring-diagram.svg) | [Perfboard Layout](docs/pe
 
 ## Custom PCB
 
-A single-board version of the controller lives in [`hardware/kicad/`](hardware/kicad/) — a full KiCad project (schematic + routed 2-layer board, 100 × 80 mm) that replaces the DevKit-plus-breakouts perfboard build with one hand-solderable board.
+A single-board version of the controller lives in [`hardware/kicad/`](hardware/kicad/) — a full KiCad project (schematic + routed 2-layer board, 100 × 80 mm) that replaces the DevKit-plus-breakouts perfboard build.
 
 <p align="center">
   <img src="hardware/kicad/3d/board-3d-iso.png" width="600" alt="Raytraced render of the Bisque controller PCB" />
 </p>
 
-- **ESP32-S3-WROOM-1-N16R8** module (matches the firmware's 16 MB flash / octal-PSRAM config), MAX31855 thermocouple amp, boot-safe SSR driver, USB-C flashing with ESD protection, WS2812B status LED, and alarm buzzer — all on board
-- Screw terminals for 5 V power, thermocouple, and SSR; polarized Molex KK-254 friction-lock headers for the display, nav-switch, and aux looms (can't be plugged in reversed)
-- Hand-solderable throughout: 0805 passives, SOIC/SOT, through-hole connectors — no BGA/QFN
-- M3 mounting holes on a round-number **90 × 70 mm** grid, one per corner
-- Fits JLCPCB's cheapest 2-layer tier (~$2–4 for 5 boards); ready-to-upload gerbers, drill files, and an assembly BOM/CPL with LCSC part numbers are committed
-- Verified with KiCad 10: DRC clean (0 errors), schematic↔board netlist round-trip, plus an independent geometry checker
+It integrates the ESP32-S3-WROOM-1 module, MAX31855 thermocouple amplifier, SSR driver, USB-C flashing, status LED, and alarm buzzer, with screw terminals for the field wiring and keyed connectors for the display and nav-switch looms. Gerbers, drill files, and an assembly BOM/CPL are committed and ready to upload to a board house.
 
-Everything is generated from a single connectivity/placement table via the pcbnew Python API — see [`hardware/kicad/README.md`](hardware/kicad/README.md) for the design details, BOM, and regeneration workflow. GPIO assignments mirror the firmware's `Kconfig` defaults, so stock firmware runs unmodified.
+See [`hardware/kicad/README.md`](hardware/kicad/README.md) for the full BOM, fabrication notes, and the regeneration workflow. GPIO assignments mirror the firmware's `Kconfig` defaults, so stock firmware runs unmodified.
 
 ## Getting Started
 
