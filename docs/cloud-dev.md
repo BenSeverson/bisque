@@ -102,5 +102,5 @@ across sessions). Set `KICAD_3D=1` to also pull `kicad-packages3d` (~6 GB)
 if you want component models in `kicad-cli pcb render` output.
 
 Until the policy is enabled the script detects the block and exits in a few
-seconds; the PCB pipeline then falls back to whatever KiCad the base image
-has (Ubuntu universe ships 7.0 — the generator supports both).
+seconds; the PCB generator requires KiCad 10, so the pipeline stays
+unavailable in cloud sessions until then.

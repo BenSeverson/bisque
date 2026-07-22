@@ -37,7 +37,7 @@ if ! curl -s -o /dev/null --max-time 8 \
      "${PPA_URL}/dists/${CODENAME}/InRelease" 2>/dev/null; then
   log "KiCad PPA unreachable (network policy not allowing"
   log "ppa.launchpadcontent.net yet). Skipping KiCad install — the PCB"
-  log "generator falls back to whatever KiCad the base image provides."
+  log "generator requires KiCad 10 and stays unavailable in this session."
   log "Allow the host in the environment settings and restart the session."
   exit 0
 fi

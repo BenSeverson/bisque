@@ -20,7 +20,6 @@ def _find_sym_base():
              "/usr/local/share/kicad/symbols",
              "/Applications/KiCad/KiCad.app/Contents/SharedSupport/symbols",
              r"C:\Program Files\KiCad\10.0\share\kicad\symbols",
-             r"C:\Program Files\KiCad\9.0\share\kicad\symbols",
              os.path.join(os.path.dirname(os.path.abspath(__file__)), "sym")]
     for c in cand:
         if c and os.path.isdir(c):
