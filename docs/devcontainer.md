@@ -32,6 +32,14 @@ Everything the PR check runs, from the container terminal:
 | clang-tidy / cppcheck | `make clang-tidy` · `make cppcheck` |
 | **The whole PR gate** | `make ci` |
 | Claude Code | `claude` |
+| PCB/schematic regen + validation | see `hardware/kicad/README.md` (`generator/gen_sch.py`, `check_netlist.py`, `kicad_build.py`, `check_pcb.py`) |
+
+KiCad 10 (`kicad-cli` + the `pcbnew` Python API) is baked into the image,
+so the `hardware/kicad/generator/` pipeline works immediately — no
+macOS-style bundled-Python (`KPY`) workaround needed, since apt-installed
+KiCad on Linux binds directly to the container's system `python3`. Set the
+`KICAD_3D` build arg to pull the ~6 GB 3D model pack if you need
+`kicad-cli pcb render` output; see the comment in `devcontainer.json`.
 
 ## What doesn't — flashing
 
