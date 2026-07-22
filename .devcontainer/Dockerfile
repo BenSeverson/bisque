@@ -5,9 +5,10 @@
 # pre-installed at $IDF_PATH (/opt/esp/idf); tools live under /opt/esp.
 #
 # Layered here (durable, image-cached): the two extra tools CI installs at
-# runtime — cppcheck and esp-clang — plus shell init so idf.py is always on
-# PATH. Node 24 and the Claude Code CLI are added via devcontainer features
-# (see devcontainer.json). Web deps install in postCreate.sh.
+# runtime — cppcheck and esp-clang — KiCad 10 for the hardware/kicad
+# generator pipeline, plus shell init so idf.py is always on PATH. Node 24
+# and the Claude Code CLI are added via devcontainer features (see
+# devcontainer.json). Web deps install in postCreate.sh.
 FROM espressif/idf:v6.0.2
 
 # cppcheck for `make cppcheck` (CI installs it via apt at runtime).
@@ -19,6 +20,29 @@ RUN apt-get update \
 # `idf_tools.py install esp-clang` on demand).
 RUN . "$IDF_PATH/export.sh" \
  && python "$IDF_PATH/tools/idf_tools.py" install esp-clang
+
+# KiCad 10 for the hardware/kicad generator pipeline (pcbnew Python API +
+# kicad-cli). Ubuntu's own repo only ships KiCad 7, which the generator no
+# longer supports (see hardware/kicad/README.md) — pull from the official
+# PPA instead. Mirrors .claude/hooks/install-kicad.sh's install logic (kept
+# in sync manually: same PPA, same package list); unlike that script, this
+# layer does not preflight/skip on a blocked network, since a local Docker
+# build isn't sandboxed the way a cloud session is — a failure here should
+# fail the image build, not silently degrade.
+ARG KICAD_3D=0
+RUN . /etc/os-release \
+ && PPA="kicad/kicad-10.0-releases" \
+ && apt-get update -qq \
+ && (apt-get install -y -qq software-properties-common \
+     && add-apt-repository -y "ppa:${PPA}") \
+    || echo "deb [trusted=yes] https://ppa.launchpadcontent.net/${PPA}/ubuntu ${UBUNTU_CODENAME} main" \
+       > /etc/apt/sources.list.d/kicad.list \
+ && apt-get update -qq \
+ && PKGS="kicad kicad-symbols kicad-footprints" \
+ && if [ "$KICAD_3D" = "1" ]; then PKGS="$PKGS kicad-packages3d"; fi \
+ && apt-get install -y --no-install-recommends $PKGS \
+ && rm -rf /var/lib/apt/lists/* \
+ && kicad-cli version
 
 # Make idf.py + the tool paths available in every interactive shell.
 RUN echo '. "$IDF_PATH/export.sh" >/dev/null 2>&1 || true' >> /root/.bashrc
