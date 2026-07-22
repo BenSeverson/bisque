@@ -167,8 +167,9 @@ Cheapest sensible configurations:
 Everything derives from `generator/design.py` — a single table of
 components, pin→net connectivity and placements — so schematic and board
 can never disagree. Requires **KiCad 10+** (pcbnew Python module +
-kicad-cli + standard libraries). On macOS run the board build with
-KiCad's bundled Python:
+kicad-cli + standard libraries) — the project's `.devcontainer/` (see
+`docs/devcontainer.md`) bakes this in, as an alternative to installing
+KiCad natively. On macOS run the board build with KiCad's bundled Python:
 `KPY=/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3`
 
 ```bash
