@@ -1,0 +1,33 @@
+Comment,Designator,Footprint,LCSC Part #,Notes
+active 5V,BZ1,Buzzer_12x9.5RM7.6,,active buzzer 5V 12mm THT P7.6 - pick in JLC part search
+22uF/25V,"C1,C3",C_1206_3216Metric,C12891,22uF 25V X5R 1206 [CONFIRM part # at order time]
+100nF,"C2,C4,C6,C8,C10",C_0805_2012Metric,C49678,100nF 50V X7R 0805
+1uF,C5,C_0805_2012Metric,C28323,1uF 0805 [CONFIRM part # at order time]
+10uF,"C7,C12",C_0805_2012Metric,C15850,10uF 0805 [CONFIRM part # at order time]
+10nF,C9,C_0805_2012Metric,C57112,10nF 0805 [CONFIRM part # at order time]
+SS34,"D1,D2",D_SMA,C8678,SS34 SMA
+SS14,D3,D_SMA,C2480,SS14 SMA
+1N4148W,D4,D_SOD-123,C81598,1N4148W SOD-123
+USB-C,J1,USB_C_Receptacle_HRO_TYPE-C-31-M-12,C165948,HRO TYPE-C-31-M-12 USB-C 16P
+5V_IN,J2,"TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal",C8465,5.08mm screw terminal 1x02 (KF301 type) [CONFIRM part # at order time]
+TC_K,J3,"TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal",C8465,5.08mm screw terminal 1x02 [CONFIRM part # at order time]
+SSR,J4,"TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal",C8465,5.08mm screw terminal 1x02 [CONFIRM part # at order time]
+DISPLAY,J5,Molex_KK-254_AE-6410-08A_1x08_P2.54mm_Vertical,,KK-254 friction-lock wafer 1x08 (Molex 22-27-2081 or A2547 clone)
+NAV_SW,J6,Molex_KK-254_AE-6410-06A_1x06_P2.54mm_Vertical,,KK-254 friction-lock wafer 1x06 (Molex 22-27-2061 or A2547 clone)
+AUX,J7,Molex_KK-254_AE-6410-08A_1x08_P2.54mm_Vertical,,KK-254 friction-lock wafer 1x08
+WS2812B,LED1,LED_WS2812B_PLCC4_5.0x5.0mm_P3.2mm,C2761795,WS2812B 5050 RGB [CONFIRM part # at order time]
+green,LED2,LED_0805_2012Metric,C2297,green LED 0805 [CONFIRM part # at order time]
+amber,LED3,LED_0805_2012Metric,C2296,yellow LED 0805 [CONFIRM part # at order time]
+AO3400A,"Q1,Q2",SOT-23,C20917,AO3400A SOT-23
+10k,"R1,R2,R7,R8",R_0805_2012Metric,C17414,10k 0805
+680R,R10,R_0805_2012Metric,C17798,680R 0805 [CONFIRM part # at order time]
+330R,R3,R_0805_2012Metric,C17630,330R 0805
+5.1k,"R4,R5",R_0805_2012Metric,C27834,5.1k 0805
+100R,"R6,R11",R_0805_2012Metric,C17408,100R 0805
+1k,R9,R_0805_2012Metric,C17513,1k 0805
+RESET,SW1,SW_PUSH_6mm,,6x6mm THT tactile switch - pick in JLC part search
+BOOT,SW2,SW_PUSH_6mm,,6x6mm THT tactile switch
+ESP32-S3-WROOM-1-N16R8,U1,ESP32-S3-WROOM-1,C2913202,"ESP32-S3-WROOM-1-N16R8 (16MB flash, 8MB octal PSRAM)"
+AMS1117-3.3,U2,SOT-223-3_TabPin2,C6186,AMS1117-3.3 SOT-223
+MAX31855KASA+,U3,SOIC-8_3.9x4.9mm_P1.27mm,C52028,MAX31855KASA+T SOIC-8
+USBLC6-2SC6,U4,SOT-23-6,C7519,USBLC6-2SC6 SOT-23-6
