@@ -1,9 +1,16 @@
 {
   // Local VS Code dev container for Bisque. See docs/devcontainer.md.
-  // Mirrors the CI toolchain (ESP-IDF v6.0.2 + Node 24) and adds the Claude
-  // Code CLI so the full firmware + web workflow works out of the box.
+  // Mirrors the CI toolchain (ESP-IDF v6.0.2 + Node 24), adds the Claude
+  // Code CLI, and bakes in KiCad 10 for the hardware/kicad generator
+  // pipeline — so the full firmware + web + PCB workflow works out of
+  // the box.
   "name": "Bisque (ESP-IDF v6.0.2 + web)",
-  "build": { "dockerfile": "Dockerfile" },
+  "build": {
+    "dockerfile": "Dockerfile"
+    // Uncomment to also install kicad-packages3d (~6 GB) for
+    // `kicad-cli pcb render`:
+    // , "args": { "KICAD_3D": "1" }
+  },
   "features": {
     "ghcr.io/devcontainers/features/node:1": { "version": "24" },
     "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
