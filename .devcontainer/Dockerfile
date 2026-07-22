@@ -42,7 +42,8 @@ RUN . /etc/os-release \
  && if [ "$KICAD_3D" = "1" ]; then PKGS="$PKGS kicad-packages3d"; fi \
  && apt-get install -y --no-install-recommends $PKGS \
  && rm -rf /var/lib/apt/lists/* \
- && kicad-cli version
+ && kicad-cli version \
+ && python3 -c "import pcbnew"
 
 # Make idf.py + the tool paths available in every interactive shell.
 RUN echo '. "$IDF_PATH/export.sh" >/dev/null 2>&1 || true' >> /root/.bashrc
