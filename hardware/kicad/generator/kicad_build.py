@@ -119,11 +119,11 @@ def build_board():
         t = fp.Reference()
         t.SetTextSize(pcbnew.VECTOR2I(MM(0.8), MM(0.8)))
         t.SetTextThickness(MM(0.12))
-    for ref, (x, y) in {"J5": (26.5, 90.6), "J6": (47.8, 90.6),
-                        "J7": (65.5, 90.6), "LED1": (69.8, 89.3),
+    for ref, (x, y) in {"J5": (33.0, 90.6), "J6": (54.8, 90.6),
+                        "J7": (72.0, 90.6), "LED1": (69.8, 89.3),
                         "U3": (104.5, 57.4), "C9": (105.3, 69.5),
                         "J3": (110.6, 71.6), "SW1": (51.5, 25.0),
-                        "H1": (29.3, 24.5)}.items():
+                        "H1": (30.5, 25.0)}.items():
         fps[ref].Reference().SetPosition(V(x, y))
     return board, nets, fps
 

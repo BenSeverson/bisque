@@ -73,7 +73,9 @@ them).
   (≈4.6 V) so the 3.3 V data level stays inside the WS2812B's V_IH spec.
 - **Alarm**: 12 mm active 5 V buzzer (BZ1) on IO7, AO3400A low-side driver
   with flyback diode.
-- 4× M3 grounded mounting holes; GND pour both sides with stitching vias.
+- 4× M3 grounded mounting holes, one per corner, centers on a **90 × 70 mm
+  rectangle** (5 mm in from the top/bottom edges) for easy enclosure
+  drilling; GND pour both sides with stitching vias.
 
 ### GPIO map (mirrors `main/Kconfig.projbuild` defaults)
 
@@ -118,7 +120,7 @@ them).
 | J6 | Molex KK-254 friction-lock header 1×6 (AE-6410-06A / 22-27-2061) | 2.54 mm THT |
 | — mates | KK-254 housing 1×8 (22-01-3087) ×2, 1×6 (22-01-3067), crimps 08-50-0114 | — |
 | SW1, SW2 | tactile switch | 6 mm THT |
-| H1–H4 | M3 mounting hole, grounded | — |
+| H1–H4 | M3 mounting hole, grounded, 90 × 70 mm grid | — |
 
 ## Fabrication & assembly at JLCPCB
 

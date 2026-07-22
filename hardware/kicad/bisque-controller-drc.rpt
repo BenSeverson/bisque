@@ -1,51 +1,47 @@
 ** Drc report for bisque-controller.kicad_pcb **
-** Created on 2026-07-21T14:02:36 **
+** Created on 2026-07-21T19:33:52 **
 ** Report includes: Errors, Warnings, Exclusions **
 
-** Found 16 DRC violations **
+** Found 14 DRC violations **
 [track_dangling]: Track has unconnected end
     Local override; warning
-    @(90.7500 mm, 91.5600 mm): Track [CC2] on F.Cu, length 1.9100 mm
-[silk_edge_clearance]: Silkscreen clipped by board edge
-    Rule: board setup constraints silk; warning
-    @(20.0000 mm, 20.0000 mm): Segment on Edge.Cuts
-    @(115.5000 mm, 20.3500 mm): Reference field of H2
-[silk_overlap]: Silkscreen clearance
-    Rule: board setup constraints silk; warning
-    @(88.0000 mm, 22.6000 mm): PCB text 'ANTENNA - KEEP CLEAR' on F.Silkscreen
-    @(97.2000 mm, 20.1000 mm): Segment of U1 on F.Silkscreen
+    @(98.4500 mm, 89.6000 mm): Track [VBUS] on F.Cu, length 0.1500 mm
 [silk_overlap]: Silkscreen clearance
     Rule: board setup constraints silk; warning
     @(117.3000 mm, 68.5000 mm): PCB text 'K-' on F.Silkscreen
     @(118.7200 mm, 67.6600 mm): Segment of J3 on F.Silkscreen
 [silk_overlap]: Silkscreen clearance
     Rule: board setup constraints silk; warning
-    @(58.8500 mm, 32.5000 mm): Reference field of C3
-    @(58.7650 mm, 32.2387 mm): Segment of C4 on F.Silkscreen
+    @(70.0500 mm, 79.5000 mm): Reference field of D3
+    @(69.0000 mm, 79.8200 mm): Reference field of C10
 [silk_overlap]: Silkscreen clearance
     Rule: board setup constraints silk; warning
-    @(64.7650 mm, 32.2729 mm): Segment of R9 on F.Silkscreen
-    @(64.6500 mm, 32.5000 mm): Reference field of LED2
-[silk_overlap]: Silkscreen clearance
-    Rule: board setup constraints silk; warning
-    @(34.6500 mm, 50.0000 mm): Reference field of LED3
-    @(34.8500 mm, 50.0000 mm): Reference field of R10
+    @(97.2000 mm, 20.1000 mm): Segment of U1 on F.Silkscreen
+    @(88.0000 mm, 22.6000 mm): PCB text 'ANTENNA - KEEP CLEAR' on F.Silkscreen
 [silk_overlap]: Silkscreen clearance
     Rule: board setup constraints silk; warning
     @(78.8000 mm, 20.1000 mm): Segment of U1 on F.Silkscreen
     @(88.0000 mm, 22.6000 mm): PCB text 'ANTENNA - KEEP CLEAR' on F.Silkscreen
 [silk_overlap]: Silkscreen clearance
     Rule: board setup constraints silk; warning
-    @(69.0000 mm, 79.8200 mm): Reference field of C10
-    @(70.0500 mm, 79.5000 mm): Reference field of D3
+    @(58.8500 mm, 32.5000 mm): Reference field of C3
+    @(58.7650 mm, 32.2387 mm): Segment of C4 on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(64.6500 mm, 32.5000 mm): Reference field of LED2
+    @(64.7650 mm, 32.2729 mm): Segment of R9 on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(34.6500 mm, 50.0000 mm): Reference field of LED3
+    @(34.8500 mm, 50.0000 mm): Reference field of R10
 [silk_over_copper]: Silkscreen clipped by solder mask
     Local override; warning
-    @(26.5000 mm, 90.6000 mm): Reference field of J5
+    @(25.5000 mm, 90.8500 mm): Reference field of H3
     @(25.5500 mm, 90.5000 mm): Pad 1 [+3V3] of C12 on F.Cu
 [silk_over_copper]: Silkscreen clipped by solder mask
     Local override; warning
-    @(26.5000 mm, 90.6000 mm): Reference field of J5
-    @(27.4500 mm, 90.5000 mm): Pad 2 [GND] of C12 on F.Cu
+    @(75.1200 mm, 28.0000 mm): Reference field of C6
+    @(74.9500 mm, 27.6000 mm): Pad 2 [GND] of C7 on F.Cu
 [silk_over_copper]: Silkscreen clipped by solder mask
     Local override; warning
     @(58.8500 mm, 32.5000 mm): Reference field of C3
@@ -57,15 +53,11 @@
 [silk_over_copper]: Silkscreen clipped by solder mask
     Local override; warning
     @(64.6500 mm, 32.5000 mm): Reference field of LED2
-    @(65.5000 mm, 31.5875 mm): Pad 1 [LEDP_K] of R9 on F.Cu
-[silk_over_copper]: Silkscreen clipped by solder mask
-    Local override; warning
-    @(64.6500 mm, 32.5000 mm): Reference field of LED2
     @(65.5000 mm, 33.4125 mm): Pad 2 [GND] of R9 on F.Cu
 [silk_over_copper]: Silkscreen clipped by solder mask
     Local override; warning
-    @(75.1200 mm, 28.0000 mm): Reference field of C6
-    @(74.9500 mm, 27.6000 mm): Pad 2 [GND] of C7 on F.Cu
+    @(64.6500 mm, 32.5000 mm): Reference field of LED2
+    @(65.5000 mm, 31.5875 mm): Pad 1 [LEDP_K] of R9 on F.Cu
 
 ** Found 0 unconnected pads **
 
