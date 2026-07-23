@@ -50,6 +50,8 @@ du -sh "$SPIFFS_DIR"
 # Step 3: Build ESP-IDF firmware
 echo "--- Building Firmware ---"
 cd "$SCRIPT_DIR"
+# shellcheck source=scripts/idf-env.sh
+. "$SCRIPT_DIR/scripts/idf-env.sh"
 idf.py build
 
 echo "=== Build Complete ==="

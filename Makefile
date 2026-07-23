@@ -11,6 +11,11 @@
 WEB_DIR     := web_ui
 SPIFFS_DIR  := spiffs_data/www
 
+# Recipe prefix for anything that shells out to the ESP-IDF toolchain. Each
+# recipe line runs in its own fresh shell, which has never sourced export.sh,
+# so every idf.py/idf_tools.py call must activate first. No-op once active.
+IDF         := . ./scripts/idf-env.sh &&
+
 .PHONY: help build web gzip firmware sim \
         test test-host test-web fixtures \
         lint lint-c lint-web format \
@@ -37,7 +42,7 @@ gzip:  ## Compress $(SPIFFS_DIR)/* in place; partition only fits gzipped
 	    -exec gzip -9 -f {} \;
 
 firmware:  ## Firmware only — assumes $(SPIFFS_DIR) is already populated
-	idf.py build
+	$(IDF) idf.py build
 
 sim:  ## Build and run the LVGL/SDL2 simulator with --diff against baselines
 	cmake -S simulator -B simulator/build
@@ -84,8 +89,8 @@ format:  ## Auto-format C and web sources
 ## ──────────────────────────────────────────────────────────────────────
 
 clang-tidy:  ## Run clang-tidy with -warnings-as-errors=* (needs firmware build)
-	idf_tools.py install esp-clang
-	@bash -c 'eval "$$(idf_tools.py export)" && idf.py clang-check --run-clang-tidy-options="-warnings-as-errors=*" --exclude-paths managed_components'
+	$(IDF) idf_tools.py install esp-clang
+	@bash -c '. ./scripts/idf-env.sh && eval "$$(idf_tools.py export)" && idf.py clang-check --run-clang-tidy-options="-warnings-as-errors=*" --exclude-paths managed_components'
 
 cppcheck:  ## Run cppcheck across main/ and components/
 	cppcheck --enable=warning,style,performance --error-exitcode=1 \
@@ -118,5 +123,5 @@ ci-firmware:  ## Replicate CI's `build` job locally (no clang-tidy/cppcheck)
 ci: lint test ci-firmware  ## Closest local approximation of full CI
 
 clean:  ## Remove build artifacts (firmware, host tests, simulator, SPIFFS)
-	-idf.py fullclean
+	-$(IDF) idf.py fullclean
 	rm -rf build cmake-build-debug tests/host/build simulator/build $(SPIFFS_DIR)
