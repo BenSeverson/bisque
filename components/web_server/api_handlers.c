@@ -528,6 +528,27 @@ static esp_err_t handle_firing_start(httpd_req_t *req)
         return ESP_FAIL;
     }
 
+    /* validate_profile() cannot judge segment 0's ramp direction — it has no
+       start temperature — so for an immediate start do it here, against the
+       live reading, rather than letting the engine reject the queued command
+       asynchronously and leaving the client showing a firing that never began.
+       Delayed starts are deliberately excluded: the kiln is often still hot
+       when one is queued and will have cooled by expiry, so the engine runs
+       this same check then, against the temperature that actually applies. */
+    if (delay_minutes == 0) {
+        thermocouple_reading_t start_tc;
+        thermocouple_get_latest(&start_tc);
+        kiln_settings_t start_settings;
+        firing_engine_get_settings(&start_settings);
+        int bad_seg = firing_first_bad_ramp_sign(&profile, start_tc.temperature_c + start_settings.tc_offset_c);
+        if (bad_seg >= 0) {
+            snprintf(err, sizeof(err), "Segment %d: ramp direction contradicts its target at the current temperature",
+                     bad_seg);
+            httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, err);
+            return ESP_FAIL;
+        }
+    }
+
     firing_cmd_t cmd = {.type = FIRING_CMD_START};
     cmd.start.profile = profile;
     cmd.start.delay_minutes = delay_minutes;

@@ -745,11 +745,21 @@ static void handle_cmd(const firing_cmd_t *cmd)
            Such a segment would be mislabelled HEATING/COOLING, and the clamp in
            compute_dynamic_setpoint would drive the setpoint the "wrong" way —
            e.g. a COOLING label disables the not-rising and runaway watchdogs
-           while full power heats toward a higher target. */
-        int bad_seg = firing_first_bad_ramp_sign(&cmd->start.profile, cur_temp);
-        if (bad_seg >= 0) {
-            ESP_LOGW(TAG, "START rejected: segment %d ramp direction contradicts its target", bad_seg);
-            break;
+           while full power heats toward a higher target.
+
+           Only for an immediate start: for a delayed one the kiln is frequently
+           still hot from a previous firing and will have cooled by the time the
+           delay expires, so judging segment 0 now would reject profiles that are
+           perfectly valid when they actually begin. The delay-expiry path below
+           runs the same check against the fresh reading instead. Segment-to-
+           segment consistency is temperature-independent and is enforced for
+           both paths by validate_profile() at save/start time. */
+        if (cmd->start.delay_minutes == 0) {
+            int bad_seg = firing_first_bad_ramp_sign(&cmd->start.profile, cur_temp);
+            if (bad_seg >= 0) {
+                ESP_LOGW(TAG, "START rejected: segment %d ramp direction contradicts its target", bad_seg);
+                break;
+            }
         }
 
         int64_t now_us = esp_timer_get_time();
@@ -831,9 +841,14 @@ static void handle_cmd(const firing_cmd_t *cmd)
         }
         progress_unlock();
         if (did_resume && resumed_autotune) {
-            /* Autotune owns its own timing internally and has no segment ramp,
-               hold timer, or not-rising window to shift — the anchors below are
-               all firing-only state. */
+            /* Autotune has no segment ramp, hold timer or not-rising window —
+               but it does keep absolute timestamps of its own (the overall
+               timeout and each relay half-cycle), so they need the same shift
+               the firing anchors below get. Otherwise a paused run trips its
+               timeout the instant it resumes, or folds the pause into an
+               oscillation period and saves gains derived from it. */
+            int64_t paused_us = esp_timer_get_time() - s_state.pause_start_us;
+            pid_autotune_shift_time(&s_autotune, paused_us);
             ESP_LOGI(TAG, "Auto-tune resumed");
             break;
         }
@@ -882,6 +897,18 @@ static void handle_cmd(const firing_cmd_t *cmd)
 
         if (active && seg_idx + 1 < total) {
             int next = seg_idx + 1;
+            /* A skip enters the next segment from wherever the kiln actually is,
+               not from the previous segment's target — so a segment that is a
+               valid descent on paper can be an invalid one from an early skip
+               point, landing in exactly the mislabelled-direction state the
+               START check exists to prevent. Refuse rather than advance; the
+               operator can still STOP. */
+            const firing_segment_t *ns = &s_state.active_profile.segments[next];
+            float ndelta = ns->target_temp - cur;
+            if ((ndelta > 0.5f && ns->ramp_rate < 0.0f) || (ndelta < -0.5f && ns->ramp_rate > 0.0f)) {
+                ESP_LOGW(TAG, "SKIP ignored: segment %d ramp direction contradicts the current %.0f°C", next, cur);
+                break;
+            }
             start_segment(next, cur, esp_timer_get_time());
             progress_lock();
             s_progress.current_segment = next;
@@ -976,6 +1003,23 @@ void firing_tick(int64_t now_us)
             kiln_settings_t st;
             firing_engine_get_settings(&st);
             float cur_temp = r.temperature_c + st.tc_offset_c;
+
+            /* The temperature the first segment actually starts from is only
+               known now, so this is where segment 0's ramp direction has to be
+               checked (START deliberately skipped it for delayed firings). */
+            int bad_seg = firing_first_bad_ramp_sign(&s_state.active_profile, cur_temp);
+            if (bad_seg >= 0) {
+                ESP_LOGE(TAG, "Delayed firing aborted: segment %d ramp direction contradicts its target at %.0f°C",
+                         bad_seg, cur_temp);
+                s_last_error_code = FIRING_ERR_INVALID_PROFILE;
+                safety_set_ssr(0.0f);
+                progress_lock();
+                s_progress.is_active = false;
+                s_progress.status = FIRING_STATUS_ERROR;
+                progress_unlock();
+                emit_event(FIRING_EVENT_ERROR, s_state.peak_temp_c, 0);
+                return;
+            }
             begin_firing(cur_temp, now_us);
             /* Reset dt baseline so the PID tick that runs in the rest of this
              * iteration sees dt≈0 (matches pre-refactor behavior). */

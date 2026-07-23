@@ -243,6 +243,19 @@ void pid_autotune_cancel(pid_autotune_t *at)
     ESP_LOGI(TAG, "Auto-tune cancelled");
 }
 
+void pid_autotune_shift_time(pid_autotune_t *at, int64_t delta_us)
+{
+    if (!at || delta_us <= 0 || at->state == AUTOTUNE_IDLE) {
+        return;
+    }
+    at->start_time_us += delta_us;
+    /* Zero means "no crossing recorded yet" — leave it alone so the first
+       crossing after the resume still establishes the baseline. */
+    if (at->last_crossing_us > 0) {
+        at->last_crossing_us += delta_us;
+    }
+}
+
 /* ── NVS Persistence ───────────────────────────────────────── */
 
 esp_err_t pid_save_gains(float kp, float ki, float kd)

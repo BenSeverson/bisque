@@ -525,6 +525,125 @@ static void test_start_allows_legitimate_cooling_segment(void)
     TEST_ASSERT_TRUE_MESSAGE(prog.is_active, "legitimate heat-then-cool profile was wrongly rejected");
 }
 
+/* A delayed start must NOT be judged against the temperature at arm time — the
+ * kiln is often still hot from a previous firing when the user queues an
+ * overnight bisque, and will be cold by the time the delay expires. */
+static void test_delayed_start_not_judged_by_arm_time_temperature(void)
+{
+    scenario_setup(&g_plant, 800.0f); /* still hot from a previous firing */
+
+    firing_profile_t p = {0};
+    strncpy(p.id, "delayed-heat", FIRING_ID_LEN - 1);
+    strncpy(p.name, "Delayed Heat", FIRING_NAME_LEN - 1);
+    p.segment_count = 1;
+    p.max_temp = 900.0f;
+    p.estimated_duration = 60;
+    p.segments[0].ramp_rate = 100.0f;   /* heating… */
+    p.segments[0].target_temp = 600.0f; /* …to a target below the *current* temp */
+    p.segments[0].hold_time = 0;
+
+    scenario_start(&p, 120); /* 2-hour delay */
+    scenario_run_ticks(&g_plant, 2);
+
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_TRUE_MESSAGE(prog.is_active, "delayed start rejected using the arm-time temperature");
+    TEST_ASSERT_EQUAL(FIRING_STATUS_IDLE, prog.status); /* armed, counting down */
+}
+
+/* …but the check must still run when the delay expires, against the fresh
+ * reading, since that is the temperature the first segment actually starts
+ * from. */
+static void test_delayed_start_rejects_wrong_sign_at_expiry(void)
+{
+    scenario_setup(&g_plant, 400.0f);
+
+    firing_profile_t p = {0};
+    strncpy(p.id, "delayed-bad", FIRING_ID_LEN - 1);
+    strncpy(p.name, "Delayed Bad Sign", FIRING_NAME_LEN - 1);
+    p.segment_count = 1;
+    p.max_temp = 1300.0f;
+    p.estimated_duration = 60;
+    p.segments[0].ramp_rate = -100.0f;   /* cooling ramp… */
+    p.segments[0].target_temp = 1200.0f; /* …toward a much higher target */
+    p.segments[0].hold_time = 0;
+
+    scenario_start(&p, 1); /* 1-minute delay */
+
+    /* It must actually arm — otherwise this test would pass merely because the
+       profile was rejected up front, never exercising the expiry path. */
+    scenario_run_ticks(&g_plant, 5);
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_TRUE_MESSAGE(prog.is_active, "delayed firing never armed; expiry path not exercised");
+
+    scenario_run_ticks(&g_plant, 90); /* run past expiry */
+
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_NOT_EQUAL_MESSAGE(FIRING_STATUS_HEATING, prog.status,
+                                  "wrong-sign profile began heating after the delay expired");
+    TEST_ASSERT_NOT_EQUAL(FIRING_STATUS_COOLING, prog.status);
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(0.0f, safety_test_last_duty(), "wrong-sign delayed firing energized the SSR");
+}
+
+/* SKIP re-enters the next segment from wherever the kiln actually is, which is
+ * not the previous segment's target. A segment that is a valid descent from
+ * that target can be an invalid one from an early skip point. */
+static void test_skip_rejects_wrong_sign_next_segment(void)
+{
+    firing_profile_t p = {0};
+    strncpy(p.id, "skip-sign", FIRING_ID_LEN - 1);
+    strncpy(p.name, "Skip Sign", FIRING_NAME_LEN - 1);
+    p.segment_count = 2;
+    p.max_temp = 700.0f;
+    p.estimated_duration = 60;
+    p.segments[0].ramp_rate = 6000.0f;
+    p.segments[0].target_temp = 600.0f;
+    p.segments[0].hold_time = 0;
+    /* Valid as a descent 600 -> 500, invalid from an early skip at ~25°C. */
+    p.segments[1].ramp_rate = -100.0f;
+    p.segments[1].target_temp = 500.0f;
+    p.segments[1].hold_time = 0;
+
+    scenario_start(&p, 0);
+    TEST_ASSERT_TRUE(scenario_run_until_status(&g_plant, FIRING_STATUS_HEATING, 30));
+
+    /* Skip immediately, while the kiln is still far below segment 1's target. */
+    scenario_skip();
+    scenario_run_ticks(&g_plant, 2);
+
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(0, prog.current_segment,
+                                    "skip advanced into a segment whose ramp contradicts the current temperature");
+    TEST_ASSERT_EQUAL(FIRING_STATUS_HEATING, prog.status);
+}
+
+/* Autotune measures its 60-minute timeout and its relay-cycle periods from
+ * absolute esp_timer timestamps. A pause must shift them, or the run either
+ * times out the instant it resumes or folds the pause into an oscillation
+ * period and saves bad gains. */
+static void test_autotune_resume_does_not_time_out_after_long_pause(void)
+{
+    scenario_autotune_start(500.0f, 5.0f);
+    scenario_run_ticks(&g_plant, 1);
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL(FIRING_STATUS_AUTOTUNE, prog.status);
+
+    scenario_pause();
+    /* 61 simulated minutes paused — longer than the whole autotune budget.
+       The autotune branch does not run while PAUSED, so nothing advances. */
+    scenario_run_ticks(&g_plant, 61 * 60);
+
+    scenario_resume();
+    scenario_run_ticks(&g_plant, 2);
+
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL_MESSAGE(FIRING_STATUS_AUTOTUNE, prog.status,
+                              "autotune timed out on resume — pause was counted against its budget");
+}
+
 /* ── TC fault during firing → emergency stop ─────────────────────────── */
 
 static void test_tc_fault_triggers_emergency_stop(void)
@@ -889,6 +1008,10 @@ int main(void)
     RUN_TEST(test_pause_resume_during_cooling_restores_cooling);
     RUN_TEST(test_skip_out_of_long_hold_does_not_trip_not_rising);
     RUN_TEST(test_skip_out_of_hold_still_arms_not_rising);
+    RUN_TEST(test_delayed_start_not_judged_by_arm_time_temperature);
+    RUN_TEST(test_delayed_start_rejects_wrong_sign_at_expiry);
+    RUN_TEST(test_skip_rejects_wrong_sign_next_segment);
+    RUN_TEST(test_autotune_resume_does_not_time_out_after_long_pause);
     RUN_TEST(test_start_rejects_wrong_sign_ramp);
     RUN_TEST(test_start_allows_legitimate_cooling_segment);
     RUN_TEST(test_tc_fault_triggers_emergency_stop);
