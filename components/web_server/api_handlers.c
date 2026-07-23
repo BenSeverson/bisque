@@ -269,6 +269,16 @@ static bool validate_profile(const firing_profile_t *p, char *err, size_t errlen
             return false;
         }
     }
+    /* Ramp direction must match each segment's target relative to where it
+       begins. Segment 0's start is the (unknown-at-save-time) kiln temperature,
+       so it is skipped here via a non-finite seed and re-checked at firing
+       start; inter-segment inconsistencies are fully determined by the profile
+       and caught now. */
+    int bad_seg = firing_first_bad_ramp_sign(p, NAN);
+    if (bad_seg >= 0) {
+        snprintf(err, errlen, "Segment %d: ramp direction contradicts its target", bad_seg);
+        return false;
+    }
     return true;
 }
 
@@ -386,6 +396,16 @@ static esp_err_t handle_post_profile(httpd_req_t *req)
         return ESP_FAIL;
     }
     cJSON_Delete(root);
+
+    /* Validate at save time, not only at firing start. Without this an invalid
+       profile (zero/negative target, wrong-sign ramp, over-limit) saves with
+       200 OK and only fails with an opaque error when the user tries to fire
+       it later. */
+    char verr[96];
+    if (!validate_profile(&profile, verr, sizeof(verr))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, verr);
+        return ESP_FAIL;
+    }
 
     esp_err_t err = firing_engine_save_profile(&profile);
     if (err == ESP_ERR_INVALID_STATE) {
@@ -506,6 +526,27 @@ static esp_err_t handle_firing_start(httpd_req_t *req)
     if (!validate_profile(&profile, err, sizeof(err))) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, err);
         return ESP_FAIL;
+    }
+
+    /* validate_profile() cannot judge segment 0's ramp direction — it has no
+       start temperature — so for an immediate start do it here, against the
+       live reading, rather than letting the engine reject the queued command
+       asynchronously and leaving the client showing a firing that never began.
+       Delayed starts are deliberately excluded: the kiln is often still hot
+       when one is queued and will have cooled by expiry, so the engine runs
+       this same check then, against the temperature that actually applies. */
+    if (delay_minutes == 0) {
+        thermocouple_reading_t start_tc;
+        thermocouple_get_latest(&start_tc);
+        kiln_settings_t start_settings;
+        firing_engine_get_settings(&start_settings);
+        int bad_seg = firing_first_bad_ramp_sign(&profile, start_tc.temperature_c + start_settings.tc_offset_c);
+        if (bad_seg >= 0) {
+            snprintf(err, sizeof(err), "Segment %d: ramp direction contradicts its target at the current temperature",
+                     bad_seg);
+            httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, err);
+            return ESP_FAIL;
+        }
     }
 
     firing_cmd_t cmd = {.type = FIRING_CMD_START};
@@ -703,6 +744,16 @@ static esp_err_t handle_profile_import(httpd_req_t *req)
         return ESP_FAIL;
     }
     cJSON_Delete(root);
+
+    /* Validate at save time, not only at firing start. Without this an invalid
+       profile (zero/negative target, wrong-sign ramp, over-limit) saves with
+       200 OK and only fails with an opaque error when the user tries to fire
+       it later. */
+    char verr[96];
+    if (!validate_profile(&profile, verr, sizeof(verr))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, verr);
+        return ESP_FAIL;
+    }
 
     esp_err_t err = firing_engine_save_profile(&profile);
     if (err == ESP_ERR_INVALID_STATE) {
@@ -1131,6 +1182,19 @@ static esp_err_t handle_autotune_start(httpd_req_t *req)
     /* Validate against max safe temp */
     if (setpoint > safety_get_max_temp()) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Setpoint exceeds max safe temp");
+        return ESP_FAIL;
+    }
+
+    /* Reject if a firing (or armed delay) is already active, mirroring
+       handle_firing_start. The engine enforces this too, but rejecting here
+       gives the caller a 409 instead of an "ok" for a command that will be
+       dropped on arrival. */
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    if (prog.is_active) {
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_set_type(req, "text/plain");
+        httpd_resp_send(req, "Firing already active", HTTPD_RESP_USE_STRLEN);
         return ESP_FAIL;
     }
 

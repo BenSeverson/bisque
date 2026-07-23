@@ -58,6 +58,20 @@ void scenario_skip(void)
     scenario_dispatch(&cmd);
 }
 
+void scenario_autotune_start(float setpoint, float hysteresis)
+{
+    firing_cmd_t cmd = {.type = FIRING_CMD_AUTOTUNE_START};
+    cmd.autotune.setpoint = setpoint;
+    cmd.autotune.hysteresis = hysteresis;
+    scenario_dispatch(&cmd);
+}
+
+void scenario_autotune_stop(void)
+{
+    firing_cmd_t cmd = {.type = FIRING_CMD_AUTOTUNE_STOP};
+    scenario_dispatch(&cmd);
+}
+
 static void harness_tick_once(plant_t *plant)
 {
     /* The firmware order is: tick reads TC, computes new setpoint and duty,

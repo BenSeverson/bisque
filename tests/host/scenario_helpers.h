@@ -29,6 +29,10 @@ void scenario_pause(void);
 void scenario_resume(void);
 void scenario_skip(void);
 
+/* Convenience: AUTOTUNE_START / AUTOTUNE_STOP. */
+void scenario_autotune_start(float setpoint, float hysteresis);
+void scenario_autotune_stop(void);
+
 /* Run N ticks of (advance clock, step plant on last duty, push TC reading,
  * call firing_tick). Returns the current progress status after the last
  * tick. */

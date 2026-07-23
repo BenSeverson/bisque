@@ -100,6 +100,17 @@ bool pid_autotune_is_complete(const pid_autotune_t *at);
  */
 void pid_autotune_cancel(pid_autotune_t *at);
 
+/**
+ * Shift every absolute timestamp held by a running auto-tune forward by
+ * `delta_us`, so that time the run spent suspended is not charged against it.
+ *
+ * Auto-tune measures its overall timeout and each relay half-cycle period
+ * against `esp_timer_get_time()`. Without this, a paused run either trips the
+ * timeout the moment it resumes or folds the pause into an oscillation period
+ * and derives PID gains from it. Call on resume with the paused duration.
+ */
+void pid_autotune_shift_time(pid_autotune_t *at, int64_t delta_us);
+
 /* --- NVS Persistence --- */
 
 /**

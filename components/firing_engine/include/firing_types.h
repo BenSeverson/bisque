@@ -104,11 +104,12 @@ typedef struct {
 /* Error codes for firing errors */
 typedef enum {
     FIRING_ERR_NONE = 0,
-    FIRING_ERR_TC_FAULT,       /* Thermocouple fault */
-    FIRING_ERR_OVER_TEMP,      /* Over-temperature */
-    FIRING_ERR_NOT_RISING,     /* Kiln not rising: <10°C in 15 min while heating */
-    FIRING_ERR_RUNAWAY,        /* Rate-of-rise runaway: temp rising >2x programmed rate */
-    FIRING_ERR_EMERGENCY_STOP, /* Emergency stop */
+    FIRING_ERR_TC_FAULT,        /* Thermocouple fault */
+    FIRING_ERR_OVER_TEMP,       /* Over-temperature */
+    FIRING_ERR_NOT_RISING,      /* Kiln not rising: <10°C in 15 min while heating */
+    FIRING_ERR_RUNAWAY,         /* Rate-of-rise runaway: temp rising >2x programmed rate */
+    FIRING_ERR_EMERGENCY_STOP,  /* Emergency stop */
+    FIRING_ERR_INVALID_PROFILE, /* Profile unfireable from the actual start temperature */
 } firing_error_code_t;
 
 #ifdef __cplusplus

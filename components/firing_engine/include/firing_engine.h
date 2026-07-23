@@ -19,6 +19,20 @@ esp_err_t firing_engine_init(void);
  */
 QueueHandle_t firing_engine_get_cmd_queue(void);
 
+/**
+ * Find the first segment whose ramp-rate sign is inconsistent with the
+ * direction from its starting temperature to its target (a segment that would
+ * be mislabelled HEATING/COOLING, disabling the heating watchdogs).
+ *
+ * Segment 0 starts from `start_temp`; later segments start from the previous
+ * target. Pass a non-finite `start_temp` (NAN) to skip segment 0's own check
+ * when the firing-start temperature is unknown (profile save). Returns the
+ * offending segment index, or -1 if all segments are consistent. Pure.
+ *
+ * Defined in firing_helpers.c.
+ */
+int firing_first_bad_ramp_sign(const firing_profile_t *profile, float start_temp);
+
 /* ── Firing transition events ───────────────────────── */
 
 typedef enum {

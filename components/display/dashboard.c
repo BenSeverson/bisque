@@ -143,6 +143,8 @@ static const char *error_code_description(firing_error_code_t code)
         return "Heating too fast";
     case FIRING_ERR_EMERGENCY_STOP:
         return "Emergency stop";
+    case FIRING_ERR_INVALID_PROFILE:
+        return "Profile invalid at this temperature";
     case FIRING_ERR_NONE:
     default:
         return "Firing halted";
