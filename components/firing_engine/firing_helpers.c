@@ -28,6 +28,38 @@ bool at_target_predicate(float current_temp, float setpoint, float target_temp)
     return fabsf(current_temp - target_temp) < 2.0f && fabsf(setpoint - target_temp) < 0.5f;
 }
 
+/* Temperature moves smaller than this impose no ramp direction — a segment
+ * whose target is within half a degree of its start is an instant clamp
+ * regardless of ramp sign, matching compute_dynamic_setpoint's own tolerance. */
+#define RAMP_SIGN_EPS_C 0.5f
+
+int firing_first_bad_ramp_sign(const firing_profile_t *profile, float start_temp)
+{
+    if (!profile) {
+        return -1;
+    }
+    /* Starting temperature of the segment under examination. Segment 0 starts
+       from the kiln's current temperature; every later segment starts where
+       the previous one was aiming. A non-finite seed skips segment 0's own
+       direction check (save time, kiln temp unknown) without disturbing the
+       inter-segment checks that follow. */
+    float seg_start = start_temp;
+    for (uint8_t i = 0; i < profile->segment_count; i++) {
+        const firing_segment_t *s = &profile->segments[i];
+        if (isfinite(seg_start) && isfinite(s->target_temp) && isfinite(s->ramp_rate)) {
+            float delta = s->target_temp - seg_start;
+            if (delta > RAMP_SIGN_EPS_C && s->ramp_rate < 0.0f) {
+                return i; /* target above start, but ramping down */
+            }
+            if (delta < -RAMP_SIGN_EPS_C && s->ramp_rate > 0.0f) {
+                return i; /* target below start, but ramping up */
+            }
+        }
+        seg_start = s->target_temp;
+    }
+    return -1;
+}
+
 /* Full planned ramp+hold duration of a segment that begins at `start_temp`. */
 static float segment_planned_s(const firing_segment_t *seg, float start_temp)
 {

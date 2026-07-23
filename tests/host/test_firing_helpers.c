@@ -166,6 +166,89 @@ static void test_remaining_handles_out_of_range_and_null(void)
     TEST_ASSERT_EQUAL_UINT32(0, firing_remaining_s(&p, -1, 0.0f, false, 0.0f));
 }
 
+/* ── firing_first_bad_ramp_sign (#113) ─────────────────────────────────── */
+
+/* Build a profile from a list of {ramp_rate, target} pairs. */
+static firing_profile_t sign_profile(int n, const float ramps[], const float targets[])
+{
+    firing_profile_t p = {0};
+    p.segment_count = (uint8_t)n;
+    for (int i = 0; i < n; i++) {
+        p.segments[i].ramp_rate = ramps[i];
+        p.segments[i].target_temp = targets[i];
+    }
+    return p;
+}
+
+static void test_bad_sign_all_consistent_returns_none(void)
+{
+    /* Heat 25→600, then cool 600→300: both signs match their direction. */
+    float ramps[] = {300.0f, -200.0f};
+    float targets[] = {600.0f, 300.0f};
+    firing_profile_t p = sign_profile(2, ramps, targets);
+    TEST_ASSERT_EQUAL_INT(-1, firing_first_bad_ramp_sign(&p, 25.0f));
+}
+
+/* The #113 repro: negative ramp toward a target above the start temperature. */
+static void test_bad_sign_negative_ramp_toward_higher_target(void)
+{
+    float ramps[] = {-100.0f};
+    float targets[] = {1200.0f};
+    firing_profile_t p = sign_profile(1, ramps, targets);
+    TEST_ASSERT_EQUAL_INT(0, firing_first_bad_ramp_sign(&p, 400.0f));
+}
+
+/* Mirror image: positive ramp toward a target below the start temperature. */
+static void test_bad_sign_positive_ramp_toward_lower_target(void)
+{
+    float ramps[] = {100.0f};
+    float targets[] = {300.0f};
+    firing_profile_t p = sign_profile(1, ramps, targets);
+    TEST_ASSERT_EQUAL_INT(0, firing_first_bad_ramp_sign(&p, 600.0f));
+}
+
+/* Segment 0 is fine, but segment 1 cools toward a higher target. Its start is
+ * segment 0's target (600), not the kiln's 25°C. */
+static void test_bad_sign_intersegment_inconsistency(void)
+{
+    float ramps[] = {300.0f, -100.0f};
+    float targets[] = {600.0f, 900.0f};
+    firing_profile_t p = sign_profile(2, ramps, targets);
+    TEST_ASSERT_EQUAL_INT(1, firing_first_bad_ramp_sign(&p, 25.0f));
+}
+
+/* Non-finite start_temp skips segment 0's own check (save-time use) but still
+ * validates later segments against their prior target. */
+static void test_bad_sign_nan_start_skips_segment0_only(void)
+{
+    float ramps1[] = {-100.0f};
+    float targets1[] = {1200.0f};
+    firing_profile_t p1 = sign_profile(1, ramps1, targets1);
+    TEST_ASSERT_EQUAL_INT(-1, firing_first_bad_ramp_sign(&p1, NAN));
+
+    float ramps2[] = {300.0f, -100.0f};
+    float targets2[] = {600.0f, 900.0f};
+    firing_profile_t p2 = sign_profile(2, ramps2, targets2);
+    TEST_ASSERT_EQUAL_INT(1, firing_first_bad_ramp_sign(&p2, NAN));
+}
+
+/* A segment whose target equals its start imposes no direction — a nonzero
+ * ramp of either sign is a harmless instant-clamp, not a violation. */
+static void test_bad_sign_equal_target_not_flagged(void)
+{
+    float ramps[] = {-100.0f};
+    float targets[] = {600.0f};
+    firing_profile_t p = sign_profile(1, ramps, targets);
+    TEST_ASSERT_EQUAL_INT(-1, firing_first_bad_ramp_sign(&p, 600.0f));
+}
+
+static void test_bad_sign_null_and_empty(void)
+{
+    TEST_ASSERT_EQUAL_INT(-1, firing_first_bad_ramp_sign(NULL, 25.0f));
+    firing_profile_t empty = {0};
+    TEST_ASSERT_EQUAL_INT(-1, firing_first_bad_ramp_sign(&empty, 25.0f));
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -185,5 +268,12 @@ int main(void)
     RUN_TEST(test_remaining_cooling_segment);
     RUN_TEST(test_remaining_indefinite_hold_contributes_zero);
     RUN_TEST(test_remaining_handles_out_of_range_and_null);
+    RUN_TEST(test_bad_sign_all_consistent_returns_none);
+    RUN_TEST(test_bad_sign_negative_ramp_toward_higher_target);
+    RUN_TEST(test_bad_sign_positive_ramp_toward_lower_target);
+    RUN_TEST(test_bad_sign_intersegment_inconsistency);
+    RUN_TEST(test_bad_sign_nan_start_skips_segment0_only);
+    RUN_TEST(test_bad_sign_equal_target_not_flagged);
+    RUN_TEST(test_bad_sign_null_and_empty);
     return UNITY_END();
 }

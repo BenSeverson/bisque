@@ -55,11 +55,15 @@ describe("firingSegmentSchema", () => {
     expect(r.success).toBe(false);
   });
 
-  it("rejects targetTemp out of [0, 1400]", () => {
+  it("rejects targetTemp out of (0, 1400]", () => {
     expect(firingSegmentSchema.safeParse({ ...validSegment, targetTemp: -1 }).success).toBe(false);
     expect(firingSegmentSchema.safeParse({ ...validSegment, targetTemp: 1401 }).success).toBe(
       false,
     );
+  });
+
+  it("rejects zero targetTemp (firmware requires target_temp > 0)", () => {
+    expect(firingSegmentSchema.safeParse({ ...validSegment, targetTemp: 0 }).success).toBe(false);
   });
 
   it("rejects holdTime out of [0, HOLD_UNTIL_SKIP]", () => {

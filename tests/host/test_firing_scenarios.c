@@ -470,6 +470,61 @@ static void test_skip_out_of_hold_still_arms_not_rising(void)
     TEST_ASSERT_EQUAL(FIRING_ERR_NOT_RISING, firing_engine_get_error_code());
 }
 
+/* START must reject a segment whose ramp sign contradicts the direction to its
+ * target (#113). Here the kiln is at 400°C and the single segment ramps
+ * *down* (-100°C/hr) toward 1200°C — the engine would label it COOLING and
+ * disable the heating watchdogs while the clamped setpoint drives full power. */
+static void test_start_rejects_wrong_sign_ramp(void)
+{
+    scenario_setup(&g_plant, 400.0f);
+
+    firing_profile_t p = {0};
+    strncpy(p.id, "wrong-sign", FIRING_ID_LEN - 1);
+    strncpy(p.name, "Wrong Sign", FIRING_NAME_LEN - 1);
+    p.segment_count = 1;
+    p.max_temp = 1300.0f;
+    p.estimated_duration = 60;
+    p.segments[0].ramp_rate = -100.0f;
+    p.segments[0].target_temp = 1200.0f;
+    p.segments[0].hold_time = 0;
+
+    scenario_start(&p, 0);
+    scenario_run_ticks(&g_plant, 2);
+
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_FALSE_MESSAGE(prog.is_active, "wrong-sign profile was allowed to start");
+    TEST_ASSERT_EQUAL(FIRING_STATUS_IDLE, prog.status);
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(0.0f, safety_test_last_duty(), "wrong-sign profile energized the SSR");
+}
+
+/* The #113 guard must not reject a legitimate cooling segment: a real descent
+ * (negative ramp toward a lower target) still fires normally. */
+static void test_start_allows_legitimate_cooling_segment(void)
+{
+    scenario_setup(&g_plant, 25.0f);
+
+    firing_profile_t p = {0};
+    strncpy(p.id, "heat-cool", FIRING_ID_LEN - 1);
+    strncpy(p.name, "Heat then Cool", FIRING_NAME_LEN - 1);
+    p.segment_count = 2;
+    p.max_temp = 700.0f;
+    p.estimated_duration = 30;
+    p.segments[0].ramp_rate = 12000.0f;
+    p.segments[0].target_temp = 600.0f;
+    p.segments[0].hold_time = 0;
+    p.segments[1].ramp_rate = -6000.0f;
+    p.segments[1].target_temp = 300.0f;
+    p.segments[1].hold_time = 0;
+
+    scenario_start(&p, 0);
+    scenario_run_ticks(&g_plant, 1);
+
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_TRUE_MESSAGE(prog.is_active, "legitimate heat-then-cool profile was wrongly rejected");
+}
+
 /* ── TC fault during firing → emergency stop ─────────────────────────── */
 
 static void test_tc_fault_triggers_emergency_stop(void)
@@ -834,6 +889,8 @@ int main(void)
     RUN_TEST(test_pause_resume_during_cooling_restores_cooling);
     RUN_TEST(test_skip_out_of_long_hold_does_not_trip_not_rising);
     RUN_TEST(test_skip_out_of_hold_still_arms_not_rising);
+    RUN_TEST(test_start_rejects_wrong_sign_ramp);
+    RUN_TEST(test_start_allows_legitimate_cooling_segment);
     RUN_TEST(test_tc_fault_triggers_emergency_stop);
     RUN_TEST(test_kiln_not_rising_trips_emergency_stop);
     RUN_TEST(test_runaway_trips_emergency_stop);

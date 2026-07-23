@@ -11,7 +11,7 @@ export const firingSegmentSchema = z.object({
   rampRate: finiteNumber("Ramp rate is required").refine((v) => v !== 0, {
     message: "Ramp rate must be non-zero",
   }),
-  targetTemp: finiteNumber("Target temp is required").min(0).max(1400),
+  targetTemp: finiteNumber("Target temp is required").gt(0).max(1400),
   holdTime: finiteNumber("Hold time is required").min(0).max(HOLD_UNTIL_SKIP),
 });
 

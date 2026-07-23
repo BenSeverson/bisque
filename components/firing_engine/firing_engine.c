@@ -740,6 +740,18 @@ static void handle_cmd(const firing_cmd_t *cmd)
         firing_engine_get_settings(&settings);
         cur_temp += settings.tc_offset_c;
 
+        /* Reject a segment whose ramp sign contradicts the direction from its
+           start to its target (segment 0 measured against the live kiln temp).
+           Such a segment would be mislabelled HEATING/COOLING, and the clamp in
+           compute_dynamic_setpoint would drive the setpoint the "wrong" way —
+           e.g. a COOLING label disables the not-rising and runaway watchdogs
+           while full power heats toward a higher target. */
+        int bad_seg = firing_first_bad_ramp_sign(&cmd->start.profile, cur_temp);
+        if (bad_seg >= 0) {
+            ESP_LOGW(TAG, "START rejected: segment %d ramp direction contradicts its target", bad_seg);
+            break;
+        }
+
         int64_t now_us = esp_timer_get_time();
         s_state.delay_active = false;
         if (cmd->start.delay_minutes > 0) {

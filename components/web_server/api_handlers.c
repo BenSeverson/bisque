@@ -269,6 +269,16 @@ static bool validate_profile(const firing_profile_t *p, char *err, size_t errlen
             return false;
         }
     }
+    /* Ramp direction must match each segment's target relative to where it
+       begins. Segment 0's start is the (unknown-at-save-time) kiln temperature,
+       so it is skipped here via a non-finite seed and re-checked at firing
+       start; inter-segment inconsistencies are fully determined by the profile
+       and caught now. */
+    int bad_seg = firing_first_bad_ramp_sign(p, NAN);
+    if (bad_seg >= 0) {
+        snprintf(err, errlen, "Segment %d: ramp direction contradicts its target", bad_seg);
+        return false;
+    }
     return true;
 }
 
@@ -386,6 +396,16 @@ static esp_err_t handle_post_profile(httpd_req_t *req)
         return ESP_FAIL;
     }
     cJSON_Delete(root);
+
+    /* Validate at save time, not only at firing start. Without this an invalid
+       profile (zero/negative target, wrong-sign ramp, over-limit) saves with
+       200 OK and only fails with an opaque error when the user tries to fire
+       it later. */
+    char verr[96];
+    if (!validate_profile(&profile, verr, sizeof(verr))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, verr);
+        return ESP_FAIL;
+    }
 
     esp_err_t err = firing_engine_save_profile(&profile);
     if (err == ESP_ERR_INVALID_STATE) {
@@ -703,6 +723,16 @@ static esp_err_t handle_profile_import(httpd_req_t *req)
         return ESP_FAIL;
     }
     cJSON_Delete(root);
+
+    /* Validate at save time, not only at firing start. Without this an invalid
+       profile (zero/negative target, wrong-sign ramp, over-limit) saves with
+       200 OK and only fails with an opaque error when the user tries to fire
+       it later. */
+    char verr[96];
+    if (!validate_profile(&profile, verr, sizeof(verr))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, verr);
+        return ESP_FAIL;
+    }
 
     esp_err_t err = firing_engine_save_profile(&profile);
     if (err == ESP_ERR_INVALID_STATE) {
