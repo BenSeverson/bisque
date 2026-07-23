@@ -12,6 +12,14 @@ idf.py build        # Firmware-only rebuild (skips web UI)
 idf.py flash monitor  # Flash and monitor
 ```
 
+**A bare `idf.py` only works in a shell that has already sourced ESP-IDF's `export.sh`** — which non-interactive shells (agent tool calls, git hooks, `make` recipes, CI) never do, since they read no rc files and get a fresh shell per command. Sourcing it in one command and running `idf.py` in the next does *not* work; the activation is lost with the shell.
+
+So prefer `make firmware` / `make build` / `./build.sh` over a raw `idf.py` — they source `scripts/idf-env.sh` first, which finds a local install (honoring `IDF_PATH`, else the usual `~/esp-idf`, `~/esp/`, `~/.espressif/v*/`, `/opt/` layouts) and no-ops when the toolchain is already on PATH. For a one-off `idf.py` invocation with no `make` target, activate in the *same* command:
+
+```bash
+. ./scripts/idf-env.sh && idf.py flash monitor
+```
+
 Build profile: `./build.sh` builds release (`-O2`) by default. `BISQUE_PROFILE=debug ./build.sh` overlays `sdkconfig.defaults.debug` (`-Og`, full assertions, and the LVGL on-screen FPS/heap overlays) for on-device profiling.
 
 Web UI demo: `cd web_ui && npm run build:demo` produces a static, serverless build (`BISQUE_DEMO=true` → the `__DEMO__` flag) that bundles the in-browser kiln simulator (`web_ui/mock-server/`, shared with the dev server via the browser-safe `router.ts`/`installDemo.ts`) and is published to GitHub Pages (`https://benseverson.github.io/bisque/`) by `.github/workflows/pages.yml` on every push to `main`. The simulator is loaded via a `__DEMO__`-gated dynamic import, so it is tree-shaken out of the firmware build and flash size is unaffected. Hardware-only controls (OTA, Wi-Fi setup, relay test) are hidden in the demo.
