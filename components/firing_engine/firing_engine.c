@@ -575,6 +575,13 @@ typedef struct {
      * pause doesn't count as firing time. */
     int64_t pause_start_us;
 
+    /* Status the firing was in when PAUSE latched, restored verbatim by RESUME.
+     * Reconstructing it instead (holding ? HOLDING : HEATING) loses both
+     * AUTOTUNE — which resumes as a "normal firing" against a stale profile —
+     * and COOLING, which resumes as HEATING and re-arms the heating watchdogs
+     * against a deliberately falling setpoint. */
+    firing_status_t pause_prev_status;
+
     /* Safety: kiln-not-rising window (also used for runaway baseline). */
     float check_start_temp;
     int64_t check_start_time_us;
@@ -616,6 +623,16 @@ static void start_segment(int segment_idx, float current_temp, int64_t now_us)
     s_state.holding = false;
     s_state.segment_hold_start_time_s = 0;
 
+    /* Re-arm the not-rising / runaway baseline from this segment's actual
+       starting conditions. Every entry into a segment must do this: the check
+       is suppressed while holding and while cooling, so a baseline carried
+       over from a previous segment is stale by construction and will compare
+       "now" against a temperature from an unrelated window — tripping a false
+       emergency stop on the first tick. Owned here so all three entry points
+       (begin_firing, hold-complete advance, SKIP_SEGMENT) get it. */
+    s_state.check_start_temp = current_temp;
+    s_state.check_start_time_us = now_us;
+
     firing_segment_t *seg = &s_state.active_profile.segments[segment_idx];
     ESP_LOGI(TAG, "Starting segment %d: '%s' — ramp %.0f°C/hr to %.0f°C, hold %d min", segment_idx, seg->name,
              seg->ramp_rate, seg->target_temp, seg->hold_time);
@@ -625,8 +642,6 @@ static void begin_firing(float cur_temp, int64_t now_us)
 {
     start_segment(0, cur_temp, now_us);
     pid_reset(&s_pid);
-    s_state.check_start_temp = cur_temp;
-    s_state.check_start_time_us = now_us;
     s_state.last_history_sample_us = now_us;
     s_state.peak_temp_c = cur_temp;
     history_firing_start(s_state.active_profile.id, s_state.active_profile.name);
@@ -780,6 +795,7 @@ static void handle_cmd(const firing_cmd_t *cmd)
         bool did_pause = false;
         progress_lock();
         if (s_progress.is_active && s_progress.status != FIRING_STATUS_PAUSED) {
+            s_state.pause_prev_status = s_progress.status;
             s_progress.status = FIRING_STATUS_PAUSED;
             did_pause = true;
         }
@@ -794,12 +810,21 @@ static void handle_cmd(const firing_cmd_t *cmd)
 
     case FIRING_CMD_RESUME: {
         bool did_resume = false;
+        bool resumed_autotune = false;
         progress_lock();
         if (s_progress.status == FIRING_STATUS_PAUSED) {
-            s_progress.status = s_state.holding ? FIRING_STATUS_HOLDING : FIRING_STATUS_HEATING;
+            s_progress.status = s_state.pause_prev_status;
+            resumed_autotune = (s_state.pause_prev_status == FIRING_STATUS_AUTOTUNE);
             did_resume = true;
         }
         progress_unlock();
+        if (did_resume && resumed_autotune) {
+            /* Autotune owns its own timing internally and has no segment ramp,
+               hold timer, or not-rising window to shift — the anchors below are
+               all firing-only state. */
+            ESP_LOGI(TAG, "Auto-tune resumed");
+            break;
+        }
         if (did_resume) {
             /* Shift the segment clock and safety windows forward by the paused
              * duration so the ramp setpoint, not-rising window, runaway baseline,
@@ -828,10 +853,20 @@ static void handle_cmd(const firing_cmd_t *cmd)
         }
         progress_lock();
         bool active = s_progress.is_active;
+        bool paused = (s_progress.status == FIRING_STATUS_PAUSED);
         int seg_idx = s_progress.current_segment;
         int total = s_progress.total_segments;
         float cur = s_progress.current_temp;
         progress_unlock();
+
+        /* Skipping while paused would re-energize the elements without going
+           through RESUME's bookkeeping — the operator believes the kiln is off.
+           Ignore it, as the delay_active case above does; the user must RESUME
+           first, which is an explicit, visible action. */
+        if (paused) {
+            ESP_LOGW(TAG, "SKIP ignored: firing is paused (resume first)");
+            break;
+        }
 
         if (active && seg_idx + 1 < total) {
             int next = seg_idx + 1;
@@ -852,7 +887,20 @@ static void handle_cmd(const firing_cmd_t *cmd)
         break;
     }
 
-    case FIRING_CMD_AUTOTUNE_START:
+    case FIRING_CMD_AUTOTUNE_START: {
+        /* Same active-firing guard as FIRING_CMD_START. Without it, autotune
+           silently replaces a running firing: the profile state is abandoned
+           mid-cycle, its open history record is never closed, and the kiln
+           free-cools toward the (much lower) autotune setpoint with no error
+           surfaced anywhere. */
+        progress_lock();
+        bool autotune_blocked = s_progress.is_active;
+        progress_unlock();
+        if (autotune_blocked || s_state.delay_active) {
+            ESP_LOGW(TAG, "AUTOTUNE rejected: firing already active");
+            break;
+        }
+
         /* Same OTA guard as FIRING_CMD_START: autotune energizes the elements
            and a mid-run reboot would leave them in an undefined state. */
         if (ota_is_busy()) {
@@ -868,6 +916,7 @@ static void handle_cmd(const firing_cmd_t *cmd)
         s_state.elapsed_accum_us = 0;
         ESP_LOGI(TAG, "Auto-tune mode started");
         break;
+    }
 
     case FIRING_CMD_AUTOTUNE_STOP:
         pid_autotune_cancel(&s_autotune);
@@ -1130,8 +1179,6 @@ void firing_tick(int64_t now_us)
                 ESP_LOGI(TAG, "Firing complete!");
             } else {
                 start_segment(next_seg, current_temp, now_us);
-                s_state.check_start_temp = current_temp;
-                s_state.check_start_time_us = now_us;
                 progress_lock();
                 s_progress.current_segment = next_seg;
                 /* Determine if next segment is heating or cooling */

@@ -243,6 +243,233 @@ static void test_cooling_segment_reports_cooling_status(void)
     TEST_ASSERT_EQUAL_UINT8(1, prog.current_segment);
 }
 
+/* ── Command guards ───────────────────────────────────────────────────
+ *
+ * The command handler transitions the engine between states; each of the
+ * cases below is a transition it used to make without checking the state it
+ * was coming *from*. Regression cover for #108–#111.
+ */
+
+/* SKIP while PAUSED must not silently re-energize the kiln (#108). The
+ * operator believes the elements are off; anything that turns them back on
+ * without an explicit RESUME is the dangerous outcome. */
+static void test_skip_while_paused_does_not_resume_heating(void)
+{
+    firing_profile_t p = scenario_short_profile();
+    scenario_start(&p, 0);
+    TEST_ASSERT_TRUE(scenario_run_until_status(&g_plant, FIRING_STATUS_HEATING, 30));
+
+    scenario_pause();
+    scenario_run_ticks(&g_plant, 1);
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL(FIRING_STATUS_PAUSED, prog.status);
+    uint8_t seg_before = prog.current_segment;
+
+    scenario_skip();
+    scenario_run_ticks(&g_plant, 5);
+
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL_MESSAGE(FIRING_STATUS_PAUSED, prog.status, "SKIP while paused left the engine heating");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(seg_before, prog.current_segment, "SKIP while paused advanced the segment");
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(0.0f, safety_test_last_duty(), "SKIP while paused re-energized the SSR");
+}
+
+/* Once resumed, SKIP works normally again — the guard rejects the command, it
+ * doesn't wedge the engine. */
+static void test_skip_after_resume_still_advances_segment(void)
+{
+    firing_profile_t p = scenario_short_profile();
+    scenario_start(&p, 0);
+    TEST_ASSERT_TRUE(scenario_run_until_status(&g_plant, FIRING_STATUS_HEATING, 30));
+
+    scenario_pause();
+    scenario_run_ticks(&g_plant, 1);
+    scenario_skip(); /* rejected */
+    scenario_resume();
+    scenario_run_ticks(&g_plant, 1);
+
+    scenario_skip(); /* accepted */
+    scenario_run_ticks(&g_plant, 1);
+
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL_UINT8(1, prog.current_segment);
+}
+
+/* AUTOTUNE_START must not hijack a running firing (#109). */
+static void test_autotune_start_rejected_during_active_firing(void)
+{
+    firing_profile_t p = scenario_short_profile();
+    scenario_start(&p, 0);
+    TEST_ASSERT_TRUE(scenario_run_until_status(&g_plant, FIRING_STATUS_HEATING, 30));
+
+    scenario_autotune_start(500.0f, 5.0f);
+    scenario_run_ticks(&g_plant, 2);
+
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL_MESSAGE(FIRING_STATUS_HEATING, prog.status, "autotune hijacked a running firing");
+    TEST_ASSERT_TRUE(prog.is_active);
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2, prog.total_segments, "autotune clobbered the active profile");
+
+    /* The firing's history record must still be open — a hijack would strand
+     * it, leaving history_firing_end uncalled until the next firing. */
+    history_test_counts_t h = history_test_counts();
+    TEST_ASSERT_EQUAL_INT(1, h.starts);
+    TEST_ASSERT_EQUAL_INT_MESSAGE(0, h.ends, "autotune closed or orphaned the firing's history record");
+}
+
+/* The #109 guard must not be so broad it blocks the normal case. */
+static void test_autotune_starts_when_no_firing_is_active(void)
+{
+    scenario_autotune_start(500.0f, 5.0f);
+    scenario_run_ticks(&g_plant, 1);
+
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL(FIRING_STATUS_AUTOTUNE, prog.status);
+    TEST_ASSERT_TRUE(prog.is_active);
+}
+
+/* Resuming a paused autotune must return to AUTOTUNE, not fall through to a
+ * "normal firing" against whatever profile happens to be in s_state (#110). */
+static void test_pause_resume_during_autotune_restores_autotune(void)
+{
+    scenario_autotune_start(500.0f, 5.0f);
+    scenario_run_ticks(&g_plant, 1);
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL(FIRING_STATUS_AUTOTUNE, prog.status);
+
+    scenario_pause();
+    scenario_run_ticks(&g_plant, 1);
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL(FIRING_STATUS_PAUSED, prog.status);
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, safety_test_last_duty());
+
+    scenario_resume();
+    scenario_run_ticks(&g_plant, 1);
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL_MESSAGE(FIRING_STATUS_AUTOTUNE, prog.status,
+                              "resume relabelled a paused autotune as a normal firing");
+}
+
+/* Same root cause as #110: RESUME reconstructed the status from s_state.holding
+ * instead of remembering it, so a paused COOLING segment came back as HEATING —
+ * which also re-arms the heating watchdogs against a descending setpoint. */
+static void test_pause_resume_during_cooling_restores_cooling(void)
+{
+    firing_profile_t p = {0};
+    strncpy(p.id, "cool-pause", FIRING_ID_LEN - 1);
+    strncpy(p.name, "Cooling Pause", FIRING_NAME_LEN - 1);
+    p.segment_count = 2;
+    p.max_temp = 600.0f;
+    p.estimated_duration = 30;
+    p.segments[0].ramp_rate = 12000.0f;
+    p.segments[0].target_temp = 600.0f;
+    p.segments[0].hold_time = 0;
+    p.segments[1].ramp_rate = -6000.0f;
+    p.segments[1].target_temp = 300.0f;
+    p.segments[1].hold_time = 0;
+
+    scenario_start(&p, 0);
+    TEST_ASSERT_TRUE(scenario_run_until_status(&g_plant, FIRING_STATUS_COOLING, 10 * 60));
+
+    scenario_pause();
+    scenario_run_ticks(&g_plant, 1);
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL(FIRING_STATUS_PAUSED, prog.status);
+
+    scenario_resume();
+    scenario_run_ticks(&g_plant, 1);
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL_MESSAGE(FIRING_STATUS_COOLING, prog.status,
+                              "resume turned a paused cooling segment into HEATING");
+}
+
+/* Build a profile whose middle segment cools to a long indefinite hold, so
+ * that skipping out of the hold leaves the not-rising window holding a
+ * baseline *above* the current temperature. */
+static firing_profile_t skip_out_of_hold_profile(void)
+{
+    firing_profile_t p = {0};
+    strncpy(p.id, "skip-hold", FIRING_ID_LEN - 1);
+    strncpy(p.name, "Skip Out Of Hold", FIRING_NAME_LEN - 1);
+    p.segment_count = 3;
+    p.max_temp = 700.0f;
+    p.estimated_duration = 60;
+    p.segments[0].ramp_rate = 12000.0f;
+    p.segments[0].target_temp = 600.0f;
+    p.segments[0].hold_time = 0;
+    /* Cooling segment: entering it re-arms the not-rising window with a 600°C
+     * baseline, and the check is then suppressed for the whole descent and
+     * hold (it only runs while HEATING). */
+    p.segments[1].ramp_rate = -6000.0f;
+    p.segments[1].target_temp = 300.0f;
+    p.segments[1].hold_time = FIRING_HOLD_INDEFINITE;
+    p.segments[2].ramp_rate = 6000.0f;
+    p.segments[2].target_temp = 400.0f;
+    p.segments[2].hold_time = 0;
+    return p;
+}
+
+/* Skipping out of a long hold must re-arm the not-rising window (#111).
+ *
+ * By the time the operator skips, the 15-minute window is long expired and its
+ * baseline is from an unrelated earlier window — here, 300°C hotter than the
+ * kiln actually is. Without a reset the very next tick computes a *negative*
+ * rise, decides the kiln is stalled, and emergency-stops a healthy firing.
+ * An indefinite hold is the worst case, since SKIP is the only way out of one.
+ */
+static void test_skip_out_of_long_hold_does_not_trip_not_rising(void)
+{
+    firing_profile_t p = skip_out_of_hold_profile();
+    scenario_start(&p, 0);
+
+    TEST_ASSERT_TRUE_MESSAGE(scenario_run_until_status(&g_plant, FIRING_STATUS_HOLDING, 30 * 60),
+                             "never reached the indefinite hold");
+
+    /* Sit in the hold well past the 15-minute not-rising interval. */
+    scenario_run_ticks(&g_plant, 20 * 60);
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL(FIRING_STATUS_HOLDING, prog.status);
+
+    scenario_skip();
+
+    /* Run 14 simulated minutes — inside a freshly-armed window, so the
+     * not-rising check should not have evaluated even once yet. */
+    scenario_run_ticks(&g_plant, 14 * 60);
+
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL_MESSAGE(FIRING_ERR_NONE, firing_engine_get_error_code(),
+                              "skipping out of a hold tripped a watchdog on a healthy firing");
+    TEST_ASSERT_NOT_EQUAL_MESSAGE(FIRING_STATUS_ERROR, prog.status, "skip out of hold caused an emergency stop");
+    TEST_ASSERT_EQUAL_UINT8(2, prog.current_segment);
+}
+
+/* The #111 fix re-arms the window rather than disabling it: a kiln that really
+ * is stalled after a skip must still trip, just a full window later. */
+static void test_skip_out_of_hold_still_arms_not_rising(void)
+{
+    firing_profile_t p = skip_out_of_hold_profile();
+    scenario_start(&p, 0);
+    TEST_ASSERT_TRUE(scenario_run_until_status(&g_plant, FIRING_STATUS_HOLDING, 30 * 60));
+    scenario_run_ticks(&g_plant, 20 * 60);
+
+    scenario_skip();
+    g_plant.stuck = true; /* elements fail right as the new segment begins */
+
+    scenario_run_ticks(&g_plant, 16 * 60);
+
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL(FIRING_STATUS_ERROR, prog.status);
+    TEST_ASSERT_EQUAL(FIRING_ERR_NOT_RISING, firing_engine_get_error_code());
+}
+
 /* ── TC fault during firing → emergency stop ─────────────────────────── */
 
 static void test_tc_fault_triggers_emergency_stop(void)
@@ -599,6 +826,14 @@ int main(void)
     RUN_TEST(test_stop_drops_to_idle);
     RUN_TEST(test_delayed_start_transitions_after_delay);
     RUN_TEST(test_cooling_segment_reports_cooling_status);
+    RUN_TEST(test_skip_while_paused_does_not_resume_heating);
+    RUN_TEST(test_skip_after_resume_still_advances_segment);
+    RUN_TEST(test_autotune_start_rejected_during_active_firing);
+    RUN_TEST(test_autotune_starts_when_no_firing_is_active);
+    RUN_TEST(test_pause_resume_during_autotune_restores_autotune);
+    RUN_TEST(test_pause_resume_during_cooling_restores_cooling);
+    RUN_TEST(test_skip_out_of_long_hold_does_not_trip_not_rising);
+    RUN_TEST(test_skip_out_of_hold_still_arms_not_rising);
     RUN_TEST(test_tc_fault_triggers_emergency_stop);
     RUN_TEST(test_kiln_not_rising_trips_emergency_stop);
     RUN_TEST(test_runaway_trips_emergency_stop);

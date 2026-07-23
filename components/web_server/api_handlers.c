@@ -1134,6 +1134,19 @@ static esp_err_t handle_autotune_start(httpd_req_t *req)
         return ESP_FAIL;
     }
 
+    /* Reject if a firing (or armed delay) is already active, mirroring
+       handle_firing_start. The engine enforces this too, but rejecting here
+       gives the caller a 409 instead of an "ok" for a command that will be
+       dropped on arrival. */
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    if (prog.is_active) {
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_set_type(req, "text/plain");
+        httpd_resp_send(req, "Firing already active", HTTPD_RESP_USE_STRLEN);
+        return ESP_FAIL;
+    }
+
     firing_cmd_t cmd = {.type = FIRING_CMD_AUTOTUNE_START};
     cmd.autotune.setpoint = setpoint;
     cmd.autotune.hysteresis = hysteresis;
