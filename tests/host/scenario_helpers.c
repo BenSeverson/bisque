@@ -58,6 +58,13 @@ void scenario_skip(void)
     scenario_dispatch(&cmd);
 }
 
+void scenario_relay_test(uint32_t duration_s)
+{
+    firing_cmd_t cmd = {.type = FIRING_CMD_RELAY_TEST};
+    cmd.relay_test.duration_s = duration_s;
+    scenario_dispatch(&cmd);
+}
+
 void scenario_autotune_start(float setpoint, float hysteresis)
 {
     firing_cmd_t cmd = {.type = FIRING_CMD_AUTOTUNE_START};

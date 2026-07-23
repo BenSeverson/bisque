@@ -519,11 +519,24 @@ static void on_select_trap_clicked(lv_event_t *e)
     case VIEW_ERROR: {
         /* Acknowledge the error before opening the picker. Without this, the
            firing engine stays in ERROR and cancelling the picker drops the
-           user straight back to the error screen — an inescapable loop. */
+           user straight back to the error screen — an inescapable loop.
+
+           The send must actually succeed: with a zero timeout on a depth-4
+           queue, a burst of web-API commands can make this fail, and opening
+           the picker anyway reproduces exactly the loop this exists to
+           prevent. Wait briefly, and if the command still cannot be queued
+           leave the ERROR view up so the next SELECT retries — a press that
+           visibly does nothing is recoverable; a picker over an unacknowledged
+           error is not. */
         QueueHandle_t q = firing_engine_get_cmd_queue();
-        if (q) {
-            firing_cmd_t cmd = {.type = FIRING_CMD_STOP};
-            xQueueSend(q, &cmd, 0);
+        if (!q) {
+            ESP_LOGE(TAG, "no command queue; cannot acknowledge error");
+            break;
+        }
+        firing_cmd_t cmd = {.type = FIRING_CMD_STOP};
+        if (xQueueSend(q, &cmd, pdMS_TO_TICKS(100)) != pdTRUE) {
+            ESP_LOGE(TAG, "STOP not queued (queue full); staying on error screen, press SELECT again");
+            break;
         }
         modal_profile_picker_open();
         break;

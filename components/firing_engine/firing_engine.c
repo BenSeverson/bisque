@@ -539,6 +539,7 @@ float firing_planned_temp_at(const firing_profile_t *profile, uint32_t t_seconds
 /* ── Firing Task ───────────────────────────────────── */
 
 #define RISING_CHECK_INTERVAL_US   (15LL * 60 * 1000000) /* 15 minutes */
+#define RELAY_TEST_MAX_S           10                    /* upper bound on the diagnostic SSR pulse */
 #define RISING_THRESHOLD_C         10.0f                 /* must rise ≥10°C */
 #define RUNAWAY_RATE_MULTIPLIER    2.0f                  /* alert if rate > 2× programmed */
 #define HISTORY_SAMPLE_INTERVAL_US (60LL * 1000000)
@@ -569,6 +570,12 @@ typedef struct {
     /* Delay-start. */
     int64_t delay_start_end_us;
     bool delay_active;
+
+    /* Relay diagnostic pulse. Owned by the engine rather than the HTTP handler
+     * so the SSR has a single writer and the duty is re-asserted every tick —
+     * the safety task trips an emergency stop after 3 s without a fresh
+     * safety_set_ssr() call while duty > 0. Zero means no test running. */
+    int64_t relay_test_end_us;
 
     /* Pause bookkeeping: wall-clock when the active firing was paused. On
      * resume the elapsed pause is added back to every time anchor below so the
@@ -691,6 +698,10 @@ static void handle_cmd(const firing_cmd_t *cmd)
         progress_unlock();
         if (already_active || s_state.delay_active) {
             ESP_LOGW(TAG, "START rejected: firing already active");
+            break;
+        }
+        if (s_state.relay_test_end_us != 0) {
+            ESP_LOGW(TAG, "START rejected: relay diagnostic test in progress");
             break;
         }
 
@@ -939,6 +950,10 @@ static void handle_cmd(const firing_cmd_t *cmd)
             ESP_LOGW(TAG, "AUTOTUNE rejected: firing already active");
             break;
         }
+        if (s_state.relay_test_end_us != 0) {
+            ESP_LOGW(TAG, "AUTOTUNE rejected: relay diagnostic test in progress");
+            break;
+        }
 
         /* Same OTA guard as FIRING_CMD_START: autotune energizes the elements
            and a mid-run reboot would leave them in an undefined state. */
@@ -954,6 +969,31 @@ static void handle_cmd(const firing_cmd_t *cmd)
         progress_unlock();
         s_state.elapsed_accum_us = 0;
         ESP_LOGI(TAG, "Auto-tune mode started");
+        break;
+    }
+
+    case FIRING_CMD_RELAY_TEST: {
+        progress_lock();
+        bool busy = s_progress.is_active;
+        progress_unlock();
+        if (busy || s_state.delay_active) {
+            ESP_LOGW(TAG, "RELAY TEST rejected: firing already active");
+            break;
+        }
+        if (ota_is_busy()) {
+            ESP_LOGW(TAG, "RELAY TEST rejected: firmware update in progress");
+            break;
+        }
+        uint32_t dur = cmd->relay_test.duration_s;
+        if (dur < 1) {
+            dur = 1;
+        }
+        if (dur > RELAY_TEST_MAX_S) {
+            dur = RELAY_TEST_MAX_S;
+        }
+        s_state.relay_test_end_us = esp_timer_get_time() + (int64_t)dur * 1000000LL;
+        safety_set_ssr(1.0f);
+        ESP_LOGI(TAG, "Relay diagnostic test: SSR on for %us", (unsigned)dur);
         break;
     }
 
@@ -979,6 +1019,21 @@ static int64_t s_last_compute_us = 0;
 
 void firing_tick(int64_t now_us)
 {
+    /* Relay diagnostic pulse. Re-assert the duty every tick so the safety
+       task's 3-second SSR heartbeat stays fed for the whole test — the old
+       HTTP-side implementation set it once and slept, which latched an
+       emergency stop on any test longer than 3 s. */
+    if (s_state.relay_test_end_us != 0) {
+        if (safety_is_emergency() || now_us >= s_state.relay_test_end_us) {
+            s_state.relay_test_end_us = 0;
+            safety_set_ssr(0.0f);
+            ESP_LOGI(TAG, "Relay diagnostic test finished");
+        } else {
+            safety_set_ssr(1.0f);
+        }
+        return;
+    }
+
     /* Handle delay-start countdown */
     if (s_state.delay_active) {
         /* A latched emergency cancels the armed firing before it starts, so it

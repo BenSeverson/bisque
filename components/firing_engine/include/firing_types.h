@@ -85,6 +85,7 @@ typedef enum {
     FIRING_CMD_SKIP_SEGMENT,
     FIRING_CMD_AUTOTUNE_START,
     FIRING_CMD_AUTOTUNE_STOP,
+    FIRING_CMD_RELAY_TEST,
 } firing_cmd_type_t;
 
 typedef struct {
@@ -98,6 +99,9 @@ typedef struct {
             float setpoint; /* For AUTOTUNE_START */
             float hysteresis;
         } autotune;
+        struct {
+            uint32_t duration_s; /* For RELAY_TEST */
+        } relay_test;
     };
 } firing_cmd_t;
 
