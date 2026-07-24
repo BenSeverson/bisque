@@ -7,36 +7,37 @@
  *
  * The iOS app can then connect to localhost:8080 (or MOCK_PORT).
  */
-import { createServer } from 'http';
-import { WebSocketServer } from 'ws';
-import { handleRequest } from './handlers';
-import { state } from './state';
+import { createServer } from "http";
+import { WebSocketServer } from "ws";
+import { handleRequest } from "./handlers";
+import { state } from "./state";
+import { ensureTicking } from "./simulator";
 
-const port = parseInt(process.env.MOCK_PORT || '8080', 10);
-const speed = process.env.MOCK_SPEED || '60';
+const port = parseInt(process.env.MOCK_PORT || "8080", 10);
+const speed = process.env.MOCK_SPEED || "60";
 
 state.speed = parseInt(speed, 10);
 
 const server = createServer((req, res) => {
   // CORS headers for local development
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     res.writeHead(204);
     res.end();
     return;
   }
 
-  if (req.url?.startsWith('/api/v1') && req.url !== '/api/v1/ws') {
+  if (req.url?.startsWith("/api/v1") && req.url !== "/api/v1/ws") {
     handleRequest(req, res);
     return;
   }
 
   // Health check at root
-  res.writeHead(200, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ mock: true, status: 'running' }));
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ mock: true, status: "running" }));
 });
 
 const wss = new WebSocketServer({ noServer: true });
@@ -49,15 +50,18 @@ state.subscribers.add((msg) => {
   }
 });
 
-wss.on('connection', (ws) => {
-  console.log('[mock] WebSocket client connected');
-  ws.on('close', () => console.log('[mock] WebSocket client disconnected'));
+wss.on("connection", (ws) => {
+  // Match the firmware: telemetry flows continuously once a client is
+  // listening, not only while a firing is running.
+  ensureTicking();
+  console.log("[mock] WebSocket client connected");
+  ws.on("close", () => console.log("[mock] WebSocket client disconnected"));
 });
 
-server.on('upgrade', (req, socket, head) => {
-  if (req.url === '/api/v1/ws') {
+server.on("upgrade", (req, socket, head) => {
+  if (req.url === "/api/v1/ws") {
     wss.handleUpgrade(req, socket, head, (ws) => {
-      wss.emit('connection', ws, req);
+      wss.emit("connection", ws, req);
     });
   } else {
     socket.destroy();

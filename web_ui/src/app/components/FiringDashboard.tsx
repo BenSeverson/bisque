@@ -38,6 +38,15 @@ import { formatDuration } from "../utils/time";
 import { toErrorMessage } from "../utils/error";
 import { computeSegmentDurationMinutes } from "../utils/profile";
 import { useKilnStore } from "../stores/kilnStore";
+import { ConnectionBanner } from "./ConnectionBanner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
 import {
   useProfiles,
   useStartFiring,
@@ -76,6 +85,10 @@ export function FiringDashboard() {
   const skipSegment = useSkipSegment();
 
   const [delayMinutes, setDelayMinutes] = useState<number>(0);
+  // Stopping mid-firing ruins the load, so it is confirmed here the way the
+  // on-device LCD confirms it (modal_action_menu.c). An accidental tap is far
+  // more likely on the web surface than on the physical 5-way switch.
+  const [stopConfirmOpen, setStopConfirmOpen] = useState(false);
 
   // Fetch initial status from REST API. Seeds firingProgress AND the chart so a
   // mid-firing reload doesn't show 20°C until the first WS message arrives, and
@@ -197,6 +210,7 @@ export function FiringDashboard() {
   }, [pauseFiring]);
 
   const handleStop = useCallback(async () => {
+    setStopConfirmOpen(false);
     try {
       await stopFiring.mutateAsync();
       resetTempData();
@@ -261,6 +275,8 @@ export function FiringDashboard() {
 
   return (
     <div className="space-y-6">
+      <ConnectionBanner />
+
       {/* Status Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
@@ -396,7 +412,7 @@ export function FiringDashboard() {
             )}
 
             <Button
-              onClick={handleStop}
+              onClick={() => setStopConfirmOpen(true)}
               variant="destructive"
               disabled={!firingProgress.isActive && firingProgress.status !== "paused"}
               className="gap-2"
@@ -537,6 +553,26 @@ export function FiringDashboard() {
           </ResponsiveContainer>
         </CardContent>
       </Card>
+
+      <Dialog open={stopConfirmOpen} onOpenChange={setStopConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Stop the firing?</DialogTitle>
+            <DialogDescription>
+              The kiln will stop heating immediately and the firing cannot be resumed. This will
+              likely ruin the load.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStopConfirmOpen(false)}>
+              Keep firing
+            </Button>
+            <Button variant="destructive" onClick={handleStop}>
+              Stop firing
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

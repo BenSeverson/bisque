@@ -12,6 +12,7 @@
  */
 import { dispatch } from "../../../mock-server/router";
 import { state } from "../../../mock-server/state";
+import { ensureTicking } from "../../../mock-server/simulator";
 import type { DispatchResult } from "../../../mock-server/router";
 
 const API_PREFIX = "/api/v1";
@@ -134,6 +135,12 @@ class DemoWebSocket {
       };
       state.subscribers.add(deliver);
       this.unsubscribe = () => state.subscribers.delete(deliver);
+
+      // Match the firmware (and the Node mock adapters): telemetry flows
+      // continuously once a client is listening, not only during a firing.
+      // Without this the published demo sits on an open socket with no frames
+      // and the dashboard's stale-data banner fires a standing false alarm.
+      ensureTicking();
 
       this.onopen?.({});
     }, 0);
