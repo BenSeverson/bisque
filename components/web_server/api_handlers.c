@@ -673,8 +673,22 @@ static esp_err_t handle_post_settings(httpd_req_t *req)
         strncpy(settings.webhook_url, j->valuestring, sizeof(settings.webhook_url) - 1);
     }
     j = cJSON_GetObjectItem(root, "apiToken");
-    if (j && j->valuestring && j->valuestring[0] != '\0') {
+    if (j && cJSON_IsString(j) && j->valuestring) {
+        /* An explicit empty string means "clear the token"; omitting the field
+           entirely means "leave it unchanged". Previously an empty string was
+           silently ignored, so the UI's Clear action could never actually clear
+           it server-side — the client dropped the token, the device kept it,
+           and every later request 401'd. */
+        if (strlen(j->valuestring) >= sizeof(settings.api_token)) {
+            /* Reject rather than truncate: a truncated token would leave the
+               client authenticating with the full string the device never
+               stored — the same lockout by a different route. */
+            cJSON_Delete(root);
+            httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "API token too long");
+            return ESP_FAIL;
+        }
         strncpy(settings.api_token, j->valuestring, sizeof(settings.api_token) - 1);
+        settings.api_token[sizeof(settings.api_token) - 1] = '\0';
     }
     j = cJSON_GetObjectItem(root, "elementWatts");
     if (j) {
