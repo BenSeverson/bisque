@@ -414,6 +414,14 @@ static esp_err_t handle_post_profile(httpd_req_t *req)
         httpd_resp_sendstr(req, "Profile id collides with an existing profile");
         return ESP_FAIL;
     }
+    if (err == ESP_ERR_NO_MEM) {
+        /* Storage limit, not a server fault — report it so the client can tell
+           the user to delete a profile rather than showing a generic failure. */
+        httpd_resp_set_status(req, "507 Insufficient Storage");
+        httpd_resp_set_type(req, "text/plain");
+        httpd_resp_sendstr(req, "Profile limit reached; delete a profile first");
+        return ESP_FAIL;
+    }
     if (err != ESP_OK) {
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to save");
         return ESP_FAIL;
@@ -769,6 +777,14 @@ static esp_err_t handle_profile_import(httpd_req_t *req)
         httpd_resp_set_status(req, "409 Conflict");
         httpd_resp_set_type(req, "text/plain");
         httpd_resp_sendstr(req, "Profile id collides with an existing profile");
+        return ESP_FAIL;
+    }
+    if (err == ESP_ERR_NO_MEM) {
+        /* Storage limit, not a server fault — report it so the client can tell
+           the user to delete a profile rather than showing a generic failure. */
+        httpd_resp_set_status(req, "507 Insufficient Storage");
+        httpd_resp_set_type(req, "text/plain");
+        httpd_resp_sendstr(req, "Profile limit reached; delete a profile first");
         return ESP_FAIL;
     }
     if (err != ESP_OK) {
