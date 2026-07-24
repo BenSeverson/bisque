@@ -129,31 +129,40 @@ void ws_broadcast(const char *json, size_t len)
     int dead[MAX_WS_CLIENTS];
     int n_dead = 0;
     for (int i = 0; i < n; i++) {
-        if (httpd_ws_send_frame_async(server, fds[i], &ws_pkt) != ESP_OK) {
-            ESP_LOGD(TAG, "WS client fd=%d disconnected", fds[i]);
-            dead[n_dead++] = fds[i];
+        int fd = fds[i];
+        /* Only send to a socket the server still regards as an active WS client.
+           A closed fd — or one already reused for a plain-HTTP request — would
+           otherwise receive a stray WS frame. */
+        if (httpd_ws_get_fd_info(server, fd) != HTTPD_WS_CLIENT_WEBSOCKET ||
+            httpd_ws_send_frame_async(server, fd, &ws_pkt) != ESP_OK) {
+            ESP_LOGD(TAG, "WS client fd=%d gone", fd);
+            dead[n_dead++] = fd;
         }
     }
 
-    /* Remove only the fds that actually failed, so a client that connected
-       during the send above (and isn't in our snapshot) is preserved rather
-       than clobbered by writing back a stale compacted list. */
+    /* Prune failed fds, but revalidate each against the server first: if a fd
+       was closed and immediately reused by a fresh WS handshake during the send
+       window, httpd_ws_get_fd_info reports it live again and we keep it, so the
+       reconnected client stays tracked. Only fds still gone are dropped. This
+       also preserves clients that connected after the snapshot. */
     if (n_dead > 0) {
         if (s_ws_mutex) {
             xSemaphoreTake(s_ws_mutex, portMAX_DELAY);
         }
         int valid = 0;
         for (int i = 0; i < s_ws_count; i++) {
-            bool is_dead = false;
+            int fd = s_ws_fds[i];
+            bool was_dead = false;
             for (int j = 0; j < n_dead; j++) {
-                if (s_ws_fds[i] == dead[j]) {
-                    is_dead = true;
+                if (fd == dead[j]) {
+                    was_dead = true;
                     break;
                 }
             }
-            if (!is_dead) {
-                s_ws_fds[valid++] = s_ws_fds[i];
+            if (was_dead && httpd_ws_get_fd_info(server, fd) != HTTPD_WS_CLIENT_WEBSOCKET) {
+                continue; /* still gone → drop */
             }
+            s_ws_fds[valid++] = fd;
         }
         s_ws_count = valid;
         if (s_ws_mutex) {
