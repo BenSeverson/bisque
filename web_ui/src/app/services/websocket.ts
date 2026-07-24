@@ -1,4 +1,7 @@
 export interface TempUpdateData {
+  /** Present in every firmware frame (api_json.c) but previously dropped by the
+   *  client, so a firing started elsewhere left this tab on a stale profile. */
+  profileId?: string;
   currentTemp: number;
   targetTemp: number;
   status: string;
