@@ -39,6 +39,7 @@ import { toErrorMessage } from "../utils/error";
 import { computeSegmentDurationMinutes } from "../utils/profile";
 import { useKilnStore } from "../stores/kilnStore";
 import { ConnectionBanner } from "./ConnectionBanner";
+import { deriveFiringPhase, showsFiringProgress } from "../utils/firingPhase";
 import {
   Dialog,
   DialogContent,
@@ -220,6 +221,9 @@ export function FiringDashboard() {
     }
   }, [stopFiring, resetTempData]);
 
+  const phase = deriveFiringPhase(firingProgress);
+  const progressVisible = showsFiringProgress(phase);
+
   const progress = useMemo(() => {
     if (!selectedProfile || firingProgress.elapsedTime === 0) return 0;
     const totalSeconds = selectedProfile.estimatedDuration * 60;
@@ -237,6 +241,12 @@ export function FiringDashboard() {
       autotune: "default",
       idle: "secondary",
     };
+    // The firmware reports is_active=true with status=IDLE during an armed
+    // delay; showing a bare "Idle" made a scheduled overnight firing look as
+    // though nothing had been set at all.
+    if (phase === "scheduled") {
+      return <Badge variant="outline">Scheduled</Badge>;
+    }
     return (
       <Badge variant={variants[firingProgress.status]}>
         {firingProgress.status.charAt(0).toUpperCase() + firingProgress.status.slice(1)}
@@ -304,7 +314,7 @@ export function FiringDashboard() {
             <CardDescription>Elapsed Time</CardDescription>
             <CardTitle className="flex items-center gap-2 text-3xl">
               <Clock className="h-6 w-6" />
-              {formatDuration(firingProgress.elapsedTime)}
+              {progressVisible ? formatDuration(firingProgress.elapsedTime) : "—"}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -322,7 +332,9 @@ export function FiringDashboard() {
         <CardHeader>
           <CardTitle>Firing Controls</CardTitle>
           <CardDescription>
-            {selectedProfile &&
+            {phase === "scheduled" && <>Scheduled — the kiln will start automatically</>}
+            {progressVisible &&
+              selectedProfile &&
               firingProgress.currentSegment < (selectedProfile?.segments.length || 0) && (
                 <>
                   Current Segment: {selectedProfile.segments[firingProgress.currentSegment]?.name}
@@ -380,18 +392,20 @@ export function FiringDashboard() {
             )}
           </div>
 
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>Overall Progress</span>
-              <span>{Math.round(progress)}%</span>
+          {progressVisible && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Overall Progress</span>
+                <span>{Math.round(progress)}%</span>
+              </div>
+              <Progress value={progress} />
+              {selectedProfile && (
+                <p className="text-sm text-muted-foreground">
+                  Estimated time remaining: {formatDuration(firingProgress.estimatedTimeRemaining)}
+                </p>
+              )}
             </div>
-            <Progress value={progress} />
-            {selectedProfile && (
-              <p className="text-sm text-muted-foreground">
-                Estimated time remaining: {formatDuration(firingProgress.estimatedTimeRemaining)}
-              </p>
-            )}
-          </div>
+          )}
 
           <div className="flex gap-2">
             {!firingProgress.isActive && firingProgress.status !== "paused" ? (
@@ -404,7 +418,7 @@ export function FiringDashboard() {
                 <Play className="h-4 w-4" />
                 Resume
               </Button>
-            ) : (
+            ) : phase === "scheduled" ? null : ( // nothing to pause until it starts
               <Button onClick={handlePause} variant="outline" className="gap-2">
                 <Pause className="h-4 w-4" />
                 Pause
@@ -418,10 +432,10 @@ export function FiringDashboard() {
               className="gap-2"
             >
               <Square className="h-4 w-4" />
-              Stop
+              {phase === "scheduled" ? "Cancel" : "Stop"}
             </Button>
 
-            {firingProgress.isActive && firingProgress.status !== "paused" && (
+            {progressVisible && firingProgress.status !== "paused" && (
               <Button onClick={handleSkipSegment} variant="outline" className="gap-2 ml-auto">
                 <SkipForward className="h-4 w-4" />
                 Skip Segment
