@@ -87,7 +87,7 @@ float pid_compute(pid_controller_t *pid, float setpoint, float measured, float d
 
 esp_err_t pid_autotune_start(pid_autotune_t *at, float setpoint, float hysteresis)
 {
-    if (setpoint <= 0.0f || hysteresis <= 0.0f) {
+    if (!isfinite(setpoint) || !isfinite(hysteresis) || setpoint <= 0.0f || hysteresis <= 0.0f) {
         return ESP_ERR_INVALID_ARG;
     }
 

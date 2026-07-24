@@ -1214,6 +1214,13 @@ static esp_err_t handle_autotune_start(httpd_req_t *req)
     }
     cJSON_Delete(root);
 
+    /* Reject non-finite / non-positive inputs before the range check: `NaN >
+       max` is false, so a null/malformed JSON value would otherwise slip
+       through to the engine. Mirrors validate_profile's isfinite() checks. */
+    if (!isfinite(setpoint) || setpoint <= 0.0f || !isfinite(hysteresis) || hysteresis <= 0.0f) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid setpoint or hysteresis");
+        return ESP_FAIL;
+    }
     /* Validate against max safe temp */
     if (setpoint > safety_get_max_temp()) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Setpoint exceeds max safe temp");

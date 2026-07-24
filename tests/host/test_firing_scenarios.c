@@ -8,6 +8,7 @@
 #include "thermocouple_host.h"
 #include "unity.h"
 
+#include <math.h>
 #include <stdbool.h>
 #include <string.h>
 
@@ -318,6 +319,33 @@ static void test_autotune_start_rejected_during_active_firing(void)
     history_test_counts_t h = history_test_counts();
     TEST_ASSERT_EQUAL_INT(1, h.starts);
     TEST_ASSERT_EQUAL_INT_MESSAGE(0, h.ends, "autotune closed or orphaned the firing's history record");
+}
+
+/* A NaN (or non-finite / out-of-range) setpoint must not produce a "ghost"
+ * autotune: the engine used to ignore pid_autotune_start's return and flip to
+ * AUTOTUNE regardless, so an invalid setpoint left is_active latched with the
+ * relay loop running NaN comparisons. (#115) */
+static void test_autotune_rejects_nan_setpoint(void)
+{
+    scenario_autotune_start(NAN, 5.0f);
+    scenario_run_ticks(&g_plant, 2);
+
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_FALSE_MESSAGE(prog.is_active, "NaN-setpoint autotune was accepted");
+    TEST_ASSERT_NOT_EQUAL(FIRING_STATUS_AUTOTUNE, prog.status);
+}
+
+/* A setpoint above the safe limit must be rejected at the engine level, the
+ * way FIRING_CMD_START rejects over-limit segment targets. */
+static void test_autotune_rejects_over_max_setpoint(void)
+{
+    scenario_autotune_start(safety_get_max_temp() + 100.0f, 5.0f);
+    scenario_run_ticks(&g_plant, 2);
+
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_FALSE_MESSAGE(prog.is_active, "over-max-temp autotune was accepted");
 }
 
 /* The #109 guard must not be so broad it blocks the normal case. */
@@ -1112,6 +1140,8 @@ int main(void)
     RUN_TEST(test_skip_while_paused_does_not_resume_heating);
     RUN_TEST(test_skip_after_resume_still_advances_segment);
     RUN_TEST(test_autotune_start_rejected_during_active_firing);
+    RUN_TEST(test_autotune_rejects_nan_setpoint);
+    RUN_TEST(test_autotune_rejects_over_max_setpoint);
     RUN_TEST(test_autotune_starts_when_no_firing_is_active);
     RUN_TEST(test_pause_resume_during_autotune_restores_autotune);
     RUN_TEST(test_pause_resume_during_cooling_restores_cooling);

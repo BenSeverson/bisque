@@ -999,7 +999,23 @@ static void handle_cmd(const firing_cmd_t *cmd)
             ESP_LOGW(TAG, "AUTOTUNE rejected: firmware update in progress");
             break;
         }
-        pid_autotune_start(&s_autotune, cmd->autotune.setpoint, cmd->autotune.hysteresis);
+        /* Validate before touching state, mirroring the segment checks in
+           FIRING_CMD_START: reject non-finite / non-positive / over-limit
+           inputs (a NaN slips past pid_autotune_start's bare `<= 0` guard, and
+           a setpoint above the safe limit must never drive the elements). */
+        float at_setpoint = cmd->autotune.setpoint;
+        float at_hysteresis = cmd->autotune.hysteresis;
+        if (!isfinite(at_setpoint) || at_setpoint <= 0.0f || at_setpoint > safety_get_max_temp() ||
+            !isfinite(at_hysteresis) || at_hysteresis <= 0.0f) {
+            ESP_LOGW(TAG, "AUTOTUNE rejected: invalid setpoint=%.1f hysteresis=%.1f", at_setpoint, at_hysteresis);
+            break;
+        }
+        /* Only flip to AUTOTUNE if the controller actually armed — otherwise a
+           rejected start would leave is_active latched on a "ghost" autotune. */
+        if (pid_autotune_start(&s_autotune, at_setpoint, at_hysteresis) != ESP_OK) {
+            ESP_LOGW(TAG, "AUTOTUNE rejected: pid_autotune_start failed");
+            break;
+        }
         progress_lock();
         s_progress.is_active = true;
         s_progress.status = FIRING_STATUS_AUTOTUNE;

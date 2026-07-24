@@ -131,6 +131,11 @@ static void test_autotune_rejects_invalid_args(void)
     TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, pid_autotune_start(&at, 0.0f, 1.0f));
     TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, pid_autotune_start(&at, 100.0f, 0.0f));
     TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, pid_autotune_start(&at, -10.0f, 5.0f));
+    /* NaN slips past a bare `<= 0` check (every comparison with NaN is false),
+       so it must be rejected explicitly. */
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, pid_autotune_start(&at, NAN, 5.0f));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, pid_autotune_start(&at, 500.0f, NAN));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, pid_autotune_start(&at, INFINITY, 5.0f));
 }
 
 static void test_autotune_starts_in_heating_state(void)
