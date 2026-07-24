@@ -4,19 +4,29 @@
 #include "esp_log.h"
 #include "cJSON.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "freertos/task.h"
 #include <stdlib.h>
 #include <string.h>
 
 static const char *TAG = "ws";
 
-/* Track connected WebSocket file descriptors */
+/* Track connected WebSocket file descriptors. Mutated from the httpd task (on
+ * connect) and the broadcast worker task (pruning dead fds on send failure), so
+ * every access is guarded by s_ws_mutex. */
 #define MAX_WS_CLIENTS 4
 static int s_ws_fds[MAX_WS_CLIENTS];
 static int s_ws_count = 0;
+static SemaphoreHandle_t s_ws_mutex;
 
 /* Broadcast worker task */
 static TaskHandle_t s_ws_task = NULL;
+
+/* The client sends no application data (this is a one-way telemetry channel), so
+ * any inbound frame is tiny. Cap it so a malfunctioning or hostile client can't
+ * make the device malloc() an arbitrary, header-advertised length and exhaust
+ * the heap out from under the firing/safety tasks. */
+#define MAX_WS_FRAME_LEN 1024
 
 /* ── WebSocket handler ─────────────────────────────── */
 
@@ -25,9 +35,28 @@ static esp_err_t ws_handler(httpd_req_t *req)
     if (req->method == HTTP_GET) {
         /* New WebSocket connection */
         int fd = httpd_req_to_sockfd(req);
-        if (s_ws_count < MAX_WS_CLIENTS) {
+        if (s_ws_mutex) {
+            xSemaphoreTake(s_ws_mutex, portMAX_DELAY);
+        }
+        bool already = false;
+        for (int i = 0; i < s_ws_count; i++) {
+            if (s_ws_fds[i] == fd) {
+                already = true; /* fd reused for a fresh handshake; keep one entry */
+                break;
+            }
+        }
+        if (already) {
+            ESP_LOGD(TAG, "WebSocket fd=%d already tracked", fd);
+        } else if (s_ws_count < MAX_WS_CLIENTS) {
             s_ws_fds[s_ws_count++] = fd;
             ESP_LOGI(TAG, "WebSocket client connected (fd=%d, total=%d)", fd, s_ws_count);
+        } else {
+            /* Not silent: the client completes the handshake but will never get
+               updates, which is otherwise invisible to operators. */
+            ESP_LOGW(TAG, "WebSocket client table full (%d); fd=%d will receive no updates", MAX_WS_CLIENTS, fd);
+        }
+        if (s_ws_mutex) {
+            xSemaphoreGive(s_ws_mutex);
         }
         return ESP_OK;
     }
@@ -41,6 +70,11 @@ static esp_err_t ws_handler(httpd_req_t *req)
     esp_err_t ret = httpd_ws_recv_frame(req, &ws_pkt, 0);
     if (ret != ESP_OK) {
         return ret;
+    }
+
+    if (ws_pkt.len > MAX_WS_FRAME_LEN) {
+        ESP_LOGW(TAG, "WS frame length %u exceeds cap %d; dropping connection", (unsigned)ws_pkt.len, MAX_WS_FRAME_LEN);
+        return ESP_ERR_INVALID_SIZE;
     }
 
     if (ws_pkt.len > 0) {
@@ -78,16 +112,54 @@ void ws_broadcast(const char *json, size_t len)
         .len = len,
     };
 
-    int valid = 0;
-    for (int i = 0; i < s_ws_count; i++) {
-        esp_err_t ret = httpd_ws_send_frame_async(server, s_ws_fds[i], &ws_pkt);
-        if (ret == ESP_OK) {
-            s_ws_fds[valid++] = s_ws_fds[i];
-        } else {
-            ESP_LOGD(TAG, "WS client fd=%d disconnected", s_ws_fds[i]);
+    /* Snapshot the fd list under the lock, then send outside it: the async send
+       can do real work and we must not hold the mutex (which the httpd task also
+       needs on connect) across it. */
+    int fds[MAX_WS_CLIENTS];
+    int n = 0;
+    if (s_ws_mutex) {
+        xSemaphoreTake(s_ws_mutex, portMAX_DELAY);
+    }
+    n = s_ws_count;
+    memcpy(fds, s_ws_fds, (size_t)n * sizeof(fds[0]));
+    if (s_ws_mutex) {
+        xSemaphoreGive(s_ws_mutex);
+    }
+
+    int dead[MAX_WS_CLIENTS];
+    int n_dead = 0;
+    for (int i = 0; i < n; i++) {
+        if (httpd_ws_send_frame_async(server, fds[i], &ws_pkt) != ESP_OK) {
+            ESP_LOGD(TAG, "WS client fd=%d disconnected", fds[i]);
+            dead[n_dead++] = fds[i];
         }
     }
-    s_ws_count = valid;
+
+    /* Remove only the fds that actually failed, so a client that connected
+       during the send above (and isn't in our snapshot) is preserved rather
+       than clobbered by writing back a stale compacted list. */
+    if (n_dead > 0) {
+        if (s_ws_mutex) {
+            xSemaphoreTake(s_ws_mutex, portMAX_DELAY);
+        }
+        int valid = 0;
+        for (int i = 0; i < s_ws_count; i++) {
+            bool is_dead = false;
+            for (int j = 0; j < n_dead; j++) {
+                if (s_ws_fds[i] == dead[j]) {
+                    is_dead = true;
+                    break;
+                }
+            }
+            if (!is_dead) {
+                s_ws_fds[valid++] = s_ws_fds[i];
+            }
+        }
+        s_ws_count = valid;
+        if (s_ws_mutex) {
+            xSemaphoreGive(s_ws_mutex);
+        }
+    }
 }
 
 /* Compose and send a status frame. Runs on the broadcast worker task. */
@@ -184,6 +256,17 @@ esp_err_t ws_handler_start(void)
 
 esp_err_t ws_handler_register(httpd_handle_t server)
 {
+    /* Created once, before any client can connect (registration runs during
+       server bring-up on a single task). Guards the fd table for the lifetime
+       of the server. */
+    if (!s_ws_mutex) {
+        s_ws_mutex = xSemaphoreCreateMutex();
+        if (!s_ws_mutex) {
+            ESP_LOGE(TAG, "Failed to create WebSocket client mutex");
+            return ESP_ERR_NO_MEM;
+        }
+    }
+
     httpd_uri_t ws_uri = {
         .uri = "/api/v1/ws",
         .method = HTTP_GET,
