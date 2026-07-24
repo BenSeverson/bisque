@@ -1,11 +1,16 @@
 import { create } from "zustand";
 import { FiringProgress, TemperatureDataPoint, coerceFiringStatus } from "../types/kiln";
-import { kilnWS, WSMessage } from "../services/websocket";
+import { kilnWS, WSMessage, WSConnectionState } from "../services/websocket";
 
 interface KilnState {
   // UI state
   selectedProfileId: string | null;
   setSelectedProfileId: (id: string | null) => void;
+
+  // Connection health. Without this the dashboard cannot distinguish a live
+  // reading from the last one received before the device dropped off.
+  connectionState: WSConnectionState;
+  lastUpdateAt: number | null;
 
   // Real-time firing data (from WebSocket)
   firingProgress: FiringProgress;
@@ -37,6 +42,9 @@ export const useKilnStore = create<KilnState>((set) => ({
   selectedProfileId: null,
   setSelectedProfileId: (id) => set({ selectedProfileId: id }),
 
+  connectionState: "offline",
+  lastUpdateAt: null,
+
   firingProgress: initialProgress,
   currentTempData: [...initialTempData],
   resetTempData: () => set({ currentTempData: [...initialTempData] }),
@@ -44,9 +52,14 @@ export const useKilnStore = create<KilnState>((set) => ({
   initWebSocket: () => {
     kilnWS.connect();
 
+    const unsubscribeStatus = kilnWS.subscribeStatus((state: WSConnectionState) => {
+      set({ connectionState: state });
+    });
+
     const unsubscribe = kilnWS.subscribe((msg: WSMessage) => {
       if (msg.type === "temp_update") {
         const d = msg.data;
+        const receivedAt = Date.now();
         set((state) => {
           const timeMin = Math.round(d.elapsedTime / 60);
           const newPoint = {
@@ -68,6 +81,7 @@ export const useKilnStore = create<KilnState>((set) => ({
           }
 
           return {
+            lastUpdateAt: receivedAt,
             firingProgress: {
               isActive: d.isActive,
               profileId: state.firingProgress.profileId,
@@ -87,6 +101,7 @@ export const useKilnStore = create<KilnState>((set) => ({
     });
 
     return () => {
+      unsubscribeStatus();
       unsubscribe();
       kilnWS.disconnect();
     };

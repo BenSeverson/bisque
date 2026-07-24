@@ -30,6 +30,16 @@ export type WSMessage =
 
 type MessageHandler = (msg: WSMessage) => void;
 
+/**
+ * Socket lifecycle, surfaced so the UI can tell a healthy connection from a
+ * device that has dropped off. Previously these transitions were logged to the
+ * dev console only, leaving stale readings on screen indistinguishable from
+ * live ones.
+ */
+export type WSConnectionState = "connecting" | "open" | "offline";
+
+type StatusHandler = (state: WSConnectionState) => void;
+
 const RECONNECT_DELAY_MS = 3000;
 
 class KilnWebSocket {
@@ -38,6 +48,8 @@ class KilnWebSocket {
   private reconnectTimer: number | null = null;
   private intentionalClose = false;
   private token: string | null = null;
+  private statusHandlers: Set<StatusHandler> = new Set();
+  private connectionState: WSConnectionState = "offline";
 
   private buildUrl(): string {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -65,6 +77,7 @@ class KilnWebSocket {
     }
 
     this.intentionalClose = false;
+    this.setConnectionState("connecting");
 
     try {
       const ws = new WebSocket(this.buildUrl());
@@ -72,6 +85,7 @@ class KilnWebSocket {
 
       ws.onopen = () => {
         if (import.meta.env.DEV) console.log("[WS] Connected");
+        this.setConnectionState("open");
         if (this.reconnectTimer) {
           clearTimeout(this.reconnectTimer);
           this.reconnectTimer = null;
@@ -88,6 +102,7 @@ class KilnWebSocket {
       };
 
       ws.onclose = () => {
+        this.setConnectionState("offline");
         if (this.intentionalClose) return;
         if (import.meta.env.DEV) console.log("[WS] Disconnected, reconnecting...");
         this.scheduleReconnect();
@@ -99,6 +114,7 @@ class KilnWebSocket {
       };
     } catch (e) {
       if (import.meta.env.DEV) console.error("[WS] Failed to connect:", e);
+      this.setConnectionState("offline");
       this.scheduleReconnect();
     }
   }
@@ -129,6 +145,9 @@ class KilnWebSocket {
       this.ws.close();
       this.ws = null;
     }
+    // detachHandlers() clears onclose, so the close below never reports itself —
+    // set the state explicitly or it would stay stuck at "open".
+    this.setConnectionState("offline");
   }
 
   subscribe(handler: MessageHandler): () => void {
@@ -136,6 +155,25 @@ class KilnWebSocket {
     return () => {
       this.handlers.delete(handler);
     };
+  }
+
+  /** Subscribe to socket lifecycle changes. Fires immediately with the current state. */
+  subscribeStatus(handler: StatusHandler): () => void {
+    this.statusHandlers.add(handler);
+    handler(this.connectionState);
+    return () => {
+      this.statusHandlers.delete(handler);
+    };
+  }
+
+  getConnectionState(): WSConnectionState {
+    return this.connectionState;
+  }
+
+  private setConnectionState(state: WSConnectionState) {
+    if (this.connectionState === state) return;
+    this.connectionState = state;
+    this.statusHandlers.forEach((h) => h(state));
   }
 }
 

@@ -4,6 +4,7 @@ import type { WSMessage, TempUpdateData } from "../services/websocket";
 // Capture the handler the store registers on the mocked WS so tests can pump
 // frames directly into the store.
 let wsSubscriber: ((msg: WSMessage) => void) | null = null;
+let wsStatusSubscriber: ((state: "connecting" | "open" | "offline") => void) | null = null;
 const connectSpy = vi.fn();
 const disconnectSpy = vi.fn();
 
@@ -18,6 +19,13 @@ vi.mock("../services/websocket", () => ({
       };
     },
     setAuthToken: () => {},
+    subscribeStatus: (handler: (state: "connecting" | "open" | "offline") => void) => {
+      wsStatusSubscriber = handler;
+      handler("offline");
+      return () => {
+        wsStatusSubscriber = null;
+      };
+    },
   },
 }));
 
@@ -31,8 +39,11 @@ function resetStore() {
     selectedProfileId: null,
     firingProgress: initialProgress,
     currentTempData: [...initialTempData],
+    connectionState: "offline",
+    lastUpdateAt: null,
   });
   wsSubscriber = null;
+  wsStatusSubscriber = null;
   connectSpy.mockClear();
   disconnectSpy.mockClear();
 }
@@ -154,5 +165,48 @@ describe("kilnStore: WebSocket temp_update handling", () => {
     // First retained point should be 700 - 599 = 101.
     expect(data[0].time).toBe(101);
     expect(data[data.length - 1].time).toBe(700);
+  });
+});
+
+describe("kilnStore: connection health", () => {
+  beforeEach(() => {
+    resetStore();
+    useKilnStore.getState().initWebSocket();
+  });
+
+  it("starts offline and follows socket lifecycle transitions", () => {
+    expect(useKilnStore.getState().connectionState).toBe("offline");
+
+    wsStatusSubscriber!("connecting");
+    expect(useKilnStore.getState().connectionState).toBe("connecting");
+
+    wsStatusSubscriber!("open");
+    expect(useKilnStore.getState().connectionState).toBe("open");
+
+    // A drop must be reflected, or the dashboard keeps presenting the last
+    // reading as if it were live.
+    wsStatusSubscriber!("offline");
+    expect(useKilnStore.getState().connectionState).toBe("offline");
+  });
+
+  it("stamps lastUpdateAt on each telemetry frame", () => {
+    expect(useKilnStore.getState().lastUpdateAt).toBeNull();
+
+    const before = Date.now();
+    wsSubscriber!(tempFrame());
+    const stamped = useKilnStore.getState().lastUpdateAt;
+
+    expect(stamped).not.toBeNull();
+    expect(stamped!).toBeGreaterThanOrEqual(before);
+  });
+
+  it("does not advance lastUpdateAt while the socket is silent", () => {
+    wsSubscriber!(tempFrame());
+    const first = useKilnStore.getState().lastUpdateAt;
+
+    wsStatusSubscriber!("open");
+    // Lifecycle noise is not telemetry: an open socket that sends nothing must
+    // not look like fresh data.
+    expect(useKilnStore.getState().lastUpdateAt).toBe(first);
   });
 });
