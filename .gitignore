@@ -43,3 +43,6 @@ xcuserdata/
 .python-version
 .superpowers/
 .bisque_profile
+
+graphify-out/
+.gemini/settings.json
