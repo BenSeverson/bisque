@@ -18,7 +18,9 @@ typedef struct {
     float output_max;
     /* Internal state */
     float integral;
-    float prev_error;
+    float prev_error;    /* retained for compatibility; no longer used by the D term */
+    float prev_measured; /* derivative is taken on the measurement, not the error */
+    float d_filtered;    /* low-pass-filtered measurement derivative */
     bool first_run;
 } pid_controller_t;
 

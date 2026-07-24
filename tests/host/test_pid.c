@@ -89,14 +89,59 @@ static void test_pid_reset_clears_integral_and_derivative(void)
     TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.5f, out);
 }
 
-static void test_pid_derivative_on_error_signs(void)
+/* Derivative acts on the *measurement* (not the error) and is low-pass
+   filtered. For a rising measurement the term is negative (damping); its
+   magnitude is the filtered rate, so a single step is attenuated by the filter
+   rather than applied in full. */
+static void test_pid_derivative_on_measurement_signs(void)
 {
     pid_controller_t pid;
-    pid_init(&pid, 0.0f, 0.0f, 1.0f, -10.0f, 10.0f); /* D-only, wide clamp */
-    /* First call seeds prev_error; subsequent compute uses (e - prev_e)/dt. */
-    pid_compute(&pid, 100.0f, 80.0f, 1.0f);             /* e=20, first run → out=0 */
-    float out = pid_compute(&pid, 100.0f, 90.0f, 1.0f); /* e=10, de=-10 → out=-10 */
-    TEST_ASSERT_FLOAT_WITHIN(0.001f, -10.0f, out);
+    pid_init(&pid, 0.0f, 0.0f, 1.0f, -10.0f, 10.0f);    /* D-only, wide clamp */
+    pid_compute(&pid, 100.0f, 80.0f, 1.0f);             /* first run seeds prev_measured, out=0 */
+    float out = pid_compute(&pid, 100.0f, 90.0f, 1.0f); /* meas +10/s, filtered → damping */
+    /* d_meas=10, filter alpha at dt=1 is 0.25 → d_filtered=2.5 → -kd*2.5. */
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, -2.5f, out);
+}
+
+/* Derivative-on-measurement means a setpoint step produces no derivative kick —
+   the old derivative-on-error would spike here at every segment/skip
+   transition. */
+static void test_pid_derivative_ignores_setpoint_step(void)
+{
+    pid_controller_t pid;
+    pid_init(&pid, 0.0f, 0.0f, 1.0f, -10.0f, 10.0f);
+    pid_compute(&pid, 50.0f, 50.0f, 1.0f);              /* seed at steady measurement */
+    pid_compute(&pid, 50.0f, 50.0f, 1.0f);              /* still steady */
+    float out = pid_compute(&pid, 100.0f, 50.0f, 1.0f); /* setpoint jumps, measurement flat */
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.0f, out);
+}
+
+/* One 0.25°C sensor LSB must not swing the derivative term across the output
+   range. With the old Kd=50, unfiltered, this produced 12.5 (12.5× the whole
+   [0,1] range); filtered and with a sane gain it stays a small fraction. */
+static void test_pid_derivative_filter_attenuates_sensor_lsb(void)
+{
+    pid_controller_t pid;
+    pid_init(&pid, 0.0f, 0.0f, 10.0f, -100.0f, 100.0f);  /* D-only, wide clamp, no saturation */
+    pid_compute(&pid, 100.0f, 50.0f, 1.0f);              /* seed */
+    float out = pid_compute(&pid, 100.0f, 50.25f, 1.0f); /* +1 LSB blip */
+    TEST_ASSERT_TRUE_MESSAGE(out < 0.0f, "rising measurement should damp (negative D term)");
+    TEST_ASSERT_TRUE_MESSAGE(fabsf(out) < 1.0f, "single-LSB derivative term swung most of the output range");
+}
+
+/* Reset must clear the new derivative-filter state (prev_measured, d_filtered),
+   not just first_run — otherwise a stale filtered rate leaks into the next
+   firing on the second post-reset tick. */
+static void test_pid_reset_clears_derivative_filter(void)
+{
+    pid_controller_t pid;
+    pid_init(&pid, 0.0f, 0.0f, 1.0f, -10.0f, 10.0f);
+    pid_compute(&pid, 100.0f, 50.0f, 1.0f);
+    pid_compute(&pid, 100.0f, 90.0f, 1.0f); /* d_filtered now well above zero */
+    pid_reset(&pid);
+    pid_compute(&pid, 100.0f, 50.0f, 1.0f);             /* post-reset first call: derivative skipped */
+    float out = pid_compute(&pid, 100.0f, 50.0f, 1.0f); /* steady → term must be ~0, not the stale rate */
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.0f, out);
 }
 
 /* ── pid_load_gains defaults / save & reload roundtrip ──────────────────── */
@@ -109,7 +154,7 @@ static void test_pid_load_returns_defaults_when_no_nvs(void)
     /* Defaults are set even on the not-found path. */
     TEST_ASSERT_FLOAT_WITHIN(0.001f, 2.0f, kp);
     TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.01f, ki);
-    TEST_ASSERT_FLOAT_WITHIN(0.001f, 50.0f, kd);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 5.0f, kd);
 }
 
 static void test_pid_save_and_load_roundtrip(void)
@@ -273,7 +318,10 @@ int main(void)
     RUN_TEST(test_pid_integral_accumulates);
     RUN_TEST(test_pid_anti_windup_holds_integral_at_clamp);
     RUN_TEST(test_pid_reset_clears_integral_and_derivative);
-    RUN_TEST(test_pid_derivative_on_error_signs);
+    RUN_TEST(test_pid_derivative_on_measurement_signs);
+    RUN_TEST(test_pid_derivative_ignores_setpoint_step);
+    RUN_TEST(test_pid_derivative_filter_attenuates_sensor_lsb);
+    RUN_TEST(test_pid_reset_clears_derivative_filter);
     RUN_TEST(test_pid_load_returns_defaults_when_no_nvs);
     RUN_TEST(test_pid_save_and_load_roundtrip);
     RUN_TEST(test_autotune_rejects_invalid_args);
