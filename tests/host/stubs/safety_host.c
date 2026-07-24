@@ -6,6 +6,7 @@ static EventGroupHandle_t s_event_group;
 static bool s_emergency;
 static float s_max_temp = 1300.0f;
 static float s_last_duty;
+static unsigned s_ssr_calls;
 static bool s_vent_active;
 static safety_trip_cause_t s_trip_cause = SAFETY_TRIP_NONE;
 
@@ -98,6 +99,7 @@ void safety_set_tc_offset(float offset_c)
 
 void safety_set_ssr(float duty)
 {
+    s_ssr_calls++;
     if (s_emergency) {
         s_last_duty = 0.0f;
         return;
@@ -123,6 +125,11 @@ float safety_test_last_duty(void)
     return s_last_duty;
 }
 
+unsigned safety_test_ssr_call_count(void)
+{
+    return s_ssr_calls;
+}
+
 bool safety_test_vent_active(void)
 {
     return s_vent_active;
@@ -133,6 +140,7 @@ void safety_test_reset(void)
     s_emergency = false;
     s_max_temp = 1300.0f;
     s_last_duty = 0.0f;
+    s_ssr_calls = 0;
     s_vent_active = false;
     s_trip_cause = SAFETY_TRIP_NONE;
     if (s_event_group) {

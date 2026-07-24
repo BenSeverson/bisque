@@ -33,6 +33,27 @@ QueueHandle_t firing_engine_get_cmd_queue(void);
  */
 int firing_first_bad_ramp_sign(const firing_profile_t *profile, float start_temp);
 
+/**
+ * True while a relay diagnostic pulse is holding the SSR on. This is a
+ * distinct busy state from a firing: `firing_engine_get_progress()` reports
+ * is_active == false during a relay test, so callers that must not run
+ * concurrently with it (firing start, autotune start, OTA, reboot) have to
+ * consult this in addition to is_active.
+ */
+bool firing_engine_relay_test_active(void);
+
+/**
+ * Arm a relay diagnostic pulse for `duration_s` seconds (clamped to
+ * [1, RELAY_TEST_MAX_S internally]). Returns true if armed, false if the kiln
+ * is busy (firing, armed delayed start, autotune, or a test already running).
+ *
+ * Synchronous and atomic: the caller gets a definitive answer with no queue
+ * latency, so an HTTP handler can return a real 200/409 instead of a fire-and-
+ * forget {ok:true}. Does not check OTA — callers that need that gate it
+ * separately. The firing tick drives the SSR for the armed pulse.
+ */
+bool firing_engine_relay_test_arm(uint32_t duration_s);
+
 /* ── Firing transition events ───────────────────────── */
 
 typedef enum {

@@ -521,6 +521,15 @@ static esp_err_t handle_firing_start(httpd_req_t *req)
         httpd_resp_send(req, msg, HTTPD_RESP_USE_STRLEN);
         return ESP_FAIL;
     }
+    /* A relay diagnostic holds the SSR but reports is_active == false; the
+       engine would drop a queued START, so reject here for a real 409 instead
+       of a false {ok:true}. */
+    if (firing_engine_relay_test_active()) {
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_set_type(req, "text/plain");
+        httpd_resp_send(req, "Relay test in progress", HTTPD_RESP_USE_STRLEN);
+        return ESP_FAIL;
+    }
 
     char err[96];
     if (!validate_profile(&profile, err, sizeof(err))) {
@@ -819,6 +828,13 @@ static esp_err_t handle_cone_fire(httpd_req_t *req)
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid coneId");
         return ESP_FAIL;
     }
+    /* Mirror the coneId check: a bad speed is a client error, so report it as
+       400 rather than letting it fall through to cone_fire_generate's own
+       guard and surface as a 500. */
+    if (speed < CONE_SPEED_SLOW || speed > CONE_SPEED_FAST) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid speed");
+        return ESP_FAIL;
+    }
 
     firing_profile_t profile;
     esp_err_t err = cone_fire_generate((cone_id_t)cone_id, (cone_speed_t)speed, preheat, slow_cool, &profile);
@@ -904,6 +920,15 @@ static bool ota_blocked_by_firing(httpd_req_t *req)
         httpd_resp_set_status(req, "409 Conflict");
         httpd_resp_set_type(req, "text/plain");
         httpd_resp_sendstr(req, "Cannot update firmware during a firing");
+        return true;
+    }
+    /* A relay diagnostic holds the SSR on but reports is_active == false, so it
+       must be checked separately: a reboot mid-pulse would leave the SSR in an
+       undefined state, and an OTA install reboots on completion. */
+    if (firing_engine_relay_test_active()) {
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_set_type(req, "text/plain");
+        httpd_resp_sendstr(req, "Cannot update firmware during a relay test");
         return true;
     }
     return false;
@@ -1083,14 +1108,6 @@ static esp_err_t handle_diag_relay(httpd_req_t *req)
         return ESP_FAIL;
     }
 
-    /* Only allow relay test when not firing */
-    firing_progress_t prog;
-    firing_engine_get_progress(&prog);
-    if (prog.is_active) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Cannot test relay during firing");
-        return ESP_FAIL;
-    }
-
     char buf[64];
     int duration_s = 2; /* default 2 seconds */
     if (read_body(req, buf, sizeof(buf)) > 0) {
@@ -1110,10 +1127,28 @@ static esp_err_t handle_diag_relay(httpd_req_t *req)
         duration_s = 10;
     }
 
-    ESP_LOGI(TAG, "Relay test: %d seconds", duration_s);
-    safety_set_ssr(1.0f);
-    vTaskDelay(pdMS_TO_TICKS(duration_s * 1000));
-    safety_set_ssr(0.0f);
+    /* The firing engine owns the pulse and re-asserts the SSR every tick (a
+       single set-and-sleep here would block this worker and, worse, let the
+       safety task's 3-second heartbeat trip on any test over 3 s). OTA is
+       checked here since the engine's arm path does not. */
+    if (ota_is_busy()) {
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_set_type(req, "text/plain");
+        httpd_resp_sendstr(req, "Firmware update in progress");
+        return ESP_FAIL;
+    }
+
+    /* Arm synchronously so we can report a real result: firing_engine_relay_
+       test_arm() atomically rejects if a firing/delay/autotune or another test
+       is active. This avoids the queue-latency window where a firing-start or
+       reboot could slip past an is_active/relay check before the pulse began. */
+    if (!firing_engine_relay_test_arm((uint32_t)duration_s)) {
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_set_type(req, "text/plain");
+        httpd_resp_sendstr(req, "Kiln busy: a firing or relay test is already active");
+        return ESP_FAIL;
+    }
+    ESP_LOGI(TAG, "Relay test armed: %d seconds", duration_s);
 
     cJSON *resp = cJSON_CreateObject();
     cJSON_AddBoolToObject(resp, "ok", true);
@@ -1195,6 +1230,12 @@ static esp_err_t handle_autotune_start(httpd_req_t *req)
         httpd_resp_set_status(req, "409 Conflict");
         httpd_resp_set_type(req, "text/plain");
         httpd_resp_send(req, "Firing already active", HTTPD_RESP_USE_STRLEN);
+        return ESP_FAIL;
+    }
+    if (firing_engine_relay_test_active()) {
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_set_type(req, "text/plain");
+        httpd_resp_send(req, "Relay test in progress", HTTPD_RESP_USE_STRLEN);
         return ESP_FAIL;
     }
 

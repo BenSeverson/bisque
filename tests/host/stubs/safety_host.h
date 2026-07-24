@@ -7,5 +7,8 @@
 #include "safety.h"
 
 float safety_test_last_duty(void);
+/* Number of safety_set_ssr() calls since reset — proves the SSR heartbeat is
+   actually re-fed, which a last-value-only accessor cannot show. */
+unsigned safety_test_ssr_call_count(void);
 bool safety_test_vent_active(void);
 void safety_test_reset(void);

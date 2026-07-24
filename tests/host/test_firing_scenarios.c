@@ -644,6 +644,115 @@ static void test_autotune_resume_does_not_time_out_after_long_pause(void)
                               "autotune timed out on resume — pause was counted against its budget");
 }
 
+/* ── Relay diagnostic test (#112, absorbing #82) ──────────────────────
+ *
+ * The old implementation energized the SSR and blocked the HTTP worker in a
+ * single vTaskDelay. The safety task trips an emergency stop if 3 s pass with
+ * duty > 0 and no fresh safety_set_ssr() call, so any test longer than 3 s
+ * latched an emergency state instead of completing. Owning the pulse in the
+ * engine tick re-asserts the duty every second, keeps a single writer for the
+ * SSR, and frees the HTTP worker.
+ */
+
+static void test_relay_test_reasserts_ssr_every_tick(void)
+{
+    scenario_relay_test(5);
+
+    /* The SSR heartbeat must be re-fed on every tick — asserting the last duty
+       alone cannot show this, since a single set at t=0 would read the same. */
+    unsigned before = safety_test_ssr_call_count();
+    scenario_run_ticks(&g_plant, 4);
+    unsigned calls = safety_test_ssr_call_count() - before;
+
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(1.0f, safety_test_last_duty(), "relay test did not hold the SSR on");
+    TEST_ASSERT_TRUE_MESSAGE(calls >= 4, "SSR not re-asserted each tick — the 3 s heartbeat would trip");
+}
+
+static void test_relay_test_releases_ssr_when_duration_elapses(void)
+{
+    scenario_relay_test(3);
+    scenario_run_ticks(&g_plant, 2);
+    TEST_ASSERT_EQUAL_FLOAT(1.0f, safety_test_last_duty());
+
+    scenario_run_ticks(&g_plant, 4); /* past the 3 s duration */
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(0.0f, safety_test_last_duty(), "relay test left the SSR energized");
+}
+
+/* The busy state must be visible to callers (HTTP/display) so they can reject
+ * conflicting operations up front instead of getting a false success. */
+static void test_relay_test_active_is_observable(void)
+{
+    TEST_ASSERT_FALSE(firing_engine_relay_test_active());
+    scenario_relay_test(3);
+    TEST_ASSERT_TRUE_MESSAGE(firing_engine_relay_test_active(), "relay-test busy state not observable while running");
+
+    scenario_run_ticks(&g_plant, 4); /* past the 3 s duration */
+    TEST_ASSERT_FALSE_MESSAGE(firing_engine_relay_test_active(), "relay-test busy state stuck on after it finished");
+}
+
+/* A second relay request while one is active must be ignored, not allowed to
+ * push the deadline out — otherwise repeated taps hold the SSR on past the
+ * 10 s cap indefinitely. */
+static void test_relay_test_does_not_extend_on_overlap(void)
+{
+    TEST_ASSERT_TRUE(scenario_relay_test(3));
+    scenario_run_ticks(&g_plant, 2); /* 2 s in */
+
+    /* A second request must be rejected outright, not extend the deadline. */
+    TEST_ASSERT_FALSE_MESSAGE(scenario_relay_test(3), "overlapping relay request was accepted");
+    scenario_run_ticks(&g_plant, 2); /* now 4 s total — past the original 3 s */
+
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(0.0f, safety_test_last_duty(),
+                                    "overlapping relay request extended the pulse past its original deadline");
+    TEST_ASSERT_FALSE(firing_engine_relay_test_active());
+}
+
+/* STOP must halt an in-progress relay test — /api/v1/firing/stop queues STOP
+ * unconditionally, so it is the operator's way to cut the pulse short. */
+static void test_stop_cancels_relay_test(void)
+{
+    scenario_relay_test(5);
+    scenario_run_ticks(&g_plant, 1);
+    TEST_ASSERT_EQUAL_FLOAT(1.0f, safety_test_last_duty());
+    TEST_ASSERT_TRUE(firing_engine_relay_test_active());
+
+    scenario_stop();
+    scenario_run_ticks(&g_plant, 2);
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(0.0f, safety_test_last_duty(), "STOP did not cancel the relay pulse");
+    TEST_ASSERT_FALSE_MESSAGE(firing_engine_relay_test_active(), "relay test still active after STOP");
+}
+
+/* Single owner for the SSR: the test must not run against a live firing. */
+static void test_relay_test_rejected_while_firing_active(void)
+{
+    firing_profile_t p = scenario_short_profile();
+    scenario_start(&p, 0);
+    TEST_ASSERT_TRUE(scenario_run_until_status(&g_plant, FIRING_STATUS_HEATING, 30));
+
+    scenario_relay_test(5);
+    scenario_run_ticks(&g_plant, 2);
+
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL_MESSAGE(FIRING_STATUS_HEATING, prog.status, "relay test disturbed a running firing");
+    TEST_ASSERT_TRUE(prog.is_active);
+}
+
+/* …and the converse: a firing must not start on top of a running relay test. */
+static void test_start_rejected_while_relay_test_running(void)
+{
+    scenario_relay_test(10);
+    scenario_run_ticks(&g_plant, 2);
+
+    firing_profile_t p = scenario_short_profile();
+    scenario_start(&p, 0);
+    scenario_run_ticks(&g_plant, 2);
+
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_FALSE_MESSAGE(prog.is_active, "firing started while the relay test held the SSR");
+}
+
 /* ── TC fault during firing → emergency stop ─────────────────────────── */
 
 static void test_tc_fault_triggers_emergency_stop(void)
@@ -1012,6 +1121,13 @@ int main(void)
     RUN_TEST(test_delayed_start_rejects_wrong_sign_at_expiry);
     RUN_TEST(test_skip_rejects_wrong_sign_next_segment);
     RUN_TEST(test_autotune_resume_does_not_time_out_after_long_pause);
+    RUN_TEST(test_relay_test_reasserts_ssr_every_tick);
+    RUN_TEST(test_relay_test_releases_ssr_when_duration_elapses);
+    RUN_TEST(test_relay_test_active_is_observable);
+    RUN_TEST(test_relay_test_does_not_extend_on_overlap);
+    RUN_TEST(test_stop_cancels_relay_test);
+    RUN_TEST(test_relay_test_rejected_while_firing_active);
+    RUN_TEST(test_start_rejected_while_relay_test_running);
     RUN_TEST(test_start_rejects_wrong_sign_ramp);
     RUN_TEST(test_start_allows_legitimate_cooling_segment);
     RUN_TEST(test_tc_fault_triggers_emergency_stop);

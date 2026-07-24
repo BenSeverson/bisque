@@ -143,6 +143,28 @@ static void test_generate_rejects_invalid_cone(void)
                       cone_fire_generate((cone_id_t)CONE_COUNT, CONE_SPEED_MEDIUM, false, false, &p));
 }
 
+/* `speed` indexes s_speed_ramp[] and s_speed_names[] directly. cone_target_temp_c
+ * clamps only its own local copy, so an out-of-range value reaching
+ * cone_fire_generate reads past both arrays — and the `const char *` from
+ * s_speed_names[] is then dereferenced by snprintf. Reject it up front, the
+ * same way an out-of-range cone is rejected. */
+static void test_generate_rejects_invalid_speed(void)
+{
+    firing_profile_t p;
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, cone_fire_generate(CONE_6, (cone_speed_t)-1, false, false, &p));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, cone_fire_generate(CONE_6, (cone_speed_t)3, false, false, &p));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, cone_fire_generate(CONE_6, (cone_speed_t)9999, false, false, &p));
+}
+
+/* The guard must not narrow the valid range. */
+static void test_generate_accepts_every_valid_speed(void)
+{
+    firing_profile_t p;
+    TEST_ASSERT_EQUAL(ESP_OK, cone_fire_generate(CONE_6, CONE_SPEED_SLOW, false, false, &p));
+    TEST_ASSERT_EQUAL(ESP_OK, cone_fire_generate(CONE_6, CONE_SPEED_MEDIUM, false, false, &p));
+    TEST_ASSERT_EQUAL(ESP_OK, cone_fire_generate(CONE_6, CONE_SPEED_FAST, false, false, &p));
+}
+
 static void test_segment_count_grows_with_options(void)
 {
     firing_profile_t base, with_preheat, with_slow_cool, with_both;
@@ -177,6 +199,8 @@ int main(void)
     RUN_TEST(test_generate_every_cone_speed_combo);
     RUN_TEST(test_generate_rejects_null_profile);
     RUN_TEST(test_generate_rejects_invalid_cone);
+    RUN_TEST(test_generate_rejects_invalid_speed);
+    RUN_TEST(test_generate_accepts_every_valid_speed);
     RUN_TEST(test_segment_count_grows_with_options);
     RUN_TEST(test_slow_cool_skipped_for_low_temp_cone);
     return UNITY_END();

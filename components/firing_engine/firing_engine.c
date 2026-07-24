@@ -539,6 +539,7 @@ float firing_planned_temp_at(const firing_profile_t *profile, uint32_t t_seconds
 /* ── Firing Task ───────────────────────────────────── */
 
 #define RISING_CHECK_INTERVAL_US   (15LL * 60 * 1000000) /* 15 minutes */
+#define RELAY_TEST_MAX_S           10                    /* upper bound on the diagnostic SSR pulse */
 #define RISING_THRESHOLD_C         10.0f                 /* must rise ≥10°C */
 #define RUNAWAY_RATE_MULTIPLIER    2.0f                  /* alert if rate > 2× programmed */
 #define HISTORY_SAMPLE_INTERVAL_US (60LL * 1000000)
@@ -594,6 +595,44 @@ typedef struct {
 } firing_state_t;
 
 static firing_state_t s_state;
+
+/* Relay diagnostic pulse deadline (esp_timer µs); 0 = no test. Guarded by
+   s_progress_mutex (progress_lock) rather than living in s_state, because it is
+   armed synchronously from the httpd task and read/cleared from firing_task.
+   The tick remains the only caller of safety_set_ssr() for the pulse, so the
+   SSR keeps a single writer. */
+static int64_t s_relay_test_end_us = 0;
+
+bool firing_engine_relay_test_active(void)
+{
+    progress_lock();
+    bool active = (s_relay_test_end_us != 0);
+    progress_unlock();
+    return active;
+}
+
+bool firing_engine_relay_test_arm(uint32_t duration_s)
+{
+    if (duration_s < 1) {
+        duration_s = 1;
+    }
+    if (duration_s > RELAY_TEST_MAX_S) {
+        duration_s = RELAY_TEST_MAX_S;
+    }
+    bool armed = false;
+    progress_lock();
+    /* is_active is true for a running firing, an armed delayed start, and
+       autotune, so this one check excludes all of them. Doing the check and the
+       arm in a single critical section makes acceptance synchronous and atomic:
+       the caller gets a definitive yes/no with no queue-latency window, and two
+       concurrent requests cannot both arm. */
+    if (!s_progress.is_active && s_relay_test_end_us == 0) {
+        s_relay_test_end_us = esp_timer_get_time() + (int64_t)duration_s * 1000000LL;
+        armed = true;
+    }
+    progress_unlock();
+    return armed;
+}
 
 static void emit_event(firing_event_kind_t kind, float peak_temp, uint32_t duration_s)
 {
@@ -675,6 +714,10 @@ static void do_stop(void)
     progress_lock();
     s_progress.is_active = false;
     s_progress.status = FIRING_STATUS_IDLE;
+    /* STOP also cancels a diagnostic relay pulse — /api/v1/firing/stop is the
+       operator's way to cut a test short. SSR was already forced off above; the
+       tick's relay branch will not re-assert it now that the deadline is clear. */
+    s_relay_test_end_us = 0;
     progress_unlock();
     ESP_LOGI(TAG, "Firing stopped");
 }
@@ -688,9 +731,14 @@ static void handle_cmd(const firing_cmd_t *cmd)
            modal, future internal callers) bypass that path. */
         progress_lock();
         bool already_active = s_progress.is_active;
+        bool relay_active = (s_relay_test_end_us != 0);
         progress_unlock();
         if (already_active || s_state.delay_active) {
             ESP_LOGW(TAG, "START rejected: firing already active");
+            break;
+        }
+        if (relay_active) {
+            ESP_LOGW(TAG, "START rejected: relay diagnostic test in progress");
             break;
         }
 
@@ -934,9 +982,14 @@ static void handle_cmd(const firing_cmd_t *cmd)
            surfaced anywhere. */
         progress_lock();
         bool autotune_blocked = s_progress.is_active;
+        bool autotune_relay_active = (s_relay_test_end_us != 0);
         progress_unlock();
         if (autotune_blocked || s_state.delay_active) {
             ESP_LOGW(TAG, "AUTOTUNE rejected: firing already active");
+            break;
+        }
+        if (autotune_relay_active) {
+            ESP_LOGW(TAG, "AUTOTUNE rejected: relay diagnostic test in progress");
             break;
         }
 
@@ -979,6 +1032,27 @@ static int64_t s_last_compute_us = 0;
 
 void firing_tick(int64_t now_us)
 {
+    /* Relay diagnostic pulse. Re-assert the duty every tick so the safety
+       task's 3-second SSR heartbeat stays fed for the whole test — a single
+       set-and-sleep would latch an emergency stop on any test longer than 3 s.
+       The deadline is armed synchronously by firing_engine_relay_test_arm();
+       this tick is the sole SSR writer for it. */
+    progress_lock();
+    int64_t relay_end = s_relay_test_end_us;
+    progress_unlock();
+    if (relay_end != 0) {
+        if (safety_is_emergency() || now_us >= relay_end) {
+            progress_lock();
+            s_relay_test_end_us = 0;
+            progress_unlock();
+            safety_set_ssr(0.0f);
+            ESP_LOGI(TAG, "Relay diagnostic test finished");
+        } else {
+            safety_set_ssr(1.0f);
+        }
+        return;
+    }
+
     /* Handle delay-start countdown */
     if (s_state.delay_active) {
         /* A latched emergency cancels the armed firing before it starts, so it

@@ -74,7 +74,12 @@ float cone_target_temp_c(cone_id_t cone, cone_speed_t speed)
 esp_err_t cone_fire_generate(cone_id_t cone, cone_speed_t speed, bool preheat, bool slow_cool,
                              firing_profile_t *out_profile)
 {
-    if (!out_profile || cone < 0 || cone >= CONE_COUNT) {
+    /* `speed` indexes s_speed_ramp[] and s_speed_names[] below. Note that
+       cone_target_temp_c() clamps only its own parameter copy, so it cannot be
+       relied on to sanitize the value for this function — an unchecked speed
+       reads past both arrays here, and the garbage `const char *` from
+       s_speed_names[] is then dereferenced by snprintf. */
+    if (!out_profile || cone < 0 || cone >= CONE_COUNT || speed < CONE_SPEED_SLOW || speed > CONE_SPEED_FAST) {
         return ESP_ERR_INVALID_ARG;
     }
 
