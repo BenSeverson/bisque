@@ -191,7 +191,16 @@ esp_err_t web_server_start(void)
 
     /* Register API + WebSocket handlers first (more specific routes) */
     api_handlers_register(s_server);
-    ws_handler_register(s_server);
+    /* WebSocket registration can fail on OOM (its client-table mutex). Don't
+       report the server as started with no /api/v1/ws route — that would
+       silently kill all live telemetry. Tear the server down and propagate. */
+    ret = ws_handler_register(s_server);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to register WebSocket handler: %s", esp_err_to_name(ret));
+        httpd_stop(s_server);
+        s_server = NULL;
+        return ret;
+    }
 
     /* Stream OTA progress to WebSocket clients. */
     ota_set_progress_cb(ws_send_ota_event);
