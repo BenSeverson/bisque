@@ -3,6 +3,7 @@ import { useForm, useWatch, type Path, type PathValue } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { formatUptime } from "../utils/time";
 import { toErrorMessage } from "../utils/error";
+import { commitApiTokenChange, API_TOKEN_MAX_LENGTH } from "../utils/apiToken";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Label } from "./ui/label";
 import { Input } from "./ui/input";
@@ -122,19 +123,34 @@ export function Settings() {
   }
 
   const handleSetToken = useCallback(async () => {
-    if (!newToken.trim()) return;
-    const updated = { ...getValues(), apiToken: newToken.trim() };
-    saveSettings.mutate(updated);
-    setApiToken(newToken.trim());
-    setNewToken("");
-    toast.success("API token set");
+    const token = newToken.trim();
+    if (!token) return;
+    try {
+      await commitApiTokenChange(
+        { kind: "set", token },
+        (apiToken) => saveSettings.mutateAsync({ ...getValues(), apiToken }),
+        setApiToken,
+      );
+      setNewToken("");
+      toast.success("API token set");
+    } catch (e) {
+      // Report the real outcome: the previous fire-and-forget mutate() toasted
+      // success even when the save 401'd, hiding the lockout.
+      toast.error(`Failed to set API token: ${toErrorMessage(e)}`);
+    }
   }, [newToken, getValues, saveSettings]);
 
   const handleClearToken = useCallback(async () => {
-    const updated = { ...getValues(), apiToken: "", apiTokenSet: false };
-    saveSettings.mutate(updated);
-    setApiToken(null);
-    toast.success("API token cleared");
+    try {
+      await commitApiTokenChange(
+        { kind: "clear" },
+        (apiToken) => saveSettings.mutateAsync({ ...getValues(), apiToken, apiTokenSet: false }),
+        setApiToken,
+      );
+      toast.success("API token cleared");
+    } catch (e) {
+      toast.error(`Failed to clear API token: ${toErrorMessage(e)}`);
+    }
   }, [getValues, saveSettings]);
 
   const handleStartAutotune = useCallback(async () => {
@@ -453,6 +469,9 @@ export function Settings() {
               placeholder="Enter new token..."
               value={newToken}
               onChange={(e) => setNewToken(e.target.value)}
+              /* Matches the firmware's api_token[64]; without this the device
+                 would reject (previously: silently truncate) a longer token. */
+              maxLength={API_TOKEN_MAX_LENGTH}
               className="flex-1"
             />
             <Button onClick={handleSetToken} disabled={!newToken.trim()}>
