@@ -29,8 +29,8 @@ void scenario_pause(void);
 void scenario_resume(void);
 void scenario_skip(void);
 
-/* Convenience: RELAY_TEST (diagnostic SSR pulse). */
-void scenario_relay_test(uint32_t duration_s);
+/* Convenience: arm a diagnostic relay pulse. Returns whether it was accepted. */
+bool scenario_relay_test(uint32_t duration_s);
 
 /* Convenience: AUTOTUNE_START / AUTOTUNE_STOP. */
 void scenario_autotune_start(float setpoint, float hysteresis);

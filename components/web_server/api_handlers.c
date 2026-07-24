@@ -1108,14 +1108,6 @@ static esp_err_t handle_diag_relay(httpd_req_t *req)
         return ESP_FAIL;
     }
 
-    /* Only allow relay test when not firing */
-    firing_progress_t prog;
-    firing_engine_get_progress(&prog);
-    if (prog.is_active) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Cannot test relay during firing");
-        return ESP_FAIL;
-    }
-
     char buf[64];
     int duration_s = 2; /* default 2 seconds */
     if (read_body(req, buf, sizeof(buf)) > 0) {
@@ -1135,14 +1127,10 @@ static esp_err_t handle_diag_relay(httpd_req_t *req)
         duration_s = 10;
     }
 
-    /* Hand the pulse to the firing engine rather than driving the SSR here.
-       The old inline `safety_set_ssr(1.0) + vTaskDelay + safety_set_ssr(0)`
-       had three problems: it blocked this httpd worker for the whole test,
-       it never re-fed the safety task's 3-second SSR heartbeat (so any test
-       longer than 3 s latched an emergency stop instead of finishing), and it
-       let the firing task and this handler both write the SSR if a firing
-       started during the delay. The engine re-asserts the duty each tick and
-       is the sole writer. */
+    /* The firing engine owns the pulse and re-asserts the SSR every tick (a
+       single set-and-sleep here would block this worker and, worse, let the
+       safety task's 3-second heartbeat trip on any test over 3 s). OTA is
+       checked here since the engine's arm path does not. */
     if (ota_is_busy()) {
         httpd_resp_set_status(req, "409 Conflict");
         httpd_resp_set_type(req, "text/plain");
@@ -1150,13 +1138,17 @@ static esp_err_t handle_diag_relay(httpd_req_t *req)
         return ESP_FAIL;
     }
 
-    ESP_LOGI(TAG, "Relay test: %d seconds", duration_s);
-    firing_cmd_t cmd = {.type = FIRING_CMD_RELAY_TEST};
-    cmd.relay_test.duration_s = (uint32_t)duration_s;
-    if (xQueueSend(firing_engine_get_cmd_queue(), &cmd, pdMS_TO_TICKS(100)) != pdTRUE) {
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Queue full");
+    /* Arm synchronously so we can report a real result: firing_engine_relay_
+       test_arm() atomically rejects if a firing/delay/autotune or another test
+       is active. This avoids the queue-latency window where a firing-start or
+       reboot could slip past an is_active/relay check before the pulse began. */
+    if (!firing_engine_relay_test_arm((uint32_t)duration_s)) {
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_set_type(req, "text/plain");
+        httpd_resp_sendstr(req, "Kiln busy: a firing or relay test is already active");
         return ESP_FAIL;
     }
+    ESP_LOGI(TAG, "Relay test armed: %d seconds", duration_s);
 
     cJSON *resp = cJSON_CreateObject();
     cJSON_AddBoolToObject(resp, "ok", true);

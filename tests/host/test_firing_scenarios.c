@@ -695,15 +695,31 @@ static void test_relay_test_active_is_observable(void)
  * 10 s cap indefinitely. */
 static void test_relay_test_does_not_extend_on_overlap(void)
 {
-    scenario_relay_test(3);
+    TEST_ASSERT_TRUE(scenario_relay_test(3));
     scenario_run_ticks(&g_plant, 2); /* 2 s in */
 
-    scenario_relay_test(3);          /* would extend the deadline to ~5 s if accepted */
+    /* A second request must be rejected outright, not extend the deadline. */
+    TEST_ASSERT_FALSE_MESSAGE(scenario_relay_test(3), "overlapping relay request was accepted");
     scenario_run_ticks(&g_plant, 2); /* now 4 s total — past the original 3 s */
 
     TEST_ASSERT_EQUAL_FLOAT_MESSAGE(0.0f, safety_test_last_duty(),
                                     "overlapping relay request extended the pulse past its original deadline");
     TEST_ASSERT_FALSE(firing_engine_relay_test_active());
+}
+
+/* STOP must halt an in-progress relay test — /api/v1/firing/stop queues STOP
+ * unconditionally, so it is the operator's way to cut the pulse short. */
+static void test_stop_cancels_relay_test(void)
+{
+    scenario_relay_test(5);
+    scenario_run_ticks(&g_plant, 1);
+    TEST_ASSERT_EQUAL_FLOAT(1.0f, safety_test_last_duty());
+    TEST_ASSERT_TRUE(firing_engine_relay_test_active());
+
+    scenario_stop();
+    scenario_run_ticks(&g_plant, 2);
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(0.0f, safety_test_last_duty(), "STOP did not cancel the relay pulse");
+    TEST_ASSERT_FALSE_MESSAGE(firing_engine_relay_test_active(), "relay test still active after STOP");
 }
 
 /* Single owner for the SSR: the test must not run against a live firing. */
@@ -1109,6 +1125,7 @@ int main(void)
     RUN_TEST(test_relay_test_releases_ssr_when_duration_elapses);
     RUN_TEST(test_relay_test_active_is_observable);
     RUN_TEST(test_relay_test_does_not_extend_on_overlap);
+    RUN_TEST(test_stop_cancels_relay_test);
     RUN_TEST(test_relay_test_rejected_while_firing_active);
     RUN_TEST(test_start_rejected_while_relay_test_running);
     RUN_TEST(test_start_rejects_wrong_sign_ramp);
