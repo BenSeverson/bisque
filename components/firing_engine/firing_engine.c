@@ -602,6 +602,11 @@ typedef struct {
 
 static firing_state_t s_state;
 
+bool firing_engine_relay_test_active(void)
+{
+    return s_state.relay_test_end_us != 0;
+}
+
 static void emit_event(firing_event_kind_t kind, float peak_temp, uint32_t duration_s)
 {
     firing_event_t evt = {
@@ -978,6 +983,13 @@ static void handle_cmd(const firing_cmd_t *cmd)
         progress_unlock();
         if (busy || s_state.delay_active) {
             ESP_LOGW(TAG, "RELAY TEST rejected: firing already active");
+            break;
+        }
+        if (s_state.relay_test_end_us != 0) {
+            /* Already pulsing. Ignore rather than extend — otherwise repeated
+               requests keep pushing the deadline out and hold the SSR on past
+               the RELAY_TEST_MAX_S cap indefinitely. */
+            ESP_LOGW(TAG, "RELAY TEST rejected: a diagnostic pulse is already running");
             break;
         }
         if (ota_is_busy()) {

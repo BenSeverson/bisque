@@ -80,6 +80,10 @@ uint32_t firing_remaining_s(const firing_profile_t *profile, int current_segment
  */
 int firing_first_bad_ramp_sign(const firing_profile_t *profile, float start_temp);
 
+/* Also declared in the public firing_engine.h; mirrored here so the host
+ * scenario test can link it without the FreeRTOS-heavy public header. */
+bool firing_engine_relay_test_active(void);
+
 /**
  * Advance the firing engine by one tick using `now_us` as wall-clock time.
  *

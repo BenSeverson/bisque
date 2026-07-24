@@ -33,6 +33,15 @@ QueueHandle_t firing_engine_get_cmd_queue(void);
  */
 int firing_first_bad_ramp_sign(const firing_profile_t *profile, float start_temp);
 
+/**
+ * True while a relay diagnostic pulse is holding the SSR on. This is a
+ * distinct busy state from a firing: `firing_engine_get_progress()` reports
+ * is_active == false during a relay test, so callers that must not run
+ * concurrently with it (firing start, autotune start, OTA, reboot) have to
+ * consult this in addition to is_active.
+ */
+bool firing_engine_relay_test_active(void);
+
 /* ── Firing transition events ───────────────────────── */
 
 typedef enum {

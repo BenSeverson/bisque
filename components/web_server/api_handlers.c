@@ -521,6 +521,15 @@ static esp_err_t handle_firing_start(httpd_req_t *req)
         httpd_resp_send(req, msg, HTTPD_RESP_USE_STRLEN);
         return ESP_FAIL;
     }
+    /* A relay diagnostic holds the SSR but reports is_active == false; the
+       engine would drop a queued START, so reject here for a real 409 instead
+       of a false {ok:true}. */
+    if (firing_engine_relay_test_active()) {
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_set_type(req, "text/plain");
+        httpd_resp_send(req, "Relay test in progress", HTTPD_RESP_USE_STRLEN);
+        return ESP_FAIL;
+    }
 
     char err[96];
     if (!validate_profile(&profile, err, sizeof(err))) {
@@ -913,6 +922,15 @@ static bool ota_blocked_by_firing(httpd_req_t *req)
         httpd_resp_sendstr(req, "Cannot update firmware during a firing");
         return true;
     }
+    /* A relay diagnostic holds the SSR on but reports is_active == false, so it
+       must be checked separately: a reboot mid-pulse would leave the SSR in an
+       undefined state, and an OTA install reboots on completion. */
+    if (firing_engine_relay_test_active()) {
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_set_type(req, "text/plain");
+        httpd_resp_sendstr(req, "Cannot update firmware during a relay test");
+        return true;
+    }
     return false;
 }
 
@@ -1220,6 +1238,12 @@ static esp_err_t handle_autotune_start(httpd_req_t *req)
         httpd_resp_set_status(req, "409 Conflict");
         httpd_resp_set_type(req, "text/plain");
         httpd_resp_send(req, "Firing already active", HTTPD_RESP_USE_STRLEN);
+        return ESP_FAIL;
+    }
+    if (firing_engine_relay_test_active()) {
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_set_type(req, "text/plain");
+        httpd_resp_send(req, "Relay test in progress", HTTPD_RESP_USE_STRLEN);
         return ESP_FAIL;
     }
 

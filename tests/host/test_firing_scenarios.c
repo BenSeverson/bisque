@@ -678,6 +678,34 @@ static void test_relay_test_releases_ssr_when_duration_elapses(void)
     TEST_ASSERT_EQUAL_FLOAT_MESSAGE(0.0f, safety_test_last_duty(), "relay test left the SSR energized");
 }
 
+/* The busy state must be visible to callers (HTTP/display) so they can reject
+ * conflicting operations up front instead of getting a false success. */
+static void test_relay_test_active_is_observable(void)
+{
+    TEST_ASSERT_FALSE(firing_engine_relay_test_active());
+    scenario_relay_test(3);
+    TEST_ASSERT_TRUE_MESSAGE(firing_engine_relay_test_active(), "relay-test busy state not observable while running");
+
+    scenario_run_ticks(&g_plant, 4); /* past the 3 s duration */
+    TEST_ASSERT_FALSE_MESSAGE(firing_engine_relay_test_active(), "relay-test busy state stuck on after it finished");
+}
+
+/* A second relay request while one is active must be ignored, not allowed to
+ * push the deadline out — otherwise repeated taps hold the SSR on past the
+ * 10 s cap indefinitely. */
+static void test_relay_test_does_not_extend_on_overlap(void)
+{
+    scenario_relay_test(3);
+    scenario_run_ticks(&g_plant, 2); /* 2 s in */
+
+    scenario_relay_test(3);          /* would extend the deadline to ~5 s if accepted */
+    scenario_run_ticks(&g_plant, 2); /* now 4 s total — past the original 3 s */
+
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(0.0f, safety_test_last_duty(),
+                                    "overlapping relay request extended the pulse past its original deadline");
+    TEST_ASSERT_FALSE(firing_engine_relay_test_active());
+}
+
 /* Single owner for the SSR: the test must not run against a live firing. */
 static void test_relay_test_rejected_while_firing_active(void)
 {
@@ -1079,6 +1107,8 @@ int main(void)
     RUN_TEST(test_autotune_resume_does_not_time_out_after_long_pause);
     RUN_TEST(test_relay_test_reasserts_ssr_every_tick);
     RUN_TEST(test_relay_test_releases_ssr_when_duration_elapses);
+    RUN_TEST(test_relay_test_active_is_observable);
+    RUN_TEST(test_relay_test_does_not_extend_on_overlap);
     RUN_TEST(test_relay_test_rejected_while_firing_active);
     RUN_TEST(test_start_rejected_while_relay_test_running);
     RUN_TEST(test_start_rejects_wrong_sign_ramp);
