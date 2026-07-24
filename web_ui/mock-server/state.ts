@@ -1,16 +1,22 @@
-import type { WebSocketServer } from 'ws';
-import type { FiringProfile, KilnSettings } from '../src/app/types/kiln';
-import { mockProfiles } from '../src/app/data/mockProfiles';
-import { AMBIENT } from './physics';
+import type { WebSocketServer } from "ws";
+import type { FiringProfile, KilnSettings } from "../src/app/types/kiln";
+import { mockProfiles } from "../src/app/data/mockProfiles";
+import { AMBIENT } from "./physics";
 
 export interface FiringState {
   running: boolean;
   paused: boolean;
   coolingDown: boolean;
+  /** Armed delayed start: firmware reports is_active=true with status "idle"
+   *  while this counts down, which is the state the dashboard renders as
+   *  "Scheduled". The simulator previously ignored delayMinutes and fired
+   *  immediately, so that state was unreachable in dev and in the demo. */
+  scheduled: boolean;
+  delayRemainingS: number;
   profileId: string;
   profile: FiringProfile | null;
   currentSegmentIndex: number;
-  phase: 'ramping' | 'holding';
+  phase: "ramping" | "holding";
   currentTemp: number;
   setpoint: number;
   simulatedElapsed: number;
@@ -36,7 +42,7 @@ export const state = {
   profiles: JSON.parse(JSON.stringify(mockProfiles)) as FiringProfile[],
 
   settings: {
-    tempUnit: 'C',
+    tempUnit: "C",
     maxSafeTemp: 1400,
     alarmEnabled: true,
     autoShutdown: true,
@@ -47,17 +53,19 @@ export const state = {
     running: false,
     paused: false,
     coolingDown: false,
-    profileId: '',
+    scheduled: false,
+    delayRemainingS: 0,
+    profileId: "",
     profile: null,
     currentSegmentIndex: 0,
-    phase: 'ramping',
+    phase: "ramping",
     currentTemp: AMBIENT,
     setpoint: AMBIENT,
     simulatedElapsed: 0,
     segmentStartTemp: AMBIENT,
     segmentElapsed: 0,
     holdElapsed: 0,
-    status: 'idle',
+    status: "idle",
   } as FiringState,
 
   autotune: {
@@ -75,8 +83,8 @@ export const state = {
   wifi: {
     connected: true,
     apMode: false,
-    ip: '192.168.1.50',
-    savedSsid: 'HomeNetwork' as string | undefined,
+    ip: "192.168.1.50",
+    savedSsid: "HomeNetwork" as string | undefined,
   },
 
   wss: null as WebSocketServer | null,
