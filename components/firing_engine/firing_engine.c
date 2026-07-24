@@ -418,13 +418,24 @@ esp_err_t firing_engine_save_profile(const firing_profile_t *profile)
         }
     }
 
+    /* Refuse a *new* profile once the index is full, before writing anything.
+       Writing the blob and then skipping the index append (the previous
+       behavior) reported success but left the profile invisible to
+       list_profiles and its blob stranded in NVS — unreachable by delete, which
+       resolves ids through the index. Updates to an existing id still proceed. */
+    if (!found && count >= FIRING_MAX_PROFILES) {
+        nvs_close(handle);
+        ESP_LOGW(TAG, "Profile limit reached (%d); refusing to save '%s'", FIRING_MAX_PROFILES, profile->id);
+        return ESP_ERR_NO_MEM;
+    }
+
     err = nvs_set_blob(handle, key, profile, sizeof(firing_profile_t));
     if (err != ESP_OK) {
         nvs_close(handle);
         return err;
     }
 
-    if (!found && count < FIRING_MAX_PROFILES) {
+    if (!found) {
         snprintf(ids[count], FIRING_ID_LEN, "%s", profile->id);
         count++;
         nvs_set_blob(handle, NVS_KEY_INDEX, ids, count * FIRING_ID_LEN);

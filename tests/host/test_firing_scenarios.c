@@ -987,6 +987,59 @@ static void test_element_hours_accumulate_subsecond_ticks(void)
 
 /* ── Profile key collision: distinct IDs sharing a 15-char NVS key rejected ─ */
 
+/* Saving past the profile limit used to write the blob, skip the index append,
+ * and still return ESP_OK — the UI reported success while the profile never
+ * appeared in the list and its ~2.5 KB blob was stranded in NVS, unreachable by
+ * delete (which needs the index) forever. (#116) */
+static void test_profile_save_rejected_when_index_full(void)
+{
+    firing_profile_t p = {0};
+    strncpy(p.name, "Filler", FIRING_NAME_LEN - 1);
+    p.segment_count = 1;
+    p.max_temp = 500.0f;
+    p.segments[0].ramp_rate = 100.0f;
+    p.segments[0].target_temp = 500.0f;
+
+    for (int i = 0; i < FIRING_MAX_PROFILES; i++) {
+        snprintf(p.id, FIRING_ID_LEN, "filler%02d", i);
+        TEST_ASSERT_EQUAL(ESP_OK, firing_engine_save_profile(&p));
+    }
+
+    snprintf(p.id, FIRING_ID_LEN, "overflow");
+    TEST_ASSERT_NOT_EQUAL_MESSAGE(ESP_OK, firing_engine_save_profile(&p),
+                                  "save past the profile limit reported success");
+
+    char ids[FIRING_MAX_PROFILES][FIRING_ID_LEN];
+    TEST_ASSERT_EQUAL_INT(FIRING_MAX_PROFILES, firing_engine_list_profiles(ids, FIRING_MAX_PROFILES));
+
+    /* load reads the blob by key, not via the index, so a written-but-unindexed
+       blob would still load here — that is exactly the orphan. */
+    firing_profile_t loaded;
+    TEST_ASSERT_NOT_EQUAL_MESSAGE(ESP_OK, firing_engine_load_profile("overflow", &loaded),
+                                  "profile blob was orphaned in NVS");
+}
+
+/* Re-saving an existing profile at the limit must still work — the guard is on
+ * adding a new index entry, not on updates. */
+static void test_profile_update_still_allowed_when_index_full(void)
+{
+    firing_profile_t p = {0};
+    strncpy(p.name, "Filler", FIRING_NAME_LEN - 1);
+    p.segment_count = 1;
+    p.max_temp = 500.0f;
+    p.segments[0].ramp_rate = 100.0f;
+    p.segments[0].target_temp = 500.0f;
+
+    for (int i = 0; i < FIRING_MAX_PROFILES; i++) {
+        snprintf(p.id, FIRING_ID_LEN, "filler%02d", i);
+        TEST_ASSERT_EQUAL(ESP_OK, firing_engine_save_profile(&p));
+    }
+
+    snprintf(p.id, FIRING_ID_LEN, "filler00");
+    strncpy(p.name, "Updated", FIRING_NAME_LEN - 1);
+    TEST_ASSERT_EQUAL_MESSAGE(ESP_OK, firing_engine_save_profile(&p), "update of an existing profile was refused");
+}
+
 static void test_profile_key_collision_rejected(void)
 {
     firing_profile_t a = {0};
@@ -1167,6 +1220,8 @@ int main(void)
     RUN_TEST(test_long_pause_does_not_trip_not_rising);
     RUN_TEST(test_pause_does_not_jump_setpoint);
     RUN_TEST(test_element_hours_accumulate_subsecond_ticks);
+    RUN_TEST(test_profile_save_rejected_when_index_full);
+    RUN_TEST(test_profile_update_still_allowed_when_index_full);
     RUN_TEST(test_profile_key_collision_rejected);
     RUN_TEST(test_tc_fault_cause_maps_to_tc_fault_error);
     RUN_TEST(test_over_temp_cause_maps_to_over_temp_error);

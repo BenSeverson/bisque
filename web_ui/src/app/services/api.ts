@@ -1,4 +1,5 @@
 import { FiringProfile, KilnSettings, ConeEntry, HistoryRecord, WifiInfo } from "../types/kiln";
+import { makeDuplicateProfileId } from "../utils/profile";
 import { kilnWS } from "./websocket";
 
 const API_BASE = "/api/v1";
@@ -153,7 +154,7 @@ export const api = {
   duplicateProfile: async (profile: FiringProfile) => {
     const copy: FiringProfile = {
       ...profile,
-      id: `${profile.id}-copy-${Date.now().toString(36)}`,
+      id: makeDuplicateProfileId(profile.id),
       name: `${profile.name} (Copy)`,
     };
     return request<{ ok: boolean; id: string }>("/profiles", {
