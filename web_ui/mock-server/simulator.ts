@@ -1,7 +1,23 @@
-import { state } from './state';
-import { AMBIENT, updateTemperature, coolingTemperature } from './physics';
+import { state } from "./state";
+import { AMBIENT, updateTemperature, coolingTemperature } from "./physics";
 
 const speed = () => state.speed;
+
+/**
+ * Start the 1 Hz telemetry ticker.
+ *
+ * The firmware broadcasts a temp_update every second unconditionally
+ * (`esp_timer_start_periodic(ws_timer, 1000000)` in main.c) — including while
+ * idle. The simulator previously only ticked during a firing, so an idle kiln
+ * sent nothing and the UI could not distinguish "idle" from "device gone",
+ * which made the connection banner fire a permanent false alarm in dev and in
+ * the published demo.
+ */
+export function ensureTicking(): void {
+  if (!state.interval) {
+    state.interval = setInterval(() => tick(), 1000);
+  }
+}
 
 export function startFiring(profileId: string): boolean {
   const profile = state.profiles.find((p) => p.id === profileId);
@@ -20,13 +36,13 @@ export function startFiring(profileId: string): boolean {
   f.profileId = profileId;
   f.profile = profile;
   f.currentSegmentIndex = 0;
-  f.phase = 'ramping';
+  f.phase = "ramping";
   f.segmentStartTemp = f.currentTemp;
   f.setpoint = f.currentTemp;
   f.simulatedElapsed = 0;
   f.segmentElapsed = 0;
   f.holdElapsed = 0;
-  f.status = 'heating';
+  f.status = "heating";
 
   state.interval = setInterval(() => tick(), 1000);
   return true;
@@ -36,8 +52,8 @@ export function stopFiring(): void {
   const f = state.firing;
   f.running = false;
   f.paused = false;
-  f.status = 'idle';
-  f.profileId = '';
+  f.status = "idle";
+  f.profileId = "";
   f.profile = null;
   f.coolingDown = true;
 
@@ -49,20 +65,20 @@ export function stopFiring(): void {
 
 export function pauseFiring(): string {
   const f = state.firing;
-  if (!f.running) return 'not_active';
+  if (!f.running) return "not_active";
   f.paused = !f.paused;
-  f.status = f.paused ? 'paused' : determineStatus();
+  f.status = f.paused ? "paused" : determineStatus();
   broadcast();
-  return f.paused ? 'paused' : 'resumed';
+  return f.paused ? "paused" : "resumed";
 }
 
 function determineStatus(): string {
   const f = state.firing;
-  if (!f.running) return 'idle';
-  if (f.paused) return 'paused';
-  if (f.phase === 'holding') return 'holding';
+  if (!f.running) return "idle";
+  if (f.paused) return "paused";
+  if (f.phase === "holding") return "holding";
   const seg = f.profile!.segments[f.currentSegmentIndex];
-  return seg.rampRate < 0 ? 'cooling' : 'heating';
+  return seg.rampRate < 0 ? "cooling" : "heating";
 }
 
 function estimateTimeRemaining(): number {
@@ -75,10 +91,9 @@ function estimateTimeRemaining(): number {
   // Current segment
   const seg = segments[f.currentSegmentIndex];
   const rampDelta = Math.abs(seg.targetTemp - f.segmentStartTemp);
-  const rampTime =
-    seg.rampRate !== 0 ? (rampDelta / Math.abs(seg.rampRate)) * 3600 : 0;
+  const rampTime = seg.rampRate !== 0 ? (rampDelta / Math.abs(seg.rampRate)) * 3600 : 0;
 
-  if (f.phase === 'ramping') {
+  if (f.phase === "ramping") {
     remaining += Math.max(0, rampTime - f.segmentElapsed);
     remaining += seg.holdTime * 60;
   } else {
@@ -90,9 +105,7 @@ function estimateTimeRemaining(): number {
     const s = segments[i];
     const startTemp = segments[i - 1].targetTemp;
     const segRampTime =
-      s.rampRate !== 0
-        ? (Math.abs(s.targetTemp - startTemp) / Math.abs(s.rampRate)) * 3600
-        : 0;
+      s.rampRate !== 0 ? (Math.abs(s.targetTemp - startTemp) / Math.abs(s.rampRate)) * 3600 : 0;
     remaining += segRampTime + s.holdTime * 60;
   }
 
@@ -110,10 +123,8 @@ function tick(): void {
     if (f.currentTemp < AMBIENT + 1) {
       f.currentTemp = AMBIENT;
       f.coolingDown = false;
-      if (state.interval) {
-        clearInterval(state.interval);
-        state.interval = null;
-      }
+      // Keep ticking: the device keeps broadcasting when idle, and stopping
+      // here would make the UI treat a healthy idle kiln as disconnected.
     }
     broadcast();
     return;
@@ -128,7 +139,7 @@ function tick(): void {
 
   const seg = f.profile.segments[f.currentSegmentIndex];
 
-  if (f.phase === 'ramping') {
+  if (f.phase === "ramping") {
     f.segmentElapsed += dt;
 
     if (seg.rampRate === 0) {
@@ -136,8 +147,7 @@ function tick(): void {
       f.setpoint = seg.targetTemp;
       transitionToHoldOrAdvance(seg.holdTime);
     } else {
-      f.setpoint =
-        f.segmentStartTemp + (seg.rampRate / 3600) * f.segmentElapsed;
+      f.setpoint = f.segmentStartTemp + (seg.rampRate / 3600) * f.segmentElapsed;
 
       // Clamp to target
       if (seg.rampRate > 0) {
@@ -172,7 +182,7 @@ function tick(): void {
 function transitionToHoldOrAdvance(holdTime: number): void {
   const f = state.firing;
   if (holdTime > 0) {
-    f.phase = 'holding';
+    f.phase = "holding";
     f.holdElapsed = 0;
   } else {
     advanceSegment();
@@ -187,12 +197,12 @@ function advanceSegment(): void {
   if (f.currentSegmentIndex >= f.profile.segments.length) {
     // Firing complete
     f.running = false;
-    f.status = 'complete';
+    f.status = "complete";
     f.coolingDown = true;
     return;
   }
 
-  f.phase = 'ramping';
+  f.phase = "ramping";
   f.segmentStartTemp = f.currentTemp;
   f.setpoint = f.currentTemp;
   f.segmentElapsed = 0;
@@ -204,7 +214,7 @@ function broadcast(): void {
   if (state.subscribers.size === 0) return;
 
   const msg = JSON.stringify({
-    type: 'temp_update',
+    type: "temp_update",
     data: {
       currentTemp: Math.round(f.currentTemp * 10) / 10,
       targetTemp: Math.round(f.setpoint * 10) / 10,
@@ -226,7 +236,7 @@ export function getStatusResponse() {
   const f = state.firing;
   return {
     isActive: f.running,
-    profileId: f.profileId || '',
+    profileId: f.profileId || "",
     currentTemp: Math.round(f.currentTemp * 10) / 10,
     targetTemp: Math.round(f.setpoint * 10) / 10,
     currentSegment: f.currentSegmentIndex,

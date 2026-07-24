@@ -1,17 +1,18 @@
-import type { Plugin } from 'vite';
-import type { IncomingMessage } from 'http';
-import type { Duplex } from 'stream';
-import { WebSocketServer } from 'ws';
-import { handleRequest } from './handlers';
-import { state } from './state';
+import type { Plugin } from "vite";
+import type { IncomingMessage } from "http";
+import type { Duplex } from "stream";
+import { WebSocketServer } from "ws";
+import { handleRequest } from "./handlers";
+import { state } from "./state";
+import { ensureTicking } from "./simulator";
 
 export function kilnMockPlugin(): Plugin {
   return {
-    name: 'kiln-mock',
+    name: "kiln-mock",
     configureServer(server) {
-      if (process.env.VITE_MOCK === 'false') return;
+      if (process.env.VITE_MOCK === "false") return;
 
-      const speedStr = process.env.VITE_MOCK_SPEED || '60';
+      const speedStr = process.env.VITE_MOCK_SPEED || "60";
       console.log(`\n  Mock kiln server enabled (${speedStr}x speed)\n`);
 
       state.speed = parseInt(speedStr, 10);
@@ -26,11 +27,12 @@ export function kilnMockPlugin(): Plugin {
         }
       });
 
-      wss.on('connection', (ws) => {
-        console.log('[mock] WebSocket client connected');
-        ws.on('close', () =>
-          console.log('[mock] WebSocket client disconnected'),
-        );
+      wss.on("connection", (ws) => {
+        console.log("[mock] WebSocket client connected");
+        // Match the firmware: telemetry flows continuously once a client is
+        // listening, not only while a firing is running.
+        ensureTicking();
+        ws.on("close", () => console.log("[mock] WebSocket client disconnected"));
       });
 
       // Intercept WebSocket upgrades for /api/v1/ws before the proxy can handle them.
@@ -40,13 +42,13 @@ export function kilnMockPlugin(): Plugin {
         const originalEmit = httpServer.emit.bind(httpServer);
         const patchable = httpServer as unknown as { emit: typeof originalEmit };
         patchable.emit = function (event: string | symbol, ...args: unknown[]): boolean {
-          if (event === 'upgrade') {
+          if (event === "upgrade") {
             const req = args[0] as IncomingMessage;
-            if (req.url === '/api/v1/ws') {
+            if (req.url === "/api/v1/ws") {
               const socket = args[1] as Duplex;
               const head = args[2] as Buffer;
               wss.handleUpgrade(req, socket, head, (ws) => {
-                wss.emit('connection', ws, req);
+                wss.emit("connection", ws, req);
               });
               return true;
             }
@@ -57,7 +59,7 @@ export function kilnMockPlugin(): Plugin {
 
       // Intercept REST requests before the proxy middleware
       server.middlewares.use((req, res, next) => {
-        if (!req.url?.startsWith('/api/v1') || req.url === '/api/v1/ws') {
+        if (!req.url?.startsWith("/api/v1") || req.url === "/api/v1/ws") {
           return next();
         }
         handleRequest(req, res);
