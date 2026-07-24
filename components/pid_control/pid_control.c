@@ -13,6 +13,11 @@ static const char *TAG = "pid_control";
 #define DEFAULT_KI APP_PID_KI_DEFAULT
 #define DEFAULT_KD APP_PID_KD_DEFAULT
 
+/* Derivative low-pass filter time constant (seconds). At the 1 Hz control tick
+ * this gives alpha = 1/(3+1) = 0.25, attenuating single-tick sensor-quantization
+ * spikes to a quarter while preserving the multi-second ramp derivative. */
+#define PID_D_FILTER_TAU_S 3.0f
+
 #define NVS_NAMESPACE       "pid"
 #define AUTOTUNE_TIMEOUT_US (60LL * 60 * 1000000) /* 60 minutes */
 
@@ -31,6 +36,8 @@ void pid_init(pid_controller_t *pid, float kp, float ki, float kd, float output_
     pid->output_max = output_max;
     pid->integral = 0.0f;
     pid->prev_error = 0.0f;
+    pid->prev_measured = 0.0f;
+    pid->d_filtered = 0.0f;
     pid->first_run = true;
 }
 
@@ -38,6 +45,8 @@ void pid_reset(pid_controller_t *pid)
 {
     pid->integral = 0.0f;
     pid->prev_error = 0.0f;
+    pid->prev_measured = 0.0f;
+    pid->d_filtered = 0.0f;
     pid->first_run = true;
 }
 
@@ -56,13 +65,22 @@ float pid_compute(pid_controller_t *pid, float setpoint, float measured, float d
     pid->integral += error * dt_s;
     float i_term = pid->ki * pid->integral;
 
-    /* Derivative (on error; skip first iteration) */
+    /* Derivative on measurement, low-pass filtered (skip first iteration).
+       Taking the derivative of the measurement rather than the error avoids a
+       kick when the setpoint steps (segment/skip transitions); the first-order
+       filter attenuates the MAX31855's 0.25°C quantization noise, which with an
+       unfiltered derivative and a large Kd swamped the P/I terms and drove the
+       output bang-bang. alpha = dt / (tau + dt). */
     float d_term = 0.0f;
     if (!pid->first_run) {
-        d_term = pid->kd * (error - pid->prev_error) / dt_s;
+        float d_meas = (measured - pid->prev_measured) / dt_s;
+        float alpha = dt_s / (PID_D_FILTER_TAU_S + dt_s);
+        pid->d_filtered += alpha * (d_meas - pid->d_filtered);
+        d_term = -pid->kd * pid->d_filtered;
     }
     pid->first_run = false;
     pid->prev_error = error;
+    pid->prev_measured = measured;
 
     float output = p_term + i_term + d_term;
 
@@ -87,7 +105,7 @@ float pid_compute(pid_controller_t *pid, float setpoint, float measured, float d
 
 esp_err_t pid_autotune_start(pid_autotune_t *at, float setpoint, float hysteresis)
 {
-    if (setpoint <= 0.0f || hysteresis <= 0.0f) {
+    if (!isfinite(setpoint) || !isfinite(hysteresis) || setpoint <= 0.0f || hysteresis <= 0.0f) {
         return ESP_ERR_INVALID_ARG;
     }
 
