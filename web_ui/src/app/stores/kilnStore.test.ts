@@ -210,3 +210,84 @@ describe("kilnStore: connection health", () => {
     expect(useKilnStore.getState().lastUpdateAt).toBe(first);
   });
 });
+
+describe("kilnStore: multi-client firing transitions (#163)", () => {
+  beforeEach(() => {
+    resetStore();
+    useKilnStore.getState().initWebSocket();
+  });
+
+  it("adopts profileId from each frame", () => {
+    // A firing started from the LCD or the iOS app must not leave this tab
+    // showing the wrong profile until a manual reload.
+    wsSubscriber!(tempFrame({ profileId: "glaze-6" }));
+    expect(useKilnStore.getState().firingProgress.profileId).toBe("glaze-6");
+
+    wsSubscriber!(tempFrame({ profileId: "bisque-04" }));
+    expect(useKilnStore.getState().firingProgress.profileId).toBe("bisque-04");
+  });
+
+  it("restarts the chart when the profile changes mid-stream", () => {
+    wsSubscriber!(tempFrame({ profileId: "glaze-6", elapsedTime: 600, currentTemp: 500 }));
+    expect(useKilnStore.getState().currentTempData.length).toBeGreaterThan(1);
+
+    wsSubscriber!(tempFrame({ profileId: "bisque-04", elapsedTime: 0, currentTemp: 25 }));
+    const data = useKilnStore.getState().currentTempData;
+    // Without a reset, a new firing's low-time points get appended after the
+    // old series' high-time tail and the chart's axis runs backward.
+    expect(data).toHaveLength(1);
+    expect(data[0].time).toBe(0);
+  });
+
+  it("restarts the chart when elapsedTime goes backwards", () => {
+    wsSubscriber!(tempFrame({ profileId: "glaze-6", elapsedTime: 1800 }));
+    wsSubscriber!(tempFrame({ profileId: "glaze-6", elapsedTime: 60 }));
+    const data = useKilnStore.getState().currentTempData;
+    expect(data).toHaveLength(1);
+    expect(data[0].time).toBe(1);
+  });
+
+  it("restarts the chart when a firing begins after an idle stretch", () => {
+    wsSubscriber!(tempFrame({ isActive: false, status: "idle", elapsedTime: 0 }));
+    wsSubscriber!(tempFrame({ isActive: false, status: "idle", elapsedTime: 0 }));
+    wsSubscriber!(tempFrame({ isActive: true, status: "heating", elapsedTime: 0 }));
+    expect(useKilnStore.getState().currentTempData).toHaveLength(1);
+  });
+
+  it("keeps appending within one continuous firing", () => {
+    wsSubscriber!(tempFrame({ profileId: "glaze-6", elapsedTime: 60 }));
+    wsSubscriber!(tempFrame({ profileId: "glaze-6", elapsedTime: 120 }));
+    wsSubscriber!(tempFrame({ profileId: "glaze-6", elapsedTime: 180 }));
+    // Reset detection must not be so eager that it wipes a healthy series.
+    expect(useKilnStore.getState().currentTempData.map((p) => p.time)).toEqual([0, 1, 2, 3]);
+  });
+
+  it("follows the active firing's profile so segment names are right", () => {
+    // firingProgress.profileId alone is not enough: the dashboard resolves
+    // segment names and the profile overlay through selectedProfileId, so a
+    // firing started from the LCD would otherwise show no segment until reload.
+    wsSubscriber!(tempFrame({ profileId: "glaze-6", isActive: true, status: "heating" }));
+    wsSubscriber!(tempFrame({ profileId: "bisque-04", isActive: true, status: "heating" }));
+    expect(useKilnStore.getState().selectedProfileId).toBe("bisque-04");
+  });
+
+  it("does not hijack a browsing selection while the kiln is idle", () => {
+    useKilnStore.setState({ selectedProfileId: "glaze-10" });
+    wsSubscriber!(tempFrame({ profileId: "", isActive: false, status: "idle" }));
+    expect(useKilnStore.getState().selectedProfileId).toBe("glaze-10");
+  });
+
+  it("clears the dead firing's figures on the active -> idle transition (#158)", () => {
+    wsSubscriber!(
+      tempFrame({ isActive: true, status: "heating", elapsedTime: 9000, currentSegment: 2 }),
+    );
+    wsSubscriber!(
+      tempFrame({ isActive: false, status: "idle", elapsedTime: 9000, currentSegment: 2 }),
+    );
+
+    const p = useKilnStore.getState().firingProgress;
+    expect(p.elapsedTime).toBe(0);
+    expect(p.currentSegment).toBe(0);
+    expect(p.estimatedTimeRemaining).toBe(0);
+  });
+});

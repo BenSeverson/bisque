@@ -19,17 +19,37 @@ export function ensureTicking(): void {
   }
 }
 
-export function startFiring(profileId: string): boolean {
+export function startFiring(profileId: string, delayMinutes = 0): boolean {
   const profile = state.profiles.find((p) => p.id === profileId);
   if (!profile) return false;
 
-  // Stop any existing interval
-  if (state.interval) {
-    clearInterval(state.interval);
-    state.interval = null;
+  const f0 = state.firing;
+  if (delayMinutes > 0) {
+    // Arm only. Mirrors the firmware, which reports is_active=true with an
+    // IDLE status until the delay expires.
+    f0.scheduled = true;
+    f0.delayRemainingS = delayMinutes * 60;
+    f0.profileId = profileId;
+    f0.profile = profile;
+    f0.running = false;
+    f0.paused = false;
+    f0.coolingDown = false;
+    f0.status = "idle";
+    f0.simulatedElapsed = 0;
+    f0.currentSegmentIndex = 0;
+    ensureTicking();
+    return true;
   }
+  return beginFiring(profileId);
+}
+
+function beginFiring(profileId: string): boolean {
+  const profile = state.profiles.find((p) => p.id === profileId);
+  if (!profile) return false;
 
   const f = state.firing;
+  f.scheduled = false;
+  f.delayRemainingS = 0;
   f.running = true;
   f.paused = false;
   f.coolingDown = false;
@@ -44,18 +64,21 @@ export function startFiring(profileId: string): boolean {
   f.holdElapsed = 0;
   f.status = "heating";
 
-  state.interval = setInterval(() => tick(), 1000);
+  ensureTicking();
   return true;
 }
 
 export function stopFiring(): void {
   const f = state.firing;
+  const wasScheduled = f.scheduled;
+  f.scheduled = false;
+  f.delayRemainingS = 0;
   f.running = false;
   f.paused = false;
   f.status = "idle";
   f.profileId = "";
   f.profile = null;
-  f.coolingDown = true;
+  f.coolingDown = !wasScheduled; // an armed-but-unstarted firing never heated
 
   // Keep interval running for passive cooling
   if (!state.interval) {
@@ -115,6 +138,15 @@ function estimateTimeRemaining(): number {
 function tick(): void {
   const f = state.firing;
   const dt = speed();
+
+  if (f.scheduled) {
+    f.delayRemainingS = Math.max(0, f.delayRemainingS - dt);
+    if (f.delayRemainingS === 0) {
+      beginFiring(f.profileId);
+    }
+    broadcast();
+    return;
+  }
 
   // Passive cooling after stop/complete
   if (f.coolingDown && !f.running) {
@@ -223,7 +255,10 @@ function broadcast(): void {
       totalSegments: f.profile?.segments.length ?? 0,
       elapsedTime: Math.round(f.simulatedElapsed),
       estimatedTimeRemaining: Math.round(estimateTimeRemaining()),
-      isActive: f.running,
+      isActive: f.running || f.scheduled,
+      // The firmware includes profileId in every frame; omitting it here meant
+      // a client could never adopt a firing started elsewhere.
+      profileId: f.profileId || "",
     },
   });
 
@@ -235,7 +270,7 @@ function broadcast(): void {
 export function getStatusResponse() {
   const f = state.firing;
   return {
-    isActive: f.running,
+    isActive: f.running || f.scheduled,
     profileId: f.profileId || "",
     currentTemp: Math.round(f.currentTemp * 10) / 10,
     targetTemp: Math.round(f.setpoint * 10) / 10,
