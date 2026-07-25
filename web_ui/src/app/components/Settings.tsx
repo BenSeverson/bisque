@@ -93,11 +93,16 @@ export function Settings() {
   // The frame's fetch time — not "now" — is what applyAutotuneStatus judges,
   // so the cached pre-start frame can no longer end the run it never saw.
   const observedAt = Math.max(dataUpdatedAt, errorUpdatedAt);
+  // A failed fetch also advances errorUpdatedAt, so tell applyAutotuneStatus
+  // whether the newest settle was real data — otherwise an unreachable kiln
+  // ages out a pending start and takes the Stop button with it.
+  const statusArrived = dataUpdatedAt >= errorUpdatedAt;
   useEffect(() => {
     const { session, outcome } = applyAutotuneStatus(
       autotuneSession,
       autotuneStatus?.state,
       observedAt,
+      { succeeded: statusArrived },
     );
     if (session !== autotuneSession) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- see comment above
@@ -110,7 +115,7 @@ export function Settings() {
     } else if (outcome === "unconfirmed") {
       toast.warning("Auto-tune is not running — the controller reports idle");
     }
-  }, [autotuneSession, autotuneStatus?.state, observedAt]);
+  }, [autotuneSession, autotuneStatus?.state, observedAt, statusArrived]);
 
   const { register, handleSubmit, setValue, reset, control, getValues } =
     useForm<SettingsFormValues>({

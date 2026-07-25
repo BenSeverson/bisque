@@ -6,6 +6,7 @@ import {
   beginAutotuneSession,
   endAutotuneSession,
   isAutotunePolling,
+  type AutotuneSession,
 } from "./autotuneSession";
 
 const T0 = 1_000_000;
@@ -168,5 +169,58 @@ describe("applyAutotuneStatus while idle", () => {
     const echo = applyAutotuneStatus(finished.session, "running", T0 + 60_500);
     expect(echo.session).toBe(finished.session);
     expect(echo.outcome).toBeUndefined();
+  });
+});
+
+describe("applyAutotuneStatus: an unreachable controller (#213 review)", () => {
+  const START = 1_000_000;
+
+  function starting() {
+    return beginAutotuneSession(START);
+  }
+
+  it("keeps a pending start polling while status fetches are only failing", () => {
+    // errorUpdatedAt advances on every failed fetch, so a merged "observedAt"
+    // walks past the grace window without a single status ever arriving. The
+    // POST succeeded, so the kiln may be heating — abandoning the session here
+    // stops polling and hides the Stop button.
+    const s = starting();
+    const r = applyAutotuneStatus(s, undefined, START + AUTOTUNE_START_GRACE_MS + 5_000, {
+      succeeded: false,
+    });
+    expect(r.session.phase).toBe("starting");
+    expect(isAutotunePolling(r.session)).toBe(true);
+    expect(r.outcome).toBeUndefined();
+  });
+
+  it("never claims the controller reports idle when nothing was received", () => {
+    const s = starting();
+    const r = applyAutotuneStatus(s, undefined, START + 60_000, { succeeded: false });
+    expect(r.outcome).not.toBe("unconfirmed");
+  });
+
+  it("still gives up when the controller genuinely answers idle past the window", () => {
+    // A real reply of "idle" past the window is still unconfirmed — that is the
+    // #122 behaviour and must not regress.
+    const s = starting();
+    const r = applyAutotuneStatus(s, "idle", START + AUTOTUNE_START_GRACE_MS + 1, {
+      succeeded: true,
+    });
+    expect(r.session.phase).toBe("idle");
+    expect(r.outcome).toBe("unconfirmed");
+  });
+
+  it("recovers when status comes back after a failed stretch", () => {
+    let s = starting();
+    s = applyAutotuneStatus(s, undefined, START + 30_000, { succeeded: false }).session;
+    const r = applyAutotuneStatus(s, "running", START + 31_000, { succeeded: true });
+    expect(r.session.phase).toBe("running");
+  });
+
+  it("keeps a running session running through failed fetches", () => {
+    const s: AutotuneSession = { phase: "running" };
+    const r = applyAutotuneStatus(s, undefined, START + 99_000, { succeeded: false });
+    expect(r.session.phase).toBe("running");
+    expect(r.outcome).toBeUndefined();
   });
 });

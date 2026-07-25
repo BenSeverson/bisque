@@ -87,6 +87,11 @@ export function applyAutotuneStatus(
   session: AutotuneSession,
   state: string | undefined,
   observedAt: number,
+  /* Whether `observedAt` reflects a status that actually arrived. React Query
+     advances errorUpdatedAt on failed fetches too, so a merged timestamp walks
+     forward while the controller is unreachable. Defaults to true: callers with
+     no error signal are reporting a real observation. */
+  observation: { succeeded: boolean } = { succeeded: true },
 ): { session: AutotuneSession; outcome?: AutotuneOutcome } {
   if (state === "running") {
     if (session.phase === "running") return { session };
@@ -103,8 +108,13 @@ export function applyAutotuneStatus(
       return { session };
 
     case "starting":
-      // `observedAt` advances only when a fetch settles, so an unreachable
-      // controller walks past the window too instead of hanging on "Running".
+      // Only a status that actually arrived may end a start the controller
+      // accepted. Letting failed fetches age the window out would stop polling
+      // and hide the Stop button while the kiln might still be heating, and
+      // would report "the controller reports idle" when it reported nothing.
+      // An unreachable device stays pending and stop-capable; ConnectionBanner
+      // is what tells the user it is unreachable.
+      if (!observation.succeeded) return { session };
       if (observedAt - session.requestedAt < AUTOTUNE_START_GRACE_MS) return { session };
       return { session: { phase: "idle", settledAt: observedAt }, outcome: "unconfirmed" };
 
