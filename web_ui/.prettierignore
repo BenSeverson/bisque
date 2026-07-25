@@ -1,2 +1,10 @@
 dist
 node_modules
+
+# Prose and attribution files are maintained by hand; reflowing them produces
+# noisy diffs with no benefit. ATTRIBUTIONS.md in particular is a licensing
+# notice whose wording should change only deliberately.
+*.md
+
+# Largely emitted as-is by the bundler; formatting it fights the tooling.
+index.html
