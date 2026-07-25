@@ -1308,15 +1308,16 @@ static esp_err_t handle_autotune_status(httpd_req_t *req)
     if (!require_auth(req)) {
         return ESP_FAIL;
     }
-    /* Access autotune state via progress; the autotune struct is internal to
-       firing_engine, so we expose it via the progress status + the current
-       PID gains. */
+    /* The progress status reports a *running* tune; the terminal outcome has to
+       come from the engine's autotune state, since the engine stops the firing
+       the moment a tune ends and the status is back to IDLE by now (#216). */
     firing_progress_t prog;
     firing_engine_get_progress(&prog);
+    autotune_state_t at_state = firing_engine_get_autotune_state();
 
     float kp, ki, kd;
     pid_load_gains(&kp, &ki, &kd);
-    return send_json(req, build_autotune_status_json(&prog, kp, ki, kd));
+    return send_json(req, build_autotune_status_json(&prog, at_state, kp, ki, kd));
 }
 
 /* ── GET /api/v1/ota/status ───────────────────────── */

@@ -138,13 +138,41 @@ cJSON *build_cone_table_json(void)
     return arr;
 }
 
-cJSON *build_autotune_status_json(const firing_progress_t *prog, float kp, float ki, float kd)
+/* Terminal auto-tune outcomes were flattened onto a bare "idle", so a client
+ * could not tell "your tuning run finished and gains were saved" from "nothing
+ * is running" — the two frames were byte-identical. That ambiguity is what
+ * forced the web client into a pending phase plus a grace window that could
+ * only ever conclude "unconfirmed" (#216).
+ *
+ * `running` still comes from the progress status, since that is what the engine
+ * updates live. Once the run ends the engine calls do_stop() and the status
+ * returns to IDLE, so the *outcome* has to come from the autotune state, which
+ * survives until the next start or cancel. */
+static const char *autotune_state_to_string(firing_status_t status, autotune_state_t at_state)
+{
+    if (status == FIRING_STATUS_AUTOTUNE) {
+        return "running";
+    }
+    switch (at_state) {
+    case AUTOTUNE_COMPLETE:
+        return "complete";
+    case AUTOTUNE_FAILED:
+        return "failed";
+    case AUTOTUNE_IDLE:
+        return status == FIRING_STATUS_IDLE ? "idle" : "stopped";
+    default:
+        /* Mid-run states (heating to setpoint, relay cycling) with the progress
+           status already away from AUTOTUNE — a firing took over, or the run was
+           stopped between ticks. Neither finished nor running. */
+        return "stopped";
+    }
+}
+
+cJSON *build_autotune_status_json(const firing_progress_t *prog, autotune_state_t at_state, float kp, float ki,
+                                  float kd)
 {
     cJSON *root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "state",
-                            prog->status == FIRING_STATUS_AUTOTUNE ? "running"
-                            : prog->status == FIRING_STATUS_IDLE   ? "idle"
-                                                                   : "stopped");
+    cJSON_AddStringToObject(root, "state", autotune_state_to_string(prog->status, at_state));
     cJSON_AddNumberToObject(root, "elapsedTime", prog->elapsed_time);
     cJSON_AddNumberToObject(root, "targetTemp", prog->target_temp);
     cJSON_AddNumberToObject(root, "currentTemp", prog->current_temp);

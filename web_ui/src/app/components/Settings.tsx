@@ -109,11 +109,13 @@ export function Settings() {
       setAutotuneSession(session);
     }
     if (outcome === "completed") {
-      toast.success("Auto-tune complete");
+      toast.success("Auto-tune complete — new PID gains saved");
+    } else if (outcome === "failed") {
+      toast.error("Auto-tune failed to measure usable gains — PID gains are unchanged");
     } else if (outcome === "stopped") {
       toast.warning("Auto-tune ended before it finished — PID gains are unchanged");
-    } else if (outcome === "unconfirmed") {
-      toast.warning("Auto-tune is not running — the controller reports idle");
+    } else if (outcome === "not-started") {
+      toast.error("The controller did not start the auto-tune");
     }
   }, [autotuneSession, autotuneStatus?.state, observedAt, statusArrived]);
 

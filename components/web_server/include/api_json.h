@@ -18,6 +18,7 @@
 
 #include "cJSON.h"
 #include "firing_types.h"
+#include "pid_control.h"
 #include "thermocouple.h"
 #include "firing_history.h"
 #include <stdint.h>
@@ -43,8 +44,17 @@ cJSON *build_history_record_json(const history_record_t *rec);
 /** GET /api/v1/cone-table — entire cone reference table (no inputs). */
 cJSON *build_cone_table_json(void);
 
-/** GET /api/v1/autotune/status. */
-cJSON *build_autotune_status_json(const firing_progress_t *prog, float kp, float ki, float kd);
+/**
+ * GET /api/v1/autotune/status.
+ *
+ * `state` is one of running | complete | failed | stopped | idle. The terminal
+ * outcomes come from `at_state`, not from `prog`: the engine stops the firing as
+ * soon as a tune ends, so by the time the client asks, the progress status has
+ * already returned to IDLE. Collapsing them onto "idle" is what made a finished
+ * run indistinguishable from one that never started (#216).
+ */
+cJSON *build_autotune_status_json(const firing_progress_t *prog, autotune_state_t at_state, float kp, float ki,
+                                  float kd);
 
 /**
  * GET /api/v1/diagnostics/thermocouple.
