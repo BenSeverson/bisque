@@ -46,4 +46,17 @@ endforeach()
 idf_component_get_property(main_lib main COMPONENT_LIB)
 target_compile_options(${main_lib} PRIVATE ${common_warnings})
 
+# spiffs_data/www/ holds the web UI bundle, which build.sh generates and
+# .gitignore excludes — so a fresh clone or git worktree has no directory at
+# all and spiffsgen.py aborts ("given base directory ... does not exist")
+# before a single source file compiles. Create it so firmware-only builds work
+# in a clean checkout; the storage image is then simply empty and the device
+# serves no web UI until ./build.sh (or `make web gzip`) populates it.
+set(BISQUE_WWW_DIR "${CMAKE_CURRENT_SOURCE_DIR}/spiffs_data/www")
+if(NOT EXISTS "${BISQUE_WWW_DIR}")
+    message(STATUS "spiffs_data/www not found — building an empty storage partition. "
+                   "Run ./build.sh (or 'make web gzip') to bundle the web UI.")
+    file(MAKE_DIRECTORY "${BISQUE_WWW_DIR}")
+endif()
+
 spiffs_create_partition_image(storage spiffs_data/www FLASH_IN_PROJECT)

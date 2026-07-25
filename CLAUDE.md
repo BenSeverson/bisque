@@ -14,7 +14,7 @@ idf.py flash monitor  # Flash and monitor
 
 **A bare `idf.py` only works in a shell that has already sourced ESP-IDF's `export.sh`** — which non-interactive shells (agent tool calls, git hooks, `make` recipes, CI) never do, since they read no rc files and get a fresh shell per command. Sourcing it in one command and running `idf.py` in the next does *not* work; the activation is lost with the shell.
 
-So prefer `make firmware` / `make build` / `./build.sh` over a raw `idf.py` — they source `scripts/idf-env.sh` first, which finds a local install (honoring `IDF_PATH`, else the usual `~/esp-idf`, `~/esp/`, `~/.espressif/v*/`, `/opt/` layouts) and no-ops when the toolchain is already on PATH. For a one-off `idf.py` invocation with no `make` target, activate in the *same* command:
+So prefer `make firmware` / `make build` / `./build.sh` over a raw `idf.py` — they source `scripts/idf-env.sh` first, which finds a local install (honoring `IDF_PATH`, else the usual `~/esp-idf`, `~/esp/`, `~/.espressif/v*/`, `/opt/` layouts) and no-ops when the shell is already activated. Note that "activated" means `IDF_PATH`/`IDF_PYTHON_ENV_PATH`/`ESP_IDF_VERSION` are exported, not merely that `idf.py` is on PATH — a shell can inherit ESP-IDF's PATH entries without the rest of the environment, and IDF 6's `idf.py` then dies on a NULL `ESP_IDF_VERSION`. For a one-off `idf.py` invocation with no `make` target, activate in the *same* command:
 
 ```bash
 . ./scripts/idf-env.sh && idf.py flash monitor
