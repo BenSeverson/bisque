@@ -10,7 +10,7 @@
     "build": "vite build",
     "build:demo": "BISQUE_DEMO=true vite build",
     "dev": "vite",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
