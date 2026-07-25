@@ -65,6 +65,10 @@ static lv_obj_t *s_content = NULL;
 static view_id_t s_current_view = VIEW_NONE;
 /* Last status painted onto the status bar; sentinel forces a repaint on first update. */
 static firing_status_t s_prev_status = (firing_status_t)-1;
+/* Last segment indices painted into the status bar. total == 0 means the label is
+ * currently blank, which is also its state on a freshly created dashboard. */
+static uint8_t s_prev_segment = 0;
+static uint8_t s_prev_total_segments = 0;
 
 /* IDLE view widgets. */
 static lv_obj_t *s_idle_temp = NULL;
@@ -294,7 +298,11 @@ static void build_view_idle(void)
 
     /* Last-firing summary, only shown if there's at least one history record.
        Positioned above the Select-profile button at the bottom. */
-    history_record_t last;
+    /* Zero-initialized: history_get_records() fills only the keys present in
+       history.json, and profile_name is rendered directly as label text. An
+       uninitialized buffer would let LVGL read stack garbage past the string
+       when a record is missing that key (#136). */
+    history_record_t last = {0};
     if (history_get_records(&last, 1) > 0) {
         lv_obj_t *sep = ui_make_separator(s_content, 200);
         lv_obj_align(sep, LV_ALIGN_TOP_MID, 0, 192 - CONTENT_Y);
@@ -674,6 +682,9 @@ void dashboard_create(void)
     lv_screen_load(s_screen);
     switch_view(VIEW_IDLE, NULL, false);
     s_prev_status = (firing_status_t)-1;
+    /* s_seg_label was just created blank; keep the change-guard in step with it. */
+    s_prev_segment = 0;
+    s_prev_total_segments = 0;
 
     ESP_LOGI(TAG, "dashboard created");
 }
@@ -729,11 +740,21 @@ void dashboard_update(const thermocouple_reading_t *tc, const firing_progress_t 
         s_prev_status = prog->status;
     }
 
+    /* Same reasoning as the status bar above: lv_label_set_text always reallocs
+     * and invalidates, so rewriting an unchanged "SEGMENT 3/7" every 500ms
+     * repaints the status bar twice a second for the whole multi-hour firing.
+     * Only touch the label when the segment indices actually move (#136). */
     if (view_is_active_family(s_current_view)) {
-        lv_label_set_text_fmt(s_seg_label, "SEGMENT %u/%u", (unsigned)(prog->current_segment + 1),
-                              (unsigned)prog->total_segments);
-    } else {
+        if (prog->current_segment != s_prev_segment || prog->total_segments != s_prev_total_segments) {
+            lv_label_set_text_fmt(s_seg_label, "SEGMENT %u/%u", (unsigned)(prog->current_segment + 1),
+                                  (unsigned)prog->total_segments);
+            s_prev_segment = prog->current_segment;
+            s_prev_total_segments = prog->total_segments;
+        }
+    } else if (s_prev_total_segments != 0) {
         lv_label_set_text(s_seg_label, "");
+        s_prev_segment = 0;
+        s_prev_total_segments = 0;
     }
 
     /* PAUSED overlay visibility. */

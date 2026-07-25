@@ -1452,8 +1452,8 @@ static esp_err_t handle_get_wifi(httpd_req_t *req)
         return ESP_FAIL;
     }
 
-    char ssid[33] = {0};
-    char pass[65] = {0};
+    char ssid[WIFI_SSID_BUF_LEN] = {0};
+    char pass[WIFI_PASS_BUF_LEN] = {0};
     bool has_saved = wifi_manager_load_creds(ssid, sizeof(ssid), pass, sizeof(pass)) == ESP_OK && ssid[0];
 
     cJSON *root = cJSON_CreateObject();
@@ -1493,9 +1493,27 @@ static esp_err_t handle_post_wifi(httpd_req_t *req)
     cJSON *j_pass = cJSON_GetObjectItem(root, "password");
     const char *pass = (j_pass && j_pass->valuestring) ? j_pass->valuestring : "";
 
+    /* Over-length credentials used to save "successfully" and then fail to load
+     * on the next boot, dropping the device into AP mode with no error ever
+     * shown (#134). Reject them here so the user finds out at save time. */
+    if (strlen(ssid) > WIFI_SSID_MAX_LEN) {
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "SSID too long (max 32 characters)");
+        return ESP_FAIL;
+    }
+    if (strlen(pass) > WIFI_PASS_MAX_LEN) {
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Password too long (max 64 characters)");
+        return ESP_FAIL;
+    }
+
     esp_err_t err = wifi_manager_save_creds(ssid, pass);
     cJSON_Delete(root);
 
+    if (err == ESP_ERR_INVALID_SIZE) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Credentials too long");
+        return ESP_FAIL;
+    }
     if (err != ESP_OK) {
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to save credentials");
         return ESP_FAIL;
