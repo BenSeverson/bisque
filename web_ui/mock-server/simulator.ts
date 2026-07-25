@@ -1,5 +1,6 @@
 import { state } from "./state";
 import { AMBIENT, updateTemperature, coolingTemperature } from "./physics";
+import { HOLD_UNTIL_SKIP } from "../src/app/types/kiln";
 
 const speed = () => state.speed;
 
@@ -104,6 +105,14 @@ function determineStatus(): string {
   return seg.rampRate < 0 ? "cooling" : "heating";
 }
 
+/** Hold length in seconds, treating HOLD_UNTIL_SKIP as unknown (0).
+ *  The sentinel is "hold until the operator skips", not a 65,535-minute hold;
+ *  counting it verbatim produced ETAs around 45 days. Mirrors
+ *  computeSegmentDurationMinutes in the client. */
+function holdSeconds(holdTime: number): number {
+  return holdTime === HOLD_UNTIL_SKIP ? 0 : holdTime * 60;
+}
+
 function estimateTimeRemaining(): number {
   const f = state.firing;
   if (!f.running || !f.profile) return 0;
@@ -118,9 +127,9 @@ function estimateTimeRemaining(): number {
 
   if (f.phase === "ramping") {
     remaining += Math.max(0, rampTime - f.segmentElapsed);
-    remaining += seg.holdTime * 60;
+    remaining += holdSeconds(seg.holdTime);
   } else {
-    remaining += Math.max(0, seg.holdTime * 60 - f.holdElapsed);
+    remaining += Math.max(0, holdSeconds(seg.holdTime) - f.holdElapsed);
   }
 
   // Subsequent segments
@@ -129,7 +138,7 @@ function estimateTimeRemaining(): number {
     const startTemp = segments[i - 1].targetTemp;
     const segRampTime =
       s.rampRate !== 0 ? (Math.abs(s.targetTemp - startTemp) / Math.abs(s.rampRate)) * 3600 : 0;
-    remaining += segRampTime + s.holdTime * 60;
+    remaining += segRampTime + holdSeconds(s.holdTime);
   }
 
   return remaining;
