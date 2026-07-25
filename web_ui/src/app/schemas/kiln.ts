@@ -35,7 +35,12 @@ export const firingProfileSchema = z.object({
 
 export const settingsSchema = z.object({
   tempUnit: z.enum(["C", "F"]),
-  maxSafeTemp: finiteNumber("Max safe temperature is required").min(0).max(1400),
+  // Messages are user-facing: an immediate-save toggle surfaces the first issue
+  // in a toast (see utils/settingsPatch.ts), where zod's built-in wording
+  // ("Too big: expected number...") would not say which field is at fault.
+  maxSafeTemp: finiteNumber("Max safe temperature is required")
+    .min(0, "Max safe temperature cannot be negative")
+    .max(1400, "Max safe temperature cannot exceed 1400 °C"),
   alarmEnabled: z.boolean(),
   autoShutdown: z.boolean(),
   notificationsEnabled: z.boolean(),
@@ -43,8 +48,14 @@ export const settingsSchema = z.object({
   webhookUrl: z.string(),
   apiToken: z.string().optional(),
   apiTokenSet: z.boolean().optional(),
-  elementWatts: finiteNumber("Element watts is required").min(0),
-  electricityCostKwh: finiteNumber("Electricity cost is required").min(0),
+  elementWatts: finiteNumber("Element watts is required").min(
+    0,
+    "Element power cannot be negative",
+  ),
+  electricityCostKwh: finiteNumber("Electricity cost is required").min(
+    0,
+    "Electricity cost cannot be negative",
+  ),
 });
 
 export type SettingsFormValues = z.infer<typeof settingsSchema>;

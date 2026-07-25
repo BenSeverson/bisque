@@ -4,6 +4,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { formatUptime } from "../utils/time";
 import { toErrorMessage } from "../utils/error";
 import { commitApiTokenChange, API_TOKEN_MAX_LENGTH } from "../utils/apiToken";
+import {
+  applyAutotuneStatus,
+  beginAutotuneSession,
+  endAutotuneSession,
+  isAutotunePolling,
+  IDLE_AUTOTUNE_SESSION,
+  type AutotuneSession,
+} from "../utils/autotuneSession";
+import { prepareSettingsPatch } from "../utils/settingsPatch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Label } from "./ui/label";
 import { Input } from "./ui/input";
@@ -45,8 +54,13 @@ export function Settings() {
   const saveSettings = useSaveSettings();
   const { data: systemInfo } = useSystemInfo();
 
-  const [autotuneRunning, setAutotuneRunning] = useState(false);
-  const { data: autotuneStatus } = useAutotuneStatus(autotuneRunning);
+  const [autotuneSession, setAutotuneSession] = useState<AutotuneSession>(IDLE_AUTOTUNE_SESSION);
+  const autotuneRunning = isAutotunePolling(autotuneSession);
+  const {
+    data: autotuneStatus,
+    dataUpdatedAt,
+    errorUpdatedAt,
+  } = useAutotuneStatus(autotuneRunning);
   const [autotuneSetpoint, setAutotuneSetpoint] = useState(500);
 
   const startAutotune = useStartAutotune();
@@ -70,20 +84,38 @@ export function Settings() {
   // API token local state
   const [newToken, setNewToken] = useState("");
 
-  // Synchronize the local polling-enable flag with the polled autotune status
-  // and fire a one-time completion toast on the running -> done transition.
-  // This is a genuine external-system sync (the flag gates the polling query),
-  // so it can't be derived during render — deriving it would be circular with
-  // the query's `enabled`. Hence the targeted set-state-in-effect exemption.
+  // Fold each polled status frame into the auto-tune session, and toast once on
+  // the transition out of a run. This is a genuine external-system sync (the
+  // session gates the polling query), so it can't be derived during render —
+  // deriving it would be circular with the query's refetch interval. Hence the
+  // targeted set-state-in-effect exemption.
+  //
+  // The frame's fetch time — not "now" — is what applyAutotuneStatus judges,
+  // so the cached pre-start frame can no longer end the run it never saw.
+  const observedAt = Math.max(dataUpdatedAt, errorUpdatedAt);
+  // A failed fetch also advances errorUpdatedAt, so tell applyAutotuneStatus
+  // whether the newest settle was real data — otherwise an unreachable kiln
+  // ages out a pending start and takes the Stop button with it.
+  const statusArrived = dataUpdatedAt >= errorUpdatedAt;
   useEffect(() => {
-    if (autotuneStatus?.state === "running") {
+    const { session, outcome } = applyAutotuneStatus(
+      autotuneSession,
+      autotuneStatus?.state,
+      observedAt,
+      { succeeded: statusArrived },
+    );
+    if (session !== autotuneSession) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- see comment above
-      setAutotuneRunning(true);
-    } else if (autotuneStatus && autotuneStatus.state !== "running" && autotuneRunning) {
-      setAutotuneRunning(false);
-      toast.success("Auto-tune complete");
+      setAutotuneSession(session);
     }
-  }, [autotuneStatus, autotuneRunning]);
+    if (outcome === "completed") {
+      toast.success("Auto-tune complete");
+    } else if (outcome === "stopped") {
+      toast.warning("Auto-tune ended before it finished — PID gains are unchanged");
+    } else if (outcome === "unconfirmed") {
+      toast.warning("Auto-tune is not running — the controller reports idle");
+    }
+  }, [autotuneSession, autotuneStatus?.state, observedAt, statusArrived]);
 
   const { register, handleSubmit, setValue, reset, control, getValues } =
     useForm<SettingsFormValues>({
@@ -114,12 +146,24 @@ export function Settings() {
   };
 
   // Optimistic update helper for switches/selects that save immediately.
-  function updateField<K extends Path<SettingsFormValues>>(
+  //
+  // These bypass handleSubmit, so the payload is validated here instead: a
+  // temperature field the user has cleared mid-edit holds NaN, which reached
+  // the firmware as null and was stored as 0 — turning "Maximum Safe
+  // Temperature" into a limit that rejects every firing. On a refused save the
+  // control is left alone, so it springs back rather than displaying a state
+  // the controller never took.
+  function updateField<K extends Path<SettingsFormValues> & keyof SettingsFormValues>(
     field: K,
-    value: PathValue<SettingsFormValues, K>,
+    value: SettingsFormValues[K],
   ) {
-    setValue(field, value);
-    saveSettings.mutate({ ...getValues(), [field]: value });
+    const patch = prepareSettingsPatch(getValues(), field, value);
+    if (!patch.ok) {
+      toast.error(`Not saved: ${patch.message}`);
+      return;
+    }
+    setValue(field, value as PathValue<SettingsFormValues, K>);
+    saveSettings.mutate(patch.settings);
   }
 
   const handleSetToken = useCallback(async () => {
@@ -160,7 +204,9 @@ export function Settings() {
     }
     try {
       await startAutotune.mutateAsync(autotuneSetpoint);
-      setAutotuneRunning(true);
+      // Pending until a *fresh* status frame confirms it: the firmware only
+      // queues the start command, so the next poll or two may still read idle.
+      setAutotuneSession(beginAutotuneSession(Date.now()));
       toast.success("Auto-tune started");
     } catch (e) {
       toast.error(`Failed: ${toErrorMessage(e)}`);
@@ -170,7 +216,7 @@ export function Settings() {
   const handleStopAutotune = useCallback(async () => {
     try {
       await stopAutotune.mutateAsync();
-      setAutotuneRunning(false);
+      setAutotuneSession(endAutotuneSession(Date.now()));
       toast.success("Auto-tune stopped");
     } catch {
       toast.error("Failed to stop auto-tune");
