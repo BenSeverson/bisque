@@ -139,6 +139,12 @@ final class SettingsViewModel {
                 case .complete:
                     self.installProgress = 100
                     self.otaMessage = "Update installed. Kiln is rebooting..."
+                    // Without this the flag stays true after a successful
+                    // install, leaving Check for Updates / Install disabled
+                    // until the view is recreated (#145). Matches the .failed
+                    // branch; the subscription itself is replaced (and so
+                    // cancelled) by the next installUpdate().
+                    self.isInstalling = false
                 case .failed(let message):
                     self.error = message
                     self.isInstalling = false

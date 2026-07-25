@@ -1,9 +1,11 @@
 @preconcurrency import ActivityKit
 import Foundation
+import OSLog
 
 @MainActor @Observable
 final class FiringActivityManager {
     private var currentActivity: Activity<FiringActivityAttributes>?
+    private let log = Logger(subsystem: "com.bisque.kiln-controller", category: "liveactivity")
 
     func start(profileName: String) {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
@@ -30,7 +32,7 @@ final class FiringActivityManager {
                 pushType: nil
             )
         } catch {
-            print("[LiveActivity] Failed to start: \(error)")
+            log.error("Failed to start Live Activity: \(error.localizedDescription, privacy: .public)")
         }
     }
 

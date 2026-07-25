@@ -7,6 +7,10 @@ struct ConnectionView: View {
     @State private var portString: String = ""
     @State private var showTokenField = false
     @State private var token: String = ""
+    /// Set when the token could not be written to the keychain. The connection
+    /// still succeeds for this session; the warning is about the *next* launch,
+    /// which used to fail with an unexplained "Authentication required" (#151).
+    @State private var tokenSaveWarning: String?
 
     var body: some View {
         NavigationStack {
@@ -68,7 +72,10 @@ struct ConnectionView: View {
                     connection.host = host
                     connection.port = Int(portString) ?? 80
                     if !token.isEmpty {
-                        connection.setAndSaveToken(token)
+                        tokenSaveWarning =
+                            connection.setAndSaveToken(token)
+                            ? nil
+                            : "Connected, but the API token could not be saved to the keychain. You will need to enter it again next launch."
                     }
                     Task {
                         await connection.connect()
@@ -96,6 +103,14 @@ struct ConnectionView: View {
                     Text(message)
                         .font(.callout)
                         .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                }
+
+                if let tokenSaveWarning {
+                    Text(tokenSaveWarning)
+                        .font(.callout)
+                        .foregroundStyle(.orange)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
                 }

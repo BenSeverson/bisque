@@ -49,9 +49,26 @@ final class ProfilesViewModel {
         }
     }
 
+    /// Ids reach URL paths, NVS keys, and filenames. Imported JSON is arbitrary,
+    /// so anything outside this set is rejected at the door rather than escaped
+    /// at each use site (#152). Matches the firmware's NVS-key-safe convention:
+    /// alphanumerics, dash, underscore.
+    private static let allowedIdCharacters = CharacterSet.alphanumerics.union(
+        CharacterSet(charactersIn: "-_")
+    )
+
+    static func isValidProfileId(_ id: String) -> Bool {
+        !id.isEmpty && id.count <= 64
+            && id.unicodeScalars.allSatisfy { allowedIdCharacters.contains($0) }
+    }
+
     func importProfile(from data: Data, using client: KilnAPIClient, store: KilnStore) async {
         do {
             let profile = try JSONDecoder().decode(FiringProfile.self, from: data)
+            guard Self.isValidProfileId(profile.id) else {
+                self.error = "This profile has an invalid id. Only letters, digits, - and _ are allowed."
+                return
+            }
             let result = try await client.importProfile(profile)
             let imported = profile.copyWithId(result.id)
             store.profiles.append(imported)
