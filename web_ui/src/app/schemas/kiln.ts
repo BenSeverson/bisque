@@ -5,9 +5,24 @@ import { HOLD_UNTIL_SKIP } from "../types/kiln";
 const finiteNumber = (msg: string) =>
   z.number({ message: msg }).refine(Number.isFinite, { message: msg });
 
+/**
+ * Firmware limits, mirrored so the builder rejects an over-size profile with a
+ * clear message instead of letting the device silently truncate it or reject
+ * the whole save with an opaque 400 (#135).
+ *
+ * `FIRING_MAX_SEGMENTS` is 16 and `FIRING_NAME_LEN` is 48 (47 chars + NUL) in
+ * `components/firing_engine/include/firing_types.h`; api_handlers.c truncates
+ * past the segment cap and rejects request bodies over 2048 bytes outright.
+ */
+export const MAX_SEGMENTS = 16;
+export const MAX_NAME_LENGTH = 47;
+
 export const firingSegmentSchema = z.object({
   id: z.string(),
-  name: z.string().min(1, "Segment name is required"),
+  name: z
+    .string()
+    .min(1, "Segment name is required")
+    .max(MAX_NAME_LENGTH, `Segment name must be ${MAX_NAME_LENGTH} characters or fewer`),
   rampRate: finiteNumber("Ramp rate is required").refine((v) => v !== 0, {
     message: "Ramp rate must be non-zero",
   }),
@@ -16,9 +31,15 @@ export const firingSegmentSchema = z.object({
 });
 
 export const profileFormSchema = z.object({
-  name: z.string().min(1, "Profile name is required"),
+  name: z
+    .string()
+    .min(1, "Profile name is required")
+    .max(MAX_NAME_LENGTH, `Profile name must be ${MAX_NAME_LENGTH} characters or fewer`),
   description: z.string(),
-  segments: z.array(firingSegmentSchema).min(1, "At least one segment is required"),
+  segments: z
+    .array(firingSegmentSchema)
+    .min(1, "At least one segment is required")
+    .max(MAX_SEGMENTS, `A profile can have at most ${MAX_SEGMENTS} segments`),
 });
 
 export type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -26,9 +47,15 @@ export type ProfileFormValues = z.infer<typeof profileFormSchema>;
 /** Full profile shape used for import — must match FiringProfile in types/kiln.ts. */
 export const firingProfileSchema = z.object({
   id: z.string().min(1, "Profile id is required"),
-  name: z.string().min(1, "Profile name is required"),
+  name: z
+    .string()
+    .min(1, "Profile name is required")
+    .max(MAX_NAME_LENGTH, `Profile name must be ${MAX_NAME_LENGTH} characters or fewer`),
   description: z.string(),
-  segments: z.array(firingSegmentSchema).min(1, "At least one segment is required"),
+  segments: z
+    .array(firingSegmentSchema)
+    .min(1, "At least one segment is required")
+    .max(MAX_SEGMENTS, `A profile can have at most ${MAX_SEGMENTS} segments`),
   maxTemp: z.number(),
   estimatedDuration: z.number(),
 });

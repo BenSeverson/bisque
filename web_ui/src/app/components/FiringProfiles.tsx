@@ -17,7 +17,7 @@ import { formatTemp, formatRate } from "../utils/temperature";
 export function FiringProfiles() {
   const { selectedProfileId, setSelectedProfileId } = useKilnStore();
   const unit = useTempUnit();
-  const { data: profiles = [] } = useProfiles();
+  const { data: profiles = [], isError: profilesFailed, error: profilesError } = useProfiles();
   const selectedProfile = useMemo(
     () => profiles.find((p) => p.id === selectedProfileId) ?? null,
     [profiles, selectedProfileId],
@@ -175,15 +175,30 @@ export function FiringProfiles() {
         ))}
       </div>
 
-      {profiles.length === 0 && (
+      {/* A failed fetch is not an empty library — saying "no profiles available"
+          when the device is unreachable or the token was rejected reads as data
+          loss (#135). */}
+      {profilesFailed ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">No firing profiles available.</p>
+            <p className="text-destructive">Could not load firing profiles.</p>
+            <p className="text-sm text-muted-foreground mt-2">{toErrorMessage(profilesError)}</p>
             <p className="text-sm text-muted-foreground mt-2">
-              Create a new profile in the Profile Builder tab or import one.
+              Your saved profiles are still on the kiln — check the connection and try again.
             </p>
           </CardContent>
         </Card>
+      ) : (
+        profiles.length === 0 && (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <p className="text-muted-foreground">No firing profiles available.</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Create a new profile in the Profile Builder tab or import one.
+              </p>
+            </CardContent>
+          </Card>
+        )
       )}
     </div>
   );

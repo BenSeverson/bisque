@@ -6,6 +6,11 @@ import { handleRequest } from "./handlers";
 import { state } from "./state";
 import { ensureTicking } from "./simulator";
 
+/** Request path with any query string stripped. `undefined` stays undefined. */
+function pathOf(url: string | undefined): string | undefined {
+  return url?.split("?")[0];
+}
+
 export function kilnMockPlugin(): Plugin {
   return {
     name: "kiln-mock",
@@ -44,7 +49,10 @@ export function kilnMockPlugin(): Plugin {
         patchable.emit = function (event: string | symbol, ...args: unknown[]): boolean {
           if (event === "upgrade") {
             const req = args[0] as IncomingMessage;
-            if (req.url === "/api/v1/ws") {
+            // Compare the path only. The client appends ?token=... whenever an
+            // API token is set, and an exact match let those upgrades fall
+            // through to the hardware proxy while REST kept hitting the mock.
+            if (pathOf(req.url) === "/api/v1/ws") {
               const socket = args[1] as Duplex;
               const head = args[2] as Buffer;
               wss.handleUpgrade(req, socket, head, (ws) => {
@@ -59,7 +67,7 @@ export function kilnMockPlugin(): Plugin {
 
       // Intercept REST requests before the proxy middleware
       server.middlewares.use((req, res, next) => {
-        if (!req.url?.startsWith("/api/v1") || req.url === "/api/v1/ws") {
+        if (!req.url?.startsWith("/api/v1") || pathOf(req.url) === "/api/v1/ws") {
           return next();
         }
         handleRequest(req, res);

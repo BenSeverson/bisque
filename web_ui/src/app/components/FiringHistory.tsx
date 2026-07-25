@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -27,11 +27,19 @@ export function FiringHistory() {
   const [selectedRecord, setSelectedRecord] = useState<HistoryRecord | null>(null);
   const [traceData, setTraceData] = useState<{ time_s: number; temp_c: number }[]>([]);
 
+  // Sequence guard. Traces are potentially large, slow-streaming CSVs, so
+  // clicking record 2 then record 3 can resolve out of order and leave the chart
+  // titled "record 3" while plotting record 2's data. Only the newest request
+  // may write state (#135).
+  const traceRequestSeq = useRef(0);
+
   const handleSelectRecord = useCallback(async (record: HistoryRecord) => {
+    const seq = ++traceRequestSeq.current;
     setSelectedRecord(record);
     setTraceData([]);
     try {
       const csv = await api.getHistoryTrace(record.id);
+      if (seq !== traceRequestSeq.current) return;
       const lines = csv.trim().split("\n").slice(1);
       const parsed = lines
         .map((line) => {
