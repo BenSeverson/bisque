@@ -1,5 +1,6 @@
 #include "web_server.h"
 #include "api_json.h"
+#include "auth_helpers.h"
 #include "firing_engine.h"
 #include "firing_types.h"
 #include "thermocouple.h"
@@ -34,6 +35,13 @@ static temperature_sensor_handle_t s_board_temp_handle = NULL;
 /**
  * Check Bearer token auth. Returns true if request is authorized.
  * If token is empty in settings, all requests are authorized.
+ *
+ * The `Authorization` header is the only accepted channel. A `?token=` query
+ * parameter used to be honoured as well, which put the credential everywhere a
+ * URL goes — proxy logs, browser history, `Referer` headers — for no benefit:
+ * every REST client here (the web UI's fetch, the iOS URLSession) sends the
+ * header, and the one place a browser genuinely cannot set headers, the
+ * WebSocket handshake, does not consult this function at all (#81).
  */
 static bool check_auth(httpd_req_t *req)
 {
@@ -48,23 +56,9 @@ static bool check_auth(httpd_req_t *req)
     /* Check Authorization: Bearer <token> */
     char auth_hdr[96] = {0};
     if (httpd_req_get_hdr_value_str(req, "Authorization", auth_hdr, sizeof(auth_hdr)) == ESP_OK) {
-        const char *prefix = "Bearer ";
-        size_t prefix_len = strlen(prefix);
-        if (strncmp(auth_hdr, prefix, prefix_len) == 0) {
-            if (strcmp(auth_hdr + prefix_len, settings.api_token) == 0) {
-                return true;
-            }
-        }
-    }
-
-    /* Check ?token= query parameter */
-    char token_param[80] = {0};
-    if (httpd_req_get_url_query_str(req, token_param, sizeof(token_param)) == ESP_OK) {
-        char val[80] = {0};
-        if (httpd_query_key_value(token_param, "token", val, sizeof(val)) == ESP_OK) {
-            if (strcmp(val, settings.api_token) == 0) {
-                return true;
-            }
+        const char *supplied = NULL;
+        if (auth_bearer_token(auth_hdr, &supplied)) {
+            return auth_token_equal(supplied, settings.api_token, sizeof(settings.api_token));
         }
     }
 
