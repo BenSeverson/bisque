@@ -700,7 +700,7 @@ static void begin_firing(float cur_temp, int64_t now_us)
     progress_unlock();
 }
 
-static void complete_firing(float peak, uint32_t dur, bool save_elem_hrs)
+static void complete_firing(float peak, uint32_t dur)
 {
     safety_set_ssr(0.0f);
     progress_lock();
@@ -708,9 +708,9 @@ static void complete_firing(float peak, uint32_t dur, bool save_elem_hrs)
     s_progress.status = FIRING_STATUS_COMPLETE;
     progress_unlock();
     history_firing_end(HISTORY_OUTCOME_COMPLETE, peak, dur, 0);
-    if (save_elem_hrs) {
-        save_element_hours();
-    }
+    /* Every completion flushes the element-on counter — an opt-out here was how
+       skip-to-complete came to silently drop up to a save interval of it. */
+    save_element_hours();
     xEventGroupSetBits(safety_get_event_group(), SAFETY_BIT_FIRING_COMPLETE);
     emit_event(FIRING_EVENT_COMPLETE, peak, dur);
 }
@@ -731,6 +731,24 @@ static void do_stop(void)
     s_relay_test_end_us = 0;
     progress_unlock();
     ESP_LOGI(TAG, "Firing stopped");
+}
+
+/* Add this tick's element-on time to the wear counter, flushing to NVS at most
+ * once per ELEM_SAVE_INTERVAL_US. Called from every firing_tick path that can
+ * energize the elements — normal firing *and* autotune, which relay-cycles at
+ * full duty for up to a couple of hours and wears them just the same (#129).
+ * Sums raw µs so sub-second ticks aren't truncated away. */
+static void accumulate_element_on(float duty, int64_t dt_us, int64_t now_us)
+{
+    if (duty <= 0.0f || dt_us <= 0) {
+        return;
+    }
+    s_element_on_accum_us += (uint64_t)dt_us;
+    s_element_on_s = (uint32_t)(s_element_on_accum_us / 1000000ULL);
+    if ((now_us - s_state.last_elem_save_us) >= ELEM_SAVE_INTERVAL_US) {
+        save_element_hours();
+        s_state.last_elem_save_us = now_us;
+    }
 }
 
 static void handle_cmd(const firing_cmd_t *cmd)
@@ -976,11 +994,13 @@ static void handle_cmd(const firing_cmd_t *cmd)
             progress_unlock();
             ESP_LOGI(TAG, "Skipped to segment %d", next);
         } else if (active && seg_idx + 1 >= total) {
-            /* Skip last segment → firing complete */
+            /* Skip last segment → firing complete. Flush element hours like the
+               normal completion and STOP paths do; without it a firing finished
+               this way loses up to one save interval of on-time on reboot. */
             progress_lock();
             uint32_t dur = s_progress.elapsed_time;
             progress_unlock();
-            complete_firing(s_state.peak_temp_c, dur, false);
+            complete_firing(s_state.peak_temp_c, dur);
         }
         break;
     }
@@ -1213,6 +1233,7 @@ void firing_tick(int64_t now_us)
         float output;
         bool done = pid_autotune_update(&s_autotune, current_temp, &output);
         safety_set_ssr(output);
+        accumulate_element_on(output, dt_us, now_us);
 
         s_state.elapsed_accum_us += dt_us;
         progress_lock();
@@ -1272,15 +1293,7 @@ void firing_tick(int64_t now_us)
     float output = pid_compute(&s_pid, setpoint, current_temp, dt_s);
     safety_set_ssr(output);
 
-    /* Accumulate element-on time (sum raw µs so sub-second ticks aren't lost) */
-    if (output > 0.0f) {
-        s_element_on_accum_us += (uint64_t)dt_us;
-        s_element_on_s = (uint32_t)(s_element_on_accum_us / 1000000ULL);
-        if ((now_us - s_state.last_elem_save_us) >= ELEM_SAVE_INTERVAL_US) {
-            save_element_hours();
-            s_state.last_elem_save_us = now_us;
-        }
-    }
+    accumulate_element_on(output, dt_us, now_us);
 
     /* History: record temperature once per minute */
     if ((now_us - s_state.last_history_sample_us) >= HISTORY_SAMPLE_INTERVAL_US) {
