@@ -58,7 +58,7 @@ import {
   useSkipSegment,
   useTempUnit,
 } from "../hooks/queries";
-import { formatTemp, formatRate, toDisplayTemp, unitLabel } from "../utils/temperature";
+import { formatTemp, formatRate, unitLabel } from "../utils/temperature";
 
 export function FiringDashboard() {
   const {
