@@ -4,8 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 echo "==> clang-format (C)"
-find main components \( -path '*/assets/*' -prune \) -o \( -name '*.c' -o -name '*.h' \) -print \
-    | xargs clang-format -i
+./scripts/c-sources.sh | xargs clang-format -i
 
 echo "==> prettier + eslint --fix (web_ui)"
 cd web_ui

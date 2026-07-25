@@ -5,8 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 echo "==> clang-format --dry-run --Werror"
-find main components \( -path '*/assets/*' -prune \) -o \( -name '*.c' -o -name '*.h' \) -print \
-    | xargs clang-format --dry-run --Werror
+./scripts/c-sources.sh | xargs clang-format --dry-run --Werror
 
 echo "==> web_ui: typecheck + lint + format:check"
 cd web_ui
