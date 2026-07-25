@@ -21,7 +21,10 @@ managed_components/
 spiffs_data/www/
 
 # Web UI
-web_ui/node_modules/
+# No trailing slash: a directory-only pattern does not match a *symlink* named
+# node_modules, which is how a stray link got committed as a 120000 blob and
+# broke npm/tsc in every fresh clone.
+web_ui/node_modules
 web_ui/dist/
 
 # macOS
