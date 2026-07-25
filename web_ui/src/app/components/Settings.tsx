@@ -12,6 +12,7 @@ import {
   IDLE_AUTOTUNE_SESSION,
   type AutotuneSession,
 } from "../utils/autotuneSession";
+import { prepareSettingsPatch } from "../utils/settingsPatch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Label } from "./ui/label";
 import { Input } from "./ui/input";
@@ -140,12 +141,24 @@ export function Settings() {
   };
 
   // Optimistic update helper for switches/selects that save immediately.
-  function updateField<K extends Path<SettingsFormValues>>(
+  //
+  // These bypass handleSubmit, so the payload is validated here instead: a
+  // temperature field the user has cleared mid-edit holds NaN, which reached
+  // the firmware as null and was stored as 0 — turning "Maximum Safe
+  // Temperature" into a limit that rejects every firing. On a refused save the
+  // control is left alone, so it springs back rather than displaying a state
+  // the controller never took.
+  function updateField<K extends Path<SettingsFormValues> & keyof SettingsFormValues>(
     field: K,
-    value: PathValue<SettingsFormValues, K>,
+    value: SettingsFormValues[K],
   ) {
-    setValue(field, value);
-    saveSettings.mutate({ ...getValues(), [field]: value });
+    const patch = prepareSettingsPatch(getValues(), field, value);
+    if (!patch.ok) {
+      toast.error(`Not saved: ${patch.message}`);
+      return;
+    }
+    setValue(field, value as PathValue<SettingsFormValues, K>);
+    saveSettings.mutate(patch.settings);
   }
 
   const handleSetToken = useCallback(async () => {
