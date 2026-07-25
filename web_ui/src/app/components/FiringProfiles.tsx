@@ -100,6 +100,15 @@ export function FiringProfiles() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {profiles.map((profile) => (
+          // The card cannot itself be a <button>: it contains Duplicate/Export
+          // buttons, and nesting interactive elements is invalid and unusable with
+          // a screen reader. So the profile name is the real focusable control
+          // (keyboard-activatable via Enter and Space for free, with a visible
+          // focus ring), and the card's onClick stays purely as a pointer
+          // convenience so the whole card remains a phone-sized tap target. The
+          // div carries no role/tabIndex — assistive tech is routed to the button,
+          // and the rest of the card stays readable content rather than being
+          // swallowed into one giant button label (#168).
           <Card
             key={profile.id}
             className={`cursor-pointer transition-all ${
@@ -109,7 +118,19 @@ export function FiringProfiles() {
           >
             <CardHeader>
               <div className="flex justify-between items-start">
-                <CardTitle className="text-lg">{profile.name}</CardTitle>
+                <CardTitle className="text-lg">
+                  <button
+                    type="button"
+                    aria-pressed={selectedProfile?.id === profile.id}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedProfileId(profile.id);
+                    }}
+                    className="cursor-pointer rounded-sm text-left hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  >
+                    {profile.name}
+                  </button>
+                </CardTitle>
                 {selectedProfile?.id === profile.id && <Badge variant="default">Selected</Badge>}
               </div>
               <CardDescription>{profile.description}</CardDescription>
