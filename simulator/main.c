@@ -735,12 +735,56 @@ static void verify_peak_survives_unloadable_profile(void)
     mock_set_profile_load_fail(false);
 }
 
+/* #128 — deleting the active profile out from under a running firing must not make the
+ * dashboard re-open NVS on every 500ms tick; each read runs inside the LVGL lock. */
+static void verify_unloadable_profile_is_not_reread(void)
+{
+    printf("[#128] profile reads after the active profile is deleted\n");
+
+    const uint32_t ticks = 40;
+    char detail[96];
+
+    /* (1) Profile deleted mid-firing. The cached copy stays valid, so the dashboard keeps
+       showing profile-derived detail and never needs to touch NVS again. */
+    drive(FIRING_STATUS_IDLE, 25.0f, 0, "");
+    drive(FIRING_STATUS_HEATING, 100.0f, 60, "profile-1");
+    mock_set_profile_load_fail(true);
+    mock_reset_profile_load_calls();
+    for (uint32_t i = 0; i < ticks; i++) {
+        drive(FIRING_STATUS_HEATING, 100.0f + (float)i * 20.0f, 120 + i * 500, "profile-1");
+    }
+    unsigned reads = mock_profile_load_calls();
+    snprintf(detail, sizeof(detail), "%u reads over %u ticks", reads, (unsigned)ticks);
+    check(reads == 0, "deleting the active profile mid-firing triggers no re-read", detail);
+
+    /* (2) Firing whose profile is already gone when the view is entered: one attempt, then
+       the failure is remembered rather than retried every tick. */
+    drive(FIRING_STATUS_IDLE, 25.0f, 0, "");
+    mock_reset_profile_load_calls();
+    drive(FIRING_STATUS_HEATING, 100.0f, 60, "deleted-profile");
+    unsigned first = mock_profile_load_calls();
+    for (uint32_t i = 0; i < ticks; i++) {
+        drive(FIRING_STATUS_HEATING, 100.0f + (float)i * 20.0f, 120 + i * 500, "deleted-profile");
+    }
+    reads = mock_profile_load_calls();
+    snprintf(detail, sizeof(detail), "%u read(s) on entry, %u total over %u more ticks", first, reads, (unsigned)ticks);
+    check(first == 1 && reads == 1, "an unloadable profile is attempted once, not once per tick", detail);
+
+    /* Graceful degradation: the firing is still shown, just without the profile name. */
+    drive(FIRING_STATUS_COMPLETE, 380.0f, 27000, "deleted-profile");
+    const char *name = find_label_prefixed(lv_screen_active(), "Firing");
+    check(name != NULL, "COMPLETE still renders without profile detail", name ? name : "(no label)");
+
+    mock_set_profile_load_fail(false);
+}
+
 static int run_verify(void)
 {
     s_verify_failures = 0;
     verify_chart_survives_pause();
     verify_peak_resets_on_refire();
     verify_peak_survives_unloadable_profile();
+    verify_unloadable_profile_is_not_reread();
 
     printf("\n== Dashboard state verification ==\n");
     printf("  failures: %d\n", s_verify_failures);
