@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { formatDuration } from "../utils/time";
 import { toErrorMessage } from "../utils/error";
 import { computeSegmentDurationMinutes } from "../utils/profile";
+import { buildChartData, type ChartPoint } from "../utils/chartData";
 import { useKilnStore } from "../stores/kilnStore";
 import { ConnectionBanner } from "./ConnectionBanner";
 import { deriveFiringPhase, showsFiringProgress } from "../utils/firingPhase";
@@ -57,13 +58,6 @@ import {
   useTempUnit,
 } from "../hooks/queries";
 import { formatTemp, formatRate, toDisplayTemp, unitLabel } from "../utils/temperature";
-
-interface ChartPoint {
-  time: number;
-  profile?: number;
-  current?: number;
-  target?: number;
-}
 
 export function FiringDashboard() {
   const {
@@ -254,34 +248,17 @@ export function FiringDashboard() {
     );
   };
 
-  const chartData = useMemo<ChartPoint[]>(() => {
-    if (!selectedProfile || profilePath.length === 0) {
-      return currentTempData.map((p) => ({ time: p.time, current: p.temp, target: p.target }));
-    }
-
-    const map = new Map<number, ChartPoint>();
-    const conv = (c: number) => Math.round(toDisplayTemp(c, unit));
-
-    profilePath.forEach((point) => {
-      map.set(point.time, { time: point.time, profile: conv(point.temp) });
-    });
-
-    currentTempData.forEach((point) => {
-      const existing = map.get(point.time);
-      if (existing) {
-        existing.current = conv(point.temp);
-        existing.target = conv(point.target);
-      } else {
-        map.set(point.time, {
-          time: point.time,
-          current: conv(point.temp),
-          target: conv(point.target),
-        });
-      }
-    });
-
-    return Array.from(map.values()).sort((a, b) => a.time - b.time);
-  }, [selectedProfile, profilePath, currentTempData, unit]);
+  const chartData = useMemo<ChartPoint[]>(
+    () =>
+      buildChartData({
+        currentTempData,
+        // An unselected profile simply contributes no planned path; the live
+        // series is converted either way.
+        profilePath: selectedProfile ? profilePath : [],
+        unit,
+      }),
+    [selectedProfile, profilePath, currentTempData, unit],
+  );
 
   return (
     <div className="space-y-6">
