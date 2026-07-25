@@ -128,26 +128,28 @@ jobs:
   # they just no longer delay this job's start.
   #
   # This job runs entirely inside the espressif/idf:v6.0.2 image — the
-  # same image espressif/esp-idf-ci-action uses internally — and embeds
-  # github/codeql-action/init + analyze so the single traced idf.py build
-  # produces both bisque.bin and the CodeQL C/C++ database. This replaces
-  # the separate Analyze (c-cpp) job that previously compiled the whole
-  # firmware a second time in parallel under a native ESP-IDF install.
+  # same image espressif/esp-idf-ci-action uses internally. The build is
+  # deliberately NOT CodeQL-traced: a traced build cannot use ccache (a
+  # cache hit skips the compiler, so CodeQL would see nothing compile),
+  # and the analyze step alone adds ~3.5 min to every PR. CodeQL's c-cpp
+  # analysis instead lives in codeql.yml (push to main + weekly), which
+  # does its own cold traced build — same policy as its Swift job.
   build:
     needs: [lint-c, unit-host]
     runs-on: ubuntu-latest
     container:
       image: espressif/idf:v6.0.2
-    # Override the workflow-level `contents: read` so CodeQL can upload
-    # its SARIF results from this job.
-    permissions:
-      contents: read
-      security-events: write
-      actions: read
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
+      # The checkout is owned by the host runner user while the container
+      # runs as root, so git refuses to read the repo ("dubious
+      # ownership"). Without this, `git describe` in version.sh fails and
+      # both BISQUE_VERSION and the CMake-derived PROJECT_VER silently
+      # become 0.0.0-unknown.
+      - name: Mark workspace safe for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Compute version
         run: echo "BISQUE_VERSION=$(./scripts/version.sh)" >> $GITHUB_ENV
 
@@ -169,7 +171,9 @@ jobs:
 
       # Persist the compiler cache across runs so unchanged translation
       # units are not recompiled. restore-keys takes the most recent prior
-      # cache when there is no exact SHA hit.
+      # cache when there is no exact SHA hit. PR-branch saves are only
+      # visible to that branch, so the caches PRs actually warm-start from
+      # are the ones saved by pushes to main.
       - name: Cache ccache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -180,41 +184,42 @@ jobs:
       - name: Create ccache dir
         run: mkdir -p .ccache
 
-      # CodeQL init sits between the web build and the firmware build so
-      # only the C/C++ compile is traced — npm is covered by codeql.yml's
-      # javascript-typescript analysis.
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
-        with:
-          languages: c-cpp
-          build-mode: manual
-          config-file: ./.github/codeql/codeql-config.yml
-
-      # The one firmware build, traced by CodeQL. GitHub bypasses the
-      # image entrypoint for container jobs, so we source export.sh
-      # explicitly to put idf.py and the xtensa toolchain on PATH.
+      # GitHub bypasses the image entrypoint for container jobs, so we
+      # source export.sh explicitly to put idf.py and the xtensa toolchain
+      # on PATH.
+      #
+      # CCACHE_MAXSIZE must comfortably exceed one full build's output:
+      # at the old 500M limit the cache sat at 100% with constant
+      # cleanups, and LRU eviction ahead of the (deterministic) compile
+      # order produced a 0% hit rate across the cache's entire history.
+      # Stats are zeroed before the build so --show-stats reports this
+      # run's hit rate rather than a lifetime aggregate.
       - name: Build firmware
         run: |
           export IDF_CCACHE_ENABLE=1
           export CCACHE_DIR="$PWD/.ccache"
-          export CCACHE_MAXSIZE=500M
+          export CCACHE_MAXSIZE=2G
           . "$IDF_PATH/export.sh"
+          ccache --zero-stats
           idf.py set-target esp32s3
           idf.py build
           ccache --show-stats
 
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
-        with:
-          category: "/language:c-cpp"
-
       - name: Check firmware size
         run: make size-firmware
 
-      # clang-tidy reuses the toolchain in the image. It runs after the
-      # CodeQL analysis so its compiler invocations stay outside the
-      # trace, and so a lint regression doesn't gate the SARIF upload.
-      #
+      # clang-tidy reuses the toolchain in the image, but esp-clang itself
+      # is not bundled — idf_tools.py downloads it on every run (~30s).
+      # Cache the installed tool; on a hit the install step just verifies
+      # and skips the download. The key tracks the container image tag
+      # since that pins which esp-clang version tools.json resolves —
+      # bump it together with the image.
+      - name: Cache esp-clang
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: /opt/esp/tools/esp-clang
+          key: esp-clang-idf-v6.0.2
+
       # `idf.py clang-check` always exits 0 (it only generates a report), so
       # it cannot gate on its own — a real lint regression would pass
       # silently. We capture its output and fail the job if any genuine

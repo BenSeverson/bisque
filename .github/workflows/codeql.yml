@@ -22,9 +22,10 @@ permissions:
 
 jobs:
   # Detects whether a PR touches the iOS app. The Swift analysis below is
-  # the only slow job (~12 min), so on PRs it runs only when ios/ (or this
-  # workflow) changed. Pushes to main and the weekly schedule always run
-  # Swift regardless, so the security dashboard stays fully covered.
+  # slow (~12 min), so on PRs it runs only when ios/ (or this workflow)
+  # changed; the c-cpp analysis below skips PRs entirely. Pushes to main
+  # and the weekly schedule always run both, so the security dashboard
+  # stays fully covered.
   changes:
     name: Detect changed paths
     runs-on: ubuntu-latest
@@ -61,6 +62,67 @@ jobs:
         uses: github/codeql-action/analyze@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
         with:
           category: "/language:${{ matrix.language }}"
+
+  # ESP32-S3 firmware (main/ + components/). CodeQL only analyzes code it
+  # watches compile, so this job runs its own traced idf.py build inside
+  # the espressif/idf image (checkout, init, and build all share the
+  # container, so the tracer can follow the compiler).
+  #
+  # Push/schedule only, like the Swift job: the traced build cannot use
+  # ccache (a cache hit skips the compiler and CodeQL sees nothing), so
+  # it is always a cold ~4 min compile plus ~3.5 min of analysis — too
+  # slow for the PR path. PRs are gated by clang-tidy + cppcheck in
+  # build.yml instead, and the security dashboard stays covered by every
+  # merge to main.
+  analyze-cpp:
+    name: Analyze (c-cpp)
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:v6.0.2
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+      # The checkout is owned by the host runner user while the container
+      # runs as root; without this, git refuses to read the repo and the
+      # CMake-derived PROJECT_VER falls back to 0.0.0-unknown.
+      - name: Mark workspace safe for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      # idf.py build bundles the web dashboard into the SPIFFS image, so
+      # the gzipped web assets must exist before the firmware build runs.
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web_ui/package-lock.json
+      - run: npm ci
+        working-directory: web_ui
+      - run: npm run build
+        working-directory: web_ui
+      - name: Gzip web assets
+        run: make gzip
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
+        with:
+          languages: c-cpp
+          build-mode: manual
+          config-file: ./.github/codeql/codeql-config.yml
+
+      # GitHub bypasses the image entrypoint for container jobs, so
+      # source export.sh explicitly. No ccache here — see the job comment.
+      - name: Build firmware
+        run: |
+          . "$IDF_PATH/export.sh"
+          idf.py set-target esp32s3
+          idf.py build
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
+        with:
+          category: "/language:c-cpp"
 
   # iOS companion app (ios/Bisque). The .xcodeproj is generated from
   # project.yml by xcodegen, so regenerate it before the traced build.
