@@ -1334,18 +1334,12 @@ void firing_tick(int64_t now_us)
             /* Hold complete — advance to next segment */
             int next_seg = seg_idx + 1;
             if (next_seg >= s_state.active_profile.segment_count) {
-                /* Firing complete */
-                safety_set_ssr(0.0f);
+                /* Firing complete — same single definition the skip-last-segment
+                   path uses, so the two can't drift apart again (#129). */
                 progress_lock();
                 uint32_t dur = s_progress.elapsed_time;
-                s_progress.is_active = false;
-                s_progress.status = FIRING_STATUS_COMPLETE;
                 progress_unlock();
-                float peak = s_state.peak_temp_c;
-                history_firing_end(HISTORY_OUTCOME_COMPLETE, peak, dur, 0);
-                save_element_hours();
-                xEventGroupSetBits(safety_get_event_group(), SAFETY_BIT_FIRING_COMPLETE);
-                emit_event(FIRING_EVENT_COMPLETE, peak, dur);
+                complete_firing(s_state.peak_temp_c, dur);
                 ESP_LOGI(TAG, "Firing complete!");
             } else {
                 start_segment(next_seg, current_temp, now_us);
