@@ -291,7 +291,8 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
 
   // POST /firing/start
   if (method === "POST" && apiPath === "/firing/start") {
-    const ok = startFiring((body as { profileId: string }).profileId);
+    const req = body as { profileId: string; delayMinutes?: number };
+    const ok = startFiring(req.profileId, req.delayMinutes ?? 0);
     if (!ok) return { status: 400, json: { ok: false, error: "Profile not found" } };
     return { status: 200, json: { ok: true } };
   }

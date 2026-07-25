@@ -7,6 +7,12 @@ export interface FiringState {
   running: boolean;
   paused: boolean;
   coolingDown: boolean;
+  /** Armed delayed start: firmware reports is_active=true with status "idle"
+   *  while this counts down, which is the state the dashboard renders as
+   *  "Scheduled". The simulator previously ignored delayMinutes and fired
+   *  immediately, so that state was unreachable in dev and in the demo. */
+  scheduled: boolean;
+  delayRemainingS: number;
   profileId: string;
   profile: FiringProfile | null;
   currentSegmentIndex: number;
@@ -47,6 +53,8 @@ export const state = {
     running: false,
     paused: false,
     coolingDown: false,
+    scheduled: false,
+    delayRemainingS: 0,
     profileId: "",
     profile: null,
     currentSegmentIndex: 0,
