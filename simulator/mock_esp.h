@@ -8,8 +8,13 @@
 #include "firing_types.h"
 #include "thermocouple.h"
 #include "firing_history.h"
+#include <stdbool.h>
 
 void mock_set_progress(const firing_progress_t *p);
 void mock_set_thermocouple(const thermocouple_reading_t *tc);
 void mock_set_error_code(firing_error_code_t code);
 void mock_set_last_firing(const history_record_t *r); /* NULL clears */
+/* Force firing_engine_load_profile() to fail, as it does on hardware when the active
+ * profile has been deleted from NVS. Used by --verify to exercise the dashboard's
+ * "profile could not be loaded" path. */
+void mock_set_profile_load_fail(bool fail);

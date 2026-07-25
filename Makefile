@@ -16,7 +16,7 @@ SPIFFS_DIR  := spiffs_data/www
 # so every idf.py/idf_tools.py call must activate first. No-op once active.
 IDF         := . ./scripts/idf-env.sh &&
 
-.PHONY: help build web gzip firmware sim \
+.PHONY: help build web gzip firmware sim sim-verify \
         test test-host test-web fixtures \
         lint lint-c lint-web format \
         clang-tidy cppcheck \
@@ -48,6 +48,11 @@ sim:  ## Build and run the LVGL/SDL2 simulator with --diff against baselines
 	cmake -S simulator -B simulator/build
 	cmake --build simulator/build
 	./simulator/build/bisque_sim --diff
+
+sim-verify:  ## Assert dashboard state (chart history, peak temp) — no pixel diffing
+	cmake -S simulator -B simulator/build
+	cmake --build simulator/build
+	./simulator/build/bisque_sim --verify
 
 ## ──────────────────────────────────────────────────────────────────────
 ## Tests
