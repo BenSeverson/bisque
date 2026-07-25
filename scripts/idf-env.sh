@@ -37,11 +37,19 @@ _idf_vsort() {
 #   TypeError: expected string or bytes-like object, got 'NoneType'
 # — that is Version.coerce(os.getenv('ESP_IDF_VERSION')) on a NULL.
 #
+# The export.sh test keeps a stale IDF_PATH from satisfying this: an install
+# deleted out from under an activated shell leaves its variables exported and
+# its $IDF_PATH/tools string in PATH, and a second install elsewhere on PATH
+# would still answer `command -v idf.py`. Without the test we would return
+# success with IDF_PATH naming a tree that no longer exists, and the build
+# would fail much later in CMake's include($ENV{IDF_PATH}/...).
+#
 # Re-activating an already-good environment is only a few wasted seconds;
 # skipping activation on a half-set-up one is a build failure, so this check
 # errs toward re-running export.sh.
 _idf_activated() {
     [ -n "${IDF_PATH:-}" ] &&
+        [ -f "$IDF_PATH/export.sh" ] &&
         [ -n "${IDF_PYTHON_ENV_PATH:-}" ] &&
         [ -n "${ESP_IDF_VERSION:-}" ] &&
         command -v idf.py >/dev/null 2>&1
@@ -139,8 +147,23 @@ unset _idf_root
 # and surface it only on failure. Note that a hard enough failure (no python3
 # >= 3.10 on PATH, no `sort -V`) makes export.sh call `exit`, which tears down
 # this shell before we get control back — that is ESP-IDF's behaviour and a
-# sourced script cannot intercept it.
-_idf_log="${TMPDIR:-/tmp}/idf-env-$$.log"
+# sourced script cannot intercept it, so that one path also leaves its log
+# behind. Both are acceptable on a path where the build has already failed.
+#
+# mktemp, not a $$-derived name: TMPDIR is shared and world-writable wherever
+# it falls back to /tmp, PIDs are guessable, and `>` follows symlinks, so a
+# predictable name lets a local process redirect this write onto any file the
+# developer can write. Degrade to /dev/null rather than to a guessable path if
+# mktemp is somehow unavailable — losing the log beats clobbering a file.
+_idf_log=$(mktemp "${TMPDIR:-/tmp}/idf-env.XXXXXX" 2>/dev/null) || _idf_log=/dev/null
+
+# Guard the cleanup: a bare `rm -f $_idf_log` would try to delete /dev/null
+# itself on the fallback path, which succeeds when running as root in a
+# container.
+_idf_rmlog() {
+    [ "$_idf_log" = /dev/null ] || rm -f "$_idf_log"
+}
+
 _idf_rc=0
 . "$IDF_PATH/export.sh" >"$_idf_log" 2>&1 || _idf_rc=$?
 
@@ -152,12 +175,14 @@ if [ "$_idf_rc" -ne 0 ] || ! command -v idf.py >/dev/null 2>&1; then
     echo "idf-env: $IDF_PATH/export.sh did not put idf.py on PATH (exit $_idf_rc)." >&2
     sed 's/^/  | /' "$_idf_log" >&2
     echo "  Run '$IDF_PATH/install.sh esp32s3' to install the toolchain." >&2
-    rm -f "$_idf_log"
+    _idf_rmlog
     unset _idf_log _idf_rc
+    unset -f _idf_rmlog 2>/dev/null || :
     _idf_cleanup
     return 1 2>/dev/null || exit 1
 fi
 
-rm -f "$_idf_log"
+_idf_rmlog
 unset _idf_log _idf_rc
+unset -f _idf_rmlog 2>/dev/null || :
 _idf_cleanup
