@@ -208,7 +208,12 @@ function tick(): void {
     f.holdElapsed += dt;
     f.setpoint = seg.targetTemp;
 
-    if (f.holdElapsed >= seg.holdTime * 60) {
+    // An indefinite hold ends only when the operator skips, as the firmware
+    // requires (firing_engine.c: FIRING_HOLD_INDEFINITE waits for
+    // SKIP_SEGMENT). Comparing against the raw sentinel would quietly advance
+    // the demo after 65,535 simulated minutes — about 18 hours at the default
+    // 60x speed — without anyone pressing Skip.
+    if (seg.holdTime !== HOLD_UNTIL_SKIP && f.holdElapsed >= seg.holdTime * 60) {
       advanceSegment();
     }
   }
