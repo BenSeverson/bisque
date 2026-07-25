@@ -4,6 +4,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { formatUptime } from "../utils/time";
 import { toErrorMessage } from "../utils/error";
 import { commitApiTokenChange, API_TOKEN_MAX_LENGTH } from "../utils/apiToken";
+import {
+  applyAutotuneStatus,
+  beginAutotuneSession,
+  endAutotuneSession,
+  isAutotunePolling,
+  IDLE_AUTOTUNE_SESSION,
+  type AutotuneSession,
+} from "../utils/autotuneSession";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Label } from "./ui/label";
 import { Input } from "./ui/input";
@@ -45,8 +53,13 @@ export function Settings() {
   const saveSettings = useSaveSettings();
   const { data: systemInfo } = useSystemInfo();
 
-  const [autotuneRunning, setAutotuneRunning] = useState(false);
-  const { data: autotuneStatus } = useAutotuneStatus(autotuneRunning);
+  const [autotuneSession, setAutotuneSession] = useState<AutotuneSession>(IDLE_AUTOTUNE_SESSION);
+  const autotuneRunning = isAutotunePolling(autotuneSession);
+  const {
+    data: autotuneStatus,
+    dataUpdatedAt,
+    errorUpdatedAt,
+  } = useAutotuneStatus(autotuneRunning);
   const [autotuneSetpoint, setAutotuneSetpoint] = useState(500);
 
   const startAutotune = useStartAutotune();
@@ -70,20 +83,33 @@ export function Settings() {
   // API token local state
   const [newToken, setNewToken] = useState("");
 
-  // Synchronize the local polling-enable flag with the polled autotune status
-  // and fire a one-time completion toast on the running -> done transition.
-  // This is a genuine external-system sync (the flag gates the polling query),
-  // so it can't be derived during render — deriving it would be circular with
-  // the query's `enabled`. Hence the targeted set-state-in-effect exemption.
+  // Fold each polled status frame into the auto-tune session, and toast once on
+  // the transition out of a run. This is a genuine external-system sync (the
+  // session gates the polling query), so it can't be derived during render —
+  // deriving it would be circular with the query's refetch interval. Hence the
+  // targeted set-state-in-effect exemption.
+  //
+  // The frame's fetch time — not "now" — is what applyAutotuneStatus judges,
+  // so the cached pre-start frame can no longer end the run it never saw.
+  const observedAt = Math.max(dataUpdatedAt, errorUpdatedAt);
   useEffect(() => {
-    if (autotuneStatus?.state === "running") {
+    const { session, outcome } = applyAutotuneStatus(
+      autotuneSession,
+      autotuneStatus?.state,
+      observedAt,
+    );
+    if (session !== autotuneSession) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- see comment above
-      setAutotuneRunning(true);
-    } else if (autotuneStatus && autotuneStatus.state !== "running" && autotuneRunning) {
-      setAutotuneRunning(false);
-      toast.success("Auto-tune complete");
+      setAutotuneSession(session);
     }
-  }, [autotuneStatus, autotuneRunning]);
+    if (outcome === "completed") {
+      toast.success("Auto-tune complete");
+    } else if (outcome === "stopped") {
+      toast.warning("Auto-tune ended before it finished — PID gains are unchanged");
+    } else if (outcome === "unconfirmed") {
+      toast.warning("Auto-tune is not running — the controller reports idle");
+    }
+  }, [autotuneSession, autotuneStatus?.state, observedAt]);
 
   const { register, handleSubmit, setValue, reset, control, getValues } =
     useForm<SettingsFormValues>({
@@ -160,7 +186,9 @@ export function Settings() {
     }
     try {
       await startAutotune.mutateAsync(autotuneSetpoint);
-      setAutotuneRunning(true);
+      // Pending until a *fresh* status frame confirms it: the firmware only
+      // queues the start command, so the next poll or two may still read idle.
+      setAutotuneSession(beginAutotuneSession(Date.now()));
       toast.success("Auto-tune started");
     } catch (e) {
       toast.error(`Failed: ${toErrorMessage(e)}`);
@@ -170,7 +198,7 @@ export function Settings() {
   const handleStopAutotune = useCallback(async () => {
     try {
       await stopAutotune.mutateAsync();
-      setAutotuneRunning(false);
+      setAutotuneSession(endAutotuneSession(Date.now()));
       toast.success("Auto-tune stopped");
     } catch {
       toast.error("Failed to stop auto-tune");
