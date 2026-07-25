@@ -2,6 +2,7 @@
 #include "firing_engine.h"
 #include "firing_engine_internal.h"
 #include "history_host.h"
+#include "nvs.h"
 #include "safety_host.h"
 #include "scenario_helpers.h"
 #include "thermocouple.h"
@@ -985,6 +986,112 @@ static void test_element_hours_accumulate_subsecond_ticks(void)
     TEST_ASSERT_TRUE_MESSAGE(gained >= 8, "element-on time lost to sub-second truncation");
 }
 
+/* Autotune relay-cycles the elements at full duty for up to ~2 hours, so it
+ * wears them exactly like a firing does. The autotune branch of firing_tick
+ * used to return before the accumulation block, so none of that on-time
+ * reached the wear counter and the element-replacement estimate drifted low
+ * for anyone who autotunes regularly. (#129) */
+static void test_element_hours_accumulate_during_autotune(void)
+{
+    scenario_autotune_start(500.0f, 5.0f);
+    firing_status_t status = scenario_run_ticks(&g_plant, 1);
+    TEST_ASSERT_EQUAL(FIRING_STATUS_AUTOTUNE, status);
+
+    /* Kiln starts at 25 °C against a 500 °C setpoint, so the relay-cycle
+     * autotune commands full power for every one of these ticks. */
+    uint32_t before = firing_engine_get_element_hours_s();
+    scenario_run_ticks(&g_plant, 10);
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(1.0f, safety_test_last_duty(), "autotune was not driving the elements");
+
+    uint32_t gained = firing_engine_get_element_hours_s() - before;
+    TEST_ASSERT_TRUE_MESSAGE(gained >= 9, "autotune element-on time not counted toward element wear");
+}
+
+/* Boundary on the fix above: a paused autotune has the SSR off, so those
+ * seconds must not land in the wear counter. */
+static void test_element_hours_do_not_accumulate_while_autotune_paused(void)
+{
+    scenario_autotune_start(500.0f, 5.0f);
+    TEST_ASSERT_EQUAL(FIRING_STATUS_AUTOTUNE, scenario_run_ticks(&g_plant, 5));
+
+    scenario_pause();
+    TEST_ASSERT_EQUAL(FIRING_STATUS_PAUSED, scenario_run_ticks(&g_plant, 1));
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, safety_test_last_duty());
+
+    uint32_t before = firing_engine_get_element_hours_s();
+    scenario_run_ticks(&g_plant, 30);
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(before, firing_engine_get_element_hours_s(),
+                                     "element hours accrued while a paused autotune had the SSR off");
+}
+
+/* Same boundary for a paused firing. */
+static void test_element_hours_do_not_accumulate_while_paused(void)
+{
+    firing_profile_t p = scenario_short_profile();
+    scenario_start(&p, 0);
+    TEST_ASSERT_TRUE(scenario_run_until_status(&g_plant, FIRING_STATUS_HEATING, 30));
+    scenario_run_ticks(&g_plant, 5);
+
+    scenario_pause();
+    TEST_ASSERT_EQUAL(FIRING_STATUS_PAUSED, scenario_run_ticks(&g_plant, 1));
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, safety_test_last_duty());
+
+    uint32_t before = firing_engine_get_element_hours_s();
+    scenario_run_ticks(&g_plant, 30);
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(before, firing_engine_get_element_hours_s(),
+                                     "element hours accrued while paused with the SSR off");
+}
+
+/* Read back the persisted element-on seconds, or -1 if nothing was ever
+ * flushed to NVS. */
+static int32_t persisted_element_hours_s(void)
+{
+    nvs_handle_t handle;
+    if (nvs_open("kiln_diag", NVS_READONLY, &handle) != ESP_OK) {
+        return -1;
+    }
+    uint32_t stored = 0;
+    esp_err_t err = nvs_get_u32(handle, "elem_hrs", &stored);
+    nvs_close(handle);
+    return (err == ESP_OK) ? (int32_t)stored : -1;
+}
+
+/* Finishing a firing by skipping its last segment is a completion like any
+ * other, but it passed save_elem_hrs=false — so up to ELEM_SAVE_INTERVAL_US
+ * (5 min) of accumulated on-time was lost on the next reboot. (#129) */
+static void test_skip_to_complete_flushes_element_hours(void)
+{
+    firing_profile_t p = {0};
+    strncpy(p.id, "skip-flush", FIRING_ID_LEN - 1);
+    strncpy(p.name, "Skip Flush", FIRING_NAME_LEN - 1);
+    p.segment_count = 1;
+    p.max_temp = 600.0f;
+    p.estimated_duration = 30;
+    p.segments[0].ramp_rate = 600.0f;
+    p.segments[0].target_temp = 600.0f;
+    p.segments[0].hold_time = FIRING_HOLD_INDEFINITE;
+    strncpy(p.segments[0].name, "Ramp", FIRING_NAME_LEN - 1);
+
+    scenario_start(&p, 0);
+    TEST_ASSERT_TRUE(scenario_run_until_status(&g_plant, FIRING_STATUS_HEATING, 30));
+    scenario_run_ticks(&g_plant, 20);
+
+    uint32_t accrued = firing_engine_get_element_hours_s();
+    TEST_ASSERT_TRUE_MESSAGE(accrued > 0, "no element-on time accrued to flush");
+
+    /* Skipping the only segment completes the firing. Well under the 5-minute
+     * periodic save interval, so NVS holds nothing yet. */
+    TEST_ASSERT_EQUAL_INT32_MESSAGE(-1, persisted_element_hours_s(), "periodic save fired; test window is too long");
+
+    scenario_skip();
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL(FIRING_STATUS_COMPLETE, prog.status);
+
+    TEST_ASSERT_EQUAL_INT32_MESSAGE((int32_t)accrued, persisted_element_hours_s(),
+                                    "skip-to-complete did not flush element hours to NVS");
+}
+
 /* ── Profile key collision: distinct IDs sharing a 15-char NVS key rejected ─ */
 
 /* Saving past the profile limit used to write the blob, skip the index append,
@@ -1220,6 +1327,10 @@ int main(void)
     RUN_TEST(test_long_pause_does_not_trip_not_rising);
     RUN_TEST(test_pause_does_not_jump_setpoint);
     RUN_TEST(test_element_hours_accumulate_subsecond_ticks);
+    RUN_TEST(test_element_hours_accumulate_during_autotune);
+    RUN_TEST(test_element_hours_do_not_accumulate_while_autotune_paused);
+    RUN_TEST(test_element_hours_do_not_accumulate_while_paused);
+    RUN_TEST(test_skip_to_complete_flushes_element_hours);
     RUN_TEST(test_profile_save_rejected_when_index_full);
     RUN_TEST(test_profile_update_still_allowed_when_index_full);
     RUN_TEST(test_profile_key_collision_rejected);
