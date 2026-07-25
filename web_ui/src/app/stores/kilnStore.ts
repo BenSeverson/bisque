@@ -31,6 +31,7 @@ const initialProgress: FiringProgress = {
   totalSegments: 0,
   elapsedTime: 0,
   estimatedTimeRemaining: 0,
+  delayRemaining: 0,
   status: "idle",
 };
 
@@ -136,6 +137,7 @@ export const useKilnStore = create<KilnState>((set) => ({
               totalSegments: endedFiring ? 0 : d.totalSegments,
               elapsedTime: endedFiring ? 0 : d.elapsedTime,
               estimatedTimeRemaining: endedFiring ? 0 : d.estimatedTimeRemaining,
+              delayRemaining: endedFiring ? 0 : (d.delayRemaining ?? 0),
               status: coerceFiringStatus(d.status),
             },
             currentTempData: newData,

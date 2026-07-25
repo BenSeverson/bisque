@@ -315,6 +315,7 @@ function broadcast(): void {
       totalSegments: f.profile?.segments.length ?? 0,
       elapsedTime: Math.round(f.simulatedElapsed),
       estimatedTimeRemaining: Math.round(estimateTimeRemaining()),
+      delayRemaining: Math.round(f.scheduled ? f.delayRemainingS : 0),
       isActive: f.running || f.scheduled,
       // The firmware includes profileId in every frame; omitting it here meant
       // a client could never adopt a firing started elsewhere.
@@ -338,6 +339,7 @@ export function getStatusResponse() {
     totalSegments: f.profile?.segments.length ?? 0,
     elapsedTime: Math.round(f.simulatedElapsed),
     estimatedTimeRemaining: Math.round(estimateTimeRemaining()),
+    delayRemaining: Math.round(f.scheduled ? f.delayRemainingS : 0),
     status: f.status,
     thermocouple: {
       temperature: Math.round(f.currentTemp * 10) / 10,

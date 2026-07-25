@@ -217,6 +217,48 @@ static void test_delayed_start_transitions_after_delay(void)
     TEST_ASSERT_TRUE_MESSAGE(heating, "delayed firing never transitioned to HEATING");
 }
 
+/* The countdown for an armed delayed start must be published, must fall as the
+ * delay elapses, and must be back to 0 once the firing actually begins — a
+ * client uses it both to render "starts in 7h 58m" and to tell that anything is
+ * scheduled at all (#204). */
+static void test_delayed_start_publishes_a_falling_countdown(void)
+{
+    firing_profile_t p = scenario_short_profile();
+    scenario_start(&p, 2); /* 2-minute delay */
+
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    /* Rounded up, so the full delay is visible immediately rather than 119. */
+    TEST_ASSERT_EQUAL_UINT32(120, prog.delay_remaining);
+
+    scenario_run_ticks(&g_plant, 60);
+    firing_engine_get_progress(&prog);
+    uint32_t after_a_minute = prog.delay_remaining;
+    TEST_ASSERT_TRUE_MESSAGE(after_a_minute > 0, "countdown hit zero while still armed");
+    TEST_ASSERT_TRUE_MESSAGE(after_a_minute < 120, "countdown did not fall during the delay");
+
+    /* Once the firing starts, nothing is scheduled any more. */
+    TEST_ASSERT_TRUE(scenario_run_until_status(&g_plant, FIRING_STATUS_HEATING, 90));
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL_UINT32(0, prog.delay_remaining);
+}
+
+/* An immediate firing is not a scheduled one; the field must stay 0 so a client
+ * can use "delayRemaining > 0" as the test for "is one armed". */
+static void test_immediate_start_publishes_no_countdown(void)
+{
+    firing_profile_t p = scenario_short_profile();
+    scenario_start(&p, 0);
+
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL_UINT32(0, prog.delay_remaining);
+
+    scenario_run_ticks(&g_plant, 30);
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL_UINT32(0, prog.delay_remaining);
+}
+
 /* ── Cooling segment: status reports COOLING during a negative ramp ──── */
 
 static void test_cooling_segment_reports_cooling_status(void)
@@ -1296,6 +1338,8 @@ int main(void)
     RUN_TEST(test_skip_mid_ramp_advances_segment);
     RUN_TEST(test_stop_drops_to_idle);
     RUN_TEST(test_delayed_start_transitions_after_delay);
+    RUN_TEST(test_delayed_start_publishes_a_falling_countdown);
+    RUN_TEST(test_immediate_start_publishes_no_countdown);
     RUN_TEST(test_cooling_segment_reports_cooling_status);
     RUN_TEST(test_skip_while_paused_does_not_resume_heating);
     RUN_TEST(test_skip_after_resume_still_advances_segment);

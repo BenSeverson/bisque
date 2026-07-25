@@ -76,6 +76,8 @@ export interface StatusResponse {
   totalSegments: number;
   elapsedTime: number;
   estimatedTimeRemaining: number;
+  /** Seconds until an armed delayed start fires; 0 when none is scheduled. */
+  delayRemaining: number;
   status: string;
   thermocouple: {
     temperature: number;
