@@ -39,6 +39,18 @@ typedef enum {
     VIEW_AUTOTUNE,
 } view_id_t;
 
+/* Widget tree backing a view. Several views share one layout: ACTIVE, PAUSED and AUTOTUNE
+ * are all drawn by build_view_active() and differ only in runtime-toggled details (the
+ * PAUSED overlay, the status bar). Content is torn down and rebuilt per *layout*, never per
+ * view, so a pause/resume keeps the chart's accumulated firing curve alive. */
+typedef enum {
+    LAYOUT_NONE = 0,
+    LAYOUT_IDLE,
+    LAYOUT_ACTIVE,
+    LAYOUT_COMPLETE,
+    LAYOUT_ERROR,
+} layout_id_t;
+
 /* Persistent widgets, created once in dashboard_create. */
 static lv_obj_t *s_screen = NULL;
 static lv_obj_t *s_status_bar = NULL;
@@ -51,7 +63,6 @@ static lv_obj_t *s_select_trap = NULL;
 /* Swappable per-view content container. View-specific widgets are children. */
 static lv_obj_t *s_content = NULL;
 static view_id_t s_current_view = VIEW_NONE;
-static view_id_t s_prev_view = VIEW_NONE;
 /* Last status painted onto the status bar; sentinel forces a repaint on first update. */
 static firing_status_t s_prev_status = (firing_status_t)-1;
 
@@ -75,11 +86,16 @@ static lv_obj_t *s_complete_now_temp = NULL;
 /* ERROR view widgets. */
 static lv_obj_t *s_error_now_temp = NULL;
 
-/* Cached active profile + peak + total duration. Refreshed when entering a profile-using view
- * from a non-profile view. */
+/* Cached active profile + derived total duration. Refreshed when entering a profile-using
+ * view from a non-profile view, or when the engine's profile_id changes.
+ * s_cached_profile_id records the id we last *attempted*, so a profile that fails to load
+ * is not re-attempted (and does not look like a fresh change) on every update. */
 static firing_profile_t s_cached_profile;
 static bool s_cached_profile_valid = false;
+static char s_cached_profile_id[FIRING_ID_LEN] = "";
 static uint32_t s_cached_total_dur_s = CHART_DEFAULT_DUR_S;
+/* Peak temperature of the firing currently being displayed. Reset when a firing begins,
+ * reported by the COMPLETE view. */
 static float s_active_peak_c = 0.0f;
 
 /* ── Mapping helpers ─────────────────────────────────── */
@@ -105,9 +121,28 @@ static view_id_t view_for_status(firing_status_t status)
     }
 }
 
+static layout_id_t layout_for_view(view_id_t v)
+{
+    switch (v) {
+    case VIEW_ACTIVE:
+    case VIEW_PAUSED:
+    case VIEW_AUTOTUNE:
+        return LAYOUT_ACTIVE;
+    case VIEW_COMPLETE:
+        return LAYOUT_COMPLETE;
+    case VIEW_ERROR:
+        return LAYOUT_ERROR;
+    case VIEW_IDLE:
+        return LAYOUT_IDLE;
+    case VIEW_NONE:
+    default:
+        return LAYOUT_NONE;
+    }
+}
+
 static bool view_is_active_family(view_id_t v)
 {
-    return v == VIEW_ACTIVE || v == VIEW_PAUSED || v == VIEW_AUTOTUNE;
+    return layout_for_view(v) == LAYOUT_ACTIVE;
 }
 
 static bool view_uses_profile(view_id_t v)
@@ -209,12 +244,13 @@ static void destroy_content(void)
     }
 }
 
-/* Refresh the cached profile (and derived total duration + reset peak) for views that
- * need profile context. Call when entering a profile-using view from a non-profile view. */
-static void enter_profile_view(const firing_progress_t *prog, const thermocouple_reading_t *tc)
+/* Refresh the cached profile (and derived total duration) for views that need profile
+ * context. Call when entering a profile-using view, or when the engine's profile changes. */
+static void refresh_cached_profile(const firing_progress_t *prog)
 {
     s_cached_profile_valid = false;
     s_cached_total_dur_s = CHART_DEFAULT_DUR_S;
+    snprintf(s_cached_profile_id, sizeof(s_cached_profile_id), "%s", prog->profile_id);
 
     if (prog->profile_id[0] != '\0') {
         if (firing_engine_load_profile(prog->profile_id, &s_cached_profile) == ESP_OK) {
@@ -226,7 +262,12 @@ static void enter_profile_view(const firing_progress_t *prog, const thermocouple
             ESP_LOGW(TAG, "could not load active profile '%s'", prog->profile_id);
         }
     }
+}
 
+/* Start peak tracking for a fresh firing. Seeded from the current reading rather than 0 so
+ * a firing started from an already-hot kiln doesn't report a peak below where it began. */
+static void reset_peak_tracking(const thermocouple_reading_t *tc)
+{
     s_active_peak_c = (tc && !tc->fault) ? tc->temperature_c : 0.0f;
 }
 
@@ -561,32 +602,42 @@ static void on_select_trap_clicked(lv_event_t *e)
 
 /* ── View switching ────────────────────────────────────── */
 
-static void switch_view(view_id_t target, const firing_progress_t *prog)
+/* Make `target` the current view, rebuilding the content area only when the underlying
+ * layout actually changes. Views sharing a layout (ACTIVE / PAUSED / AUTOTUNE) keep their
+ * widgets: rebuilding on every pause/resume would re-initialise the chart series and
+ * discard hours of accumulated firing curve. Per-view details that differ within a layout
+ * (the PAUSED overlay, the segment label) are toggled by dashboard_update instead.
+ *
+ * force_rebuild re-runs the builder even within one layout — needed when the cached profile
+ * changed underneath a live view, since the chart's planned overlay, y-range and plotted
+ * points all describe the profile that was cached at build time. */
+static void switch_view(view_id_t target, const firing_progress_t *prog, bool force_rebuild)
 {
-    if (target == s_current_view) {
+    layout_id_t target_layout = layout_for_view(target);
+    bool rebuild = force_rebuild || target_layout != layout_for_view(s_current_view);
+    s_current_view = target;
+    if (!rebuild) {
         return;
     }
+
     destroy_content();
-    switch (target) {
-    case VIEW_ACTIVE:
-    case VIEW_PAUSED:
-    case VIEW_AUTOTUNE:
+    switch (target_layout) {
+    case LAYOUT_ACTIVE:
         build_view_active();
         break;
-    case VIEW_COMPLETE:
+    case LAYOUT_COMPLETE:
         build_view_complete(prog);
         break;
-    case VIEW_ERROR:
+    case LAYOUT_ERROR:
         build_view_error(prog);
         break;
-    case VIEW_IDLE:
+    case LAYOUT_IDLE:
     default:
         build_view_idle();
         break;
-    case VIEW_NONE:
+    case LAYOUT_NONE:
         break;
     }
-    s_current_view = target;
 }
 
 /* ── Public API ────────────────────────────────────────── */
@@ -621,8 +672,7 @@ void dashboard_create(void)
     lv_group_focus_obj(s_select_trap);
 
     lv_screen_load(s_screen);
-    switch_view(VIEW_IDLE, NULL);
-    s_prev_view = VIEW_IDLE;
+    switch_view(VIEW_IDLE, NULL, false);
     s_prev_status = (firing_status_t)-1;
 
     ESP_LOGI(TAG, "dashboard created");
@@ -634,21 +684,33 @@ void dashboard_update(const thermocouple_reading_t *tc, const firing_progress_t 
         return;
     }
 
+    view_id_t prev_view = s_current_view;
     view_id_t target = view_for_status(prog->status);
 
     /* Refresh cached profile when entering a profile-using view, or when the
        active profile_id changes underneath us (e.g. user starts a new firing
        from the ERROR view — without this, build_view_error would keep showing
        the prior firing's profile name). */
-    bool entering_profile_view = !view_uses_profile(s_prev_view) && view_uses_profile(target);
-    bool profile_id_changed = view_uses_profile(target) && prog->profile_id[0] != '\0' &&
-                              (!s_cached_profile_valid || strcmp(prog->profile_id, s_cached_profile.id) != 0);
+    bool entering_profile_view = !view_uses_profile(prev_view) && view_uses_profile(target);
+    bool profile_id_changed =
+        view_uses_profile(target) && prog->profile_id[0] != '\0' && strcmp(prog->profile_id, s_cached_profile_id) != 0;
     if (entering_profile_view || profile_id_changed) {
-        enter_profile_view(prog, tc);
+        refresh_cached_profile(prog);
     }
 
-    switch_view(target, prog);
-    s_prev_view = target;
+    /* A new firing has begun whenever the active family is entered from outside it. That
+       covers re-firing the same profile straight off the COMPLETE view, where the engine
+       keeps the same profile_id and COMPLETE already counts as a profile-using view — so
+       neither flag above fires and the peak would otherwise carry over from the firing that
+       just finished and be reported again on the next COMPLETE screen. */
+    bool starting_firing = !view_is_active_family(prev_view) && view_is_active_family(target);
+    if (starting_firing || entering_profile_view || profile_id_changed) {
+        reset_peak_tracking(tc);
+    }
+
+    /* Layout changes rebuild on their own; a profile swap under an unchanged layout must be
+       forced, since the chart was built around the previous profile. */
+    switch_view(target, prog, profile_id_changed);
 
     /* Track peak across active firing. */
     if (view_is_active_family(s_current_view) && !tc->fault && tc->temperature_c > s_active_peak_c) {
@@ -683,20 +745,18 @@ void dashboard_update(const thermocouple_reading_t *tc, const firing_progress_t 
         }
     }
 
-    /* View-specific data refresh. */
-    switch (s_current_view) {
-    case VIEW_ACTIVE:
-    case VIEW_PAUSED:
-    case VIEW_AUTOTUNE:
+    /* Layout-specific data refresh — one updater per layout, matching switch_view. */
+    switch (layout_for_view(s_current_view)) {
+    case LAYOUT_ACTIVE:
         update_view_active(tc, prog);
         break;
-    case VIEW_COMPLETE:
+    case LAYOUT_COMPLETE:
         update_view_complete(tc);
         break;
-    case VIEW_ERROR:
+    case LAYOUT_ERROR:
         update_view_error(tc);
         break;
-    case VIEW_IDLE:
+    case LAYOUT_IDLE:
     default:
         update_view_idle(tc);
         break;

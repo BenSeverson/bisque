@@ -48,10 +48,13 @@ The web tests are **contract tests against the firmware**: `make fixtures` build
 ## Display Simulator
 
 ```bash
-make sim   # cmake -S simulator -B simulator/build && bisque_sim --diff
+make sim          # cmake -S simulator -B simulator/build && bisque_sim --diff
+make sim-verify   # same build, then bisque_sim --verify (state assertions, no pixels)
 ```
 
 Builds the LVGL UI against SDL2 on the host and renders each scene, diffing it against the baselines at `docs/screenshots/lcd-<scene>.png`. **Use this to validate any `components/display/` change without flashing hardware.** `bisque_sim --screenshot` rewrites those baselines — run it (and eyeball the result) when a UI change is intentional, since the README screenshots come from the same files.
+
+**Pixel diffing has a blind spot, so `--verify` complements it.** The chart's "actual" temperature series is drawn with 0x0 point markers, so plotted points at non-adjacent indices are invisible in a capture — a wiped chart and a populated one can render identically. Stale cached state (e.g. a peak temperature carried between firings) likewise only shows up across a multi-step sequence no single scene expresses. `--verify` drives `dashboard_update()` through those sequences and asserts on the resulting LVGL tree (chart series contents, label text), exiting non-zero on failure. Add a check there — not a new baseline — when a fix is about *state surviving a transition* rather than appearance. It runs in CI ahead of the pixel diff, and unlike `--diff` it is not subject to the capture flakiness in #196.
 
 ESP-IDF calls are stubbed in `simulator/mock_esp.c`, and the simulator has its own `simulator/lv_conf.h` — LVGL config changes must be mirrored there or the sim silently diverges from the device.
 

@@ -43,6 +43,8 @@ xcuserdata/
 .python-version
 .superpowers/
 .bisque_profile
+# `idf.py clang-check` drops its report here
+warnings.txt
 
 graphify-out/
 .gemini/settings.json

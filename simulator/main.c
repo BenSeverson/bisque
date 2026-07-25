@@ -16,6 +16,14 @@
  * Screenshot mode (--screenshot):
  *   Dumps the boot splash, every state preset and every modal to
  *   docs/screenshots/lcd-*.png then exits.
+ *
+ * Diff mode (--diff):
+ *   Renders the same scenes and compares them against those baselines.
+ *
+ * Verify mode (--verify):
+ *   Drives dashboard_update() through multi-step firing sequences and asserts on the
+ *   resulting LVGL state rather than on pixels, covering regressions a screenshot
+ *   cannot see. Exits non-zero on failure. See "State verification" below.
  */
 #include "lvgl.h"
 #include "app_config.h"
@@ -24,6 +32,7 @@
 #include "modal_profile_picker.h"
 #include "modal_action_menu.h"
 #include "splash.h"
+#include "ui_common.h"
 #include "thermocouple.h"
 #include "firing_types.h"
 #include "firing_engine.h"
@@ -536,16 +545,220 @@ static int run_interactive(lv_display_t *disp)
     return 0;
 }
 
+/* ── State verification (--verify) ────────────────────────────────────────── */
+
+/* Screenshot diffing cannot catch this class of regression, so these checks assert on
+ * widget state instead of pixels:
+ *
+ *   - The chart's "actual" temperature series is drawn with 0x0 point markers
+ *     (s_chart_indicator in ui_theme.c), so plotted points at non-adjacent indices are
+ *     literally invisible in a capture. A wiped series and a populated one can render
+ *     identically — which is why #119 survived a passing screenshot suite.
+ *   - A stale peak temperature (#127) only manifests across two consecutive firings, a
+ *     sequence no single scene can express.
+ *
+ * Each check drives dashboard_update() through the transition that broke, then reads the
+ * resulting LVGL tree back. Failures are counted and returned so this gates CI.
+ */
+
+static int s_verify_failures = 0;
+
+static void check(bool ok, const char *what, const char *detail)
+{
+    printf("  %s  %s%s%s\n", ok ? "PASS" : "FAIL", what, detail ? " — " : "", detail ? detail : "");
+    if (!ok) {
+        s_verify_failures++;
+    }
+}
+
+/* Depth-first search for the first descendant of `parent` with the given class. */
+static lv_obj_t *find_by_class(lv_obj_t *parent, const lv_obj_class_t *cls)
+{
+    uint32_t n = lv_obj_get_child_count(parent);
+    for (uint32_t i = 0; i < n; i++) {
+        lv_obj_t *c = lv_obj_get_child(parent, i);
+        if (lv_obj_check_type(c, cls)) {
+            return c;
+        }
+        lv_obj_t *found = find_by_class(c, cls);
+        if (found) {
+            return found;
+        }
+    }
+    return NULL;
+}
+
+/* Text of the first descendant label starting with `prefix`, or NULL. */
+static const char *find_label_prefixed(lv_obj_t *parent, const char *prefix)
+{
+    uint32_t n = lv_obj_get_child_count(parent);
+    for (uint32_t i = 0; i < n; i++) {
+        lv_obj_t *c = lv_obj_get_child(parent, i);
+        if (lv_obj_check_type(c, &lv_label_class)) {
+            const char *t = lv_label_get_text(c);
+            if (t && strncmp(t, prefix, strlen(prefix)) == 0) {
+                return t;
+            }
+        }
+        const char *found = find_label_prefixed(c, prefix);
+        if (found) {
+            return found;
+        }
+    }
+    return NULL;
+}
+
+/* Number of plotted points on the chart's "actual" series. dashboard.c adds the planned
+ * series first so it draws underneath, so "actual" is the second series. Negative on
+ * structural surprises so a broken assumption fails loudly instead of reading as zero. */
+static int count_plotted_points(void)
+{
+    lv_obj_t *chart = find_by_class(lv_screen_active(), &lv_chart_class);
+    if (!chart) {
+        return -1;
+    }
+    lv_chart_series_t *planned = lv_chart_get_series_next(chart, NULL);
+    lv_chart_series_t *actual = planned ? lv_chart_get_series_next(chart, planned) : NULL;
+    if (!actual) {
+        return -2;
+    }
+    int32_t *y = lv_chart_get_y_array(chart, actual);
+    uint32_t points = lv_chart_get_point_count(chart);
+    int plotted = 0;
+    for (uint32_t i = 0; i < points; i++) {
+        if (y[i] != LV_CHART_POINT_NONE) {
+            plotted++;
+        }
+    }
+    return plotted;
+}
+
+/* Push one engine state through dashboard_update, the way display_task does on device. */
+static void drive(firing_status_t status, float temp, uint32_t elapsed, const char *profile_id)
+{
+    thermocouple_reading_t tc = {
+        .temperature_c = temp,
+        .internal_temp_c = 24.0f,
+        .fault = 0,
+        .timestamp_us = 0,
+    };
+    mock_set_thermocouple(&tc);
+
+    firing_progress_t prog = {0};
+    prog.status = status;
+    prog.current_temp = temp;
+    prog.target_temp = 1222.0f;
+    prog.current_segment = 1;
+    prog.total_segments = 3;
+    prog.elapsed_time = elapsed;
+    prog.estimated_remaining = 600;
+    prog.is_active =
+        (status != FIRING_STATUS_IDLE && status != FIRING_STATUS_COMPLETE && status != FIRING_STATUS_ERROR);
+    strncpy(prog.profile_id, profile_id, FIRING_ID_LEN - 1);
+    mock_set_progress(&prog);
+    pump_frames(2);
+}
+
+/* The COMPLETE view's peak line, formatted the way build_view_complete does, so these
+ * checks follow the configured temperature unit instead of hardcoding °F. */
+static void check_complete_peak(float expected_peak_c, const char *what)
+{
+    char expected[32];
+    snprintf(expected, sizeof(expected), "Peak %.0f%s", (double)ui_temp_value(expected_peak_c), ui_temp_suffix());
+    const char *actual = find_label_prefixed(lv_screen_active(), "Peak ");
+    char detail[96];
+    snprintf(detail, sizeof(detail), "want \"%s\", got \"%s\"", expected, actual ? actual : "(no peak label)");
+    check(actual != NULL && strcmp(actual, expected) == 0, what, detail);
+}
+
+/* #119 — ACTIVE -> PAUSED -> ACTIVE shares one layout, so the chart must keep its points. */
+static void verify_chart_survives_pause(void)
+{
+    printf("[#119] chart history across pause/resume\n");
+
+    drive(FIRING_STATUS_IDLE, 25.0f, 0, "");
+    for (uint32_t i = 0; i <= 40; i++) {
+        drive(FIRING_STATUS_HEATING, 25.0f + 25.0f * (float)i, i * 600u, "profile-1");
+    }
+    int ramped = count_plotted_points();
+
+    char detail[96];
+    snprintf(detail, sizeof(detail), "%d points plotted while heating", ramped);
+    check(ramped >= 30, "ramp plots a curve worth preserving", detail);
+
+    drive(FIRING_STATUS_PAUSED, 1025.0f, 24600, "profile-1");
+    int paused = count_plotted_points();
+    snprintf(detail, sizeof(detail), "%d points before pause, %d after", ramped, paused);
+    check(paused >= ramped, "PAUSE keeps the plotted curve", detail);
+
+    drive(FIRING_STATUS_HEATING, 1030.0f, 24700, "profile-1");
+    int resumed = count_plotted_points();
+    snprintf(detail, sizeof(detail), "%d points before pause, %d after resume", ramped, resumed);
+    check(resumed >= ramped, "RESUME keeps the plotted curve", detail);
+}
+
+/* #127 — re-firing the same profile straight off the Complete screen is a new firing, so
+ * the peak must restart rather than carry over. */
+static void verify_peak_resets_on_refire(void)
+{
+    printf("[#127] peak temperature when re-firing the same profile\n");
+
+    /* Firing 1: peaks at 1180C. */
+    drive(FIRING_STATUS_IDLE, 25.0f, 0, "");
+    drive(FIRING_STATUS_HEATING, 200.0f, 100, "profile-1");
+    drive(FIRING_STATUS_HEATING, 1180.0f, 20000, "profile-1");
+    drive(FIRING_STATUS_COMPLETE, 900.0f, 28000, "profile-1");
+    check_complete_peak(1180.0f, "firing 1 reports its own peak");
+
+    /* Firing 2: same profile, started from COMPLETE with no IDLE in between, stopped early
+       at 300C. The engine keeps the same profile_id, and COMPLETE already counts as a
+       profile-using view, so nothing about the *profile* changes here. */
+    drive(FIRING_STATUS_HEATING, 120.0f, 60, "profile-1");
+    drive(FIRING_STATUS_HEATING, 300.0f, 3000, "profile-1");
+    drive(FIRING_STATUS_COMPLETE, 280.0f, 3200, "profile-1");
+    check_complete_peak(300.0f, "firing 2 reports its own peak, not firing 1's");
+}
+
+/* A profile that cannot be loaded must not look like a fresh profile on every update — that
+ * re-ran the peak reset every tick, pinning the reported peak to the current temperature. */
+static void verify_peak_survives_unloadable_profile(void)
+{
+    printf("[#127] peak tracking when the active profile cannot be loaded\n");
+
+    drive(FIRING_STATUS_IDLE, 25.0f, 0, "");
+    mock_set_profile_load_fail(true);
+    drive(FIRING_STATUS_HEATING, 100.0f, 60, "deleted-profile");
+    drive(FIRING_STATUS_HEATING, 1000.0f, 18000, "deleted-profile"); /* the real peak */
+    drive(FIRING_STATUS_COOLING, 400.0f, 26000, "deleted-profile");  /* falls back down */
+    drive(FIRING_STATUS_COMPLETE, 380.0f, 27000, "deleted-profile");
+    check_complete_peak(1000.0f, "peak is the firing's max, not the last reading");
+    mock_set_profile_load_fail(false);
+}
+
+static int run_verify(void)
+{
+    s_verify_failures = 0;
+    verify_chart_survives_pause();
+    verify_peak_resets_on_refire();
+    verify_peak_survives_unloadable_profile();
+
+    printf("\n== Dashboard state verification ==\n");
+    printf("  failures: %d\n", s_verify_failures);
+    return s_verify_failures == 0 ? 0 : 1;
+}
+
 /* ── main ────────────────────────────────────────────────────────────────── */
 
 int main(int argc, char *argv[])
 {
-    enum { MODE_INTERACTIVE, MODE_SCREENSHOT, MODE_DIFF } mode = MODE_INTERACTIVE;
+    enum { MODE_INTERACTIVE, MODE_SCREENSHOT, MODE_DIFF, MODE_VERIFY } mode = MODE_INTERACTIVE;
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--screenshot") == 0) {
             mode = MODE_SCREENSHOT;
         } else if (strcmp(argv[i], "--diff") == 0) {
             mode = MODE_DIFF;
+        } else if (strcmp(argv[i], "--verify") == 0) {
+            mode = MODE_VERIFY;
         }
     }
 
@@ -561,6 +774,9 @@ int main(int argc, char *argv[])
         break;
     case MODE_DIFF:
         rc = run_diff_mode(disp);
+        break;
+    case MODE_VERIFY:
+        rc = run_verify();
         break;
     case MODE_INTERACTIVE:
     default:
