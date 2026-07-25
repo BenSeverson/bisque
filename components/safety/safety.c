@@ -1,4 +1,5 @@
 #include "safety.h"
+#include "safety_internal.h"
 #include "thermocouple.h"
 #include "app_config.h"
 #include "esp_log.h"
@@ -11,8 +12,6 @@
 #include <math.h>
 
 static const char *TAG = "safety";
-
-#define TEMP_FAULT_TIMEOUT_US ((int64_t)APP_TEMP_FAULT_TIMEOUT_MS * 1000LL)
 
 /* Vent active below this temperature during firing */
 #define VENT_MAX_TEMP_C 700.0f
@@ -343,6 +342,9 @@ void safety_task(void *param)
 {
     (void)param;
     TickType_t last_wake = xTaskGetTickCount();
+    /* Seed the fault-debounce origin at task start: this task outranks
+       temp_read_task, so the first few ticks see no reading at all and a fault
+       present at boot must still get the full grace period. */
     int64_t last_valid_reading_us = esp_timer_get_time();
 
     ESP_LOGI(TAG, "safety_task started");
@@ -353,15 +355,13 @@ void safety_task(void *param)
 
         int64_t now = esp_timer_get_time();
 
-        if (reading.fault != 0) {
-            /* Thermocouple fault detected */
-            if ((now - last_valid_reading_us) > TEMP_FAULT_TIMEOUT_US) {
-                ESP_LOGE(TAG, "Thermocouple fault persisted >5s, emergency stop");
-                xEventGroupSetBits(s_event_group, SAFETY_BIT_TEMP_FAULT);
-                safety_emergency_stop_cause(SAFETY_TRIP_TC_FAULT);
-            }
-        } else {
-            last_valid_reading_us = reading.timestamp_us;
+        safety_tc_state_t tc_state = safety_tc_watchdog_step(&reading, now, &last_valid_reading_us);
+
+        if (tc_state == SAFETY_TC_FAULT_TRIP) {
+            ESP_LOGE(TAG, "Thermocouple fault persisted >5s, emergency stop");
+            xEventGroupSetBits(s_event_group, SAFETY_BIT_TEMP_FAULT);
+            safety_emergency_stop_cause(SAFETY_TRIP_TC_FAULT);
+        } else if (tc_state == SAFETY_TC_OK) {
             xEventGroupClearBits(s_event_group, SAFETY_BIT_TEMP_FAULT);
 
             /* Over-temperature check. Compare the calibration-corrected

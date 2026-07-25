@@ -103,6 +103,12 @@ endfunction()
 add_host_test(test_firing_helpers
     SOURCES test_firing_helpers.c ${ROOT}/components/firing_engine/firing_helpers.c)
 
+# safety_helpers — the thermocouple fault-debounce timer extracted from
+# safety_task(). The rest of safety.c is link-replaced by stubs/safety_host.c,
+# so this is the only part of the real safety driver the host harness compiles.
+add_host_test(test_safety_helpers
+    SOURCES test_safety_helpers.c ${ROOT}/components/safety/safety_helpers.c)
+
 # cone_table — profile generation for every cone × speed × {preheat, slow_cool}.
 add_host_test(test_cone_table
     SOURCES test_cone_table.c ${ROOT}/components/cone_table/cone_table.c)
