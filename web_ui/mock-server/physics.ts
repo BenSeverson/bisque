@@ -10,11 +10,7 @@ function gaussianNoise(stddev: number): number {
  * First-order lag model for kiln temperature.
  * Heating is faster (active element), cooling is slower (passive radiation).
  */
-export function updateTemperature(
-  currentTemp: number,
-  setpoint: number,
-  dt: number,
-): number {
+export function updateTemperature(currentTemp: number, setpoint: number, dt: number): number {
   const isHeating = setpoint > currentTemp;
   const tauHeat = 120; // seconds — active heating response
   const tauCool = 300; // seconds — passive cooling response
