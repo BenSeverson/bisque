@@ -37,6 +37,8 @@ import { toast } from "sonner";
 import { formatDuration } from "../utils/time";
 import { toErrorMessage } from "../utils/error";
 import { computeSegmentDurationMinutes } from "../utils/profile";
+import { buildChartData, type ChartPoint } from "../utils/chartData";
+import { computeFiringProgress } from "../utils/firingProgress";
 import { useKilnStore } from "../stores/kilnStore";
 import { ConnectionBanner } from "./ConnectionBanner";
 import { deriveFiringPhase, showsFiringProgress } from "../utils/firingPhase";
@@ -56,14 +58,7 @@ import {
   useSkipSegment,
   useTempUnit,
 } from "../hooks/queries";
-import { formatTemp, formatRate, toDisplayTemp, unitLabel } from "../utils/temperature";
-
-interface ChartPoint {
-  time: number;
-  profile?: number;
-  current?: number;
-  target?: number;
-}
+import { formatTemp, formatRate, unitLabel } from "../utils/temperature";
 
 export function FiringDashboard() {
   const {
@@ -224,11 +219,16 @@ export function FiringDashboard() {
   const phase = deriveFiringPhase(firingProgress);
   const progressVisible = showsFiringProgress(phase);
 
-  const progress = useMemo(() => {
-    if (!selectedProfile || firingProgress.elapsedTime === 0) return 0;
-    const totalSeconds = selectedProfile.estimatedDuration * 60;
-    return Math.min(100, (firingProgress.elapsedTime / totalSeconds) * 100);
-  }, [selectedProfile, firingProgress.elapsedTime]);
+  const progressResult = useMemo(
+    () =>
+      computeFiringProgress({
+        profile: selectedProfile,
+        elapsedSeconds: firingProgress.elapsedTime,
+        currentSegment: firingProgress.currentSegment,
+      }),
+    [selectedProfile, firingProgress.elapsedTime, firingProgress.currentSegment],
+  );
+  const progress = progressResult.percent;
 
   const getStatusBadge = () => {
     const variants: Record<FiringStatus, "default" | "secondary" | "destructive" | "outline"> = {
@@ -254,34 +254,17 @@ export function FiringDashboard() {
     );
   };
 
-  const chartData = useMemo<ChartPoint[]>(() => {
-    if (!selectedProfile || profilePath.length === 0) {
-      return currentTempData.map((p) => ({ time: p.time, current: p.temp, target: p.target }));
-    }
-
-    const map = new Map<number, ChartPoint>();
-    const conv = (c: number) => Math.round(toDisplayTemp(c, unit));
-
-    profilePath.forEach((point) => {
-      map.set(point.time, { time: point.time, profile: conv(point.temp) });
-    });
-
-    currentTempData.forEach((point) => {
-      const existing = map.get(point.time);
-      if (existing) {
-        existing.current = conv(point.temp);
-        existing.target = conv(point.target);
-      } else {
-        map.set(point.time, {
-          time: point.time,
-          current: conv(point.temp),
-          target: conv(point.target),
-        });
-      }
-    });
-
-    return Array.from(map.values()).sort((a, b) => a.time - b.time);
-  }, [selectedProfile, profilePath, currentTempData, unit]);
+  const chartData = useMemo<ChartPoint[]>(
+    () =>
+      buildChartData({
+        currentTempData,
+        // An unselected profile simply contributes no planned path; the live
+        // series is converted either way.
+        profilePath: selectedProfile ? profilePath : [],
+        unit,
+      }),
+    [selectedProfile, profilePath, currentTempData, unit],
+  );
 
   return (
     <div className="space-y-6">
@@ -395,7 +378,12 @@ export function FiringDashboard() {
           {progressVisible && (
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span>Overall Progress</span>
+                <span>
+                  Overall Progress
+                  {!progressResult.timeBased && (
+                    <span className="text-muted-foreground"> (by segment)</span>
+                  )}
+                </span>
                 <span>{Math.round(progress)}%</span>
               </div>
               <Progress value={progress} />

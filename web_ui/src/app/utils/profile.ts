@@ -1,3 +1,5 @@
+import { HOLD_UNTIL_SKIP } from "../types/kiln";
+
 export function computeSegmentDurationMinutes(
   segment: { targetTemp: number; rampRate: number; holdMinutes: number },
   fromTemp: number,
@@ -5,7 +7,13 @@ export function computeSegmentDurationMinutes(
   const tempDifference = Math.abs(segment.targetTemp - fromTemp);
   const rampTimeHours = tempDifference / Math.abs(segment.rampRate);
   const rampMinutes = rampTimeHours * 60;
-  return { rampMinutes, holdMinutes: segment.holdMinutes };
+  // HOLD_UNTIL_SKIP is a sentinel meaning "hold until the operator skips", not
+  // a duration. Summing it verbatim produced estimates around 45 days, which
+  // were persisted into the profile's estimatedDuration and then pinned the
+  // firing progress bar near 0% for the entire run. An indefinite hold
+  // contributes nothing, since its length is unknowable up front.
+  const holdMinutes = segment.holdMinutes === HOLD_UNTIL_SKIP ? 0 : segment.holdMinutes;
+  return { rampMinutes, holdMinutes };
 }
 
 /**

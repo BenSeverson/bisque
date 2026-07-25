@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { computeSegmentDurationMinutes, makeDuplicateProfileId } from "./profile";
+import { HOLD_UNTIL_SKIP } from "../types/kiln";
 
 describe("computeSegmentDurationMinutes", () => {
   it("computes ramp time from temp difference and rate", () => {
@@ -27,6 +28,27 @@ describe("computeSegmentDurationMinutes", () => {
       800,
     );
     expect(r.rampMinutes).toBeCloseTo(180, 5);
+  });
+
+  it("does not count the hold-until-skip sentinel as 65,535 minutes", () => {
+    // The sentinel means "hold until the operator skips", i.e. an unknown
+    // duration — summing it verbatim produced estimates like "1092h 15m" (~45
+    // days), which then got persisted into the profile's estimatedDuration and
+    // pinned the firing progress bar near 0% for the whole run.
+    const r = computeSegmentDurationMinutes(
+      { targetTemp: 200, rampRate: 100, holdMinutes: HOLD_UNTIL_SKIP },
+      100,
+    );
+    expect(r.holdMinutes).toBe(0);
+    expect(r.rampMinutes).toBeCloseTo(60, 5); // ramp is still counted
+  });
+
+  it("still counts ordinary holds", () => {
+    const r = computeSegmentDurationMinutes(
+      { targetTemp: 200, rampRate: 100, holdMinutes: 45 },
+      100,
+    );
+    expect(r.holdMinutes).toBe(45);
   });
 
   it("returns zero ramp when target equals current temp", () => {
