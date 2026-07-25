@@ -108,9 +108,16 @@ export const useKilnStore = create<KilnState>((set) => ({
           /* Follow the running firing's profile. The dashboard resolves segment
              names and the profile overlay through selectedProfileId, so adopting
              only firingProgress.profileId would still leave a firing started
-             from the LCD or the iOS app without segment names. Only while
-             active, so it never hijacks a selection the user is browsing. */
-          const followProfile = d.isActive && !!d.profileId && d.profileId !== prev.profileId;
+             from the LCD or the iOS app without segment names.
+
+             Compared against selectedProfileId, not prev.profileId: the firmware
+             leaves profileId populated while idle, so prev.profileId can equal
+             the next firing's id (re-firing a profile the user has since browsed
+             away from), and comparing against it would refuse to follow. The
+             profile selector is disabled while active, so this can only correct
+             a stale selection, never fight a browsing user. */
+          const followProfile =
+            d.isActive && !!d.profileId && d.profileId !== state.selectedProfileId;
 
           return {
             lastUpdateAt: receivedAt,

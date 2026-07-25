@@ -271,6 +271,18 @@ describe("kilnStore: multi-client firing transitions (#163)", () => {
     expect(useKilnStore.getState().selectedProfileId).toBe("bisque-04");
   });
 
+  it("re-adopts the active profile even when it matches a prior stopped firing (#163)", () => {
+    // Firmware do_stop() leaves profileId populated while idle, so prev.profileId
+    // can equal the next firing's id. Comparing against it would refuse to
+    // follow a re-fire of the same profile the user had since browsed away from.
+    wsSubscriber!(tempFrame({ profileId: "glaze-6", isActive: true, status: "heating" }));
+    expect(useKilnStore.getState().selectedProfileId).toBe("glaze-6");
+    wsSubscriber!(tempFrame({ profileId: "glaze-6", isActive: false, status: "idle" }));
+    useKilnStore.setState({ selectedProfileId: "bisque-04" }); // user browses while idle
+    wsSubscriber!(tempFrame({ profileId: "glaze-6", isActive: true, status: "heating" }));
+    expect(useKilnStore.getState().selectedProfileId).toBe("glaze-6");
+  });
+
   it("does not hijack a browsing selection while the kiln is idle", () => {
     useKilnStore.setState({ selectedProfileId: "glaze-10" });
     wsSubscriber!(tempFrame({ profileId: "", isActive: false, status: "idle" }));
