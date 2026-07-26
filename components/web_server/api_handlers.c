@@ -1477,7 +1477,7 @@ static esp_err_t handle_post_wifi(httpd_req_t *req)
         return ESP_FAIL;
     }
 
-    cJSON *j_ssid = cJSON_GetObjectItem(root, "ssid");
+    const cJSON *j_ssid = cJSON_GetObjectItem(root, "ssid");
     if (!j_ssid || !j_ssid->valuestring || j_ssid->valuestring[0] == '\0') {
         cJSON_Delete(root);
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Missing ssid");

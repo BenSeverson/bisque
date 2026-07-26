@@ -65,10 +65,14 @@ static lv_obj_t *s_content = NULL;
 static view_id_t s_current_view = VIEW_NONE;
 /* Last status painted onto the status bar; sentinel forces a repaint on first update. */
 static firing_status_t s_prev_status = (firing_status_t)-1;
-/* Last segment indices painted into the status bar. total == 0 means the label is
- * currently blank, which is also its state on a freshly created dashboard. */
+/* Last segment indices painted into the status bar, and whether the label is
+ * currently blank. Blankness is tracked separately rather than inferred from
+ * total_segments == 0: auto-tune runs with no segments at all, so a zero total
+ * is a legitimate painted state ("SEGMENT 1/0"), not a blank one. Conflating
+ * the two left auto-tune's stale text on screen after the view changed. */
 static uint8_t s_prev_segment = 0;
 static uint8_t s_prev_total_segments = 0;
+static bool s_seg_label_blank = true;
 
 /* IDLE view widgets. */
 static lv_obj_t *s_idle_temp = NULL;
@@ -685,6 +689,7 @@ void dashboard_create(void)
     /* s_seg_label was just created blank; keep the change-guard in step with it. */
     s_prev_segment = 0;
     s_prev_total_segments = 0;
+    s_seg_label_blank = true;
 
     ESP_LOGI(TAG, "dashboard created");
 }
@@ -745,16 +750,17 @@ void dashboard_update(const thermocouple_reading_t *tc, const firing_progress_t 
      * repaints the status bar twice a second for the whole multi-hour firing.
      * Only touch the label when the segment indices actually move (#136). */
     if (view_is_active_family(s_current_view)) {
-        if (prog->current_segment != s_prev_segment || prog->total_segments != s_prev_total_segments) {
+        if (s_seg_label_blank || prog->current_segment != s_prev_segment ||
+            prog->total_segments != s_prev_total_segments) {
             lv_label_set_text_fmt(s_seg_label, "SEGMENT %u/%u", (unsigned)(prog->current_segment + 1),
                                   (unsigned)prog->total_segments);
             s_prev_segment = prog->current_segment;
             s_prev_total_segments = prog->total_segments;
+            s_seg_label_blank = false;
         }
-    } else if (s_prev_total_segments != 0) {
+    } else if (!s_seg_label_blank) {
         lv_label_set_text(s_seg_label, "");
-        s_prev_segment = 0;
-        s_prev_total_segments = 0;
+        s_seg_label_blank = true;
     }
 
     /* PAUSED overlay visibility. */

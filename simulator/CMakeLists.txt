@@ -69,6 +69,9 @@ target_include_directories(bisque_sim PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../components/thermocouple/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../components/app_config/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../components/history/include
+    # firing_engine.h includes pid_control.h for autotune_state_t, which
+    # firing_engine_get_autotune_state() returns.
+    ${CMAKE_CURRENT_SOURCE_DIR}/../components/pid_control/include
     # SDL2
     ${SDL2_INCLUDE_DIRS}
 )

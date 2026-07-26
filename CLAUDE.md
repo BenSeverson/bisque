@@ -32,7 +32,7 @@ The top-level `Makefile` is a thin dispatcher over the existing scripts and `idf
 
 After editing any firmware C/H files under `main/` or `components/`, run `clang-format -i` on the changed files (or `./scripts/format.sh` to format all firmware + web sources). The CI format check uses the repo's `.clang-format`; unformatted code will fail the `clang-format` job.
 
-`./scripts/lint.sh` (also installed as the pre-push hook via `./scripts/install-hooks.sh`) is a **subset** of CI: it runs `clang-format --dry-run` plus the web UI typecheck/lint/format checks. It does **not** run `clang-tidy` or `cppcheck` — both require the ESP-IDF toolchain and are CI-only. Pushes that pass `lint.sh` can still fail the `build` job's static-analysis steps; the fastest local check is to rebuild with `idf.py clang-check --run-clang-tidy-options="-warnings-as-errors=*"` after a normal firmware build.
+`./scripts/lint.sh` (also installed as the pre-push hook via `./scripts/install-hooks.sh`) is a **subset** of CI: it runs `clang-format --dry-run`, the web UI typecheck/lint/format checks, and `cppcheck` when it is installed. `cppcheck` needs no ESP-IDF toolchain — only the binary — so it runs anywhere, and CI gates on it with `--error-exitcode=1`. It does **not** run `clang-tidy`, which does need the toolchain; the fastest check for that is `idf.py clang-check --run-clang-tidy-options="-warnings-as-errors=*"` after a normal firmware build (or `make clang-tidy`).
 
 ## Testing
 

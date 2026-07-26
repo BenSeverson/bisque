@@ -16,11 +16,13 @@
 #   simulator/freertos/*, simulator/esp_err.h
 #                     hand-written stand-ins that mirror the layout of the
 #                     ESP-IDF/FreeRTOS headers they replace
+#   */build/*         CMake's own generated probes (CMakeCCompilerId.c and
+#                     friends) land here once the simulator has been built
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 find main components simulator \
-    \( -path '*/assets/*' -o -path 'simulator/freertos/*' \) -prune -o \
+    \( -path '*/assets/*' -o -path '*/build/*' -o -path 'simulator/freertos/*' \) -prune -o \
     ! -name 'stb_image.h' \
     ! -name 'stb_image_write.h' \
     ! -name 'lv_conf.h' \
