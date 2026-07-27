@@ -1,56 +1,97 @@
 #!/bin/bash
 # SessionStart hook for Bisque — prepares a Claude Code web/cloud session.
 #
-# Installs the web UI toolchain so the web dashboard build, its Vitest suite,
-# and the typecheck/lint/format checks all work out of the box. clang-format
-# ships in the base image, so the C formatting checks already work without setup.
+# Goal: a cloud session that builds what CI builds, so the whole project can be
+# developed from a browser or phone with no laptop involved. Everything except
+# flashing and on-hardware testing is reproducible here.
 #
-# Intentionally NOT installed: the ESP-IDF firmware build + flash and the
-# clang-tidy / cppcheck static analysis. Those need the multi-GB Espressif
-# toolchain (and flashing needs real kiln hardware), so they stay CI/bench
-# concerns — see CLAUDE.md.
+# Each installer below checks whether the network policy allows the hosts it
+# needs and, if not, prints exactly which hosts to allow. None of them work
+# around a block — see docs/cloud-dev.md for why, and for the full allow-list.
 set -euo pipefail
 
 # Only run in the remote (web/cloud) container. On a laptop the developer
-# already has their own environment set up.
+# already has their own environment, or uses .devcontainer/.
 if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
-  exit 0
+    exit 0
 fi
 
 cd "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}"
+HOOKS="$(dirname "$0")"
 
 echo "[bisque session-start] installing web UI toolchain (npm install)…"
 if [ -f web_ui/package.json ]; then
-  # npm install (not ci) so the cached container can reuse node_modules across
-  # sessions; idempotent — a warm cache makes this a fast no-op.
-  (cd web_ui && npm install --no-audit --no-fund)
-  echo "[bisque session-start] web_ui deps ready."
+    # npm install (not ci) so the cached container can reuse node_modules across
+    # sessions; idempotent — a warm cache makes this a fast no-op.
+    (cd web_ui && npm install --no-audit --no-fund)
+    echo "[bisque session-start] web_ui deps ready."
 else
-  echo "[bisque session-start] web_ui/package.json not found — skipping npm install."
+    echo "[bisque session-start] web_ui/package.json not found — skipping npm install."
 fi
 
 if command -v clang-format >/dev/null 2>&1; then
-  echo "[bisque session-start] clang-format: $(clang-format --version | head -n1)"
+    echo "[bisque session-start] clang-format: $(clang-format --version | head -n1)"
 else
-  echo "[bisque session-start] clang-format missing — C format checks unavailable."
+    echo "[bisque session-start] clang-format missing — C format checks unavailable."
 fi
 
-# ESP-IDF firmware toolchain. Installs only when the network policy allows the
-# Espressif hosts (otherwise it detects the block and returns in a few seconds);
-# a warm container cache makes repeat runs a fast no-op. See docs/cloud-dev.md.
-bash "$(dirname "$0")/install-esp-idf.sh" || \
-  echo "[bisque session-start] esp-idf install step skipped/failed (non-fatal)."
-
-# KiCad 10 for the hardware/kicad generator pipeline. Installs only when the
-# network policy allows the Launchpad PPA host (otherwise detects the block
-# and returns in a few seconds) — see docs/cloud-dev.md.
-bash "$(dirname "$0")/install-kicad.sh" || \
-  echo "[bisque session-start] kicad install step skipped/failed (non-fatal)."
-
-if command -v idf.py >/dev/null 2>&1 || [ -f "$HOME/esp-idf/export.sh" ]; then
-  echo "[bisque session-start] ready. In-container: web_ui build/test/lint, C clang-format,"
-  echo "  idf.py firmware build, docs & SVG diagrams. Needs a bench: flash + on-hardware tests."
-else
-  echo "[bisque session-start] ready. In-container: web_ui build/test/lint, C clang-format,"
-  echo "  docs & SVG diagrams. Needs a bench: idf.py firmware build/flash + on-hardware tests."
+# cppcheck backs `make cppcheck`, one of the two static-analysis steps in the
+# CI build job. It comes from the Ubuntu archive (no special network policy)
+# and is small, so install it unconditionally rather than tying it to the
+# ESP-IDF path — unlike clang-tidy, it does not need the IDF toolchain.
+if ! command -v cppcheck >/dev/null 2>&1; then
+    echo "[bisque session-start] installing cppcheck…"
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq cppcheck >/dev/null 2>&1 ||
+        echo "[bisque session-start] cppcheck install failed — 'make cppcheck' unavailable."
 fi
+
+# Display simulator: SDL2 + LVGL. Needs no network-policy change, and is how
+# components/display/ changes get validated without hardware.
+bash "$HOOKS/install-sim-deps.sh" ||
+    echo "[bisque session-start] sim deps step failed (non-fatal)."
+
+# Firmware toolchain and PCB toolchain. Both are fast no-ops on a warm
+# container and exit in a few seconds when their hosts are blocked.
+bash "$HOOKS/install-esp-idf.sh" ||
+    echo "[bisque session-start] esp-idf install step failed (non-fatal)."
+bash "$HOOKS/install-kicad.sh" ||
+    echo "[bisque session-start] kicad install step failed (non-fatal)."
+
+# ── Capability summary ────────────────────────────────────────────────────
+# Report what this specific session can actually do. The installers have
+# already explained any blocked hosts in detail; this is the one-glance
+# version so the state is obvious without scrolling back.
+#
+# Both predicates are functional (see lib/toolchain.sh): a leftover export.sh
+# or the stock too-old kicad-cli must not be reported as a working toolchain.
+# shellcheck source=lib/toolchain.sh
+. "$HOOKS/lib/toolchain.sh"
+
+have_idf=no
+if toolchain_idf_ready; then have_idf=yes; fi
+have_kicad=no
+if toolchain_kicad_ready; then have_kicad=yes; fi
+have_sim=no
+if [ -f managed_components/lvgl__lvgl/lvgl.h ] && command -v sdl2-config >/dev/null 2>&1; then
+    have_sim=yes
+fi
+
+echo "[bisque session-start] ready."
+echo "  always:   web UI build/test/lint, host C tests (make test-host),"
+echo "            clang-format, cppcheck, docs & SVG diagrams"
+if [ "$have_sim" = yes ]; then
+    echo "  display:  make sim / make sim-verify (LVGL+SDL2 simulator)"
+else
+    echo "  display:  simulator UNAVAILABLE — see docs/cloud-dev.md"
+fi
+if [ "$have_idf" = yes ]; then
+    echo "  firmware: idf.py build + make clang-tidy (matches CI)"
+else
+    echo "  firmware: UNAVAILABLE — allow the Espressif hosts listed above"
+fi
+if [ "$have_kicad" = yes ]; then
+    echo "  pcb:      kicad-cli + pcbnew generator"
+else
+    echo "  pcb:      UNAVAILABLE — allow the Launchpad hosts listed above"
+fi
+echo "  bench:    flashing and on-hardware tests always need real hardware"
