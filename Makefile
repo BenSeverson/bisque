@@ -86,8 +86,10 @@ test: test-host test-web  ## Run every test suite
 ## Lint & format
 ## ──────────────────────────────────────────────────────────────────────
 
-lint-c:  ## clang-format dry-run over main/, components/ and simulator/
-	./scripts/c-sources.sh | xargs clang-format --dry-run --Werror
+lint-c:  ## clang-format dry-run over main/ and components/
+	find main components \( -path '*/assets/*' -prune \) -o \
+	    \( -name '*.c' -o -name '*.h' \) -print | \
+	    xargs clang-format --dry-run --Werror
 
 lint-web:  ## Web UI typecheck + lint + format check
 	cd $(WEB_DIR) && npm run typecheck && npm run lint && npm run format:check

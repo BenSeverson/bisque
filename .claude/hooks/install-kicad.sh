@@ -40,14 +40,18 @@ if toolchain_kicad_ready; then
 fi
 
 # ── Preflight ─────────────────────────────────────────────────────────────
-# The PPA serves packages; Launchpad's keyserver serves the signing key that
-# add-apt-repository verifies them against. Both are required — the previous
+# Three distinct hosts, all required. The PPA serves the packages;
+# add-apt-repository resolves the `ppa:` shorthand through launchpadlib, which
+# talks to api.launchpad.net; and the keyserver serves the signing key the
+# packages are verified against. Probing only the first two would let the
+# preflight pass and then fail inside add-apt-repository — the previous
 # version of this script fell back to `[trusted=yes]` when the keyserver was
 # blocked, which installs unverified packages. Inside a sandbox that is
 # survivable, but it is exactly the kind of quiet workaround that makes a
 # container stop matching the environment it is supposed to reproduce.
 if ! preflight_check "$PREFIX" \
     "ppa.launchpadcontent.net|http|${PPA_URL}/dists/${CODENAME}/InRelease|KiCad 10 packages" \
+    "api.launchpad.net|http|https://api.launchpad.net/1.0/|PPA lookup by add-apt-repository (launchpadlib)" \
     "keyserver.ubuntu.com|http|https://keyserver.ubuntu.com/|PPA signing key (package verification)"; then
     preflight_report_blocked "$PREFIX" "the KiCad PCB pipeline"
     log "Everything else in hardware/kicad/ is source you can still edit; only"

@@ -35,6 +35,7 @@ Allow these hosts:
 | `components.espressif.com` | component registry — resolves `idf_component.yml` | firmware |
 | `components-file.espressif.com` | component archive downloads | firmware |
 | `ppa.launchpadcontent.net` | KiCad 10 packages | PCB pipeline |
+| `api.launchpad.net` | PPA lookup by `add-apt-repository` (launchpadlib) | PCB pipeline |
 | `keyserver.ubuntu.com` | PPA signing key (package verification) | PCB pipeline |
 
 The first two are already reachable under the default policy; they are listed

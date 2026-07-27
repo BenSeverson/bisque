@@ -16,8 +16,13 @@
 PREFLIGHT_TIMEOUT="${PREFLIGHT_TIMEOUT:-10}"
 
 # preflight_probe_http <url> — reachable if the host answered at all.
+#
+# -L is essential, not cosmetic: the release-asset probe starts at a github.com
+# URL that 302s to the CDN host whose reachability is actually being claimed.
+# Without following the redirect the probe stops at github.com and reports a
+# blocked asset host as fine, which is the opposite of this file's job.
 preflight_probe_http() {
-    curl -sS -o /dev/null --max-time "$PREFLIGHT_TIMEOUT" "$1" >/dev/null 2>&1
+    curl -sSL -o /dev/null --max-time "$PREFLIGHT_TIMEOUT" "$1" >/dev/null 2>&1
 }
 
 # preflight_probe_git <repo-url> — exercises the git path specifically, which

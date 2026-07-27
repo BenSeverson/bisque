@@ -9,9 +9,13 @@
 # Reporting either as "available" sends someone off to build with a toolchain
 # that will fail or, worse, silently produce the wrong artifact.
 
-# Minimum KiCad major version the hardware/kicad generator supports
-# (hardware/kicad/README.md — the pcbnew API changed after 7).
-KICAD_MIN_MAJOR=9
+# Minimum KiCad major version the hardware/kicad generator supports.
+# kicad_build.py exits outright below 10:
+#     _major = int(pcbnew.Version().split(".")[0])
+#     if _major < 10: sys.exit("kicad_build.py requires KiCad 10+ ...")
+# so accepting 9 here would report the PCB pipeline ready and then fail on the
+# very command the summary advertises.
+KICAD_MIN_MAJOR=10
 
 # toolchain_idf_ready — true if ESP-IDF activates cleanly. Reads $IDF_DIR
 # (defaulting to ~/esp-idf) rather than taking an argument, so every caller

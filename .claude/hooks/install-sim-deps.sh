@@ -38,16 +38,39 @@ fi
 # ── LVGL ──────────────────────────────────────────────────────────────────
 # Same source and pin CI uses. If the ESP-IDF component manager later populates
 # managed_components/ itself it will fetch this same version, so the two agree.
-if [ -f "$LVGL_DIR/lvgl.h" ]; then
-    log "ready (LVGL present, SDL2 $(sdl2-config --version 2>/dev/null || echo ok))."
-    exit 0
-fi
-
 LVGL_VERSION="$(awk '/^  lvgl\/lvgl:/{f=1; next} f && /version:/{gsub(/"/,"",$2); print $2; exit}' \
     dependencies.lock 2>/dev/null || true)"
 if [ -z "$LVGL_VERSION" ]; then
     log "could not read the LVGL version from dependencies.lock — skipping."
     exit 0
+fi
+
+# Validate the cache against the pin rather than just checking it exists.
+# Container state outlives a dependencies.lock bump, so an existence-only fast
+# path would keep building the simulator against the previous LVGL while CI
+# used the new one — silently defeating the version parity this exists for.
+#
+# The version is read out of lv_version.h rather than from git metadata,
+# because this directory has two legitimate authors: this script (a git clone,
+# tagged) and the ESP-IDF component manager during `idf.py build` (a plain
+# extract, no .git). Checking the source means a manager-installed copy at the
+# right version is accepted instead of being re-cloned on every session.
+lvgl_cached_version() {
+    local h="$LVGL_DIR/lv_version.h"
+    [ -f "$h" ] || return 1
+    awk '/#define LVGL_VERSION_MAJOR/{maj=$3}
+         /#define LVGL_VERSION_MINOR/{min=$3}
+         /#define LVGL_VERSION_PATCH/{pat=$3}
+         END{if (maj=="") exit 1; printf "%s.%s.%s", maj, min, pat}' "$h"
+}
+
+if [ -f "$LVGL_DIR/lvgl.h" ]; then
+    cached="$(lvgl_cached_version || true)"
+    if [ "$cached" = "$LVGL_VERSION" ]; then
+        log "ready (LVGL ${LVGL_VERSION}, SDL2 $(sdl2-config --version 2>/dev/null || echo ok))."
+        exit 0
+    fi
+    log "cached LVGL is ${cached:-unreadable}, dependencies.lock pins ${LVGL_VERSION} — refreshing."
 fi
 
 if ! preflight_check "$PREFIX" \

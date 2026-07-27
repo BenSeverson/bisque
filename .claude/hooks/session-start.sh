@@ -69,6 +69,16 @@ bash "$HOOKS/install-kicad.sh" ||
 
 have_idf=no
 if toolchain_idf_ready; then have_idf=yes; fi
+# clang-tidy needs esp-clang on top of an activatable IDF. Its install is
+# non-fatal, so an IDF that activates does not by itself mean clang-tidy works.
+have_clang_tidy=no
+if [ "$have_idf" = yes ] && [ -d "$HOME/.espressif/tools/esp-clang" ]; then
+    have_clang_tidy=yes
+fi
+# cppcheck's install is non-fatal too — report what is actually on PATH rather
+# than what was attempted.
+have_cppcheck=no
+if command -v cppcheck >/dev/null 2>&1; then have_cppcheck=yes; fi
 have_kicad=no
 if toolchain_kicad_ready; then have_kicad=yes; fi
 have_sim=no
@@ -78,14 +88,21 @@ fi
 
 echo "[bisque session-start] ready."
 echo "  always:   web UI build/test/lint, host C tests (make test-host),"
-echo "            clang-format, cppcheck, docs & SVG diagrams"
+echo "            clang-format, docs & SVG diagrams"
+if [ "$have_cppcheck" = yes ]; then
+    echo "  cppcheck: make cppcheck"
+else
+    echo "  cppcheck: UNAVAILABLE — install failed; see the log above"
+fi
 if [ "$have_sim" = yes ]; then
     echo "  display:  make sim / make sim-verify (LVGL+SDL2 simulator)"
 else
     echo "  display:  simulator UNAVAILABLE — see docs/cloud-dev.md"
 fi
-if [ "$have_idf" = yes ]; then
+if [ "$have_idf" = yes ] && [ "$have_clang_tidy" = yes ]; then
     echo "  firmware: idf.py build + make clang-tidy (matches CI)"
+elif [ "$have_idf" = yes ]; then
+    echo "  firmware: idf.py build (esp-clang missing — make clang-tidy unavailable)"
 else
     echo "  firmware: UNAVAILABLE — allow the Espressif hosts listed above"
 fi
