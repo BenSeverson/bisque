@@ -43,7 +43,9 @@ static void test_unset_reading_does_not_clobber_boot_seed(void)
     int64_t last_valid = BOOT_SEED_US;
     thermocouple_reading_t r = unset_reading();
 
-    TEST_ASSERT_EQUAL_INT(SAFETY_TC_OK, safety_tc_watchdog_step(&r, BOOT_SEED_US, &last_valid));
+    /* GRACE, not OK: there is no reading yet, so the sensor cannot be called
+       healthy (see #215). The invariant under test is the seed below. */
+    TEST_ASSERT_EQUAL_INT(SAFETY_TC_FAULT_GRACE, safety_tc_watchdog_step(&r, BOOT_SEED_US, &last_valid));
     TEST_ASSERT_EQUAL_INT64(BOOT_SEED_US, last_valid);
 }
 
@@ -57,7 +59,7 @@ static void test_tc_fault_at_boot_still_gets_full_grace_period(void)
     int64_t last_valid = BOOT_SEED_US;
 
     thermocouple_reading_t unset = unset_reading();
-    TEST_ASSERT_EQUAL_INT(SAFETY_TC_OK, safety_tc_watchdog_step(&unset, BOOT_SEED_US, &last_valid));
+    TEST_ASSERT_EQUAL_INT(SAFETY_TC_FAULT_GRACE, safety_tc_watchdog_step(&unset, BOOT_SEED_US, &last_valid));
 
     /* First faulted sample 250 ms later: inside the grace period. */
     thermocouple_reading_t bad = faulted_reading(BOOT_SEED_US + 250LL * 1000);
@@ -137,6 +139,62 @@ static void test_recovered_fault_rearms_the_grace_period(void)
                           safety_tc_watchdog_step(&bad2, recovered_us + TEMP_FAULT_TIMEOUT_US + 1, &last_valid));
 }
 
+/* ── Total failure: no reading ever arrives (issue #215) ─────────────────── */
+
+/* If thermocouple_read() fails outright — SPI never comes up, sensor absent —
+ * temp_read_task never writes the cache, so it stays all zeroes: fault == 0 and
+ * timestamp_us == 0. That reads as a healthy 0 degC. The separate stale-reading
+ * check in safety_task cannot help, because it is gated on timestamp_us > 0,
+ * which is exactly the case absent here. So nothing tripped, ever, and a firing
+ * would run with no temperature feedback at all. */
+static void test_no_reading_ever_is_grace_then_trip(void)
+{
+    thermocouple_reading_t never_written = {0};
+    int64_t origin = 1500000; /* safety_task's boot seed */
+    int64_t last = origin;
+
+    /* Inside the window: waiting for the producer, NOT healthy. Reporting OK
+       here would clear the fault bit and run the over-temp check against a
+       fabricated 0 degC — asserting the sensor is fine when no reading exists
+       is the same lie this issue is about. */
+    TEST_ASSERT_EQUAL_INT(SAFETY_TC_FAULT_GRACE, safety_tc_watchdog_step(&never_written, origin + 1000, &last));
+
+    /* Past it: the producer is never coming. This must trip. */
+    TEST_ASSERT_EQUAL_INT(SAFETY_TC_FAULT_TRIP,
+                          safety_tc_watchdog_step(&never_written, origin + TEMP_FAULT_TIMEOUT_US + 1, &last));
+}
+
+/* A producer that starts late still cancels the deadline — the trip is for
+ * "no data ever", not "slow to boot". */
+static void test_late_first_reading_cancels_the_no_data_trip(void)
+{
+    thermocouple_reading_t never_written = {0};
+    int64_t origin = 1500000;
+    int64_t last = origin;
+
+    TEST_ASSERT_EQUAL_INT(SAFETY_TC_FAULT_GRACE, safety_tc_watchdog_step(&never_written, origin + 2000000, &last));
+
+    thermocouple_reading_t good = {.temperature_c = 25.0f, .timestamp_us = origin + 2500000};
+    TEST_ASSERT_EQUAL_INT(SAFETY_TC_OK, safety_tc_watchdog_step(&good, origin + 2600000, &last));
+    TEST_ASSERT_EQUAL_INT64(good.timestamp_us, last);
+
+    /* Well past the original deadline, but readings are flowing now. */
+    thermocouple_reading_t good2 = {.temperature_c = 26.0f, .timestamp_us = origin + TEMP_FAULT_TIMEOUT_US + 3000000};
+    TEST_ASSERT_EQUAL_INT(SAFETY_TC_OK, safety_tc_watchdog_step(&good2, good2.timestamp_us + 1000, &last));
+}
+
+/* The no-data deadline must not fire once real readings exist but have gone
+ * stale — that is the stale-reading check's job, and it reports the same cause.
+ * Here the cache holds a real (if old) reading, so this helper stays OK. */
+static void test_stale_but_real_reading_is_not_the_no_data_case(void)
+{
+    int64_t origin = 1500000;
+    int64_t last = origin;
+    thermocouple_reading_t old_good = {.temperature_c = 900.0f, .timestamp_us = origin + 1000};
+
+    TEST_ASSERT_EQUAL_INT(SAFETY_TC_OK, safety_tc_watchdog_step(&old_good, origin + TEMP_FAULT_TIMEOUT_US * 3, &last));
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -146,5 +204,8 @@ int main(void)
     RUN_TEST(test_fault_grace_is_measured_from_last_good_reading);
     RUN_TEST(test_faulted_reading_never_advances_the_origin);
     RUN_TEST(test_recovered_fault_rearms_the_grace_period);
+    RUN_TEST(test_no_reading_ever_is_grace_then_trip);
+    RUN_TEST(test_late_first_reading_cancels_the_no_data_trip);
+    RUN_TEST(test_stale_but_real_reading_is_not_the_no_data_case);
     return UNITY_END();
 }
