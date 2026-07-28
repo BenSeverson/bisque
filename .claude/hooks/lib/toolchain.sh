@@ -33,10 +33,36 @@ toolchain_idf_ready() (
     . "$idf_dir/export.sh" >/dev/null 2>&1 && command -v idf.py >/dev/null 2>&1
 )
 
+# toolchain_python_for MODULE — echo the first system interpreter that can
+# import MODULE, or return 1 if none can.
+#
+# `python3` is not a safe stand-in for "the interpreter that owns
+# /usr/lib/python3/dist-packages". This image ships 3.10/3.11/3.12/3.13 and
+# points the python3 alternative at 3.11, but Ubuntu noble builds its
+# dist-packages C extensions for 3.12 — apt_pkg.cpython-312-*.so, and pcbnew
+# from the KiCad PPA the same way. So `python3 -c "import pcbnew"` reports a
+# perfectly good KiCad as unusable, and every #!/usr/bin/python3 distro script
+# that needs apt_pkg (add-apt-repository among them) dies on ModuleNotFound.
+#
+# Plain `python3` is tried first, so nothing changes on an image whose default
+# already matches the distro; the versioned interpreters are the fallback.
+toolchain_python_for() {
+    local module="$1" py
+    for py in /usr/bin/python3 /usr/bin/python3.[0-9] /usr/bin/python3.[0-9][0-9]; do
+        [ -x "$py" ] || continue
+        if "$py" -c "import $module" >/dev/null 2>&1; then
+            printf '%s\n' "$py"
+            return 0
+        fi
+    done
+    return 1
+}
+
 # toolchain_kicad_ready — true if kicad-cli is new enough AND pcbnew imports.
 #
-# The generator drives pcbnew through the system python3, so a working
-# kicad-cli alone is not enough.
+# The generator drives pcbnew through a system interpreter, so a working
+# kicad-cli alone is not enough — but see toolchain_python_for for why that
+# interpreter is not necessarily the one `python3` resolves to.
 toolchain_kicad_ready() {
     command -v kicad-cli >/dev/null 2>&1 || return 1
     local major
@@ -45,5 +71,5 @@ toolchain_kicad_ready() {
     '' | *[!0-9]*) return 1 ;;
     esac
     [ "$major" -ge "$KICAD_MIN_MAJOR" ] || return 1
-    python3 -c "import pcbnew" >/dev/null 2>&1
+    toolchain_python_for pcbnew >/dev/null
 }
