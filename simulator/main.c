@@ -608,6 +608,29 @@ static const char *find_label_prefixed(lv_obj_t *parent, const char *prefix)
     return NULL;
 }
 
+/* True if any label under `parent` has exactly this text. The prefix search above is
+ * unsuitable for the COMPLETE view's profile label: that view's title is "Firing complete",
+ * which shares a prefix with the no-profile fallback "Firing" and is created first, so a
+ * prefix search returns the title and would pass even if the profile label were stale or
+ * missing entirely. */
+static bool label_with_exact_text(lv_obj_t *parent, const char *text)
+{
+    uint32_t n = lv_obj_get_child_count(parent);
+    for (uint32_t i = 0; i < n; i++) {
+        lv_obj_t *c = lv_obj_get_child(parent, i);
+        if (lv_obj_check_type(c, &lv_label_class)) {
+            const char *t = lv_label_get_text(c);
+            if (t && strcmp(t, text) == 0) {
+                return true;
+            }
+        }
+        if (label_with_exact_text(c, text)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /* Number of plotted points on the chart's "actual" series. dashboard.c adds the planned
  * series first so it draws underneath, so "actual" is the second series. Negative on
  * structural surprises so a broken assumption fails loudly instead of reading as zero. */
@@ -735,12 +758,62 @@ static void verify_peak_survives_unloadable_profile(void)
     mock_set_profile_load_fail(false);
 }
 
+/* #128 — deleting the active profile out from under a running firing must not make the
+ * dashboard re-open NVS on every 500ms tick; each read runs inside the LVGL lock. */
+static void verify_unloadable_profile_is_not_reread(void)
+{
+    printf("[#128] profile reads after the active profile is deleted\n");
+
+    const uint32_t ticks = 40;
+    char detail[96];
+
+    /* (1) Profile deleted mid-firing. The cached copy stays valid, so the dashboard keeps
+       showing profile-derived detail and never needs to touch NVS again. */
+    drive(FIRING_STATUS_IDLE, 25.0f, 0, "");
+    drive(FIRING_STATUS_HEATING, 100.0f, 60, "profile-1");
+    mock_set_profile_load_fail(true);
+    mock_reset_profile_load_calls();
+    for (uint32_t i = 0; i < ticks; i++) {
+        drive(FIRING_STATUS_HEATING, 100.0f + (float)i * 20.0f, 120 + i * 500, "profile-1");
+    }
+    unsigned reads = mock_profile_load_calls();
+    snprintf(detail, sizeof(detail), "%u reads over %u ticks", reads, (unsigned)ticks);
+    check(reads == 0, "deleting the active profile mid-firing triggers no re-read", detail);
+
+    /* (2) Firing whose profile is already gone when the view is entered: one attempt, then
+       the failure is remembered rather than retried every tick. */
+    drive(FIRING_STATUS_IDLE, 25.0f, 0, "");
+    mock_reset_profile_load_calls();
+    drive(FIRING_STATUS_HEATING, 100.0f, 60, "deleted-profile");
+    unsigned first = mock_profile_load_calls();
+    for (uint32_t i = 0; i < ticks; i++) {
+        drive(FIRING_STATUS_HEATING, 100.0f + (float)i * 20.0f, 120 + i * 500, "deleted-profile");
+    }
+    reads = mock_profile_load_calls();
+    snprintf(detail, sizeof(detail), "%u read(s) on entry, %u total over %u more ticks", first, reads, (unsigned)ticks);
+    check(first == 1 && reads == 1, "an unloadable profile is attempted once, not once per tick", detail);
+
+    /* Graceful degradation: the firing is still shown, just without the profile name.
+       Assert the fallback label exactly — and separately that the previous firing's name
+       is gone, which is the part that actually distinguishes degrading from showing stale
+       detail. Step (1) cached "Glaze Cone 6" (profile-1). */
+    drive(FIRING_STATUS_COMPLETE, 380.0f, 27000, "deleted-profile");
+    bool fallback = label_with_exact_text(lv_screen_active(), "Firing");
+    bool stale = label_with_exact_text(lv_screen_active(), "Glaze Cone 6");
+    snprintf(detail, sizeof(detail), "fallback \"Firing\" %s, stale name %s", fallback ? "present" : "MISSING",
+             stale ? "STILL SHOWN" : "gone");
+    check(fallback && !stale, "COMPLETE degrades to the fallback label, no stale profile name", detail);
+
+    mock_set_profile_load_fail(false);
+}
+
 static int run_verify(void)
 {
     s_verify_failures = 0;
     verify_chart_survives_pause();
     verify_peak_resets_on_refire();
     verify_peak_survives_unloadable_profile();
+    verify_unloadable_profile_is_not_reread();
 
     printf("\n== Dashboard state verification ==\n");
     printf("  failures: %d\n", s_verify_failures);

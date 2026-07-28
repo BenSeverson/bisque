@@ -114,14 +114,26 @@ int firing_engine_list_profiles(char ids_out[][FIRING_ID_LEN], int max_count)
 }
 
 static bool s_mock_profile_load_fail = false;
+static unsigned s_mock_profile_load_calls = 0;
 
 void mock_set_profile_load_fail(bool fail)
 {
     s_mock_profile_load_fail = fail;
 }
 
+unsigned mock_profile_load_calls(void)
+{
+    return s_mock_profile_load_calls;
+}
+
+void mock_reset_profile_load_calls(void)
+{
+    s_mock_profile_load_calls = 0;
+}
+
 esp_err_t firing_engine_load_profile(const char *id, firing_profile_t *profile)
 {
+    s_mock_profile_load_calls++;
     if (s_mock_profile_load_fail) {
         return ESP_FAIL;
     }

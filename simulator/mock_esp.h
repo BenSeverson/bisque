@@ -18,3 +18,8 @@ void mock_set_last_firing(const history_record_t *r); /* NULL clears */
  * profile has been deleted from NVS. Used by --verify to exercise the dashboard's
  * "profile could not be loaded" path. */
 void mock_set_profile_load_fail(bool fail);
+/* Count of firing_engine_load_profile() calls — a proxy for NVS reads, which on hardware
+ * happen inside the LVGL lock. Used by --verify to prove the dashboard does not re-read
+ * the profile on every tick. */
+unsigned mock_profile_load_calls(void);
+void mock_reset_profile_load_calls(void);
