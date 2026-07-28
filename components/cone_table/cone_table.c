@@ -9,6 +9,11 @@ static const char *TAG = "cone_table";
 /* ── Orton Cone Temperature Table ───────────────────────────────────────────
  * Columns: [slow 60°C/hr, medium 150°C/hr, fast 300°C/hr]
  * Source: Orton Ceramic Foundation published data.
+ *
+ * The table is monotonic in both directions — a hotter cone is never colder
+ * than the one below it at the same speed, and within a row a faster ramp
+ * never lowers the target. `test_cone_table` asserts both; keep any new or
+ * corrected row inside those bounds.
  * ───────────────────────────────────────────────────────────────────────── */
 typedef struct {
     const char *name;
@@ -20,7 +25,7 @@ static const cone_entry_t s_cone_table[CONE_COUNT] = {
     [CONE_020] = {"020", {626, 634, 638}},  [CONE_019] = {"019", {656, 671, 678}},
     [CONE_018] = {"018", {686, 698, 715}},  [CONE_017] = {"017", {704, 715, 736}},
     [CONE_016] = {"016", {742, 748, 769}},  [CONE_015] = {"015", {751, 764, 788}},
-    [CONE_014] = {"014", {757, 762, 807}},  [CONE_013] = {"013", {807, 815, 837}},
+    [CONE_014] = {"014", {757, 782, 807}},  [CONE_013] = {"013", {807, 815, 837}},
     [CONE_012] = {"012", {843, 853, 861}},  [CONE_011] = {"011", {857, 867, 875}},
     [CONE_010] = {"010", {891, 894, 903}},  [CONE_09] = {"09", {917, 923, 928}},
     [CONE_08] = {"08", {945, 955, 983}},    [CONE_07] = {"07", {973, 984, 1008}},
