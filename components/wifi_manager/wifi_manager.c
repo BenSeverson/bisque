@@ -36,8 +36,13 @@ typedef enum {
 static EventGroupHandle_t s_wifi_event_group;
 static QueueHandle_t s_cmd_queue;
 
-/* Written by the event-loop task, read by the worker. Single writer each, and
-   every value is word-sized, so no lock is needed. */
+/* Shared between the event-loop task and the worker. Each has exactly one
+   writer and every value is word-sized, so no lock is needed — but the
+   direction differs per flag, so check before adding a writer:
+     s_ap_clients, s_sta_connected — written by the event-loop task, read by
+       the worker.
+     s_ap_active — the reverse: written by the worker (and once by
+       wifi_manager_init, before the worker task exists), read by the handler. */
 static volatile int s_ap_clients = 0;
 static volatile bool s_sta_connected = false;
 static volatile bool s_ap_active = false;
