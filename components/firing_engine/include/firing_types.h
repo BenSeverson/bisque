@@ -59,6 +59,12 @@ typedef struct {
     uint8_t total_segments;
     uint32_t elapsed_time;        /* seconds */
     uint32_t estimated_remaining; /* seconds */
+    /* Seconds until an armed delayed start fires; 0 when none is armed. The
+       engine has always known this (delay_start_end_us) but never published it,
+       so the UI could show that a firing was scheduled without showing when —
+       and confirming *when* is the thing worth checking before leaving a kiln
+       unattended overnight (#204). */
+    uint32_t delay_remaining;
     firing_status_t status;
 } firing_progress_t;
 

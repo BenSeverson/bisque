@@ -34,7 +34,7 @@ import {
 } from "../types/kiln";
 import { api } from "../services/api";
 import { toast } from "sonner";
-import { formatDuration } from "../utils/time";
+import { formatCountdown, formatDuration } from "../utils/time";
 import { toErrorMessage } from "../utils/error";
 import { buildProfilePath, buildProfileTimeAxis } from "../utils/profilePath";
 import { buildChartData, type ChartPoint } from "../utils/chartData";
@@ -67,6 +67,7 @@ export function FiringDashboard() {
     firingProgress,
     currentTempData,
     resetTempData,
+    lastUpdateAt,
   } = useKilnStore();
   const { data: profiles = [] } = useProfiles();
   const unit = useTempUnit();
@@ -107,6 +108,7 @@ export function FiringDashboard() {
             totalSegments: s.totalSegments,
             elapsedTime: s.elapsedTime,
             estimatedTimeRemaining: s.estimatedTimeRemaining,
+            delayRemaining: s.delayRemaining ?? 0,
             status: coerceFiringStatus(s.status),
           },
           currentTempData: [
@@ -180,6 +182,22 @@ export function FiringDashboard() {
   const phase = deriveFiringPhase(firingProgress);
   const progressVisible = showsFiringProgress(phase);
 
+  // Wall-clock start time for an armed delay. The countdown says how long; this
+  // says *when*, which is the thing an operator actually checks before leaving a
+  // kiln to run overnight (#204).
+  //
+  // Anchored to when the frame arrived rather than to render time: the countdown
+  // was measured on the device at that instant, so this stays put across
+  // unrelated re-renders instead of drifting a second at a time.
+  const delayRemaining = firingProgress.delayRemaining;
+  const startsAtLabel = useMemo(() => {
+    if (phase !== "scheduled" || delayRemaining <= 0 || lastUpdateAt === null) return null;
+    return new Date(lastUpdateAt + delayRemaining * 1000).toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }, [phase, delayRemaining, lastUpdateAt]);
+
   const progressResult = useMemo(
     () =>
       computeFiringProgress({
@@ -206,7 +224,13 @@ export function FiringDashboard() {
     // delay; showing a bare "Idle" made a scheduled overnight firing look as
     // though nothing had been set at all.
     if (phase === "scheduled") {
-      return <Badge variant="outline">Scheduled</Badge>;
+      return (
+        <Badge variant="outline">
+          {firingProgress.delayRemaining > 0
+            ? `Scheduled — ${formatCountdown(firingProgress.delayRemaining)}`
+            : "Scheduled"}
+        </Badge>
+      );
     }
     return (
       <Badge variant={variants[firingProgress.status]}>
@@ -276,7 +300,18 @@ export function FiringDashboard() {
         <CardHeader>
           <CardTitle>Firing Controls</CardTitle>
           <CardDescription>
-            {phase === "scheduled" && <>Scheduled — the kiln will start automatically</>}
+            {phase === "scheduled" && (
+              <>
+                {firingProgress.delayRemaining > 0 ? (
+                  <>
+                    Starts in {formatCountdown(firingProgress.delayRemaining)}
+                    {startsAtLabel && <> — at {startsAtLabel}</>}
+                  </>
+                ) : (
+                  <>Scheduled — the kiln will start automatically</>
+                )}
+              </>
+            )}
             {progressVisible &&
               selectedProfile &&
               firingProgress.currentSegment < (selectedProfile?.segments.length || 0) && (

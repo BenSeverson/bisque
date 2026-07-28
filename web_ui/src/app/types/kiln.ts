@@ -65,6 +65,8 @@ export interface FiringProgress {
   totalSegments: number;
   elapsedTime: number; // seconds
   estimatedTimeRemaining: number; // seconds
+  /** Seconds until an armed delayed start fires; 0 when none is scheduled. */
+  delayRemaining: number;
   status: FiringStatus;
 }
 
