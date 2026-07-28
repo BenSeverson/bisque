@@ -34,8 +34,12 @@ static temperature_sensor_handle_t s_board_temp_handle = NULL;
 /**
  * Check Bearer token auth. Returns true if request is authorized.
  * If token is empty in settings, all requests are authorized.
+ *
+ * Declared in web_server.h rather than kept static: the WebSocket handshake
+ * callback in ws_handler.c gates on the same rule, and a second copy of it
+ * there is a copy that can drift out of step with this one.
  */
-static bool check_auth(httpd_req_t *req)
+bool web_auth_check(httpd_req_t *req)
 {
     kiln_settings_t settings;
     firing_engine_get_settings(&settings);
@@ -73,7 +77,7 @@ static bool check_auth(httpd_req_t *req)
 
 static bool require_auth(httpd_req_t *req)
 {
-    if (!check_auth(req)) {
+    if (!web_auth_check(req)) {
         httpd_resp_set_hdr(req, "WWW-Authenticate", "Bearer realm=\"bisque\"");
         httpd_resp_send_err(req, HTTPD_401_UNAUTHORIZED, "Unauthorized");
         return false;

@@ -37,6 +37,14 @@ CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
 CONFIG_HTTPD_MAX_REQ_HDR_LEN=1024
 CONFIG_HTTPD_MAX_URI_LEN=512
 CONFIG_HTTPD_WS_SUPPORT=y
+# Both default to 'n'. esp_http_server answers the WebSocket handshake itself
+# and returns *without* invoking the registered URI handler
+# (esp_http_server/src/httpd_uri.c:362), so these callbacks are the only hooks
+# that run at handshake time — one before the upgrade is granted, one after.
+# ws_handler.c needs the first to authenticate and the second to learn that a
+# client exists. See #202 and #150.
+CONFIG_HTTPD_WS_PRE_HANDSHAKE_CB_SUPPORT=y
+CONFIG_HTTPD_WS_POST_HANDSHAKE_CB_SUPPORT=y
 
 # Log level
 CONFIG_LOG_DEFAULT_LEVEL_INFO=y
