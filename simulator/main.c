@@ -608,6 +608,29 @@ static const char *find_label_prefixed(lv_obj_t *parent, const char *prefix)
     return NULL;
 }
 
+/* True if any label under `parent` has exactly this text. The prefix search above is
+ * unsuitable for the COMPLETE view's profile label: that view's title is "Firing complete",
+ * which shares a prefix with the no-profile fallback "Firing" and is created first, so a
+ * prefix search returns the title and would pass even if the profile label were stale or
+ * missing entirely. */
+static bool label_with_exact_text(lv_obj_t *parent, const char *text)
+{
+    uint32_t n = lv_obj_get_child_count(parent);
+    for (uint32_t i = 0; i < n; i++) {
+        lv_obj_t *c = lv_obj_get_child(parent, i);
+        if (lv_obj_check_type(c, &lv_label_class)) {
+            const char *t = lv_label_get_text(c);
+            if (t && strcmp(t, text) == 0) {
+                return true;
+            }
+        }
+        if (label_with_exact_text(c, text)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /* Number of plotted points on the chart's "actual" series. dashboard.c adds the planned
  * series first so it draws underneath, so "actual" is the second series. Negative on
  * structural surprises so a broken assumption fails loudly instead of reading as zero. */
@@ -770,10 +793,16 @@ static void verify_unloadable_profile_is_not_reread(void)
     snprintf(detail, sizeof(detail), "%u read(s) on entry, %u total over %u more ticks", first, reads, (unsigned)ticks);
     check(first == 1 && reads == 1, "an unloadable profile is attempted once, not once per tick", detail);
 
-    /* Graceful degradation: the firing is still shown, just without the profile name. */
+    /* Graceful degradation: the firing is still shown, just without the profile name.
+       Assert the fallback label exactly — and separately that the previous firing's name
+       is gone, which is the part that actually distinguishes degrading from showing stale
+       detail. Step (1) cached "Glaze Cone 6" (profile-1). */
     drive(FIRING_STATUS_COMPLETE, 380.0f, 27000, "deleted-profile");
-    const char *name = find_label_prefixed(lv_screen_active(), "Firing");
-    check(name != NULL, "COMPLETE still renders without profile detail", name ? name : "(no label)");
+    bool fallback = label_with_exact_text(lv_screen_active(), "Firing");
+    bool stale = label_with_exact_text(lv_screen_active(), "Glaze Cone 6");
+    snprintf(detail, sizeof(detail), "fallback \"Firing\" %s, stale name %s", fallback ? "present" : "MISSING",
+             stale ? "STILL SHOWN" : "gone");
+    check(fallback && !stale, "COMPLETE degrades to the fallback label, no stale profile name", detail);
 
     mock_set_profile_load_fail(false);
 }
