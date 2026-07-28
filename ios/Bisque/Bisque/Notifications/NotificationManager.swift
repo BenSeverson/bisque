@@ -27,13 +27,29 @@ final class NotificationManager {
     /// reconnected. Asking the notification centre at send time costs one cheap
     /// async call and is always current (#155).
     private func canNotify() async -> Bool {
-        let settings = await UNUserNotificationCenter.current().notificationSettings()
-        switch settings.authorizationStatus {
+        switch await Self.authorizationStatus() {
         case .authorized, .provisional, .ephemeral:
             return true
         default:
             return false
         }
+    }
+
+    /// `nonisolated` so `UNNotificationSettings` never crosses an isolation
+    /// boundary. This type is `@MainActor`, and `notificationSettings()` is a
+    /// nonisolated async call, so awaiting it directly from a member hands a
+    /// non-Sendable class back to the main actor — which Swift 6 rejects:
+    ///
+    ///     error: non-sendable result type 'UNNotificationSettings' cannot be
+    ///     sent from nonisolated context
+    ///
+    /// Reading `.authorizationStatus` here keeps the settings object on the
+    /// concurrent executor and returns only the Sendable enum. The compiler
+    /// also offers `@preconcurrency import UserNotifications`, but that
+    /// downgrades every Sendable diagnostic from the module — including ones
+    /// worth hearing about — to a warning.
+    private nonisolated static func authorizationStatus() async -> UNAuthorizationStatus {
+        await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
     }
 
     func sendFiringComplete(profileName: String, peakTempC: Double, unit: String) {
