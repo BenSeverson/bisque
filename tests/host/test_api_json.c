@@ -358,7 +358,7 @@ static void test_cone_table_shape(void)
 static void test_autotune_status_idle(void)
 {
     firing_progress_t prog = {.status = FIRING_STATUS_IDLE, .current_temp = 24.0f};
-    cJSON *root = build_autotune_status_json(&prog, 2.5f, 0.5f, 1.0f);
+    cJSON *root = build_autotune_status_json(&prog, AUTOTUNE_IDLE, 2.5f, 0.5f, 1.0f);
 
     assert_string_field(root, "state");
     assert_number_field(root, "elapsedTime");
@@ -381,14 +381,47 @@ static void test_autotune_status_idle(void)
 static void test_autotune_status_running_vs_stopped(void)
 {
     firing_progress_t prog = {.status = FIRING_STATUS_AUTOTUNE};
-    cJSON *root = build_autotune_status_json(&prog, 1, 1, 1);
+    cJSON *root = build_autotune_status_json(&prog, AUTOTUNE_RELAY_CYCLING, 1, 1, 1);
     TEST_ASSERT_EQUAL_STRING("running", cJSON_GetObjectItem(root, "state")->valuestring);
     cJSON_Delete(root);
 
     prog.status = FIRING_STATUS_HEATING;
-    root = build_autotune_status_json(&prog, 1, 1, 1);
+    root = build_autotune_status_json(&prog, AUTOTUNE_IDLE, 1, 1, 1);
     TEST_ASSERT_EQUAL_STRING("stopped", cJSON_GetObjectItem(root, "state")->valuestring);
     cJSON_Delete(root);
+}
+
+/* The whole point of #216: a finished run, a failed run, and a never-started
+   one used to be byte-identical "idle" frames. The engine calls do_stop() as
+   soon as a tune ends, so every one of these carries FIRING_STATUS_IDLE and the
+   distinction can only come from the autotune state. */
+static void test_autotune_terminal_states_are_distinct(void)
+{
+    firing_progress_t prog = {.status = FIRING_STATUS_IDLE};
+
+    cJSON *root = build_autotune_status_json(&prog, AUTOTUNE_COMPLETE, 1, 1, 1);
+    TEST_ASSERT_EQUAL_STRING("complete", cJSON_GetObjectItem(root, "state")->valuestring);
+    cJSON_Delete(root);
+
+    root = build_autotune_status_json(&prog, AUTOTUNE_FAILED, 1, 1, 1);
+    TEST_ASSERT_EQUAL_STRING("failed", cJSON_GetObjectItem(root, "state")->valuestring);
+    cJSON_Delete(root);
+
+    root = build_autotune_status_json(&prog, AUTOTUNE_IDLE, 1, 1, 1);
+    TEST_ASSERT_EQUAL_STRING("idle", cJSON_GetObjectItem(root, "state")->valuestring);
+    cJSON_Delete(root);
+}
+
+/* A tune still running reports "running" whatever its internal phase, and a
+   terminal outcome is never masked by a stale progress status. */
+static void test_autotune_running_outranks_terminal_state(void)
+{
+    firing_progress_t prog = {.status = FIRING_STATUS_AUTOTUNE};
+    for (int s = AUTOTUNE_IDLE; s <= AUTOTUNE_FAILED; s++) {
+        cJSON *root = build_autotune_status_json(&prog, (autotune_state_t)s, 1, 1, 1);
+        TEST_ASSERT_EQUAL_STRING("running", cJSON_GetObjectItem(root, "state")->valuestring);
+        cJSON_Delete(root);
+    }
 }
 
 /* ── build_thermocouple_diag_json ────────────────────────────────────────── */
@@ -450,6 +483,8 @@ int main(void)
     RUN_TEST(test_cone_table_shape);
     RUN_TEST(test_autotune_status_idle);
     RUN_TEST(test_autotune_status_running_vs_stopped);
+    RUN_TEST(test_autotune_terminal_states_are_distinct);
+    RUN_TEST(test_autotune_running_outranks_terminal_state);
     RUN_TEST(test_thermocouple_diag_shape);
     RUN_TEST(test_firing_status_strings);
     return UNITY_END();

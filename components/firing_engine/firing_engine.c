@@ -278,6 +278,15 @@ void firing_engine_get_progress(firing_progress_t *out)
     progress_unlock();
 }
 
+autotune_state_t firing_engine_get_autotune_state(void)
+{
+    /* A plain read of a single enum written only by the firing task. The
+       terminal value survives do_stop() — pid_autotune_start()/cancel() are the
+       only things that clear it — which is exactly what lets a client tell a
+       finished tune from one that never ran (#216). */
+    return s_autotune.state;
+}
+
 void firing_engine_get_settings(kiln_settings_t *out)
 {
     settings_lock();
