@@ -13,6 +13,7 @@ import {
   type AutotuneSession,
 } from "../utils/autotuneSession";
 import { prepareSettingsPatch } from "../utils/settingsPatch";
+import { describeFiringError, firingErrorGuidance, FIRING_ERROR_CODES } from "../utils/firingError";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Label } from "./ui/label";
 import { Input } from "./ui/input";
@@ -861,25 +862,34 @@ export function Settings() {
                 : "--"}
             </span>
           </div>
-          <div className="flex justify-between py-2 border-b">
-            <span className="text-sm font-medium">Last Error Code</span>
-            <span className="text-sm text-muted-foreground">
-              {systemInfo
-                ? systemInfo.lastErrorCode === 0
+          <div className="flex justify-between py-2 border-b gap-4">
+            <span className="text-sm font-medium shrink-0">Last Error</span>
+            <span className="text-sm text-muted-foreground text-right">
+              {!systemInfo
+                ? "--"
+                : systemInfo.lastErrorCode === 0
                   ? "None"
-                  : `E${systemInfo.lastErrorCode}`
-                : "--"}
+                  : `${describeFiringError(systemInfo.lastErrorCode)} (E${systemInfo.lastErrorCode})`}
             </span>
           </div>
-          <div className="flex justify-between py-2 border-b">
-            <span className="text-sm font-medium">Emergency Stop</span>
-            <span className="text-sm">
-              {systemInfo?.emergencyStop ? (
-                <Badge variant="destructive">ACTIVE</Badge>
-              ) : (
-                <Badge variant="secondary">Clear</Badge>
-              )}
-            </span>
+          <div className="py-2 border-b">
+            <div className="flex justify-between">
+              <span className="text-sm font-medium">Emergency Stop</span>
+              <span className="text-sm">
+                {systemInfo?.emergencyStop ? (
+                  <Badge variant="destructive">ACTIVE</Badge>
+                ) : (
+                  <Badge variant="secondary">Clear</Badge>
+                )}
+              </span>
+            </div>
+            {/* "ACTIVE" on its own is a dead end — nothing else in the UI
+                hints at how to get out of it (#164). */}
+            {systemInfo?.emergencyStop && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {firingErrorGuidance(FIRING_ERROR_CODES.EMERGENCY_STOP)}
+              </p>
+            )}
           </div>
           <div className="flex justify-between py-2">
             <span className="text-sm font-medium">Board Temperature</span>

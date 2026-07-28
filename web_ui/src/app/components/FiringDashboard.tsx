@@ -37,6 +37,8 @@ import { computeFiringProgress } from "../utils/firingProgress";
 import { useKilnStore } from "../stores/kilnStore";
 import { ConnectionBanner } from "./ConnectionBanner";
 import { deriveFiringPhase, showsFiringProgress } from "../utils/firingPhase";
+import { describeFiringChart } from "../utils/chartAria";
+import { describeFiringError, firingErrorGuidance } from "../utils/firingError";
 import {
   Dialog,
   DialogContent,
@@ -52,7 +54,10 @@ import {
   usePauseFiring,
   useSkipSegment,
   useTempUnit,
+  useSystemInfo,
+  queryKeys,
 } from "../hooks/queries";
+import { useQueryClient } from "@tanstack/react-query";
 import { formatTemp, formatRate, unitLabel } from "../utils/temperature";
 
 export function FiringDashboard() {
@@ -219,6 +224,31 @@ export function FiringDashboard() {
     );
   };
 
+  // The live status payload carries no error code — only /api/v1/system does,
+  // via firing_engine_get_error_code(). useSystemInfo() never refetches on its
+  // own, so without this the banner below would show whatever code was cached
+  // when Settings last loaded, which is usually "none". Refetch on the edge
+  // into error, not on every render while in it.
+  const queryClient = useQueryClient();
+  const inError = firingProgress.status === "error";
+  useEffect(() => {
+    if (inError) {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.systemInfo });
+    }
+  }, [inError, queryClient]);
+  const { data: systemInfo } = useSystemInfo();
+  const errorCode = inError ? systemInfo?.lastErrorCode : undefined;
+
+  const chartAriaLabel = useMemo(
+    () =>
+      describeFiringChart({
+        points: currentTempData,
+        hasPlanned: profilePath.length > 0,
+        unit,
+      }),
+    [currentTempData, profilePath, unit],
+  );
+
   const chartData = useMemo<ChartPoint[]>(
     () =>
       buildChartData({
@@ -243,6 +273,25 @@ export function FiringDashboard() {
   return (
     <div className="space-y-6">
       <ConnectionBanner />
+
+      {/* A "Error" badge was the entire report of a failed firing (#164). The
+          code is only on /api/v1/system, so it can lag a beat behind the
+          status flip — render the generic line rather than nothing until it
+          arrives, so the banner never appears empty. */}
+      {inError && (
+        <div
+          className="p-4 rounded-lg border border-destructive/50 bg-destructive/10"
+          role="alert"
+          aria-live="assertive"
+        >
+          <p className="font-medium text-destructive">
+            Firing stopped: {describeFiringError(errorCode)}
+          </p>
+          {firingErrorGuidance(errorCode) && (
+            <p className="text-sm text-muted-foreground mt-1">{firingErrorGuidance(errorCode)}</p>
+          )}
+        </div>
+      )}
 
       {/* Status Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -279,7 +328,13 @@ export function FiringDashboard() {
         <Card>
           <CardHeader className="pb-3">
             <CardDescription>Status</CardDescription>
-            <CardTitle className="flex items-center gap-2">{getStatusBadge()}</CardTitle>
+            {/* Status changes on its own as the firing advances, with no user
+                action to anchor them — polite live region so a screen-reader
+                user hears the transition instead of having to re-read the
+                page to discover it (#170). */}
+            <CardTitle className="flex items-center gap-2" aria-live="polite">
+              {getStatusBadge()}
+            </CardTitle>
           </CardHeader>
         </Card>
       </div>
@@ -479,64 +534,71 @@ export function FiringDashboard() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={400}>
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="time"
-                type="number"
-                domain={timeAxis.ticks.length > 0 ? [0, timeAxis.domainMax] : ["auto", "auto"]}
-                ticks={timeAxis.ticks.length > 0 ? timeAxis.ticks : undefined}
-                tickFormatter={(min: number) => `${Math.round(min / 60)}`}
-                label={{ value: "Time (hours)", position: "insideBottom", offset: -5 }}
-              />
-              <YAxis
-                label={{
-                  value: `Temperature (${unitLabel(unit)})`,
-                  angle: -90,
-                  position: "insideLeft",
-                }}
-              />
-              <Tooltip
-                labelFormatter={(label) => {
-                  const min = Number(label);
-                  const h = Math.floor(min / 60);
-                  const m = min % 60;
-                  return h > 0 ? `${h}h ${m}m` : `${m}m`;
-                }}
-                formatter={(value, name) => [`${value}${unitLabel(unit)}`, name as string]}
-              />
-              <Legend />
-              <Line
-                type="monotone"
-                dataKey="current"
-                stroke="var(--chart-1)"
-                strokeWidth={2}
-                name="Current Temp"
-                dot={showMeasuredDots}
-              />
-              <Line
-                type="monotone"
-                dataKey="target"
-                stroke="var(--chart-3)"
-                strokeWidth={2}
-                strokeDasharray="5 5"
-                name="Target Temp"
-                dot={showMeasuredDots}
-              />
-              {profilePath.length > 0 && (
+          {/* Recharts emits an unlabelled <svg>, so the whole chart is silent
+              to a screen reader (#170). Presenting it as one image with a
+              summary alt text is the standard remedy — role="img" also makes
+              the descendants presentational, so the axis ticks stop leaking
+              out as a stream of loose numbers. */}
+          <div role="img" aria-label={chartAriaLabel}>
+            <ResponsiveContainer width="100%" height={400}>
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="time"
+                  type="number"
+                  domain={timeAxis.ticks.length > 0 ? [0, timeAxis.domainMax] : ["auto", "auto"]}
+                  ticks={timeAxis.ticks.length > 0 ? timeAxis.ticks : undefined}
+                  tickFormatter={(min: number) => `${Math.round(min / 60)}`}
+                  label={{ value: "Time (hours)", position: "insideBottom", offset: -5 }}
+                />
+                <YAxis
+                  label={{
+                    value: `Temperature (${unitLabel(unit)})`,
+                    angle: -90,
+                    position: "insideLeft",
+                  }}
+                />
+                <Tooltip
+                  labelFormatter={(label) => {
+                    const min = Number(label);
+                    const h = Math.floor(min / 60);
+                    const m = min % 60;
+                    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+                  }}
+                  formatter={(value, name) => [`${value}${unitLabel(unit)}`, name as string]}
+                />
+                <Legend />
                 <Line
                   type="monotone"
-                  dataKey="profile"
-                  stroke="var(--muted-foreground)"
-                  strokeWidth={1}
-                  strokeDasharray="3 3"
-                  name="Profile Path"
+                  dataKey="current"
+                  stroke="var(--chart-1)"
+                  strokeWidth={2}
+                  name="Current Temp"
                   dot={false}
                 />
-              )}
-            </LineChart>
-          </ResponsiveContainer>
+                <Line
+                  type="monotone"
+                  dataKey="target"
+                  stroke="var(--chart-3)"
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                  name="Target Temp"
+                  dot={false}
+                />
+                {profilePath.length > 0 && (
+                  <Line
+                    type="monotone"
+                    dataKey="profile"
+                    stroke="var(--muted-foreground)"
+                    strokeWidth={1}
+                    strokeDasharray="3 3"
+                    name="Profile Path"
+                    dot={false}
+                  />
+                )}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </CardContent>
       </Card>
 
