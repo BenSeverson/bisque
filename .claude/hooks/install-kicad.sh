@@ -62,8 +62,38 @@ log "PPA reachable — installing KiCad 10 for ${CODENAME}…"
 
 export DEBIAN_FRONTEND=noninteractive
 
+# Drop the unsigned source an older revision of this script wrote when the
+# keyserver was blocked. That `[trusted=yes]` fallback is gone, but the file it
+# left behind is not: any container that ever ran the old script still has apt
+# configured to trust this PPA unverified, and once the properly signed entry
+# for the same URI exists apt refuses to read either —
+#   E: Conflicting values set for option Trusted regarding source …
+# which fails every apt-get below, not just the one that added it. So this runs
+# before the first apt call, not next to add-apt-repository. Removing it is
+# also the point: an unsigned duplicate of a repo we are about to add signed
+# has no reason to survive.
+LEGACY_LIST=/etc/apt/sources.list.d/kicad.list
+if [ -f "$LEGACY_LIST" ] && grep -q 'trusted=yes' "$LEGACY_LIST" &&
+    grep -q 'ppa.launchpadcontent.net' "$LEGACY_LIST"; then
+    log "removing legacy unsigned PPA entry ($LEGACY_LIST)"
+    rm -f "$LEGACY_LIST"
+fi
+
 apt-get install -y -qq software-properties-common >/dev/null
-add-apt-repository -y "ppa:${PPA}" >/dev/null
+
+# add-apt-repository is `#!/usr/bin/python3` and imports apt_pkg, but this
+# image's python3 alternative points at 3.11 while noble's python3-apt ships
+# only the 3.12 ABI extension — so the stock invocation dies with
+# ModuleNotFoundError before it ever reaches the network. Drive it with the
+# interpreter that actually owns dist-packages instead. Reachability was
+# already established above, so a failure here is a real one: let it stop the
+# script rather than leaving a half-added PPA behind.
+if ! APT_PY="$(toolchain_python_for apt_pkg)"; then
+    log "ERROR: no system python3 can 'import apt_pkg', so add-apt-repository"
+    log "cannot run. Expected python3-apt to provide it — see docs/cloud-dev.md."
+    exit 1
+fi
+"$APT_PY" /usr/bin/add-apt-repository -y "ppa:${PPA}" >/dev/null
 apt-get update -qq 2>/dev/null || true
 
 log "installing kicad + symbol/footprint libraries (~1.5 GB)…"
@@ -81,4 +111,18 @@ if ! toolchain_kicad_ready; then
 fi
 
 log "installed: $(kicad-cli version 2>/dev/null || echo '?') (pcbnew OK)"
-log "regenerate the board with hardware/kicad/generator/kicad_build.py"
+# Advertise a command that actually runs. `python3` on PATH is the ESP-IDF
+# venv once install-esp-idf.sh has activated — a 3.11 with no system
+# site-packages, so it cannot import pcbnew however well KiCad is installed.
+# (Same shape as the cmake/PATH collision: activating IDF shadows a system
+# tool.) Test the PATH interpreter rather than assuming either way, and name
+# the absolute one when it loses — the role the README's $KPY plays on macOS,
+# where pcbnew lives in KiCad.app's bundled Python.
+PCB_PY="$(toolchain_python_for pcbnew)"
+if python3 -c "import pcbnew" >/dev/null 2>&1; then
+    log "regenerate the board with hardware/kicad/generator/kicad_build.py"
+else
+    log "note: python3 on PATH ($(command -v python3)) cannot import pcbnew;"
+    log "regenerate the board with:"
+    log "  ${PCB_PY} hardware/kicad/generator/kicad_build.py"
+fi

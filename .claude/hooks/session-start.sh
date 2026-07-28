@@ -104,11 +104,16 @@ if [ "$have_idf" = yes ] && [ "$have_clang_tidy" = yes ]; then
 elif [ "$have_idf" = yes ]; then
     echo "  firmware: idf.py build (esp-clang missing — make clang-tidy unavailable)"
 else
-    echo "  firmware: UNAVAILABLE — allow the Espressif hosts listed above"
+    echo "  firmware: UNAVAILABLE — see the installer output above"
 fi
 if [ "$have_kicad" = yes ]; then
     echo "  pcb:      kicad-cli + pcbnew generator"
 else
-    echo "  pcb:      UNAVAILABLE — allow the Launchpad hosts listed above"
+    # Deliberately no cause named here. A blocked host is only one way this
+    # fails, and the summary cannot tell which happened: a session with the
+    # Launchpad hosts allowed still lost the pipeline to add-apt-repository
+    # dying on a missing apt_pkg. The installer above prints the real reason —
+    # blocked hosts with a fix, or the error it actually hit.
+    echo "  pcb:      UNAVAILABLE — see the installer output above"
 fi
 echo "  bench:    flashing and on-hardware tests always need real hardware"

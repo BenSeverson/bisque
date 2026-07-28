@@ -109,8 +109,16 @@ produce the wrong artifact.
 | Docs & SVG diagrams | edit directly | ✅ | ✅ |
 | **Firmware build** | `idf.py build` | ❌ | ✅ |
 | clang-tidy | `make clang-tidy` | ❌ | ✅ |
-| **PCB regeneration** | `hardware/kicad/generator/kicad_build.py` | ❌ | ✅ |
+| **PCB regeneration** | `/usr/bin/python3 hardware/kicad/generator/kicad_build.py` | ❌ | ✅ |
 | **Firmware flash / monitor** | `idf.py flash monitor` | ❌ | ❌ (needs hardware) |
+
+The absolute `/usr/bin/python3` in the PCB row is not decoration. Sourcing
+ESP-IDF puts its virtualenv at the front of `PATH`, and that interpreter has no
+system site-packages — so `python3 -c "import pcbnew"` fails in exactly the
+sessions where KiCad is installed and working. It is the same collision as the
+`cmake` one the `Makefile` works around, and the same role `$KPY` plays in
+`hardware/kicad/README.md` on macOS. `install-kicad.sh` prints the interpreter
+to use when the one on `PATH` cannot import `pcbnew`.
 
 The simulator is the one to reach for when changing `components/display/`: it
 renders every screen against real LVGL and diffs the result, so a UI regression
