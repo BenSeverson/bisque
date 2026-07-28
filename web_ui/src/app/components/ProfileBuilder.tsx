@@ -13,7 +13,7 @@ import { Plus, Trash2, Save, MoveUp, MoveDown, Flame } from "lucide-react";
 import { toast } from "sonner";
 import { toErrorMessage } from "../utils/error";
 import { computeSegmentDurationMinutes } from "../utils/profile";
-import { profileFormSchema, ProfileFormValues } from "../schemas/kiln";
+import { profileFormSchema, ProfileFormValues, MAX_SEGMENTS } from "../schemas/kiln";
 import {
   useProfiles,
   useSaveProfile,
@@ -158,7 +158,12 @@ export function ProfileBuilder() {
     }
   };
 
+  const atSegmentCap = fields.length >= MAX_SEGMENTS;
+
   const addSegment = () => {
+    // The schema rejects an over-cap profile too, but stopping the click is what
+    // keeps the user from building a 17th segment and only then being told (#135).
+    if (atSegmentCap) return;
     append({
       id: generateId(),
       name: `Segment ${fields.length + 1}`,
@@ -255,12 +260,12 @@ export function ProfileBuilder() {
           <CardContent className="space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Target Cone</Label>
+                <Label htmlFor="cone-target">Target Cone</Label>
                 <Select
                   value={selectedConeId !== null ? String(selectedConeId) : ""}
                   onValueChange={(v) => setSelectedConeId(Number(v))}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="cone-target">
                     <SelectValue placeholder="Select cone..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -274,12 +279,12 @@ export function ProfileBuilder() {
               </div>
 
               <div className="space-y-2">
-                <Label>Firing Speed</Label>
+                <Label htmlFor="cone-speed">Firing Speed</Label>
                 <Select
                   value={String(coneSpeed)}
                   onValueChange={(v) => setConeSpeed(Number(v) as 0 | 1 | 2)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="cone-speed">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -301,21 +306,21 @@ export function ProfileBuilder() {
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label>Preheat Segment</Label>
+                  <Label htmlFor="cone-preheat">Preheat Segment</Label>
                   <p className="text-xs text-muted-foreground">
                     {formatRate(80, unit)} to {formatTemp(120, unit)} with 30-min moisture hold
                   </p>
                 </div>
-                <Switch checked={preheat} onCheckedChange={setPreheat} />
+                <Switch id="cone-preheat" checked={preheat} onCheckedChange={setPreheat} />
               </div>
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label>Slow Cool</Label>
+                  <Label htmlFor="cone-slow-cool">Slow Cool</Label>
                   <p className="text-xs text-muted-foreground">
                     {formatRate(-150, unit)} through quartz inversion ({formatTemp(573, unit)})
                   </p>
                 </div>
-                <Switch checked={slowCool} onCheckedChange={setSlowCool} />
+                <Switch id="cone-slow-cool" checked={slowCool} onCheckedChange={setSlowCool} />
               </div>
             </div>
 
@@ -415,6 +420,12 @@ export function ProfileBuilder() {
                     variant="outline"
                     size="sm"
                     className="gap-2"
+                    disabled={atSegmentCap}
+                    title={
+                      atSegmentCap
+                        ? `The controller stores at most ${MAX_SEGMENTS} segments per profile`
+                        : undefined
+                    }
                   >
                     <Plus className="h-4 w-4" />
                     Add Segment
@@ -429,8 +440,9 @@ export function ProfileBuilder() {
                   <div key={field.id} className="p-4 border rounded-lg space-y-4">
                     <div className="flex justify-between items-start">
                       <div className="flex-1 space-y-2">
-                        <Label>Segment Name</Label>
+                        <Label htmlFor={`segment-${index}-name`}>Segment Name</Label>
                         <Input
+                          id={`segment-${index}-name`}
                           {...register(`segments.${index}.name`)}
                           placeholder="e.g., Warm-up, Water smoke"
                         />
@@ -440,11 +452,17 @@ export function ProfileBuilder() {
                           </p>
                         )}
                       </div>
+                      {/* Icon-only, so each needs an explicit name — otherwise these
+                          expose as three bare `button` nodes with no distinguishing
+                          text at all in the accessibility tree. The segment number
+                          is included because every segment renders the same trio. */}
                       <div className="flex gap-1 ml-4">
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
+                          aria-label={`Move segment ${index + 1} up`}
+                          title={`Move segment ${index + 1} up`}
                           onClick={() => move(index, index - 1)}
                           disabled={index === 0}
                         >
@@ -454,6 +472,8 @@ export function ProfileBuilder() {
                           type="button"
                           variant="ghost"
                           size="sm"
+                          aria-label={`Move segment ${index + 1} down`}
+                          title={`Move segment ${index + 1} down`}
                           onClick={() => move(index, index + 1)}
                           disabled={index === fields.length - 1}
                         >
@@ -463,6 +483,8 @@ export function ProfileBuilder() {
                           type="button"
                           variant="ghost"
                           size="sm"
+                          aria-label={`Delete segment ${index + 1}`}
+                          title={`Delete segment ${index + 1}`}
                           onClick={() => remove(index)}
                           disabled={fields.length === 1}
                         >
@@ -473,8 +495,11 @@ export function ProfileBuilder() {
 
                     <div className="grid grid-cols-3 gap-4">
                       <div className="space-y-2">
-                        <Label>Ramp Rate ({rateLabel(unit)})</Label>
+                        <Label htmlFor={`segment-${index}-ramp`}>
+                          Ramp Rate ({rateLabel(unit)})
+                        </Label>
                         <TemperatureField
+                          id={`segment-${index}-ramp`}
                           control={control}
                           name={`segments.${index}.rampRate`}
                           unit={unit}
@@ -498,8 +523,11 @@ export function ProfileBuilder() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Target Temp ({unitLabel(unit)})</Label>
+                        <Label htmlFor={`segment-${index}-target`}>
+                          Target Temp ({unitLabel(unit)})
+                        </Label>
                         <TemperatureField
+                          id={`segment-${index}-target`}
                           control={control}
                           name={`segments.${index}.targetTemp`}
                           unit={unit}
@@ -513,8 +541,9 @@ export function ProfileBuilder() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Hold Time (min)</Label>
+                        <Label htmlFor={`segment-${index}-hold`}>Hold Time (min)</Label>
                         <Input
+                          id={`segment-${index}-hold`}
                           type="number"
                           {...register(`segments.${index}.holdTime`, { valueAsNumber: true })}
                           min="0"

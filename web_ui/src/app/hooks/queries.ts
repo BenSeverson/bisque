@@ -2,7 +2,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../services/api";
 import { FiringProfile, KilnSettings } from "../types/kiln";
 import { useKilnStore } from "../stores/kilnStore";
-import { mockProfiles } from "../data/mockProfiles";
 import { TempUnit } from "../utils/temperature";
 
 export const DEFAULT_SETTINGS: KilnSettings = {
@@ -33,16 +32,15 @@ export const queryKeys = {
 // --- Queries ---
 
 export function useProfiles() {
+  // Deliberately no catch. Substituting the five bundled demo profiles on any
+  // failure made a 401 (the API-token lockout) or a transient network error look
+  // like a successful fetch, so the user's own saved profiles appeared to have
+  // vanished and been replaced by ones they never created (#135). Both the dev
+  // server and the demo build serve real profiles from the mock kiln, so the
+  // bundled fallback bought nothing that hiding errors did not cost more.
   return useQuery({
     queryKey: queryKeys.profiles,
-    queryFn: async () => {
-      try {
-        return await api.getProfiles();
-      } catch {
-        // Fallback to mock data when ESP32 is not reachable
-        return mockProfiles;
-      }
-    },
+    queryFn: () => api.getProfiles(),
   });
 }
 
@@ -77,6 +75,12 @@ export function useAutotuneStatus(enabled: boolean) {
     queryKey: queryKeys.autotuneStatus,
     queryFn: () => api.getAutotuneStatus(),
     refetchInterval: enabled ? 2000 : false,
+    // React Query pauses interval refetches in a hidden tab by default, so
+    // switching away for the length of a tune meant the terminal frame was
+    // never observed and the run came back "unconfirmed" (#217). Auto-tune is
+    // bounded and user-initiated, and only polls while `enabled`, so keeping it
+    // running in the background is cheap; other queries keep the default.
+    refetchIntervalInBackground: true,
     retry: false,
   });
 }

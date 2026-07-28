@@ -6,13 +6,33 @@ import { FiringProfiles } from "./components/FiringProfiles";
 import { ProfileBuilder } from "./components/ProfileBuilder";
 import { Settings } from "./components/Settings";
 import { FiringHistory } from "./components/FiringHistory";
-import { Flame, FileText, Wrench, Settings as SettingsIcon, History } from "lucide-react";
+import {
+  Flame,
+  FileText,
+  Wrench,
+  Settings as SettingsIcon,
+  History,
+  Sun,
+  Moon,
+  MonitorCog,
+} from "lucide-react";
 import { Toaster } from "./components/ui/sonner";
+import { Button } from "./components/ui/button";
 import { useKilnStore } from "./stores/kilnStore";
+import { useTheme } from "./hooks/useTheme";
+import type { ThemePreference } from "./utils/theme";
+
+/** Cycle order for the header toggle, and how each state is announced. */
+const THEME_CYCLE: Record<ThemePreference, { next: ThemePreference; label: string }> = {
+  system: { next: "light", label: "Theme: follow system. Switch to light." },
+  light: { next: "dark", label: "Theme: light. Switch to dark." },
+  dark: { next: "system", label: "Theme: dark. Switch to follow system." },
+};
 
 export default function App() {
   const initWebSocket = useKilnStore((s) => s.initWebSocket);
   const [activeTab, setActiveTab] = useState("dashboard");
+  const { preference, theme, setPreference } = useTheme();
 
   useEffect(() => {
     return initWebSocket();
@@ -20,7 +40,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Toaster />
+      <Toaster theme={theme} />
 
       {__DEMO__ && (
         <div className="border-b border-orange-300 bg-orange-50 text-orange-900">
@@ -47,6 +67,22 @@ export default function App() {
               <h1 className="text-2xl font-bold">Bisque</h1>
               <p className="text-sm text-muted-foreground">Professional Firing Control System</p>
             </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="ml-auto"
+              aria-label={THEME_CYCLE[preference].label}
+              title={THEME_CYCLE[preference].label}
+              onClick={() => setPreference(THEME_CYCLE[preference].next)}
+            >
+              {preference === "system" ? (
+                <MonitorCog className="h-5 w-5" />
+              ) : preference === "dark" ? (
+                <Moon className="h-5 w-5" />
+              ) : (
+                <Sun className="h-5 w-5" />
+              )}
+            </Button>
           </div>
         </div>
       </header>
