@@ -109,7 +109,7 @@ produce the wrong artifact.
 | Docs & SVG diagrams | edit directly | ✅ | ✅ |
 | **Firmware build** | `idf.py build` | ❌ | ✅ |
 | clang-tidy | `make clang-tidy` | ❌ | ✅ |
-| **PCB regeneration** | `/usr/bin/python3 hardware/kicad/generator/kicad_build.py` | ❌ | ✅ |
+| **PCB regeneration** | `/usr/bin/python3 hardware/kicad/generator/kicad_build.py hardware/kicad/bisque-controller.kicad_pcb` | ❌ | ✅ |
 | **Firmware flash / monitor** | `idf.py flash monitor` | ❌ | ❌ (needs hardware) |
 
 The absolute `/usr/bin/python3` in the PCB row is not decoration. Sourcing
@@ -119,6 +119,13 @@ sessions where KiCad is installed and working. It is the same collision as the
 `cmake` one the `Makefile` works around, and the same role `$KPY` plays in
 `hardware/kicad/README.md` on macOS. `install-kicad.sh` prints the interpreter
 to use when the one on `PATH` cannot import `pcbnew`.
+
+Nor is the explicit board path. `kicad_build.py` defaults its output to a bare
+`bisque-controller.kicad_pcb` resolved against the current directory, so run
+from the repo root without an argument it writes a new top-level board and DRC
+report and leaves the tracked one alone — a regeneration that looks like it
+worked and changed nothing. Name the output, or `cd hardware/kicad` first as
+`hardware/kicad/README.md` does.
 
 The simulator is the one to reach for when changing `components/display/`: it
 renders every screen against real LVGL and diffs the result, so a UI regression

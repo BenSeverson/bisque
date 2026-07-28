@@ -30,6 +30,32 @@ log() { printf '%s %s\n' "$PREFIX" "$*"; }
 . /etc/os-release 2>/dev/null || true
 CODENAME="${UBUNTU_CODENAME:-noble}"
 
+# ── Migration: drop the unsigned source an older revision of this script
+# wrote when the keyserver was blocked. ───────────────────────────────────
+#
+# That `[trusted=yes]` fallback is gone, but the file it left behind is not:
+# any container that ever ran the old script still has apt configured to trust
+# this PPA *without signature verification*. Two reasons this runs first, ahead
+# of every exit below:
+#
+#   - Where the old fallback installed a working KiCad, the fast path returns
+#     immediately, so a cleanup placed after it would never run on exactly the
+#     containers that have the unsafe source. Same for a still-blocked policy,
+#     which exits at the preflight.
+#   - Once the properly signed entry for the same URI exists, apt refuses to
+#     read either —
+#       E: Conflicting values set for option Trusted regarding source …
+#     which fails every apt-get in this script, not just the one that added it.
+#
+# Removing an unverified duplicate is worth doing whether or not we go on to
+# install anything, so it is not conditional on what follows.
+LEGACY_LIST=/etc/apt/sources.list.d/kicad.list
+if [ -f "$LEGACY_LIST" ] && grep -q 'trusted=yes' "$LEGACY_LIST" &&
+    grep -q 'ppa.launchpadcontent.net' "$LEGACY_LIST"; then
+    log "removing legacy unsigned PPA entry ($LEGACY_LIST)"
+    rm -f "$LEGACY_LIST"
+fi
+
 # ── Fast path: a usable KiCad is already present → nothing to do. ─────────
 # Note this is a version+pcbnew check, not `command -v`: the Ubuntu archive
 # ships a kicad-cli that is too old for the generator, and it is on PATH in the
@@ -61,23 +87,6 @@ fi
 log "PPA reachable — installing KiCad 10 for ${CODENAME}…"
 
 export DEBIAN_FRONTEND=noninteractive
-
-# Drop the unsigned source an older revision of this script wrote when the
-# keyserver was blocked. That `[trusted=yes]` fallback is gone, but the file it
-# left behind is not: any container that ever ran the old script still has apt
-# configured to trust this PPA unverified, and once the properly signed entry
-# for the same URI exists apt refuses to read either —
-#   E: Conflicting values set for option Trusted regarding source …
-# which fails every apt-get below, not just the one that added it. So this runs
-# before the first apt call, not next to add-apt-repository. Removing it is
-# also the point: an unsigned duplicate of a repo we are about to add signed
-# has no reason to survive.
-LEGACY_LIST=/etc/apt/sources.list.d/kicad.list
-if [ -f "$LEGACY_LIST" ] && grep -q 'trusted=yes' "$LEGACY_LIST" &&
-    grep -q 'ppa.launchpadcontent.net' "$LEGACY_LIST"; then
-    log "removing legacy unsigned PPA entry ($LEGACY_LIST)"
-    rm -f "$LEGACY_LIST"
-fi
 
 apt-get install -y -qq software-properties-common >/dev/null
 
@@ -118,11 +127,21 @@ log "installed: $(kicad-cli version 2>/dev/null || echo '?') (pcbnew OK)"
 # tool.) Test the PATH interpreter rather than assuming either way, and name
 # the absolute one when it loses — the role the README's $KPY plays on macOS,
 # where pcbnew lives in KiCad.app's bundled Python.
+#
+# The board path is spelled out for the same reason. kicad_build.py defaults
+# its output to a bare "bisque-controller.kicad_pcb" resolved against the
+# current directory, so run from the repo root it writes a brand-new top-level
+# board and DRC report and leaves the tracked one untouched — a regeneration
+# that appears to work and changes nothing. Everything else it reads is
+# anchored to __file__ or an absolute system library path, so naming the output
+# is enough; no cd required.
 PCB_PY="$(toolchain_python_for pcbnew)"
+PCB_BOARD='hardware/kicad/bisque-controller.kicad_pcb'
 if python3 -c "import pcbnew" >/dev/null 2>&1; then
-    log "regenerate the board with hardware/kicad/generator/kicad_build.py"
+    log "regenerate the board with:"
+    log "  python3 hardware/kicad/generator/kicad_build.py ${PCB_BOARD}"
 else
     log "note: python3 on PATH ($(command -v python3)) cannot import pcbnew;"
     log "regenerate the board with:"
-    log "  ${PCB_PY} hardware/kicad/generator/kicad_build.py"
+    log "  ${PCB_PY} hardware/kicad/generator/kicad_build.py ${PCB_BOARD}"
 fi
