@@ -109,6 +109,13 @@ add_host_test(test_firing_helpers
 add_host_test(test_safety_helpers
     SOURCES test_safety_helpers.c ${ROOT}/components/safety/safety_helpers.c)
 
+# wifi_retry_policy — the STA-reconnect policy extracted from wifi_manager.c
+# (issue #78). The rest of wifi_manager.c is esp_wifi/esp_event all the way
+# down and is not host-buildable; this file is deliberately free of both.
+add_host_test(test_wifi_retry_policy
+    SOURCES test_wifi_retry_policy.c ${ROOT}/components/wifi_manager/wifi_retry_policy.c)
+target_include_directories(test_wifi_retry_policy PRIVATE ${ROOT}/components/wifi_manager/include)
+
 # cone_table — profile generation for every cone × speed × {preheat, slow_cool}.
 add_host_test(test_cone_table
     SOURCES test_cone_table.c ${ROOT}/components/cone_table/cone_table.c)
