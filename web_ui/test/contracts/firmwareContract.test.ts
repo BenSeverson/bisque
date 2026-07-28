@@ -28,6 +28,7 @@ import {
   historyRecordSchema,
   thermocoupleDiagSchema,
 } from "./responseSchemas";
+import { CONE_TABLE as coneTableForTests } from "../../mock-server/router";
 import { z } from "zod";
 
 const FIXTURE_DIR = join(__dirname, "../../../tests/host/build/fixtures/api");
@@ -65,6 +66,20 @@ describe.skipIf(!fixturesPresent)("firmware → frontend API contract", () => {
 
   it("/api/v1/diagnostics/thermocouple payload parses against thermocoupleDiagSchema", () => {
     expect(thermocoupleDiagSchema.parse(load("thermocouple_diag"))).toBeDefined();
+  });
+
+  /**
+   * Shape validation alone let the mock's cone table drift a long way from the
+   * firmware's: 36 entries instead of 37 (cone 05.5 missing, shifting every id
+   * from 17 up) and roughly 20 wrong temperatures — cone 019 read
+   * {630, 643, 673} against the firmware's {656, 671, 678}. The public GitHub
+   * Pages demo served that as real cone data with nothing in CI to catch it.
+   *
+   * This is a value-level comparison, so the mock and the C table must now stay
+   * byte-identical (#166).
+   */
+  it("mock-server cone table matches the firmware fixture exactly", () => {
+    expect(coneTableForTests).toEqual(load("cone_table"));
   });
 });
 

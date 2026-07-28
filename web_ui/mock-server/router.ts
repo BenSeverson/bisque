@@ -11,7 +11,14 @@
  */
 import type { FiringProfile, FiringSegment, KilnSettings } from "../src/app/types/kiln";
 import { state } from "./state";
-import { startFiring, stopFiring, pauseFiring, getStatusResponse } from "./simulator";
+import {
+  startFiring,
+  stopFiring,
+  pauseFiring,
+  skipSegment,
+  getStatusResponse,
+  ensureTicking,
+} from "./simulator";
 
 export interface DispatchResult {
   status: number;
@@ -25,44 +32,64 @@ export interface DispatchResult {
   headers?: Record<string, string>;
 }
 
-// --- Mock Orton cone table ---
-const CONE_TABLE = [
-  { id: 0, name: "022", slowTempC: 585, mediumTempC: 600, fastTempC: 630 },
-  { id: 1, name: "021", slowTempC: 602, mediumTempC: 614, fastTempC: 643 },
-  { id: 2, name: "020", slowTempC: 625, mediumTempC: 635, fastTempC: 666 },
-  { id: 3, name: "019", slowTempC: 630, mediumTempC: 643, fastTempC: 673 },
-  { id: 4, name: "018", slowTempC: 670, mediumTempC: 696, fastTempC: 720 },
-  { id: 5, name: "017", slowTempC: 720, mediumTempC: 736, fastTempC: 770 },
-  { id: 6, name: "016", slowTempC: 742, mediumTempC: 769, fastTempC: 796 },
-  { id: 7, name: "015", slowTempC: 747, mediumTempC: 791, fastTempC: 818 },
-  { id: 8, name: "014", slowTempC: 757, mediumTempC: 807, fastTempC: 836 },
-  { id: 9, name: "013", slowTempC: 807, mediumTempC: 837, fastTempC: 861 },
-  { id: 10, name: "012", slowTempC: 843, mediumTempC: 861, fastTempC: 882 },
-  { id: 11, name: "011", slowTempC: 857, mediumTempC: 875, fastTempC: 894 },
-  { id: 12, name: "010", slowTempC: 891, mediumTempC: 903, fastTempC: 919 },
-  { id: 13, name: "09", slowTempC: 917, mediumTempC: 920, fastTempC: 940 },
-  { id: 14, name: "08", slowTempC: 942, mediumTempC: 945, fastTempC: 966 },
-  { id: 15, name: "07", slowTempC: 973, mediumTempC: 973, fastTempC: 984 },
-  { id: 16, name: "06", slowTempC: 991, mediumTempC: 991, fastTempC: 999 },
-  { id: 17, name: "05", slowTempC: 1031, mediumTempC: 1031, fastTempC: 1046 },
-  { id: 18, name: "04", slowTempC: 1063, mediumTempC: 1063, fastTempC: 1077 },
-  { id: 19, name: "03", slowTempC: 1101, mediumTempC: 1101, fastTempC: 1115 },
-  { id: 20, name: "02", slowTempC: 1120, mediumTempC: 1120, fastTempC: 1134 },
-  { id: 21, name: "01", slowTempC: 1137, mediumTempC: 1137, fastTempC: 1154 },
-  { id: 22, name: "1", slowTempC: 1154, mediumTempC: 1162, fastTempC: 1180 },
-  { id: 23, name: "2", slowTempC: 1162, mediumTempC: 1178, fastTempC: 1190 },
-  { id: 24, name: "3", slowTempC: 1168, mediumTempC: 1186, fastTempC: 1196 },
-  { id: 25, name: "4", slowTempC: 1186, mediumTempC: 1197, fastTempC: 1209 },
-  { id: 26, name: "5", slowTempC: 1196, mediumTempC: 1207, fastTempC: 1221 },
-  { id: 27, name: "6", slowTempC: 1222, mediumTempC: 1222, fastTempC: 1240 },
-  { id: 28, name: "7", slowTempC: 1240, mediumTempC: 1240, fastTempC: 1263 },
-  { id: 29, name: "8", slowTempC: 1263, mediumTempC: 1263, fastTempC: 1280 },
-  { id: 30, name: "9", slowTempC: 1280, mediumTempC: 1280, fastTempC: 1305 },
-  { id: 31, name: "10", slowTempC: 1305, mediumTempC: 1305, fastTempC: 1330 },
-  { id: 32, name: "11", slowTempC: 1315, mediumTempC: 1315, fastTempC: 1336 },
-  { id: 33, name: "12", slowTempC: 1326, mediumTempC: 1326, fastTempC: 1355 },
-  { id: 34, name: "13", slowTempC: 1346, mediumTempC: 1346, fastTempC: 1380 },
-  { id: 35, name: "14", slowTempC: 1366, mediumTempC: 1366, fastTempC: 1400 },
+// --- Orton cone table ---
+// Values are a verbatim copy of components/cone_table/cone_table.c. They drift
+// easily and silently — the mock previously had 36 entries (cone 05.5 missing,
+// shifting every id >= 17) and ~20 wrong temperatures, which the public demo
+// showed as real cone data. `cone table matches the firmware fixture exactly`
+// in test/contracts/firmwareContract.test.ts now compares this array against
+// the JSON the C serializer emits, so any future edit to either side fails CI.
+/** Settings fields the firmware's POST /settings handler actually reads. */
+const SETTINGS_KEYS = new Set<string>([
+  "tempUnit",
+  "maxSafeTemp",
+  "alarmEnabled",
+  "autoShutdown",
+  "notificationsEnabled",
+  "tcOffsetC",
+  "webhookUrl",
+  "elementWatts",
+  "electricityCostKwh",
+]);
+
+export const CONE_TABLE = [
+  { id: 0, name: "022", slowTempC: 586, mediumTempC: 590, fastTempC: 605 },
+  { id: 1, name: "021", slowTempC: 600, mediumTempC: 605, fastTempC: 616 },
+  { id: 2, name: "020", slowTempC: 626, mediumTempC: 634, fastTempC: 638 },
+  { id: 3, name: "019", slowTempC: 656, mediumTempC: 671, fastTempC: 678 },
+  { id: 4, name: "018", slowTempC: 686, mediumTempC: 698, fastTempC: 715 },
+  { id: 5, name: "017", slowTempC: 704, mediumTempC: 715, fastTempC: 736 },
+  { id: 6, name: "016", slowTempC: 742, mediumTempC: 748, fastTempC: 769 },
+  { id: 7, name: "015", slowTempC: 751, mediumTempC: 764, fastTempC: 788 },
+  { id: 8, name: "014", slowTempC: 757, mediumTempC: 782, fastTempC: 807 },
+  { id: 9, name: "013", slowTempC: 807, mediumTempC: 815, fastTempC: 837 },
+  { id: 10, name: "012", slowTempC: 843, mediumTempC: 853, fastTempC: 861 },
+  { id: 11, name: "011", slowTempC: 857, mediumTempC: 867, fastTempC: 875 },
+  { id: 12, name: "010", slowTempC: 891, mediumTempC: 894, fastTempC: 903 },
+  { id: 13, name: "09", slowTempC: 917, mediumTempC: 923, fastTempC: 928 },
+  { id: 14, name: "08", slowTempC: 945, mediumTempC: 955, fastTempC: 983 },
+  { id: 15, name: "07", slowTempC: 973, mediumTempC: 984, fastTempC: 1008 },
+  { id: 16, name: "06", slowTempC: 991, mediumTempC: 999, fastTempC: 1023 },
+  { id: 17, name: "05.5", slowTempC: 1011, mediumTempC: 1020, fastTempC: 1043 },
+  { id: 18, name: "05", slowTempC: 1031, mediumTempC: 1046, fastTempC: 1066 },
+  { id: 19, name: "04", slowTempC: 1050, mediumTempC: 1060, fastTempC: 1083 },
+  { id: 20, name: "03", slowTempC: 1086, mediumTempC: 1101, fastTempC: 1115 },
+  { id: 21, name: "02", slowTempC: 1101, mediumTempC: 1120, fastTempC: 1138 },
+  { id: 22, name: "01", slowTempC: 1117, mediumTempC: 1137, fastTempC: 1154 },
+  { id: 23, name: "1", slowTempC: 1136, mediumTempC: 1154, fastTempC: 1162 },
+  { id: 24, name: "2", slowTempC: 1142, mediumTempC: 1162, fastTempC: 1173 },
+  { id: 25, name: "3", slowTempC: 1152, mediumTempC: 1168, fastTempC: 1181 },
+  { id: 26, name: "4", slowTempC: 1162, mediumTempC: 1182, fastTempC: 1196 },
+  { id: 27, name: "5", slowTempC: 1177, mediumTempC: 1196, fastTempC: 1207 },
+  { id: 28, name: "6", slowTempC: 1201, mediumTempC: 1222, fastTempC: 1240 },
+  { id: 29, name: "7", slowTempC: 1215, mediumTempC: 1239, fastTempC: 1255 },
+  { id: 30, name: "8", slowTempC: 1236, mediumTempC: 1252, fastTempC: 1274 },
+  { id: 31, name: "9", slowTempC: 1260, mediumTempC: 1280, fastTempC: 1285 },
+  { id: 32, name: "10", slowTempC: 1285, mediumTempC: 1305, fastTempC: 1315 },
+  { id: 33, name: "11", slowTempC: 1294, mediumTempC: 1315, fastTempC: 1326 },
+  { id: 34, name: "12", slowTempC: 1306, mediumTempC: 1326, fastTempC: 1355 },
+  { id: 35, name: "13", slowTempC: 1321, mediumTempC: 1348, fastTempC: 1380 },
+  { id: 36, name: "14", slowTempC: 1388, mediumTempC: 1395, fastTempC: 1410 },
 ];
 
 // --- Mock firing history ---
@@ -311,15 +338,7 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
 
   // POST /firing/skip-segment
   if (method === "POST" && apiPath === "/firing/skip-segment") {
-    // Advance segment index in simulator
-    const f = state.firing;
-    if (f.running && f.profile) {
-      f.currentSegmentIndex = Math.min(f.currentSegmentIndex + 1, f.profile.segments.length - 1);
-      f.phase = "ramping";
-      f.segmentElapsed = 0;
-      f.holdElapsed = 0;
-      f.segmentStartTemp = f.currentTemp;
-    }
+    skipSegment();
     return { status: 200, json: { ok: true } };
   }
 
@@ -356,6 +375,21 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
   if (method === "POST" && apiPath === "/settings") {
     // Never store the raw api token in state — just note it's been set
     const { apiToken, ...rest } = body as Partial<KilnSettings> & { apiToken?: string };
+
+    // The firmware reads named fields out of the request body and ignores
+    // anything else; it never grows a key it does not know. The mock used to
+    // Object.assign the whole body, so a misspelled field (`temperatureUnit`)
+    // returned 200, was merged into stored settings, and echoed back on every
+    // later GET — hiding exactly the kind of contract bug this mock exists to
+    // expose (#166). Unknown keys are now rejected rather than silently kept.
+    const unknown = Object.keys(rest).filter((k) => !SETTINGS_KEYS.has(k));
+    if (unknown.length > 0) {
+      return {
+        status: 400,
+        json: { error: `Unknown settings field(s): ${unknown.join(", ")}` },
+      };
+    }
+
     Object.assign(state.settings, rest);
     if (apiToken !== undefined) {
       state.settings.apiTokenSet = !!apiToken;
@@ -385,7 +419,9 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
   // POST /autotune/start
   if (method === "POST" && apiPath === "/autotune/start") {
     const { setpoint, hysteresis } = body as { setpoint: number; hysteresis: number };
-    startAutotune(setpoint, hysteresis);
+    if (!startAutotune(setpoint, hysteresis)) {
+      return { status: 409, json: { error: "A firing is already active" } };
+    }
     return { status: 200, json: { ok: true } };
   }
 
@@ -484,8 +520,17 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
 
 // --- Autotune simulation ---
 
-function startAutotune(setpoint: number, hysteresis: number): void {
+/**
+ * Returns false if the firmware would have rejected the start.
+ *
+ * FIRING_CMD_AUTOTUNE_START refuses while a firing is active or a delayed start
+ * is armed. The mock had no such guard, so both intervals wrote
+ * state.firing.currentTemp and .status every second and the demo dashboard
+ * flickered between the firing and the tune (#131).
+ */
+function startAutotune(setpoint: number, hysteresis: number): boolean {
   const at = state.autotune;
+  if (state.firing.running || state.firing.scheduled) return false;
   if (at.interval) clearInterval(at.interval);
 
   at.running = true;
@@ -514,22 +559,34 @@ function startAutotune(setpoint: number, hysteresis: number): void {
         kd: 1.0 + Math.random() * 0.3,
       };
       state.firing.status = "idle";
+      // Hand the kiln back to the passive-cooling tick. Without this the demo
+      // kiln sat pinned at the autotune setpoint indefinitely, since nothing
+      // else was driving its temperature down (#131).
+      state.firing.coolingDown = true;
+      ensureTicking();
       if (at.interval) {
         clearInterval(at.interval);
         at.interval = null;
       }
     }
   }, 1000);
+  return true;
 }
 
 function stopAutotune(): void {
   const at = state.autotune;
+  const wasRunning = at.running;
   if (at.interval) {
     clearInterval(at.interval);
     at.interval = null;
   }
   at.running = false;
   state.firing.status = "idle";
+  // A cancelled tune leaves the kiln hot too — cool it down like a completed one.
+  if (wasRunning) {
+    state.firing.coolingDown = true;
+    ensureTicking();
+  }
 }
 
 function getAutotuneStatus() {
