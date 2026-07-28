@@ -52,7 +52,7 @@ final class KilnConnection {
             self.connectionState = .connected
 
             // Start WebSocket
-            webSocket.connect(host: host, port: port)
+            webSocket.connect(host: host, port: port, apiToken: apiToken)
 
             // Save connection
             UserDefaults.standard.set(host, forKey: UserDefaultsKeys.lastConnectedHost)

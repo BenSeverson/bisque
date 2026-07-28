@@ -11,6 +11,18 @@
 
 static const char *TAG = "ws";
 
+/* Without these the httpd_uri_t fields below do not exist, and the compiler
+   error is an unhelpful "no member named ws_pre_handshake_cb". Say what is
+   actually wrong instead — and fail the build rather than silently producing
+   the firmware from #202, where the handshake runs no callback, no client is
+   ever registered, and telemetry goes nowhere. Both are set in
+   sdkconfig.defaults; a stale sdkconfig predating that change needs
+   `idf.py reconfigure`. */
+#if !defined(CONFIG_HTTPD_WS_PRE_HANDSHAKE_CB_SUPPORT) || !defined(CONFIG_HTTPD_WS_POST_HANDSHAKE_CB_SUPPORT)
+#error \
+    "WebSocket auth and client registration need CONFIG_HTTPD_WS_PRE_HANDSHAKE_CB_SUPPORT and CONFIG_HTTPD_WS_POST_HANDSHAKE_CB_SUPPORT (see sdkconfig.defaults, #202/#150)"
+#endif
+
 /* Track connected WebSocket file descriptors. Mutated from the httpd task (on
  * connect) and the broadcast worker task (pruning dead fds on send failure), so
  * every access is guarded by s_ws_mutex. */
@@ -28,39 +40,86 @@ static TaskHandle_t s_ws_task = NULL;
  * the heap out from under the firing/safety tasks. */
 #define MAX_WS_FRAME_LEN 1024
 
-/* ── WebSocket handler ─────────────────────────────── */
+/* ── Handshake callbacks ───────────────────────────────
+ *
+ * Registration and auth both live here rather than in ws_handler() because
+ * ws_handler() is never reached at handshake time. esp_http_server answers the
+ * upgrade itself and returns before dispatching to the URI handler:
+ *
+ *     // If the request is websocket handshake, then do not call the uri->handler
+ *     return ESP_OK;
+ *       — esp_http_server/src/httpd_uri.c:362
+ *
+ * and on the frame path httpd_req_new() runs init_req(), which zeroes
+ * req->method — so the `method == HTTP_GET` branch this file used to register
+ * clients in could not fire there either (HTTP_GET is 1). Under ESP-IDF 6.x
+ * that left s_ws_count permanently 0 and ws_broadcast() writing to nobody
+ * (#202). These two callbacks are gated on
+ * CONFIG_HTTPD_WS_{PRE,POST}_HANDSHAKE_CB_SUPPORT, both enabled in
+ * sdkconfig.defaults.
+ */
 
-static esp_err_t ws_handler(httpd_req_t *req)
+/**
+ * Pre-handshake: authenticate before granting the upgrade.
+ *
+ * Returning non-ESP_OK aborts ahead of httpd_ws_respond_server_handshake(), so
+ * an unauthorized client never becomes a WebSocket at all — it gets the 401 and
+ * the socket closes. Doing this post-handshake would leave a live upgraded
+ * socket we then had to tear down.
+ */
+static esp_err_t ws_pre_handshake(httpd_req_t *req)
 {
-    if (req->method == HTTP_GET) {
-        /* New WebSocket connection */
-        int fd = httpd_req_to_sockfd(req);
-        if (s_ws_mutex) {
-            xSemaphoreTake(s_ws_mutex, portMAX_DELAY);
-        }
-        bool already = false;
-        for (int i = 0; i < s_ws_count; i++) {
-            if (s_ws_fds[i] == fd) {
-                already = true; /* fd reused for a fresh handshake; keep one entry */
-                break;
-            }
-        }
-        if (already) {
-            ESP_LOGD(TAG, "WebSocket fd=%d already tracked", fd);
-        } else if (s_ws_count < MAX_WS_CLIENTS) {
-            s_ws_fds[s_ws_count++] = fd;
-            ESP_LOGI(TAG, "WebSocket client connected (fd=%d, total=%d)", fd, s_ws_count);
-        } else {
-            /* Not silent: the client completes the handshake but will never get
-               updates, which is otherwise invisible to operators. */
-            ESP_LOGW(TAG, "WebSocket client table full (%d); fd=%d will receive no updates", MAX_WS_CLIENTS, fd);
-        }
-        if (s_ws_mutex) {
-            xSemaphoreGive(s_ws_mutex);
-        }
+    if (web_auth_check(req)) {
         return ESP_OK;
     }
+    ESP_LOGW(TAG, "WebSocket handshake rejected: missing or bad API token");
+    httpd_resp_set_hdr(req, "WWW-Authenticate", "Bearer realm=\"bisque\"");
+    httpd_resp_send_err(req, HTTPD_401_UNAUTHORIZED, "Unauthorized");
+    return ESP_FAIL;
+}
 
+/**
+ * Post-handshake: the upgrade succeeded, so start broadcasting to this fd.
+ *
+ * Deliberately after the handshake, not before: a client registered pre-upgrade
+ * would be sent frames even if the handshake response itself failed.
+ */
+static esp_err_t ws_post_handshake(httpd_req_t *req)
+{
+    int fd = httpd_req_to_sockfd(req);
+    if (s_ws_mutex) {
+        xSemaphoreTake(s_ws_mutex, portMAX_DELAY);
+    }
+    bool already = false;
+    for (int i = 0; i < s_ws_count; i++) {
+        if (s_ws_fds[i] == fd) {
+            already = true; /* fd reused for a fresh handshake; keep one entry */
+            break;
+        }
+    }
+    if (already) {
+        ESP_LOGD(TAG, "WebSocket fd=%d already tracked", fd);
+    } else if (s_ws_count < MAX_WS_CLIENTS) {
+        s_ws_fds[s_ws_count++] = fd;
+        ESP_LOGI(TAG, "WebSocket client connected (fd=%d, total=%d)", fd, s_ws_count);
+    } else {
+        /* Not silent: the client completes the handshake but will never get
+           updates, which is otherwise invisible to operators. */
+        ESP_LOGW(TAG, "WebSocket client table full (%d); fd=%d will receive no updates", MAX_WS_CLIENTS, fd);
+    }
+    if (s_ws_mutex) {
+        xSemaphoreGive(s_ws_mutex);
+    }
+    return ESP_OK;
+}
+
+/* ── WebSocket handler ─────────────────────────────── */
+
+/* Reached only for frames sent by an already-upgraded client. This is a one-way
+   telemetry channel, so there is nothing to act on — the frames are read to
+   keep the TCP stream aligned and discarded. */
+static esp_err_t ws_handler(httpd_req_t *req)
+{
     /* Receive a WebSocket frame */
     httpd_ws_frame_t ws_pkt;
     memset(&ws_pkt, 0, sizeof(ws_pkt));
@@ -281,6 +340,8 @@ esp_err_t ws_handler_register(httpd_handle_t server)
         .method = HTTP_GET,
         .handler = ws_handler,
         .is_websocket = true,
+        .ws_pre_handshake_cb = ws_pre_handshake,
+        .ws_post_handshake_cb = ws_post_handshake,
     };
 
     esp_err_t ret = httpd_register_uri_handler(server, &ws_uri);

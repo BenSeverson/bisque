@@ -20,6 +20,7 @@
 #include "driver/temperature_sensor.h"
 #include <inttypes.h>
 #include "cJSON.h"
+#include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
@@ -31,11 +32,51 @@ static temperature_sensor_handle_t s_board_temp_handle = NULL;
 
 /* ── Auth helpers ──────────────────────────────────── */
 
+/* Longest query string we will read: "token=" plus a fully percent-encoded
+ * token (every byte -> %XX) plus the terminator. httpd_query_key_value()
+ * returns ESP_ERR_HTTPD_RESULT_TRUNC rather than a partial value, so an
+ * undersized buffer here reads as "wrong token", not as a short one. */
+#define AUTH_TOKEN_MAX   (sizeof(((kiln_settings_t *)0)->api_token) - 1)
+#define AUTH_ENCODED_MAX (AUTH_TOKEN_MAX * 3)
+#define AUTH_QUERY_BUF   (sizeof("token=") + AUTH_ENCODED_MAX)
+
+/**
+ * Percent-decode `src` into `dst` in place-safe fashion (dst may equal src).
+ *
+ * `%` followed by two hex digits becomes the byte; anything else is copied
+ * verbatim, including a lone `%` or a truncated escape at the end. `+` is
+ * *not* treated as a space: that convention belongs to
+ * application/x-www-form-urlencoded form bodies, while the web client builds
+ * this value with encodeURIComponent(), which emits `%2B` for a literal plus.
+ * Decoding `+` here would corrupt a token that genuinely contains one.
+ *
+ * Returns the decoded length. `dst` must have room for strlen(src) + 1.
+ */
+static size_t url_decode_inplace(char *dst, const char *src)
+{
+    size_t w = 0;
+    for (size_t r = 0; src[r] != '\0'; r++) {
+        if (src[r] == '%' && isxdigit((unsigned char)src[r + 1]) && isxdigit((unsigned char)src[r + 2])) {
+            const char hex[3] = {src[r + 1], src[r + 2], '\0'};
+            dst[w++] = (char)strtol(hex, NULL, 16);
+            r += 2;
+        } else {
+            dst[w++] = src[r];
+        }
+    }
+    dst[w] = '\0';
+    return w;
+}
+
 /**
  * Check Bearer token auth. Returns true if request is authorized.
  * If token is empty in settings, all requests are authorized.
+ *
+ * Declared in web_server.h rather than kept static: the WebSocket handshake
+ * callback in ws_handler.c gates on the same rule, and a second copy of it
+ * there is a copy that can drift out of step with this one.
  */
-static bool check_auth(httpd_req_t *req)
+bool web_auth_check(httpd_req_t *req)
 {
     kiln_settings_t settings;
     firing_engine_get_settings(&settings);
@@ -57,11 +98,22 @@ static bool check_auth(httpd_req_t *req)
         }
     }
 
-    /* Check ?token= query parameter */
-    char token_param[80] = {0};
+    /* Check ?token= query parameter.
+     *
+     * The value arrives percent-encoded — the web client builds it with
+     * encodeURIComponent(), and httpd_query_key_value() memcpy's the raw bytes
+     * without decoding (esp_http_server/src/httpd_parse.c:945). Comparing them
+     * undecoded rejects every token containing a character encodeURIComponent
+     * escapes, which for a base64 token means any `+`, `/` or `=` — so exactly
+     * the strong tokens fail while weak alphanumeric ones pass. On the
+     * WebSocket handshake that is the whole credential (browsers cannot set
+     * headers there), so the symptom is a dashboard that polls fine over REST
+     * and never receives a live update. */
+    char token_param[AUTH_QUERY_BUF] = {0};
     if (httpd_req_get_url_query_str(req, token_param, sizeof(token_param)) == ESP_OK) {
-        char val[80] = {0};
+        char val[AUTH_ENCODED_MAX + 1] = {0};
         if (httpd_query_key_value(token_param, "token", val, sizeof(val)) == ESP_OK) {
+            url_decode_inplace(val, val);
             if (strcmp(val, settings.api_token) == 0) {
                 return true;
             }
@@ -73,7 +125,7 @@ static bool check_auth(httpd_req_t *req)
 
 static bool require_auth(httpd_req_t *req)
 {
-    if (!check_auth(req)) {
+    if (!web_auth_check(req)) {
         httpd_resp_set_hdr(req, "WWW-Authenticate", "Bearer realm=\"bisque\"");
         httpd_resp_send_err(req, HTTPD_401_UNAUTHORIZED, "Unauthorized");
         return false;

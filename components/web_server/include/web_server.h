@@ -5,6 +5,7 @@
 #include "firing_types.h"
 #include "cJSON.h"
 #include "ota_manager.h"
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -87,6 +88,18 @@ const char *firing_status_to_string(firing_status_t s);
  *                     offset/fault adjustments apply).
  */
 void json_add_progress_fields(cJSON *target, const firing_progress_t *prog, float current_temp);
+
+/**
+ * Check Bearer/query-parameter auth on a request. Returns true when the
+ * request is authorized, including when no API token is configured (open
+ * access). Shared so the WebSocket handshake is gated by exactly the same rule
+ * as the REST endpoints rather than a second copy that can drift.
+ *
+ * Note the query-parameter path is not redundant with the header: browsers
+ * cannot set headers on a WebSocket handshake, so `?token=` is the only
+ * credential the web client can present on /api/v1/ws.
+ */
+bool web_auth_check(httpd_req_t *req);
 
 /* Internal: register API handlers (called by web_server_start) */
 esp_err_t api_handlers_register(httpd_handle_t server);

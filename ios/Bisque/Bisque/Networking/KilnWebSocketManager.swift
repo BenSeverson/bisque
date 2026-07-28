@@ -9,6 +9,7 @@ final class KilnWebSocketManager {
     private var webSocketTask: URLSessionWebSocketTask?
     private let session = URLSession(configuration: .default)
     private var url: URL?
+    private var apiToken: String?
     private var reconnectDelay: TimeInterval = 1
     private var reconnectTask: Task<Void, Never>?
     private var receiveTask: Task<Void, Never>?
@@ -17,9 +18,14 @@ final class KilnWebSocketManager {
     let updateSubject = PassthroughSubject<TempUpdateData, Never>()
     let otaSubject = PassthroughSubject<OTAEvent, Never>()
 
-    func connect(host: String, port: Int = 80) {
+    /// - Parameter apiToken: credential for the handshake. The firmware gates
+    ///   `/api/v1/ws` with the same check as the REST API, so without this a
+    ///   token-protected kiln rejects the upgrade with 401 and the app silently
+    ///   falls back to polling.
+    func connect(host: String, port: Int = 80, apiToken: String? = nil) {
         guard let url = URL(string: "ws://\(host):\(port)/api/v1/ws") else { return }
         self.url = url
+        self.apiToken = apiToken
         self.shouldReconnect = true
         self.reconnectDelay = 1
         openConnection()
@@ -40,7 +46,15 @@ final class KilnWebSocketManager {
         guard let url = url else { return }
 
         webSocketTask?.cancel(with: .goingAway, reason: nil)
-        let task = session.webSocketTask(with: url)
+        // Via URLRequest, not the bare URL, so the handshake can carry the
+        // Authorization header. URLSession permits this on a WebSocket where
+        // the browser WebSocket API does not — which is why the web client has
+        // to use `?token=` for the same endpoint.
+        var request = URLRequest(url: url)
+        if let token = apiToken, !token.isEmpty {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        let task = session.webSocketTask(with: request)
         self.webSocketTask = task
         task.resume()
 
