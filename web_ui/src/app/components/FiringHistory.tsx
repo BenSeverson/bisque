@@ -99,6 +99,11 @@ export function FiringHistory() {
           {/* Record list */}
           <div className="space-y-3 lg:col-span-1">
             {records.map((record) => (
+              // Same shape as the profile cards: the record name is the real
+              // focusable button (the card can't be one — it holds a CSV button),
+              // and the card's onClick is a pointer-only convenience so the whole
+              // card stays a tap target. aria-current plus the visible "Viewing
+              // trace" line replace the ring-colour-only selected signal (#168).
               <Card
                 key={record.id}
                 className={`cursor-pointer transition-all ${
@@ -108,12 +113,25 @@ export function FiringHistory() {
               >
                 <CardContent className="pt-4 pb-3 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="font-medium text-sm truncate">{record.profileName}</span>
+                    <button
+                      type="button"
+                      aria-current={selectedRecord?.id === record.id ? "true" : undefined}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelectRecord(record);
+                      }}
+                      className="cursor-pointer truncate rounded-sm text-left text-sm font-medium hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                    >
+                      {record.profileName}
+                    </button>
                     <Badge variant={outcomeVariant(record.outcome)} className="ml-2 shrink-0">
                       {record.outcome}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground">{formatDate(record.startTime)}</p>
+                  {selectedRecord?.id === record.id && (
+                    <p className="text-xs font-medium text-primary">Viewing trace</p>
+                  )}
                   <div className="flex gap-3 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Thermometer className="h-3 w-3" />

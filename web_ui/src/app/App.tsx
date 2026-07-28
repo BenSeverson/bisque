@@ -54,7 +54,19 @@ export default function App() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
+          {/* The tab strip wraps onto as many rows as the viewport needs instead of
+              squeezing five tabs onto one line. `grid-cols-5` used to shrink every
+              trigger below its label width at phone widths, so the icons and text
+              overlapped into unreadable mush (#159). Wrapping keeps all five labels
+              visible and legible at once — no horizontal scrolling that hides tabs
+              off-screen, and no icon-only mode that would make "Profile Builder"
+              (wrench) and "Settings" (gear) guesswork. `[&>*]:basis-auto` undoes the
+              trigger's own `flex-1` (basis 0) so each one lays out at its natural
+              width and the row breaks rather than the text colliding. */}
+          <TabsList
+            aria-label="Sections"
+            className="h-auto w-full flex-wrap gap-1 [&>*]:basis-auto [&>*]:py-1.5 lg:w-fit lg:flex-nowrap"
+          >
             <TabsTrigger value="dashboard" className="gap-2">
               <Flame className="h-4 w-4" />
               Dashboard
