@@ -36,7 +36,7 @@ import { api } from "../services/api";
 import { toast } from "sonner";
 import { formatDuration } from "../utils/time";
 import { toErrorMessage } from "../utils/error";
-import { computeSegmentDurationMinutes } from "../utils/profile";
+import { buildProfilePath, buildProfileTimeAxis } from "../utils/profilePath";
 import { buildChartData, type ChartPoint } from "../utils/chartData";
 import { computeFiringProgress } from "../utils/firingProgress";
 import { useKilnStore } from "../stores/kilnStore";
@@ -125,54 +125,15 @@ export function FiringDashboard() {
     };
   }, []);
 
-  // Calculate the complete profile path when profile is selected
+  // The complete planned path for the selected profile. Point count is bounded
+  // inside buildProfilePath — see MAX_PROFILE_PATH_POINTS.
   const profilePath = useMemo<TemperatureDataPoint[]>(() => {
     if (!selectedProfile) return [];
-
-    const path: TemperatureDataPoint[] = [];
-    let currentTime = 0;
-    let currentTemp = 20;
-
-    path.push({ time: 0, temp: 20, target: 20 });
-
-    selectedProfile.segments.forEach((segment) => {
-      const tempDifference = segment.targetTemp - currentTemp;
-      const { rampMinutes: rampTimeMinutes } = computeSegmentDurationMinutes(
-        {
-          targetTemp: segment.targetTemp,
-          rampRate: segment.rampRate,
-          holdMinutes: segment.holdTime,
-        },
-        currentTemp,
-      );
-
-      const steps = Math.max(10, Math.floor(rampTimeMinutes / 5));
-      for (let i = 1; i <= steps; i++) {
-        const progress = i / steps;
-        const stepTime = currentTime + rampTimeMinutes * progress;
-        const stepTemp = currentTemp + tempDifference * progress;
-        path.push({
-          time: Math.round(stepTime),
-          temp: Math.round(stepTemp),
-          target: Math.round(stepTemp),
-        });
-      }
-
-      currentTime += rampTimeMinutes;
-      currentTemp = segment.targetTemp;
-
-      if (segment.holdTime > 0 && segment.holdTime !== HOLD_UNTIL_SKIP) {
-        path.push({
-          time: Math.round(currentTime + segment.holdTime),
-          temp: segment.targetTemp,
-          target: segment.targetTemp,
-        });
-        currentTime += segment.holdTime;
-      }
-    });
-
-    return path;
+    return buildProfilePath(selectedProfile.segments);
   }, [selectedProfile]);
+
+  // Hour ticks for the planned span, bounded the same way the path is.
+  const timeAxis = useMemo(() => buildProfileTimeAxis(profilePath), [profilePath]);
 
   const handleStart = useCallback(async () => {
     if (!selectedProfile) return;
@@ -490,19 +451,8 @@ export function FiringDashboard() {
               <XAxis
                 dataKey="time"
                 type="number"
-                domain={
-                  profilePath.length > 0
-                    ? [0, Math.ceil(profilePath[profilePath.length - 1].time / 60) * 60]
-                    : ["auto", "auto"]
-                }
-                ticks={
-                  profilePath.length > 0
-                    ? Array.from(
-                        { length: Math.ceil(profilePath[profilePath.length - 1].time / 60) + 1 },
-                        (_, i) => i * 60,
-                      )
-                    : undefined
-                }
+                domain={timeAxis.ticks.length > 0 ? [0, timeAxis.domainMax] : ["auto", "auto"]}
+                ticks={timeAxis.ticks.length > 0 ? timeAxis.ticks : undefined}
                 tickFormatter={(min: number) => `${Math.round(min / 60)}`}
                 label={{ value: "Time (hours)", position: "insideBottom", offset: -5 }}
               />

@@ -5,7 +5,7 @@ import {
   firingProfileSchema,
   settingsSchema,
 } from "./kiln";
-import { HOLD_UNTIL_SKIP } from "../types/kiln";
+import { HOLD_UNTIL_SKIP, MIN_ABS_RAMP_RATE_C_PER_HR } from "../types/kiln";
 
 const validSegment = {
   id: "seg-1",
@@ -46,7 +46,29 @@ describe("firingSegmentSchema", () => {
     const r = firingSegmentSchema.safeParse({ ...validSegment, rampRate: 0 });
     expect(r.success).toBe(false);
     if (!r.success) {
-      expect(r.error.issues.some((i) => i.message === "Ramp rate must be non-zero")).toBe(true);
+      expect(r.error.issues.some((i) => i.message.startsWith("Ramp rate must be at least"))).toBe(
+        true,
+      );
+    }
+  });
+
+  it("rejects a ramp rate below the minimum magnitude in either direction", () => {
+    // 0.1°C/hr validated before #160: a 5800-hour firing whose chart path
+    // needed 153,601 points.
+    for (const rampRate of [0.1, -0.1, 0.001, 0.999, -0.999]) {
+      expect(firingSegmentSchema.safeParse({ ...validSegment, rampRate }).success).toBe(false);
+    }
+  });
+
+  it("accepts the minimum ramp-rate magnitude and normal rates", () => {
+    for (const rampRate of [
+      MIN_ABS_RAMP_RATE_C_PER_HR,
+      -MIN_ABS_RAMP_RATE_C_PER_HR,
+      50,
+      -200,
+      100,
+    ]) {
+      expect(firingSegmentSchema.safeParse({ ...validSegment, rampRate }).success).toBe(true);
     }
   });
 

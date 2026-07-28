@@ -121,10 +121,18 @@ export function useSaveProfile() {
 
 export function useDeleteProfile() {
   const queryClient = useQueryClient();
-  const { selectedProfileId, setSelectedProfileId } = useKilnStore();
   return useMutation({
     mutationFn: (profileId: string) => api.deleteProfile(profileId),
     onSuccess: (_data, profileId) => {
+      /* Read the store here instead of subscribing to it. A selector-less
+         `useKilnStore()` subscribes to the whole state object, which is
+         replaced on every temp_update frame (~1 Hz during a firing), so every
+         consumer of this hook re-rendered once a second for the length of a
+         firing — including ProfileBuilder, which App.tsx force-mounts to keep
+         a half-typed profile alive across tab switches (#162). getState() also
+         reads the selection at delete time rather than closing over the value
+         from the render that created the mutation. */
+      const { selectedProfileId, setSelectedProfileId } = useKilnStore.getState();
       if (selectedProfileId === profileId) setSelectedProfileId(null);
       queryClient.invalidateQueries({ queryKey: queryKeys.profiles });
     },

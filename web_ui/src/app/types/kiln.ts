@@ -2,6 +2,23 @@
  *  Mirrors FIRING_HOLD_INDEFINITE in firing_types.h. */
 export const HOLD_UNTIL_SKIP = 65535;
 
+/**
+ * Smallest ramp-rate magnitude (°C/hr) a segment may carry, in either
+ * direction. A client-side guardrail, not a firmware limit: `validate_profile`
+ * (components/web_server/api_handlers.c) and the START guard
+ * (components/firing_engine/firing_engine.c) only require a finite non-zero
+ * rate, so 0.001°C/hr saves and starts happily — and a rate that small turns
+ * a profile into a 1400-hour schedule whose chart path is unplottable (#160).
+ *
+ * 1°C/hr is chosen to sit well clear of both firmware boundaries around it:
+ * the engine stops supervising a segment as a ramp below 0.1°C/hr (the runaway
+ * check is gated on `fabsf(seg->ramp_rate) > 0.1f`), and its not-rising
+ * watchdog trips unless a heating segment gains 10°C every 15 minutes — an
+ * effective 40°C/hr floor for anything that runs to completion. Nothing the
+ * device would actually fire is excluded.
+ */
+export const MIN_ABS_RAMP_RATE_C_PER_HR = 1;
+
 export interface FiringSegment {
   id: string;
   name: string;

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { HOLD_UNTIL_SKIP } from "../types/kiln";
+import { HOLD_UNTIL_SKIP, MIN_ABS_RAMP_RATE_C_PER_HR } from "../types/kiln";
 
 // Reject NaN/Infinity that escape from `valueAsNumber: true` on empty inputs.
 const finiteNumber = (msg: string) =>
@@ -8,9 +8,15 @@ const finiteNumber = (msg: string) =>
 export const firingSegmentSchema = z.object({
   id: z.string(),
   name: z.string().min(1, "Segment name is required"),
-  rampRate: finiteNumber("Ramp rate is required").refine((v) => v !== 0, {
-    message: "Ramp rate must be non-zero",
-  }),
+  // A magnitude, so cooling segments (negative rates) are held to the same
+  // floor. Only rejecting 0 let a typo like 0.1°C/hr through, which is a
+  // 5800-hour firing and an unplottable chart path (#160).
+  rampRate: finiteNumber("Ramp rate is required").refine(
+    (v) => Math.abs(v) >= MIN_ABS_RAMP_RATE_C_PER_HR,
+    {
+      message: `Ramp rate must be at least ${MIN_ABS_RAMP_RATE_C_PER_HR}°C/hr to heat or -${MIN_ABS_RAMP_RATE_C_PER_HR}°C/hr to cool`,
+    },
+  ),
   targetTemp: finiteNumber("Target temp is required").gt(0).max(1400),
   holdTime: finiteNumber("Hold time is required").min(0).max(HOLD_UNTIL_SKIP),
 });
