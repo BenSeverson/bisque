@@ -60,6 +60,29 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
     }
 }
 
+/**
+ * Copy a credential into a fixed-width 802.11 config field.
+ *
+ * Deliberately not `strncpy(dst, src, sizeof(dst) - 1)`. These fields are not
+ * C strings: an SSID is 0–32 bytes and a WPA2 PSK may be 64 hex characters,
+ * neither NUL-terminated at full width. Reserving a byte for a terminator
+ * therefore drops the last character of exactly the longest *legal*
+ * credentials — a 32-character SSID silently became a 31-character one, and
+ * the device spent the rest of its life trying to join a network that does not
+ * exist. `wifi_config_t` is zero-initialised at both call sites, so anything
+ * shorter than the field stays NUL-terminated.
+ *
+ * NULL `src` leaves the field zeroed rather than trapping, which is the right
+ * reading of "no password configured".
+ */
+static void copy_credential(uint8_t *dst, size_t dst_size, const char *src)
+{
+    if (!src) {
+        return;
+    }
+    memcpy(dst, src, strnlen(src, dst_size));
+}
+
 static void start_ap(void)
 {
     /* Stop STA first */
@@ -73,9 +96,9 @@ static void start_ap(void)
                 .authmode = WIFI_AUTH_WPA2_PSK,
             },
     };
-    strncpy((char *)ap_config.ap.ssid, s_ap_ssid, sizeof(ap_config.ap.ssid) - 1);
-    ap_config.ap.ssid_len = strlen(s_ap_ssid);
-    strncpy((char *)ap_config.ap.password, s_ap_pass, sizeof(ap_config.ap.password) - 1);
+    copy_credential(ap_config.ap.ssid, sizeof(ap_config.ap.ssid), s_ap_ssid);
+    ap_config.ap.ssid_len = strnlen(s_ap_ssid, sizeof(ap_config.ap.ssid));
+    copy_credential(ap_config.ap.password, sizeof(ap_config.ap.password), s_ap_pass);
 
     if (strlen(s_ap_pass) < 8) {
         ap_config.ap.authmode = WIFI_AUTH_OPEN;
@@ -118,8 +141,8 @@ esp_err_t wifi_manager_init(const char *sta_ssid, const char *sta_pass, const ch
     esp_netif_create_default_wifi_sta();
 
     wifi_config_t sta_config = {};
-    strncpy((char *)sta_config.sta.ssid, sta_ssid, sizeof(sta_config.sta.ssid) - 1);
-    strncpy((char *)sta_config.sta.password, sta_pass, sizeof(sta_config.sta.password) - 1);
+    copy_credential(sta_config.sta.ssid, sizeof(sta_config.sta.ssid), sta_ssid);
+    copy_credential(sta_config.sta.password, sizeof(sta_config.sta.password), sta_pass);
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_config));
