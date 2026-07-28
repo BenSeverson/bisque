@@ -62,6 +62,19 @@ actor KilnAPIClient {
     private let session: URLSession
     private var apiToken: String?
 
+    /// Escapes a value being spliced into a URL *path*.
+    ///
+    /// Profile ids are normally client-generated UUIDs, but `importProfile`
+    /// accepts arbitrary JSON, so an id could carry `/`, `..`, `?` or a space.
+    /// Interpolated raw, `"x/../settings"` turns a profile delete into a
+    /// request against a different endpoint, and a space makes
+    /// `URL(string:)` return nil (#152). `.urlPathAllowed` still permits `/`,
+    /// so slashes are escaped explicitly afterwards.
+    static func pathComponent(_ raw: String) -> String {
+        let encoded = raw.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? ""
+        return encoded.replacingOccurrences(of: "/", with: "%2F")
+    }
+
     init(host: String, port: Int = 80, apiToken: String? = nil) throws {
         guard let url = URL(string: "http://\(host):\(port)/api/v1") else {
             throw APIError.invalidURL
@@ -177,7 +190,7 @@ actor KilnAPIClient {
     }
 
     func deleteProfile(id: String) async throws -> OkResponse {
-        try await request(method: "DELETE", path: "/profiles/\(id)")
+        try await request(method: "DELETE", path: "/profiles/\(Self.pathComponent(id))")
     }
 
     func importProfile(_ profile: FiringProfile) async throws -> OkIdResponse {
@@ -315,7 +328,11 @@ final class UploadProgressDelegate: NSObject, URLSessionTaskDelegate, @unchecked
     func urlSession(_ session: URLSession, task: URLSessionTask,
                     didSendBodyData bytesSent: Int64, totalBytesSent: Int64,
                     totalBytesExpectedToSend: Int64) {
-        let progress = Double(totalBytesSent) / Double(totalBytesExpectedToSend)
-        onProgress(progress * 100)
+        // totalBytesExpectedToSend is 0 or NSURLSessionTransferSizeUnknown (-1)
+        // when the length isn't known up front, which made this report NaN or a
+        // negative percentage straight into the progress UI (#155).
+        guard totalBytesExpectedToSend > 0 else { return }
+        let fraction = Double(totalBytesSent) / Double(totalBytesExpectedToSend)
+        onProgress(min(max(fraction, 0), 1) * 100)
     }
 }

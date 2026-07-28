@@ -75,13 +75,18 @@ final class KilnConnection {
         connectionState = .disconnected
     }
 
-    func setAndSaveToken(_ token: String?) {
+    /// Returns false if the token could not be persisted, so the caller can say
+    /// so rather than letting the user discover it as a lockout on next launch
+    /// (#151). The in-memory token is still adopted either way — the current
+    /// session works; only persistence failed.
+    @discardableResult
+    func setAndSaveToken(_ token: String?) -> Bool {
         apiToken = token
         if let token = token, !token.isEmpty {
-            KeychainHelper.save(key: "apiToken", value: token)
-        } else {
-            KeychainHelper.delete(key: "apiToken")
+            return KeychainHelper.save(key: "apiToken", value: token)
         }
+        KeychainHelper.delete(key: "apiToken")
+        return true
     }
 
     func autoConnect() async {
