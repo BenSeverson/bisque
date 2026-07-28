@@ -3,49 +3,92 @@ import UIKit
 
 @MainActor
 final class NotificationManager {
-    private var hasPermission = false
-
     init() {
         Task { @MainActor in
             await requestPermission()
         }
     }
 
-    func requestPermission() async {
+    @discardableResult
+    func requestPermission() async -> Bool {
         do {
-            hasPermission = try await UNUserNotificationCenter.current().requestAuthorization(
+            return try await UNUserNotificationCenter.current().requestAuthorization(
                 options: [.alert, .sound, .badge]
             )
         } catch {
-            hasPermission = false
+            return false
         }
     }
 
-    func sendFiringComplete(profileName: String, peakTemp: Double) {
-        guard hasPermission else { return }
-        guard UIApplication.shared.applicationState != .active else { return }
+    /// Whether notifications may be posted *right now*.
+    ///
+    /// This used to be a Bool cached from `init`, so a user who granted
+    /// permission later in iOS Settings stayed silently opted out until the app
+    /// reconnected. Asking the notification centre at send time costs one cheap
+    /// async call and is always current (#155).
+    private func canNotify() async -> Bool {
+        switch await Self.authorizationStatus() {
+        case .authorized, .provisional, .ephemeral:
+            return true
+        default:
+            return false
+        }
+    }
 
-        let content = UNMutableNotificationContent()
-        content.title = "Firing Complete"
-        content.body = "\(profileName) finished successfully. Peak temp: \(Int(peakTemp))°C"
-        content.sound = .default
-        content.interruptionLevel = .timeSensitive
+    /// `nonisolated` so `UNNotificationSettings` never crosses an isolation
+    /// boundary. This type is `@MainActor`, and `notificationSettings()` is a
+    /// nonisolated async call, so awaiting it directly from a member hands a
+    /// non-Sendable class back to the main actor — which Swift 6 rejects:
+    ///
+    ///     error: non-sendable result type 'UNNotificationSettings' cannot be
+    ///     sent from nonisolated context
+    ///
+    /// Reading `.authorizationStatus` here keeps the settings object on the
+    /// concurrent executor and returns only the Sendable enum. The compiler
+    /// also offers `@preconcurrency import UserNotifications`, but that
+    /// downgrades every Sendable diagnostic from the module — including ones
+    /// worth hearing about — to a warning.
+    private nonisolated static func authorizationStatus() async -> UNAuthorizationStatus {
+        await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+    }
 
-        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
-        UNUserNotificationCenter.current().add(request)
+    func sendFiringComplete(profileName: String, peakTempC: Double, unit: String) {
+        // Formatted through the shared formatter so the notification agrees with
+        // the rest of the app; the body used to hardcode °C regardless of the
+        // tempUnit setting (#146).
+        let peak = Formatters.formatTemp(peakTempC, unit: unit)
+        Task { @MainActor in
+            guard await canNotify() else { return }
+            guard UIApplication.shared.applicationState != .active else { return }
+
+            let content = UNMutableNotificationContent()
+            content.title = "Firing Complete"
+            content.body = "\(profileName) finished successfully. Peak temp: \(peak)"
+            content.sound = .default
+            content.interruptionLevel = .timeSensitive
+
+            let request = UNNotificationRequest(
+                identifier: UUID().uuidString, content: content, trigger: nil
+            )
+            try? await UNUserNotificationCenter.current().add(request)
+        }
     }
 
     func sendFiringError(profileName: String) {
-        guard hasPermission else { return }
-        guard UIApplication.shared.applicationState != .active else { return }
+        Task { @MainActor in
+            guard await canNotify() else { return }
+            guard UIApplication.shared.applicationState != .active else { return }
 
-        let content = UNMutableNotificationContent()
-        content.title = "Kiln Error"
-        content.body = "\(profileName) encountered an error. Check kiln immediately."
-        content.sound = .defaultCritical
-        content.interruptionLevel = .timeSensitive
+            let content = UNMutableNotificationContent()
+            content.title = "Kiln Error"
+            content.body = "\(profileName) encountered an error. Check kiln immediately."
+            content.sound = .defaultCritical
+            content.interruptionLevel = .timeSensitive
 
-        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
-        UNUserNotificationCenter.current().add(request)
+            let request = UNNotificationRequest(
+                identifier: UUID().uuidString, content: content, trigger: nil
+            )
+            try? await UNUserNotificationCenter.current().add(request)
+        }
     }
 }

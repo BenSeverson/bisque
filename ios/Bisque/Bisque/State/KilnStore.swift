@@ -15,6 +15,17 @@ final class KilnStore {
     private var cancellables = Set<AnyCancellable>()
     private var previousStatus: String = "idle"
 
+    /// Highest temperature seen across the current firing.
+    ///
+    /// The completion notification used to report `progress.currentTemp` at the
+    /// moment status flipped to "complete", but the firmware flips only once
+    /// cooling has begun — so a cone 6 firing peaking near 1230°C reported
+    /// something like 1100°C as its "peak" (#146). Tracked here because no
+    /// status frame carries a peak field.
+    private(set) var peakTempC: Double = 0
+
+    private static let maxHistoryPoints = 200
+
     var notificationManager: NotificationManager?
     var activityManager: FiringActivityManager?
 
@@ -90,6 +101,12 @@ final class KilnStore {
             status: update.status
         )
 
+        // Track the firing's high-water mark while it is still running; once the
+        // status reaches "complete" the kiln is already cooling.
+        if update.isActive {
+            peakTempC = max(peakTempC, update.currentTemp)
+        }
+
         // Append to temperature history for chart (max 200 points)
         let timeMin = update.elapsedTime / 60.0
         temperatureHistory.append(TemperatureDataPoint(
@@ -97,8 +114,10 @@ final class KilnStore {
             temp: update.currentTemp,
             target: update.targetTemp
         ))
-        if temperatureHistory.count > 200 {
-            temperatureHistory.removeFirst()
+        // Trim in one shot. removeFirst() shifts the whole array on every
+        // message; harmless at 200 elements but needlessly O(n) per frame (#155).
+        if temperatureHistory.count > Self.maxHistoryPoints {
+            temperatureHistory.removeFirst(temperatureHistory.count - Self.maxHistoryPoints)
         }
 
         // Detect status transitions for notifications and Live Activity
@@ -128,16 +147,25 @@ final class KilnStore {
         case "complete":
             notificationManager?.sendFiringComplete(
                 profileName: profileName(for: progress.profileId),
-                peakTemp: progress.currentTemp
+                peakTempC: peakTempC,
+                unit: settings.tempUnit
             )
             activityManager?.end(status: newStatus)
+            peakTempC = 0
         case "error":
             notificationManager?.sendFiringError(
                 profileName: profileName(for: progress.profileId)
             )
             activityManager?.end(status: newStatus)
+            // Reset on *every* way a firing can end, not just "complete".
+            // A stopped or errored firing used to leave its high-water mark in
+            // place, so the next — possibly much cooler — firing reported the
+            // earlier peak in its completion notification, which is the same
+            // class of lie #146 was about.
+            peakTempC = 0
         case "idle" where oldStatus != "idle":
             activityManager?.end(status: newStatus)
+            peakTempC = 0
         default:
             break
         }
