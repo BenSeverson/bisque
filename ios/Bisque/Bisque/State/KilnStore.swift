@@ -157,8 +157,15 @@ final class KilnStore {
                 profileName: profileName(for: progress.profileId)
             )
             activityManager?.end(status: newStatus)
+            // Reset on *every* way a firing can end, not just "complete".
+            // A stopped or errored firing used to leave its high-water mark in
+            // place, so the next — possibly much cooler — firing reported the
+            // earlier peak in its completion notification, which is the same
+            // class of lie #146 was about.
+            peakTempC = 0
         case "idle" where oldStatus != "idle":
             activityManager?.end(status: newStatus)
+            peakTempC = 0
         default:
             break
         }

@@ -64,7 +64,33 @@ enum KeychainHelper {
             return nil
         }
 
+        migrateAccessibility(key: key)
         return String(data: data, encoding: .utf8)
+    }
+
+    /// Re-apply the hardened accessibility class to an item written by an
+    /// earlier build.
+    ///
+    /// `kSecAttrAccessible` is only set by `save`, and an upgrading user never
+    /// calls it — the token is loaded at startup and never rewritten. Without
+    /// this, everyone already running the app keeps the migratable default
+    /// forever and the hardening only reaches people who happen to re-enter
+    /// their token. Idempotent, and cheap enough to run on each load.
+    private static func migrateAccessibility(key: String) {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: key,
+        ]
+        let attributes: [String: Any] = [
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        ]
+        let status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
+        if status != errSecSuccess {
+            log.error(
+                "Keychain accessibility migration failed for key \(key, privacy: .public): OSStatus \(status)"
+            )
+        }
     }
 
     static func delete(key: String) {

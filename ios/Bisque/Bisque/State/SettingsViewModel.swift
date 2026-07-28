@@ -145,6 +145,14 @@ final class SettingsViewModel {
                     // branch; the subscription itself is replaced (and so
                     // cancelled) by the next installUpdate().
                     self.isInstalling = false
+                    // Drop the offer we just installed. Re-enabling the buttons
+                    // while `availableUpdate.updateAvailable` is still true
+                    // leaves OTAUpdateView showing "Install" for the version
+                    // now running, and tapping it once the kiln is back only
+                    // earns the firmware's "Already on the latest version".
+                    // Clearing it restores "Check for Updates", which is the
+                    // honest next action.
+                    self.availableUpdate = nil
                 case .failed(let message):
                     self.error = message
                     self.isInstalling = false

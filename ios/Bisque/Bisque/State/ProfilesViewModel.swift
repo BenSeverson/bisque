@@ -52,9 +52,17 @@ final class ProfilesViewModel {
     /// Ids reach URL paths, NVS keys, and filenames. Imported JSON is arbitrary,
     /// so anything outside this set is rejected at the door rather than escaped
     /// at each use site (#152). Matches the firmware's NVS-key-safe convention:
-    /// alphanumerics, dash, underscore.
-    private static let allowedIdCharacters = CharacterSet.alphanumerics.union(
-        CharacterSet(charactersIn: "-_")
+    /// ASCII letters, digits, dash, underscore.
+    ///
+    /// Spelled out rather than built from `CharacterSet.alphanumerics`, which
+    /// is Unicode-aware and accepts `é`, `٣` and friends. The firmware's
+    /// `make_nvs_key` only recognises ASCII `[a-zA-Z0-9_]` and rewrites
+    /// everything else to `_`, and `handle_delete_profile` compares the raw
+    /// request URI verbatim — so a non-ASCII id would be sent percent-encoded,
+    /// match nothing, and return `ok: true` while the profile stayed put and
+    /// reappeared on the next refresh.
+    private static let allowedIdCharacters = CharacterSet(
+        charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"
     )
 
     static func isValidProfileId(_ id: String) -> Bool {
