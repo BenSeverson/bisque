@@ -98,8 +98,8 @@ void app_main(void)
 
     /* ── Wi-Fi Init ────────────────────────────────── */
     /* Try NVS-saved credentials first, fall back to compile-time config */
-    char nvs_ssid[33] = {0};
-    char nvs_pass[65] = {0};
+    char nvs_ssid[WIFI_SSID_BUF_LEN] = {0};
+    char nvs_pass[WIFI_PASS_BUF_LEN] = {0};
     const char *sta_ssid = "";
     const char *sta_pass = "";
     if (wifi_manager_load_creds(nvs_ssid, sizeof(nvs_ssid), nvs_pass, sizeof(nvs_pass)) == ESP_OK && nvs_ssid[0]) {

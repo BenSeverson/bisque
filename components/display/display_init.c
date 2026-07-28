@@ -200,6 +200,7 @@ esp_err_t display_init(spi_host_device_t host, int cs_pin, int dc_pin, int rst_p
     ret = esp_lcd_new_panel_st7796(io_handle, &panel_config, &s_panel);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to create panel: %s", esp_err_to_name(ret));
+        esp_lcd_panel_io_del(io_handle);
         return ret;
     }
 
@@ -224,6 +225,17 @@ esp_err_t display_init(spi_host_device_t host, int cs_pin, int dc_pin, int rst_p
     uint8_t *buf2 = heap_caps_aligned_alloc(4, buf_sz, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
     if (!buf1 || !buf2) {
         ESP_LOGE(TAG, "draw-buffer alloc failed (%zu bytes each)", buf_sz);
+        /* main.c treats display init failure as non-fatal and runs headless, so
+         * anything leaked here is leaked for the life of the boot — and these are
+         * DMA-capable internal SRAM, the scarcest heap class on the part (#136).
+         * A partial success (buf1 ok, buf2 not) must give buf1 back. */
+        heap_caps_free(buf1);
+        heap_caps_free(buf2);
+        lv_display_delete(s_disp);
+        s_disp = NULL;
+        esp_lcd_panel_del(s_panel);
+        s_panel = NULL;
+        esp_lcd_panel_io_del(io_handle);
         return ESP_ERR_NO_MEM;
     }
     lv_display_set_buffers(s_disp, buf1, buf2, buf_sz, LV_DISPLAY_RENDER_MODE_PARTIAL);

@@ -693,6 +693,12 @@ static void begin_firing(float cur_temp, int64_t now_us)
     start_segment(0, cur_temp, now_us);
     pid_reset(&s_pid);
     s_state.last_history_sample_us = now_us;
+    /* Seed the element-wear flush clock to *now*, not to 0. s_state is only
+       memset at boot, so on a device that has been up longer than
+       ELEM_SAVE_INTERVAL_US the first heating tick would otherwise see an
+       interval's worth of elapsed time and flush to NVS immediately — one
+       redundant flash write per firing (#217). */
+    s_state.last_elem_save_us = now_us;
     s_state.peak_temp_c = cur_temp;
     history_firing_start(s_state.active_profile.id, s_state.active_profile.name);
     progress_lock();
@@ -1053,6 +1059,9 @@ static void handle_cmd(const firing_cmd_t *cmd)
         s_progress.elapsed_time = 0;
         progress_unlock();
         s_state.elapsed_accum_us = 0;
+        /* Auto-tune relay-cycles the elements too, so it needs the same flush
+           clock seeded as begin_firing() does (#217). */
+        s_state.last_elem_save_us = esp_timer_get_time();
         ESP_LOGI(TAG, "Auto-tune mode started");
         break;
     }

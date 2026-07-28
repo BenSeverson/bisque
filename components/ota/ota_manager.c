@@ -1,5 +1,6 @@
 #include "ota_manager.h"
 
+#include <stdatomic.h>
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
@@ -21,8 +22,20 @@ static const char *TAG = "ota";
 #define MANIFEST_BUF_MAX 1024
 
 static ota_progress_cb_t s_progress_cb = NULL;
-static volatile bool s_busy = false;
+
+/* Guards every OTA entry point against a second one starting. It is contended
+ * across cores — httpd handlers acquire it, and install_task (pinned wherever
+ * the scheduler puts it) clears it — so the acquire must be a single atomic
+ * compare-and-swap, not a check-then-set on a volatile bool. */
+static atomic_bool s_busy = false;
 static ota_manifest_t s_pending;
+
+/* Returns true if this caller won the flag; false if an OTA is already running. */
+static bool busy_try_acquire(void)
+{
+    bool expected = false;
+    return atomic_compare_exchange_strong(&s_busy, &expected, true);
+}
 
 void ota_set_progress_cb(ota_progress_cb_t cb)
 {
@@ -36,21 +49,17 @@ const char *ota_current_version(void)
 
 bool ota_is_busy(void)
 {
-    return s_busy;
+    return atomic_load(&s_busy);
 }
 
 bool ota_busy_acquire(void)
 {
-    if (s_busy) {
-        return false;
-    }
-    s_busy = true;
-    return true;
+    return busy_try_acquire();
 }
 
 void ota_busy_release(void)
 {
-    s_busy = false;
+    atomic_store(&s_busy, false);
 }
 
 static void report(ota_phase_t phase, int percent, const char *err)
@@ -125,14 +134,13 @@ esp_err_t ota_check(ota_manifest_t *out_manifest)
     if (!out_manifest) {
         return ESP_ERR_INVALID_ARG;
     }
-    if (s_busy) {
+    if (!busy_try_acquire()) {
         return ESP_ERR_INVALID_STATE;
     }
-    s_busy = true;
 
     manifest_accum_t *accum = calloc(1, sizeof(manifest_accum_t));
     if (!accum) {
-        s_busy = false;
+        ota_busy_release();
         return ESP_ERR_NO_MEM;
     }
 
@@ -170,7 +178,7 @@ esp_err_t ota_check(ota_manifest_t *out_manifest)
     }
 
     free(accum);
-    s_busy = false;
+    ota_busy_release();
     return err;
 }
 
@@ -317,7 +325,7 @@ finish:
     } else {
         ESP_LOGE(TAG, "OTA failed: %s", errmsg);
         report(OTA_PHASE_ERROR, 0, errmsg);
-        s_busy = false;
+        ota_busy_release();
         vTaskDelete(NULL);
     }
 }
@@ -327,15 +335,14 @@ esp_err_t ota_install_from_manifest(const ota_manifest_t *manifest)
     if (!manifest || manifest->url[0] == '\0') {
         return ESP_ERR_INVALID_ARG;
     }
-    if (s_busy) {
+    if (!busy_try_acquire()) {
         return ESP_ERR_INVALID_STATE;
     }
-    s_busy = true;
     s_pending = *manifest;
 
     BaseType_t ok = xTaskCreate(install_task, "ota_install", 8192, NULL, 5, NULL);
     if (ok != pdPASS) {
-        s_busy = false;
+        ota_busy_release();
         return ESP_ERR_NO_MEM;
     }
     return ESP_OK;

@@ -89,6 +89,12 @@ static esp_err_t load_records_from_json(history_record_t *records, int max_count
         cJSON *item = cJSON_GetArrayItem(arr, i);
         cJSON *j;
 
+        /* Every field below is optional — a hand-edited or truncated history.json
+           can omit any of them. Zero the record first so a missing key yields an
+           empty string rather than whatever the caller's buffer happened to hold;
+           the display renders profile_name directly as label text (#136). */
+        memset(&records[i], 0, sizeof(records[i]));
+
         j = cJSON_GetObjectItem(item, "id");
         if (j) {
             records[i].id = (uint32_t)j->valuedouble;
@@ -100,10 +106,12 @@ static esp_err_t load_records_from_json(history_record_t *records, int max_count
         j = cJSON_GetObjectItem(item, "profileName");
         if (j && j->valuestring) {
             strncpy(records[i].profile_name, j->valuestring, HISTORY_PROFILE_NAME_LEN - 1);
+            records[i].profile_name[HISTORY_PROFILE_NAME_LEN - 1] = '\0';
         }
         j = cJSON_GetObjectItem(item, "profileId");
         if (j && j->valuestring) {
             strncpy(records[i].profile_id, j->valuestring, sizeof(records[i].profile_id) - 1);
+            records[i].profile_id[sizeof(records[i].profile_id) - 1] = '\0';
         }
         j = cJSON_GetObjectItem(item, "peakTemp");
         if (j) {

@@ -187,6 +187,17 @@ esp_err_t wifi_manager_load_creds(char *ssid, size_t ssid_len, char *pass, size_
 
 esp_err_t wifi_manager_save_creds(const char *ssid, const char *pass)
 {
+    if (!ssid) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    /* Reject anything load_creds() could not read back, so a save that reports
+     * success is one the device can actually use after a reboot (#134). */
+    if (strlen(ssid) > WIFI_SSID_MAX_LEN || (pass && strlen(pass) > WIFI_PASS_MAX_LEN)) {
+        ESP_LOGW(TAG, "Refusing over-length Wi-Fi credentials (ssid=%u pass=%u, max %d/%d)", (unsigned)strlen(ssid),
+                 (unsigned)(pass ? strlen(pass) : 0), WIFI_SSID_MAX_LEN, WIFI_PASS_MAX_LEN);
+        return ESP_ERR_INVALID_SIZE;
+    }
+
     nvs_handle_t handle;
     esp_err_t err = nvs_open(WIFI_NVS_NAMESPACE, NVS_READWRITE, &handle);
     if (err != ESP_OK) {

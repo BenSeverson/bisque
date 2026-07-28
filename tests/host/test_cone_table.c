@@ -35,6 +35,24 @@ static void test_speed_ordering(void)
     }
 }
 
+/* The counterpart to test_speed_ordering: walking *up* the cone scale must not
+   lower the target at a fixed speed. Cone 014's medium entry used to sit below
+   cone 015's, so a "Cone 014 (Medium)" profile fired colder than the cone below
+   it — underfired ware with no error shown (#137). */
+static void test_cone_ordering_within_each_speed(void)
+{
+    for (int s = 0; s <= 2; s++) {
+        for (int c = 1; c < CONE_COUNT; c++) {
+            float prev = cone_target_temp_c((cone_id_t)(c - 1), (cone_speed_t)s);
+            float cur = cone_target_temp_c((cone_id_t)c, (cone_speed_t)s);
+            char ctx[96];
+            snprintf(ctx, sizeof(ctx), "cone %s (%.0f) must exceed cone %s (%.0f) at speed %d", cone_name((cone_id_t)c),
+                     cur, cone_name((cone_id_t)(c - 1)), prev, s);
+            TEST_ASSERT_TRUE_MESSAGE(cur > prev, ctx);
+        }
+    }
+}
+
 static void test_out_of_range_returns_zero(void)
 {
     TEST_ASSERT_EQUAL_FLOAT(0.0f, cone_target_temp_c((cone_id_t)-1, CONE_SPEED_MEDIUM));
@@ -193,6 +211,7 @@ int main(void)
     UNITY_BEGIN();
     RUN_TEST(test_known_cone_temperatures);
     RUN_TEST(test_speed_ordering);
+    RUN_TEST(test_cone_ordering_within_each_speed);
     RUN_TEST(test_out_of_range_returns_zero);
     RUN_TEST(test_invalid_speed_falls_back_to_medium);
     RUN_TEST(test_cone_name_known_values);

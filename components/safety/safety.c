@@ -186,10 +186,16 @@ esp_err_t safety_init(int ssr_pin, float max_safe_temp)
     };
     esp_err_t terr = esp_timer_create(&ssr_timer_args, &s_ssr_timer);
     if (terr != ESP_OK) {
+        vEventGroupDelete(s_event_group);
+        s_event_group = NULL;
         return terr;
     }
     terr = esp_timer_start_periodic(s_ssr_timer, SSR_APPLY_PERIOD_US);
     if (terr != ESP_OK) {
+        esp_timer_delete(s_ssr_timer);
+        s_ssr_timer = NULL;
+        vEventGroupDelete(s_event_group);
+        s_event_group = NULL;
         return terr;
     }
 
@@ -383,8 +389,12 @@ void safety_task(void *param)
             }
         }
 
-        /* Check for stale reading (no new data for >5 seconds) */
-        if (reading.timestamp_us > 0 && (now - reading.timestamp_us) > TEMP_FAULT_TIMEOUT_US) {
+        /* Check for stale reading (no new data for >5 seconds). Skipped when the
+         * watchdog already tripped on a persistent fault this tick — a reading
+         * that is both faulted and stale would otherwise trip TC_FAULT twice.
+         * Harmless (the cause latches first-wins) but redundant (#217). */
+        if (tc_state != SAFETY_TC_FAULT_TRIP && reading.timestamp_us > 0 &&
+            (now - reading.timestamp_us) > TEMP_FAULT_TIMEOUT_US) {
             ESP_LOGE(TAG, "No thermocouple data for >5s, emergency stop");
             xEventGroupSetBits(s_event_group, SAFETY_BIT_TEMP_FAULT);
             safety_emergency_stop_cause(SAFETY_TRIP_TC_FAULT);
