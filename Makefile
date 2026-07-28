@@ -11,6 +11,16 @@
 WEB_DIR     := web_ui
 SPIFFS_DIR  := spiffs_data/www
 
+# Resolve cmake/ctest to absolute paths via the shell rather than letting make
+# search PATH itself. Sourcing ESP-IDF's export.sh puts $IDF_PATH/tools on PATH,
+# and that directory contains a *subdirectory* named `cmake`; make's own PATH
+# lookup does not skip directories, so it tries to exec it and dies with
+# "cmake: Permission denied". The shell skips it correctly, so one `command -v`
+# up front makes every target below work in an IDF-activated shell — which is
+# every shell in a cloud session and in the dev container.
+CMAKE       := $(shell command -v cmake 2>/dev/null || echo cmake)
+CTEST       := $(shell command -v ctest 2>/dev/null || echo ctest)
+
 # Recipe prefix for anything that shells out to the ESP-IDF toolchain. Each
 # recipe line runs in its own fresh shell, which has never sourced export.sh,
 # so every idf.py/idf_tools.py call must activate first. No-op once active.
@@ -45,13 +55,13 @@ firmware:  ## Firmware only — assumes $(SPIFFS_DIR) is already populated
 	$(IDF) idf.py build
 
 sim:  ## Build and run the LVGL/SDL2 simulator with --diff against baselines
-	cmake -S simulator -B simulator/build
-	cmake --build simulator/build
+	$(CMAKE) -S simulator -B simulator/build
+	$(CMAKE) --build simulator/build
 	./simulator/build/bisque_sim --diff
 
 sim-verify:  ## Assert dashboard state (chart history, peak temp) — no pixel diffing
-	cmake -S simulator -B simulator/build
-	cmake --build simulator/build
+	$(CMAKE) -S simulator -B simulator/build
+	$(CMAKE) --build simulator/build
 	./simulator/build/bisque_sim --verify
 
 ## ──────────────────────────────────────────────────────────────────────
@@ -59,13 +69,13 @@ sim-verify:  ## Assert dashboard state (chart history, peak temp) — no pixel d
 ## ──────────────────────────────────────────────────────────────────────
 
 test-host:  ## Host C unit tests (Unity, runs via ctest)
-	cmake -S tests/host -B tests/host/build
-	cmake --build tests/host/build
-	ctest --test-dir tests/host/build --output-on-failure
+	$(CMAKE) -S tests/host -B tests/host/build
+	$(CMAKE) --build tests/host/build
+	$(CTEST) --test-dir tests/host/build --output-on-failure
 
 fixtures:  ## Generate JSON API fixtures for the web contract tests
-	cmake -S tests/host -B tests/host/build
-	cmake --build tests/host/build --target api_fixtures
+	$(CMAKE) -S tests/host -B tests/host/build
+	$(CMAKE) --build tests/host/build --target api_fixtures
 
 test-web: fixtures  ## Web UI tests (Vitest); depends on fixtures target
 	cd $(WEB_DIR) && npm run test:run
