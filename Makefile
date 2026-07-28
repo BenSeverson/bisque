@@ -86,10 +86,25 @@ test: test-host test-web  ## Run every test suite
 ## Lint & format
 ## ──────────────────────────────────────────────────────────────────────
 
+# The file list is built, checked and only then handed to clang-format, rather
+# than piped straight in. `producer | xargs clang-format` reports the exit
+# status of xargs alone, and both ways that pipeline can fail are silent:
+# a producer that dies leaves xargs with empty input, and xargs given empty
+# input still runs clang-format once, which reads its empty stdin and exits 0.
+# Either way the job passes having checked nothing. Make's recipes run under
+# /bin/sh, so `set -o pipefail` is not available to catch the first case.
+#
+# Not hypothetical: this target once referenced a script that did not exist on
+# the branch, and CI's lint-c reported success over zero files.
 lint-c:  ## clang-format dry-run over main/ and components/
-	find main components \( -path '*/assets/*' -prune \) -o \
-	    \( -name '*.c' -o -name '*.h' \) -print | \
-	    xargs clang-format --dry-run --Werror
+	@set -e; \
+	files=$$(find main components \( -path '*/assets/*' -prune \) -o \
+	    \( -name '*.c' -o -name '*.h' \) -print); \
+	test -n "$$files" || { \
+	    echo 'lint-c: no C sources found — the file list is broken, not clean' >&2; \
+	    exit 1; \
+	}; \
+	echo "$$files" | xargs clang-format --dry-run --Werror
 
 lint-web:  ## Web UI typecheck + lint + format check
 	cd $(WEB_DIR) && npm run typecheck && npm run lint && npm run format:check
