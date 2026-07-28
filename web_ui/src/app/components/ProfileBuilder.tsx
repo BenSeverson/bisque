@@ -8,7 +8,7 @@ import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { Switch } from "./ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { FiringProfile } from "../types/kiln";
+import { FiringProfile, MIN_ABS_RAMP_RATE_C_PER_HR } from "../types/kiln";
 import { Plus, Trash2, Save, MoveUp, MoveDown, Flame } from "lucide-react";
 import { toast } from "sonner";
 import { toErrorMessage } from "../utils/error";
@@ -479,14 +479,20 @@ export function ProfileBuilder() {
                           name={`segments.${index}.rampRate`}
                           unit={unit}
                           kind="delta"
+                          step="1"
                         />
                         {errors.segments?.[index]?.rampRate ? (
                           <p className="text-xs text-destructive">
                             {errors.segments[index].rampRate.message}
                           </p>
                         ) : (
+                          /* The floor is a magnitude, so it cannot be expressed
+                             as the input's `min` — a negative rate is a valid
+                             cooling segment. State it here; the schema enforces
+                             it (see MIN_ABS_RAMP_RATE_C_PER_HR). */
                           <p className="text-xs text-muted-foreground">
-                            Positive to heat, negative to cool
+                            Positive to heat, negative to cool — at least{" "}
+                            {formatRate(MIN_ABS_RAMP_RATE_C_PER_HR, unit, unit === "F" ? 1 : 0)}
                           </p>
                         )}
                       </div>
