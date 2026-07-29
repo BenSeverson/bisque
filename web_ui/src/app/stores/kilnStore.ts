@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { FiringProgress, TemperatureDataPoint, coerceFiringStatus } from "../types/kiln";
 import { kilnWS, WSMessage, WSConnectionState } from "../services/websocket";
+import type { StatusResponse } from "../services/api";
 
 interface KilnState {
   // UI state
@@ -15,7 +16,18 @@ interface KilnState {
   // Real-time firing data (from WebSocket)
   firingProgress: FiringProgress;
   currentTempData: TemperatureDataPoint[];
+  /** False while currentTempData is still the synthetic placeholder point. */
+  tempDataSeeded: boolean;
   resetTempData: () => void;
+
+  /**
+   * Fold a REST /status snapshot into the store.
+   *
+   * `dispatchedAt` is the timestamp taken *before* the request went out, not
+   * when it resolved: the snapshot describes the kiln as of roughly that
+   * moment, so any WebSocket frame stamped at or after it is strictly newer.
+   */
+  seedFromStatus: (status: StatusResponse, dispatchedAt: number) => void;
 
   // WebSocket lifecycle
   initWebSocket: () => () => void;
@@ -43,6 +55,27 @@ const initialTempData: TemperatureDataPoint[] = [];
 
 const MAX_TEMP_POINTS = 600;
 
+/**
+ * Add one reading to the live series, deduped by minute.
+ *
+ * Without the dedupe, sub-minute updates would flood the buffer (e.g. 1Hz → 60
+ * points/min) and the cap would only retain ~10 minutes of history. A point
+ * that lands *before* the tail is dropped rather than appended: the chart's X
+ * axis is the point order, so an out-of-order insert draws the curve running
+ * backwards.
+ */
+function appendPoint(
+  series: TemperatureDataPoint[],
+  point: TemperatureDataPoint,
+): TemperatureDataPoint[] {
+  const last = series[series.length - 1];
+  if (last && last.time === point.time) return [...series.slice(0, -1), point];
+  if (last && last.time > point.time) return series;
+  const next = [...series, point];
+  if (next.length > MAX_TEMP_POINTS) next.shift();
+  return next;
+}
+
 export const useKilnStore = create<KilnState>((set) => ({
   selectedProfileId: null,
   setSelectedProfileId: (id) => set({ selectedProfileId: id }),
@@ -52,7 +85,50 @@ export const useKilnStore = create<KilnState>((set) => ({
 
   firingProgress: initialProgress,
   currentTempData: [...initialTempData],
-  resetTempData: () => set({ currentTempData: [...initialTempData] }),
+  tempDataSeeded: false,
+  resetTempData: () => set({ currentTempData: [...initialTempData], tempDataSeeded: false }),
+
+  seedFromStatus: (s, dispatchedAt) =>
+    set((state) => {
+      /* A WebSocket frame that landed while this request was in flight already
+         describes a later moment than the snapshot in hand. Applying the
+         snapshot would rewind the dashboard by a tick — and, before #124 was
+         fixed, delete every chart point those frames had accumulated. */
+      if (state.lastUpdateAt !== null && state.lastUpdateAt >= dispatchedAt) return {};
+
+      /* Merge, never replace. The store outlives the Dashboard component (the
+         tab is not forceMount'ed, so it remounts and re-seeds on every visit)
+         while the WebSocket runs app-wide and keeps filling the series in the
+         background. Replacing here collapsed hours of firing history into a
+         single "now" point each time the user came back to the tab (#124).
+         The one case that legitimately replaces is a series still holding the
+         synthetic placeholder point, which is not history worth keeping. */
+      const series = state.tempDataSeeded ? state.currentTempData : [];
+      const currentTempData = appendPoint(series, {
+        time: Math.round(s.elapsedTime / 60),
+        temp: Math.round(s.currentTemp),
+        target: Math.round(s.targetTemp),
+      });
+
+      return {
+        firingProgress: {
+          isActive: s.isActive,
+          profileId: s.profileId || null,
+          startTime: state.firingProgress.startTime,
+          currentTemp: s.currentTemp,
+          targetTemp: s.targetTemp,
+          currentSegment: s.currentSegment,
+          totalSegments: s.totalSegments,
+          elapsedTime: s.elapsedTime,
+          estimatedTimeRemaining: s.estimatedTimeRemaining,
+          delayRemaining: s.delayRemaining ?? 0,
+          status: coerceFiringStatus(s.status),
+        },
+        currentTempData,
+        tempDataSeeded: true,
+        selectedProfileId: s.isActive && s.profileId ? s.profileId : state.selectedProfileId,
+      };
+    }),
 
   initWebSocket: () => {
     kilnWS.connect();
@@ -94,21 +170,7 @@ export const useKilnStore = create<KilnState>((set) => ({
             temp: Math.round(d.currentTemp),
             target: Math.round(d.targetTemp),
           };
-          // Dedupe by minute: replace last entry if its time matches; otherwise append.
-          // Without this, sub-minute WS updates would flood the buffer (e.g. 1Hz → 60
-          // points/min) and the 200-cap would only retain ~3 minutes of history.
-          const series = isNewFiring ? [] : state.currentTempData;
-          const last = series[series.length - 1];
-          let newData: TemperatureDataPoint[];
-          if (isNewFiring) {
-            newData = [newPoint];
-          } else if (last && last.time === timeMin) {
-            newData = series.slice(0, -1);
-            newData.push(newPoint);
-          } else {
-            newData = [...series, newPoint];
-            if (newData.length > MAX_TEMP_POINTS) newData.shift();
-          }
+          const newData = isNewFiring ? [newPoint] : appendPoint(state.currentTempData, newPoint);
 
           /* Follow the running firing's profile. The dashboard resolves segment
              names and the profile overlay through selectedProfileId, so adopting
@@ -141,6 +203,7 @@ export const useKilnStore = create<KilnState>((set) => ({
               status: coerceFiringStatus(d.status),
             },
             currentTempData: newData,
+            tempDataSeeded: true,
           };
         });
       }

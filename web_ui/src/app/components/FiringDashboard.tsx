@@ -26,12 +26,7 @@ import {
   SkipForward,
   Timer,
 } from "lucide-react";
-import {
-  TemperatureDataPoint,
-  HOLD_UNTIL_SKIP,
-  coerceFiringStatus,
-  FiringStatus,
-} from "../types/kiln";
+import { TemperatureDataPoint, HOLD_UNTIL_SKIP, FiringStatus } from "../types/kiln";
 import { api } from "../services/api";
 import { toast } from "sonner";
 import { formatCountdown, formatDuration } from "../utils/time";
@@ -68,6 +63,7 @@ export function FiringDashboard() {
     currentTempData,
     resetTempData,
     lastUpdateAt,
+    seedFromStatus,
   } = useKilnStore();
   const { data: profiles = [], isError: profilesFailed } = useProfiles();
   const unit = useTempUnit();
@@ -90,42 +86,26 @@ export function FiringDashboard() {
   // Fetch initial status from REST API. Seeds firingProgress AND the chart so a
   // mid-firing reload doesn't show 20°C until the first WS message arrives, and
   // restores the active profile selection.
+  //
+  // This runs on every visit to the tab, not just the first: the Dashboard tab
+  // is not forceMount'ed, so it remounts each time. The store and the app-wide
+  // WebSocket both outlive that remount, which is why seedFromStatus folds the
+  // snapshot into the existing series instead of replacing it, and ignores a
+  // snapshot older than the frames already applied (#124).
   useEffect(() => {
     let cancelled = false;
+    const dispatchedAt = Date.now();
     api
       .getStatus()
       .then((s) => {
         if (cancelled) return;
-        const timeMin = Math.round(s.elapsedTime / 60);
-        useKilnStore.setState((state) => ({
-          firingProgress: {
-            isActive: s.isActive,
-            profileId: s.profileId || null,
-            startTime: state.firingProgress.startTime,
-            currentTemp: s.currentTemp,
-            targetTemp: s.targetTemp,
-            currentSegment: s.currentSegment,
-            totalSegments: s.totalSegments,
-            elapsedTime: s.elapsedTime,
-            estimatedTimeRemaining: s.estimatedTimeRemaining,
-            delayRemaining: s.delayRemaining ?? 0,
-            status: coerceFiringStatus(s.status),
-          },
-          currentTempData: [
-            {
-              time: timeMin,
-              temp: Math.round(s.currentTemp),
-              target: Math.round(s.targetTemp),
-            },
-          ],
-          selectedProfileId: s.isActive && s.profileId ? s.profileId : state.selectedProfileId,
-        }));
+        seedFromStatus(s, dispatchedAt);
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [seedFromStatus]);
 
   // The complete planned path for the selected profile. Point count is bounded
   // inside buildProfilePath — see MAX_PROFILE_PATH_POINTS.
