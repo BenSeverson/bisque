@@ -81,8 +81,13 @@ have_cppcheck=no
 if command -v cppcheck >/dev/null 2>&1; then have_cppcheck=yes; fi
 have_kicad=no
 if toolchain_kicad_ready; then have_kicad=yes; fi
+# Both LVGL locations count — simulator/CMakeLists.txt resolves either. A clean
+# session that has never run a firmware build has only the standalone clone, and
+# probing just managed_components/ would report the simulator unavailable while
+# `make sim` works, steering display changes away from the validation they need.
 have_sim=no
-if [ -f managed_components/lvgl__lvgl/lvgl.h ] && command -v sdl2-config >/dev/null 2>&1; then
+if { [ -f managed_components/lvgl__lvgl/lvgl.h ] || [ -f simulator/.lvgl/lvgl.h ]; } &&
+    command -v sdl2-config >/dev/null 2>&1; then
     have_sim=yes
 fi
 

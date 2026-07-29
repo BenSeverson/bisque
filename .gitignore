@@ -5,6 +5,10 @@ build/
 tests/host/build/
 simulator/build/
 
+# Standalone LVGL clone for the simulator, used when no firmware build has
+# populated managed_components/. See simulator/CMakeLists.txt.
+simulator/.lvgl/
+
 # CLion / generic CMake debug build dir
 cmake-build-debug/
 
