@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { FiringProgress, TemperatureDataPoint, coerceFiringStatus } from "../types/kiln";
 import { kilnWS, WSMessage, WSConnectionState } from "../services/websocket";
+import type { StatusResponse } from "../services/api";
 
 interface KilnState {
   // UI state
@@ -16,6 +17,15 @@ interface KilnState {
   firingProgress: FiringProgress;
   currentTempData: TemperatureDataPoint[];
   resetTempData: () => void;
+
+  /**
+   * Fold a REST /status snapshot into the store.
+   *
+   * `dispatchedAt` is the timestamp taken *before* the request went out, not
+   * when it resolved: the snapshot describes the kiln as of roughly that
+   * moment, so any WebSocket frame stamped at or after it is strictly newer.
+   */
+  seedFromStatus: (status: StatusResponse, dispatchedAt: number) => void;
 
   // WebSocket lifecycle
   initWebSocket: () => () => void;
@@ -43,6 +53,47 @@ const initialTempData: TemperatureDataPoint[] = [];
 
 const MAX_TEMP_POINTS = 600;
 
+/**
+ * Add one reading to the live series, deduped by minute.
+ *
+ * Without the dedupe, sub-minute updates would flood the buffer (e.g. 1Hz → 60
+ * points/min) and the cap would only retain ~10 minutes of history. A point
+ * that lands *before* the tail is dropped rather than appended: the chart's X
+ * axis is the point order, so an out-of-order insert draws the curve running
+ * backwards.
+ */
+function appendPoint(
+  series: TemperatureDataPoint[],
+  point: TemperatureDataPoint,
+): TemperatureDataPoint[] {
+  const last = series[series.length - 1];
+  if (last && last.time === point.time) return [...series.slice(0, -1), point];
+  if (last && last.time > point.time) return series;
+  const next = [...series, point];
+  if (next.length > MAX_TEMP_POINTS) next.shift();
+  return next;
+}
+
+/**
+ * Does this observation announce a different firing than the one being plotted?
+ *
+ * A firing can start or stop from anywhere — the LCD, the iOS app, another
+ * browser tab — so the discontinuity has to be read out of the data rather than
+ * inferred from this client's own Start/Stop handlers. Either the WebSocket
+ * stream or the REST snapshot can be the first to see it, so both ask.
+ *
+ * Rewound elapsed time is the third signal, but it is left to the callers: they
+ * measure it against different baselines. See the call sites.
+ */
+function isDifferentFiring(
+  next: { profileId?: string | null; isActive: boolean },
+  prev: FiringProgress,
+): boolean {
+  return (
+    (!!next.profileId && next.profileId !== prev.profileId) || (next.isActive && !prev.isActive)
+  );
+}
+
 export const useKilnStore = create<KilnState>((set) => ({
   selectedProfileId: null,
   setSelectedProfileId: (id) => set({ selectedProfileId: id }),
@@ -53,6 +104,62 @@ export const useKilnStore = create<KilnState>((set) => ({
   firingProgress: initialProgress,
   currentTempData: [...initialTempData],
   resetTempData: () => set({ currentTempData: [...initialTempData] }),
+
+  seedFromStatus: (s, dispatchedAt) =>
+    set((state) => {
+      /* A WebSocket frame that landed while this request was in flight already
+         describes a later moment than the snapshot in hand. Applying the
+         snapshot would rewind the dashboard by a tick — and, before #124 was
+         fixed, delete every chart point those frames had accumulated. */
+      if (state.lastUpdateAt !== null && state.lastUpdateAt >= dispatchedAt) return {};
+
+      /* Merge, never replace. The store outlives the Dashboard component (the
+         tab is not forceMount'ed, so it remounts and re-seeds on every visit)
+         while the WebSocket runs app-wide and keeps filling the series in the
+         background. Replacing here collapsed hours of firing history into a
+         single "now" point each time the user came back to the tab (#124).
+
+         A series plotting a firing this snapshot says is over is not history
+         worth keeping, and starts over. That is not hypothetical — if the
+         device was offline when a new firing began, /status is the first
+         observation of it, and merging would drop every point until the new
+         firing's elapsed time passed the old series' tail. */
+      const point = {
+        time: Math.round(s.elapsedTime / 60),
+        temp: Math.round(s.currentTemp),
+        target: Math.round(s.targetTemp),
+      };
+      /* Rewind is measured against the plotted tail rather than against
+         firingProgress.elapsedTime, because this compares two sources: a
+         snapshot computed a few hundred milliseconds either side of the last
+         frame can report a second less elapsed without anything having
+         restarted. At the chart's one-minute resolution that skew lands on the
+         same bin and collapses harmlessly; a point that lands a whole minute
+         before the tail cannot belong to the firing being plotted. */
+      const tail = state.currentTempData[state.currentTempData.length - 1];
+      const restarted =
+        isDifferentFiring(s, state.firingProgress) ||
+        (tail !== undefined && point.time < tail.time);
+      const currentTempData = restarted ? [point] : appendPoint(state.currentTempData, point);
+
+      return {
+        firingProgress: {
+          isActive: s.isActive,
+          profileId: s.profileId || null,
+          startTime: state.firingProgress.startTime,
+          currentTemp: s.currentTemp,
+          targetTemp: s.targetTemp,
+          currentSegment: s.currentSegment,
+          totalSegments: s.totalSegments,
+          elapsedTime: s.elapsedTime,
+          estimatedTimeRemaining: s.estimatedTimeRemaining,
+          delayRemaining: s.delayRemaining ?? 0,
+          status: coerceFiringStatus(s.status),
+        },
+        currentTempData,
+        selectedProfileId: s.isActive && s.profileId ? s.profileId : state.selectedProfileId,
+      };
+    }),
 
   initWebSocket: () => {
     kilnWS.connect();
@@ -68,21 +175,17 @@ export const useKilnStore = create<KilnState>((set) => ({
         set((state) => {
           const prev = state.firingProgress;
 
-          /* A firing can start or stop from anywhere — the LCD, the iOS app,
-             another browser tab — and this client only ever reset its chart
-             from its own Start/Stop handlers. Detect the discontinuity from the
-             stream itself, or a new firing's low-time points get appended after
-             the previous series' high-time tail and the chart's axis runs
-             backward. */
+          /* Detect a new firing from the stream itself, or its low-time points
+             get appended after the previous series' high-time tail and the
+             chart's axis runs backward. */
           // Only from the second frame onward: on the very first frame every
           // field looks like a transition away from the initial state, which
           // would discard the point seeded by the mount-time getStatus().
+          // Rewind is measured in raw seconds here: consecutive frames come
+          // from one monotonic source, so any decrease is a restart.
           const seenAFrame = state.lastUpdateAt !== null;
           const isNewFiring =
-            seenAFrame &&
-            ((!!d.profileId && d.profileId !== prev.profileId) ||
-              d.elapsedTime < prev.elapsedTime ||
-              (d.isActive && !prev.isActive));
+            seenAFrame && (isDifferentFiring(d, prev) || d.elapsedTime < prev.elapsedTime);
 
           /* Once a firing ends, its elapsed/segment/ETA figures describe
              nothing. Leaving them meant the dashboard showed a dead firing's
@@ -94,21 +197,7 @@ export const useKilnStore = create<KilnState>((set) => ({
             temp: Math.round(d.currentTemp),
             target: Math.round(d.targetTemp),
           };
-          // Dedupe by minute: replace last entry if its time matches; otherwise append.
-          // Without this, sub-minute WS updates would flood the buffer (e.g. 1Hz → 60
-          // points/min) and the 200-cap would only retain ~3 minutes of history.
-          const series = isNewFiring ? [] : state.currentTempData;
-          const last = series[series.length - 1];
-          let newData: TemperatureDataPoint[];
-          if (isNewFiring) {
-            newData = [newPoint];
-          } else if (last && last.time === timeMin) {
-            newData = series.slice(0, -1);
-            newData.push(newPoint);
-          } else {
-            newData = [...series, newPoint];
-            if (newData.length > MAX_TEMP_POINTS) newData.shift();
-          }
+          const newData = isNewFiring ? [newPoint] : appendPoint(state.currentTempData, newPoint);
 
           /* Follow the running firing's profile. The dashboard resolves segment
              names and the profile overlay through selectedProfileId, so adopting

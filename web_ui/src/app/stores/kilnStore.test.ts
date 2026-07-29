@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { WSMessage, TempUpdateData } from "../services/websocket";
+import type { StatusResponse } from "../services/api";
 
 // Capture the handler the store registers on the mocked WS so tests can pump
 // frames directly into the store.
@@ -89,6 +90,134 @@ describe("kilnStore: resetTempData", () => {
     useKilnStore.getState().resetTempData();
     // The store must not invent a 20°C reading it never received (#192).
     expect(useKilnStore.getState().currentTempData).toEqual([]);
+  });
+});
+
+describe("kilnStore: seedFromStatus (#124)", () => {
+  beforeEach(resetStore);
+
+  function status(overrides: Partial<StatusResponse> = {}): StatusResponse {
+    return {
+      isActive: true,
+      profileId: "glaze-6",
+      currentTemp: 500,
+      targetTemp: 600,
+      currentSegment: 2,
+      totalSegments: 4,
+      elapsedTime: 1800,
+      estimatedTimeRemaining: 3600,
+      delayRemaining: 0,
+      status: "heating",
+      thermocouple: {
+        temperature: 500,
+        internalTemp: 25,
+        fault: false,
+        openCircuit: false,
+        shortGnd: false,
+        shortVcc: false,
+      },
+      ...overrides,
+    };
+  }
+
+  it("replaces the placeholder point on a first seed", () => {
+    useKilnStore.getState().seedFromStatus(status(), Date.now());
+    // The synthetic 20°C/t=0 point is not history; a mid-firing page load must
+    // not draw a curve from it up to the real reading.
+    expect(useKilnStore.getState().currentTempData).toEqual([{ time: 30, temp: 500, target: 600 }]);
+  });
+
+  it("appends to accumulated history instead of wiping it on a tab revisit", () => {
+    useKilnStore.getState().initWebSocket();
+    wsSubscriber!(tempFrame({ profileId: "glaze-6", elapsedTime: 600, currentTemp: 300 }));
+    wsSubscriber!(tempFrame({ profileId: "glaze-6", elapsedTime: 1200, currentTemp: 400 }));
+    const before = useKilnStore.getState().currentTempData.length;
+    expect(before).toBeGreaterThan(1);
+
+    // Remounting the Dashboard re-runs the mount-time seed. The snapshot is
+    // newer than the last frame, so it is applied — as one more point.
+    useKilnStore.getState().seedFromStatus(status(), Date.now() + 1);
+    const data = useKilnStore.getState().currentTempData;
+    expect(data).toHaveLength(before + 1);
+    expect(data[data.length - 1]).toEqual({ time: 30, temp: 500, target: 600 });
+  });
+
+  it("collapses a seed that lands on the same minute as the last point", () => {
+    useKilnStore.getState().initWebSocket();
+    wsSubscriber!(tempFrame({ profileId: "glaze-6", elapsedTime: 1790, currentTemp: 495 }));
+    const before = useKilnStore.getState().currentTempData.length;
+
+    useKilnStore.getState().seedFromStatus(status(), Date.now() + 1);
+    const data = useKilnStore.getState().currentTempData;
+    expect(data).toHaveLength(before);
+    expect(data[data.length - 1]).toEqual({ time: 30, temp: 500, target: 600 });
+  });
+
+  it("ignores a snapshot older than frames already applied", () => {
+    useKilnStore.getState().initWebSocket();
+    const dispatchedAt = Date.now();
+    // A frame lands while the /status request is still in flight, so the
+    // resolved snapshot describes an earlier moment than the store already has.
+    wsSubscriber!(tempFrame({ profileId: "glaze-6", elapsedTime: 3600, currentTemp: 900 }));
+    const snapshot = useKilnStore.getState();
+    const data = snapshot.currentTempData;
+
+    snapshot.seedFromStatus(status(), dispatchedAt);
+    expect(useKilnStore.getState().currentTempData).toBe(data);
+    expect(useKilnStore.getState().firingProgress.currentTemp).toBe(900);
+  });
+
+  it("tolerates a sub-minute clock skew between the snapshot and the stream", () => {
+    useKilnStore.getState().initWebSocket();
+    // Two sources: a snapshot computed either side of the last frame can report
+    // a second less elapsed with nothing having restarted. That must collapse
+    // onto the same minute, not be read as a new firing.
+    wsSubscriber!(tempFrame({ profileId: "glaze-6", elapsedTime: 1200, currentTemp: 400 }));
+    wsSubscriber!(tempFrame({ profileId: "glaze-6", elapsedTime: 1801, currentTemp: 501 }));
+    const before = useKilnStore.getState().currentTempData.length;
+
+    useKilnStore.getState().seedFromStatus(status(), Date.now() + 1); // elapsed 1800
+    const data = useKilnStore.getState().currentTempData;
+    expect(data).toHaveLength(before);
+    expect(data[data.length - 1]).toEqual({ time: 30, temp: 500, target: 600 });
+  });
+
+  it("starts a new series when the snapshot is the first sight of a new firing", () => {
+    useKilnStore.getState().initWebSocket();
+    wsSubscriber!(tempFrame({ profileId: "glaze-6", elapsedTime: 18000, currentTemp: 900 }));
+
+    // The device was offline when the next firing started, so /status — not the
+    // stream — is the first observation of it. Merging would drop every point
+    // until the new firing's elapsed time passed minute 300, and because the
+    // seed also adopts the new profile and active state, the WebSocket handler
+    // would no longer recognise the transition either.
+    useKilnStore
+      .getState()
+      .seedFromStatus(
+        status({ profileId: "bisque-04", elapsedTime: 120, currentTemp: 80 }),
+        Date.now() + 1,
+      );
+    expect(useKilnStore.getState().currentTempData).toEqual([{ time: 2, temp: 80, target: 600 }]);
+
+    // And the stream picks up from there rather than being rejected.
+    wsSubscriber!(tempFrame({ profileId: "bisque-04", elapsedTime: 180, currentTemp: 95 }));
+    expect(useKilnStore.getState().currentTempData.map((p) => p.time)).toEqual([2, 3]);
+  });
+
+  it("restores the active profile selection", () => {
+    useKilnStore.getState().seedFromStatus(status({ profileId: "bisque-04" }), Date.now());
+    expect(useKilnStore.getState().selectedProfileId).toBe("bisque-04");
+  });
+
+  it("leaves the selection alone when the kiln is idle", () => {
+    useKilnStore.getState().setSelectedProfileId("browsing-this-one");
+    useKilnStore
+      .getState()
+      .seedFromStatus(
+        status({ isActive: false, status: "idle", profileId: "glaze-6" }),
+        Date.now(),
+      );
+    expect(useKilnStore.getState().selectedProfileId).toBe("browsing-this-one");
   });
 });
 
