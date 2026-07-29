@@ -13,7 +13,13 @@ import { Plus, Trash2, Save, MoveUp, MoveDown, Flame } from "lucide-react";
 import { toast } from "sonner";
 import { toErrorMessage } from "../utils/error";
 import { computeSegmentDurationMinutes } from "../utils/profile";
-import { profileFormSchema, ProfileFormValues, MAX_SEGMENTS } from "../schemas/kiln";
+import {
+  profileFormSchema,
+  ProfileFormValues,
+  MAX_SEGMENTS,
+  MAX_PROFILE_BODY_BYTES,
+  profileBodyBytes,
+} from "../schemas/kiln";
 import {
   useProfiles,
   useSaveProfile,
@@ -37,7 +43,7 @@ function generateId(): string {
 }
 
 export function ProfileBuilder() {
-  const { data: profiles = [] } = useProfiles();
+  const { data: profiles = [], isError: profilesFailed } = useProfiles();
   const unit = useTempUnit();
   const saveProfile = useSaveProfile();
   const deleteProfile = useDeleteProfile();
@@ -182,6 +188,17 @@ export function ProfileBuilder() {
       maxTemp: calculateMaxTemp(),
       estimatedDuration,
     };
+    // The form schema validates the fields; only the assembled body has the id,
+    // maxTemp and estimatedDuration the firmware also has to fit in its
+    // 2048-byte buffer. Checking here turns an opaque 400 into a sentence that
+    // says which knob to turn.
+    const bytes = profileBodyBytes(profile);
+    if (bytes > MAX_PROFILE_BODY_BYTES) {
+      toast.error(
+        `Profile is too large for the controller (${bytes} bytes; limit ${MAX_PROFILE_BODY_BYTES}). Shorten the names or use fewer segments.`,
+      );
+      return;
+    }
     try {
       await saveProfile.mutateAsync(profile);
       toast.success(`Profile "${data.name}" saved successfully`);
@@ -332,6 +349,21 @@ export function ProfileBuilder() {
               <Flame className="h-4 w-4" />
               {generateConeFire.isPending ? "Generating..." : "Generate Profile"}
             </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* A failed fetch hid this card entirely, which looks identical to owning
+          no profiles — so "Load Existing Profile" silently disappeared and the
+          only apparent option was to build one from scratch (#135). */}
+      {mode === "manual" && profilesFailed && (
+        <Card>
+          <CardContent className="py-6">
+            <p className="text-sm text-destructive">Could not load your saved profiles.</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              They are still on the kiln — check the connection and reload before editing, so you do
+              not save over one by reusing its name.
+            </p>
           </CardContent>
         </Card>
       )}

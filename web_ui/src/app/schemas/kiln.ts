@@ -17,6 +17,36 @@ const finiteNumber = (msg: string) =>
 export const MAX_SEGMENTS = 16;
 export const MAX_NAME_LENGTH = 47;
 
+/**
+ * Largest request body `handle_post_profile()` will accept.
+ *
+ * It passes a `char buf[2048]` to `parse_body_json`, and `read_body` rejects
+ * when `content_len >= buf_size` (api_handlers.c:381-389), so 2047 is the last
+ * size that gets through.
+ *
+ * The field caps alone are not sufficient: 16 segments with 47-character names
+ * serializes to 2075 bytes, 27 over the limit, so the maximum profile the
+ * builder called valid was one the controller answered with an opaque 400 —
+ * the exact failure those caps were added to prevent. It only bites at the
+ * extreme; 16 segments with ordinary names is about 1372 bytes.
+ */
+export const MAX_PROFILE_BODY_BYTES = 2047;
+
+/** Byte length of the serialized profile, which is what the firmware measures. */
+export function profileBodyBytes(profile: unknown): number {
+  return new TextEncoder().encode(JSON.stringify(profile)).length;
+}
+
+function checkBodySize(profile: unknown, ctx: z.RefinementCtx) {
+  const bytes = profileBodyBytes(profile);
+  if (bytes > MAX_PROFILE_BODY_BYTES) {
+    ctx.addIssue({
+      code: "custom",
+      message: `Profile is too large for the controller (${bytes} bytes; limit ${MAX_PROFILE_BODY_BYTES}). Shorten the names or use fewer segments.`,
+    });
+  }
+}
+
 export const firingSegmentSchema = z.object({
   id: z.string(),
   name: z
@@ -51,20 +81,22 @@ export const profileFormSchema = z.object({
 export type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
 /** Full profile shape used for import — must match FiringProfile in types/kiln.ts. */
-export const firingProfileSchema = z.object({
-  id: z.string().min(1, "Profile id is required"),
-  name: z
-    .string()
-    .min(1, "Profile name is required")
-    .max(MAX_NAME_LENGTH, `Profile name must be ${MAX_NAME_LENGTH} characters or fewer`),
-  description: z.string(),
-  segments: z
-    .array(firingSegmentSchema)
-    .min(1, "At least one segment is required")
-    .max(MAX_SEGMENTS, `A profile can have at most ${MAX_SEGMENTS} segments`),
-  maxTemp: z.number(),
-  estimatedDuration: z.number(),
-});
+export const firingProfileSchema = z
+  .object({
+    id: z.string().min(1, "Profile id is required"),
+    name: z
+      .string()
+      .min(1, "Profile name is required")
+      .max(MAX_NAME_LENGTH, `Profile name must be ${MAX_NAME_LENGTH} characters or fewer`),
+    description: z.string(),
+    segments: z
+      .array(firingSegmentSchema)
+      .min(1, "At least one segment is required")
+      .max(MAX_SEGMENTS, `A profile can have at most ${MAX_SEGMENTS} segments`),
+    maxTemp: z.number(),
+    estimatedDuration: z.number(),
+  })
+  .superRefine(checkBodySize);
 
 export const settingsSchema = z.object({
   tempUnit: z.enum(["C", "F"]),

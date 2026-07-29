@@ -68,7 +68,7 @@ export function FiringDashboard() {
     currentTempData,
     resetTempData,
   } = useKilnStore();
-  const { data: profiles = [] } = useProfiles();
+  const { data: profiles = [], isError: profilesFailed } = useProfiles();
   const unit = useTempUnit();
   const selectedProfile = useMemo(
     () => profiles.find((p) => p.id === selectedProfileId) ?? null,
@@ -227,6 +227,15 @@ export function FiringDashboard() {
     [selectedProfile, profilePath, currentTempData, unit],
   );
 
+  // Recharts draws a line between points, so a series holding exactly one
+  // measurement renders as nothing at all under `dot={false}`. Now that the
+  // series starts empty rather than with a fabricated 20 °C point (#192), that
+  // is the normal state on every fresh load until telemetry reaches a second
+  // rounded minute — and it is permanent if only the REST seed lands and the
+  // WebSocket never connects. Show the marker in exactly that case: honest
+  // about having one reading, rather than silently showing none.
+  const showMeasuredDots = currentTempData.length === 1;
+
   return (
     <div className="space-y-6">
       <ConnectionBanner />
@@ -329,6 +338,16 @@ export function FiringDashboard() {
                 ))}
               </SelectContent>
             </Select>
+            {/* Without this the picker is simply empty and Start is disabled,
+                which reads as "this kiln has no profiles" when the real story
+                is that the fetch failed — the same misreading #135 fixed on the
+                Profiles tab. */}
+            {profilesFailed && (
+              <p className="text-xs text-destructive">
+                Could not load profiles — check the connection. Your saved profiles are still on the
+                kiln.
+              </p>
+            )}
             {firingProgress.isActive && (
               <p className="text-xs text-muted-foreground">
                 Stop the current firing to change profile
@@ -479,7 +498,7 @@ export function FiringDashboard() {
                 stroke="var(--chart-1)"
                 strokeWidth={2}
                 name="Current Temp"
-                dot={false}
+                dot={showMeasuredDots}
               />
               <Line
                 type="monotone"
@@ -488,7 +507,7 @@ export function FiringDashboard() {
                 strokeWidth={2}
                 strokeDasharray="5 5"
                 name="Target Temp"
-                dot={false}
+                dot={showMeasuredDots}
               />
               {profilePath.length > 0 && (
                 <Line
