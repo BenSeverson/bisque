@@ -87,6 +87,38 @@ export function stopFiring(): void {
   }
 }
 
+/**
+ * Skip to the next segment, mirroring FIRING_CMD_SKIP_SEGMENT in
+ * firing_engine.c.
+ *
+ * The router used to clamp with `Math.min(idx + 1, len - 1)`, so a skip on the
+ * final segment was a no-op. The firmware completes the firing instead — which
+ * makes a HOLD_UNTIL_SKIP final segment, the exact case Skip exists for,
+ * unfinishable in the demo (#131). The paused and scheduled guards come from the
+ * same handler: skipping while paused would re-energize the elements without
+ * going through RESUME, and no segment is running yet during an armed delay.
+ */
+export function skipSegment(): void {
+  const f = state.firing;
+  if (f.scheduled) return;
+  if (!f.running || !f.profile) return;
+  if (f.paused) return;
+
+  if (f.currentSegmentIndex + 1 >= f.profile.segments.length) {
+    f.running = false;
+    f.status = "complete";
+    f.coolingDown = true;
+    return;
+  }
+
+  f.currentSegmentIndex++;
+  f.phase = "ramping";
+  f.segmentElapsed = 0;
+  f.holdElapsed = 0;
+  f.segmentStartTemp = f.currentTemp;
+  f.status = determineStatus();
+}
+
 export function pauseFiring(): string {
   const f = state.firing;
   if (!f.running) return "not_active";
@@ -255,6 +287,20 @@ function advanceSegment(): void {
   f.holdElapsed = 0;
 }
 
+/**
+ * The published temperature, offset-corrected the way the firmware does it.
+ *
+ * `build_status_json` (api_json.c) and the WS broadcast both add tcOffsetC to
+ * the top-level `currentTemp` while leaving `thermocouple.temperature` raw. The
+ * simulator never referenced the setting, so changing the thermocouple offset in
+ * the demo visibly did nothing on the dashboard even though the diagnostics
+ * endpoint applied it correctly (#166).
+ */
+function publishedTemp(): number {
+  const raw = state.firing.currentTemp + (state.settings.tcOffsetC ?? 0);
+  return Math.round(raw * 10) / 10;
+}
+
 function broadcast(): void {
   const f = state.firing;
   if (state.subscribers.size === 0) return;
@@ -262,7 +308,7 @@ function broadcast(): void {
   const msg = JSON.stringify({
     type: "temp_update",
     data: {
-      currentTemp: Math.round(f.currentTemp * 10) / 10,
+      currentTemp: publishedTemp(),
       targetTemp: Math.round(f.setpoint * 10) / 10,
       status: f.status,
       currentSegment: f.currentSegmentIndex,
@@ -287,7 +333,7 @@ export function getStatusResponse() {
   return {
     isActive: f.running || f.scheduled,
     profileId: f.profileId || "",
-    currentTemp: Math.round(f.currentTemp * 10) / 10,
+    currentTemp: publishedTemp(),
     targetTemp: Math.round(f.setpoint * 10) / 10,
     currentSegment: f.currentSegmentIndex,
     totalSegments: f.profile?.segments.length ?? 0,

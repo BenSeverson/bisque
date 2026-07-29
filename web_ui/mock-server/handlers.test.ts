@@ -218,3 +218,91 @@ describe("mock-server POST endpoints", () => {
     expect(r.body.durationSeconds).toBe(5);
   });
 });
+
+// --- Firmware-parity behaviours ----------------------------------------------
+//
+// These assert behaviour, not shape. The demo build serves this mock publicly,
+// so a divergence here teaches evaluators something untrue about the product
+// (#131, #166).
+
+describe("mock-server firmware parity", () => {
+  it("drops unknown settings fields instead of persisting them", async () => {
+    // The firmware reads named fields and ignores the rest, so a misspelling
+    // must not 400 — but it must not be stored and echoed back either, which
+    // is what #166 was actually about.
+    const r = await post("/settings", { temperatureUnit: "C" });
+    expect(r.body.ok).toBe(true);
+    const after = await get("/settings");
+    expect("temperatureUnit" in after).toBe(false);
+  });
+
+  it("still accepts a partial body of known fields", async () => {
+    const r = await post("/settings", { maxSafeTemp: 1300 });
+    expect(r.body.ok).toBe(true);
+    expect((await get("/settings")).maxSafeTemp).toBe(1300);
+  });
+
+  it("accepts a full form save carrying the read-only apiTokenSet", async () => {
+    // The Settings form resets from GET /settings, which includes apiTokenSet,
+    // and posts the whole form back — so every ordinary save in the demo
+    // carries this field. Rejecting it broke all of them.
+    const current = await get("/settings");
+    const r = await post("/settings", { ...current, maxSafeTemp: 1250 });
+    expect(r.body.ok).toBe(true);
+    expect((await get("/settings")).maxSafeTemp).toBe(1250);
+  });
+
+  it("applies tcOffsetC to the published currentTemp, leaving the raw reading alone", async () => {
+    expect((await post("/settings", { tcOffsetC: 0 })).body.ok).toBe(true);
+    const base = await get("/status");
+    expect((await post("/settings", { tcOffsetC: 25 })).body.ok).toBe(true);
+    const offset = await get("/status");
+
+    // Idle and at ambient, so the underlying reading is stable between calls.
+    expect(offset.currentTemp - base.currentTemp).toBeCloseTo(25, 1);
+    expect(offset.thermocouple.temperature).toBeCloseTo(base.thermocouple.temperature, 1);
+
+    await post("/settings", { tcOffsetC: 0 });
+  });
+
+  it("completes the firing when the last segment is skipped", async () => {
+    const profile = {
+      id: "skip-parity-profile",
+      name: "Skip Parity",
+      description: "",
+      segments: [{ id: "s1", name: "Only", rampRate: 100, targetTemp: 300, holdTime: 0 }],
+      maxTemp: 300,
+      estimatedDuration: 30,
+    };
+    expect((await post("/profiles", profile)).body.ok).toBe(true);
+    expect((await post("/firing/start", { profileId: profile.id })).body.ok).toBe(true);
+
+    // Firmware completes rather than clamping the index, which is what makes a
+    // hold-until-skip final segment finishable at all.
+    expect((await post("/firing/skip-segment")).body.ok).toBe(true);
+    expect((await get("/status")).status).toBe("complete");
+
+    await post("/firing/stop");
+    await fetch(`${baseUrl}/profiles/${profile.id}`, { method: "DELETE" });
+  });
+
+  it("refuses to start an auto-tune while a firing is active", async () => {
+    const profile = {
+      id: "autotune-parity-profile",
+      name: "Autotune Parity",
+      description: "",
+      segments: [{ id: "s1", name: "Ramp", rampRate: 60, targetTemp: 900, holdTime: 30 }],
+      maxTemp: 900,
+      estimatedDuration: 120,
+    };
+    expect((await post("/profiles", profile)).body.ok).toBe(true);
+    expect((await post("/firing/start", { profileId: profile.id })).body.ok).toBe(true);
+
+    const r = await post("/autotune/start", { setpoint: 200, hysteresis: 5 });
+    expect(r.status).toBe(409);
+    expect((await get("/autotune/status")).state).not.toBe("running");
+
+    await post("/firing/stop");
+    await fetch(`${baseUrl}/profiles/${profile.id}`, { method: "DELETE" });
+  });
+});
