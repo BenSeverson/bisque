@@ -76,3 +76,55 @@ export function firingErrorGuidance(code: number | undefined | null): string | n
   if (code == null) return null;
   return GUIDANCE[code] ?? null;
 }
+
+/**
+ * What to say under an active `emergencyStop` flag.
+ *
+ * Every safety trip raises the same flag — `safety_emergency_stop_cause()` is
+ * called with TC_FAULT and OVER_TEMP as well as OTHER — while `lastErrorCode`
+ * preserves which one it was (`firing_err_from_trip()` in firing_engine.c).
+ * Keying the copy off the flag alone therefore printed the code-5 line
+ * ("starting a new firing clears a stale stop") under an *over-temperature*
+ * trip, which is advice you do not want a kiln owner acting on.
+ *
+ * So the cause drives the copy. Codes with no safe remote remedy get a cause
+ * and `guidance: null` rather than a reassuring sentence.
+ */
+export function emergencyStopExplanation(lastErrorCode: number | undefined | null): {
+  cause: string;
+  guidance: string | null;
+} {
+  // No firing was running when the trip happened, so no code was recorded
+  // (s_last_error_code is only assigned inside the firing loop). A bare stop
+  // is the one case where the "start a firing to clear it" line is accurate.
+  if (lastErrorCode == null || lastErrorCode === FIRING_ERROR_CODES.NONE) {
+    return {
+      cause: DESCRIPTIONS[FIRING_ERROR_CODES.EMERGENCY_STOP],
+      guidance: GUIDANCE[FIRING_ERROR_CODES.EMERGENCY_STOP],
+    };
+  }
+  return {
+    cause: describeFiringError(lastErrorCode),
+    guidance: firingErrorGuidance(lastErrorCode),
+  };
+}
+
+/**
+ * Which error code may be shown for the failure the dashboard is looking at.
+ *
+ * The code lives on /api/v1/system, not on the status feed, so it is fetched
+ * only after the status flips to `error`. React Query keeps serving the
+ * previous value while that refetch is in flight — so a second failure would
+ * open by confidently naming the *first* failure's cause, and would keep naming
+ * it forever if the refetch failed. Only trust a payload that is newer than the
+ * transition it is supposed to explain.
+ */
+export function errorCodeForTransition(args: {
+  code: number | undefined;
+  dataUpdatedAt: number;
+  errorEnteredAt: number | null;
+}): number | undefined {
+  if (args.errorEnteredAt === null) return undefined;
+  if (args.dataUpdatedAt < args.errorEnteredAt) return undefined;
+  return args.code;
+}

@@ -13,6 +13,13 @@ interface KilnState {
   connectionState: WSConnectionState;
   lastUpdateAt: number | null;
 
+  /* When the current failure began, or null if the kiln is not in error.
+     The error *cause* lives on /api/v1/system rather than on this feed, so a
+     consumer has to fetch it separately — and needs to know whether what it
+     got back postdates the failure it is meant to explain. Recorded here
+     because the transition is only visible while folding a frame. */
+  errorSince: number | null;
+
   // Real-time firing data (from WebSocket)
   firingProgress: FiringProgress;
   currentTempData: TemperatureDataPoint[];
@@ -100,6 +107,7 @@ export const useKilnStore = create<KilnState>((set) => ({
 
   connectionState: "offline",
   lastUpdateAt: null,
+  errorSince: null,
 
   firingProgress: initialProgress,
   currentTempData: [...initialTempData],
@@ -142,6 +150,7 @@ export const useKilnStore = create<KilnState>((set) => ({
         (tail !== undefined && point.time < tail.time);
       const currentTempData = restarted ? [point] : appendPoint(state.currentTempData, point);
 
+      const status = coerceFiringStatus(s.status);
       return {
         firingProgress: {
           isActive: s.isActive,
@@ -154,8 +163,12 @@ export const useKilnStore = create<KilnState>((set) => ({
           elapsedTime: s.elapsedTime,
           estimatedTimeRemaining: s.estimatedTimeRemaining,
           delayRemaining: s.delayRemaining ?? 0,
-          status: coerceFiringStatus(s.status),
+          status,
         },
+        /* A reload landing mid-failure never sees the transition frame, so the
+           snapshot has to stamp it or the error banner never gets a code it can
+           trust. Preserved if already set — this is the same failure. */
+        errorSince: status === "error" ? (state.errorSince ?? dispatchedAt) : null,
         currentTempData,
         selectedProfileId: s.isActive && s.profileId ? s.profileId : state.selectedProfileId,
       };
@@ -213,8 +226,15 @@ export const useKilnStore = create<KilnState>((set) => ({
           const followProfile =
             d.isActive && !!d.profileId && d.profileId !== state.selectedProfileId;
 
+          const status = coerceFiringStatus(d.status);
+          /* Stamped on the edge into error and held for the duration, so a
+             second failure cannot be explained by the first one's cause. */
+          const errorSince =
+            status === "error" ? (prev.status === "error" ? state.errorSince : receivedAt) : null;
+
           return {
             lastUpdateAt: receivedAt,
+            errorSince,
             ...(followProfile ? { selectedProfileId: d.profileId } : {}),
             firingProgress: {
               isActive: d.isActive,
@@ -227,7 +247,7 @@ export const useKilnStore = create<KilnState>((set) => ({
               elapsedTime: endedFiring ? 0 : d.elapsedTime,
               estimatedTimeRemaining: endedFiring ? 0 : d.estimatedTimeRemaining,
               delayRemaining: endedFiring ? 0 : (d.delayRemaining ?? 0),
-              status: coerceFiringStatus(d.status),
+              status,
             },
             currentTempData: newData,
           };

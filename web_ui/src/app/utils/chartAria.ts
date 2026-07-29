@@ -14,6 +14,22 @@
 import { formatTemp, type TempUnit } from "./temperature";
 
 /**
+ * `Math.max(...arr)` passes every element as an argument and throws
+ * `RangeError: Maximum call stack size exceeded` somewhere around 125k in V8.
+ * History traces are one sample per minute with no cap in the firmware
+ * (`history_record_temp()`), and `HOLD_UNTIL_SKIP` holds run until a human
+ * intervenes — so an unattended kiln really can produce a trace long enough to
+ * blank the history detail on render. Reduce instead.
+ */
+function peakOf(temps: number[]): number {
+  let peak = temps[0];
+  for (let i = 1; i < temps.length; i++) {
+    if (temps[i] > peak) peak = temps[i];
+  }
+  return peak;
+}
+
+/**
  * Live dashboard chart: planned path plus the temperatures recorded so far.
  *
  * Takes the raw Celsius series, not the assembled `ChartPoint[]` — those are
@@ -38,7 +54,7 @@ export function describeFiringChart(args: {
   }
 
   const latest = temps[temps.length - 1];
-  const peak = Math.max(...temps);
+  const peak = peakOf(temps);
   return (
     `Temperature chart${planned}. ${temps.length} reading${temps.length === 1 ? "" : "s"}, ` +
     `currently ${formatTemp(latest, args.unit)}, peak ${formatTemp(peak, args.unit)}.`
@@ -55,10 +71,14 @@ export function describeTraceChart(args: {
     return `Temperature trace for ${args.profileName}. No trace data recorded.`;
   }
   const temps = args.points.map((p) => p.temp_c);
-  const peak = Math.max(...temps);
+  const peak = peakOf(temps);
+  const last = temps[temps.length - 1];
   const durationMin = Math.round(args.points[args.points.length - 1].time_s / 60);
+  // Without the endpoint, a firing that cooled to room temperature and one that
+  // ended at peak announce identically, though they look nothing alike.
   return (
     `Temperature trace for ${args.profileName}. ${args.points.length} readings over ` +
-    `${durationMin} minute${durationMin === 1 ? "" : "s"}, peak ${formatTemp(peak, args.unit)}.`
+    `${durationMin} minute${durationMin === 1 ? "" : "s"}, peak ${formatTemp(peak, args.unit)}, ` +
+    `ending at ${formatTemp(last, args.unit)}.`
   );
 }

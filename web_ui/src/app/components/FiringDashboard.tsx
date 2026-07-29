@@ -38,7 +38,11 @@ import { useKilnStore } from "../stores/kilnStore";
 import { ConnectionBanner } from "./ConnectionBanner";
 import { deriveFiringPhase, showsFiringProgress } from "../utils/firingPhase";
 import { describeFiringChart } from "../utils/chartAria";
-import { describeFiringError, firingErrorGuidance } from "../utils/firingError";
+import {
+  describeFiringError,
+  firingErrorGuidance,
+  errorCodeForTransition,
+} from "../utils/firingError";
 import {
   Dialog,
   DialogContent,
@@ -69,6 +73,7 @@ export function FiringDashboard() {
     resetTempData,
     lastUpdateAt,
     seedFromStatus,
+    errorSince,
   } = useKilnStore();
   const { data: profiles = [], isError: profilesFailed } = useProfiles();
   const unit = useTempUnit();
@@ -231,13 +236,25 @@ export function FiringDashboard() {
   // into error, not on every render while in it.
   const queryClient = useQueryClient();
   const inError = firingProgress.status === "error";
+  // Stamped when this failure began, so a payload cached before it can be told
+  // apart from one fetched to explain it. Without that, a second failure opens
+  // by naming the first one's cause — React Query keeps serving the old value
+  // while refetching — and keeps naming it forever if the refetch fails.
+  //
+  // errorSince comes from the store, which stamps it while folding the frame
+  // that reported the failure. So it is already correct on the first render of
+  // an error — no effect has to run first, and nothing here calls setState.
   useEffect(() => {
     if (inError) {
       void queryClient.invalidateQueries({ queryKey: queryKeys.systemInfo });
     }
   }, [inError, queryClient]);
-  const { data: systemInfo } = useSystemInfo();
-  const errorCode = inError ? systemInfo?.lastErrorCode : undefined;
+  const { data: systemInfo, dataUpdatedAt } = useSystemInfo();
+  const errorCode = errorCodeForTransition({
+    code: systemInfo?.lastErrorCode,
+    dataUpdatedAt,
+    errorEnteredAt: errorSince,
+  });
 
   const chartAriaLabel = useMemo(
     () =>
@@ -574,7 +591,7 @@ export function FiringDashboard() {
                   stroke="var(--chart-1)"
                   strokeWidth={2}
                   name="Current Temp"
-                  dot={false}
+                  dot={showMeasuredDots}
                 />
                 <Line
                   type="monotone"
@@ -583,7 +600,7 @@ export function FiringDashboard() {
                   strokeWidth={2}
                   strokeDasharray="5 5"
                   name="Target Temp"
-                  dot={false}
+                  dot={showMeasuredDots}
                 />
                 {profilePath.length > 0 && (
                   <Line

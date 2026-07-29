@@ -13,7 +13,7 @@ import {
   type AutotuneSession,
 } from "../utils/autotuneSession";
 import { prepareSettingsPatch } from "../utils/settingsPatch";
-import { describeFiringError, firingErrorGuidance, FIRING_ERROR_CODES } from "../utils/firingError";
+import { describeFiringError, emergencyStopExplanation } from "../utils/firingError";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Label } from "./ui/label";
 import { Input } from "./ui/input";
@@ -883,13 +883,21 @@ export function Settings() {
                 )}
               </span>
             </div>
-            {/* "ACTIVE" on its own is a dead end — nothing else in the UI
-                hints at how to get out of it (#164). */}
-            {systemInfo?.emergencyStop && (
-              <p className="text-xs text-muted-foreground mt-1">
-                {firingErrorGuidance(FIRING_ERROR_CODES.EMERGENCY_STOP)}
-              </p>
-            )}
+            {/* "ACTIVE" on its own is a dead end — nothing else in the UI hints
+                at how to get out of it (#164). The copy is keyed off the recorded
+                cause, not the flag: every safety trip raises the same flag, so a
+                fixed message would advise starting a new firing to clear an
+                over-temperature trip. */}
+            {systemInfo?.emergencyStop &&
+              (() => {
+                const { cause, guidance } = emergencyStopExplanation(systemInfo.lastErrorCode);
+                return (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {cause}
+                    {guidance ? ` — ${guidance}` : ""}
+                  </p>
+                );
+              })()}
           </div>
           <div className="flex justify-between py-2">
             <span className="text-sm font-medium">Board Temperature</span>

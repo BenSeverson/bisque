@@ -65,3 +65,38 @@ describe("describeTraceChart", () => {
     expect(label).toMatch(/no trace data/i);
   });
 });
+
+describe("chart summaries on pathological input", () => {
+  it("reports where the firing ended, not just how hot it got", () => {
+    const cooled = [
+      { time_s: 0, temp_c: 20 },
+      { time_s: 1800, temp_c: 1200 },
+      { time_s: 3600, temp_c: 25 },
+    ];
+    const stayedHot = [
+      { time_s: 0, temp_c: 20 },
+      { time_s: 1800, temp_c: 1200 },
+      { time_s: 3600, temp_c: 1200 },
+    ];
+    const a = describeTraceChart({ points: cooled, profileName: "P", unit: "C" });
+    const b = describeTraceChart({ points: stayedHot, profileName: "P", unit: "C" });
+    // These two curves look nothing alike; they must not read alike.
+    expect(a).not.toBe(b);
+    expect(a).toContain("ending at 25°C");
+    expect(b).toContain("ending at 1200°C");
+  });
+
+  it("survives a trace long enough to blow the argument limit", () => {
+    // One sample/minute, uncapped in firmware, and HOLD_UNTIL_SKIP runs until a
+    // human intervenes. Math.max(...arr) throws RangeError around 125k in V8.
+    const huge = Array.from({ length: 200_000 }, (_, i) => ({ time_s: i * 60, temp_c: i % 900 }));
+    expect(() => describeTraceChart({ points: huge, profileName: "P", unit: "C" })).not.toThrow();
+    expect(() =>
+      describeFiringChart({
+        points: huge.map((p) => ({ temp: p.temp_c })),
+        hasPlanned: false,
+        unit: "C",
+      }),
+    ).not.toThrow();
+  });
+});
