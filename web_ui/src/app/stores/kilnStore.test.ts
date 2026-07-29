@@ -121,6 +121,36 @@ describe("kilnStore: seedFromStatus (#124)", () => {
     };
   }
 
+  it("stamps errorSince when a reload lands mid-failure", () => {
+    // A page loaded after the failure never sees the transition frame, so the
+    // snapshot is the only thing that can date the failure. Without this the
+    // error banner has no timestamp to judge /api/v1/system against and would
+    // never trust the cause it fetched.
+    const at = Date.now();
+    useKilnStore.getState().seedFromStatus(status({ status: "error", isActive: false }), at);
+    expect(useKilnStore.getState().errorSince).toBe(at);
+  });
+
+  it("does not re-date a failure it has already seen", () => {
+    const first = Date.now();
+    useKilnStore.getState().seedFromStatus(status({ status: "error", isActive: false }), first);
+    // The Dashboard tab is not forceMount'ed, so revisiting it re-seeds. That
+    // must not look like a second, newer failure.
+    useKilnStore
+      .getState()
+      .seedFromStatus(
+        status({ status: "error", isActive: false, elapsedTime: 2400 }),
+        first + 60_000,
+      );
+    expect(useKilnStore.getState().errorSince).toBe(first);
+  });
+
+  it("clears errorSince when the snapshot shows a recovered kiln", () => {
+    useKilnStore.setState({ errorSince: 123 });
+    useKilnStore.getState().seedFromStatus(status({ status: "heating" }), Date.now());
+    expect(useKilnStore.getState().errorSince).toBeNull();
+  });
+
   it("replaces the placeholder point on a first seed", () => {
     useKilnStore.getState().seedFromStatus(status(), Date.now());
     // The synthetic 20°C/t=0 point is not history; a mid-firing page load must
