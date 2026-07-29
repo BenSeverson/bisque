@@ -40,7 +40,6 @@ function resetStore() {
     selectedProfileId: null,
     firingProgress: initialProgress,
     currentTempData: [...initialTempData],
-    tempDataSeeded: false,
     connectionState: "offline",
     lastUpdateAt: null,
   });
@@ -168,15 +167,41 @@ describe("kilnStore: seedFromStatus (#124)", () => {
     expect(useKilnStore.getState().firingProgress.currentTemp).toBe(900);
   });
 
-  it("drops a snapshot whose elapsed time predates the series tail", () => {
+  it("tolerates a sub-minute clock skew between the snapshot and the stream", () => {
     useKilnStore.getState().initWebSocket();
-    wsSubscriber!(tempFrame({ profileId: "glaze-6", elapsedTime: 3600, currentTemp: 900 }));
-    const before = useKilnStore.getState().currentTempData;
+    // Two sources: a snapshot computed either side of the last frame can report
+    // a second less elapsed with nothing having restarted. That must collapse
+    // onto the same minute, not be read as a new firing.
+    wsSubscriber!(tempFrame({ profileId: "glaze-6", elapsedTime: 1200, currentTemp: 400 }));
+    wsSubscriber!(tempFrame({ profileId: "glaze-6", elapsedTime: 1801, currentTemp: 501 }));
+    const before = useKilnStore.getState().currentTempData.length;
 
-    // Not covered by the timestamp guard — the request went out after the
-    // frame — but appending it would run the chart's X axis backwards.
-    useKilnStore.getState().seedFromStatus(status(), Date.now() + 1);
-    expect(useKilnStore.getState().currentTempData).toEqual(before);
+    useKilnStore.getState().seedFromStatus(status(), Date.now() + 1); // elapsed 1800
+    const data = useKilnStore.getState().currentTempData;
+    expect(data).toHaveLength(before);
+    expect(data[data.length - 1]).toEqual({ time: 30, temp: 500, target: 600 });
+  });
+
+  it("starts a new series when the snapshot is the first sight of a new firing", () => {
+    useKilnStore.getState().initWebSocket();
+    wsSubscriber!(tempFrame({ profileId: "glaze-6", elapsedTime: 18000, currentTemp: 900 }));
+
+    // The device was offline when the next firing started, so /status — not the
+    // stream — is the first observation of it. Merging would drop every point
+    // until the new firing's elapsed time passed minute 300, and because the
+    // seed also adopts the new profile and active state, the WebSocket handler
+    // would no longer recognise the transition either.
+    useKilnStore
+      .getState()
+      .seedFromStatus(
+        status({ profileId: "bisque-04", elapsedTime: 120, currentTemp: 80 }),
+        Date.now() + 1,
+      );
+    expect(useKilnStore.getState().currentTempData).toEqual([{ time: 2, temp: 80, target: 600 }]);
+
+    // And the stream picks up from there rather than being rejected.
+    wsSubscriber!(tempFrame({ profileId: "bisque-04", elapsedTime: 180, currentTemp: 95 }));
+    expect(useKilnStore.getState().currentTempData.map((p) => p.time)).toEqual([2, 3]);
   });
 
   it("restores the active profile selection", () => {
