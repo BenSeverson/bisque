@@ -18,11 +18,22 @@
 #                     ESP-IDF/FreeRTOS headers they replace
 #   */build/*         CMake's own generated probes (CMakeCCompilerId.c and
 #                     friends) land here once the simulator has been built
+#   simulator/.lvgl/* upstream LVGL itself. #248 moved the SessionStart hook's
+#                     LVGL clone here from managed_components/, which put ~1030
+#                     vendored sources inside this find's roots for the first
+#                     time. Unpruned, `make lint-c` grows from 58 files to 1089
+#                     and takes minutes, and `scripts/format.sh` would rewrite
+#                     the whole of upstream LVGL. CI never sees it — the
+#                     ui-screenshots job still clones to managed_components/,
+#                     outside these roots — so this only bites local and cloud
+#                     development, which is exactly who the fallback path
+#                     exists for.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 find main components simulator \
-    \( -path '*/assets/*' -o -path '*/build/*' -o -path 'simulator/freertos/*' \) -prune -o \
+    \( -path '*/assets/*' -o -path '*/build/*' -o -path 'simulator/freertos/*' \
+       -o -path 'simulator/.lvgl/*' \) -prune -o \
     ! -name 'stb_image.h' \
     ! -name 'stb_image_write.h' \
     ! -name 'lv_conf.h' \
