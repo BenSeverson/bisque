@@ -143,6 +143,15 @@ target_include_directories(test_api_json PRIVATE
     ${ROOT}/components/thermocouple/include
     stubs)
 
+# auth_helpers — bearer-token parsing and the constant-time token compare,
+# extracted from api_handlers.c's check_auth so the security-relevant part is
+# testable without esp_http_server.
+add_host_test(test_auth_helpers
+    SOURCES test_auth_helpers.c
+            ${ROOT}/components/web_server/auth_helpers.c)
+target_include_directories(test_auth_helpers PRIVATE
+    ${ROOT}/components/web_server/include)
+
 # Generated-fixture target: runs test_api_json with BISQUE_FIXTURE_DIR set so
 # its dump_fixture() calls land in ${CMAKE_CURRENT_BINARY_DIR}/fixtures/api.
 # Used by the web_ui contract test (web_ui/test/contracts/firmwareContract.test.ts).
