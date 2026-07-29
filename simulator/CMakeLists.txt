@@ -26,16 +26,81 @@ pkg_check_modules(SDL2 REQUIRED sdl2)
 #   the managed components directory does not exist or cannot be parsed.
 #
 # so a plain `git clone` into it makes `idf.py build` fail outright.
+# "Preferred" means version-matched first, not merely present: after a
+# dependencies.lock bump the managed copy is whatever the last firmware build
+# installed, so blindly taking it would compile the simulator against the
+# previous LVGL while the hook has already cloned the pinned one — silently
+# defeating the version parity this whole arrangement exists for.
 set(LVGL_MANAGED ${CMAKE_CURRENT_SOURCE_DIR}/../managed_components/lvgl__lvgl)
 set(LVGL_STANDALONE ${CMAKE_CURRENT_SOURCE_DIR}/.lvgl)
-if(EXISTS ${LVGL_MANAGED}/lvgl.h)
-    set(LVGL_DIR ${LVGL_MANAGED})
-elseif(EXISTS ${LVGL_STANDALONE}/lvgl.h)
-    set(LVGL_DIR ${LVGL_STANDALONE})
-else()
-    message(FATAL_ERROR
-        "LVGL sources not found. Run .claude/hooks/install-sim-deps.sh, or build "
-        "the firmware once so the component manager populates managed_components/.")
+set(LVGL_LOCK ${CMAKE_CURRENT_SOURCE_DIR}/../dependencies.lock)
+
+# Version stamped in a candidate tree, or "" if it is not an LVGL checkout.
+macro(lvgl_version_at dir outvar)
+    set(${outvar} "")
+    if(EXISTS ${dir}/lv_version.h)
+        file(READ ${dir}/lv_version.h _lv_header)
+        set(_lv_parts "")
+        foreach(_field MAJOR MINOR PATCH)
+            if(_lv_header MATCHES "#define LVGL_VERSION_${_field} +([0-9]+)")
+                list(APPEND _lv_parts ${CMAKE_MATCH_1})
+            endif()
+        endforeach()
+        list(LENGTH _lv_parts _lv_count)
+        if(_lv_count EQUAL 3)
+            string(REPLACE ";" "." ${outvar} "${_lv_parts}")
+        endif()
+    endif()
+endmacro()
+
+# The pin, read the same way .claude/hooks/install-sim-deps.sh and CI's
+# ui-screenshots job read it: the version under the lvgl/lvgl key.
+set(LVGL_PIN "")
+if(EXISTS ${LVGL_LOCK})
+    file(STRINGS ${LVGL_LOCK} _lock_lines)
+    set(_in_lvgl FALSE)
+    foreach(_line IN LISTS _lock_lines)
+        if(_line MATCHES "^  lvgl/lvgl:")
+            set(_in_lvgl TRUE)
+        elseif(_in_lvgl AND _line MATCHES "^ +version: \"?([0-9]+\\.[0-9]+\\.[0-9]+)\"?")
+            set(LVGL_PIN "${CMAKE_MATCH_1}")
+            break()
+        endif()
+    endforeach()
+endif()
+
+lvgl_version_at(${LVGL_MANAGED} LVGL_MANAGED_VER)
+lvgl_version_at(${LVGL_STANDALONE} LVGL_STANDALONE_VER)
+
+set(LVGL_DIR "")
+if(LVGL_PIN)
+    if("${LVGL_MANAGED_VER}" STREQUAL "${LVGL_PIN}")
+        set(LVGL_DIR ${LVGL_MANAGED})
+    elseif("${LVGL_STANDALONE_VER}" STREQUAL "${LVGL_PIN}")
+        set(LVGL_DIR ${LVGL_STANDALONE})
+    endif()
+endif()
+
+if(NOT LVGL_DIR)
+    # Either the pin could not be read or neither candidate matches it. Build
+    # against whatever is there rather than refusing — but say so, because a
+    # version mismatch against the firmware is exactly the kind of divergence
+    # that makes a passing simulator run mean less than it should.
+    if(EXISTS ${LVGL_MANAGED}/lvgl.h)
+        set(LVGL_DIR ${LVGL_MANAGED})
+    elseif(EXISTS ${LVGL_STANDALONE}/lvgl.h)
+        set(LVGL_DIR ${LVGL_STANDALONE})
+    else()
+        message(FATAL_ERROR
+            "LVGL sources not found. Run .claude/hooks/install-sim-deps.sh, or build "
+            "the firmware once so the component manager populates managed_components/.")
+    endif()
+    if(LVGL_PIN)
+        message(WARNING
+            "dependencies.lock pins LVGL ${LVGL_PIN}, but managed_components has "
+            "'${LVGL_MANAGED_VER}' and simulator/.lvgl has '${LVGL_STANDALONE_VER}'. "
+            "Building against ${LVGL_DIR} anyway — rerun .claude/hooks/install-sim-deps.sh.")
+    endif()
 endif()
 message(STATUS "Simulator LVGL source: ${LVGL_DIR}")
 

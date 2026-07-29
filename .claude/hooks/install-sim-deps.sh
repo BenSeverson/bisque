@@ -44,6 +44,28 @@ if ! pkg-config --exists sdl2 2>/dev/null && ! command -v sdl2-config >/dev/null
 fi
 
 # ── LVGL ──────────────────────────────────────────────────────────────────
+# Repair first. A container provisioned by an earlier version of this hook has a
+# plain git clone sitting in managed_components/lvgl__lvgl — right sources, right
+# version, but no .component_hash, which is precisely the state that makes
+# `idf.py build` abort. Without this the version check below would accept it and
+# report "ready", so pulling this fix would not actually fix such a container.
+#
+# The marker files are the component manager's own; anything there without one
+# was not put there by the manager.
+#
+# Relocated rather than deleted: the sources are fine, they are merely in the
+# wrong directory, and moving them keeps `make sim` working with no network and
+# no re-clone.
+if [ -f "$LVGL_MANAGED/lvgl.h" ] &&
+    [ ! -f "$LVGL_MANAGED/.component_hash" ] &&
+    [ ! -f "$LVGL_MANAGED/CHECKSUMS.json" ]; then
+    log "unmanaged LVGL clone in ${LVGL_MANAGED} (no .component_hash) — it would break"
+    log "  'idf.py build'; relocating it to ${LVGL_STANDALONE}."
+    rm -rf "$LVGL_STANDALONE"
+    mkdir -p "$(dirname "$LVGL_STANDALONE")"
+    mv "$LVGL_MANAGED" "$LVGL_STANDALONE"
+fi
+
 # Same source and pin CI uses. If the ESP-IDF component manager later populates
 # managed_components/ itself it will fetch this same version, so the two agree —
 # and simulator/CMakeLists.txt prefers that copy, so the standalone clone below
