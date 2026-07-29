@@ -1312,8 +1312,8 @@ static esp_err_t handle_autotune_status(httpd_req_t *req)
        come from the engine's autotune state, since the engine stops the firing
        the moment a tune ends and the status is back to IDLE by now (#216). */
     firing_progress_t prog;
-    firing_engine_get_progress(&prog);
-    autotune_state_t at_state = firing_engine_get_autotune_state();
+    autotune_state_t at_state;
+    firing_engine_get_autotune_snapshot(&prog, &at_state);
 
     float kp, ki, kd;
     pid_load_gains(&kp, &ki, &kd);

@@ -70,7 +70,13 @@ final class SettingsViewModel {
         while isAutotunePolling {
             do {
                 autotuneStatus = try await client.getAutotuneStatus()
-                if autotuneStatus?.state == "idle" || autotuneStatus?.state == "stopped" {
+                // `complete` and `failed` are terminal too. The firmware used
+                // to flatten every ending onto `idle`; now that it reports them
+                // distinctly (#216), a loop that only stops on the old two
+                // would poll a finished tune every two seconds forever — and
+                // starting another would stack a second loop on top.
+                if let state = autotuneStatus?.state,
+                   ["idle", "stopped", "complete", "failed"].contains(state) {
                     isAutotunePolling = false
                     return
                 }

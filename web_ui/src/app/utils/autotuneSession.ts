@@ -120,13 +120,21 @@ export function applyAutotuneStatus(
     return { session: { phase: "running" } };
   }
 
-  // A terminal frame is believed in any phase where we have something in flight.
-  // This is what #216 bought: a run that began and finished between two polls —
-  // or entirely while the tab was hidden — still reports its real outcome
-  // instead of decaying into a hedge.
+  // A terminal frame is believed once a run is confirmed `running`. This is
+  // what #216 bought: a run that began and finished between two polls — or
+  // entirely while the tab was hidden — still reports its real outcome instead
+  // of decaying into a hedge.
+  //
+  // It is deliberately NOT believed while `starting`. The firmware keeps the
+  // previous run's terminal state until the queued FIRING_CMD_AUTOTUNE_START is
+  // processed — pid_autotune_start() is what overwrites it, and that runs on the
+  // firing task, not in the HTTP handler that returned 200. So a poll landing
+  // between the accepted POST and the command being picked up still reports the
+  // *last* run's `complete`/`failed`. Believing it would announce a false
+  // outcome, stop polling and hide Stop while the kiln may be about to heat —
+  // the #122 failure in a new costume.
   const terminal = state === undefined ? undefined : terminalOutcome(state);
-  if (terminal && session.phase !== "idle") {
-    if (session.phase === "starting" && !observation.succeeded) return { session };
+  if (terminal && session.phase === "running") {
     return { session: { phase: "idle", settledAt: observedAt }, outcome: terminal };
   }
 
@@ -144,9 +152,16 @@ export function applyAutotuneStatus(
       // ConnectionBanner is what tells the user it is unreachable.
       if (!observation.succeeded) return { session };
       if (observedAt - session.requestedAt < AUTOTUNE_START_GRACE_MS) return { session };
-      // Past the window and still plainly `idle`. Since a finished run would say
-      // `complete` or `failed`, this is now a definite statement: the controller
-      // never started one.
+      // Past the window with no `running` frame ever seen. A plain `idle` here
+      // is a definite statement — a finished run would say `complete` or
+      // `failed`, so the controller never started one.
+      //
+      // A *terminal* frame here is not definite, and must not be reported as
+      // this run's outcome: it is equally consistent with the previous run's
+      // state never having been overwritten because the start was dropped. We
+      // know only that our run was never observed running, which is what
+      // `not-started` says. The distinction matters because the two readings
+      // differ in whether gains were just retuned.
       return { session: { phase: "idle", settledAt: observedAt }, outcome: "not-started" };
 
     case "running":

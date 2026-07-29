@@ -278,13 +278,27 @@ void firing_engine_get_progress(firing_progress_t *out)
     progress_unlock();
 }
 
-autotune_state_t firing_engine_get_autotune_state(void)
+void firing_engine_get_autotune_snapshot(firing_progress_t *out_prog, autotune_state_t *out_state)
 {
-    /* A plain read of a single enum written only by the firing task. The
-       terminal value survives do_stop() — pid_autotune_start()/cancel() are the
-       only things that clear it — which is exactly what lets a client tell a
-       finished tune from one that never ran (#216). */
-    return s_autotune.state;
+    /* Both under one lock, because the reported state is a function of the pair
+       (see autotune_state_to_string): reading them separately can mix a
+       pre-transition status with a post-transition autotune state and turn a
+       completed run into "stopped".
+     *
+     * The lock is also what makes the autotune read correct at all on a
+     * dual-core part. pid_autotune_update() writes the terminal value without a
+     * barrier; do_stop() then publishes s_progress under this mutex, whose
+     * release also publishes that earlier write. A reader taking the same mutex
+     * acquires both. The previous plain read had no such pairing and could
+     * observe the new status with a stale autotune state.
+     *
+     * The terminal value survives do_stop() — pid_autotune_start()/cancel() are
+     * the only things that clear it — which is what lets a client tell a
+     * finished tune from one that never ran (#216). */
+    progress_lock();
+    *out_prog = s_progress;
+    *out_state = s_autotune.state;
+    progress_unlock();
 }
 
 void firing_engine_get_settings(kiln_settings_t *out)

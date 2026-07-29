@@ -93,8 +93,13 @@ void firing_engine_get_progress(firing_progress_t *out);
  * AUTOTUNE_COMPLETE means gains were computed and persisted; AUTOTUNE_FAILED
  * means the run ended without usable gains; AUTOTUNE_IDLE means nothing has run
  * since boot, or the last run was cancelled.
+ *
+ * Taken as one snapshot with the progress, under the same lock, because the
+ * reported state is a function of both: reading them separately can pair a
+ * pre-transition status with a post-transition autotune state and report a
+ * completed run as "stopped".
  */
-autotune_state_t firing_engine_get_autotune_state(void);
+void firing_engine_get_autotune_snapshot(firing_progress_t *out_prog, autotune_state_t *out_state);
 
 /**
  * Get current kiln settings (thread-safe copy).

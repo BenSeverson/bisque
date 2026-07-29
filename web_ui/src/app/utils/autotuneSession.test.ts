@@ -72,19 +72,45 @@ describe("applyAutotuneStatus while starting", () => {
     expect(next.outcome).toBe("not-started");
   });
 
-  it("believes a terminal frame that arrives before we ever saw 'running'", () => {
-    // A short run can begin and end between two polls. Before #216 both ends
-    // looked like `idle` and the start decayed into a hedge; now the outcome
-    // survives.
-    for (const [state, outcome] of [
-      ["complete", "completed"],
-      ["failed", "failed"],
-      ["stopped", "stopped"],
-    ] as const) {
-      const next = applyAutotuneStatus(beginAutotuneSession(T0), state, T0 + 3000);
-      expect(next.session.phase).toBe("idle");
-      expect(next.outcome).toBe(outcome);
+  it("ignores a terminal frame left over from the previous run", () => {
+    // The firmware holds the last run's terminal state until the *queued*
+    // FIRING_CMD_AUTOTUNE_START is processed — pid_autotune_start() is what
+    // overwrites it, and that runs on the firing task, not in the handler that
+    // returned 200. So a poll landing right after an accepted start can still
+    // report the previous `complete`/`failed`.
+    //
+    // Believing it would announce a false outcome for a run that may be about
+    // to begin, stop polling, and hide Stop while the kiln heats.
+    for (const state of ["complete", "failed", "stopped"] as const) {
+      const session = beginAutotuneSession(T0);
+      const next = applyAutotuneStatus(session, state, T0 + 3000);
+      expect(next.session).toBe(session);
+      expect(next.outcome).toBeUndefined();
+      expect(isAutotunePolling(next.session)).toBe(true);
     }
+  });
+
+  it("still promotes to running, then believes the terminal frame", () => {
+    // The #216 win is kept where it is sound: once a run is confirmed running,
+    // a terminal frame is its real outcome rather than a hedge.
+    const running = applyAutotuneStatus(beginAutotuneSession(T0), "running", T0 + 2000).session;
+    const done = applyAutotuneStatus(running, "complete", T0 + 4000);
+    expect(done.session.phase).toBe("idle");
+    expect(done.outcome).toBe("completed");
+  });
+
+  it("reports a stale terminal frame past the window as not-started, not as an outcome", () => {
+    // Past the grace window a terminal frame is still ambiguous: it is equally
+    // consistent with the start having been dropped and the old state never
+    // being overwritten. All we know is our run was never seen running — and
+    // the two readings differ in whether gains were just retuned.
+    const next = applyAutotuneStatus(
+      beginAutotuneSession(T0),
+      "complete",
+      T0 + AUTOTUNE_START_GRACE_MS,
+    );
+    expect(next.session.phase).toBe("idle");
+    expect(next.outcome).toBe("not-started");
   });
 
   it("holds the pending phase when no status frame has arrived yet", () => {
