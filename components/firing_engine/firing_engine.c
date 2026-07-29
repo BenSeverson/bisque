@@ -731,6 +731,11 @@ static void do_stop(void)
     progress_lock();
     s_progress.is_active = false;
     s_progress.status = FIRING_STATUS_IDLE;
+    /* Cancelling an armed delayed start must retract its countdown here, not at
+       the next tick: the field is only recomputed once a second, so a status GET
+       or a WebSocket broadcast landing in that window would advertise a firing
+       still scheduled for a time that is no longer coming (#204). */
+    s_progress.delay_remaining = 0;
     /* STOP also cancels a diagnostic relay pulse — /api/v1/firing/stop is the
        operator's way to cut a test short. SSR was already forced off above; the
        tick's relay branch will not re-assert it now that the deadline is clear. */
@@ -755,6 +760,21 @@ static void accumulate_element_on(float duty, int64_t dt_us, int64_t now_us)
         save_element_hours();
         s_state.last_elem_save_us = now_us;
     }
+}
+
+/* Publish the countdown for an armed delayed start (#204). Rounds up, so a
+ * 60-minute delay reads 3600 the moment it is armed rather than 3599, and
+ * reaches 0 only once the firing actually begins. Zero whenever nothing is
+ * armed, which is what lets a client treat the field as "is one scheduled". */
+static void publish_delay_remaining(int64_t now_us)
+{
+    uint32_t remaining = 0;
+    if (s_state.delay_active && s_state.delay_start_end_us > now_us) {
+        remaining = (uint32_t)((s_state.delay_start_end_us - now_us + 999999LL) / 1000000LL);
+    }
+    progress_lock();
+    s_progress.delay_remaining = remaining;
+    progress_unlock();
 }
 
 static void handle_cmd(const firing_cmd_t *cmd)
@@ -858,6 +878,10 @@ static void handle_cmd(const firing_cmd_t *cmd)
             s_progress.total_segments = s_state.active_profile.segment_count;
             s_progress.elapsed_time = 0;
             progress_unlock();
+            /* Publish the countdown now rather than waiting for the next tick,
+               so the status GET a client issues straight after POST
+               /firing/start already carries it (#204). */
+            publish_delay_remaining(now_us);
             s_state.elapsed_accum_us = 0;
             ESP_LOGI(TAG, "Firing queued with %u min delay: %s", cmd->start.delay_minutes, s_state.active_profile.name);
         } else {
@@ -867,6 +891,9 @@ static void handle_cmd(const firing_cmd_t *cmd)
             s_progress.current_segment = 0;
             s_progress.total_segments = s_state.active_profile.segment_count;
             s_progress.elapsed_time = 0;
+            /* An immediate start replaces whatever was armed before, so the old
+               countdown must not outlive it either. */
+            s_progress.delay_remaining = 0;
             progress_unlock();
             s_state.elapsed_accum_us = 0;
             begin_firing(cur_temp, now_us);
@@ -1088,6 +1115,10 @@ static int64_t s_last_compute_us = 0;
 
 void firing_tick(int64_t now_us)
 {
+    /* Keep the countdown current on every tick, and — just as importantly —
+       back at 0 on the tick after the delay elapses or is cancelled. */
+    publish_delay_remaining(now_us);
+
     /* Relay diagnostic pulse. Re-assert the duty every tick so the safety
        task's 3-second SSR heartbeat stays fed for the whole test — a single
        set-and-sleep would latch an emergency stop on any test longer than 3 s.
@@ -1119,6 +1150,9 @@ void firing_tick(int64_t now_us)
             progress_lock();
             s_progress.is_active = false;
             s_progress.status = FIRING_STATUS_ERROR;
+            /* Same reason as do_stop(): this path returns early, so nothing
+               would retract the countdown until the next tick. */
+            s_progress.delay_remaining = 0;
             progress_unlock();
             if (s_last_error_code == FIRING_ERR_NONE) {
                 s_last_error_code = firing_err_from_trip(safety_get_trip_cause());

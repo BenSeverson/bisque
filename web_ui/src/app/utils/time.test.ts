@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatDuration, formatDurationFromMinutes, formatUptime } from "./time";
+import { formatCountdown, formatDuration, formatDurationFromMinutes, formatUptime } from "./time";
 
 describe("formatDuration (seconds → Xh Ym)", () => {
   it("formats whole hours and minutes", () => {
@@ -35,5 +35,28 @@ describe("formatUptime (seconds → Xh Ym Zs)", () => {
   it("includes seconds", () => {
     expect(formatUptime(3661)).toBe("1h 1m 1s");
     expect(formatUptime(45)).toBe("0h 0m 45s");
+  });
+});
+
+describe("formatCountdown", () => {
+  it("drops the hour unit below an hour", () => {
+    expect(formatCountdown(42)).toBe("42s");
+    expect(formatCountdown(90)).toBe("1m 30s");
+    expect(formatCountdown(3599)).toBe("59m 59s");
+  });
+
+  it("shows hours and minutes for a long delay", () => {
+    // The scenario in #161/#204: an 8-hour overnight schedule.
+    expect(formatCountdown(8 * 3600)).toBe("8h 0m");
+    expect(formatCountdown(7 * 3600 + 58 * 60 + 30)).toBe("7h 58m");
+  });
+
+  it("clamps negatives and zero to 0s rather than rendering nonsense", () => {
+    expect(formatCountdown(0)).toBe("0s");
+    expect(formatCountdown(-5)).toBe("0s");
+  });
+
+  it("floors fractional seconds", () => {
+    expect(formatCountdown(59.9)).toBe("59s");
   });
 });

@@ -48,6 +48,11 @@ void json_add_progress_fields(cJSON *target, const firing_progress_t *prog, floa
     cJSON_AddNumberToObject(target, "totalSegments", prog->total_segments);
     cJSON_AddNumberToObject(target, "elapsedTime", prog->elapsed_time);
     cJSON_AddNumberToObject(target, "estimatedTimeRemaining", prog->estimated_remaining);
+    /* Seconds until an armed delayed start fires, 0 when none is armed. The UI
+       could previously show that a firing was *scheduled* but not when it would
+       begin, which is the thing worth confirming before leaving a kiln to run
+       overnight (#204). */
+    cJSON_AddNumberToObject(target, "delayRemaining", prog->delay_remaining);
     cJSON_AddStringToObject(target, "status", firing_status_to_string(prog->status));
 }
 
