@@ -94,12 +94,13 @@ test: test-host test-web  ## Run every test suite
 # Either way the job passes having checked nothing. Make's recipes run under
 # /bin/sh, so `set -o pipefail` is not available to catch the first case.
 #
-# Not hypothetical: this target once referenced a script that did not exist on
-# the branch, and CI's lint-c reported success over zero files.
-lint-c:  ## clang-format dry-run over main/ and components/
+# Not hypothetical, and doubly relevant now that the producer is a script
+# rather than an inline find: this target once referenced ./scripts/c-sources.sh
+# on a branch where the file did not exist, and CI's lint-c reported success
+# over zero files for two commits.
+lint-c:  ## clang-format dry-run over main/, components/ and simulator/
 	@set -e; \
-	files=$$(find main components \( -path '*/assets/*' -prune \) -o \
-	    \( -name '*.c' -o -name '*.h' \) -print); \
+	files=$$(./scripts/c-sources.sh); \
 	test -n "$$files" || { \
 	    echo 'lint-c: no C sources found — the file list is broken, not clean' >&2; \
 	    exit 1; \

@@ -7,8 +7,7 @@ echo "==> clang-format (C)"
 # Same guard as scripts/lint.sh: formatting zero files is silent success here
 # too, and it is worse — you run `make format`, it reports nothing wrong, and
 # the CI format check you were trying to satisfy still fails.
-c_files="$(find main components \( -path '*/assets/*' -prune \) -o \
-    \( -name '*.c' -o -name '*.h' \) -print)"
+c_files="$(./scripts/c-sources.sh)"
 if [ -z "$c_files" ]; then
     echo "no C sources found — the file list is broken, not clean" >&2
     exit 1

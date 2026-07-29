@@ -7,9 +7,8 @@ cd "$(dirname "$0")/.."
 echo "==> clang-format --dry-run --Werror"
 # Checked before use: xargs given no input still runs clang-format once, which
 # reads its empty stdin and exits 0 — a clean bill of health over zero files.
-# `set -o pipefail` above catches a failing find, but not an empty result.
-c_files="$(find main components \( -path '*/assets/*' -prune \) -o \
-    \( -name '*.c' -o -name '*.h' \) -print)"
+# `set -o pipefail` above catches c-sources.sh failing, but not an empty result.
+c_files="$(./scripts/c-sources.sh)"
 if [ -z "$c_files" ]; then
     echo "no C sources found — the file list is broken, not clean" >&2
     exit 1
