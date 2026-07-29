@@ -35,7 +35,11 @@ const initialProgress: FiringProgress = {
   status: "idle",
 };
 
-const initialTempData: TemperatureDataPoint[] = [{ time: 0, temp: 20, target: 20 }];
+// Deliberately empty. Seeding a synthetic {time: 0, temp: 20} point drew a
+// cold-start ramp that was never measured: load the page six hours into a
+// firing with the kiln at 900°C and the chart claimed it started at 20°C.
+// The first real WS frame (or the REST seed) provides the first point.
+const initialTempData: TemperatureDataPoint[] = [];
 
 const MAX_TEMP_POINTS = 600;
 

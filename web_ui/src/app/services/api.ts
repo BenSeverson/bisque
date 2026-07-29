@@ -244,8 +244,21 @@ export const api = {
         };
       }
       xhr.onload = () => {
-        if (xhr.status < 300) resolve(JSON.parse(xhr.responseText));
-        else reject(new Error(`OTA error ${xhr.status}: ${xhr.responseText}`));
+        if (xhr.status >= 300) {
+          reject(new Error(`OTA error ${xhr.status}: ${xhr.responseText}`));
+          return;
+        }
+        // A 2xx with a non-JSON body — a captive portal or an interposing proxy
+        // page — used to throw synchronously out of onload, so neither settler
+        // ever ran and the caller awaited forever with the progress UI stuck at
+        // "Uploading firmware..." (#135).
+        try {
+          resolve(JSON.parse(xhr.responseText));
+        } catch {
+          reject(
+            new Error("OTA upload returned a non-JSON response; the update may not have applied"),
+          );
+        }
       };
       xhr.onerror = () => reject(new Error("OTA upload failed"));
       xhr.send(file);

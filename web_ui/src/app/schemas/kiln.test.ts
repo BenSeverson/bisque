@@ -4,6 +4,10 @@ import {
   profileFormSchema,
   firingProfileSchema,
   settingsSchema,
+  MAX_SEGMENTS,
+  MAX_NAME_LENGTH,
+  MAX_PROFILE_BODY_BYTES,
+  profileBodyBytes,
 } from "./kiln";
 import { HOLD_UNTIL_SKIP, MIN_ABS_RAMP_RATE_C_PER_HR } from "../types/kiln";
 
@@ -154,6 +158,43 @@ describe("firingProfileSchema", () => {
     const { maxTemp: _maxTemp, ...withoutMax } = validProfile;
     void _maxTemp;
     expect(firingProfileSchema.safeParse(withoutMax).success).toBe(false);
+  });
+
+  it("rejects a profile too large for the firmware's request buffer", () => {
+    // Every field is individually legal — 16 segments is the cap, 47 characters
+    // is the name cap — but the serialized body is 2075 bytes against a
+    // char buf[2048] that read_body() rejects at >= 2048. Without this the
+    // builder called the maximum profile valid and the controller answered 400.
+    const big = {
+      ...validProfile,
+      name: "N".repeat(MAX_NAME_LENGTH),
+      segments: Array.from({ length: MAX_SEGMENTS }, (_, i) => ({
+        id: `seg-${i}`,
+        name: "S".repeat(MAX_NAME_LENGTH),
+        rampRate: 100,
+        targetTemp: 1200,
+        holdTime: 30,
+      })),
+    };
+    expect(profileBodyBytes(big)).toBeGreaterThan(MAX_PROFILE_BODY_BYTES);
+    expect(firingProfileSchema.safeParse(big).success).toBe(false);
+  });
+
+  it("accepts the same segment count with ordinary names", () => {
+    // The cap must not punish a realistic 16-segment profile — that one is
+    // about 1.4 KB, well inside the buffer.
+    const realistic = {
+      ...validProfile,
+      segments: Array.from({ length: MAX_SEGMENTS }, (_, i) => ({
+        id: `seg-${i}`,
+        name: `Ramp ${i}`,
+        rampRate: 100,
+        targetTemp: 1200,
+        holdTime: 30,
+      })),
+    };
+    expect(profileBodyBytes(realistic)).toBeLessThan(MAX_PROFILE_BODY_BYTES);
+    expect(firingProfileSchema.safeParse(realistic).success).toBe(true);
   });
 });
 
