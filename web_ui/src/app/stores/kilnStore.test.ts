@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { WSMessage, TempUpdateData } from "../services/websocket";
 import type { StatusResponse } from "../services/api";
 
@@ -42,6 +42,7 @@ function resetStore() {
     currentTempData: [...initialTempData],
     connectionState: "offline",
     lastUpdateAt: null,
+    errorSince: null,
   });
   wsSubscriber = null;
   wsStatusSubscriber = null;
@@ -119,6 +120,36 @@ describe("kilnStore: seedFromStatus (#124)", () => {
       ...overrides,
     };
   }
+
+  it("stamps errorSince when a reload lands mid-failure", () => {
+    // A page loaded after the failure never sees the transition frame, so the
+    // snapshot is the only thing that can date the failure. Without this the
+    // error banner has no timestamp to judge /api/v1/system against and would
+    // never trust the cause it fetched.
+    const at = Date.now();
+    useKilnStore.getState().seedFromStatus(status({ status: "error", isActive: false }), at);
+    expect(useKilnStore.getState().errorSince).toBe(at);
+  });
+
+  it("does not re-date a failure it has already seen", () => {
+    const first = Date.now();
+    useKilnStore.getState().seedFromStatus(status({ status: "error", isActive: false }), first);
+    // The Dashboard tab is not forceMount'ed, so revisiting it re-seeds. That
+    // must not look like a second, newer failure.
+    useKilnStore
+      .getState()
+      .seedFromStatus(
+        status({ status: "error", isActive: false, elapsedTime: 2400 }),
+        first + 60_000,
+      );
+    expect(useKilnStore.getState().errorSince).toBe(first);
+  });
+
+  it("clears errorSince when the snapshot shows a recovered kiln", () => {
+    useKilnStore.setState({ errorSince: 123 });
+    useKilnStore.getState().seedFromStatus(status({ status: "heating" }), Date.now());
+    expect(useKilnStore.getState().errorSince).toBeNull();
+  });
 
   it("replaces the placeholder point on a first seed", () => {
     useKilnStore.getState().seedFromStatus(status(), Date.now());
@@ -431,5 +462,62 @@ describe("kilnStore: multi-client firing transitions (#163)", () => {
     expect(p.elapsedTime).toBe(0);
     expect(p.currentSegment).toBe(0);
     expect(p.estimatedTimeRemaining).toBe(0);
+  });
+});
+
+describe("kilnStore: errorSince (#164)", () => {
+  // receivedAt is Date.now(), and frames pumped synchronously all land in the
+  // same millisecond — without a controlled clock, "held for the duration" and
+  // "re-stamped every frame" are indistinguishable and the test proves nothing.
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+    resetStore();
+    useKilnStore.getState().initWebSocket();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("is null while nothing has failed", () => {
+    wsSubscriber!(tempFrame({ status: "heating", isActive: true, elapsedTime: 60 }));
+    expect(useKilnStore.getState().errorSince).toBeNull();
+  });
+
+  it("stamps the edge into error and holds it for the duration", () => {
+    wsSubscriber!(tempFrame({ status: "heating", isActive: true, elapsedTime: 60 }));
+    vi.advanceTimersByTime(1000);
+    wsSubscriber!(tempFrame({ status: "error", isActive: false, elapsedTime: 120 }));
+    const first = useKilnStore.getState().errorSince;
+    expect(first).not.toBeNull();
+
+    // Later frames of the SAME failure must not re-stamp it — otherwise the
+    // consumer treats its already-fetched cause as stale on every frame and the
+    // banner never settles on a cause at all.
+    vi.advanceTimersByTime(5000);
+    wsSubscriber!(tempFrame({ status: "error", isActive: false, elapsedTime: 180 }));
+    expect(useKilnStore.getState().errorSince).toBe(first);
+  });
+
+  it("re-stamps a second, distinct failure", () => {
+    wsSubscriber!(tempFrame({ status: "error", isActive: false, elapsedTime: 60 }));
+    const first = useKilnStore.getState().errorSince!;
+    vi.advanceTimersByTime(1000);
+    // Recovery clears it...
+    wsSubscriber!(tempFrame({ status: "heating", isActive: true, elapsedTime: 120 }));
+    expect(useKilnStore.getState().errorSince).toBeNull();
+    vi.advanceTimersByTime(1000);
+    // ...so the next failure gets its own, strictly later timestamp. This is
+    // what stops failure #2 being explained by failure #1's cached cause.
+    wsSubscriber!(tempFrame({ status: "error", isActive: false, elapsedTime: 180 }));
+    expect(useKilnStore.getState().errorSince!).toBeGreaterThan(first);
+  });
+
+  it("clears on recovery", () => {
+    wsSubscriber!(tempFrame({ status: "error", isActive: false, elapsedTime: 60 }));
+    expect(useKilnStore.getState().errorSince).not.toBeNull();
+    vi.advanceTimersByTime(1000);
+    wsSubscriber!(tempFrame({ status: "idle", isActive: false, elapsedTime: 0 }));
+    expect(useKilnStore.getState().errorSince).toBeNull();
   });
 });

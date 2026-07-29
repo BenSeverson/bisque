@@ -20,6 +20,8 @@ import { downloadBlob } from "../utils/download";
 import { toErrorMessage } from "../utils/error";
 import { useHistory, useTempUnit } from "../hooks/queries";
 import { formatTemp, toDisplayTemp, unitLabel } from "../utils/temperature";
+import { describeTraceChart } from "../utils/chartAria";
+import { describeFiringError, firingErrorGuidance } from "../utils/firingError";
 
 export function FiringHistory() {
   const { data: records = [], isLoading } = useHistory();
@@ -205,41 +207,70 @@ export function FiringHistory() {
                     </div>
                   </div>
 
+                  {/* The API has always sent errorCode with every record; until
+                      #164 the UI dropped it and left "error" as the whole
+                      explanation of a ruined firing. */}
+                  {selectedRecord.outcome === "error" && (
+                    <div
+                      className="mb-4 p-3 rounded-lg border border-destructive/50 bg-destructive/10"
+                      role="alert"
+                    >
+                      <p className="text-sm font-medium text-destructive">
+                        {describeFiringError(selectedRecord.errorCode)}
+                      </p>
+                      {firingErrorGuidance(selectedRecord.errorCode) && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {firingErrorGuidance(selectedRecord.errorCode)}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   {traceData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={300}>
-                      <LineChart
-                        data={traceData.map((d) => ({
-                          time_s: d.time_s,
-                          temp: Math.round(toDisplayTemp(d.temp_c, unit)),
-                        }))}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis
-                          dataKey="time_s"
-                          tickFormatter={(v) => `${Math.round(v / 60)}m`}
-                          label={{ value: "Time", position: "insideBottom", offset: -5 }}
-                        />
-                        <YAxis
-                          label={{
-                            value: `Temp (${unitLabel(unit)})`,
-                            angle: -90,
-                            position: "insideLeft",
-                          }}
-                        />
-                        <Tooltip
-                          formatter={(v) => [`${v}${unitLabel(unit)}`, "Temperature"]}
-                          labelFormatter={(v) => `${Math.round(Number(v) / 60)} min`}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="temp"
-                          stroke="var(--chart-1)"
-                          strokeWidth={2}
-                          dot={false}
-                          name="Temperature"
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
+                    /* Same silent-<svg> problem as the live chart (#170). */
+                    <div
+                      role="img"
+                      aria-label={describeTraceChart({
+                        points: traceData,
+                        profileName: selectedRecord.profileName,
+                        unit,
+                      })}
+                    >
+                      <ResponsiveContainer width="100%" height={300}>
+                        <LineChart
+                          data={traceData.map((d) => ({
+                            time_s: d.time_s,
+                            temp: Math.round(toDisplayTemp(d.temp_c, unit)),
+                          }))}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis
+                            dataKey="time_s"
+                            tickFormatter={(v) => `${Math.round(v / 60)}m`}
+                            label={{ value: "Time", position: "insideBottom", offset: -5 }}
+                          />
+                          <YAxis
+                            label={{
+                              value: `Temp (${unitLabel(unit)})`,
+                              angle: -90,
+                              position: "insideLeft",
+                            }}
+                          />
+                          <Tooltip
+                            formatter={(v) => [`${v}${unitLabel(unit)}`, "Temperature"]}
+                            labelFormatter={(v) => `${Math.round(Number(v) / 60)} min`}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="temp"
+                            stroke="var(--chart-1)"
+                            strokeWidth={2}
+                            dot={false}
+                            name="Temperature"
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
                   ) : (
                     <div className="h-[300px] flex items-center justify-center text-muted-foreground">
                       <p>No temperature trace available for this record.</p>
