@@ -60,14 +60,57 @@ describe("applyAutotuneStatus while starting", () => {
     expect(next.outcome).toBeUndefined();
   });
 
-  it("gives up as unconfirmed, never as a completion, once the grace window lapses", () => {
+  it("reports a start the controller never took up as not-started", () => {
+    // `idle` past the window is now a positive statement — a finished run would
+    // have said `complete` or `failed` (#216) — so this is a fact, not a hedge.
     const next = applyAutotuneStatus(
       beginAutotuneSession(T0),
       "idle",
       T0 + AUTOTUNE_START_GRACE_MS,
     );
     expect(next.session.phase).toBe("idle");
-    expect(next.outcome).toBe("unconfirmed");
+    expect(next.outcome).toBe("not-started");
+  });
+
+  it("ignores a terminal frame left over from the previous run", () => {
+    // The firmware holds the last run's terminal state until the *queued*
+    // FIRING_CMD_AUTOTUNE_START is processed — pid_autotune_start() is what
+    // overwrites it, and that runs on the firing task, not in the handler that
+    // returned 200. So a poll landing right after an accepted start can still
+    // report the previous `complete`/`failed`.
+    //
+    // Believing it would announce a false outcome for a run that may be about
+    // to begin, stop polling, and hide Stop while the kiln heats.
+    for (const state of ["complete", "failed", "stopped"] as const) {
+      const session = beginAutotuneSession(T0);
+      const next = applyAutotuneStatus(session, state, T0 + 3000);
+      expect(next.session).toBe(session);
+      expect(next.outcome).toBeUndefined();
+      expect(isAutotunePolling(next.session)).toBe(true);
+    }
+  });
+
+  it("still promotes to running, then believes the terminal frame", () => {
+    // The #216 win is kept where it is sound: once a run is confirmed running,
+    // a terminal frame is its real outcome rather than a hedge.
+    const running = applyAutotuneStatus(beginAutotuneSession(T0), "running", T0 + 2000).session;
+    const done = applyAutotuneStatus(running, "complete", T0 + 4000);
+    expect(done.session.phase).toBe("idle");
+    expect(done.outcome).toBe("completed");
+  });
+
+  it("reports a stale terminal frame past the window as not-started, not as an outcome", () => {
+    // Past the grace window a terminal frame is still ambiguous: it is equally
+    // consistent with the start having been dropped and the old state never
+    // being overwritten. All we know is our run was never seen running — and
+    // the two readings differ in whether gains were just retuned.
+    const next = applyAutotuneStatus(
+      beginAutotuneSession(T0),
+      "complete",
+      T0 + AUTOTUNE_START_GRACE_MS,
+    );
+    expect(next.session.phase).toBe("idle");
+    expect(next.outcome).toBe("not-started");
   });
 
   it("holds the pending phase when no status frame has arrived yet", () => {
@@ -86,7 +129,7 @@ describe("applyAutotuneStatus while starting", () => {
       T0 + AUTOTUNE_START_GRACE_MS,
     );
     expect(next.session.phase).toBe("idle");
-    expect(next.outcome).toBe("unconfirmed");
+    expect(next.outcome).toBe("not-started");
   });
 });
 
@@ -99,12 +142,27 @@ describe("applyAutotuneStatus while running", () => {
     expect(next.outcome).toBeUndefined();
   });
 
-  it("completes when the controller returns to idle or reports complete", () => {
-    for (const state of ["idle", "complete"]) {
-      const next = applyAutotuneStatus(running, state, T0 + 60_000);
-      expect(next.session.phase).toBe("idle");
-      expect(next.outcome).toBe("completed");
-    }
+  it("completes only when the controller says 'complete'", () => {
+    const next = applyAutotuneStatus(running, "complete", T0 + 60_000);
+    expect(next.session.phase).toBe("idle");
+    expect(next.outcome).toBe("completed");
+  });
+
+  it("reports a failed run as failed, not as a completion", () => {
+    // pid_control tracks AUTOTUNE_FAILED separately; it used to be flattened
+    // onto the same `idle` frame as a success (#216).
+    const next = applyAutotuneStatus(running, "failed", T0 + 60_000);
+    expect(next.session.phase).toBe("idle");
+    expect(next.outcome).toBe("failed");
+  });
+
+  it("treats a bare 'idle' as a cancellation, not a completion", () => {
+    // The engine clears the autotune state on cancel, so a run that finished
+    // would have said `complete`. Plain `idle` here means someone stopped it —
+    // from the LCD, the app, or another browser.
+    const next = applyAutotuneStatus(running, "idle", T0 + 60_000);
+    expect(next.session.phase).toBe("idle");
+    expect(next.outcome).toBe("stopped");
   });
 
   it("reports a stop as a stop, not as a completion", () => {
@@ -116,8 +174,8 @@ describe("applyAutotuneStatus while running", () => {
     expect(next.outcome).toBe("stopped");
   });
 
-  it("treats an unrecognised state as a stop rather than a success", () => {
-    const next = applyAutotuneStatus(running, "wat", T0 + 60_000);
+  it("reports an explicit 'stopped' as a stop", () => {
+    const next = applyAutotuneStatus(running, "stopped", T0 + 60_000);
     expect(next.outcome).toBe("stopped");
   });
 
@@ -136,7 +194,7 @@ describe("applyAutotuneStatus while idle", () => {
   });
 
   it("stays idle — and silent — for every non-running state", () => {
-    for (const state of ["idle", "stopped", "complete", undefined]) {
+    for (const state of ["idle", "stopped", "complete", "failed", undefined] as const) {
       const next = applyAutotuneStatus(IDLE_AUTOTUNE_SESSION, state, T0);
       expect(next.session).toBe(IDLE_AUTOTUNE_SESSION);
       expect(next.outcome).toBeUndefined();
@@ -164,7 +222,7 @@ describe("applyAutotuneStatus while idle", () => {
 
   it("ignores a stale 'running' frame after a completion", () => {
     const running = applyAutotuneStatus(beginAutotuneSession(T0), "running", T0 + 2000).session;
-    const finished = applyAutotuneStatus(running, "idle", T0 + 60_000);
+    const finished = applyAutotuneStatus(running, "complete", T0 + 60_000);
     expect(finished.outcome).toBe("completed");
     const echo = applyAutotuneStatus(finished.session, "running", T0 + 60_500);
     expect(echo.session).toBe(finished.session);
@@ -196,18 +254,18 @@ describe("applyAutotuneStatus: an unreachable controller (#213 review)", () => {
   it("never claims the controller reports idle when nothing was received", () => {
     const s = starting();
     const r = applyAutotuneStatus(s, undefined, START + 60_000, { succeeded: false });
-    expect(r.outcome).not.toBe("unconfirmed");
+    expect(r.outcome).toBeUndefined();
   });
 
   it("still gives up when the controller genuinely answers idle past the window", () => {
-    // A real reply of "idle" past the window is still unconfirmed — that is the
-    // #122 behaviour and must not regress.
+    // A real reply of "idle" past the window still ends the pending start —
+    // that is the #122 behaviour and must not regress.
     const s = starting();
     const r = applyAutotuneStatus(s, "idle", START + AUTOTUNE_START_GRACE_MS + 1, {
       succeeded: true,
     });
     expect(r.session.phase).toBe("idle");
-    expect(r.outcome).toBe("unconfirmed");
+    expect(r.outcome).toBe("not-started");
   });
 
   it("recovers when status comes back after a failed stretch", () => {

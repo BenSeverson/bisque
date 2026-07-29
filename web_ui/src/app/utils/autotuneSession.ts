@@ -1,22 +1,27 @@
+import type { AutotuneState } from "../services/api";
+
 /**
  * Client-side lifecycle of a PID auto-tune run.
  *
- * The UI cannot read "is an auto-tune running" straight off the status query,
- * for two reasons:
+ * The firmware now reports terminal outcomes distinctly — `complete` when gains
+ * were measured and persisted, `failed` when the run ended without them — so the
+ * UI no longer has to infer an ending from a plain `idle` frame and hedge about
+ * it (#216). What is left here is one genuinely client-side problem the firmware
+ * cannot solve for us:
  *
- *  1. The query is cached. Right after a successful POST /autotune/start the
- *     cache still holds the frame fetched at mount, whose state is "idle".
- *     Treating that as the end of the run instantly cancelled the run in the
- *     UI *and* switched polling off (`refetchInterval` is gated on the same
- *     flag), so no fresh frame ever arrived to correct it (issue #122).
- *  2. Even a genuinely fresh frame can read "idle" for a moment: the firmware
- *     start handler only `xQueueSend`s the command, so the firing engine has
- *     not necessarily picked it up by the next poll.
+ *   Right after a successful POST /autotune/start, the status query's cache
+ *   still holds the frame fetched at mount, whose state is `idle`. Treating that
+ *   as the truth would end the run in the UI *and* switch polling off
+ *   (`refetchInterval` is gated on the same flag), so no fresh frame would ever
+ *   arrive to correct it (#122). The start handler also only `xQueueSend`s the
+ *   command, so even a genuinely fresh frame can read `idle` for a poll or two.
  *
- * So the run gets an explicit pending phase: `starting` polls, but only a
- * `running` frame promotes it, and only a `running` run can end. Anything else
- * inside the grace window is treated as "not yet"; past the window the start is
- * reported as failed — never as a completion.
+ * Hence the `starting` phase: it polls, and an `idle` frame during it means "not
+ * yet", not "over". What changed with #216 is the *verdict*. `idle` is now a
+ * positive statement — nothing is running and nothing has finished — so a start
+ * that never takes hold is reported as `not-started`, a fact, rather than the
+ * old `unconfirmed` hedge that could not distinguish a failed start from a whole
+ * run that elapsed unobserved.
  */
 export type AutotuneSession =
   /** `settledAt` marks a run we just ended; see the adopt rule below. */
@@ -27,18 +32,14 @@ export type AutotuneSession =
 /**
  * How a run ended, for the one-shot toast.
  *
- * `stopped` is deliberately distinct from `completed`: the firmware maps every
- * firing status that is neither IDLE nor AUTOTUNE to "stopped", so an aborted
- * or errored run used to be announced as "Auto-tune complete" — telling the
- * user gains had been measured when none had.
+ * All four are now read straight off the firmware rather than inferred:
  *
- * `unconfirmed` is a start that never showed up as a run. It deliberately
- * claims nothing more: the firmware reports a finished run and a run that never
- * began identically (both plain IDLE), so a start left unconfirmed — because it
- * failed, or because the whole run elapsed while the tab was hidden and polling
- * paused — cannot honestly be called either a success or a failure.
+ * - `completed` — the controller reported `complete`; gains were measured and saved.
+ * - `failed` — the controller reported `failed`; the run ended without usable gains.
+ * - `stopped` — the run was aborted, by this client, another one, or the LCD.
+ * - `not-started` — the controller never picked the start up; nothing ran.
  */
-export type AutotuneOutcome = "completed" | "stopped" | "unconfirmed";
+export type AutotuneOutcome = "completed" | "failed" | "stopped" | "not-started";
 
 export const IDLE_AUTOTUNE_SESSION: AutotuneSession = { phase: "idle" };
 
@@ -60,7 +61,7 @@ export function beginAutotuneSession(now: number): AutotuneSession {
  *
  * Records when, because the stop is queued asynchronously as well: a status
  * frame fetched around it can still say "running", and re-adopting that would
- * resume polling and then announce a completion for an aborted run.
+ * resume polling and then announce an outcome for an aborted run.
  */
 export function endAutotuneSession(now: number): AutotuneSession {
   return { phase: "idle", settledAt: now };
@@ -71,21 +72,38 @@ export function isAutotunePolling(session: AutotuneSession): boolean {
   return session.phase !== "idle";
 }
 
+/** Terminal states carry their own verdict; no inference needed. */
+function terminalOutcome(state: AutotuneState): AutotuneOutcome | undefined {
+  switch (state) {
+    case "complete":
+      return "completed";
+    case "failed":
+      return "failed";
+    case "stopped":
+      return "stopped";
+    // `idle` is terminal in the sense that nothing is running, but on its own it
+    // does not say a run *ended* — it is also the state before one begins. The
+    // caller's phase decides what it means.
+    case "idle":
+    case "running":
+      return undefined;
+  }
+}
+
 /**
  * Fold one observed status frame into the session.
  *
- * `state` is the raw `AutotuneStatus.state` string ("running" | "idle" |
- * "stopped" from the firmware, plus "complete" from the mock/simulator), or
- * undefined when no frame has been fetched. `observedAt` is when that frame was
- * fetched (React Query's `dataUpdatedAt`) — *not* "now", so a cached pre-start
- * frame cannot consume the grace window.
+ * `state` is the raw `AutotuneStatus.state`, or undefined when no frame has been
+ * fetched. `observedAt` is when that frame was fetched (React Query's
+ * `dataUpdatedAt`) — *not* "now", so a cached pre-start frame cannot consume the
+ * grace window.
  *
  * Returns the same session object by identity when nothing changed, so callers
  * can drive React state from it without looping.
  */
 export function applyAutotuneStatus(
   session: AutotuneSession,
-  state: string | undefined,
+  state: AutotuneState | undefined,
   observedAt: number,
   /* Whether `observedAt` reflects a status that actually arrived. React Query
      advances errorUpdatedAt on failed fetches too, so a merged timestamp walks
@@ -102,6 +120,24 @@ export function applyAutotuneStatus(
     return { session: { phase: "running" } };
   }
 
+  // A terminal frame is believed once a run is confirmed `running`. This is
+  // what #216 bought: a run that began and finished between two polls — or
+  // entirely while the tab was hidden — still reports its real outcome instead
+  // of decaying into a hedge.
+  //
+  // It is deliberately NOT believed while `starting`. The firmware keeps the
+  // previous run's terminal state until the queued FIRING_CMD_AUTOTUNE_START is
+  // processed — pid_autotune_start() is what overwrites it, and that runs on the
+  // firing task, not in the HTTP handler that returned 200. So a poll landing
+  // between the accepted POST and the command being picked up still reports the
+  // *last* run's `complete`/`failed`. Believing it would announce a false
+  // outcome, stop polling and hide Stop while the kiln may be about to heat —
+  // the #122 failure in a new costume.
+  const terminal = state === undefined ? undefined : terminalOutcome(state);
+  if (terminal && session.phase === "running") {
+    return { session: { phase: "idle", settledAt: observedAt }, outcome: terminal };
+  }
+
   switch (session.phase) {
     case "idle":
       // Nothing of ours in flight; a run started elsewhere is adopted above.
@@ -111,22 +147,29 @@ export function applyAutotuneStatus(
       // Only a status that actually arrived may end a start the controller
       // accepted. Letting failed fetches age the window out would stop polling
       // and hide the Stop button while the kiln might still be heating, and
-      // would report "the controller reports idle" when it reported nothing.
-      // An unreachable device stays pending and stop-capable; ConnectionBanner
-      // is what tells the user it is unreachable.
+      // would claim the start was dropped when the controller said nothing at
+      // all. An unreachable device stays pending and stop-capable;
+      // ConnectionBanner is what tells the user it is unreachable.
       if (!observation.succeeded) return { session };
       if (observedAt - session.requestedAt < AUTOTUNE_START_GRACE_MS) return { session };
-      return { session: { phase: "idle", settledAt: observedAt }, outcome: "unconfirmed" };
+      // Past the window with no `running` frame ever seen. A plain `idle` here
+      // is a definite statement — a finished run would say `complete` or
+      // `failed`, so the controller never started one.
+      //
+      // A *terminal* frame here is not definite, and must not be reported as
+      // this run's outcome: it is equally consistent with the previous run's
+      // state never having been overwritten because the start was dropped. We
+      // know only that our run was never observed running, which is what
+      // `not-started` says. The distinction matters because the two readings
+      // differ in whether gains were just retuned.
+      return { session: { phase: "idle", settledAt: observedAt }, outcome: "not-started" };
 
     case "running":
+      // `idle` while we believed a run was in flight means it was cancelled
+      // somewhere else — the engine clears the autotune state on cancel, so a
+      // completion would have said `complete`.
       if (state === undefined) return { session };
-      return {
-        session: { phase: "idle", settledAt: observedAt },
-        // The firmware reports plain IDLE once a finished run releases the
-        // engine; "complete" comes from the simulator. Every other state is an
-        // abort or a fault, which is not a completion.
-        outcome: state === "idle" || state === "complete" ? "completed" : "stopped",
-      };
+      return { session: { phase: "idle", settledAt: observedAt }, outcome: "stopped" };
   }
 }
 

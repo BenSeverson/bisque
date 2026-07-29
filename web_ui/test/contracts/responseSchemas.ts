@@ -70,7 +70,9 @@ export const systemInfoSchema = z.object({
 });
 
 export const autotuneStatusSchema = z.object({
-  state: z.enum(["idle", "running", "stopped", "complete"]),
+  // Mirrors autotune_state_to_string in api_json.c. `failed` joined the set
+  // when the firmware stopped flattening terminal outcomes onto `idle` (#216).
+  state: z.enum(["idle", "running", "stopped", "complete", "failed"]),
   elapsedTime: z.number(),
   targetTemp: z.number(),
   currentTemp: z.number(),

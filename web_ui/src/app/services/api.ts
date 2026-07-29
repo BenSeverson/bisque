@@ -102,8 +102,18 @@ export interface SystemInfo {
   boardTempC: number;
 }
 
+/**
+ * Every `state` the firmware's build_autotune_status_json can emit.
+ *
+ * Typed as a union rather than a bare string (#217) so the transition table in
+ * utils/autotuneSession.ts is checked at compile time instead of by runtime
+ * string comparison — adding a state on the firmware side now fails the build
+ * here until it is handled.
+ */
+export type AutotuneState = "running" | "complete" | "failed" | "stopped" | "idle";
+
 export interface AutotuneStatus {
-  state: string;
+  state: AutotuneState;
   elapsedTime: number;
   targetTemp: number;
   currentTemp: number;
