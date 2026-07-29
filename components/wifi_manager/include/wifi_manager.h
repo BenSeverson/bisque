@@ -21,6 +21,13 @@ extern "C" {
  * Initialize Wi-Fi in STA mode. Falls back to AP mode if STA credentials are empty
  * or connection fails after retries.
  *
+ * The fallback is not permanent: when STA credentials exist the controller runs
+ * APSTA and keeps retrying the configured network on a 30 s → 5 min backoff,
+ * so a router that reboots mid-firing recovers without a power cycle. Retries
+ * are held off while a client is associated with the provisioning AP. Once STA
+ * reconnects and the AP is empty, the AP is dropped again. All of this runs on
+ * a dedicated low-priority worker task; nothing blocks the caller.
+ *
  * @param sta_ssid    Station SSID (empty string = skip STA, go straight to AP)
  * @param sta_pass    Station password
  * @param ap_ssid     AP mode SSID
@@ -41,7 +48,8 @@ esp_err_t wifi_manager_wait_connected(uint32_t timeout_ms);
 bool wifi_manager_is_connected(void);
 
 /**
- * Check if running in AP mode.
+ * Check if the provisioning AP is the only way in. False once STA reconnects,
+ * even during the brief APSTA overlap before the AP is torn down.
  */
 bool wifi_manager_is_ap_mode(void);
 

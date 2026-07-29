@@ -109,6 +109,23 @@ add_host_test(test_firing_helpers
 add_host_test(test_safety_helpers
     SOURCES test_safety_helpers.c ${ROOT}/components/safety/safety_helpers.c)
 
+# wifi_retry_policy — the STA-reconnect policy extracted from wifi_manager.c
+# (issue #78). The rest of wifi_manager.c is esp_wifi/esp_event all the way
+# down and is not host-buildable; this file is deliberately free of both.
+add_host_test(test_wifi_retry_policy
+    SOURCES test_wifi_retry_policy.c ${ROOT}/components/wifi_manager/wifi_retry_policy.c)
+target_include_directories(test_wifi_retry_policy PRIVATE ${ROOT}/components/wifi_manager/include)
+
+# wifi_fallback — the AP-fallback transitions, driven against a fake radio.
+# Same split as above: wifi_manager.c keeps the esp_wifi calls, this file keeps
+# the decisions, and the failure paths (a mode switch or AP config that errors)
+# are the whole reason it is worth separating.
+add_host_test(test_wifi_fallback
+    SOURCES test_wifi_fallback.c
+            ${ROOT}/components/wifi_manager/wifi_fallback.c
+            ${ROOT}/components/wifi_manager/wifi_retry_policy.c)
+target_include_directories(test_wifi_fallback PRIVATE ${ROOT}/components/wifi_manager/include)
+
 # cone_table — profile generation for every cone × speed × {preheat, slow_cool}.
 add_host_test(test_cone_table
     SOURCES test_cone_table.c ${ROOT}/components/cone_table/cone_table.c)
