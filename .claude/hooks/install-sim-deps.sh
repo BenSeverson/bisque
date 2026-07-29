@@ -23,7 +23,15 @@ log() { printf '%s %s\n' "$PREFIX" "$*"; }
 
 cd "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}"
 
-LVGL_DIR="managed_components/lvgl__lvgl"
+# Where the ESP-IDF component manager puts LVGL during a firmware build, and
+# where this script clones it when there hasn't been one. They are deliberately
+# different directories: managed_components/ belongs to the component manager,
+# which aborts the firmware build on any component there that lacks the
+# .component_hash it writes itself, and a git clone has no such file. Cloning
+# into it — as this script used to — left a container where `make sim` worked
+# and `idf.py build` could not configure at all.
+LVGL_MANAGED="managed_components/lvgl__lvgl"
+LVGL_STANDALONE="simulator/.lvgl"
 
 # ── SDL2 ──────────────────────────────────────────────────────────────────
 if ! pkg-config --exists sdl2 2>/dev/null && ! command -v sdl2-config >/dev/null 2>&1; then
@@ -37,7 +45,9 @@ fi
 
 # ── LVGL ──────────────────────────────────────────────────────────────────
 # Same source and pin CI uses. If the ESP-IDF component manager later populates
-# managed_components/ itself it will fetch this same version, so the two agree.
+# managed_components/ itself it will fetch this same version, so the two agree —
+# and simulator/CMakeLists.txt prefers that copy, so the standalone clone below
+# stops being used the moment there is a firmware build in the tree.
 LVGL_VERSION="$(awk '/^  lvgl\/lvgl:/{f=1; next} f && /version:/{gsub(/"/,"",$2); print $2; exit}' \
     dependencies.lock 2>/dev/null || true)"
 if [ -z "$LVGL_VERSION" ]; then
@@ -50,13 +60,13 @@ fi
 # path would keep building the simulator against the previous LVGL while CI
 # used the new one — silently defeating the version parity this exists for.
 #
-# The version is read out of lv_version.h rather than from git metadata,
-# because this directory has two legitimate authors: this script (a git clone,
-# tagged) and the ESP-IDF component manager during `idf.py build` (a plain
-# extract, no .git). Checking the source means a manager-installed copy at the
-# right version is accepted instead of being re-cloned on every session.
+# The version is read out of lv_version.h rather than from git metadata, because
+# either directory may hold the copy: this script's git clone (tagged) or the
+# component manager's extract (no .git). Checking the source means a
+# manager-installed copy at the right version is accepted, and no second copy is
+# cloned for it.
 lvgl_cached_version() {
-    local h="$LVGL_DIR/lv_version.h"
+    local h="$1/lv_version.h"
     [ -f "$h" ] || return 1
     awk '/#define LVGL_VERSION_MAJOR/{maj=$3}
          /#define LVGL_VERSION_MINOR/{min=$3}
@@ -64,14 +74,16 @@ lvgl_cached_version() {
          END{if (maj=="") exit 1; printf "%s.%s.%s", maj, min, pat}' "$h"
 }
 
-if [ -f "$LVGL_DIR/lvgl.h" ]; then
-    cached="$(lvgl_cached_version || true)"
+# Checked in the same order simulator/CMakeLists.txt resolves them.
+for dir in "$LVGL_MANAGED" "$LVGL_STANDALONE"; do
+    [ -f "$dir/lvgl.h" ] || continue
+    cached="$(lvgl_cached_version "$dir" || true)"
     if [ "$cached" = "$LVGL_VERSION" ]; then
-        log "ready (LVGL ${LVGL_VERSION}, SDL2 $(sdl2-config --version 2>/dev/null || echo ok))."
+        log "ready (LVGL ${LVGL_VERSION} from ${dir}, SDL2 $(sdl2-config --version 2>/dev/null || echo ok))."
         exit 0
     fi
-    log "cached LVGL is ${cached:-unreadable}, dependencies.lock pins ${LVGL_VERSION} — refreshing."
-fi
+    log "LVGL in ${dir} is ${cached:-unreadable}, dependencies.lock pins ${LVGL_VERSION}."
+done
 
 if ! preflight_check "$PREFIX" \
     "github.com|git|https://github.com/lvgl/lvgl.git|LVGL sources for the display simulator"; then
@@ -80,10 +92,10 @@ if ! preflight_check "$PREFIX" \
 fi
 
 log "cloning LVGL v${LVGL_VERSION} for the simulator…"
-rm -rf "$LVGL_DIR"
-mkdir -p "$(dirname "$LVGL_DIR")"
+rm -rf "$LVGL_STANDALONE"
+mkdir -p "$(dirname "$LVGL_STANDALONE")"
 git clone --depth 1 --branch "v${LVGL_VERSION}" \
-    https://github.com/lvgl/lvgl.git "$LVGL_DIR" >/dev/null 2>&1 || {
+    https://github.com/lvgl/lvgl.git "$LVGL_STANDALONE" >/dev/null 2>&1 || {
     log "LVGL clone failed — 'make sim' unavailable this session."
     exit 0
 }

@@ -7,8 +7,37 @@ set(CMAKE_C_STANDARD 11)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SDL2 REQUIRED sdl2)
 
-# LVGL source tree
-set(LVGL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../managed_components/lvgl__lvgl)
+# LVGL source tree.
+#
+# Preferred: the copy the ESP-IDF component manager installs during a firmware
+# build, so the simulator links exactly what the firmware links.
+#
+# Fallback: a standalone clone under simulator/.lvgl, used when there is no
+# firmware build in the tree (CI's ui-screenshots job runs on its own runner,
+# and the SessionStart hook provisions the simulator before ESP-IDF has ever
+# been invoked).
+#
+# The fallback is NOT allowed to live in managed_components/ even though the
+# directory is otherwise identical: that directory belongs to the component
+# manager, which refuses to build against any component there lacking the
+# .component_hash it writes itself —
+#
+#   ERROR: File .component_hash or CHECKSUMS.json for component "lvgl/lvgl" in
+#   the managed components directory does not exist or cannot be parsed.
+#
+# so a plain `git clone` into it makes `idf.py build` fail outright.
+set(LVGL_MANAGED ${CMAKE_CURRENT_SOURCE_DIR}/../managed_components/lvgl__lvgl)
+set(LVGL_STANDALONE ${CMAKE_CURRENT_SOURCE_DIR}/.lvgl)
+if(EXISTS ${LVGL_MANAGED}/lvgl.h)
+    set(LVGL_DIR ${LVGL_MANAGED})
+elseif(EXISTS ${LVGL_STANDALONE}/lvgl.h)
+    set(LVGL_DIR ${LVGL_STANDALONE})
+else()
+    message(FATAL_ERROR
+        "LVGL sources not found. Run .claude/hooks/install-sim-deps.sh, or build "
+        "the firmware once so the component manager populates managed_components/.")
+endif()
+message(STATUS "Simulator LVGL source: ${LVGL_DIR}")
 
 # Tell LVGL to use our lv_conf.h
 add_definitions(-DLV_CONF_INCLUDE_SIMPLE)
