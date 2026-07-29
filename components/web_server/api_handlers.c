@@ -1,5 +1,6 @@
 #include "web_server.h"
 #include "api_json.h"
+#include "auth_helpers.h"
 #include "firing_engine.h"
 #include "firing_types.h"
 #include "thermocouple.h"
@@ -75,6 +76,19 @@ static size_t url_decode_inplace(char *dst, const char *src)
  * Declared in web_server.h rather than kept static: the WebSocket handshake
  * callback in ws_handler.c gates on the same rule, and a second copy of it
  * there is a copy that can drift out of step with this one.
+ *
+ * Both channels use auth_token_equal, which accumulates every byte difference
+ * instead of returning at the first one (#81).
+ *
+ * #81 also proposed dropping the `?token=` query parameter — a credential in a
+ * URL reaches proxy logs, browser history and `Referer` headers — on the
+ * grounds that every REST client sends the header anyway and the WebSocket
+ * handshake did not consult this function at all. That last part stopped being
+ * true in #236: the handshake is authenticated now, and a browser cannot set
+ * headers on one, so the query parameter is the *only* credential the web
+ * client can present on /api/v1/ws. Removing it would lock every browser out
+ * of live telemetry. It stays, and the exposure is recorded in the README's
+ * network security section rather than pretended away.
  */
 bool web_auth_check(httpd_req_t *req)
 {
@@ -89,12 +103,10 @@ bool web_auth_check(httpd_req_t *req)
     /* Check Authorization: Bearer <token> */
     char auth_hdr[96] = {0};
     if (httpd_req_get_hdr_value_str(req, "Authorization", auth_hdr, sizeof(auth_hdr)) == ESP_OK) {
-        const char *prefix = "Bearer ";
-        size_t prefix_len = strlen(prefix);
-        if (strncmp(auth_hdr, prefix, prefix_len) == 0) {
-            if (strcmp(auth_hdr + prefix_len, settings.api_token) == 0) {
-                return true;
-            }
+        const char *supplied = NULL;
+        if (auth_bearer_token(auth_hdr, &supplied) &&
+            auth_token_equal(supplied, settings.api_token, sizeof(settings.api_token))) {
+            return true;
         }
     }
 
@@ -114,7 +126,7 @@ bool web_auth_check(httpd_req_t *req)
         char val[AUTH_ENCODED_MAX + 1] = {0};
         if (httpd_query_key_value(token_param, "token", val, sizeof(val)) == ESP_OK) {
             url_decode_inplace(val, val);
-            if (strcmp(val, settings.api_token) == 0) {
+            if (auth_token_equal(val, settings.api_token, sizeof(settings.api_token))) {
                 return true;
             }
         }

@@ -307,6 +307,45 @@ Before tagging a release, run the [bench smoke test](docs/bench-smoke-test.md) �
 run that verifies the parts CI can't touch: real SSR clicks, real
 thermocouple readings, history persistence across reboot.
 
+## Network security
+
+**Bisque assumes the network it sits on is trusted.** It is a LAN-only
+device: the HTTP API and the WebSocket telemetry feed are plain `http://`
+and `ws://`, with no TLS. Anyone who can see traffic on the same Wi-Fi can
+read the API token and every command sent with it.
+
+The optional API token (Settings → API Token) is therefore a lock on the
+front door, not protection against a hostile network. It stops a
+housemate's laptop or a curious guest from starting a firing; it does not
+stop someone who is already capturing your Wi-Fi traffic. Concretely:
+
+- The token is sent as an `Authorization: Bearer` header on every REST
+  request and compared in constant time on the device.
+- The WebSocket telemetry feed (`/api/v1/ws`) is authenticated by the same
+  check as the REST API. Browsers cannot set headers on a WebSocket
+  handshake, so the web UI presents the token as a `?token=` query
+  parameter instead — which means that on this one route the credential does
+  reach anywhere the URL does, including proxy logs and browser history. The
+  iOS app uses `URLSession`, which can set the header, and does. Dropping the
+  query parameter would lock every browser out of live telemetry, so it is a
+  deliberate trade rather than an oversight.
+- Firmware updates are fetched over HTTPS with certificate validation
+  against the bundled root store, and the downloaded image is checked
+  against the SHA-256 in the release manifest. So an OTA is not exposed by
+  the local network being readable — its trust rests on GitHub's TLS, not on
+  your LAN.
+
+If that trust assumption does not hold for your network, put the kiln on an
+isolated VLAN or guest SSID rather than relying on the token. TLS on-device
+with certificate pinning in the clients has been considered and is tracked
+in [#149](https://github.com/BenSeverson/bisque/issues/149); it is a
+significant amount of firmware and app complexity for a home LAN, and has
+not been implemented.
+
+**Never expose a kiln controller directly to the internet.** No port
+forwarding, no DMZ. This is a device that applies mains power to a heating
+element in an unattended room.
+
 ## Releases
 
 Firmware is distributed as [GitHub Releases](https://github.com/BenSeverson/bisque/releases),
