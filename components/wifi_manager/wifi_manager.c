@@ -1,4 +1,5 @@
 #include "wifi_manager.h"
+#include "wifi_fallback.h"
 #include "wifi_retry_policy.h"
 #include "app_config.h"
 #include "esp_wifi.h"
@@ -16,8 +17,13 @@
 
 static const char *TAG = "wifi_mgr";
 
+/* The one readiness bit. There is deliberately no separate "STA gave up" bit:
+   wait_connected()'s contract is "STA connected OR the AP is up", and a bit set
+   when the STA retries ran out woke it while the AP was still being brought up
+   — long enough for app_main to read is_ap_mode() as false and skip the
+   setup-mode boot banner. Readiness is now signalled from one place, the AP-up
+   hook below, once the transition has actually happened. */
 #define WIFI_CONNECTED_BIT BIT0
-#define WIFI_FAIL_BIT      BIT1
 
 /* The worker owns every mode switch and every esp_wifi_connect(). It is a plain
    low-priority task that sleeps on its queue, so nothing here can delay the
@@ -39,23 +45,23 @@ static QueueHandle_t s_cmd_queue;
 /* Shared between the event-loop task and the worker. Each has exactly one
    writer and every value is word-sized, so no lock is needed — but the
    direction differs per flag, so check before adding a writer:
-     s_ap_clients, s_sta_connected — written by the event-loop task, read by
-       the worker.
-     s_ap_active — the reverse: written by the worker (and once by
-       wifi_manager_init, before the worker task exists), read by the handler. */
+     s_ap_clients, s_sta_connected, s_sta_ip — written by the event-loop task,
+       read by the worker.
+     s_fb.ap_active — the reverse: written by the worker, read by the handler. */
 static volatile int s_ap_clients = 0;
 static volatile bool s_sta_connected = false;
-static volatile bool s_ap_active = false;
 
 static int s_retry_count = 0; /* fast pre-fallback attempts; event-loop task only */
 
-/* Worker-task-owned. */
-static wifi_retry_state_t s_retry;
+/* Worker-task-owned (except .ap_active, see above). */
+static wifi_fallback_t s_fb;
 
 static esp_netif_t *s_netif_sta;
 static esp_netif_t *s_netif_ap;
 
-static char s_ip_str[16] = "0.0.0.0";
+/* The last address DHCP handed the STA interface. Only ever reported while the
+   STA link is actually up — wifi_manager_get_ip() derives what to show. */
+static char s_sta_ip[16] = "0.0.0.0";
 static bool s_sta_configured = false;
 
 static const char *s_ap_ssid;
@@ -84,7 +90,7 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
             break;
         case WIFI_EVENT_STA_DISCONNECTED:
             s_sta_connected = false;
-            if (!s_ap_active) {
+            if (!wifi_fallback_ap_active(&s_fb)) {
                 /* The AP is not up yet: burn through the fast retries, then fall
                    back. Losing an established STA link re-enters this path, so a
                    router reboot still reaches the AP. */
@@ -95,12 +101,13 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
                     post_cmd(WIFI_CMD_STA_CONNECT);
                 } else {
                     ESP_LOGW(TAG, "STA connection failed, switching to AP mode");
-                    xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
                     post_cmd(WIFI_CMD_ENTER_AP_FALLBACK);
                 }
             }
             /* While the AP is up the backoff policy paces retries; reacting to
-               the failure here would busy-loop the radio during a firing. */
+               the failure here would busy-loop the radio during a firing. The
+               reported address follows s_sta_connected, so it reverts to the AP
+               without anything to reset here. */
             break;
         case WIFI_EVENT_AP_STACONNECTED: {
             wifi_event_ap_staconnected_t *evt = (wifi_event_ap_staconnected_t *)event_data;
@@ -122,11 +129,13 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
         }
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t *evt = (ip_event_got_ip_t *)event_data;
-        snprintf(s_ip_str, sizeof(s_ip_str), IPSTR, IP2STR(&evt->ip_info.ip));
-        ESP_LOGI(TAG, "STA connected, IP: %s", s_ip_str);
+        snprintf(s_sta_ip, sizeof(s_sta_ip), IPSTR, IP2STR(&evt->ip_info.ip));
+        ESP_LOGI(TAG, "STA connected, IP: %s", s_sta_ip);
         s_retry_count = 0;
         s_sta_connected = true;
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+        /* The worker re-arms the backoff policy off s_sta_connected, so a later
+           drop starts from the short backoff rather than firing instantly. */
         post_cmd(WIFI_CMD_POLL);
     }
 }
@@ -156,7 +165,12 @@ static void copy_credential(uint8_t *dst, size_t dst_size, const char *src)
 
 /* ── Worker task — the only place the Wi-Fi mode changes ───────────────── */
 
-static void apply_ap_config(void)
+/* The transition logic itself lives in wifi_fallback.c (host-tested); these are
+   the radio ops it drives. Each returns 0 for success and logs the real
+   esp_err_t here, and must be safe to call again — the fallback re-runs the
+   whole sequence until it lands. */
+
+static esp_err_t apply_ap_config(void)
 {
     wifi_config_t ap_config = {
         .ap =
@@ -178,53 +192,7 @@ static void apply_ap_config(void)
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "esp_wifi_set_config(AP) failed: %s", esp_err_to_name(err));
     }
-}
-
-/* Bring the provisioning AP up alongside (not instead of) the STA interface.
-   APSTA keeps the STA interface available for the retry loop, so recovery never
-   requires tearing the AP down. Idempotent: a second call is a no-op rather
-   than a duplicate-netif abort. */
-static void enter_ap_fallback(void)
-{
-    if (s_ap_active) {
-        return;
-    }
-
-    wifi_mode_t mode = s_sta_configured ? WIFI_MODE_APSTA : WIFI_MODE_AP;
-    esp_err_t err = esp_wifi_set_mode(mode);
-    if (err != ESP_OK) {
-        /* Deliberately not ESP_ERROR_CHECK: aborting the controller over a
-           Wi-Fi hiccup would take a firing with it. Retry on the next tick. */
-        ESP_LOGE(TAG, "esp_wifi_set_mode(%s) failed: %s", s_sta_configured ? "APSTA" : "AP", esp_err_to_name(err));
-        return;
-    }
-    apply_ap_config();
-
-    s_ap_active = true;
-    wifi_retry_reset(&s_retry, esp_timer_get_time());
-    snprintf(s_ip_str, sizeof(s_ip_str), "192.168.4.1");
-    ESP_LOGI(TAG, "AP started: SSID=%s, IP=%s", s_ap_ssid, s_ip_str);
-    xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
-}
-
-/* The configured network came back. Drop the AP and return to the plain STA
-   steady state — but only when nobody is associated, so a user who joined the
-   AP in the seconds since the successful retry is not cut off mid-form. */
-static void leave_ap_fallback(void)
-{
-    if (s_ap_clients > 0) {
-        return;
-    }
-
-    esp_err_t err = esp_wifi_set_mode(WIFI_MODE_STA);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "esp_wifi_set_mode(STA) failed: %s", esp_err_to_name(err));
-        return;
-    }
-
-    s_ap_active = false;
-    xEventGroupClearBits(s_wifi_event_group, WIFI_FAIL_BIT);
-    ESP_LOGI(TAG, "STA recovered, AP stopped; IP: %s", s_ip_str);
+    return err;
 }
 
 static void try_sta_connect(void)
@@ -235,33 +203,65 @@ static void try_sta_connect(void)
     }
 }
 
-static void service_ap_fallback(void)
+/* APSTA keeps the STA interface available for the retry loop, so recovery never
+   requires tearing the AP down. Not ESP_ERROR_CHECK: aborting the controller
+   over a Wi-Fi hiccup would take a firing with it. */
+static int op_set_ap_mode(void)
 {
-    if (!s_ap_active) {
-        return;
+    const char *name = s_sta_configured ? "APSTA" : "AP";
+    esp_err_t err = esp_wifi_set_mode(s_sta_configured ? WIFI_MODE_APSTA : WIFI_MODE_AP);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "esp_wifi_set_mode(%s) failed: %s", name, esp_err_to_name(err));
     }
-    if (s_sta_connected) {
-        leave_ap_fallback();
-        return;
-    }
-    if (!s_sta_configured) {
-        return; /* provisioning-only AP; there is nothing to reconnect to */
-    }
-
-    switch (wifi_retry_step(&s_retry, s_ap_clients > 0, esp_timer_get_time())) {
-    case WIFI_RETRY_ATTEMPT:
-        ESP_LOGI(TAG, "AP fallback: STA reconnect attempt %u (next in %u s)", (unsigned)s_retry.attempt_count,
-                 (unsigned)(wifi_retry_backoff_ms(s_retry.attempt_count) / 1000));
-        try_sta_connect();
-        break;
-    case WIFI_RETRY_SUPPRESSED:
-        ESP_LOGD(TAG, "AP fallback: retry due but %d client(s) associated, holding", s_ap_clients);
-        break;
-    case WIFI_RETRY_NOT_DUE:
-    default:
-        break;
-    }
+    return err == ESP_OK ? 0 : -1;
 }
+
+static int op_apply_ap_config(void)
+{
+    return apply_ap_config() == ESP_OK ? 0 : -1;
+}
+
+static int op_set_sta_mode(void)
+{
+    esp_err_t err = esp_wifi_set_mode(WIFI_MODE_STA);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "esp_wifi_set_mode(STA) failed: %s", esp_err_to_name(err));
+    }
+    return err == ESP_OK ? 0 : -1;
+}
+
+static void op_sta_connect(void)
+{
+    try_sta_connect();
+}
+
+static void op_ap_up(void)
+{
+    ESP_LOGI(TAG, "AP started: SSID=%s, IP=%s", s_ap_ssid, WIFI_FALLBACK_AP_IP);
+    /* Readiness is signalled here and nowhere else: this is the first moment at
+       which wait_connected()'s "STA connected OR the AP is up" actually holds. */
+    xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+}
+
+static void op_ap_down(void)
+{
+    ESP_LOGI(TAG, "STA recovered, AP stopped; IP: %s", s_sta_ip);
+}
+
+static int64_t op_now_us(void)
+{
+    return esp_timer_get_time();
+}
+
+static const wifi_fallback_ops_t s_fb_ops = {
+    .set_ap_mode = op_set_ap_mode,
+    .apply_ap_config = op_apply_ap_config,
+    .set_sta_mode = op_set_sta_mode,
+    .sta_connect = op_sta_connect,
+    .ap_up = op_ap_up,
+    .ap_down = op_ap_down,
+    .now_us = op_now_us,
+};
 
 static void wifi_worker_task(void *arg)
 {
@@ -273,14 +273,30 @@ static void wifi_worker_task(void *arg)
                 try_sta_connect();
                 break;
             case WIFI_CMD_ENTER_AP_FALLBACK:
-                enter_ap_fallback();
+                /* Records the intent only. A failed mode switch or AP config
+                   used to strand the controller with neither STA nor AP,
+                   because this command is consumed once and the retry loop
+                   started at "is the AP already up?". */
+                wifi_fallback_request_ap(&s_fb);
                 break;
             case WIFI_CMD_POLL:
             default:
                 break;
             }
         }
-        service_ap_fallback();
+
+        switch (wifi_fallback_service(&s_fb, s_sta_connected, s_ap_clients)) {
+        case WIFI_RETRY_ATTEMPT:
+            ESP_LOGI(TAG, "AP fallback: STA reconnect attempt %u (next in %u s)", (unsigned)s_fb.retry.attempt_count,
+                     (unsigned)(wifi_retry_backoff_ms(s_fb.retry.attempt_count) / 1000));
+            break;
+        case WIFI_RETRY_SUPPRESSED:
+            ESP_LOGD(TAG, "AP fallback: retry due but %d client(s) associated, holding", s_ap_clients);
+            break;
+        case WIFI_RETRY_NOT_DUE:
+        default:
+            break;
+        }
     }
 }
 
@@ -291,6 +307,7 @@ esp_err_t wifi_manager_init(const char *sta_ssid, const char *sta_pass, const ch
     s_ap_ssid = ap_ssid;
     s_ap_pass = ap_pass;
     s_sta_configured = (sta_ssid != NULL && sta_ssid[0] != '\0');
+    wifi_fallback_init(&s_fb, &s_fb_ops, s_sta_configured);
     s_wifi_event_group = xEventGroupCreate();
     s_cmd_queue = xQueueCreate(8, sizeof(wifi_cmd_t));
     if (s_wifi_event_group == NULL || s_cmd_queue == NULL) {
@@ -328,9 +345,15 @@ esp_err_t wifi_manager_init(const char *sta_ssid, const char *sta_pass, const ch
         ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
         ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_config));
     } else {
+        /* Configure the AP up front so esp_wifi_start() brings up the right
+           SSID rather than the interface default, then hand ownership to the
+           worker: it re-runs the same (idempotent) transition, and only it
+           marks the AP active, publishes the address and signals readiness —
+           retrying for as long as either step keeps failing. */
         ESP_LOGI(TAG, "No STA SSID configured, starting AP mode");
         ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
-        apply_ap_config();
+        (void)apply_ap_config();
+        post_cmd(WIFI_CMD_ENTER_AP_FALLBACK);
     }
 
     BaseType_t rc = xTaskCreatePinnedToCore(wifi_worker_task, "wifi_worker", WIFI_WORKER_STACK, NULL, WIFI_WORKER_PRIO,
@@ -346,19 +369,14 @@ esp_err_t wifi_manager_init(const char *sta_ssid, const char *sta_pass, const ch
 
     if (s_sta_configured) {
         ESP_LOGI(TAG, "STA mode started, connecting to %s", sta_ssid);
-    } else {
-        s_ap_active = true;
-        snprintf(s_ip_str, sizeof(s_ip_str), "192.168.4.1");
-        ESP_LOGI(TAG, "AP started: SSID=%s, IP=%s", s_ap_ssid, s_ip_str);
-        xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
     }
     return ESP_OK;
 }
 
 esp_err_t wifi_manager_wait_connected(uint32_t timeout_ms)
 {
-    EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT, pdFALSE, pdFALSE,
-                                           pdMS_TO_TICKS(timeout_ms));
+    EventBits_t bits =
+        xEventGroupWaitBits(s_wifi_event_group, WIFI_CONNECTED_BIT, pdFALSE, pdFALSE, pdMS_TO_TICKS(timeout_ms));
 
     if (bits & WIFI_CONNECTED_BIT) {
         return ESP_OK;
@@ -377,12 +395,16 @@ bool wifi_manager_is_ap_mode(void)
     /* During APSTA recovery the AP is briefly still up while the STA already
        has an IP. Callers (status LED, boot banner, /api/wifi) mean "the AP is
        the only way in", so a live STA link wins. */
-    return s_ap_active && !s_sta_connected;
+    return wifi_fallback_ap_only(&s_fb, s_sta_connected);
 }
 
 const char *wifi_manager_get_ip(void)
 {
-    return s_ip_str;
+    /* Derived from the same condition as is_ap_mode(), so the two can never
+       disagree. Caching the address instead is what let a dead LAN address be
+       reported after the router dropped while an AP client held the fallback
+       open — the device was only reachable at 192.168.4.1. */
+    return wifi_fallback_reported_ip(&s_fb, s_sta_connected, s_sta_ip);
 }
 
 /* ── NVS Credential Persistence ───────────────────── */
