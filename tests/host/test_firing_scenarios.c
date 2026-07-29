@@ -243,6 +243,26 @@ static void test_delayed_start_publishes_a_falling_countdown(void)
     TEST_ASSERT_EQUAL_UINT32(0, prog.delay_remaining);
 }
 
+/* Cancelling an armed delay must retract the countdown immediately, not at the
+ * next tick. The field is recomputed once a second, so a status GET or a
+ * WebSocket broadcast landing in that window would otherwise still advertise a
+ * firing scheduled for a time that is no longer coming. */
+static void test_stopping_an_armed_delay_clears_the_countdown(void)
+{
+    firing_profile_t p = scenario_short_profile();
+    scenario_start(&p, 2);
+
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL_UINT32(120, prog.delay_remaining);
+
+    /* No tick between the stop and the read — that is the whole point. */
+    scenario_stop();
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(0, prog.delay_remaining, "cancelled delay still advertised a countdown");
+    TEST_ASSERT_FALSE_MESSAGE(prog.is_active, "cancelled delay left the firing active");
+}
+
 /* An immediate firing is not a scheduled one; the field must stay 0 so a client
  * can use "delayRemaining > 0" as the test for "is one armed". */
 static void test_immediate_start_publishes_no_countdown(void)
@@ -1339,6 +1359,7 @@ int main(void)
     RUN_TEST(test_stop_drops_to_idle);
     RUN_TEST(test_delayed_start_transitions_after_delay);
     RUN_TEST(test_delayed_start_publishes_a_falling_countdown);
+    RUN_TEST(test_stopping_an_armed_delay_clears_the_countdown);
     RUN_TEST(test_immediate_start_publishes_no_countdown);
     RUN_TEST(test_cooling_segment_reports_cooling_status);
     RUN_TEST(test_skip_while_paused_does_not_resume_heating);

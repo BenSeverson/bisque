@@ -731,6 +731,11 @@ static void do_stop(void)
     progress_lock();
     s_progress.is_active = false;
     s_progress.status = FIRING_STATUS_IDLE;
+    /* Cancelling an armed delayed start must retract its countdown here, not at
+       the next tick: the field is only recomputed once a second, so a status GET
+       or a WebSocket broadcast landing in that window would advertise a firing
+       still scheduled for a time that is no longer coming (#204). */
+    s_progress.delay_remaining = 0;
     /* STOP also cancels a diagnostic relay pulse — /api/v1/firing/stop is the
        operator's way to cut a test short. SSR was already forced off above; the
        tick's relay branch will not re-assert it now that the deadline is clear. */
@@ -886,6 +891,9 @@ static void handle_cmd(const firing_cmd_t *cmd)
             s_progress.current_segment = 0;
             s_progress.total_segments = s_state.active_profile.segment_count;
             s_progress.elapsed_time = 0;
+            /* An immediate start replaces whatever was armed before, so the old
+               countdown must not outlive it either. */
+            s_progress.delay_remaining = 0;
             progress_unlock();
             s_state.elapsed_accum_us = 0;
             begin_firing(cur_temp, now_us);
@@ -1142,6 +1150,9 @@ void firing_tick(int64_t now_us)
             progress_lock();
             s_progress.is_active = false;
             s_progress.status = FIRING_STATUS_ERROR;
+            /* Same reason as do_stop(): this path returns early, so nothing
+               would retract the countdown until the next tick. */
+            s_progress.delay_remaining = 0;
             progress_unlock();
             if (s_last_error_code == FIRING_ERR_NONE) {
                 s_last_error_code = firing_err_from_trip(safety_get_trip_cause());
