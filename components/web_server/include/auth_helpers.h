@@ -20,8 +20,17 @@ extern "C" {
  * recover a token a byte at a time. The practical risk on a LAN is low (#81),
  * but a fixed-time compare costs nothing here.
  *
+ * The time taken is independent of the configured token's contents *and* of
+ * its length: the buffer is scanned in full rather than to its terminator, and
+ * the per-byte selection is done with masks rather than a branch on a
+ * secret-derived index. What remains observable is the length of the token the
+ * caller supplied, which is the attacker's own input.
+ *
  * `max_len` is the size of the buffer holding the configured token
- * (`sizeof(kiln_settings_t::api_token)`); both sides are read only within it.
+ * (`sizeof(kiln_settings_t::api_token)`). **`expected` must be readable for
+ * all `max_len` bytes** — that is what allows the length scan to be
+ * length-independent. `provided` is only ever read up to its own terminator,
+ * so it may be any shorter NUL-terminated string.
  *
  * Returns true when the tokens are equal. A NULL argument is never equal.
  */

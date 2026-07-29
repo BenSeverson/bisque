@@ -1,6 +1,7 @@
 #include "auth_helpers.h"
 #include "unity.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 /* Matches sizeof(kiln_settings_t::api_token). */
@@ -78,6 +79,41 @@ static void test_full_length_token_compares(void)
     TEST_ASSERT_FALSE(auth_token_equal(a, b, TOKEN_BUF));
 }
 
+/* The configured token is scanned over the whole buffer rather than to its
+ * terminator, so its length does not steer the loop. That is only sound if the
+ * bytes past the terminator are readable and ignored — pin both: a short token
+ * in a full-size buffer with garbage after the NUL must still match itself, and
+ * must not match a longer token that shares its prefix. */
+static void test_configured_token_length_is_not_observable(void)
+{
+    char expected[TOKEN_BUF];
+    memset(expected, 'Z', TOKEN_BUF); /* garbage everywhere... */
+    memcpy(expected, "short", 6);     /* ...then a 5-char token + NUL */
+
+    TEST_ASSERT_TRUE(auth_token_equal("short", expected, TOKEN_BUF));
+    TEST_ASSERT_FALSE(auth_token_equal("shortish", expected, TOKEN_BUF));
+    TEST_ASSERT_FALSE(auth_token_equal("shor", expected, TOKEN_BUF));
+    /* The trailing garbage must not leak into the comparison. */
+    TEST_ASSERT_FALSE(auth_token_equal("shortZZZ", expected, TOKEN_BUF));
+}
+
+/* `provided` carries no guarantee of readable bytes past its terminator — it is
+ * a plain C string from a header or query value. Placing one at the very end of
+ * a buffer means any read past its NUL is out of bounds, which ASan catches. */
+static void test_supplied_token_is_never_read_past_its_terminator(void)
+{
+    char expected[TOKEN_BUF];
+    memset(expected, 0, TOKEN_BUF);
+    memcpy(expected, "abcdefghijklmnop", 17);
+
+    char *tight = malloc(4);
+    TEST_ASSERT_NOT_NULL(tight);
+    memcpy(tight, "abc", 4); /* exactly 4 bytes: 'a','b','c','\0' */
+
+    TEST_ASSERT_FALSE(auth_token_equal(tight, expected, TOKEN_BUF));
+    free(tight);
+}
+
 /* ── auth_bearer_token ──────────────────────────────────────────────────── */
 
 static void test_bearer_prefix_is_stripped(void)
@@ -123,6 +159,8 @@ int main(void)
     RUN_TEST(test_null_arguments_never_authenticate);
     RUN_TEST(test_comparison_is_bounded_by_max_len);
     RUN_TEST(test_full_length_token_compares);
+    RUN_TEST(test_configured_token_length_is_not_observable);
+    RUN_TEST(test_supplied_token_is_never_read_past_its_terminator);
     RUN_TEST(test_bearer_prefix_is_stripped);
     RUN_TEST(test_bearer_accepts_an_empty_token);
     RUN_TEST(test_non_bearer_schemes_are_rejected);
