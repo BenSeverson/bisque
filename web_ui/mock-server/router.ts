@@ -376,21 +376,24 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
     // Never store the raw api token in state — just note it's been set
     const { apiToken, ...rest } = body as Partial<KilnSettings> & { apiToken?: string };
 
-    // The firmware reads named fields out of the request body and ignores
-    // anything else; it never grows a key it does not know. The mock used to
+    // The firmware reads named fields out of the request body with
+    // cJSON_GetObjectItem and ignores everything else (handle_post_settings,
+    // api_handlers.c:632) — it never rejects an unknown key, and it never
+    // grows one either.
+    //
+    // The bug in #166 was the second half of that: the mock used to
     // Object.assign the whole body, so a misspelled field (`temperatureUnit`)
-    // returned 200, was merged into stored settings, and echoed back on every
-    // later GET — hiding exactly the kind of contract bug this mock exists to
-    // expose (#166). Unknown keys are now rejected rather than silently kept.
-    const unknown = Object.keys(rest).filter((k) => !SETTINGS_KEYS.has(k));
-    if (unknown.length > 0) {
-      return {
-        status: 400,
-        json: { error: `Unknown settings field(s): ${unknown.join(", ")}` },
-      };
-    }
-
-    Object.assign(state.settings, rest);
+    // was merged into stored settings and echoed back on every later GET,
+    // hiding exactly the kind of contract drift this mock exists to expose.
+    // Dropping unknown keys fixes that while staying faithful.
+    //
+    // Rejecting them, which is what this did first, is *less* faithful than
+    // the old behaviour rather than more — and it broke every settings save in
+    // the demo, because the client legitimately posts the read-only
+    // `apiTokenSet` back with the rest of the form (Settings.tsx:191, and the
+    // form resets from a GET that includes it).
+    const known = Object.fromEntries(Object.entries(rest).filter(([k]) => SETTINGS_KEYS.has(k)));
+    Object.assign(state.settings, known);
     if (apiToken !== undefined) {
       state.settings.apiTokenSet = !!apiToken;
     }

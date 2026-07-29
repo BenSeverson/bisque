@@ -226,9 +226,12 @@ describe("mock-server POST endpoints", () => {
 // (#131, #166).
 
 describe("mock-server firmware parity", () => {
-  it("rejects unknown settings fields instead of persisting them", async () => {
+  it("drops unknown settings fields instead of persisting them", async () => {
+    // The firmware reads named fields and ignores the rest, so a misspelling
+    // must not 400 — but it must not be stored and echoed back either, which
+    // is what #166 was actually about.
     const r = await post("/settings", { temperatureUnit: "C" });
-    expect(r.status).toBe(400);
+    expect(r.body.ok).toBe(true);
     const after = await get("/settings");
     expect("temperatureUnit" in after).toBe(false);
   });
@@ -237,6 +240,16 @@ describe("mock-server firmware parity", () => {
     const r = await post("/settings", { maxSafeTemp: 1300 });
     expect(r.body.ok).toBe(true);
     expect((await get("/settings")).maxSafeTemp).toBe(1300);
+  });
+
+  it("accepts a full form save carrying the read-only apiTokenSet", async () => {
+    // The Settings form resets from GET /settings, which includes apiTokenSet,
+    // and posts the whole form back — so every ordinary save in the demo
+    // carries this field. Rejecting it broke all of them.
+    const current = await get("/settings");
+    const r = await post("/settings", { ...current, maxSafeTemp: 1250 });
+    expect(r.body.ok).toBe(true);
+    expect((await get("/settings")).maxSafeTemp).toBe(1250);
   });
 
   it("applies tcOffsetC to the published currentTemp, leaving the raw reading alone", async () => {
