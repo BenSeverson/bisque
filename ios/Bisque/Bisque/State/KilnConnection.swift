@@ -75,6 +75,23 @@ final class KilnConnection {
         connectionState = .disconnected
     }
 
+    /// Re-establishes the live feed after the app has been suspended (#147).
+    ///
+    /// iOS tears the WebSocket down within seconds of backgrounding, and the app
+    /// declares no background modes, so on return the socket is dead while
+    /// `connectionState` still reads `.connected` and the UI presents whatever
+    /// reading it had when the phone went in a pocket. Nothing noticed until the
+    /// user pulled to refresh.
+    ///
+    /// Only meaningful when a connection was already established: a foreground
+    /// event must not start dialling a kiln the user never connected to, or
+    /// overwrite an `.error` they still need to read.
+    func resumeIfConnected() {
+        guard case .connected = connectionState, !host.isEmpty else { return }
+        webSocket.disconnect()
+        webSocket.connect(host: host, port: port, apiToken: apiToken)
+    }
+
     /// Returns false if the token could not be persisted, so the caller can say
     /// so rather than letting the user discover it as a lockout on next launch
     /// (#151). The in-memory token is still adopted either way — the current

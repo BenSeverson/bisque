@@ -15,6 +15,17 @@ final class KilnWebSocketManager {
     private var receiveTask: Task<Void, Never>?
     private var shouldReconnect = false
 
+    /// Bumped by every `openConnection()`. A receive loop carries the value it
+    /// was started with and stays silent once it no longer matches.
+    ///
+    /// Without it, a loop whose socket has been replaced still reaches its catch
+    /// block and schedules a reconnect — and that reconnect cancels the *live*
+    /// socket, whose loop then schedules the next one. Self-sustaining churn at
+    /// 1–8s intervals, losing updates the whole time. Cancelling the task is not
+    /// enough on its own: `Task.isCancelled` guards loop entry, not the catch,
+    /// and `openConnection()` can supersede a loop that was never cancelled.
+    private var generation = 0
+
     let updateSubject = PassthroughSubject<TempUpdateData, Never>()
     let otaSubject = PassthroughSubject<OTAEvent, Never>()
 
@@ -32,6 +43,10 @@ final class KilnWebSocketManager {
     }
 
     func disconnect() {
+        // Bumped here too, so a loop cancelled by an explicit disconnect is
+        // silenced by generation alone rather than relying on shouldReconnect —
+        // which connect() may already have set back to true.
+        generation += 1
         shouldReconnect = false
         reconnectTask?.cancel()
         reconnectTask = nil
@@ -45,6 +60,12 @@ final class KilnWebSocketManager {
     private func openConnection() {
         guard let url = url else { return }
 
+        generation += 1
+        let thisGeneration = generation
+
+        // Supersede any loop still running against the outgoing socket, so it
+        // cannot outlive this call and report the socket it owned as lost.
+        receiveTask?.cancel()
         webSocketTask?.cancel(with: .goingAway, reason: nil)
         // Via URLRequest, not the bare URL, so the handshake can carry the
         // Authorization header. URLSession permits this on a WebSocket where
@@ -62,11 +83,11 @@ final class KilnWebSocketManager {
         reconnectDelay = 1
 
         receiveTask = Task { [weak self] in
-            await self?.receiveLoop(task: task)
+            await self?.receiveLoop(task: task, myGeneration: thisGeneration)
         }
     }
 
-    nonisolated private func receiveLoop(task: URLSessionWebSocketTask) async {
+    nonisolated private func receiveLoop(task: URLSessionWebSocketTask, myGeneration: Int) async {
         while !Task.isCancelled {
             do {
                 let message = try await task.receive()
@@ -100,8 +121,14 @@ final class KilnWebSocketManager {
                 }
             } catch {
                 await MainActor.run { [weak self] in
-                    self?.isConnected = false
-                    self?.scheduleReconnect()
+                    guard let self, myGeneration == self.generation else {
+                        // This socket was replaced deliberately — by disconnect()
+                        // or by a newer openConnection(). Its failure is expected
+                        // and says nothing about the connection that is live now.
+                        return
+                    }
+                    self.isConnected = false
+                    self.scheduleReconnect()
                 }
                 return
             }
