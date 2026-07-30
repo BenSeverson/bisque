@@ -60,6 +60,7 @@ struct OtaInstallResponse: Codable {
 actor KilnAPIClient {
     private let baseURL: URL
     private let session: URLSession
+    private let otaSession: URLSession
     private var apiToken: String?
 
     /// Escapes a value being spliced into a URL *path*.
@@ -86,6 +87,24 @@ actor KilnAPIClient {
         config.timeoutIntervalForRequest = 10
         config.timeoutIntervalForResource = 30
         self.session = URLSession(configuration: config)
+
+        /// OTA gets its own session because the timeouts above are wrong for it
+        /// by an order of magnitude (#142).
+        ///
+        /// A 1.5–2 MB image is accepted only as fast as the ESP32 can erase and
+        /// write flash, which routinely exceeds 30s — and `installOTA` returns
+        /// only after the device has pulled the image from GitHub. Under the
+        /// shared session URLSession cancelled the task at the resource
+        /// deadline, mid-transfer, leaving a partial OTA write and showing a
+        /// generic timeout.
+        ///
+        /// Keeping two sessions rather than relaxing the shared one preserves
+        /// the short deadlines where they belong: a control request that has not
+        /// answered in 10s should fail fast, not hang for ten minutes.
+        let otaConfig = URLSessionConfiguration.default
+        otaConfig.timeoutIntervalForRequest = 120
+        otaConfig.timeoutIntervalForResource = 600
+        self.otaSession = URLSession(configuration: otaConfig)
     }
 
     func setToken(_ token: String?) {
@@ -94,10 +113,13 @@ actor KilnAPIClient {
 
     // MARK: - Generic Request
 
+    /// `session:` overrides the short-deadline default for the OTA endpoints,
+    /// which legitimately take minutes — see `otaSession` (#142).
     private func request<T: Decodable>(
         method: String = "GET",
         path: String,
-        body: (any Encodable)? = nil
+        body: (any Encodable)? = nil,
+        session overrideSession: URLSession? = nil
     ) async throws -> T {
         guard let url = URL(string: baseURL.absoluteString + path) else {
             throw APIError.invalidURL
@@ -117,7 +139,7 @@ actor KilnAPIClient {
 
         let (data, response): (Data, URLResponse)
         do {
-            (data, response) = try await session.data(for: request)
+            (data, response) = try await (overrideSession ?? session).data(for: request)
         } catch is URLError {
             throw APIError.connectionFailed
         }
@@ -269,12 +291,20 @@ actor KilnAPIClient {
 
     // MARK: - OTA
 
-    func uploadOTA(fileURL: URL, onProgress: @Sendable @escaping (Double) -> Void) async throws -> OkResponse {
+    /// Uploads an already-read firmware image.
+    ///
+    /// Takes `Data` rather than a `URL` on purpose (#141). A file picked from
+    /// iCloud Drive or Files is reachable only while its security-scoped
+    /// resource is open, and that scope belongs to the picker callback — it
+    /// cannot survive being handed to a detached upload task. Reading the bytes
+    /// while the scope is held, then passing them here, makes the lifetime
+    /// impossible to get wrong rather than merely correct today.
+    func uploadOTA(firmware: Data, onProgress: @Sendable @escaping (Double) -> Void) async throws -> OkResponse {
         guard let url = URL(string: baseURL.absoluteString + "/ota") else {
             throw APIError.invalidURL
         }
 
-        let fileData = try Data(contentsOf: fileURL)
+        let fileData = firmware
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -285,7 +315,7 @@ actor KilnAPIClient {
         }
 
         let delegate = UploadProgressDelegate(onProgress: onProgress)
-        let (data, response) = try await session.upload(for: request, from: fileData, delegate: delegate)
+        let (data, response) = try await otaSession.upload(for: request, from: fileData, delegate: delegate)
 
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
@@ -296,12 +326,21 @@ actor KilnAPIClient {
         return try JSONDecoder().decode(OkResponse.self, from: data)
     }
 
+    /// Also on the OTA session. `handle_ota_check` waits synchronously for
+    /// `ota_check()` to fetch the release manifest from GitHub, bounded by
+    /// CONFIG_OTA_HTTP_TIMEOUT_MS — 15s by default and settable to 120s. Under
+    /// the shared session's 10s request deadline the app gave up before the
+    /// controller answered, so Install never appeared even when an update was
+    /// there (#142).
     func checkOTA() async throws -> OtaCheckResponse {
-        try await request(method: "POST", path: "/ota/check")
+        try await request(method: "POST", path: "/ota/check", session: otaSession)
     }
 
+    /// Uses the OTA session: this returns only once the device has pulled the
+    /// image from GitHub, which outlives the shared session's 30s resource
+    /// deadline (#142).
     func installOTA() async throws -> OtaInstallResponse {
-        try await request(method: "POST", path: "/ota/install")
+        try await request(method: "POST", path: "/ota/install", session: otaSession)
     }
 
     // MARK: - Diagnostics

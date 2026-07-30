@@ -70,10 +70,28 @@ struct OTAUpdateView: View {
         .fileImporter(isPresented: $showFilePicker, allowedContentTypes: [.data]) { result in
             switch result {
             case .success(let url):
-                guard url.startAccessingSecurityScopedResource() else { return }
+                /* Read the bytes here, inside the scope, rather than handing the
+                   URL to the upload task (#141). `defer` fires when this closure
+                   returns — which is before a detached Task would have got as
+                   far as opening the file — so the read used to happen after
+                   access had been revoked. Anything outside the app sandbox
+                   (iCloud Drive, Files) failed with a permission error, which
+                   is to say manual OTA upload was broken for the normal case. */
+                guard url.startAccessingSecurityScopedResource() else {
+                    viewModel.error = "Could not get permission to read that file."
+                    return
+                }
                 defer { url.stopAccessingSecurityScopedResource() }
+
                 guard let client = connection.apiClient else { return }
-                Task { await viewModel.uploadFirmware(fileURL: url, using: client) }
+                let firmware: Data
+                do {
+                    firmware = try Data(contentsOf: url)
+                } catch {
+                    viewModel.error = "Could not read \(url.lastPathComponent): \(error.localizedDescription)"
+                    return
+                }
+                Task { await viewModel.uploadFirmware(firmware, using: client) }
             case .failure:
                 break
             }

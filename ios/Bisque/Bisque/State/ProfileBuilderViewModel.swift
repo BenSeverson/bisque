@@ -15,20 +15,41 @@ final class ProfileBuilderViewModel {
     var conePreheat: Bool = true
     var coneSlowCool: Bool = false
 
+    /// Filtered to finite values: this is rendered via `Int(_:)`, which traps on
+    /// infinity rather than producing a wrong number (#143).
     var maxTemp: Double {
-        segments.map(\.targetTemp).max() ?? 0
+        segments.map(\.targetTemp).filter(\.isFinite).max() ?? 0
     }
 
+    /// Total planned minutes, skipping segments that cannot be computed.
+    ///
+    /// Dividing by `abs(rampRate)` makes this infinite for a rate of 0, and
+    /// `JSONEncoder` refuses to encode a non-finite `Double` — so the profile
+    /// save failed with an `EncodingError` that named neither the segment nor
+    /// the field (#143). Skipping keeps the figure finite; `validationError` is
+    /// what stops the save, with a message that says which segment is wrong.
+    ///
+    /// Filtered on `isComputable`, not `validationError`: a slow-but-legal rate
+    /// should contribute its (large, honest) duration rather than vanish from
+    /// the estimate.
     var estimatedDuration: Double {
         var totalMinutes: Double = 0
         var currentTemp: Double = 20
-        for segment in segments {
+        for segment in segments where segment.isComputable {
             let diff = abs(segment.targetTemp - currentTemp)
             let rampMinutes = (diff / abs(segment.rampRate)) * 60
             totalMinutes += rampMinutes + segment.holdTime
             currentTemp = segment.targetTemp
         }
         return totalMinutes
+    }
+
+    /// First reason the current draft cannot be saved, or nil if it is valid.
+    var validationError: String? {
+        if name.isEmpty || segments.isEmpty {
+            return "Profile needs a name and at least one segment"
+        }
+        return segments.compactMap(\.validationError).first
     }
 
     func loadForEditing(_ profile: FiringProfile) {
@@ -58,8 +79,12 @@ final class ProfileBuilderViewModel {
     }
 
     func saveProfile(existingId: String?, using client: KilnAPIClient, store: KilnStore) async {
-        guard !name.isEmpty, !segments.isEmpty else {
-            error = "Profile needs a name and at least one segment"
+        /* Covers the name/segment-count check and every per-segment bound. The
+           ramp-rate case is the one that mattered: it used to reach the encoder
+           as an infinite estimatedDuration and fail with an EncodingError naming
+           nothing the user could act on (#143). */
+        if let problem = validationError {
+            error = problem
             return
         }
 

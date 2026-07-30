@@ -36,6 +36,16 @@ struct SegmentEditorView: View {
                         .keyboardType(.decimalPad)
                 }
             }
+
+            /* Shown as the value is typed rather than only on Save. The rate
+               field is the one that used to crash the app once the profile was
+               charted (#143), so naming the problem where it is entered beats
+               rejecting it two screens later. */
+            if let problem = segment.validationError {
+                Text(problem)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
         }
         .padding(.vertical, 4)
     }
