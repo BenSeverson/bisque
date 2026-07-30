@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-ESP32-S3 ceramic kiln controller. Firmware built with **ESP-IDF** (C), using **LVGL v9.5.0** for the embedded display UI. The display is a **3.5" ST7796S TFT LCD** (480x320 landscape, SPI, RGB565).
+ESP32-S3 ceramic kiln controller. Firmware built with **ESP-IDF** (C), using **LVGL v9.5.0** for the embedded display UI. The display is a **4.0" ST7796S TFT LCD** (480x320 landscape, SPI, RGB565).
 
 ## Build & Flash
 

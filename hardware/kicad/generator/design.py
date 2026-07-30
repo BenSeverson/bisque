@@ -207,12 +207,21 @@ COMPONENTS = {
                fp="Connector_Molex:Molex_KK-254_AE-6410-08A_1x08_P2.54mm_Vertical",
                fpf="Molex_KK-254_AE-6410-08A_1x08_P2.54mm_Vertical.kicad_mod",
                value="DISPLAY", at=(31.0, 95.0, 0),
-               pins={"1": "+3V3", "2": "GND", "3": "LCD_CS", "4": "LCD_RST",
+               # LCDWIKI 4.0" MSP4020/MSP4021 (ST7796S, 480x320): pin order
+               # VCC/GND/CS/RESET/DC/SDI(MOSI)/SCK/LED matches 1-8 exactly.
+               # VCC accepts 3.3-5V per the module's own manual, and every
+               # reference wiring diagram in it (incl. 3.3V-logic STM32
+               # boards) ties VCC to 5V while driving CS/RESET/DC/MOSI/SCK
+               # directly from 3.3V GPIOs with no level shifter - so +5V
+               # here needs no other board change. Moving off +3V3 also
+               # takes the backlight/panel current off the AMS1117 (U2)
+               # entirely rather than through its LDO drop.
+               pins={"1": "+5V", "2": "GND", "3": "LCD_CS", "4": "LCD_RST",
                      "5": "LCD_DC", "6": "SPI_MOSI", "7": "SPI_SCLK",
                      "8": "LCD_BL"}),
     "C12": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
                 value="10uF", at=(26.5, 90.5, 0),
-                pins={"1": "+3V3", "2": "GND"}),
+                pins={"1": "+5V", "2": "GND"}),
     "J6": dict(lib="Connector_Generic", sym="Conn_01x06",
                fp="Connector_Molex:Molex_KK-254_AE-6410-06A_1x06_P2.54mm_Vertical",
                fpf="Molex_KK-254_AE-6410-06A_1x06_P2.54mm_Vertical.kicad_mod",

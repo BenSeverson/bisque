@@ -316,7 +316,7 @@ SILK = [
     ("USB", 104.0, 93.5, 0, 0.9),
     ("STATUS", 85.0, 90.6, 0, 0.9),
 ]
-J5_PINS = ["3V3", "GND", "CS", "RST", "DC", "SDI", "SCK", "BL"]
+J5_PINS = ["5V", "GND", "CS", "RST", "DC", "SDI", "SCK", "BL"]
 J6_PINS = ["UP", "DN", "LT", "RT", "OK", "G"]
 J7_PINS = ["3V3", "GND", "TX", "RX", "VNT", "LID", "A15", "A16"]
 for hdr, names in (("J5", J5_PINS), ("J6", J6_PINS), ("J7", J7_PINS)):

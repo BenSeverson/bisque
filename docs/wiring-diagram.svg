@@ -156,7 +156,7 @@
   <!-- ==================== LCD DISPLAY (right) ==================== -->
   <rect x="830" y="100" width="220" height="280" class="comp-box" fill="#0a1a3a" stroke="#4488ff"/>
   <text x="940" y="125" class="comp-label" fill="#4488ff">ST7796S LCD</text>
-  <text x="940" y="142" class="comp-sublabel">480x320 TFT, SPI, 3.5"</text>
+  <text x="940" y="142" class="comp-sublabel">480x320 TFT, SPI, 4.0"</text>
 
   <!-- LCD pins -->
   <circle cx="830" cy="175" r="3" fill="#ff3333"/>

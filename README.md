@@ -43,7 +43,7 @@
 - Local notifications for firing complete/error
 
 **LCD Display**
-- 3.5" TFT (480x320) with LVGL, adaptive single-screen dashboard (idle/active/paused/complete/error)
+- 4.0" TFT (480x320) with LVGL, adaptive single-screen dashboard (idle/active/paused/complete/error)
 - 5-way nav switch (up/down/select/left/right), SELECT-driven modals for profile pick and firing control
 
 **Connectivity**
@@ -59,7 +59,7 @@
   <img src="docs/screenshots/web-dashboard.png" width="600" alt="Web dashboard showing live firing progress" />
 </p>
 
-**LCD Display** (LVGL on 3.5" TFT)
+**LCD Display** (LVGL on 4.0" TFT)
 <p align="center">
   <img src="docs/screenshots/lcd-splash.png" width="160" alt="Boot splash" />
   <img src="docs/screenshots/lcd-idle.png" width="160" alt="LCD idle" />
@@ -91,7 +91,7 @@
 | ESP32-S3-DevKitC-1 (N16R8) | Main controller, 16MB flash, 8MB PSRAM (44-pin, USB-C) | ~$10 |
 | MAX31855 breakout | K-type thermocouple amplifier (SPI) | ~$15 |
 | K-type thermocouple | High-temp probe, kiln rated | ~$15-30 |
-| ST7796S 3.5" TFT LCD | 480x320 SPI display | ~$12 |
+| ST7796S 4.0" TFT LCD | 480x320 SPI display | ~$15 |
 | SSR (e.g. SSR-40DA) | Solid state relay for kiln element | ~$10 |
 | 3x tactile buttons | Up / Down / Select navigation | ~$1 |
 | Piezo buzzer (optional) | Alarm output | ~$1 |

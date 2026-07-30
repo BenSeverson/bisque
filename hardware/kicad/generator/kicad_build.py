@@ -341,6 +341,50 @@ def heal_islands(board, nets, r, rounds=1):
     return total
 
 
+def drop_disconnected_stitch_vias(board, rpt_path):
+    """Remove any free GND via that KiCad's post-fill DRC reports as not
+    actually touching copper on one of its layers.
+
+    stitch_vias()/heal_islands() place vias on a coarse grid, checked
+    against the router's own (approximate) obstacle model rather than
+    KiCad's real zone-fill polygons; a via can land just inside a
+    clearance gap the real fill carves out around a nearby track,
+    leaving it isolated on one layer. heal_islands() doesn't catch this
+    - it only bridges pour islands that have *no* via touching them at
+    all, which is a different failure mode.
+
+    This is only ever safe because GND is never point-to-point routed
+    (see the "missing = ... - {'GND'}" assert in route_all): every GND
+    via is a decorative stitching via added by this build script, not a
+    connection some component depends on. Dropping one just means one
+    fewer plane-tying via at that spot; the surrounding pour and its
+    other stitching vias still carry the net. A real signal via being
+    unconnected would be a genuine routing bug and must not be silently
+    dropped - this only ever touches free vias on the GND net.
+    """
+    import re
+    rpt = open(rpt_path).read()
+    coords = set()
+    for m in re.finditer(
+            r"\[unconnected_items\].*?(?=\n\[|\n\*\*|\Z)", rpt, re.S):
+        block = m.group(0)
+        for vm in re.finditer(
+                r"@\(([\d.]+) mm, ([\d.]+) mm\): Via \[(\S+)\] on", block):
+            x, y, net = vm.groups()
+            if net == "GND":
+                coords.add((round(float(x), 3), round(float(y), 3)))
+    removed = 0
+    for via in [t for t in board.Tracks() if t.Type() == pcbnew.PCB_VIA_T]:
+        if not via.GetIsFree() or via.GetNetname() != "GND":
+            continue
+        vx, vy = pcbnew.ToMM(via.GetPosition().x), pcbnew.ToMM(via.GetPosition().y)
+        if (round(vx, 3), round(vy, 3)) in coords:
+            board.Remove(via)
+            removed += 1
+            print("  dropped disconnected GND stitch via at (%.1f, %.1f)" % (vx, vy))
+    return removed
+
+
 def summarize(rpt_path):
     import re
     report = open(rpt_path).read()
@@ -393,8 +437,11 @@ def main(out):
         b2 = pcbnew.LoadBoard(out)
         healed = heal_islands(b2, None, r)
         print("  healed %d islands" % healed)
+        dropped = drop_disconnected_stitch_vias(b2, rpt_path)
+        if dropped:
+            print("  dropped %d disconnected stitch via(s)" % dropped)
         pcbnew.SaveBoard(out, b2)
-        if healed == 0:
+        if healed == 0 and dropped == 0:
             break
     print("KiCad DRC report -> %s" % rpt_path)
     summarize(rpt_path)

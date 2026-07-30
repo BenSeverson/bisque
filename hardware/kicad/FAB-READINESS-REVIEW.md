@@ -3,6 +3,7 @@
 Board: `bisque-controller` — 2-layer, 100 × 80 mm, 1.6 mm, 49 footprints (36 SMD / 9 THT + 4 mounting holes)
 Reviewed: 2026-07-29 against KiCad 10.0.5, analyzer run `analysis/2026-07-29_1621/`
 Status: **blockers resolved 2026-07-29** — see "What was fixed" below.
+Update 2026-07-30: display moved from +3V3 to +5V — see "Display moved to +5V" below.
 
 ## Verdict
 
@@ -95,6 +96,67 @@ set (it also emits Fab/Courtyard/User layers) and omitted the drill export and
 correct `--layers` list and drill flags, plus a note that zone fills must be current
 before export.
 
+## Display moved to +5V (2026-07-30)
+
+The user is building with a specific 4.0" LCDWIKI ST7796S module (MSP4020/MSP4021,
+480×320 — same resolution and driver IC the firmware already targets, just larger
+glass) and asked to move it from +3V3 to +5V power.
+
+**Pin compatibility verified against the module's own manual** (extracted directly —
+LCDWiki's product page returned generic marketing copy, and the linked PDF turned out
+to be a 24-page scan with no embedded fonts, so `WebFetch`'s text extraction failed
+silently; rendering it with PyMuPDF and reading the real text got the actual pin table).
+Pins 1–8 are VCC/GND/CS/RESET/DC/SDI(MOSI)/SCK/LED — an exact match for J5's existing
+8-pin assignment, so no connector or footprint change was needed. VCC is rated
+"3.3V~5V", and every reference wiring diagram in the manual — including the 3.3V-logic
+STM32 boards — ties VCC to 5V while driving CS/RESET/DC/MOSI/SCK directly from 3.3V
+GPIOs with no level shifter shown. MISO/SDO and the five touch pins (touch variant
+only) aren't wired, consistent with current firmware not reading from the panel.
+
+**Change made:** `J5` pin 1 and `C12` (its local decoupling cap, previously the
+identified purpose of that cap) moved from `+3V3` to `+5V` in `design.py`. The
+hardcoded silkscreen pin label at J5 (`gen_pcb.py`'s `J5_PINS` list, shared with
+`kicad_build.py`) updated from `"3V3"` to `"5V"` — this list is plain strings, not
+derived from the net, so it would otherwise have silkscreened a label that no longer
+matched the copper. J7's `"3V3"` label is untouched and still correct (J7 pin 1 stays
+on +3V3). Schematic netlist round-trip still passes (42 nets, 0 mismatches — renaming
+an existing net doesn't add one).
+
+**This is the actual fix for the AMS1117 thermal margin flagged below**, more so than
+the +3V3 ground-pour improvement that section proposed. The display's backlight and
+panel logic were the single largest unmodeled load on U2 — the schematic analyzer's
+power budget only sums ICs on a rail (240 mA for U1 + 5 mA for U3, missing the display
+entirely), which is what made the analyzer's own 68 °C estimate too optimistic in the
+first place. With that load moved to +5V, U2's load is back to just U1 + U3 (~245 mA),
+and recomputing at the AMS1117 datasheet's own baseline θJA (90 °C/W for SOT-223 — see
+the correction below) gives Tj ≈ 90 °C at a 60 °C enclosure ambient, comfortably under
+the 125 °C limit, without needing the ground-pour change at all. +5V picks up the
+extra ~150–180 mA display current instead; that rail is already uniformly 0.7 mm and
+the current no longer passes through a lossy LDO stage, so no board changes were
+needed there.
+
+**Regenerating the board surfaced a real (if narrow) DRC regression, now fixed in the
+generator.** Renaming J5/C12's net changes both nets' terminal sets, which changes
+what the router's Steiner-tree pathing produces for +3V3 and +5V — including a new
++5V track near (84, 72) that hadn't existed before. That, combined with real KiCad
+zone-fill clearances, left one of the 197 GND stitching vias (placed by `stitch_vias()`
+on a fixed grid, unrelated to any component) isolated from copper on one layer.
+`heal_islands()` didn't catch it because it only bridges pour *islands lacking a via*,
+not a via sitting in a clearance gap the real fill carves out — a different failure
+mode. Added `drop_disconnected_stitch_vias()` to `kicad_build.py`: after the
+refill+DRC pass, it parses the DRC report for any `Via [GND]` the connectivity check
+still calls unconnected and removes it (never touches a via on any other net — GND has
+no point-to-point routing per the `route_all()` assert, so every GND via is decorative
+stitching, safe to drop; a real signal via being unconnected would be a genuine bug and
+this code path can't touch one). Verified deterministic across two rebuilds; DRC now
+reports 0 errors / 0 unconnected again (14 violations, same composition as before: 7
+silkscreen-clearance, 6 silkscreen-clipped-by-mask, 1 dangling VBUS stub), and
+`check_pcb.py`'s independent connectivity check still passes (975 items — one fewer
+than before, the dropped via).
+
+Gerbers, drill, drill map, BOM, CPL, schematic PDF and the board preview were all
+regenerated from the rebuilt board.
+
 ## Still worth fixing (quality, not blockers)
 
 - **Six untented vias in SMD pads** — `R9:2, R10:2, D4:2, U1:8, U3:7, U4:1, U4:6`
@@ -107,9 +169,6 @@ before export.
   it is the one DRC item that is not silkscreen noise.
 - **No fiducials** (36 SMD parts). JLCPCB works from board edges and does not require
   them, so this is optional — but the analyzer rates it an error against IPC-7351.
-- **U2 (AMS1117-3.3) dissipates 0.72 W with no thermal vias.** Tj ≈ 68 °C at 25 °C
-  ambient (57 °C margin), but this is a kiln controller: at 50 °C enclosure ambient it
-  lands near 93 °C. Vias under the SOT-223 tab are cheap insurance.
 - **No test points** on any of 39 nets. Fine for a hobby board, awkward for bring-up.
 - **No ESD/TVS on J4 (SSR drive)**, which runs off-board toward mains wiring. There is a
   100 Ω gate series and 10 kΩ pulldown, and an SSR input is resistive so no flyback is
@@ -180,12 +239,17 @@ before export.
 - **SPICE simulation skipped** — no `ngspice`, `ltspice`, or `xyce` on this machine.
   Value-computation checks on the EN RC and LED current-limiting resistors are static only.
 - **Datasheet coverage is partial.** LCSC sync retrieved 4 PDFs (ESP32-S3-WROOM-1,
-  AMS1117-3.3, AO3400A, WS2812B); the AO3400A and AMS1117 files failed the sync's own
-  keyword verification, so treat them as unconfirmed. **MAX31855 and USBLC6-2SC6
-  datasheets could not be downloaded** (ADI and LCSC both refused). Their pinouts above
-  were checked against package conventions and symbol pin names, not the manufacturer PDF
-  — a consistency-plus-domain-knowledge check, not a datasheet-verified one. The
-  analyzer's `DS-001` finding reflects this.
+  AMS1117-3.3, AO3400A, WS2812B); the sync's own keyword verification flagged AO3400A
+  and AMS1117 as unconfirmed. For AMS1117 this was a false alarm, found while digging
+  into the thermal numbers: it *is* the genuine Advanced Monolithic Systems datasheet
+  (confirmed by extracting the θJA / dropout / current-limit tables directly), the
+  keyword check just failed because the PDF stores text glyph-by-glyph with a space
+  after every character, which a naive substring search doesn't match. AO3400A likely
+  has the same issue but wasn't re-checked. **MAX31855 and USBLC6-2SC6 datasheets could
+  not be downloaded** (ADI and LCSC both refused). Their pinouts above were checked
+  against package conventions and symbol pin names, not the manufacturer PDF — a
+  consistency-plus-domain-knowledge check, not a datasheet-verified one. The analyzer's
+  `DS-001` finding reflects this.
 - **Rotation offsets are empirical, not vendor-published.** JLCPCB does not publish a
   per-package rotation reference; the `JLC_ROTATION` table is the community consensus.
   It is far better than no correction, but the order preview remains the final check.

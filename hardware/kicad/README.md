@@ -45,7 +45,10 @@ them).
 - **Power**: 5 V DC in on screw terminal **J2** (top-left) *or* USB-C; each
   source feeds the +5 V rail through an SS34 Schottky (D1/D2 — also reverse
   polarity protection), then an **AMS1117-3.3** (U2, SOT-223) makes 3V3.
-  Power LED (green) on 3V3.
+  Power LED (green) on 3V3. The display (below) draws from +5V directly, not
+  through U2 — its backlight and panel logic were the dominant unmodeled load
+  on the LDO, and moving them off keeps U2's junction temperature comfortably
+  under its 125°C limit even at a hot enclosure ambient.
 - **Thermocouple**: **MAX31855KASA+** (U3, SOIC-8) bottom-right, K-type on
   screw terminal **J3** (`K+` / `K-`, K− grounded at the chip per datasheet),
   10 nF filter across the inputs, shares the SPI bus (MISO + its own CS).
@@ -53,8 +56,15 @@ them).
   low-side by an AO3400A (Q1) with 100 Ω gate series and 10 kΩ pull-down so
   the kiln stays **off during boot/reset**. Amber LED shows drive state.
   (The SSR itself and all mains wiring stay outside this board.)
-- **Display**: 8-pin Molex KK-254 friction-lock header **J5** for the 3.5"
-  ST7796S SPI module (`3V3 GND CS RST DC SDI SCK BL` — silkscreened per pin).
+- **Display**: 8-pin Molex KK-254 friction-lock header **J5** for a 4.0"
+  ST7796S SPI module (LCDWIKI MSP4020/MSP4021, 480×320 — same resolution and
+  driver IC as before, larger glass) — `5V GND CS RST DC SDI SCK BL`,
+  silkscreened per pin. VCC runs from +5V rather than +3V3: the module's own
+  manual rates VCC 3.3-5V and every reference wiring diagram in it, including
+  3.3V-logic MCU boards, ties VCC to 5V while driving CS/RESET/DC/MOSI/SCK
+  directly with no level shifter, so no other pin changes. MISO/SDO and the
+  five touch pins (only present on the touch variant, MSP4021) aren't wired —
+  the firmware doesn't read from the panel.
 - **Nav switch**: 6-pin KK-254 friction-lock header **J6** for the
   panel-mounted 5-way switch (`UP DN LT RT OK GND`, active-low, ESP32
   internal pull-ups).
