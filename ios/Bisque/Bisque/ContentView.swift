@@ -37,12 +37,19 @@ struct ContentView: View {
 
            REST first, then the socket: the snapshot is what makes the screen
            correct immediately, and reconnecting alone would leave it wrong until
-           the next broadcast. */
+           the next broadcast. It is also the only place a transition that
+           happened while suspended can be noticed, which is why refreshStatus
+           runs it rather than just adopting the new value.
+
+           refreshStatus, not refreshAll: the latter also awaits profiles and
+           settings, so a stall on either would hold both the corrected reading
+           and the socket restart behind an unrelated request. Those two change
+           rarely and are refreshed on connect and on pull-to-refresh. */
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             Task {
                 if let client = connection.apiClient {
-                    await store.refreshAll(using: client)
+                    await store.refreshStatus(using: client)
                 }
                 connection.resumeIfConnected()
             }

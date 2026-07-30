@@ -31,6 +31,7 @@ struct FiringLockScreenView: View {
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
+                .opacity(context.isStale ? 0.4 : 1)
             }
 
             // Progress
@@ -43,9 +44,22 @@ struct FiringLockScreenView: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                 Spacer()
-                Text("~\(remainingText) remaining")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                /* Setting a staleDate on the content only makes ActivityKit
+                   flip `context.isStale` — it does not change what is drawn.
+                   Without reading it here the reading kept looking current
+                   indefinitely, which was the whole complaint in #147. The
+                   countdown is dropped rather than dimmed: "~2h remaining"
+                   extrapolated from a frozen frame is a claim, not a stale
+                   observation. */
+                if context.isStale {
+                    Label("Not updating — open Bisque", systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                } else {
+                    Text("~\(remainingText) remaining")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .padding()

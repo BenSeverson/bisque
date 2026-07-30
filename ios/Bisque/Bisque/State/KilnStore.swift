@@ -15,6 +15,14 @@ final class KilnStore {
     private var cancellables = Set<AnyCancellable>()
     private var previousStatus: String = "idle"
 
+    /// False until the first status has been seen from either source.
+    ///
+    /// `previousStatus` starts at "idle", which is indistinguishable from an
+    /// observed idle — so without this the first snapshot after launch would
+    /// treat a kiln found mid-error, or already complete, as a fresh transition
+    /// and fire a notification for a firing the app never watched.
+    private var hasObservedStatus = false
+
     /// Highest temperature seen across the current firing.
     ///
     /// The completion notification used to report `progress.currentTemp` at the
@@ -38,37 +46,70 @@ final class KilnStore {
             .store(in: &cancellables)
     }
 
+    /// Applies a `/status` snapshot, running any status transition it reveals.
+    ///
+    /// Separate from `refreshAll` so the live figures are never held hostage to
+    /// the profile and settings requests: those were awaited together, so a
+    /// failure or a stall on either discarded a perfectly good status and left
+    /// the suspended reading on screen until the resource timeout expired.
+    func refreshStatus(using client: KilnAPIClient) async {
+        do {
+            let status = try await client.getStatus()
+            apply(status: status)
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    private func apply(status: StatusResponse) {
+        progress = FiringProgress(
+            isActive: status.isActive,
+            profileId: status.profileId,
+            startTime: nil,
+            currentTemp: status.currentTemp,
+            targetTemp: status.targetTemp,
+            currentSegment: status.currentSegment,
+            totalSegments: status.totalSegments,
+            elapsedTime: status.elapsedTime,
+            estimatedTimeRemaining: status.estimatedTimeRemaining,
+            status: status.status
+        )
+
+        /* Run the transition rather than just adopting the new value.
+           A firing that completed while the app was suspended is only ever
+           visible in this snapshot: assigning previousStatus directly meant the
+           next WebSocket frame carried the same status, so `newStatus !=
+           previousStatus` was false and the transition was lost for good — the
+           Live Activity was never ended, and peakTempC kept its high-water mark
+           into the following firing's completion notification. The same lie
+           #146 was about, arriving by a different route.
+
+           Gated on having observed a status before, so the first load after
+           launch does not announce a firing that ended before the app ran. */
+        if hasObservedStatus, status.status != previousStatus {
+            handleStatusTransition(from: previousStatus, to: status.status)
+        }
+        previousStatus = status.status
+        hasObservedStatus = true
+    }
+
     func refreshAll(using client: KilnAPIClient) async {
         isLoading = true
         error = nil
 
+        // Status first and on its own, so it lands even if the rest fails.
+        await refreshStatus(using: client)
+
         do {
-            async let statusTask = client.getStatus()
             async let profilesTask = client.getProfiles()
             async let settingsTask = client.getSettings()
-
-            let (status, profiles, settings) = try await (statusTask, profilesTask, settingsTask)
-
-            self.progress = FiringProgress(
-                isActive: status.isActive,
-                profileId: status.profileId,
-                startTime: nil,
-                currentTemp: status.currentTemp,
-                targetTemp: status.targetTemp,
-                currentSegment: status.currentSegment,
-                totalSegments: status.totalSegments,
-                elapsedTime: status.elapsedTime,
-                estimatedTimeRemaining: status.estimatedTimeRemaining,
-                status: status.status
-            )
-            self.previousStatus = status.status
+            let (profiles, settings) = try await (profilesTask, settingsTask)
             self.profiles = profiles
             self.settings = settings
-            self.isLoading = false
         } catch {
             self.error = error.localizedDescription
-            self.isLoading = false
         }
+        self.isLoading = false
     }
 
     func loadHistory(using client: KilnAPIClient) async {
@@ -122,10 +163,11 @@ final class KilnStore {
 
         // Detect status transitions for notifications and Live Activity
         let newStatus = update.status
-        if newStatus != previousStatus {
+        if hasObservedStatus, newStatus != previousStatus {
             handleStatusTransition(from: previousStatus, to: newStatus)
-            previousStatus = newStatus
         }
+        previousStatus = newStatus
+        hasObservedStatus = true
 
         // Update Live Activity
         if update.isActive {

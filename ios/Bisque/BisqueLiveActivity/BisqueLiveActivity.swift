@@ -30,6 +30,9 @@ struct BisqueLiveActivity: Widget {
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
+                    // Dimmed rather than hidden: the layout should not jump, and
+                    // a faded number reads as "last known" (#147).
+                    .opacity(context.isStale ? 0.4 : 1)
                 }
 
                 DynamicIslandExpandedRegion(.bottom) {
@@ -41,9 +44,15 @@ struct BisqueLiveActivity: Widget {
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                             Spacer()
-                            Text(liveActivityFormatDuration(context.state.estimatedSecondsRemaining))
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
+                            if context.isStale {
+                                Text("not updating")
+                                    .font(.caption2)
+                                    .foregroundStyle(.orange)
+                            } else {
+                                Text(liveActivityFormatDuration(context.state.estimatedSecondsRemaining))
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                 }
@@ -54,12 +63,22 @@ struct BisqueLiveActivity: Widget {
                         .font(.caption.bold())
                         .foregroundStyle(liveActivityStatusColor(context.state.status))
                 }
+                .opacity(context.isStale ? 0.4 : 1)
             } compactTrailing: {
-                Text(liveActivityFormatDuration(context.state.estimatedSecondsRemaining))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                // There is no room for an explanation here, so the countdown —
+                // the most obviously wrong thing to keep showing from a frozen
+                // frame — is replaced by a warning glyph.
+                if context.isStale {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                } else {
+                    Text(liveActivityFormatDuration(context.state.estimatedSecondsRemaining))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
             } minimal: {
                 Text("🔥")
+                    .opacity(context.isStale ? 0.4 : 1)
             }
         }
     }
