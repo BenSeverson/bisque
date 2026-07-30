@@ -63,11 +63,22 @@ final class DashboardViewModel {
         path.append(TemperatureDataPoint(time: 0, temp: 20, target: 20))
 
         for segment in profile.segments {
+            /* A segment that cannot be charted is skipped rather than trapping.
+               `Int(Double.infinity)` is a fatal error in Swift, not a garbage
+               value, so a rate of 0 — which the editor accepted and the firmware
+               may already have stored — crashed the app the moment the profile
+               was selected (#143). Rendering the rest of the profile is more use
+               than a crash, and the builder now refuses to save such a segment
+               in the first place. */
+            if segment.validationError != nil { continue }
+
             let tempDifference = segment.targetTemp - currentTemp
             let rampTimeHours = abs(tempDifference) / abs(segment.rampRate)
             let rampTimeMinutes = rampTimeHours * 60
 
-            let steps = max(10, Int(rampTimeMinutes / 5))
+            /* Bounded for the same reason the web path is: 1°C/hr is legal and
+               implies ~69,600 five-minute steps across a full-range firing. */
+            let steps = min(maxProfilePathPoints, max(10, Int(rampTimeMinutes / 5)))
             for i in 1...steps {
                 let progress = Double(i) / Double(steps)
                 let stepTime = currentTime + rampTimeMinutes * progress

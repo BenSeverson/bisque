@@ -91,14 +91,17 @@ final class SettingsViewModel {
 
     // MARK: - OTA
 
-    func uploadFirmware(fileURL: URL, using client: KilnAPIClient) async {
+    /// Takes the firmware bytes, not a file URL: the caller reads them while the
+    /// picked file's security scope is still open, which this task could not do
+    /// (#141).
+    func uploadFirmware(_ firmware: Data, using client: KilnAPIClient) async {
         isUploading = true
         otaProgress = 0
         otaMessage = nil
         error = nil
 
         do {
-            _ = try await client.uploadOTA(fileURL: fileURL) { [weak self] progress in
+            _ = try await client.uploadOTA(firmware: firmware) { [weak self] progress in
                 Task { @MainActor in
                     self?.otaProgress = progress
                 }
