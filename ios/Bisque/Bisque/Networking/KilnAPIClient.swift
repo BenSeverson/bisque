@@ -113,8 +113,8 @@ actor KilnAPIClient {
 
     // MARK: - Generic Request
 
-    /// `session:` overrides the short-deadline default for the one endpoint that
-    /// legitimately takes minutes — see `otaSession` (#142).
+    /// `session:` overrides the short-deadline default for the OTA endpoints,
+    /// which legitimately take minutes — see `otaSession` (#142).
     private func request<T: Decodable>(
         method: String = "GET",
         path: String,
@@ -326,8 +326,14 @@ actor KilnAPIClient {
         return try JSONDecoder().decode(OkResponse.self, from: data)
     }
 
+    /// Also on the OTA session. `handle_ota_check` waits synchronously for
+    /// `ota_check()` to fetch the release manifest from GitHub, bounded by
+    /// CONFIG_OTA_HTTP_TIMEOUT_MS — 15s by default and settable to 120s. Under
+    /// the shared session's 10s request deadline the app gave up before the
+    /// controller answered, so Install never appeared even when an update was
+    /// there (#142).
     func checkOTA() async throws -> OtaCheckResponse {
-        try await request(method: "POST", path: "/ota/check")
+        try await request(method: "POST", path: "/ota/check", session: otaSession)
     }
 
     /// Uses the OTA session: this returns only once the device has pulled the

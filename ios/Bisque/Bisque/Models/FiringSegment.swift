@@ -9,9 +9,10 @@ import Foundation
 /// passes that check and describes a 5800-hour firing.
 let minAbsRampRateCPerHr: Double = 1
 
-/// Ceiling on the chart path, matching the web UI's `MAX_PROFILE_PATH_POINTS`.
-/// A legal-but-slow rate still implies tens of thousands of five-minute steps,
-/// which is neither plottable nor worth allocating.
+/// Ceiling on the points in a whole charted profile, matching the web UI's
+/// `MAX_PROFILE_PATH_POINTS`. Divided across the segments by the path builder —
+/// applying it per segment would let a 16-segment profile reach 32,000 marks,
+/// which is what it exists to prevent.
 let maxProfilePathPoints = 2000
 
 struct FiringSegment: Codable, Identifiable, Hashable {
@@ -21,10 +22,23 @@ struct FiringSegment: Codable, Identifiable, Hashable {
     var targetTemp: Double  // degrees C
     var holdTime: Double    // minutes (0 = hold indefinitely)
 
-    /// Why this segment cannot be charted or saved, or nil if it is fine.
+    /// Whether the ramp arithmetic can be evaluated at all.
     ///
-    /// Checked before the arithmetic in `computeProfilePath` and
-    /// `estimatedDuration`, both of which divide by `abs(rampRate)` (#143).
+    /// The firmware's rule — finite, nonzero (`api_handlers.c`) — deliberately
+    /// looser than `validationError`. A profile already stored with, say,
+    /// 0.5°C/hr is one the controller accepts and will fire, so the chart has to
+    /// draw it: dropping it would misplace every later segment's temperature and
+    /// timing, which is worse than plotting a very slow ramp. Only zero and
+    /// non-finite values are genuinely uncomputable — those are the ones that
+    /// used to trap in `Int(_:)` (#143).
+    var isComputable: Bool {
+        rampRate.isFinite && rampRate != 0 && targetTemp.isFinite && holdTime.isFinite
+    }
+
+    /// Why this segment may not be *saved*, or nil if it is fine.
+    ///
+    /// The builder's policy, stricter than the firmware's: see
+    /// `minAbsRampRateCPerHr`. Not used to decide what to chart.
     var validationError: String? {
         guard rampRate.isFinite, targetTemp.isFinite, holdTime.isFinite else {
             return "\(name): values must be numbers"

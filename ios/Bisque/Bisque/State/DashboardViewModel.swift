@@ -62,23 +62,31 @@ final class DashboardViewModel {
 
         path.append(TemperatureDataPoint(time: 0, temp: 20, target: 20))
 
+        /* Budget shared across the whole path, not handed to each segment.
+           The firmware allows 16 segments, so a per-segment allowance of
+           maxProfilePathPoints would admit ~32,000 freshly identified LineMarks
+           on every recompute — defeating the cap rather than enforcing it. */
+        let computableSegments = profile.segments.filter(\.isComputable).count
+        let perSegmentBudget = max(2, maxProfilePathPoints / max(1, computableSegments))
+
         for segment in profile.segments {
-            /* A segment that cannot be charted is skipped rather than trapping.
+            /* Skipped only when the arithmetic genuinely cannot run: a zero or
+               non-finite rate makes rampTimeMinutes infinite, and
                `Int(Double.infinity)` is a fatal error in Swift, not a garbage
-               value, so a rate of 0 — which the editor accepted and the firmware
-               may already have stored — crashed the app the moment the profile
-               was selected (#143). Rendering the rest of the profile is more use
-               than a crash, and the builder now refuses to save such a segment
-               in the first place. */
-            if segment.validationError != nil { continue }
+               value — so charting such a profile crashed the app outright (#143).
+
+               Deliberately `isComputable` and not `validationError`: the latter
+               is the builder's stricter save policy, and applying it here would
+               drop slow-but-legal segments the controller has stored and is
+               firing, shifting every later segment's temperature and timing. */
+            guard segment.isComputable else { continue }
 
             let tempDifference = segment.targetTemp - currentTemp
             let rampTimeHours = abs(tempDifference) / abs(segment.rampRate)
             let rampTimeMinutes = rampTimeHours * 60
 
-            /* Bounded for the same reason the web path is: 1°C/hr is legal and
-               implies ~69,600 five-minute steps across a full-range firing. */
-            let steps = min(maxProfilePathPoints, max(10, Int(rampTimeMinutes / 5)))
+            // Never below 1: `1...steps` traps on an empty range.
+            let steps = max(1, min(perSegmentBudget, max(10, Int(rampTimeMinutes / 5))))
             for i in 1...steps {
                 let progress = Double(i) / Double(steps)
                 let stepTime = currentTime + rampTimeMinutes * progress
