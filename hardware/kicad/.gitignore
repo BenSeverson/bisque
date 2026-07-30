@@ -1,2 +1,6 @@
 bisque-controller-backups/
 _autosave-*
+
+# Regenerable review byproducts (kicad-happy analyzer runs, datasheet cache)
+analysis/
+datasheets/

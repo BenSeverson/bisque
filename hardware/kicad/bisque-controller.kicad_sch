@@ -7,7 +7,7 @@
 		(rev "A")
 		(company "Bisque project")
 		(comment 1 "ESP32-S3-WROOM-1 + MAX31855 + SSR drive")
-		(comment 2 "Hand-solderable: >=0805, SOIC, SOT, THT connectors")
+		(comment 2 "2-layer, 100 x 80 mm, JLCPCB standard process")
 	)
 	(lib_symbols
 		(symbol "RF_Module:ESP32-S3-WROOM-1"
@@ -8474,7 +8474,7 @@
 		(effects (font (size 2 2) bold) (justify left))
 		(uuid 6843fd1d-8b17-5e86-9187-1805cbf11bf4)
 	)
-	(text "Bisque kiln controller  -  ESP32-S3-WROOM-1, hand-solderable parts only\nSSR terminal J4: +5V / SSR- loop, switched low-side by Q1 (boot-safe: R7 pulldown)\nTC terminal J3: pin1 = K+ (yellow), pin2 = K- (red, grounded at U3)\nNav switch J6 is panel-mounted; inputs use ESP32 internal pull-ups\nDisplay J5 pinout: 3V3 GND CS RST DC MOSI SCK BL (ST7796S SPI module)" (at 25 281 0)
+	(text "Bisque kiln controller  -  ESP32-S3-WROOM-1\nSSR terminal J4: +5V / SSR- loop, switched low-side by Q1 (boot-safe: R7 pulldown)\nTC terminal J3: pin1 = K+ (yellow), pin2 = K- (red, grounded at U3)\nNav switch J6 is panel-mounted; inputs use ESP32 internal pull-ups\nDisplay J5 pinout: 3V3 GND CS RST DC MOSI SCK BL (ST7796S SPI module)" (at 25 281 0)
 		(effects (font (size 1.6 1.6)) (justify left))
 		(uuid dbadb58a-df2e-53a3-9b2b-6492fe215714)
 	)

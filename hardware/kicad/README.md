@@ -2,9 +2,9 @@
 
 A single-board replacement for the perfboard build documented in
 `docs/perfboard-layout.svg` / `docs/wiring-diagram.svg`. 2-layer,
-100 × 80 mm, **hand-solderable throughout**: the smallest parts are 0805
-passives, SOIC-8, SOT-23 and the ESP32-S3-WROOM-1 module's castellated
-pads. No BGA, no QFN, no bare chips.
+100 × 80 mm, built for **JLCPCB assembly**: 0805 passives, SOIC-8, SOT-23
+and the ESP32-S3-WROOM-1 module's castellated pads, plus nine through-hole
+parts (terminals, wafers, buzzer, tact switches).
 
 Built and validated with **real KiCad** (10.0.4, pcbnew Python API +
 kicad-cli): footprints come from KiCad's installed libraries, ground pours
@@ -142,25 +142,35 @@ Bare boards: **~$2–4 for 5 pcs** (their locked 2-layer ≤100×100 mm price)
 plus shipping. Ready-to-upload gerbers + drill files are in `gerbers/`.
 
 **Assembly**: `generator/gen_jlc.py` writes `jlcpcb/BOM.csv` +
-`jlcpcb/CPL.csv` for the PCBA upload. Every part is orderable from the
-LCSC/JLCPCB catalog: the passives, AO3400A, SS34/SS14, 1N4148W and
-AMS1117 are cheap **Basic** parts (no feeder-loading fee); the module
-(ESP32-S3-WROOM-1-N16R8, C2913202 — matches the firmware's 16 MB flash +
-octal PSRAM config), MAX31855KASA+T (C52028), USB-C (C165948) and WS2812B
-are stocked **Extended** parts (~$3 loading fee each on standard assembly).
-Generic commodity parts (screw terminals, KK-254 wafers, buzzer, tact
-switches) have many in-stock equivalents — confirm the flagged part
-numbers in JLC's BOM matcher at order time, and verify part rotations in
-their placement preview.
+`jlcpcb/CPL.csv` for the PCBA upload. All 45 assembly parts carry an LCSC
+part number that was verified against the catalog (package, value, stock) —
+there are no blanks and nothing to guess at in JLC's BOM matcher. The
+passives, AO3400A, SS34/SS14, 1N4148W and AMS1117 are 18 cheap **Basic**
+parts (no feeder-loading fee). Ten unique **Extended** parts each add a
+loading fee: the module (ESP32-S3-WROOM-1-N16R8, C2913202 — matches the
+firmware's 16 MB flash + octal PSRAM config), MAX31855KASA+T (C52028),
+USBLC6-2SC6 (C7519), USB-C (C165948), WS2812B (C2761795), screw terminals
+(C8465), the two KK-254 wafers (C240822 / C239381), buzzer (C96093) and tact
+switches (C393938). Note that six of those ten are the through-hole parts —
+full assembly costs meaningfully more than an SMD-only build for that reason.
 
-Cheapest sensible configurations:
-1. **SMT-only assembly** (recommended): let JLC place all SMD parts and
-   hand-solder the 6 through-hole parts yourself (terminals, wafers,
-   buzzer, switches — the easy ones). Roughly **$50–70 for 5 boards, 2
-   assembled**, dominated by setup + loading fees + the ~$6–8/board BOM.
-2. Full assembly incl. THT hand-soldering: add roughly $15–25.
-3. Bare boards only: ~$2–4 + parts from LCSC (~$8/board) and a Saturday
-   with an iron — everything was chosen to be hand-solderable.
+The CPL applies JLCPCB's per-package rotation corrections (see
+`JLC_ROTATION` in `gen_jlc.py`) rather than leaving them to be caught in the
+order preview — currently U2, U3, U4, Q1 and Q2. Still worth a glance at the
+preview for the polarized two-terminal parts (D1–D4, LED1–LED3), since a
+flip there is cheap to spot and expensive to miss.
+
+The nine through-hole parts require JLCPCB's **Standard** assembly (Economic
+is SMD, top-side only). JLC's through-hole coverage is narrower than its SMD
+coverage, so confirm at order time that it will place the terminals, wafers,
+buzzer and switches; the BOM flags each THT line for exactly this reason.
+
+Rough costs: bare boards ~$2–4 for 5. Full Standard assembly is dominated by
+the ten extended-part loading fees (~$3 each) plus setup and the ~$8/board
+BOM, so budget on the order of **$80–110 for 5 boards, 2 assembled**. Economic
+(SMD-only) assembly drops six loading fees and the Standard-tier premium,
+leaving the nine through-hole parts to fit yourself — still the cheaper route
+if you do not mind a soldering iron for the connectors.
 
 ## Regenerating the files
 
@@ -182,9 +192,24 @@ python3 generator/check_netlist.py bisque-controller.kicad_sch  # KiCad netlist 
                                                                 #   pour-island healing, KiCad DRC report
 python3 generator/check_pcb.py bisque-controller.kicad_pcb      # independent checker: ALL CHECKS PASS
 python3 generator/render_pcb.py bisque-controller.kicad_pcb preview-board.svg
-kicad-cli pcb export gerbers -o gerbers/ bisque-controller.kicad_pcb
+
+# Fab outputs — regenerate these together, after the board file is final.
+# The --layers list is what JLCPCB needs; without it kicad-cli also emits
+# Fab/Courtyard/User layers that don't belong in a fab package.
+kicad-cli pcb export gerbers -o gerbers/ \
+  --layers "F.Cu,B.Cu,F.Paste,B.Paste,F.Silkscreen,B.Silkscreen,F.Mask,B.Mask,Edge.Cuts" \
+  bisque-controller.kicad_pcb
+kicad-cli pcb export drill -o gerbers/ --format excellon --excellon-units mm \
+  --excellon-zeros-format decimal --generate-map --map-format gerberx2 \
+  --gerber-precision 5 bisque-controller.kicad_pcb
+python3 generator/gen_jlc.py jlcpcb          # BOM.csv + CPL.csv (prints rotation fixes)
 kicad-cli sch export pdf -o pdf/bisque-controller-schematic.pdf bisque-controller.kicad_sch
 ```
+
+**Zone fills feed the gerbers.** `kicad_build.py` finishes with a
+`kicad-cli pcb drc --refill-zones` pass that rewrites the board file, so
+export gerbers *after* that step — exporting first bakes a stale pour into
+`gerbers/`.
 
 (`gen_pcb.py` remains as a KiCad-free fallback generator that writes the
 board file textually; `kicad_build.py` is the authoritative path.)

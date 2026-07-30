@@ -209,7 +209,7 @@ Two SVG diagrams document the perfboard wiring layout:
 
 **Source of truth for pin assignments:** `components/app_config/include/app_config.h` (`APP_PIN_*` defines). If pin assignments change in firmware, regenerate both diagrams.
 
-**KiCad PCB:** `hardware/kicad/` holds a full KiCad project (schematic + routed 2-layer board) for a single-board version of the controller — ESP32-S3-WROOM-1 module, MAX31855, SSR driver, USB-C, all hand-solderable. Both files are generated from `hardware/kicad/generator/design.py` (one connectivity/placement table + grid autorouter + geometry checker); see `hardware/kicad/README.md` for the regen workflow. Keep `design.py` in sync with `main/Kconfig.projbuild` pin defaults.
+**KiCad PCB:** `hardware/kicad/` holds a full KiCad project (schematic + routed 2-layer board) for a single-board version of the controller — ESP32-S3-WROOM-1 module, MAX31855, SSR driver, USB-C — targeting JLCPCB assembly. Both files are generated from `hardware/kicad/generator/design.py` (one connectivity/placement table + grid autorouter + geometry checker); see `hardware/kicad/README.md` for the regen workflow. Keep `design.py` in sync with `main/Kconfig.projbuild` pin defaults. Fab outputs (`gerbers/`, `jlcpcb/BOM.csv`, `jlcpcb/CPL.csv`) are derived artifacts — regenerate them whenever the board changes, or they silently go stale.
 
 **How to update:**
 - Ask Claude Code: "update the perfboard layout diagram" or "update the wiring diagram"

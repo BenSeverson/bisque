@@ -85,7 +85,7 @@ GROUP_TEXT = [
 ]
 
 NOTES = (
-    "Bisque kiln controller  -  ESP32-S3-WROOM-1, hand-solderable parts only\\n"
+    "Bisque kiln controller  -  ESP32-S3-WROOM-1\\n"
     "SSR terminal J4: +5V / SSR- loop, switched low-side by Q1 (boot-safe: R7 pulldown)\\n"
     "TC terminal J3: pin1 = K+ (yellow), pin2 = K- (red, grounded at U3)\\n"
     "Nav switch J6 is panel-mounted; inputs use ESP32 internal pull-ups\\n"
@@ -267,7 +267,7 @@ def main():
                '\t\t(date "2026-07-20")\n\t\t(rev "A")\n'
                '\t\t(company "Bisque project")\n'
                '\t\t(comment 1 "ESP32-S3-WROOM-1 + MAX31855 + SSR drive")\n'
-               '\t\t(comment 2 "Hand-solderable: >=0805, SOIC, SOT, THT connectors")\n\t)')
+               '\t\t(comment 2 "2-layer, 100 x 80 mm, JLCPCB standard process")\n\t)')
     out.append('\t(lib_symbols\n\t\t' + "\n\t\t".join(libsyms) + '\n\t)')
     out.extend(body)
     out.append('\t(sheet_instances (path "/" (page "1")))')
