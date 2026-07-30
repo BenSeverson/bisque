@@ -7,6 +7,25 @@ final class FiringActivityManager {
     private var currentActivity: Activity<FiringActivityAttributes>?
     private let log = Logger(subsystem: "com.bisque.kiln-controller", category: "liveactivity")
 
+    /// How long a posted reading stays presentable before ActivityKit renders it
+    /// as stale.
+    ///
+    /// The app has no background modes and no ActivityKit push token, so iOS
+    /// suspends the WebSocket within seconds of backgrounding and there is
+    /// nothing to update the activity until the app is opened again (#147).
+    /// With no `staleDate` the lock screen kept showing that last temperature as
+    /// current — indefinitely, across an 8–12 hour firing. Wrong and confident is
+    /// worse than visibly out of date, for a number an operator may act on.
+    ///
+    /// The firmware broadcasts every second, so any gap beyond a few seconds is
+    /// already abnormal; 90s is loose enough to ride out a Wi-Fi blip while the
+    /// app is foregrounded without flickering to stale.
+    private static let staleAfter: TimeInterval = 90
+
+    private static func staleDate(from now: Date = Date()) -> Date {
+        now.addingTimeInterval(staleAfter)
+    }
+
     func start(profileName: String) {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
 
@@ -28,7 +47,7 @@ final class FiringActivityManager {
         do {
             currentActivity = try Activity.request(
                 attributes: attributes,
-                content: .init(state: initialState, staleDate: nil),
+                content: .init(state: initialState, staleDate: Self.staleDate()),
                 pushType: nil
             )
         } catch {
@@ -56,7 +75,7 @@ final class FiringActivityManager {
         )
 
         Task {
-            await activity.update(.init(state: state, staleDate: nil))
+            await activity.update(.init(state: state, staleDate: Self.staleDate()))
         }
     }
 
@@ -75,6 +94,9 @@ final class FiringActivityManager {
         )
 
         Task {
+            /* No staleDate on the terminal content: "Complete" is not a
+               reading that decays, and marking it stale after 90s would make a
+               finished firing look like a lost connection. */
             await activity.end(.init(state: finalState, staleDate: nil), dismissalPolicy: .after(.now + 300))
         }
     }
