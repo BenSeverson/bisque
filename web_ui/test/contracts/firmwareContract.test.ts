@@ -107,8 +107,9 @@ function fixtureProblem(): string | null {
     return `Unreadable fixture manifest at ${MANIFEST_PATH}: ${String(err)}. ${REGENERATE}`;
   }
 
+  const listed = readSourceList();
   const drifted: string[] = [];
-  for (const rel of readSourceList()) {
+  for (const rel of listed) {
     const abs = join(REPO_ROOT, rel);
     if (!existsSync(abs)) {
       return `${rel} is listed in tests/host/fixture_sources.txt but does not exist. Update that list if the file moved or was removed.`;
@@ -117,6 +118,22 @@ function fixtureProblem(): string | null {
       drifted.push(`${rel} (not covered by the manifest — the source list grew since generation)`);
     } else if (recorded[rel] !== sha256(abs)) {
       drifted.push(`${rel} (changed since generation)`);
+    }
+  }
+
+  /**
+   * A key the manifest has but the list no longer does means the manifest was
+   * built from a different source list, so nothing it records can be trusted.
+   * Without this, dropping an entry from fixture_sources.txt — exactly what the
+   * "does not exist" path above tells you to do when a source is removed — would
+   * make stale fixtures look current: the removed file stops being hashed and
+   * every surviving digest still matches.
+   */
+  for (const rel of Object.keys(recorded)) {
+    if (!listed.includes(rel)) {
+      drifted.push(
+        `${rel} (recorded in the manifest but no longer listed — the source list shrank since generation)`,
+      );
     }
   }
 

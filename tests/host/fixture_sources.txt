@@ -7,7 +7,16 @@
 # an edit to a serializer and no longer describe the firmware.
 #
 # Paths are repo-relative, one per line. Blank lines and #-comments ignored.
-# Add a file here when it can change the bytes a build_*_json() emits.
+# Add a file here when it can change the bytes a build_*_json() emits: that
+# means every translation unit linked into test_api_json, plus the headers
+# defining the types it serializes. To re-derive the linked set after a
+# CMakeLists change, build the target and read the undefined symbols:
+#
+#   nm -u tests/host/build/CMakeFiles/test_api_json.dir/**/api_json.c.o
+#
+# history_outcome_to_string is the non-obvious one: it resolves to the host
+# stub below, not to components/history/firing_history.c, so the stub is what
+# actually determines the "outcome" string in history_record.json.
 #
 # Keep this file plain ASCII: CMake's file(STRINGS) splits on non-ASCII bytes,
 # so a stray em dash would break a comment into a bogus path entry.
@@ -16,4 +25,8 @@ components/web_server/api_json.c
 components/web_server/include/api_json.h
 components/cone_table/cone_table.c
 components/cone_table/include/cone_table.h
+components/firing_engine/include/firing_types.h
+components/history/include/firing_history.h
+components/thermocouple/include/thermocouple.h
+tests/host/stubs/history_host.c
 tests/host/test_api_json.c
