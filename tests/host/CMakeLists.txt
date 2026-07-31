@@ -170,11 +170,20 @@ target_include_directories(test_auth_helpers PRIVATE
     ${ROOT}/components/web_server/include)
 
 # Generated-fixture target: runs test_api_json with BISQUE_FIXTURE_DIR set so
-# its dump_fixture() calls land in ${CMAKE_CURRENT_BINARY_DIR}/fixtures/api.
-# Used by the web_ui contract test (web_ui/test/contracts/firmwareContract.test.ts).
+# its dump_fixture() calls land in ${CMAKE_CURRENT_BINARY_DIR}/fixtures/api,
+# then writes _manifest.json next to them recording a SHA256 of every source
+# that can change those bytes (fixture_sources.txt). The web_ui contract test
+# (web_ui/test/contracts/firmwareContract.test.ts) re-hashes that list and
+# fails when a digest has moved, so fixtures left over from an older serializer
+# are caught instead of quietly validating stale JSON.
 add_custom_target(api_fixtures
     COMMAND ${CMAKE_COMMAND} -E env BISQUE_FIXTURE_DIR=${CMAKE_CURRENT_BINARY_DIR}/fixtures/api
             $<TARGET_FILE:test_api_json>
+    COMMAND ${CMAKE_COMMAND}
+            -D ROOT=${ROOT}
+            -D OUT=${CMAKE_CURRENT_BINARY_DIR}/fixtures/api/_manifest.json
+            -D SOURCE_LIST=${CMAKE_CURRENT_SOURCE_DIR}/fixture_sources.txt
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/fixture_manifest.cmake
     DEPENDS test_api_json
     BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/fixtures/api
     COMMENT "Generating API JSON fixtures for web_ui contract test")

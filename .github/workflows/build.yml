@@ -36,7 +36,8 @@ jobs:
         working-directory: web_ui
       # Generate JSON fixtures from the C-side API builders so the cross-
       # language contract test in web_ui/test/contracts/ has something to
-      # validate. Without this, the contract suite skips with a notice.
+      # validate. This step is load-bearing: since #173 the contract suite
+      # fails (rather than skipping) when the fixtures are absent or stale.
       - name: Build host API fixtures
         run: make fixtures
       - run: npm run test:run

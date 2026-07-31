@@ -43,7 +43,9 @@ make test-web    # Vitest — depends on `fixtures`, which must run first
 make fixtures    # Regenerate JSON API fixtures from the C code
 ```
 
-The web tests are **contract tests against the firmware**: `make fixtures` builds the `api_fixtures` target from `tests/host/` to emit real JSON from the C serializers, and Vitest asserts the web UI parses it. `test-web` depends on `fixtures`, so run it via `make` rather than `npm run test:run` directly — otherwise you validate against stale fixtures. Host tests cover PID, cone table, firing helpers, firing scenarios (via `plant.c`, a simulated kiln thermal model), and API JSON.
+The web tests are **contract tests against the firmware**: `make fixtures` builds the `api_fixtures` target from `tests/host/` to emit real JSON from the C serializers, and Vitest asserts the web UI parses it. `test-web` depends on `fixtures`, so run it via `make` rather than `npm run test:run` directly. Host tests cover PID, cone table, firing helpers, firing scenarios (via `plant.c`, a simulated kiln thermal model), and API JSON.
+
+Missing or stale fixtures **fail** the contract suite rather than skipping it (#173), so `npm run test:run` / `vitest --watch` can't quietly go green having validated nothing. Alongside the JSON, `make fixtures` writes `_manifest.json` with a SHA256 of every source that can change the emitted bytes — the list lives in `tests/host/fixture_sources.txt` (add a file there when a new source starts feeding a `build_*_json()`), and the test re-hashes it. Editing a serializer without regenerating is therefore a failure with a "run `make fixtures`" message. `BISQUE_SKIP_CONTRACTS=1` is the explicit opt-out for environments where the C build can't run.
 
 ## Display Simulator
 
