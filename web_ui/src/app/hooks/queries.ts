@@ -13,8 +13,8 @@ export const DEFAULT_SETTINGS: KilnSettings = {
   tcOffsetC: 0,
   webhookUrl: "",
   apiTokenSet: false,
-  elementWatts: 0,
-  electricityCostKwh: 0,
+  elementWatts: 5000,
+  electricityCostKwh: 0.15,
 };
 
 // Query keys
