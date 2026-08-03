@@ -84,6 +84,14 @@ Bisque, otherwise every password-protected device on the LAN would list as one.
 If you change the mDNS advertisement or the auth challenge in
 `components/web_server/api_handlers.c`, that classifier is what breaks.
 
+A connection remembers both the address and the Bonjour instance name behind
+it. The address is what the next launch dials; the name is the fallback for when
+a DHCP lease has moved the kiln, in which case `connect()` re-resolves the name
+once and retries. That retry fires only after an *unreachable* result and only
+when the resolved address actually differs — a 401 means the kiln was found, and
+a kiln that is simply off should fail once, not twice. A hand-typed address
+carries no service name, so it never re-resolves.
+
 Discovery needs `NSBonjourServices` and `NSLocalNetworkUsageDescription`; both
 live in `project.yml` under `targets.Bisque.info.properties` — `Bisque/Info.plist`
 is **generated** from it by xcodegen, so edit the yml and regenerate.

@@ -61,6 +61,7 @@
 		C9B9DC3F9750D516BA57DFE3 /* FiringStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEA79CAF8AAF5E68C07243C4 /* FiringStatus.swift */; };
 		CD851B56BC3AEA3F1C83021E /* KilnWebSocketManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A73135746827DB70B6782D1E /* KilnWebSocketManager.swift */; };
 		CF0076D09E302D43D81C24E1 /* KilnStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45DFFBD1961D23EF508A3813 /* KilnStore.swift */; };
+		D449141973C07312B91DDBCF /* KilnConnectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CC488E2A445D4C621001CA5 /* KilnConnectionTests.swift */; };
 		DB7A57F0D01169B9DCA5A260 /* FiringProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9795B731E74E674B0E13F9C7 /* FiringProgress.swift */; };
 		DEAE6D4EA9D11D04FE4B163E /* ProfilesTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 905F7E7B8760083A44A5862A /* ProfilesTab.swift */; };
 		DF4D1E13A2274A88E18507A5 /* DiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAFEC88D954E46B864C00AA6 /* DiagnosticsView.swift */; };
@@ -117,6 +118,7 @@
 		2BDA42273DDEB6D3E5454293 /* OTAUpdateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OTAUpdateView.swift; sourceTree = "<group>"; };
 		2E241ABE022B1A1E386770FA /* AutotuneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutotuneView.swift; sourceTree = "<group>"; };
 		3310994771D8D25E65754D00 /* APIError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIError.swift; sourceTree = "<group>"; };
+		3CC488E2A445D4C621001CA5 /* KilnConnectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KilnConnectionTests.swift; sourceTree = "<group>"; };
 		3D4B9D08C1B5EC98E47DB2D5 /* ProfileCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileCardView.swift; sourceTree = "<group>"; };
 		4088DD08674E50F93A53D940 /* DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViewModel.swift; sourceTree = "<group>"; };
 		4199566E0928A495EFB873BB /* HistoryRecordRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryRecordRow.swift; sourceTree = "<group>"; };
@@ -330,6 +332,7 @@
 		997BC860F4CA5F467FFFE13A /* BisqueTests */ = {
 			isa = PBXGroup;
 			children = (
+				3CC488E2A445D4C621001CA5 /* KilnConnectionTests.swift */,
 				BF58D42610C054F94875F7E6 /* KilnDiscoveryTests.swift */,
 				D33E600F45ABE80E851021AC /* LocalNetworkTests.swift */,
 				5F26B48622EB5755023B17CB /* StubURLProtocol.swift */,
@@ -534,6 +537,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D449141973C07312B91DDBCF /* KilnConnectionTests.swift in Sources */,
 				106A87DA3CB2AEE77EBE12CF /* KilnDiscoveryTests.swift in Sources */,
 				2FEEEF8B0D1AC29D5F7EBCD0 /* LocalNetworkTests.swift in Sources */,
 				7768F5EC0FFCDBA4522B4C3A /* StubURLProtocol.swift in Sources */,
