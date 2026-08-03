@@ -102,14 +102,13 @@ test-web: fixtures  ## Web UI tests (Vitest); depends on fixtures target
 # must be set in placeholder attributes" — a failure that says nothing about the
 # tests.
 test-ios:  ## iOS unit tests (XCTest on a simulator; needs macOS + Xcode)
-	@device=$$(./scripts/pick-simulator.sh) && \
-	  echo "Testing on $$device" && \
+	@udid=$$(./scripts/pick-simulator.sh) && \
 	  cd $(IOS_DIR) && \
 	  env -u BISQUE_MARKETING_VERSION -u BISQUE_BUILD_NUMBER xcodegen generate && \
 	  BISQUE_MARKETING_VERSION=$${BISQUE_MARKETING_VERSION:-1.0.0} \
 	  BISQUE_BUILD_NUMBER=$${BISQUE_BUILD_NUMBER:-1} \
 	  xcodebuild test -scheme Bisque \
-	    -destination "platform=iOS Simulator,name=$$device" \
+	    -destination "platform=iOS Simulator,id=$$udid" \
 	    CODE_SIGNING_ALLOWED=NO -quiet
 
 test: test-host test-web  ## Run every test suite (host + web; see test-ios)

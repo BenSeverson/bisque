@@ -122,15 +122,15 @@ jobs:
         run: xcodebuild -scheme Bisque -sdk iphoneos -arch arm64 CODE_SIGNING_ALLOWED=NO -quiet
         working-directory: ios/Bisque
       # Separate from the device build above: that one proves it compiles for
-      # the hardware target, this one actually runs the logic. The device name
-      # is picked at run time — pinning one rots when the image bumps Xcode.
+      # the hardware target, this one actually runs the logic. The destination
+      # is picked at run time — pinning a device rots when the image bumps
+      # Xcode — and by UDID, since a name matches under every installed runtime.
       - name: Run iOS unit tests
         run: |
-          device="$(./scripts/pick-simulator.sh)"
-          echo "Testing on $device"
+          udid="$(./scripts/pick-simulator.sh)"
           cd ios/Bisque
           xcodebuild test -scheme Bisque \
-            -destination "platform=iOS Simulator,name=$device" \
+            -destination "platform=iOS Simulator,id=$udid" \
             CODE_SIGNING_ALLOWED=NO -quiet
 
   # Gate only on the cheap smoke checks (~13s combined) so the long
