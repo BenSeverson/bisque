@@ -18,7 +18,13 @@ static const char *TAG = "pid_control";
  * spikes to a quarter while preserving the multi-second ramp derivative. */
 #define PID_D_FILTER_TAU_S 3.0f
 
-#define NVS_NAMESPACE       "pid"
+#define NVS_NAMESPACE "pid"
+
+/* PID gains live in NVS as int32 fixed-point at this scale. It bounds both the
+   representable range (PID_GAIN_MAX keeps the product inside int32) and the
+   resolution (see pid_quantize_gain). */
+#define PID_GAIN_NVS_SCALE 10000.0f
+
 #define AUTOTUNE_TIMEOUT_US (60LL * 60 * 1000000) /* 60 minutes */
 
 #ifndef M_PI
@@ -276,6 +282,37 @@ void pid_autotune_shift_time(pid_autotune_t *at, int64_t delta_us)
 
 /* ── NVS Persistence ───────────────────────────────────────── */
 
+bool pid_gains_valid(float kp, float ki, float kd)
+{
+    const float g[3] = {kp, ki, kd};
+    for (int i = 0; i < 3; i++) {
+        /* isfinite() first: NaN compares false against both bounds, so a range
+           check alone would let it through. */
+        if (!isfinite(g[i]) || g[i] < PID_GAIN_MIN || g[i] > PID_GAIN_MAX) {
+            return false;
+        }
+    }
+    /* A derivative-only controller drives the element from the rate of change of
+       the measurement alone, so it has no term that grows with distance from the
+       setpoint: the kiln stalls short of target instead of reporting anything. */
+    return kp > 0.0f || ki > 0.0f;
+}
+
+void pid_default_gains(float *kp, float *ki, float *kd)
+{
+    *kp = DEFAULT_KP;
+    *ki = DEFAULT_KI;
+    *kd = DEFAULT_KD;
+}
+
+/* Truncation, not rounding, because that is exactly what the (int32_t) cast in
+   pid_save_gains() does — the point is to agree with the encoding, not to be a
+   better one. */
+float pid_quantize_gain(float gain)
+{
+    return (float)(int32_t)(gain * PID_GAIN_NVS_SCALE) / PID_GAIN_NVS_SCALE;
+}
+
 esp_err_t pid_save_gains(float kp, float ki, float kd)
 {
     nvs_handle_t handle;
@@ -285,9 +322,9 @@ esp_err_t pid_save_gains(float kp, float ki, float kd)
     }
 
     /* Store as integers (x10000 for precision) */
-    int32_t kp_i = (int32_t)(kp * 10000.0f);
-    int32_t ki_i = (int32_t)(ki * 10000.0f);
-    int32_t kd_i = (int32_t)(kd * 10000.0f);
+    int32_t kp_i = (int32_t)(kp * PID_GAIN_NVS_SCALE);
+    int32_t ki_i = (int32_t)(ki * PID_GAIN_NVS_SCALE);
+    int32_t kd_i = (int32_t)(kd * PID_GAIN_NVS_SCALE);
 
     nvs_set_i32(handle, "kp", kp_i);
     nvs_set_i32(handle, "ki", ki_i);
@@ -312,19 +349,19 @@ esp_err_t pid_load_gains(float *kp, float *ki, float *kd)
 
     int32_t val;
     if (nvs_get_i32(handle, "kp", &val) == ESP_OK) {
-        *kp = val / 10000.0f;
+        *kp = val / PID_GAIN_NVS_SCALE;
     } else {
         *kp = DEFAULT_KP;
     }
 
     if (nvs_get_i32(handle, "ki", &val) == ESP_OK) {
-        *ki = val / 10000.0f;
+        *ki = val / PID_GAIN_NVS_SCALE;
     } else {
         *ki = DEFAULT_KI;
     }
 
     if (nvs_get_i32(handle, "kd", &val) == ESP_OK) {
-        *kd = val / 10000.0f;
+        *kd = val / PID_GAIN_NVS_SCALE;
     } else {
         *kd = DEFAULT_KD;
     }

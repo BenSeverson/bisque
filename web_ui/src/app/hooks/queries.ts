@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "../services/api";
+import { api, type PidGains } from "../services/api";
 import { FiringProfile, KilnSettings } from "../types/kiln";
 import { useKilnStore } from "../stores/kilnStore";
 import { TempUnit } from "../utils/temperature";
@@ -23,6 +23,7 @@ export const queryKeys = {
   settings: ["settings"] as const,
   systemInfo: ["systemInfo"] as const,
   autotuneStatus: ["autotuneStatus"] as const,
+  pidGains: ["pidGains"] as const,
   history: ["history"] as const,
   coneTable: ["coneTable"] as const,
   thermocoupleDiag: ["thermocoupleDiag"] as const,
@@ -81,6 +82,21 @@ export function useAutotuneStatus(enabled: boolean) {
     // bounded and user-initiated, and only polls while `enabled`, so keeping it
     // running in the background is cheap; other queries keep the default.
     refetchIntervalInBackground: true,
+    retry: false,
+  });
+}
+
+/**
+ * The controller's PID gains.
+ *
+ * Unconditional, unlike useAutotuneStatus: that query only runs while a tune is
+ * in flight, which is why the gains used to be invisible unless you had just
+ * run one (#182).
+ */
+export function usePidGains() {
+  return useQuery({
+    queryKey: queryKeys.pidGains,
+    queryFn: () => api.getPidGains(),
     retry: false,
   });
 }
@@ -254,6 +270,22 @@ export function useStartAutotune() {
 export function useStopAutotune() {
   return useMutation({
     mutationFn: () => api.stopAutotune(),
+  });
+}
+
+export function useSavePidGains() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (gains: PidGains) => api.savePidGains(gains),
+    // Seed from the response rather than from what was submitted: the firmware
+    // rounds each gain to the four decimals NVS holds, so echoing the request
+    // would show a value the controller isn't actually using. Auto-tune status
+    // carries the same gains, so it has to be refetched or it keeps reporting
+    // the pre-edit set.
+    onSuccess: (stored) => {
+      queryClient.setQueryData(queryKeys.pidGains, stored);
+      queryClient.invalidateQueries({ queryKey: queryKeys.autotuneStatus });
+    },
   });
 }
 

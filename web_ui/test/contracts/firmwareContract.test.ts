@@ -29,12 +29,13 @@ import { describe, it, expect } from "vitest";
 import { readFileSync, existsSync } from "fs";
 import { createHash } from "crypto";
 import { join } from "path";
-import { firingProfileSchema, settingsSchema } from "../../src/app/schemas/kiln";
+import { firingProfileSchema, pidGainsSchema, settingsSchema } from "../../src/app/schemas/kiln";
 import {
   autotuneStatusSchema,
   coneEntrySchema,
   firingProgressResponseSchema,
   historyRecordSchema,
+  pidResponseSchema,
   thermocoupleDiagSchema,
 } from "./responseSchemas";
 import { CONE_TABLE as coneTableForTests } from "../../mock-server/router";
@@ -52,6 +53,7 @@ const REQUIRED_FIXTURES = [
   "history_record",
   "cone_table",
   "autotune_status",
+  "pid",
   "thermocouple_diag",
 ];
 
@@ -193,6 +195,24 @@ describe.runIf(fixturesUsable)("firmware → frontend API contract", () => {
 
   it("/api/v1/autotune/status payload parses against autotuneStatusSchema", () => {
     expect(autotuneStatusSchema.parse(load("autotune_status"))).toBeDefined();
+  });
+
+  it("/api/v1/pid payload parses against pidResponseSchema", () => {
+    expect(pidResponseSchema.parse(load("pid"))).toBeDefined();
+  });
+
+  /**
+   * The gains a manual edit can enter have to be gains the firmware accepts, so
+   * the form's own rules (schemas/kiln.ts) are checked against the bounds the
+   * firmware publishes rather than against a mirrored copy of them (#182).
+   */
+  it("firmware PID defaults and limits satisfy the client-side gain schema", () => {
+    const pid = pidResponseSchema.parse(load("pid"));
+    expect(pidGainsSchema.parse(pid.defaults)).toBeDefined();
+    expect(
+      pidGainsSchema.parse({ kp: pid.limits.max, ki: pid.limits.max, kd: pid.limits.max }),
+    ).toBeDefined();
+    expect(pid.limits.min).toBe(0);
   });
 
   it("/api/v1/diagnostics/thermocouple payload parses against thermocoupleDiagSchema", () => {

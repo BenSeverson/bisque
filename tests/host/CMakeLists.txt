@@ -149,10 +149,15 @@ add_host_test(test_firing_scenarios
 # each builder with a fixture input, asserts the shape via cJSON, and (when
 # BISQUE_FIXTURE_DIR is set) dumps the JSON for the cross-language
 # contract validator in web_ui/.
+#
+# pid_control.c is linked in for pid_default_gains(), which build_pid_json()
+# calls so GET /pid can advertise the firmware's own fallback gains rather than
+# have the client hardcode a second copy of them.
 add_host_test(test_api_json
     SOURCES test_api_json.c
             ${ROOT}/components/web_server/api_json.c
-            ${ROOT}/components/cone_table/cone_table.c)
+            ${ROOT}/components/cone_table/cone_table.c
+            ${ROOT}/components/pid_control/pid_control.c)
 target_link_libraries(test_api_json PRIVATE cjson)
 target_include_directories(test_api_json PRIVATE
     ${ROOT}/components/web_server/include

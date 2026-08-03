@@ -57,6 +57,13 @@ cJSON *build_autotune_status_json(const firing_progress_t *prog, autotune_state_
                                   float kd);
 
 /**
+ * GET /api/v1/pid — the live PID gains, plus the compile-time defaults and the
+ * accepted range so a client can offer "restore defaults" and validate before
+ * POSTing without hardcoding either.
+ */
+cJSON *build_pid_json(float kp, float ki, float kd);
+
+/**
  * GET /api/v1/diagnostics/thermocouple.
  *
  * @param tc            Latest thermocouple reading.

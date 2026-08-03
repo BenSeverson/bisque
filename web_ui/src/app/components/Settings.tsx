@@ -13,6 +13,7 @@ import {
   type AutotuneSession,
 } from "../utils/autotuneSession";
 import { prepareSettingsPatch } from "../utils/settingsPatch";
+import { preparePidGains, formatGain, type PidGainsDraft } from "../utils/pidGains";
 import { describeFiringError, emergencyStopExplanation } from "../utils/firingError";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Label } from "./ui/label";
@@ -41,6 +42,8 @@ import {
   useAutotuneStatus,
   useStartAutotune,
   useStopAutotune,
+  usePidGains,
+  useSavePidGains,
   useTestRelay,
   useUploadOta,
   useCheckOta,
@@ -48,6 +51,7 @@ import {
 } from "../hooks/queries";
 import { api, DiagThermocouple, OtaCheckResponse } from "../services/api";
 import { kilnWS } from "../services/websocket";
+import { useKilnStore } from "../stores/kilnStore";
 import { WifiCard } from "./WifiCard";
 import { DemoFaultControl } from "./DemoFaultControl";
 
@@ -67,6 +71,19 @@ export function Settings() {
 
   const startAutotune = useStartAutotune();
   const stopAutotune = useStopAutotune();
+
+  // PID gains, editable by hand (#182). `gainsDraft` is non-null exactly while
+  // the editor is open, so it doubles as the open/closed flag — there is no
+  // second boolean to keep in step with it.
+  const { data: pidGains, refetch: refetchPidGains } = usePidGains();
+  const savePidGains = useSavePidGains();
+  const [gainsDraft, setGainsDraft] = useState<PidGainsDraft | null>(null);
+  // The firmware answers POST /pid with 409 while the control loop is running,
+  // because the integrator wound up under the old Ki. Mirror that here off the
+  // live WebSocket state, so the editor is closed before the user types three
+  // numbers rather than after.
+  const firingActive = useKilnStore((s) => s.firingProgress.isActive);
+  const kilnBusy = firingActive || autotuneRunning;
   const testRelay = useTestRelay();
   const uploadOta = useUploadOta();
   const checkOta = useCheckOta();
@@ -112,6 +129,9 @@ export function Settings() {
     }
     if (outcome === "completed") {
       toast.success("Auto-tune complete — new PID gains saved");
+      // The tune wrote gains the device now holds; the card shows the cached
+      // pre-tune ones until this lands.
+      refetchPidGains();
     } else if (outcome === "failed") {
       toast.error("Auto-tune failed to measure usable gains — PID gains are unchanged");
     } else if (outcome === "stopped") {
@@ -119,7 +139,7 @@ export function Settings() {
     } else if (outcome === "not-started") {
       toast.error("The controller did not start the auto-tune");
     }
-  }, [autotuneSession, autotuneStatus?.state, observedAt, statusArrived]);
+  }, [autotuneSession, autotuneStatus?.state, observedAt, statusArrived, refetchPidGains]);
 
   const { register, handleSubmit, setValue, reset, control, getValues } =
     useForm<SettingsFormValues>({
@@ -226,6 +246,46 @@ export function Settings() {
       toast.error("Failed to stop auto-tune");
     }
   }, [stopAutotune]);
+
+  const handleEditGains = useCallback(() => {
+    if (!pidGains) return;
+    setGainsDraft({
+      kp: formatGain(pidGains.kp),
+      ki: formatGain(pidGains.ki),
+      kd: formatGain(pidGains.kd),
+    });
+  }, [pidGains]);
+
+  const handleRestoreDefaultGains = useCallback(() => {
+    if (!pidGains) return;
+    // Fill the fields rather than saving outright — restoring defaults throws
+    // away a tuning run, so it should still take a deliberate Save.
+    setGainsDraft({
+      kp: formatGain(pidGains.defaults.kp),
+      ki: formatGain(pidGains.defaults.ki),
+      kd: formatGain(pidGains.defaults.kd),
+    });
+  }, [pidGains]);
+
+  const handleSaveGains = useCallback(async () => {
+    if (!gainsDraft) return;
+    const prepared = preparePidGains(gainsDraft, pidGains?.limits);
+    if (!prepared.ok) {
+      toast.error(`Not saved: ${prepared.message}`);
+      return;
+    }
+    try {
+      const stored = await savePidGains.mutateAsync(prepared.gains);
+      setGainsDraft(null);
+      toast.success(
+        `PID gains saved — Kp ${formatGain(stored.kp)}, Ki ${formatGain(stored.ki)}, Kd ${formatGain(stored.kd)}`,
+      );
+    } catch (e) {
+      // Leave the editor open with the entered values, so a 409 ("kiln is
+      // busy") doesn't cost the user what they typed.
+      toast.error(`Failed to save PID gains: ${toErrorMessage(e)}`);
+    }
+  }, [gainsDraft, pidGains?.limits, savePidGains]);
 
   const handleReadTC = useCallback(async () => {
     try {
@@ -552,22 +612,86 @@ export function Settings() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {autotuneStatus && autotuneStatus.currentGains && (
-            <div className="grid grid-cols-3 gap-4 p-3 bg-muted/50 rounded-lg">
-              <div>
-                <p className="text-xs text-muted-foreground">Kp</p>
-                <p className="text-lg font-mono">{autotuneStatus.currentGains.kp.toFixed(4)}</p>
+          {/* Current gains. Read from GET /pid, which is always available —
+              these used to come from the auto-tune status query, which only
+              polls during a run, so the gains were invisible unless you had
+              just tuned (#182). */}
+          <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
+            {gainsDraft ? (
+              <div className="grid grid-cols-3 gap-4">
+                {(["kp", "ki", "kd"] as const).map((key) => (
+                  <div key={key} className="space-y-1">
+                    <Label htmlFor={`pid-${key}`} className="text-xs text-muted-foreground">
+                      {key === "kp" ? "Kp" : key === "ki" ? "Ki" : "Kd"}
+                    </Label>
+                    <Input
+                      id={`pid-${key}`}
+                      type="number"
+                      inputMode="decimal"
+                      step="any"
+                      min={pidGains?.limits.min}
+                      max={pidGains?.limits.max}
+                      className="font-mono"
+                      value={gainsDraft[key]}
+                      onChange={(e) =>
+                        setGainsDraft((draft) =>
+                          draft ? { ...draft, [key]: e.target.value } : draft,
+                        )
+                      }
+                    />
+                  </div>
+                ))}
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Ki</p>
-                <p className="text-lg font-mono">{autotuneStatus.currentGains.ki.toFixed(4)}</p>
+            ) : (
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">Kp</p>
+                  <p className="text-lg font-mono">{pidGains ? formatGain(pidGains.kp) : "--"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Ki</p>
+                  <p className="text-lg font-mono">{pidGains ? formatGain(pidGains.ki) : "--"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Kd</p>
+                  <p className="text-lg font-mono">{pidGains ? formatGain(pidGains.kd) : "--"}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Kd</p>
-                <p className="text-lg font-mono">{autotuneStatus.currentGains.kd.toFixed(4)}</p>
-              </div>
+            )}
+
+            <div className="flex gap-2 flex-wrap">
+              {gainsDraft ? (
+                <>
+                  <Button size="sm" onClick={handleSaveGains} disabled={savePidGains.isPending}>
+                    {savePidGains.isPending ? "Saving..." : "Save Gains"}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setGainsDraft(null)}>
+                    Cancel
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={handleRestoreDefaultGains}>
+                    Restore Defaults
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleEditGains}
+                  disabled={!pidGains || kilnBusy}
+                >
+                  Edit Manually
+                </Button>
+              )}
             </div>
-          )}
+
+            <p className="text-xs text-muted-foreground">
+              {gainsDraft
+                ? "Kp or Ki must be above zero. Saved values are rounded to four decimals, which is what the controller stores."
+                : kilnBusy
+                  ? "Gains can only be changed while the kiln is idle — changing them mid-firing would step the element duty cycle."
+                  : "Enter gains directly if you already have known-good values for this kiln — no need to run a tune."}
+            </p>
+          </div>
 
           {autotuneRunning && (
             <div className="flex items-center gap-2">

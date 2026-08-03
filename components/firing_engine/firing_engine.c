@@ -301,6 +301,68 @@ void firing_engine_get_autotune_snapshot(firing_progress_t *out_prog, autotune_s
     progress_unlock();
 }
 
+/* The gain fields of s_pid are guarded by s_progress_mutex — the same lock that
+ * publishes is_active — so that firing_engine_set_pid_gains() can check "no
+ * firing is running" and install the new gains in one critical section. The
+ * controller's *internal* state (integral, derivative memory) stays unguarded:
+ * pid_compute() runs only on firing_task, and every writer of the gains either
+ * is that task or has just established under this lock that the loop is idle. */
+void firing_engine_get_pid_gains(float *kp, float *ki, float *kd)
+{
+    progress_lock();
+    *kp = s_pid.kp;
+    *ki = s_pid.ki;
+    *kd = s_pid.kd;
+    progress_unlock();
+}
+
+esp_err_t firing_engine_set_pid_gains(float kp, float ki, float kd)
+{
+    /* Screen first, because pid_quantize_gain() is only defined on gains already
+       inside [PID_GAIN_MIN, PID_GAIN_MAX] — its int32 cast is undefined on a
+       non-finite or wildly out-of-range value. */
+    if (!pid_gains_valid(kp, ki, kd)) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    /* Then store what NVS can actually hold, so the live controller and the
+       value the next boot loads are the same number — and re-check, because four
+       decimals of resolution turn a Kp of 5e-5 with Ki at zero into the {0, 0,
+       kd} controller that never heats, which the first check accepted. */
+    kp = pid_quantize_gain(kp);
+    ki = pid_quantize_gain(ki);
+    kd = pid_quantize_gain(kd);
+    if (!pid_gains_valid(kp, ki, kd)) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    /* Check and apply in one critical section, the same way firing_engine_relay_test_arm()
+       does: is_active covers a running firing, an armed delayed start, and an
+       auto-tune, and only firing_task flips it — under this lock. Observing it
+       false while holding the lock therefore means the control loop cannot have
+       started by the time the new gains land. */
+    bool applied = false;
+    progress_lock();
+    if (!s_progress.is_active) {
+        pid_init(&s_pid, kp, ki, kd, 0.0f, 1.0f);
+        applied = true;
+    }
+    progress_unlock();
+
+    if (!applied) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    esp_err_t err = pid_save_gains(kp, ki, kd);
+    if (err != ESP_OK) {
+        /* The live controller already took the new gains, so report the partial
+           outcome rather than a clean success: they are in effect now but will
+           not survive a reboot. */
+        ESP_LOGE(TAG, "PID gains applied but not persisted: %s", esp_err_to_name(err));
+    }
+    return err;
+}
+
 void firing_engine_get_settings(kiln_settings_t *out)
 {
     settings_lock();
@@ -1309,9 +1371,13 @@ void firing_tick(int64_t now_us)
 
         if (done) {
             if (pid_autotune_is_complete(&s_autotune)) {
-                /* Save tuned gains */
+                /* Save tuned gains. The pid_init() is under progress_lock so a
+                   concurrent firing_engine_get_pid_gains() cannot read a
+                   half-updated triple (Kp from the tune, Ki from before it). */
                 pid_save_gains(s_autotune.kp_result, s_autotune.ki_result, s_autotune.kd_result);
+                progress_lock();
                 pid_init(&s_pid, s_autotune.kp_result, s_autotune.ki_result, s_autotune.kd_result, 0.0f, 1.0f);
+                progress_unlock();
                 ESP_LOGI(TAG, "Auto-tune gains applied");
             }
             do_stop();

@@ -424,6 +424,48 @@ static void test_autotune_running_outranks_terminal_state(void)
     }
 }
 
+/* ── build_pid_json ──────────────────────────────────────────────────────── */
+
+static void test_pid_shape(void)
+{
+    cJSON *root = build_pid_json(18.0f, 0.12f, 240.0f);
+
+    assert_number_field(root, "kp");
+    assert_number_field(root, "ki");
+    assert_number_field(root, "kd");
+    TEST_ASSERT_EQUAL_FLOAT(18.0f, cJSON_GetObjectItem(root, "kp")->valuedouble);
+    TEST_ASSERT_EQUAL_FLOAT(0.12f, cJSON_GetObjectItem(root, "ki")->valuedouble);
+    TEST_ASSERT_EQUAL_FLOAT(240.0f, cJSON_GetObjectItem(root, "kd")->valuedouble);
+
+    cJSON *defaults = cJSON_GetObjectItem(root, "defaults");
+    TEST_ASSERT_NOT_NULL(defaults);
+    assert_number_field(defaults, "kp");
+    assert_number_field(defaults, "ki");
+    assert_number_field(defaults, "kd");
+
+    /* The defaults block must report the firmware's own fallbacks, not echo the
+       live gains — a "restore defaults" button built on it would otherwise
+       restore whatever was already there. */
+    float def_kp, def_ki, def_kd;
+    pid_default_gains(&def_kp, &def_ki, &def_kd);
+    TEST_ASSERT_EQUAL_FLOAT(def_kp, cJSON_GetObjectItem(defaults, "kp")->valuedouble);
+    TEST_ASSERT_EQUAL_FLOAT(def_ki, cJSON_GetObjectItem(defaults, "ki")->valuedouble);
+    TEST_ASSERT_EQUAL_FLOAT(def_kd, cJSON_GetObjectItem(defaults, "kd")->valuedouble);
+
+    cJSON *limits = cJSON_GetObjectItem(root, "limits");
+    TEST_ASSERT_NOT_NULL(limits);
+    TEST_ASSERT_EQUAL_FLOAT(PID_GAIN_MIN, cJSON_GetObjectItem(limits, "min")->valuedouble);
+    TEST_ASSERT_EQUAL_FLOAT(PID_GAIN_MAX, cJSON_GetObjectItem(limits, "max")->valuedouble);
+
+    /* The bounds the client is told about have to be bounds the firmware would
+       actually accept, or the form validates against a range POST /pid rejects. */
+    TEST_ASSERT_TRUE(pid_gains_valid(PID_GAIN_MAX, PID_GAIN_MAX, PID_GAIN_MAX));
+    TEST_ASSERT_TRUE(pid_gains_valid(def_kp, def_ki, def_kd));
+
+    dump_fixture("pid", root);
+    cJSON_Delete(root);
+}
+
 /* ── build_thermocouple_diag_json ────────────────────────────────────────── */
 
 static void test_thermocouple_diag_shape(void)
@@ -485,6 +527,7 @@ int main(void)
     RUN_TEST(test_autotune_status_running_vs_stopped);
     RUN_TEST(test_autotune_terminal_states_are_distinct);
     RUN_TEST(test_autotune_running_outranks_terminal_state);
+    RUN_TEST(test_pid_shape);
     RUN_TEST(test_thermocouple_diag_shape);
     RUN_TEST(test_firing_status_strings);
     return UNITY_END();
