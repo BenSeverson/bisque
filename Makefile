@@ -9,6 +9,7 @@
 .DEFAULT_GOAL := help
 
 WEB_DIR     := web_ui
+IOS_DIR     := ios/Bisque
 SPIFFS_DIR  := spiffs_data/www
 
 # Resolve cmake/ctest to absolute paths via the shell rather than letting make
@@ -27,7 +28,7 @@ CTEST       := $(shell command -v ctest 2>/dev/null || echo ctest)
 IDF         := . ./scripts/idf-env.sh &&
 
 .PHONY: help build web gzip firmware sim sim-verify \
-        test test-host test-web fixtures \
+        test test-host test-web test-ios fixtures \
         lint lint-c lint-web format \
         clang-tidy cppcheck \
         size size-firmware size-spiffs \
@@ -86,7 +87,32 @@ fixtures:  ## Generate JSON API fixtures for the web contract tests
 test-web: fixtures  ## Web UI tests (Vitest); depends on fixtures target
 	cd $(WEB_DIR) && npm run test:run
 
-test: test-host test-web  ## Run every test suite
+# Deliberately not part of `test`: it needs a Mac with Xcode and an iOS
+# simulator, while `test` runs in the Linux container CI uses for everything
+# else. Same policy as the build-ios CI job, which is kept out of `build.needs:`
+# because iOS regressions do not block firmware merges.
+#
+# xcodegen runs with the version variables *unset* so the committed pbxproj
+# keeps its ${BISQUE_*} placeholders; xcodebuild then expands them from its own
+# environment. Exporting them around xcodegen instead would bake concrete
+# versions into a tracked file and dirty the tree on every test run.
+#
+# The values themselves are not decoration: unset, CFBundleVersion ends up empty
+# and the simulator refuses to install the app extension with "bundleVersion
+# must be set in placeholder attributes" — a failure that says nothing about the
+# tests.
+test-ios:  ## iOS unit tests (XCTest on a simulator; needs macOS + Xcode)
+	@device=$$(./scripts/pick-simulator.sh) && \
+	  echo "Testing on $$device" && \
+	  cd $(IOS_DIR) && \
+	  env -u BISQUE_MARKETING_VERSION -u BISQUE_BUILD_NUMBER xcodegen generate && \
+	  BISQUE_MARKETING_VERSION=$${BISQUE_MARKETING_VERSION:-1.0.0} \
+	  BISQUE_BUILD_NUMBER=$${BISQUE_BUILD_NUMBER:-1} \
+	  xcodebuild test -scheme Bisque \
+	    -destination "platform=iOS Simulator,name=$$device" \
+	    CODE_SIGNING_ALLOWED=NO -quiet
+
+test: test-host test-web  ## Run every test suite (host + web; see test-ios)
 
 ## ──────────────────────────────────────────────────────────────────────
 ## Lint & format

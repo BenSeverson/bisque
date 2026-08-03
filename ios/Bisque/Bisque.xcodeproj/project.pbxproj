@@ -11,6 +11,7 @@
 		09CACA232C0B2D62AF4EB396 /* BisqueLiveActivityBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 281A82DDFCC6710C3BDF2F68 /* BisqueLiveActivityBundle.swift */; };
 		0A3F8F693F79C8634C2E52C7 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE59FF303BB4FF4F058375FB /* ContentView.swift */; };
 		101B582C2AECE4B0BD15D498 /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47689B2DD31BC05760D2D35C /* KeychainHelper.swift */; };
+		106A87DA3CB2AEE77EBE12CF /* KilnDiscoveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF58D42610C054F94875F7E6 /* KilnDiscoveryTests.swift */; };
 		121B338C0F8BE117218D23F7 /* ErrorBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = E73C5470591B71B68950128B /* ErrorBanner.swift */; };
 		138B82F9529A17E8FED95EB8 /* StatusBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 764258567183EB9AD8D1B8DB /* StatusBadge.swift */; };
 		1566FC7FB453BEACCE8359AF /* ProfileDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F98F61F40B66307F278B32A6 /* ProfileDetailView.swift */; };
@@ -24,6 +25,7 @@
 		2D1C4E4AD19ECD95E366595E /* ProfileBuilderViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A911DE54A2F023390618E7A /* ProfileBuilderViewModel.swift */; };
 		2DABA1B7F4BF841FF10E2FC0 /* UserDefaultsKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCDC6F2A43E27E2FDD3AC72B /* UserDefaultsKeys.swift */; };
 		2E0362066FEE285F2219563E /* AutotuneStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EBA9CB46B249DADD29E870F /* AutotuneStatus.swift */; };
+		2FEEEF8B0D1AC29D5F7EBCD0 /* LocalNetworkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D33E600F45ABE80E851021AC /* LocalNetworkTests.swift */; };
 		38A705717C7FE9C9C7E0836F /* APIError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3310994771D8D25E65754D00 /* APIError.swift */; };
 		49E9820EF2E66860BC376F94 /* HistoryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53E9963A715355312356AC21 /* HistoryViewModel.swift */; };
 		4D0476BF5987BDCAC6E7AB15 /* SegmentEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AD8375CEFFA9A0C4ED3827F /* SegmentEditorView.swift */; };
@@ -42,6 +44,7 @@
 		6C1D988791FAB3469E5A8BA4 /* BisqueLiveActivity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F7FA29E44418078D249C8C5A /* BisqueLiveActivity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		7623DA52F7EBD810BA951A0D /* DiagThermocouple.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C4A80A1C88346C07B79D9BC /* DiagThermocouple.swift */; };
 		768F459B2B12D2D7035C3C1F /* KilnDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BCF50C7ED1597FED0EB4B1A /* KilnDiscovery.swift */; };
+		7768F5EC0FFCDBA4522B4C3A /* StubURLProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F26B48622EB5755023B17CB /* StubURLProtocol.swift */; };
 		7B3B05AFEEB31E2B8D5BD5AB /* SettingsTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA92D0A942F9875DFAEA9B4B /* SettingsTab.swift */; };
 		86D5A2CB868BB4CC50EA16B4 /* HistoryRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7764E1BB68840F9971131A /* HistoryRecord.swift */; };
 		885593DECBBDC2EA581774EC /* FiringActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F89C228440A203C89CDC289 /* FiringActivityAttributes.swift */; };
@@ -75,6 +78,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		5308C805601A2C50357844AA /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C14D59B6E69B41901E1DE283 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A9F6465C2D509B4CA2C94903;
+			remoteInfo = Bisque;
+		};
 		97C909B0833209C99EDF4380 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = C14D59B6E69B41901E1DE283 /* Project object */;
@@ -122,10 +132,12 @@
 		5097775AD49300C0F4CC7090 /* KilnAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KilnAPIClient.swift; sourceTree = "<group>"; };
 		53E9963A715355312356AC21 /* HistoryViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryViewModel.swift; sourceTree = "<group>"; };
 		58BD5B2295FE389DFA09A263 /* Formatters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatters.swift; sourceTree = "<group>"; };
+		5AE6899C430D52E2A8D84888 /* BisqueTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = BisqueTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5CA870F870239DBEF8161D67 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		5CAF4D46EA741C75819A73BF /* FiringProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FiringProfile.swift; sourceTree = "<group>"; };
 		5D7F2D56E911D3C0674062A4 /* PreviewData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewData.swift; sourceTree = "<group>"; };
 		5E314DDEAB58993BD0FD56EC /* ProfileBuilderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileBuilderView.swift; sourceTree = "<group>"; };
+		5F26B48622EB5755023B17CB /* StubURLProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StubURLProtocol.swift; sourceTree = "<group>"; };
 		6BCF50C7ED1597FED0EB4B1A /* KilnDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KilnDiscovery.swift; sourceTree = "<group>"; };
 		6C4A80A1C88346C07B79D9BC /* DiagThermocouple.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagThermocouple.swift; sourceTree = "<group>"; };
 		6EC837DDDB8894D22506AF18 /* FiringSegment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FiringSegment.swift; sourceTree = "<group>"; };
@@ -150,9 +162,11 @@
 		AEA79CAF8AAF5E68C07243C4 /* FiringStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FiringStatus.swift; sourceTree = "<group>"; };
 		BAFEC88D954E46B864C00AA6 /* DiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsView.swift; sourceTree = "<group>"; };
 		BEB251D6BE342CD77C664A6A /* BisqueLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BisqueLiveActivity.swift; sourceTree = "<group>"; };
+		BF58D42610C054F94875F7E6 /* KilnDiscoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KilnDiscoveryTests.swift; sourceTree = "<group>"; };
 		C4FAD9335D03E06678762FA8 /* FiringLockScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FiringLockScreenView.swift; sourceTree = "<group>"; };
 		CA9964F6DD097C17C4712CEF /* BisqueApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BisqueApp.swift; sourceTree = "<group>"; };
 		D02765264276A6A461EE7C19 /* SystemInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemInfo.swift; sourceTree = "<group>"; };
+		D33E600F45ABE80E851021AC /* LocalNetworkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalNetworkTests.swift; sourceTree = "<group>"; };
 		D79D8576F670DA53C479FD9F /* HistoryDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryDetailView.swift; sourceTree = "<group>"; };
 		DA7764E1BB68840F9971131A /* HistoryRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryRecord.swift; sourceTree = "<group>"; };
 		DC8F5F69874337D25F2E7033 /* ConeEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConeEntry.swift; sourceTree = "<group>"; };
@@ -208,6 +222,7 @@
 			children = (
 				23DF65B6B4F90192D85CE268 /* Bisque */,
 				50EE673A2078852BB86B40BF /* BisqueLiveActivity */,
+				997BC860F4CA5F467FFFE13A /* BisqueTests */,
 				7228B174695CC2F1F3991655 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -272,6 +287,7 @@
 			children = (
 				E2C2D5C3402A7FF103FA9AD4 /* Bisque.app */,
 				F7FA29E44418078D249C8C5A /* BisqueLiveActivity.appex */,
+				5AE6899C430D52E2A8D84888 /* BisqueTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -309,6 +325,16 @@
 				F22CAB3A5AD7425B1D481E83 /* HistoryTab.swift */,
 			);
 			path = History;
+			sourceTree = "<group>";
+		};
+		997BC860F4CA5F467FFFE13A /* BisqueTests */ = {
+			isa = PBXGroup;
+			children = (
+				BF58D42610C054F94875F7E6 /* KilnDiscoveryTests.swift */,
+				D33E600F45ABE80E851021AC /* LocalNetworkTests.swift */,
+				5F26B48622EB5755023B17CB /* StubURLProtocol.swift */,
+			);
+			path = BisqueTests;
 			sourceTree = "<group>";
 		};
 		9FD54CC3524D7CE4D31A41DC /* LiveActivity */ = {
@@ -387,6 +413,24 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		69E313FD3AB8657D1B2A9C66 /* BisqueTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C49059F7FF1A35415EA4A4BC /* Build configuration list for PBXNativeTarget "BisqueTests" */;
+			buildPhases = (
+				011EB4D3840E4869C14FB90F /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				373852B18290E16FB5269377 /* PBXTargetDependency */,
+			);
+			name = BisqueTests;
+			packageProductDependencies = (
+			);
+			productName = BisqueTests;
+			productReference = 5AE6899C430D52E2A8D84888 /* BisqueTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		A9F6465C2D509B4CA2C94903 /* Bisque */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 2D7D372A2DD5D1494B140BF4 /* Build configuration list for PBXNativeTarget "Bisque" */;
@@ -434,6 +478,9 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
+					69E313FD3AB8657D1B2A9C66 = {
+						DevelopmentTeam = "";
+					};
 					A9F6465C2D509B4CA2C94903 = {
 						DevelopmentTeam = "";
 					};
@@ -457,6 +504,7 @@
 			projectRoot = "";
 			targets = (
 				A9F6465C2D509B4CA2C94903 /* Bisque */,
+				69E313FD3AB8657D1B2A9C66 /* BisqueTests */,
 				B394116C0D6EB2D8A9331D90 /* BisqueLiveActivity */,
 			);
 		};
@@ -482,6 +530,16 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		011EB4D3840E4869C14FB90F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				106A87DA3CB2AEE77EBE12CF /* KilnDiscoveryTests.swift in Sources */,
+				2FEEEF8B0D1AC29D5F7EBCD0 /* LocalNetworkTests.swift in Sources */,
+				7768F5EC0FFCDBA4522B4C3A /* StubURLProtocol.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		8C2EDACFD388455EA993AD13 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -561,6 +619,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		373852B18290E16FB5269377 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A9F6465C2D509B4CA2C94903 /* Bisque */;
+			targetProxy = 5308C805601A2C50357844AA /* PBXContainerItemProxy */;
+		};
 		DE60C1167F950CF0F44CEEDA /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = B394116C0D6EB2D8A9331D90 /* BisqueLiveActivity */;
@@ -569,6 +632,23 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		044C68C51D2668AF11C93CBF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.bisque.kiln-controller.tests";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Bisque.app/Bisque";
+			};
+			name = Debug;
+		};
 		0B1B760B7F16CF2E18874285 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -592,6 +672,23 @@
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		349304FE2CCDAAD87AB0B865 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.bisque.kiln-controller.tests";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Bisque.app/Bisque";
 			};
 			name = Release;
 		};
@@ -812,6 +909,15 @@
 			buildConfigurations = (
 				C59FD75ADB274DD78C7FD6C2 /* Debug */,
 				D81A773AA302983B80B0981D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		C49059F7FF1A35415EA4A4BC /* Build configuration list for PBXNativeTarget "BisqueTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				044C68C51D2668AF11C93CBF /* Debug */,
+				349304FE2CCDAAD87AB0B865 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
