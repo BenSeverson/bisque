@@ -7,7 +7,26 @@ final class KilnWebSocketManager {
     private(set) var lastUpdate: TempUpdateData?
 
     private var webSocketTask: URLSessionWebSocketTask?
-    private let session = URLSession(configuration: .default)
+
+    /// Delegate-backed, purely so the handshake has an observable completion.
+    /// A plain `URLSession(configuration:)` offers no such signal — the socket
+    /// is indistinguishable from a live one until the first `receive()`, which
+    /// is up to a broadcast interval (1s) after the fact and never arrives at
+    /// all against a kiln that is powered off.
+    ///
+    /// Never invalidated: the manager is created once per app launch and lives
+    /// as long as the process, so there is nothing to reclaim.
+    ///
+    /// `@ObservationIgnored` because `@Observable` rewrites stored properties
+    /// into observed ones, and `lazy` cannot be applied to those.
+    @ObservationIgnored
+    private lazy var session: URLSession = URLSession(
+        configuration: .default,
+        delegate: SocketOpenObserver { [weak self] taskIdentifier in
+            Task { @MainActor in self?.socketDidOpen(taskIdentifier: taskIdentifier) }
+        },
+        delegateQueue: nil
+    )
     private var url: URL?
     private var apiToken: String?
     private var reconnectDelay: TimeInterval = 1
@@ -63,6 +82,11 @@ final class KilnWebSocketManager {
         generation += 1
         let thisGeneration = generation
 
+        // A retry still pending from an earlier failure would otherwise fire
+        // later and cancel the socket opened here in favour of another attempt.
+        reconnectTask?.cancel()
+        reconnectTask = nil
+
         // Supersede any loop still running against the outgoing socket, so it
         // cannot outlive this call and report the socket it owned as lost.
         receiveTask?.cancel()
@@ -79,12 +103,27 @@ final class KilnWebSocketManager {
         self.webSocketTask = task
         task.resume()
 
-        isConnected = true
-        reconnectDelay = 1
+        // Not connected until the handshake completes — `socketDidOpen()` says
+        // when. Claiming it here (and resetting the backoff with it) meant the
+        // UI reported a live feed against an unreachable kiln, and pinned
+        // `reconnectDelay` at 1 on every attempt, so the doubling in
+        // `scheduleReconnect()` never took effect: a powered-off kiln got a
+        // fresh connection attempt every second, forever (#144).
+        isConnected = false
 
         receiveTask = Task { [weak self] in
             await self?.receiveLoop(task: task, myGeneration: thisGeneration)
         }
+    }
+
+    /// The handshake completed: the feed is live, and a delay that got us here
+    /// is a delay worth starting from again.
+    private func socketDidOpen(taskIdentifier: Int) {
+        // A superseded socket can still finish its handshake after we have moved
+        // on; only the task we currently hold may claim the connection.
+        guard taskIdentifier == webSocketTask?.taskIdentifier else { return }
+        isConnected = true
+        reconnectDelay = 1
     }
 
     nonisolated private func receiveLoop(task: URLSessionWebSocketTask, myGeneration: Int) async {
@@ -145,5 +184,26 @@ final class KilnWebSocketManager {
             guard !Task.isCancelled else { return }
             self?.openConnection()
         }
+    }
+}
+
+/// Reports a completed WebSocket handshake.
+///
+/// `URLSession` delivers delegate callbacks on its own queue, so the callback
+/// carries nothing but the task identifier — an `Int`, which crosses actors
+/// freely. Deciding whether that identifier is still the socket anyone cares
+/// about is the manager's job, on the main actor.
+private final class SocketOpenObserver: NSObject, URLSessionWebSocketDelegate, Sendable {
+    private let onOpen: @Sendable (Int) -> Void
+
+    init(onOpen: @escaping @Sendable (Int) -> Void) {
+        self.onOpen = onOpen
+        super.init()
+    }
+
+    func urlSession(_ session: URLSession,
+                    webSocketTask: URLSessionWebSocketTask,
+                    didOpenWithProtocol protocol: String?) {
+        onOpen(webSocketTask.taskIdentifier)
     }
 }
