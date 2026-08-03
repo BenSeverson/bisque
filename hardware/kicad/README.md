@@ -310,6 +310,7 @@ python3 generator/check_netlist.py bisque-controller.kicad_sch  # KiCad netlist 
                                                                 #   pour-island healing, KiCad DRC report
 python3 generator/check_pcb.py bisque-controller.kicad_pcb      # independent checker: ALL CHECKS PASS
 "$KPY" generator/check_via_in_pad.py bisque-controller.kicad_pcb  # no via inside an SMD pad: PASS
+python3 generator/check_canonical.py bisque-controller.kicad_pcb  # reproducibility guard: ALL CHECKS PASS
                                                                 #   (KiCad DRC can't see this - a via and
                                                                 #    the pad it sits in share a net, and
                                                                 #    clearance rules skip same-net copper)
@@ -327,6 +328,21 @@ kicad-cli pcb export drill -o gerbers/ --format excellon --excellon-units mm \
 python3 generator/gen_jlc.py jlcpcb          # BOM.csv + CPL.csv (prints rotation fixes)
 kicad-cli sch export pdf -o pdf/bisque-controller-schematic.pdf bisque-controller.kicad_sch
 ```
+
+**The board build is reproducible.** Rebuilding an unchanged `design.py`
+produces a byte-identical `bisque-controller.kicad_pcb`, so regenerating
+and diffing is a real check that the committed board still matches the
+design beside it. That does not come for free: pcbnew hands every item it
+creates a random uuid and then *orders the saved file by it*, so an
+identical design used to serialise differently every run — a ~20k-line
+diff over ~22k lines, which made any regenerated board unreviewable
+(#234). `kicad_build.py` therefore routes every write through
+`generator/canonicalize.py`, which replaces each uuid with one derived
+from that item's own content and sorts items on the same key. The zone
+fill settles too, since KiCad's filler is deterministic once its input
+is. `check_canonical.py` guards this by re-shuffling and re-minting a
+real board and asserting the canonical form doesn't move; it needs
+neither KiCad nor pcbnew.
 
 **Zone fills feed the gerbers.** `kicad_build.py` finishes with a
 `kicad-cli pcb drc --refill-zones` pass that rewrites the board file, so

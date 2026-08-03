@@ -23,6 +23,7 @@ try:
 except ImportError:
     pass
 import pcbnew
+from canonicalize import canonicalize_file
 from design import COMPONENTS, netlist, BX0, BY0, BX1, BY1
 import router as R
 from gen_pcb import (USB_SEEDS, USB_STUB_TERMS, ROUTE_ORDER, route_all,
@@ -493,12 +494,19 @@ def main(out):
     import subprocess
     board.SetFileName(out)
     pcbnew.SaveBoard(out, board)
+    # Every write goes through canonicalize_file: pcbnew hands each item a
+    # random uuid and then orders the file by it, so without this an
+    # unchanged design lands on disk differently every run (#234). Doing it
+    # after *each* write - not just at the end - matters, because the zone
+    # fill is only reproducible if kicad-cli is handed a reproducible board.
+    canonicalize_file(out)
     print("saved %s (unfilled); fill+DRC via kicad-cli..." % out)
     for round_no in range(4):
         subprocess.run(["kicad-cli", "pcb", "drc", "--refill-zones",
                         "--save-board", "--severity-all",
                         "--all-track-errors", "-o", rpt_path, out],
                        check=True, capture_output=True)
+        canonicalize_file(out)
         rpt = open(rpt_path).read()
         import re
         m = re.search(r"\*\* Found (\d+) unconnected", rpt)
@@ -513,6 +521,7 @@ def main(out):
         if dropped:
             print("  dropped %d disconnected stitch via(s)" % dropped)
         pcbnew.SaveBoard(out, b2)
+        canonicalize_file(out)
         if healed == 0 and dropped == 0:
             break
     print("KiCad DRC report -> %s" % rpt_path)
