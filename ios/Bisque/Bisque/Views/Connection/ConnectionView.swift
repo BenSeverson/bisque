@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct ConnectionView: View {
     @Environment(KilnConnection.self) private var connection
@@ -100,11 +101,23 @@ struct ConnectionView: View {
 
                 // Error message
                 if case .error(let message) = connection.connectionState {
-                    Text(message)
-                        .font(.callout)
-                        .foregroundStyle(.red)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
+                    VStack(spacing: 8) {
+                        Text(message)
+                            .font(.callout)
+                            .foregroundStyle(.red)
+                            .multilineTextAlignment(.center)
+
+                        // Settings → Privacy & Security → Local Network is
+                        // several taps deep and the app cannot read the
+                        // permission, so the least it can do is open the page
+                        // where the toggle lives (#148).
+                        if connection.suggestsLocalNetworkPermission,
+                           let settings = URL(string: UIApplication.openSettingsURLString) {
+                            Link("Open Bisque Settings", destination: settings)
+                                .font(.callout)
+                        }
+                    }
+                    .padding(.horizontal)
                 }
 
                 if let tokenSaveWarning {
