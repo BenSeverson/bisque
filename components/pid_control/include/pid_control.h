@@ -152,6 +152,10 @@ void pid_default_gains(float *kp, float *ki, float *kd);
  * the value the next boot loads are the same number — otherwise a gain entered
  * with more digits than the encoding carries changes, very slightly, at reboot.
  *
+ * Idempotent, and identical to what pid_save_gains() will encode — the two share
+ * one rounding helper, so quantizing a gain and then saving it cannot shift it a
+ * second time.
+ *
  * Only defined for gains already inside [PID_GAIN_MIN, PID_GAIN_MAX]: the
  * int32 conversion is undefined on a non-finite or far out-of-range value, so
  * screen with pid_gains_valid() first. Rounding can zero a gain small enough,

@@ -629,16 +629,22 @@ function stopAutotune(): void {
  *
  * Backed by the same state the auto-tune writes, so the two endpoints agree
  * exactly as they do on the device (both read firing_engine_get_pid_gains).
- * Constants mirror pid_control.h / app_config.h; the C fixture is what checks
- * they haven't drifted. */
-const PID_GAIN_MIN = 0;
-const PID_GAIN_MAX = 10000;
-const PID_DEFAULT_GAINS = { kp: 2.0, ki: 0.01, kd: 5.0 };
+ *
+ * These constants mirror PID_GAIN_MIN/MAX in pid_control.h and APP_PID_*_DEFAULT
+ * in app_config.h. Exported because a schema check cannot catch drift in a
+ * *value*: `mock PID limits and defaults match the firmware fixture exactly` in
+ * test/contracts/firmwareContract.test.ts compares them against the JSON the C
+ * serializer emits, the same way the cone table is guarded. Without that, a
+ * firmware change to either would leave the public demo validating against a
+ * range the device rejects, or restoring gains it never shipped. */
+export const PID_GAIN_MIN = 0;
+export const PID_GAIN_MAX = 10000;
+export const PID_DEFAULT_GAINS = { kp: 2.0, ki: 0.01, kd: 5.0 };
 const BAD_GAINS = "Gains must be within the published limits, and Kp or Ki must be above zero";
 
-/** int32 x10000 in NVS, truncated — see pid_quantize_gain in pid_control.c. */
+/** int32 x10000 in NVS, rounded — see pid_quantize_gain in pid_control.c. */
 function quantizeGain(g: number): number {
-  return Math.trunc(g * 10000) / 10000;
+  return Math.round(g * 10000) / 10000;
 }
 
 function gainsValid([kp, ki, kd]: number[]): boolean {

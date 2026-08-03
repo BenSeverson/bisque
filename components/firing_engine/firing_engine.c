@@ -1371,12 +1371,24 @@ void firing_tick(int64_t now_us)
 
         if (done) {
             if (pid_autotune_is_complete(&s_autotune)) {
-                /* Save tuned gains. The pid_init() is under progress_lock so a
-                   concurrent firing_engine_get_pid_gains() cannot read a
-                   half-updated triple (Kp from the tune, Ki from before it). */
-                pid_save_gains(s_autotune.kp_result, s_autotune.ki_result, s_autotune.kd_result);
+                /* Save tuned gains.
+                 *
+                 * Quantize once and use the same values for both the write and
+                 * the live controller. Installing the raw results instead let
+                 * GET /pid report a tune's Kp of 0.03829 as 0.0383 while the
+                 * next boot loaded 0.0383's stored form — the reported gain and
+                 * the running one only agree if both come from the same
+                 * rounding.
+                 *
+                 * The pid_init() is under progress_lock so a concurrent
+                 * firing_engine_get_pid_gains() cannot read a half-updated
+                 * triple (Kp from the tune, Ki from before it). */
+                float kp = pid_quantize_gain(s_autotune.kp_result);
+                float ki = pid_quantize_gain(s_autotune.ki_result);
+                float kd = pid_quantize_gain(s_autotune.kd_result);
+                pid_save_gains(kp, ki, kd);
                 progress_lock();
-                pid_init(&s_pid, s_autotune.kp_result, s_autotune.ki_result, s_autotune.kd_result, 0.0f, 1.0f);
+                pid_init(&s_pid, kp, ki, kd, 0.0f, 1.0f);
                 progress_unlock();
                 ESP_LOGI(TAG, "Auto-tune gains applied");
             }
@@ -1557,7 +1569,15 @@ void firing_engine_reset_for_test(void)
     s_element_on_s = 0;
     s_element_on_accum_us = 0;
     s_last_compute_us = 0;
-    pid_reset(&s_pid);
+    /* Re-seed the gains the way firing_engine_init() does, not just pid_reset()
+       (which clears the integrator and leaves kp/ki/kd alone). A test that
+       exercises firing_engine_set_pid_gains() otherwise leaves its gains
+       installed for every scenario that runs after it, making the suite
+       order-dependent. Callers wipe NVS before this, so it lands on the
+       compile-time defaults. */
+    float kp, ki, kd;
+    pid_load_gains(&kp, &ki, &kd);
+    pid_init(&s_pid, kp, ki, kd, 0.0f, 1.0f);
     memset(&s_autotune, 0, sizeof(s_autotune));
     s_autotune.state = AUTOTUNE_IDLE;
 

@@ -874,7 +874,7 @@ static void test_manual_gains_are_stored_at_nvs_resolution(void)
 
     float kp, ki, kd;
     firing_engine_get_pid_gains(&kp, &ki, &kd);
-    TEST_ASSERT_EQUAL_FLOAT(1.2345f, kp);
+    TEST_ASSERT_EQUAL_FLOAT(1.2346f, kp);
 
     float nkp, nki, nkd;
     TEST_ASSERT_EQUAL(ESP_OK, pid_load_gains(&nkp, &nki, &nkd));
@@ -922,13 +922,23 @@ static void test_manual_gains_reject_values_the_controller_cannot_use(void)
     float before_kp, before_ki, before_kd;
     firing_engine_get_pid_gains(&before_kp, &before_ki, &before_kd);
 
+    /* Also the guard that scenario_setup() really restores gains: the tests
+       above installed 18/0.12/240 and 1.2346/0.01/5 on the same singleton
+       controller, so seeing the defaults here is what says a gain edit cannot
+       leak into the firing-behaviour scenarios that follow. */
+    float def_kp, def_ki, def_kd;
+    pid_default_gains(&def_kp, &def_ki, &def_kd);
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(def_kp, before_kp, "gains leaked from an earlier scenario");
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(def_ki, before_ki, "gains leaked from an earlier scenario");
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(def_kd, before_kd, "gains leaked from an earlier scenario");
+
     TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, firing_engine_set_pid_gains(NAN, 0.01f, 5.0f));
     TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, firing_engine_set_pid_gains(-1.0f, 0.01f, 5.0f));
     TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, firing_engine_set_pid_gains(PID_GAIN_MAX + 1.0f, 0.01f, 5.0f));
     /* Derivative-only: the kiln would never reach temperature. */
     TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, firing_engine_set_pid_gains(0.0f, 0.0f, 5.0f));
     /* …including when rounding to NVS resolution is what zeroes them. */
-    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, firing_engine_set_pid_gains(0.00005f, 0.0f, 5.0f));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, firing_engine_set_pid_gains(0.00004f, 0.0f, 5.0f));
 
     float kp, ki, kd;
     firing_engine_get_pid_gains(&kp, &ki, &kd);

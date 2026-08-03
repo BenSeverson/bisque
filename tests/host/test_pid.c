@@ -225,15 +225,41 @@ static void test_quantize_matches_what_nvs_stores(void)
     }
 }
 
+static void test_quantize_is_idempotent_across_the_float_round_trip(void)
+{
+    /* The bug this guards: with truncation, 0.00071 quantized to 0.0007, whose
+       nearest float is 0.00069999…, so pid_save_gains multiplying by 10000
+       again yielded 6.9999 and stored 0.0006 — 14% off the gain the caller was
+       told was kept. Quantizing twice must be the same as quantizing once, and
+       saving a quantized gain must load back unchanged. */
+    const float entered[] = {0.00071f, 0.03821f, 0.1234f, 7.7777f, 1234.5678f};
+    for (unsigned i = 0; i < sizeof(entered) / sizeof(entered[0]); i++) {
+        float once = pid_quantize_gain(entered[i]);
+        TEST_ASSERT_EQUAL_FLOAT(once, pid_quantize_gain(once));
+
+        TEST_ASSERT_EQUAL(ESP_OK, pid_save_gains(once, once, once));
+        float kp = -1, ki = -1, kd = -1;
+        TEST_ASSERT_EQUAL(ESP_OK, pid_load_gains(&kp, &ki, &kd));
+        TEST_ASSERT_EQUAL_FLOAT(once, kp);
+        TEST_ASSERT_EQUAL_FLOAT(once, ki);
+        TEST_ASSERT_EQUAL_FLOAT(once, kd);
+    }
+}
+
 static void test_quantize_can_zero_a_gain_below_nvs_resolution(void)
 {
-    /* Why callers re-validate after quantizing: 5e-5 is a positive Kp on entry
-       and a zero once stored, which with Ki at zero is the dead controller
-       pid_gains_valid() exists to reject. */
-    float kp = pid_quantize_gain(0.00005f);
+    /* Why callers re-validate after quantizing: 4e-5 is a positive Kp on entry
+       and a zero once stored (it rounds to nothing at 1e-4 resolution), which
+       with Ki at zero is the dead controller pid_gains_valid() exists to
+       reject. */
+    float kp = pid_quantize_gain(0.00004f);
     TEST_ASSERT_EQUAL_FLOAT(0.0f, kp);
-    TEST_ASSERT_TRUE(pid_gains_valid(0.00005f, 0.0f, 5.0f));
+    TEST_ASSERT_TRUE(pid_gains_valid(0.00004f, 0.0f, 5.0f));
     TEST_ASSERT_FALSE(pid_gains_valid(kp, 0.0f, 5.0f));
+
+    /* Just above the halfway point it survives, because the encoding rounds to
+       nearest rather than truncating. */
+    TEST_ASSERT_EQUAL_FLOAT(0.0001f, pid_quantize_gain(0.00006f));
 }
 
 /* ── autotune ───────────────────────────────────────────────────────────── */
@@ -396,6 +422,7 @@ int main(void)
     RUN_TEST(test_gains_valid_rejects_out_of_range_and_nonfinite);
     RUN_TEST(test_gains_valid_rejects_controller_that_cannot_heat);
     RUN_TEST(test_quantize_matches_what_nvs_stores);
+    RUN_TEST(test_quantize_is_idempotent_across_the_float_round_trip);
     RUN_TEST(test_quantize_can_zero_a_gain_below_nvs_resolution);
     RUN_TEST(test_autotune_rejects_invalid_args);
     RUN_TEST(test_autotune_starts_in_heating_state);

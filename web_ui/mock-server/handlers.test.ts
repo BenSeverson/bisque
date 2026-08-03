@@ -295,13 +295,13 @@ describe("mock-server firmware parity", () => {
     const r = await post("/pid", { kp: 12.3456789, ki: 0.25, kd: 88 });
     expect(r.status).toBe(200);
     expect(pidResponseSchema.safeParse(r.body).success).toBe(true);
-    // Truncated to 4 decimals, matching pid_quantize_gain in the firmware, so
+    // Rounded to 4 decimals, matching pid_quantize_gain in the firmware, so
     // the value shown is the value the next boot loads.
-    expect(r.body.kp).toBe(12.3456);
-    expect(await get("/pid")).toMatchObject({ kp: 12.3456, ki: 0.25, kd: 88 });
+    expect(r.body.kp).toBe(12.3457);
+    expect(await get("/pid")).toMatchObject({ kp: 12.3457, ki: 0.25, kd: 88 });
 
     // Same gains the auto-tune endpoint reports — one source on the device too.
-    expect((await get("/autotune/status")).currentGains).toMatchObject({ kp: 12.3456 });
+    expect((await get("/autotune/status")).currentGains).toMatchObject({ kp: 12.3457 });
   });
 
   it("POST /pid rejects gains the controller could not heat with", async () => {

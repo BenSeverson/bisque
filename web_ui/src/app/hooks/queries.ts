@@ -97,6 +97,13 @@ export function usePidGains() {
   return useQuery({
     queryKey: queryKeys.pidGains,
     queryFn: () => api.getPidGains(),
+    // Polled because this client is not the only thing that writes gains: the
+    // iOS app can start an auto-tune, and a second browser can edit them. Both
+    // leave this card showing stale values — and seeding its editor from them,
+    // so a later save quietly reverts the other client's change. The endpoint
+    // is a handful of bytes and this is slower than the Wi-Fi query already
+    // running alongside it.
+    refetchInterval: 30000,
     retry: false,
   });
 }
