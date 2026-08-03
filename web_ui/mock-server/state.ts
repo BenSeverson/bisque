@@ -47,6 +47,8 @@ export const state = {
     alarmEnabled: true,
     autoShutdown: true,
     notificationsEnabled: true,
+    elementWatts: 5000,
+    electricityCostKwh: 0.15,
   } as KilnSettings,
 
   firing: {

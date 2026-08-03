@@ -17,6 +17,6 @@ struct KilnSettings: Codable {
         tempUnit: "C", maxSafeTemp: 1300, alarmEnabled: true,
         autoShutdown: true, notificationsEnabled: true, tcOffsetC: 0,
         webhookUrl: "", apiToken: nil, apiTokenSet: false,
-        elementWatts: 2400, electricityCostKwh: 0.12
+        elementWatts: 5000, electricityCostKwh: 0.15
     )
 }

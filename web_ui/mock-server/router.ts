@@ -365,8 +365,8 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
         tcOffsetC: state.settings.tcOffsetC ?? 0,
         webhookUrl: state.settings.webhookUrl ?? "",
         apiTokenSet: false,
-        elementWatts: state.settings.elementWatts ?? 0,
-        electricityCostKwh: state.settings.electricityCostKwh ?? 0,
+        elementWatts: state.settings.elementWatts ?? 5000,
+        electricityCostKwh: state.settings.electricityCostKwh ?? 0.15,
       },
     };
   }

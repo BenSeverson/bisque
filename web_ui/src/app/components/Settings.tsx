@@ -460,7 +460,7 @@ export function Settings() {
                   type="number"
                   min="0"
                   step="100"
-                  placeholder="e.g. 2400"
+                  placeholder="e.g. 5000"
                   {...register("elementWatts", { valueAsNumber: true })}
                 />
               </div>
