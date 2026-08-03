@@ -41,7 +41,10 @@ npm run build
 # Step 2: Gzip assets for SPIFFS (remove originals to fit partition)
 echo "--- Compressing web assets ---"
 cd "$SPIFFS_DIR"
-find . -type f \( -name "*.js" -o -name "*.css" -o -name "*.html" -o -name "*.svg" \) \
+# PNGs are left alone — already deflate-compressed, so gzip only adds a header.
+find . -type f \
+    \( -name "*.js" -o -name "*.css" -o -name "*.html" -o -name "*.svg" \
+       -o -name "*.webmanifest" \) \
     -exec gzip -9 -f {} \;
 
 echo "--- Web UI built to $SPIFFS_DIR ---"

@@ -1,9 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect } from "vitest";
 import {
   readStoredPreference,
   writeStoredPreference,
   resolveTheme,
   applyTheme,
+  THEME_COLORS,
   THEME_STORAGE_KEY,
 } from "./theme";
 
@@ -93,5 +94,53 @@ describe("applyTheme", () => {
     applyTheme(root, "light");
     expect(root.classList.contains("dark")).toBe(false);
     expect(root.style.colorScheme).toBe("light");
+  });
+
+  it("does not throw when the document has no theme-color tags", () => {
+    const root = document.createElement("html");
+    expect(() => applyTheme(root, "dark")).not.toThrow();
+  });
+});
+
+describe("applyTheme / theme-color", () => {
+  /** Stand in for the two media-scoped tags index.html ships. */
+  function seedMetaTags(): HTMLMetaElement[] {
+    return ["(prefers-color-scheme: light)", "(prefers-color-scheme: dark)"].map((media) => {
+      const meta = document.createElement("meta");
+      meta.setAttribute("name", "theme-color");
+      meta.setAttribute("media", media);
+      meta.setAttribute("content", "#123456");
+      document.head.appendChild(meta);
+      return meta;
+    });
+  }
+
+  afterEach(() => {
+    document.head.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.remove());
+  });
+
+  it("writes the resolved colour into every theme-color tag", () => {
+    const [light, dark] = seedMetaTags();
+    applyTheme(document.createElement("html"), "dark");
+    // Both, not just the matching one: the tags stay media-scoped for the no-JS
+    // case, so the only way an explicit preference wins is to agree on a colour.
+    expect(light.getAttribute("content")).toBe(THEME_COLORS.dark);
+    expect(dark.getAttribute("content")).toBe(THEME_COLORS.dark);
+  });
+
+  it("follows a switch back to light", () => {
+    const [light, dark] = seedMetaTags();
+    const root = document.createElement("html");
+    applyTheme(root, "dark");
+    applyTheme(root, "light");
+    expect(light.getAttribute("content")).toBe(THEME_COLORS.light);
+    expect(dark.getAttribute("content")).toBe(THEME_COLORS.light);
+  });
+
+  it("leaves the media attributes alone", () => {
+    const [light, dark] = seedMetaTags();
+    applyTheme(document.createElement("html"), "dark");
+    expect(light.getAttribute("media")).toBe("(prefers-color-scheme: light)");
+    expect(dark.getAttribute("media")).toBe("(prefers-color-scheme: dark)");
   });
 });

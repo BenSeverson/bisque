@@ -46,10 +46,16 @@ build:  ## Full pipeline: web UI + gzip + firmware (== ./build.sh)
 web:  ## Build the web UI bundle into $(SPIFFS_DIR) (does NOT gzip)
 	cd $(WEB_DIR) && npm ci && npm run build
 
+# Keep this file list in sync with the same find in build.sh.
+# PNGs are left alone — already deflate-compressed, so gzip only adds a header.
 gzip:  ## Compress $(SPIFFS_DIR)/* in place; partition only fits gzipped
 	cd $(SPIFFS_DIR) && find . -type f \
-	    \( -name "*.js" -o -name "*.css" -o -name "*.html" -o -name "*.svg" \) \
+	    \( -name "*.js" -o -name "*.css" -o -name "*.html" -o -name "*.svg" \
+	       -o -name "*.webmanifest" \) \
 	    -exec gzip -9 -f {} \;
+
+web-icons:  ## Re-rasterize web_ui/public PWA icons from web_ui/icons/*.svg
+	./scripts/gen-web-icons.sh
 
 firmware:  ## Firmware only — assumes $(SPIFFS_DIR) is already populated
 	$(IDF) idf.py build

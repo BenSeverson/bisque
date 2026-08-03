@@ -63,6 +63,35 @@ export function resolveTheme(preference: ThemePreference, prefersDark: boolean):
 }
 
 /**
+ * The painted `--background` for each scheme, mirrored from `styles/theme.css`
+ * (`#ffffff`, and `oklch(0.145 0 0)` which resolves to `#0a0a0a`).
+ *
+ * `<meta name="theme-color">` only accepts a literal colour, so this pair has
+ * to be duplicated here and in the two media-scoped tags in `index.html`. Retune
+ * all three together if the background ever moves.
+ */
+export const THEME_COLORS: Record<ResolvedTheme, string> = {
+  light: "#ffffff",
+  dark: "#0a0a0a",
+};
+
+/**
+ * Point every `<meta name="theme-color">` at the scheme actually painted.
+ *
+ * `index.html` ships two of these tags, scoped to `prefers-color-scheme`, so the
+ * browser chrome is right before any JS runs. That is as far as markup gets:
+ * a media query cannot know the user pinned "light" in a dark OS, and on a phone
+ * home screen — where this UI is pinned for a 12-hour firing — the mismatch is a
+ * bright status bar over a dark app. Writing the same resolved colour into
+ * *both* tags makes whichever one matches produce the right answer, without
+ * having to strip the `media` attributes and give up the no-JS behaviour.
+ */
+function applyThemeColor(doc: Document, theme: ResolvedTheme): void {
+  const tags = doc.head?.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]');
+  tags?.forEach((tag) => tag.setAttribute("content", THEME_COLORS[theme]));
+}
+
+/**
  * Apply a resolved theme to the document root.
  *
  * `.dark` drives the CSS custom-variant; `color-scheme` makes the browser's own
@@ -72,4 +101,5 @@ export function resolveTheme(preference: ThemePreference, prefersDark: boolean):
 export function applyTheme(root: HTMLElement, theme: ResolvedTheme): void {
   root.classList.toggle("dark", theme === "dark");
   root.style.colorScheme = theme;
+  if (root.ownerDocument) applyThemeColor(root.ownerDocument, theme);
 }
