@@ -212,6 +212,24 @@ final class KilnDiscovery {
 
     // MARK: - Resolution
 
+    /// Looks up one known Bonjour instance and returns where it lives now.
+    ///
+    /// The address a kiln was reached at last time is only as durable as its
+    /// DHCP lease; the instance name outlives it. Resolving the name is what
+    /// turns "the kiln moved" from something the user has to notice and fix
+    /// into something the app corrects on its own.
+    ///
+    /// No browse is involved — this asks for one specific service, so it costs
+    /// a single resolve rather than a probe of everything on the network.
+    /// Returns nil if the service is not on the network right now.
+    static func resolveService(
+        named serviceName: String, timeout: TimeInterval = resolveTimeout
+    ) async -> (host: String, port: Int)? {
+        await resolve(
+            BonjourService(name: serviceName, type: serviceType, domain: "local."),
+            timeout: timeout)
+    }
+
     /// Box for the one mutable flag in `resolve`. Every access happens on the
     /// connection's own serial queue, including the timeout, which is why the
     /// unchecked conformance is sound.

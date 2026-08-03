@@ -273,12 +273,17 @@ struct ConnectionView: View {
         if kiln.requiresToken {
             showTokenField = true
         }
-        connect(host: kiln.host, port: kiln.port)
+        connect(host: kiln.host, port: kiln.port, serviceName: kiln.serviceName)
     }
 
-    private func connect(host newHost: String, port newPort: Int) {
+    /// `serviceName` is nil for a hand-typed address and for the mock server:
+    /// neither is tied to a Bonjour instance, so there is nothing to re-resolve
+    /// them against later, and carrying a stale name over would send the app
+    /// chasing a kiln the user just navigated away from.
+    private func connect(host newHost: String, port newPort: Int, serviceName: String? = nil) {
         connection.host = newHost
         connection.port = newPort
+        connection.serviceName = serviceName
         if !token.isEmpty {
             tokenSaveWarning =
                 connection.setAndSaveToken(token)
