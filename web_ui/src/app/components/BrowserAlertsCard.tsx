@@ -1,15 +1,19 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Label } from "./ui/label";
 import { Switch } from "./ui/switch";
 import {
+  confirmNotificationsWork,
   notificationPermission,
   notificationsSupported,
   readNotifyPreference,
   requestNotificationPermission,
   writeNotifyPreference,
 } from "../utils/browserNotifications";
+
+const BLOCKED_MESSAGE =
+  "Notifications are blocked for this site — allow them in your browser settings";
 
 /**
  * The opt-in for OS notifications when a firing ends (#185).
@@ -28,19 +32,47 @@ export function BrowserAlertsCard() {
   const [permission, setPermission] = useState(() => notificationPermission(window));
   const [enabled, setEnabled] = useState(() => readNotifyPreference(window.localStorage));
 
-  const persist = (on: boolean) => {
-    setEnabled(on);
+  /* Permission is granted and revoked outside this app, and the Settings tab is
+     forceMount'ed — it mounts once for the lifetime of the page. Sampling only
+     at mount meant the card told a blocked user to go and allow notifications
+     and then ignored them doing exactly that, staying disabled until a full
+     reload. Re-read whenever they come back to the tab. */
+  useEffect(() => {
+    const resync = () => {
+      if (document.visibilityState === "visible") setPermission(notificationPermission(window));
+    };
+    document.addEventListener("visibilitychange", resync);
+    window.addEventListener("focus", resync);
+    return () => {
+      document.removeEventListener("visibilitychange", resync);
+      window.removeEventListener("focus", resync);
+    };
+  }, []);
+
+  /**
+   * Write the preference, then adopt whatever storage actually holds.
+   *
+   * `writeNotifyPreference` cannot throw, so a rejected write — a browser
+   * blocking site storage — would otherwise leave the switch showing an opt-in
+   * that the announcement hook, which re-reads this same key, will never see.
+   * Reading back makes the control show the state that will actually be
+   * honoured, and reports whether the user got what they asked for.
+   */
+  const persist = (on: boolean): boolean => {
     writeNotifyPreference(window.localStorage, on);
+    const stored = readNotifyPreference(window.localStorage);
+    setEnabled(stored);
+    return stored === on;
   };
 
   const onToggle = async (on: boolean) => {
     if (!on) {
-      persist(false);
+      if (!persist(false)) toast.error("This browser is blocking site storage, so this stays on");
       return;
     }
 
     if (permission === "denied") {
-      toast.error("Notifications are blocked for this site — allow them in your browser settings");
+      toast.error(BLOCKED_MESSAGE);
       return;
     }
 
@@ -56,15 +88,29 @@ export function BrowserAlertsCard() {
       // not honour — the announcement would then silently never arrive.
       persist(false);
       toast.error(
-        result === "denied"
-          ? "Notifications are blocked for this site — allow them in your browser settings"
-          : "Permission was not granted, so notifications stay off",
+        result === "denied" ? BLOCKED_MESSAGE : "Permission was not granted, so alerts stay off",
       );
       return;
     }
 
-    persist(true);
-    toast.success("You'll be notified when a firing completes or errors");
+    /* Confirm with a real notification before claiming this works. Chrome for
+       Android has the constructor but throws on `new Notification()`, and there
+       is no way to detect that without trying — so the alternative to trying
+       here is a switch that turns on, says "you'll be notified", and then
+       silently never notifies. */
+    if (!confirmNotificationsWork(window)) {
+      persist(false);
+      toast.error(
+        "This browser can't show notifications from a web page. Firing results still appear here and in the tab title.",
+      );
+      return;
+    }
+
+    if (!persist(true)) {
+      toast.error("This browser is blocking site storage, so the setting can't be saved");
+      return;
+    }
+    toast.success("You'll be alerted when a firing completes or errors");
   };
 
   return (
@@ -81,10 +127,16 @@ export function BrowserAlertsCard() {
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label htmlFor="browser-notifications">Desktop notifications</Label>
+              {/* Not "with the tab closed", which the first draft of this card
+                  claimed. Nothing observes the kiln once the page is gone —
+                  there is no service worker and no push subscription — so the
+                  alert only fires while Bisque is loaded. Telling an operator
+                  otherwise would invite them to close the tab and wait for
+                  something that is never coming. */}
               <p className="text-sm text-muted-foreground">
                 {permission === "denied"
                   ? "Blocked for this site. Allow notifications in your browser settings first."
-                  : "A firing runs for hours — this reaches you with the tab closed."}
+                  : "Reaches you while Bisque is open in a background tab — a firing runs for hours."}
               </p>
             </div>
             <Switch

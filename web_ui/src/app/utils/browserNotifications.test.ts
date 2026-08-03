@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import {
+  confirmNotificationsWork,
   NOTIFY_STORAGE_KEY,
   notificationPermission,
   notificationsSupported,
@@ -154,10 +155,17 @@ describe("writeNotifyPreference", () => {
   });
 });
 
+/** A browser with the constructor present but non-functional — Chrome/Android. */
+function androidChromeWindow(): NotificationWindow {
+  return fakeWindow("granted", () => {
+    throw new TypeError("Illegal constructor");
+  });
+}
+
 describe("showFiringNotification", () => {
   it("passes the announcement's title and body to the constructor", () => {
     const seen = vi.fn();
-    showFiringNotification(fakeWindow("granted", seen), announcement);
+    expect(showFiringNotification(fakeWindow("granted", seen), announcement)).toBe(true);
     expect(seen).toHaveBeenCalledTimes(1);
     const [title, options] = seen.mock.calls[0];
     expect(title).toBe(announcement.title);
@@ -169,15 +177,44 @@ describe("showFiringNotification", () => {
 
   // Chrome on Android throws `Illegal constructor` here — it requires
   // ServiceWorkerRegistration.showNotification(), and this app registers no
-  // service worker. The toast and tab title still have to land.
-  it("swallows a constructor that throws", () => {
-    const win = fakeWindow("granted", () => {
-      throw new TypeError("Illegal constructor");
-    });
-    expect(() => showFiringNotification(win, announcement)).not.toThrow();
+  // service worker. The toast and tab title still have to land, so this must
+  // not throw — but it must not claim success either.
+  it("reports failure, without throwing, when the constructor throws", () => {
+    expect(() => showFiringNotification(androidChromeWindow(), announcement)).not.toThrow();
+    expect(showFiringNotification(androidChromeWindow(), announcement)).toBe(false);
   });
 
-  it("does nothing when unsupported", () => {
-    expect(() => showFiringNotification({}, announcement)).not.toThrow();
+  it("reports failure when unsupported", () => {
+    expect(showFiringNotification({}, announcement)).toBe(false);
+  });
+});
+
+describe("confirmNotificationsWork", () => {
+  it("posts a real notification and reports success", () => {
+    const seen = vi.fn();
+    expect(confirmNotificationsWork(fakeWindow("granted", seen))).toBe(true);
+    expect(seen).toHaveBeenCalledTimes(1);
+    const [title, options] = seen.mock.calls[0];
+    expect(title.length).toBeGreaterThan(0);
+    expect(options?.body.length).toBeGreaterThan(0);
+  });
+
+  // The whole reason this exists: the opt-in used to turn on and promise
+  // delivery on a platform where every subsequent notification was discarded by
+  // the constructor's catch. Detecting it needs an actual attempt.
+  it("reports failure on a browser whose constructor throws", () => {
+    expect(confirmNotificationsWork(androidChromeWindow())).toBe(false);
+  });
+
+  it("reports failure when unsupported", () => {
+    expect(confirmNotificationsWork({})).toBe(false);
+  });
+
+  it("shares the firing tag, so the confirmation is replaced rather than stacked", () => {
+    const confirmSeen = vi.fn();
+    const firingSeen = vi.fn();
+    confirmNotificationsWork(fakeWindow("granted", confirmSeen));
+    showFiringNotification(fakeWindow("granted", firingSeen), announcement);
+    expect(confirmSeen.mock.calls[0][1]?.tag).toBe(firingSeen.mock.calls[0][1]?.tag);
   });
 });

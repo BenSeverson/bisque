@@ -1,8 +1,14 @@
 /**
  * The optional outermost layer of a firing announcement: an OS notification
- * that reaches the operator with the tab closed.
+ * that reaches the operator when Bisque is open but unwatched.
  *
- * Optional because it is the one layer that cannot be relied on:
+ * **Not** with the tab closed. Nothing observes the kiln once the page is gone
+ * — the announcement is driven by the live WebSocket in
+ * `hooks/useFiringAnnouncements.ts`, and there is no service worker and no push
+ * subscription to stand in for it. Any copy that implies otherwise invites an
+ * operator to close the tab and wait for an alert that is never coming.
+ *
+ * Optional because it is also the one layer that cannot be relied on:
  *
  *   - The Notification API is **secure-context only**, and the firmware serves
  *     the UI over plain HTTP on a LAN IP (there is no TLS anywhere in
@@ -11,10 +17,12 @@
  *     localhost.
  *   - Chrome on Android throws `Illegal constructor` for `new Notification()`;
  *     it requires `ServiceWorkerRegistration.showNotification()`, and this app
- *     registers no service worker.
+ *     registers no service worker. The constructor's *presence* therefore says
+ *     nothing about delivery, which is why posting reports success or failure
+ *     instead of swallowing it — see `post()`.
  *
- * Every entry point therefore degrades rather than throws, and the toast and
- * tab title in `hooks/useFiringAnnouncements.ts` carry the feature on their own.
+ * Every entry point degrades rather than throws, and the toast and tab title in
+ * `hooks/useFiringAnnouncements.ts` carry the feature on their own.
  *
  * The opt-in is stored per browser rather than in the firmware's
  * `notificationsEnabled`, because permission is per browser: muting Bisque on
@@ -110,23 +118,51 @@ export function shouldNotify(args: {
 }
 
 /**
- * Post the notification, absorbing any failure.
- *
- * The `tag` collapses repeats: a second firing replaces the first rather than
- * stacking a week of completions in the notification shade.
+ * One tag for every notification this app posts, so a second firing replaces
+ * the first rather than stacking a week of completions in the shade.
  */
+const FIRING_TAG = "bisque-firing";
+
+/**
+ * Post a notification, reporting whether the browser actually built one.
+ *
+ * The boolean is the point. `notificationsSupported()` can only see that a
+ * constructor exists, and on Chrome for Android one does while `new
+ * Notification()` throws — the platform requires
+ * `ServiceWorkerRegistration.showNotification()`. Swallowing that silently is
+ * what let the opt-in promise delivery it could never make, so the failure is
+ * returned rather than absorbed and the caller decides what to say.
+ */
+function post(win: NotificationWindow | undefined, n: { title: string; body: string }): boolean {
+  if (!notificationsSupported(win)) return false;
+  try {
+    new win!.Notification!(n.title, { body: n.body, tag: FIRING_TAG, icon: "icon-192.png" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function showFiringNotification(
   win: NotificationWindow | undefined,
   announcement: FiringAnnouncement,
-): void {
-  if (!notificationsSupported(win)) return;
-  try {
-    new win!.Notification!(announcement.title, {
-      body: announcement.body,
-      tag: "bisque-firing",
-      icon: "icon-192.png",
-    });
-  } catch {
-    /* Android Chrome throws here; the toast and tab title still landed. */
-  }
+): boolean {
+  return post(win, { title: announcement.title, body: announcement.body });
+}
+
+/**
+ * Confirm the opt-in with a real notification — which doubles as the only
+ * honest test that this browser can deliver one at all.
+ *
+ * There is no way to know before trying: the capability is not introspectable,
+ * and probing eagerly would fire a stray notification at anyone whose
+ * permission was already granted. Doing it here, once, at the moment the user
+ * asks for notifications, costs nothing they did not just request and turns an
+ * undetectable platform gap into an answer the switch can act on.
+ */
+export function confirmNotificationsWork(win: NotificationWindow | undefined): boolean {
+  return post(win, {
+    title: "Bisque alerts are on",
+    body: "You'll get one of these when a firing completes or errors.",
+  });
 }

@@ -53,10 +53,29 @@ export function useFiringAnnouncements(): void {
   const prevStatus = useRef<FiringStatus | null>(null);
   /* Whether we replaced document.title and still owe a restore. */
   const titleClaimed = useRef(false);
+  /* The live fault toast, which never expires on its own — see below. */
+  const faultToast = useRef<string | number | null>(null);
 
   useEffect(() => {
     const prev = prevStatus.current;
     prevStatus.current = status;
+
+    /* The fault toast opts out of its own dismissal timer, so it has to be
+       retracted deliberately. Once the kiln is out of `error` — stopped, reset,
+       or restarted from the LCD, the iOS app or another tab — "Firing stopped"
+       is no longer a true statement, and an unattended tab would otherwise fly
+       it over the whole of the next firing.
+
+       sonner defers the removal itself to a requestAnimationFrame, which a
+       hidden tab never runs, so in the background case this takes effect on the
+       first frame painted after the user comes back rather than immediately.
+       That is the right moment anyway — nobody was reading it in between — but
+       it does mean the retraction is invisible to any test whose tab stays
+       hidden, which reads as a broken dismiss. It is not. */
+    if (status !== "error" && faultToast.current !== null) {
+      toast.dismiss(faultToast.current);
+      faultToast.current = null;
+    }
 
     const announcement = announcementFor(prev, status);
     if (!announcement) {
@@ -67,11 +86,12 @@ export function useFiringAnnouncements(): void {
     }
 
     if (announcement.kind === "error") {
-      toast.error(announcement.title, {
+      /* Sticky. Every other toast in this app reports something the user just
+         did and can afford to expire; this one reports a kiln fault to someone
+         who may not read it for eight hours. Held by id so the block above can
+         retract it the moment it stops being true. */
+      faultToast.current = toast.error(announcement.title, {
         description: announcement.body,
-        /* Sticky. Every other toast in this app reports something the user just
-           did and can afford to expire; this one reports a kiln fault to
-           someone who may not read it for eight hours. */
         duration: Infinity,
       });
     } else {
