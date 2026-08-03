@@ -298,3 +298,60 @@ describe("dispatch() natural completion", () => {
     expect(record.peakTemp).toBe(Math.round(state.firing.peakTemp));
   });
 });
+
+/**
+ * The tune runs on its own interval with state.firing.running still false, so
+ * a duty derived from the firing state alone reads a flat 0% for the whole run
+ * (#180 review). The firmware drives the SSR bang-bang on every tune tick, and
+ * watching the element cycle is the reason to look at the card during a tune.
+ */
+describe("dispatch() auto-tune element power", () => {
+  const dutyOf = () => (dispatch("GET", "/status", {}).json as { dutyPercent: number }).dutyPercent;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    dispatch("POST", "/autotune/stop", {});
+    if (state.interval) {
+      clearInterval(state.interval);
+      state.interval = null;
+    }
+    vi.useRealTimers();
+    state.firing.status = "idle";
+    state.firing.coolingDown = false;
+    state.firing.currentTemp = 20;
+  });
+
+  it("cycles the relay across a tune rather than sitting at zero", () => {
+    dispatch("POST", "/autotune/start", { setpoint: 900, hysteresis: 5 });
+
+    // The tune ends itself at 60 ticks, which is a shade under one full
+    // oscillation (0.1 rad/tick) — enough for one trough and one peak.
+    const seen = new Set<number>();
+    for (let i = 0; i < 60 && state.autotune.running; i++) {
+      vi.advanceTimersByTime(1000);
+      if (state.autotune.running) seen.add(dutyOf());
+    }
+    expect([...seen].sort()).toEqual([0, 100]);
+  });
+
+  it("holds the relay through the hysteresis band instead of chattering", () => {
+    dispatch("POST", "/autotune/start", { setpoint: 900, hysteresis: 5 });
+    vi.advanceTimersByTime(1000);
+
+    // Inside the band the latch keeps its last answer, so a reading that has
+    // not reached either threshold cannot flip the output.
+    const before = dutyOf();
+    state.autotune.currentTemp = 900;
+    expect(dutyOf()).toBe(before);
+  });
+
+  it("drops back to zero once the tune stops", () => {
+    dispatch("POST", "/autotune/start", { setpoint: 900, hysteresis: 5 });
+    vi.advanceTimersByTime(1000);
+    dispatch("POST", "/autotune/stop", {});
+    expect(dutyOf()).toBe(0);
+  });
+});

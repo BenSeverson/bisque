@@ -303,6 +303,15 @@ describe("kilnStore: WebSocket temp_update handling", () => {
     expect(useKilnStore.getState().firingProgress.dutyPercent).toBeNull();
   });
 
+  it("drops a cached reading when frames stop carrying the field (#180)", () => {
+    // The store outlives a reconnect, so an OTA rollback to firmware without
+    // the field would otherwise leave the last percentage on screen forever.
+    // Field presence is a property of the firmware, not of the frame.
+    wsSubscriber!(tempFrame({ isActive: true, status: "heating", dutyPercent: 62 }));
+    wsSubscriber!(tempFrame({ isActive: true, status: "heating" }));
+    expect(useKilnStore.getState().firingProgress.dutyPercent).toBeNull();
+  });
+
   it("keeps the reported element power when a firing ends (#180)", () => {
     // The elapsed/segment figures are cleared on this edge because they describe
     // a firing that is over; the duty describes the kiln, and the same frame

@@ -252,9 +252,15 @@ export const useKilnStore = create<KilnState>((set) => ({
               /* Not zeroed on endedFiring: unlike the elapsed/segment figures
                  above, this one still describes the kiln after the firing ends
                  — the element is genuinely off, and the firmware says so in the
-                 same frame. Held at the previous value only when the frame
-                 omits the field entirely (pre-#180 firmware). */
-              dutyPercent: d.dutyPercent ?? prev.dutyPercent,
+                 same frame.
+
+                 An omitted field resets to null rather than holding the last
+                 reading. Whether the field exists is a property of the
+                 firmware, not of the frame, so "absent" means "this kiln cannot
+                 report power" — and the store outlives a reconnect, so after an
+                 OTA rollback to pre-#180 firmware a retained value would sit
+                 there as a stale percentage forever. */
+              dutyPercent: d.dutyPercent ?? null,
               status,
             },
             currentTempData: newData,

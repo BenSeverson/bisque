@@ -440,8 +440,13 @@ function publishedTemp(): number {
  * isn't an active control tick (paused, armed-but-not-started, idle, complete,
  * error). Deriving this from the thermal model alone would keep showing power
  * to a kiln that had been stopped.
+ *
+ * Auto-tune is checked first and separately: it runs on its own interval with
+ * state.firing.running still false, and the firmware's tune branch drives the
+ * SSR bang-bang (`safety_set_ssr(output)`), not from the firing PID.
  */
 function publishedDutyPercent(): number {
+  if (state.autotune.running) return state.autotune.relayOn ? 100 : 0;
   const f = state.firing;
   if (!f.running || f.paused || f.scheduled) return 0;
   return Math.round(elementDuty(f.currentTemp, f.setpoint) * 100);
