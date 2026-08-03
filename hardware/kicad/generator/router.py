@@ -14,6 +14,15 @@ VIA_DIA = 0.6
 VIA_DRILL = 0.3
 BUCKET = 2.0
 
+# Gap a via's copper must keep from any SMD pad, *including one on its own
+# net*. Different-net pads are already covered by CLEAR; this exists for the
+# same-net case, which clearance rules deliberately ignore and which DRC will
+# never flag. An untented via inside a pad wicks solder out of the joint
+# during reflow — the alternative fix, filled-and-capped via-in-pad, is a
+# JLCPCB upcharge, and mask tenting cannot work because the pad's own mask
+# opening exposes the barrel anyway.
+VIA_PAD_GAP = 0.15
+
 
 class Shape:
     """Axis-aligned rect or circle, on layer set. net None = blocks all."""
@@ -167,6 +176,13 @@ class Router:
                     break
         if r:
             r = self._clear_of(net, x, y, 0, need, check_layer=False)
+        if r:
+            # no via-in-pad: SMD pads (drill == 0) block regardless of net
+            for o in self._near(x, y):
+                if isinstance(o, Shape) and o.drill == 0.0 and \
+                   o.dist(x, y) < VIA_DIA / 2.0 + VIA_PAD_GAP:
+                    r = False
+                    break
         if r:
             # hole-to-hole clearance: applies regardless of net
             for o in self._near(x, y):

@@ -9,10 +9,10 @@ Rotations are KiCad angles plus a per-package correction, because JLCPCB's
 pick-and-place uses a different zero-rotation reference for some package
 families; see JLC_ROTATION.
 
-Through-hole parts need JLCPCB's *Standard* assembly (Economic is SMD,
-top-side only), and JLC's through-hole assembly coverage is narrower than its
-SMD coverage — the BOM flags each THT line so they can be confirmed in the
-order UI.
+Parts in HAND_SOLDER are deliberately left off *both* files and written to
+hand-solder-parts.csv instead — see that table for why. JLCPCB's PCBA upload
+rejects a CPL carrying designators the BOM doesn't have, so a part must drop
+out of both or neither.
 """
 import csv
 import os
@@ -99,7 +99,7 @@ LCSC = {
     # C1710, not C57112: C57112 is an 0603 part and this land pattern is 0805.
     "C9": ("C1710", "CL21B103KBANNNC 10nF 50V X7R 0805", True, True),
     "C10": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
-    "C12": ("C15850", "CL21A106KAYNNNE 10uF 25V X5R 0805", True, True),
+    "C11": ("C15850", "CL21A106KAYNNNE 10uF 25V X5R 0805", True, True),
     "BZ1": ("C96093", "TMB12A05 active magnetic buzzer 5V 12mm THT P7.6", False, True),
     "J1": ("C165948", "HRO TYPE-C-31-M-12 USB-C 16P", False, True),
     "J2": ("C8465", "WJ500V-5.08-2P 5.08mm screw terminal 1x02", False, True),
@@ -108,8 +108,58 @@ LCSC = {
     "J5": ("C240822", "Molex 22-27-2081 KK-254 friction-lock wafer 1x08", False, True),
     "J6": ("C239381", "A2547WV-6P KK-254 friction-lock wafer 1x06", False, True),
     "J7": ("C240822", "Molex 22-27-2081 KK-254 friction-lock wafer 1x08", False, True),
-    "SW1": ("C393938", "TS665CJ 6x6mm THT tactile switch", False, True),
-    "SW2": ("C393938", "TS665CJ 6x6mm THT tactile switch", False, True),
+    "SW1": ("C318884", "TS-1187A-B-A-B 5.1x5.1mm SMD tactile switch", True, True),
+    "SW2": ("C318884", "TS-1187A-B-A-B 5.1x5.1mm SMD tactile switch", True, True),
+}
+
+# Parts fitted by hand rather than by JLCPCB.
+#
+# Each unique Extended part costs a $3 feeder-loading fee regardless of how
+# many boards are built, and any through-hole part forces the whole order
+# onto Standard assembly (Economic is SMD, top-side only) with a per-joint
+# charge on top. The seven through-hole parts here are $1.45/board of
+# connectors and a buzzer on 2.54 mm and 5.08 mm pitch — the easiest joints
+# on the board — but between them they carried four of the ten unique
+# Extended parts. LED1 is the fifth: no addressable RGB LED at LCSC is a
+# Basic part (checked across WS2812/SK6812/XL-xxxx), so its $3 buys nothing
+# a soldering iron can't do to a 5050 with four edge-accessible pads.
+#
+# Dropping these takes the order from 10 unique Extended parts to 4 (U1, U3,
+# U4, J1) and from Standard assembly to Economic. The remaining SMD parts are
+# the ones where machine placement is actually worth paying for.
+HAND_SOLDER = {
+    "BZ1",                            # 12 mm buzzer, 7.6 mm pitch
+    "J2", "J3", "J4",                 # 5.08 mm screw terminals
+    "J5", "J6", "J7",                 # KK-254 friction-lock wafers
+    "LED1",                           # WS2812B, PLCC-4 5050
+}
+
+# Second source at Mouser for the hand-fitted parts, keyed by LCSC part
+# number, so the shopping list works against either supplier.
+#
+# Three of these five are Chinese generics on LCSC and the Mouser column is
+# the *genuine* part the KiCad footprint was drawn from — so it fits at least
+# as well, clone dimensional tolerance being the usual source of trouble. It
+# also costs several times more: a real Phoenix MKDS is dollars against cents
+# for the WJ500V clone, taking this list from ~$1.50/board to roughly
+# $8–12/board.
+#
+# Verified 2026-07-31 by MPN and datasheet, *not* by live API — there is no
+# Mouser API key configured and Mouser blocks automated page fetches. Confirm
+# stock and price at order time.
+MOUSER_ALT = {
+    "C240822": ("22-27-2081", "Molex",
+                "identical part - the LCSC line is already genuine Molex"),
+    "C239381": ("22-27-2061", "Molex",
+                "genuine KK-254 1x06; LCSC line is an A2547WV clone"),
+    "C8465": ("1715721", "Phoenix Contact",
+              "MKDS 1,5/2-5,08 - the part this footprint is named for"),
+    "C96093": ("CMI-1295-0585T", "Same Sky",
+               "12x9.5mm body, 7.6mm pitch, 5V THT active - datasheet-verified"),
+    # Mouser hosts WS2812B datasheets and sells third-party modules built on
+    # it, but no bare Worldsemi 5050 could be found in their catalog.
+    "C2761795": ("", "",
+                 "NOT AT MOUSER - source from LCSC, DigiKey, Adafruit or SparkFun"),
 }
 
 _FP_ATTR_CACHE = {}
@@ -132,20 +182,28 @@ def assembly_refs():
     return [ref for ref in COMPONENTS if not ref.startswith("H")]
 
 
-def main(outdir):
-    os.makedirs(outdir, exist_ok=True)
-    bom_path = os.path.join(outdir, "BOM.csv")
-    cpl_path = os.path.join(outdir, "CPL.csv")
-
-    refs = assembly_refs()
-
-    # group identical parts
+def group_by_part(refs):
+    """refs -> {(value, footprint, lcsc): [ref, ...]}"""
     groups = {}
     for ref in refs:
         c = COMPONENTS[ref]
         part = LCSC.get(ref)
         key = (c["value"], c["fp"], part[0] if part else "")
         groups.setdefault(key, []).append(ref)
+    return groups
+
+
+def main(outdir):
+    os.makedirs(outdir, exist_ok=True)
+    bom_path = os.path.join(outdir, "BOM.csv")
+    cpl_path = os.path.join(outdir, "CPL.csv")
+    hand_path = os.path.join(outdir, "hand-solder-parts.csv")
+
+    all_refs = assembly_refs()
+    refs = [r for r in all_refs if r not in HAND_SOLDER]
+    hand_refs = [r for r in all_refs if r in HAND_SOLDER]
+
+    groups = group_by_part(refs)
 
     missing = [r for r in refs if not (LCSC.get(r) or ("",))[0]]
     tht = sorted({r for r in refs if is_through_hole(COMPONENTS[r]["fpf"])})
@@ -177,15 +235,45 @@ def main(outdir):
                 corrections.append((ref, fp_name, rot, jrot, offset))
             w.writerow([ref, "%.3fmm" % x, "%.3fmm" % (-y), "Top", "%.1f" % jrot])
 
-    print("wrote %s, %s" % (bom_path, cpl_path))
-    print("%d assembly parts, %d BOM lines, LCSC verified %s"
-          % (len(refs), len(groups), VERIFIED_ON))
+    # Shopping list for the parts JLCPCB is *not* fitting. Same LCSC part
+    # numbers, so it can be pasted straight into an LCSC cart alongside the
+    # PCBA order — but nothing here is bound to LCSC's catalogue any more,
+    # which matters for the KK-254 wafers (the lowest-stock lines on the BOM).
+    no_alt = []
+    with open(hand_path, "w", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(["Designator", "Comment", "Footprint", "LCSC Part #",
+                    "Qty per board", "Description",
+                    "Mouser MPN", "Mouser Manufacturer", "Second-source note"])
+        for (value, fp, lcsc), grefs in sorted(group_by_part(hand_refs).items(),
+                                               key=lambda kv: kv[1][0]):
+            part = LCSC.get(grefs[0])
+            mpn, mfr, note = MOUSER_ALT.get(lcsc, ("", "", ""))
+            if not mpn:
+                no_alt.append("%s (%s)" % (",".join(grefs), lcsc))
+            w.writerow([",".join(grefs), value, fp.split(":", 1)[1], lcsc,
+                        len(grefs), part[1] if part else "",
+                        mpn, mfr, note])
+
+    ext = {LCSC[r][0] for r in refs if r in LCSC and not LCSC[r][2]}
+    print("wrote %s, %s, %s" % (bom_path, cpl_path, hand_path))
+    print("%d parts to JLCPCB (%d BOM lines), %d hand-soldered, LCSC verified %s"
+          % (len(refs), len(groups), len(hand_refs), VERIFIED_ON))
+    print("%d unique Extended part(s) -> $%d in feeder fees: %s"
+          % (len(ext), 3 * len(ext), ", ".join(sorted(ext))))
+    print("hand-soldered: %s" % ", ".join(sorted(hand_refs)))
+    if no_alt:
+        print("  no Mouser second source for: %s" % ", ".join(no_alt))
     if corrections:
         print("JLCPCB rotation corrections applied (%d):" % len(corrections))
         for ref, fp_name, rot, jrot, offset in corrections:
             print("  %-5s %-28s %3.0f -> %3.0f (+%d)" % (ref, fp_name, rot, jrot, offset))
     if tht:
-        print("through-hole parts (Standard assembly required): %s" % ", ".join(tht))
+        print("WARNING: through-hole parts still in the assembly BOM (forces "
+              "Standard assembly): %s" % ", ".join(tht))
+    else:
+        print("no through-hole parts in the assembly BOM -> Economic "
+              "(SMD, top-side) assembly is sufficient")
     if missing:
         print("WARNING: no LCSC part for: %s" % ", ".join(missing))
 

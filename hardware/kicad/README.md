@@ -2,9 +2,11 @@
 
 A single-board replacement for the perfboard build documented in
 `docs/perfboard-layout.svg` / `docs/wiring-diagram.svg`. 2-layer,
-100 × 80 mm, built for **JLCPCB assembly**: 0805 passives, SOIC-8, SOT-23
-and the ESP32-S3-WROOM-1 module's castellated pads, plus nine through-hole
-parts (terminals, wafers, buzzer, tact switches).
+100 × 80 mm, built for **JLCPCB assembly**: 0805 passives, SOIC-8, SOT-23,
+SMD tact switches and the ESP32-S3-WROOM-1 module's castellated pads all go
+down the SMT line, plus seven through-hole parts (terminals, wafers, buzzer)
+and the WS2812B that are fitted by hand — see "Fabrication & assembly"
+below for why that split is much cheaper than it looks.
 
 Built and validated with **real KiCad** (10.0.4, pcbnew Python API +
 kicad-cli): footprints come from KiCad's installed libraries, ground pours
@@ -25,7 +27,7 @@ official component models.
 | `bisque-controller-drc.rpt` | KiCad DRC report (0 errors; warnings are silk/lib-path noise) |
 | `gerbers/` | Fabrication outputs (kicad-cli: gerbers + Excellon drill + job file) |
 | `pdf/` | Schematic and board PDFs (kicad-cli) |
-| `jlcpcb/` | Assembly BOM + CPL for JLCPCB |
+| `jlcpcb/` | Assembly BOM + CPL for JLCPCB, plus the hand-solder shopping list |
 | `generator/` | Scripts that build everything from one connectivity table |
 
 ## Opening it
@@ -121,7 +123,7 @@ them).
 | C3 | 22 µF 10 V X5R | 1206 |
 | C2, C4, C6, C8, C10 | 100 nF | 0805 |
 | C5 | 1 µF | 0805 |
-| C7, C12 | 10 µF | 0805 |
+| C7, C11 | 10 µF | 0805 |
 | C9 | 10 nF | 0805 |
 | BZ1 | active buzzer 5 V | 12 mm THT, 7.6 mm pitch |
 | J1 | USB-C 16-pin receptacle | HRO TYPE-C-31-M-12 |
@@ -129,7 +131,7 @@ them).
 | J5, J7 | Molex KK-254 friction-lock header 1×8 (AE-6410-08A / 22-27-2081) | 2.54 mm THT |
 | J6 | Molex KK-254 friction-lock header 1×6 (AE-6410-06A / 22-27-2061) | 2.54 mm THT |
 | — mates | KK-254 housing 1×8 (22-01-3087) ×2, 1×6 (22-01-3067), crimps 08-50-0114 | — |
-| SW1, SW2 | tactile switch | 6 mm THT |
+| SW1, SW2 | XKB TS-1187A tactile switch | 5.1 × 5.1 mm SMD |
 | H1–H4 | M3 mounting hole, grounded, 90 × 70 mm grid | — |
 
 ## Fabrication & assembly at JLCPCB
@@ -152,35 +154,141 @@ Bare boards: **~$2–4 for 5 pcs** (their locked 2-layer ≤100×100 mm price)
 plus shipping. Ready-to-upload gerbers + drill files are in `gerbers/`.
 
 **Assembly**: `generator/gen_jlc.py` writes `jlcpcb/BOM.csv` +
-`jlcpcb/CPL.csv` for the PCBA upload. All 45 assembly parts carry an LCSC
-part number that was verified against the catalog (package, value, stock) —
-there are no blanks and nothing to guess at in JLC's BOM matcher. The
-passives, AO3400A, SS34/SS14, 1N4148W and AMS1117 are 18 cheap **Basic**
-parts (no feeder-loading fee). Ten unique **Extended** parts each add a
-loading fee: the module (ESP32-S3-WROOM-1-N16R8, C2913202 — matches the
-firmware's 16 MB flash + octal PSRAM config), MAX31855KASA+T (C52028),
-USBLC6-2SC6 (C7519), USB-C (C165948), WS2812B (C2761795), screw terminals
-(C8465), the two KK-254 wafers (C240822 / C239381), buzzer (C96093) and tact
-switches (C393938). Note that six of those ten are the through-hole parts —
-full assembly costs meaningfully more than an SMD-only build for that reason.
+`jlcpcb/CPL.csv` for the PCBA upload, and `jlcpcb/hand-solder-parts.csv` for
+the parts you fit yourself. Every part carries an LCSC part number verified
+against the catalog (package, value, stock) — there are no blanks and nothing
+to guess at in JLC's BOM matcher.
+
+**The board is deliberately split between the SMT line and a soldering
+iron**, because JLCPCB's cost at prototype quantities is driven almost
+entirely by fixed fees rather than parts. The BOM is only ~$9.85/board, 76 %
+of which is two chips (ESP32-S3 module $5.15, MAX31855 $2.37). Against that,
+each unique **Extended** part costs a flat $3 feeder-loading fee no matter how
+many boards you build, and a single through-hole part forces the whole order
+onto **Standard** assembly (Economic is SMD, top-side only) with a per-joint
+charge on top.
+
+`HAND_SOLDER` in `gen_jlc.py` therefore drops eight designators from both the
+BOM and the CPL — they must leave together, since JLCPCB's upload rejects a
+CPL carrying designators the BOM does not have:
+
+| Hand-fitted | Why |
+|---|---|
+| J2, J3, J4 (screw terminals), J5, J6, J7 (KK-254 wafers), BZ1 (buzzer) | 5.08 mm and 2.54 mm pitch — the easiest joints on the board, but between them four unique Extended parts *and* the entire reason the order would need Standard assembly |
+| LED1 (WS2812B, PLCC-4 5050) | No addressable RGB LED at LCSC is a Basic part (checked across WS2812/SK6812/XL-xxxx), so its $3 buys nothing an iron can't do to four edge-accessible pads |
+
+What's left goes down the SMT line, where machine placement is actually worth
+paying for: **19 Basic parts** (passives, LEDs, AO3400A, SS34/SS14, 1N4148W,
+AMS1117 and both tact switches) at no feeder fee, and **4 Extended** — the
+module (ESP32-S3-WROOM-1-N16R8, C2913202, matching the firmware's 16 MB flash
++ octal PSRAM config), MAX31855KASA+T (C52028), USBLC6-2SC6 (C7519) and USB-C
+(C165948).
+
+SW1/SW2 are **SMD** tact switches (XKB TS-1187A, C318884), not the 6 mm
+through-hole part: it is a Basic part, so it costs no feeder fee *and* stays
+machine-placed. That single substitution removes a $3 fee and two of the
+through-hole parts outright.
+
+`hand-solder-parts.csv` carries a **Mouser second source** for each line, so
+the shopping list works against either supplier:
+
+| Ref | LCSC | Mouser alternate |
+|---|---|---|
+| J5, J7 | C240822 | Molex **22-27-2081** — identical, the LCSC line is already genuine Molex |
+| J6 | C239381 | Molex **22-27-2061** — genuine KK-254 1×06 (LCSC line is an A2547WV clone) |
+| J2, J3, J4 | C8465 | Phoenix Contact **1715721** (MKDS 1,5/2-5,08) — the part this footprint is named for |
+| BZ1 | C96093 | Same Sky **CMI-1295-0585T** — Ø12 × 9.5 mm, 7.6 mm pitch, 5 V THT active |
+| LED1 | C2761795 | **none** — no bare Worldsemi 5050 in Mouser's catalog; use LCSC, DigiKey, Adafruit or SparkFun |
+
+Three of the five LCSC lines are Chinese generics and the Mouser column is the
+genuine part each footprint was drawn from, so it fits at least as well —
+clone dimensional tolerance being the usual source of trouble. It costs
+several times more, though: a real Phoenix MKDS is dollars against cents for
+the WJ500V clone, taking this list from ~$1.50/board to roughly $8–12/board.
+The alternates were verified by MPN and datasheet, not by live API (no Mouser
+API key, and Mouser blocks automated page fetches) — confirm stock at order
+time.
+
+Net effect: **10 unique Extended parts → 4** ($30 → $12 in feeder fees), and
+**Standard → Economic** assembly. It also removes the biggest unknown in the
+order — JLC's through-hole coverage is narrower than its SMD coverage, so
+"will they actually place these?" no longer needs answering.
 
 The CPL applies JLCPCB's per-package rotation corrections (see
 `JLC_ROTATION` in `gen_jlc.py`) rather than leaving them to be caught in the
 order preview — currently U2, U3, U4, Q1 and Q2. Still worth a glance at the
-preview for the polarized two-terminal parts (D1–D4, LED1–LED3), since a
+preview for the polarized two-terminal parts (D1–D4, LED2, LED3), since a
 flip there is cheap to spot and expensive to miss.
 
-The nine through-hole parts require JLCPCB's **Standard** assembly (Economic
-is SMD, top-side only). JLC's through-hole coverage is narrower than its SMD
-coverage, so confirm at order time that it will place the terminals, wafers,
-buzzer and switches; the BOM flags each THT line for exactly this reason.
+### Estimated cost
 
-Rough costs: bare boards ~$2–4 for 5. Full Standard assembly is dominated by
-the ten extended-part loading fees (~$3 each) plus setup and the ~$8/board
-BOM, so budget on the order of **$80–110 for 5 boards, 2 assembled**. Economic
-(SMD-only) assembly drops six loading fees and the Standard-tier premium,
-leaving the nine through-hole parts to fit yourself — still the cheaper route
-if you do not mind a soldering iron for the connectors.
+Against JLCPCB's published Economic PCBA rates (setup $8, stencil $1.50,
+feeder loading $3/Extended, SMT $0.0016/joint), with 170 machine-soldered
+joints across 37 placements:
+
+| | assemble 2 | assemble 5 |
+|---|---:|---:|
+| Bare PCBs (5 pcs, 2-layer, ≤100×100 mm) | $2.00 | $2.00 |
+| Assembly setup fee | $8.00 | $8.00 |
+| Stencil | $1.50 | $1.50 |
+| Feeder loading (4 Extended × $3) | $12.00 | $12.00 |
+| Process edges, if required (see below) | $7.81 | $7.81 |
+| SMT assembly (170 joints/board) | $0.54 | $1.36 |
+| Components, machine-placed ($8.34/board) | $16.67 | $41.69 |
+| **JLCPCB subtotal** | **$48.53** | **$74.36** |
+| Hand-solder parts from LCSC ($1.50/board + MOQ) | ~$10 | ~$12 |
+| **Total, ex-shipping** | **~$59** | **~$86** |
+| *per assembled board* | *$29.26* | *$17.27* |
+
+**Every fee above the components line is charged once per order, not per
+board** — $31.31 of fixed cost either way. The marginal cost of one more
+assembled board is only **~$10** ($8.34 of machine-placed parts, $0.27 of
+assembly, $1.50 of hand-fitted parts), so three extra boards cost ~$28 and
+drop the per-board cost by 41 %. Assembling all five is the best value on
+the order.
+
+Add shipping (~$10–25 to the US depending on service). Component MOQ rounding
+can add a little at these quantities, though the passives are cheap enough
+that it stays under a dollar.
+
+### Tooling holes, fiducials and process edges
+
+**The board carries no tooling holes and no fiducials, and that is correct** —
+JLCPCB adds both itself ("No, you don't have to. We'll add fiducial marks for
+SMT assembly"), on the process edges rather than on the board. The four M3
+holes are plated, grounded mounting holes for the enclosure; they are not
+tooling holes and are not meant to be.
+
+**Process edges are likely needed**, because JLCPCB recommends 5 mm of
+component-free board edge for SMT and three machine-placed parts are inside
+that zone:
+
+| Edge | Closest machine-placed part | Clearance |
+|---|---|---|
+| top | SW1 | 0.95 mm |
+| bottom | R5 | 1.40 mm |
+| bottom | J1 (USB-C) | 2.55 mm |
+| left | C11 | 5.05 mm |
+| right | C9 | 13.25 mm |
+
+The **left and right edges both clear 5 mm**, so whether rails are actually
+needed depends on which pair of edges the conveyor grips — JLCPCB's
+engineering review makes that call. Budget the $7.81 panel fee; if they run it
+gripping left/right, it comes off the quote.
+
+J1 is the reason this cannot be designed away: a USB-C receptacle has to sit
+at the board edge to be pluggable. Adding your own 5 mm rails top and bottom
+(V-scored, with 2 mm tooling holes and 1 mm fiducials 3.85 mm in from the
+panel edge) would avoid the fee and take the panel to 100 × 90 mm — still
+inside the ≤ 100 × 100 mm fab tier — but for a five-board run that is real
+design work to save $7.81. Note C11's 5.05 mm is only 0.05 mm of margin: if
+anything on the left edge moves outward later, that edge needs a rail too.
+
+Note the tier asymmetry that makes the hand-solder split worth it twice over:
+Economic charges $3 per **Extended** feeder and nothing for Basic, while
+Standard charges per feeder for **both** ($1.50 basic / $3 extended). On this
+BOM's 23 unique machine-placed parts that would be roughly $40 of feeder fees
+on Standard versus $12 on Economic, before the higher $25 setup fee.
 
 ## Regenerating the files
 
@@ -201,6 +309,10 @@ python3 generator/check_netlist.py bisque-controller.kicad_sch  # KiCad netlist 
                                                                 #   45-degree autoroute, GND stubs, zone fill,
                                                                 #   pour-island healing, KiCad DRC report
 python3 generator/check_pcb.py bisque-controller.kicad_pcb      # independent checker: ALL CHECKS PASS
+"$KPY" generator/check_via_in_pad.py bisque-controller.kicad_pcb  # no via inside an SMD pad: PASS
+                                                                #   (KiCad DRC can't see this - a via and
+                                                                #    the pad it sits in share a net, and
+                                                                #    clearance rules skip same-net copper)
 python3 generator/render_pcb.py bisque-controller.kicad_pcb preview-board.svg
 
 # Fab outputs — regenerate these together, after the board file is final.

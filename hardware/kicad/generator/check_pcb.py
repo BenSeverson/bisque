@@ -66,7 +66,17 @@ def item_dist(a, b):
         # pad/via vs pad/via
         if a.circle and b.circle:
             return math.hypot(a.x1 - b.x1, a.y1 - b.y1) - a.w / 2 - b.w / 2
-        # approx: sample rect corners + center distance via rect expansion
+        # exactly one is a circle: measure from its centre to the other
+        # rectangle and subtract the radius. Squaring the circle off to its
+        # bounding box instead over-reports by up to (sqrt(2)-1)*r along a
+        # diagonal, which is enough to invent clearance failures for a via
+        # sitting off a pad corner — the geometry KiCad's exact-shape DRC
+        # passes.
+        if a.circle or b.circle:
+            c, rct = (a, b) if a.circle else (b, a)
+            dx = max(abs(c.x1 - rct.x1) - rct.w / 2, 0.0)
+            dy = max(abs(c.y1 - rct.y1) - rct.h / 2, 0.0)
+            return math.hypot(dx, dy) - c.w / 2
         return rect_rect_dist(a, b)
     if b.kind == "seg":
         a, b = b, a
@@ -95,12 +105,9 @@ def pt_seg_d(px, py, s):
 
 
 def rect_rect_dist(a, b):
+    """Rect-to-rect edge distance. Circles are handled by the caller."""
     dx = max(abs(a.x1 - b.x1) - a.w / 2 - b.w / 2, 0.0)
     dy = max(abs(a.y1 - b.y1) - a.h / 2 - b.h / 2, 0.0)
-    # circle vs rect approx
-    if a.circle or b.circle:
-        # conservative: treat circle as rect of same bbox
-        pass
     return math.hypot(dx, dy)
 
 

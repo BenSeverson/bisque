@@ -94,19 +94,29 @@ COMPONENTS = {
     "R1": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
                value="10k", at=(64.8, 28.5, 90),
                pins={"1": "+3V3", "2": "EN"}),
+    # Rotated 90 deg (not 0) so the GND pad faces the open pour below rather
+    # than the sliver between C5, R1 and the module's left edge. At rot 0 that
+    # sliver was too narrow to take a stitching via once vias were barred from
+    # sitting inside pads (router.VIA_PAD_GAP), stranding this pad on F.Cu.
     "C5": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
-               value="1uF", at=(68.0, 28.7, 0),
+               value="1uF", at=(68.0, 28.7, 90),
                pins={"1": "EN", "2": "GND"}),
     "R2": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
                value="10k", at=(103.4, 35.0, 270),
                pins={"1": "+3V3", "2": "IO0"}),
+    # SMD tactile switches, not the 6 mm THT part: XKB TS-1187A (LCSC
+    # C318884) is a JLCPCB *Basic* part, so it carries no $3 feeder fee and
+    # stays on the SMT line. The THT switches were one of five unique
+    # Extended parts that existed only to force Standard assembly.
     "SW1": dict(lib="Switch", sym="SW_Push",
-                fp="Button_Switch_THT:SW_PUSH_6mm", fpf="SW_PUSH_6mm.kicad_mod",
-                value="RESET", at=(55.0, 22.5, 0),
+                fp="Button_Switch_SMD:SW_Push_1P1T_XKB_TS-1187A",
+                fpf="SW_Push_1P1T_XKB_TS-1187A.kicad_mod",
+                value="RESET", at=(55.0, 23.2, 0),
                 pins={"1": "EN", "2": "GND"}),
     "SW2": dict(lib="Switch", sym="SW_Push",
-                fp="Button_Switch_THT:SW_PUSH_6mm", fpf="SW_PUSH_6mm.kicad_mod",
-                value="BOOT", at=(101.0, 47.0, 0),
+                fp="Button_Switch_SMD:SW_Push_1P1T_XKB_TS-1187A",
+                fpf="SW_Push_1P1T_XKB_TS-1187A.kicad_mod",
+                value="BOOT", at=(101.0, 50.2, 0),
                 pins={"1": "IO0", "2": "GND"}),
     # --- USB -------------------------------------------------------------
     "J1": dict(lib="Connector", sym="USB_C_Receptacle_USB2.0_16P",
@@ -219,7 +229,7 @@ COMPONENTS = {
                pins={"1": "+5V", "2": "GND", "3": "LCD_CS", "4": "LCD_RST",
                      "5": "LCD_DC", "6": "SPI_MOSI", "7": "SPI_SCLK",
                      "8": "LCD_BL"}),
-    "C12": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
+    "C11": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
                 value="10uF", at=(26.5, 90.5, 0),
                 pins={"1": "+5V", "2": "GND"}),
     "J6": dict(lib="Connector_Generic", sym="Conn_01x06",

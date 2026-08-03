@@ -1,15 +1,20 @@
 # JLCPCB Fabrication Readiness Review
 
-Board: `bisque-controller` — 2-layer, 100 × 80 mm, 1.6 mm, 49 footprints (36 SMD / 9 THT + 4 mounting holes)
+Board: `bisque-controller` — 2-layer, 100 × 80 mm, 1.6 mm, 49 footprints (38 SMD / 7 THT + 4 mounting holes)
 Reviewed: 2026-07-29 against KiCad 10.0.5, analyzer run `analysis/2026-07-29_1621/`
 Status: **blockers resolved 2026-07-29** — see "What was fixed" below.
 Update 2026-07-30: display moved from +3V3 to +5V — see "Display moved to +5V" below.
+Update 2026-07-30: assembly cost reduction + via-in-pad fix — see "Cost reduction pass" below.
 
 ## Verdict
 
-**Ready to order, bare or assembled**, with two things to eyeball in JLCPCB's
-order preview (polarized two-terminal part orientation, and through-hole
-assembly availability). Everything that was a hard blocker has been fixed.
+**Ready to order, bare or assembled.** Everything that was a hard blocker has been
+fixed, and the one remaining thing to eyeball in JLCPCB's order preview is the
+orientation of the polarized two-terminal parts (D1–D4, LED2, LED3).
+
+The through-hole-assembly question that used to sit here is gone: as of the cost-reduction
+pass below there are no through-hole parts in the assembly BOM at all, so the order is
+Economic (SMD, top-side) and nothing depends on JLC's narrower THT coverage.
 
 ## What was fixed
 
@@ -42,6 +47,11 @@ unique Extended parts rather than six. Full assembly costs more than the previou
 SMD-only-plus-hand-soldering plan. That is the expected price of dropping the
 hand-solderable constraint, not a regression.
 
+*(Superseded 2026-07-30 — the cost-reduction pass below puts the through-hole parts back
+on a soldering iron and takes the board to four unique Extended parts. Note also that the
+count of through-hole Extended parts was **five**, not six as originally written here and
+in the README: C8465, C240822, C239381, C96093, C393938.)*
+
 ### 3. CPL carried no JLCPCB rotation correction — fixed
 
 `gen_jlc.py` wrote the raw KiCad angle straight through and deferred rotation checking to
@@ -73,8 +83,9 @@ orientation already matches JLCPCB's. Only multi-pin plastic and gull-wing packa
 (SOT-23, SOT-223, SOIC) need correcting, which is consistent with how EIA-481 tape
 orientation differs from KiCad's footprint convention for exactly those bodies.
 
-Still worth a glance at the placement preview for D1–D4 and LED1–LED3: the cost of
-looking is zero and the cost of a flip is a dead board.
+Still worth a glance at the placement preview for D1–D4 and LED2/LED3 (LED1 is
+hand-fitted now, so it is not in the CPL): the cost of looking is zero and the cost of a
+flip is a dead board.
 
 ### 4. Gerbers were stale — fixed
 
@@ -157,12 +168,106 @@ than before, the dropped via).
 Gerbers, drill, drill map, BOM, CPL, schematic PDF and the board preview were all
 regenerated from the rebuilt board.
 
+## Cost reduction pass (2026-07-30)
+
+Goal: cut JLCPCB assembly cost, accepting hand-soldering for larger parts. Every LCSC
+tier/price figure below was re-checked live against the catalog on 2026-07-30.
+
+**Where the money was going.** The BOM is $9.83/board and 76 % of that is two chips
+(ESP32-S3 module $5.15, MAX31855 $2.37). Against that, ten unique Extended parts were
+costing a flat **$30** in feeder fees, and nine through-hole parts forced Standard
+assembly. $15 of those fees bought placement of $1.53/board of connectors and a buzzer.
+
+**Changes:**
+
+1. **SW1/SW2 THT → SMD.** XKB TS-1187A (`C318884`) is a JLCPCB **Basic** part — $0.018,
+   918k stock — and KiCad ships the matching footprint
+   (`Button_Switch_SMD:SW_Push_1P1T_XKB_TS-1187A`, pads numbered 1/1/2/2, a drop-in for
+   the existing `SW_Push` symbol). Removes one feeder fee *and* two through-hole parts
+   while keeping them machine-placed. Both switches moved to clear DRC: SW1 to
+   (55.0, 23.2) — its pads were 0.25 mm from the board edge against a 0.3 mm rule — and
+   SW2 to (101.0, 50.2), since the new courtyard overlapped U1's (which extends to
+   y = 46.49, taking in the antenna keep-out).
+2. **Seven through-hole parts + LED1 hand-fitted.** `HAND_SOLDER` in `gen_jlc.py` drops
+   BZ1, J2–J7 and LED1 from both BOM and CPL (they must leave together — JLCPCB rejects a
+   CPL with designators the BOM lacks) and writes `jlcpcb/hand-solder-parts.csv` instead.
+3. **LED1 specifically.** Checked whether the WS2812B could stay on the line for free: no
+   addressable RGB LED at LCSC is a Basic part, across WS2812/SK6812/XL-xxxx. Replacing it
+   with discrete R/G/B 0805s is worse, not better — KT-0805B (blue) is Extended and
+   KT-0805R (red) had 10 in stock, so it would re-add feeder fees, burn three GPIOs and
+   need `components/status_led/` rewritten. Hand-soldering a 5050 with four
+   edge-accessible pads is the cheap answer.
+
+**Result: 10 unique Extended parts → 4** (module, MAX31855, USBLC6, USB-C), so $30 → $12
+in feeder fees, and Standard → **Economic** assembly. This also retires the "confirm JLC
+will place the THT parts" risk entirely.
+
+Considered and rejected: cheaper module variants (N16R2 saves $0.53/board but needs
+`CONFIG_SPIRAM_MODE_OCT` → quad; N8R8 saves $0.43 but the 16 MB partition table does not
+fit 8 MB); a TVS on J4 (no Basic-part TVS exists at LCSC, so it would cost a fifth feeder
+fee); consolidating resistor values (all Basic already — saves nothing). The bare board is
+already at the cheapest fab tier and nothing about it changed.
+
+### Via-in-pad — fixed
+
+The item below understated this: the real count was **14 via/pad conflicts** across 12
+designators (`C5.1, C10.2, D4.2, LED3.1, R9.2, R10.2, U1.8, U1.9, U1.19, U3.6, U3.7,
+U4.1, U4.2, U4.6`), not six. All were **same-net**, which is exactly why KiCad's DRC never
+reported one — clearance rules skip same-net copper, so the defect was invisible to the
+existing checks.
+
+Root cause was in `router.py`: `via_ok()` tested clearance via `_clear_of()`, which skips
+obstacles on the via's own net, so a via could legally land on top of a pad it shared a
+net with. Added `VIA_PAD_GAP` (0.15 mm) — SMD pads now block via placement regardless of
+net. Tenting was not an option: the pad's own mask opening exposes the barrel anyway, and
+filled-and-capped via-in-pad is a JLCPCB upcharge.
+
+New checker `generator/check_via_in_pad.py` verifies this, hit-testing against pcbnew's
+real pad shapes rather than re-deriving rotated geometry from the board text. It reports
+14 conflicts on the previous board and 0 on the current one.
+
+Two latent bugs surfaced while making the above pass DRC, both now fixed:
+
+- **`heal_islands()` counted any via as an anchor**, including signal vias, which are
+  isolated from a GND pour by clearance and bridge nothing.
+- **`heal_islands()` only handled islands with *no* anchor.** The new build produced a
+  different failure: a group of three islands (one F.Cu, two B.Cu) bridged to each other
+  but never back to the main pour. Every island had a via, so the old test passed them all
+  while KiCad reported "Missing connection between Zone [GND] and Zone [GND]" and the
+  function printed "healed 0". Rewritten around a union-find over islands linked by
+  layer-bridging GND points; anything outside the largest component gets a via placed where
+  it overlaps main-component copper on the opposite layer. One via at (96.8, 72.8) now
+  heals it.
+- **`check_pcb.py` squared circles off to their bounding box** when measuring pad-to-via
+  clearance, over-reporting by up to (√2−1)·r on a diagonal. That invented two clearance
+  failures for a via sitting off C5's pad corner — geometry KiCad's exact-shape DRC passes
+  at 0.290 mm against a 0.2 mm rule. Now exact for circle-vs-rect. It still passes the
+  previous board, so this did not mask a real finding.
+
+C5 also moved (rotated 90° in place) so its GND pad faces open pour: at rot 0 the sliver
+between C5, R1 and the module was too narrow to take a stitching via once vias were barred
+from pads, stranding the pad on F.Cu.
+
+### Verification after the pass
+
+- **KiCad DRC**: 14 violations, **0 errors, 0 unconnected pads, 0 footprint errors** —
+  same composition as before (7 silkscreen-clearance, 6 silkscreen-clipped-by-mask, 1
+  dangling VBUS stub).
+- **`check_pcb.py`**: ALL CHECKS PASS (989 copper items).
+- **`check_via_in_pad.py`**: PASS, 196 vias vs 158 SMD pads.
+- **Netlist round-trip**: 42 nets, 0 mismatches.
+- **BOM/CPL parity**: 37 designators each, no orphans either way, no line without an LCSC
+  part, no overlap with the 8 hand-soldered refs.
+- **Determinism**: two consecutive rebuilds give byte-identical tracks (560 segments) and
+  vias (196), and the same island structure. The F.Cu zone fill differs by 2 vertices out
+  of 7352 — KiCad's filler, the same sub-micron nondeterminism already noted for the
+  gerber re-export above.
+- Gerbers, drill, drill map, BOM, CPL, hand-solder list, preview SVG, schematic PDF and
+  the 3D renders were all regenerated from the rebuilt board. Smallest drill is still
+  0.300 mm.
+
 ## Still worth fixing (quality, not blockers)
 
-- **Six untented vias in SMD pads** — `R9:2, R10:2, D4:2, U1:8, U3:7, U4:1, U4:6`
-  (0.3 mm drill, same net). Solder wicks down an open via during reflow, reducing joint
-  volume. Either move the via off the pad or tent it with mask. This needs a board
-  change, so it was left alone.
 - **0.15 mm dangling VBUS track** at (98.45, 89.60) — KiCad flags it as `track_dangling`,
   locally downgraded to a warning. The net is electrically complete (the 0.4 mm-wide
   tracks overlap across a 0.05 mm centreline offset), so this is a leftover fragment, but
@@ -172,11 +277,11 @@ regenerated from the rebuilt board.
 - **No test points** on any of 39 nets. Fine for a hobby board, awkward for bring-up.
 - **No ESD/TVS on J4 (SSR drive)**, which runs off-board toward mains wiring. There is a
   100 Ω gate series and 10 kΩ pulldown, and an SSR input is resistive so no flyback is
-  needed — but a surge path back into the MOSFET gate is a real robustness gap.
-- **Through-hole assembly availability.** Nine THT parts mean JLCPCB **Standard**
-  assembly (Economic is SMD, top-side only), and JLC's through-hole coverage is narrower
-  than its SMD coverage. All nine now have in-stock LCSC parts, but confirm at order time
-  that JLC will actually place them. The BOM flags each THT line for this.
+  needed — but a surge path back into the MOSFET gate is a real robustness gap. Adding one
+  costs a fifth $3 feeder fee (no Basic-part TVS at LCSC), so hand-solder it if wanted.
+- **SMD tact switches are held by solder pads only**, where the previous 6 mm through-hole
+  part had legs through the board. Fine for RESET/BOOT, which are pressed rarely; worth
+  knowing if the enclosure ever pushes on them.
 
 ## Verified good
 
@@ -194,22 +299,27 @@ regenerated from the rebuilt board.
   | Board size | 100 × 80 mm | 6 × 6 mm |
   | Thickness | 1.6 mm | 0.4–2.4 mm |
 
-  DFM tier: standard, 0 violations. Vias are uniform 0.6/0.3 mm through-hole (197 of
+  DFM tier: standard, 0 violations. Vias are uniform 0.6/0.3 mm through-hole (196 of
   them). `kicad_build.py` deliberately upsizes the library's 0.2 mm module thermal-via
   drills to 0.3 mm to stay inside the standard drill range — confirmed in the drill file,
   whose smallest tool is 0.300 mm.
-- **CPL is faithful to the built board** — all 45 positions match the raw `.kicad_pcb`
+- **CPL is faithful to the built board** — all 37 positions match the raw `.kicad_pcb`
   exactly, with rotations differing only by the five intended corrections above. All
-  parts top-side, so single-sided assembly. The 4 mounting holes are correctly absent
-  from both BOM and CPL.
+  parts top-side, so single-sided assembly. The 4 mounting holes and the 8 hand-soldered
+  parts are correctly absent from both BOM and CPL.
 - **All 28 LCSC part numbers resolve to the intended part and are in stock** (verified
-  live against LCSC and jlcsearch on 2026-07-29). 18 Basic, 10 unique Extended. Lowest
-  stock is U3 MAX31855 at 2,145. No BOM line carries a `CONFIRM` or blank marker any more.
-- **Paste layer is correct** — 149 apertures for exactly 149 paste-enabled SMD pads. The
-  analyzer's GR-004 "149 paste vs 428 copper" is a false positive: the copper count
-  includes 90 through-hole pads and 197 vias. (U1 pad 41, the module's centre ground pad,
-  has mask but no paste — upstream KiCad footprint behaviour, and 13 thermal vias carry
-  the ground/thermal path.)
+  live against LCSC and jlcsearch on 2026-07-29, re-checked 2026-07-30). The assembly BOM
+  carries 23 of them — 19 Basic, 4 Extended — and the hand-solder list the other 5. Lowest
+  stock among machine-placed parts is U3 MAX31855 at 2,145; the KK-254 wafers are lower
+  still (8.2k / 4.5k) but are hand-fitted now, so they are not tied to LCSC at all.
+  No BOM line carries a `CONFIRM` or blank marker.
+- **Paste layer is correct** — 157 apertures for exactly 157 paste-enabled SMD pads (149
+  before, plus 8 for the two new SMD tact switches). The analyzer's GR-004 "paste vs
+  copper" finding is a false positive: the copper count also includes through-hole pads
+  and vias. (U1 pad 41, the module's centre ground pad, has mask but no paste — upstream
+  KiCad footprint behaviour, and 13 thermal vias carry the ground/thermal path.)
+  Note the stencil still carries apertures for LED1, which is hand-fitted; harmless, and
+  useful if you paste it rather than using an iron.
 - **Both GND zones are filled** (F.Cu 69.9 %, B.Cu 84.4 %).
 - **Schematic netlist round-trip passes** after the title-block edit: 42 nets, 0 mismatches.
 - **Pin maps verified** for U1, U2, U3, U4:
