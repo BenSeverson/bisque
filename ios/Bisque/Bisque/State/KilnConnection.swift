@@ -43,7 +43,7 @@ final class KilnConnection {
 
     func connect() async {
         guard !host.isEmpty else {
-            connectionState = .error("Enter a kiln IP address")
+            connectionState = .error("Enter the kiln's address")
             return
         }
 

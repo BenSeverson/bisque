@@ -39,6 +39,7 @@
 
 **iOS App**
 - Full remote control (SwiftUI)
+- Finds the kiln on your Wi-Fi automatically (Bonjour), no IP address to type
 - Dynamic Island live activities during firing
 - Local notifications for firing complete/error
 

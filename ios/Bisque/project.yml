@@ -39,13 +39,19 @@ targets:
       properties:
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
+        # iOS refuses to browse a service type that is not declared here, so
+        # discovery finds nothing at all without it (#153).
+        NSBonjourServices:
+          - _http._tcp
         # Shown in the iOS 14+ local-network prompt. Without it the system
         # presents an unexplained "would like to find and connect to devices on
         # your local network" dialog, and a Don't Allow makes every request fail
         # for reasons the user has no way to connect back to that tap (#148).
+        # It now covers finding the kiln as well as talking to it, since the
+        # same permission gates the Bonjour browse.
         NSLocalNetworkUsageDescription:
-          Bisque connects to your kiln controller over your local network to
-          show temperatures and control firings.
+          Bisque finds your kiln controller on your local network and connects
+          to it to show temperatures and control firings.
     dependencies:
       - target: BisqueLiveActivity
 

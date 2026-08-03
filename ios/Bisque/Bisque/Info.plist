@@ -23,7 +23,11 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_http._tcp</string>
+	</array>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Bisque connects to your kiln controller over your local network to show temperatures and control firings.</string>
+	<string>Bisque finds your kiln controller on your local network and connects to it to show temperatures and control firings.</string>
 </dict>
 </plist>

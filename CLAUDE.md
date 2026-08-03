@@ -73,6 +73,20 @@ cd web_ui && npm run mock-server   # HTTP + WS on :8080; tap "Use Mock Server" i
 
 Versioning for firmware, web UI, and iOS is unified off git tags via `scripts/version.sh`.
 
+`ConnectionView` lists kilns found by `Networking/KilnDiscovery.swift` rather than
+asking for an IP address. The firmware advertises `_http._tcp` with **no TXT
+record** (`main/main.c`), so a browse result is only a candidate: each one is
+resolved (via an `NWConnection` to the service endpoint — there is no
+resolve-only API) and then probed with a real `GET /api/v1/status`. A `401`
+counts as a kiln only when `WWW-Authenticate` or the Bonjour instance name says
+Bisque, otherwise every password-protected device on the LAN would list as one.
+If you change the mDNS advertisement or the auth challenge in
+`components/web_server/api_handlers.c`, that classifier is what breaks.
+
+Discovery needs `NSBonjourServices` and `NSLocalNetworkUsageDescription`; both
+live in `project.yml` under `targets.Bisque.info.properties` — `Bisque/Info.plist`
+is **generated** from it by xcodegen, so edit the yml and regenerate.
+
 ## Project Structure
 
 ```
