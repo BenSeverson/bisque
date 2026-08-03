@@ -18,7 +18,7 @@ import {
   pidResponseSchema,
   systemInfoSchema,
   thermocoupleDiagSchema,
-} from "../test/contracts/responseSchemas";
+} from "../src/app/schemas/api";
 
 let server: Server;
 let baseUrl: string;

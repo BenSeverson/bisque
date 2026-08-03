@@ -1,6 +1,31 @@
+import type {
+  AutotuneStatus,
+  DiagThermocouple,
+  PidGains,
+  PidResponse,
+  StatusResponse,
+  SystemInfo,
+} from "../schemas/api";
 import { FiringProfile, KilnSettings, ConeEntry, HistoryRecord, WifiInfo } from "../types/kiln";
 import { makeDuplicateProfileId } from "../utils/profile";
 import { kilnWS } from "./websocket";
+
+/**
+ * The response shapes below are *not* declared here. They are inferred from the
+ * zod schemas in ../schemas/api — the same schemas the firmware fixtures and the
+ * mock-server are validated against — so a contract change fails the build at
+ * every call site instead of drifting silently past it (#176). They are
+ * re-exported so consumers keep importing them from the service they come from.
+ */
+export type {
+  AutotuneState,
+  AutotuneStatus,
+  DiagThermocouple,
+  PidGains,
+  PidResponse,
+  StatusResponse,
+  SystemInfo,
+} from "../schemas/api";
 
 const API_BASE = "/api/v1";
 const TOKEN_STORAGE_KEY = "bisque.apiToken";
@@ -67,79 +92,6 @@ async function fetchText(url: string): Promise<string> {
   return res.text();
 }
 
-export interface StatusResponse {
-  isActive: boolean;
-  profileId: string;
-  currentTemp: number;
-  targetTemp: number;
-  currentSegment: number;
-  totalSegments: number;
-  elapsedTime: number;
-  estimatedTimeRemaining: number;
-  /** Seconds until an armed delayed start fires; 0 when none is scheduled. */
-  delayRemaining: number;
-  /** Live SSR duty as a whole percent, 0–100 (api_json.c `dutyPercent`). */
-  dutyPercent: number;
-  status: string;
-  thermocouple: {
-    temperature: number;
-    internalTemp: number;
-    fault: boolean;
-    openCircuit: boolean;
-    shortGnd: boolean;
-    shortVcc: boolean;
-  };
-}
-
-export interface SystemInfo {
-  firmware: string;
-  model: string;
-  uptimeSeconds: number;
-  freeHeap: number;
-  emergencyStop: boolean;
-  lastErrorCode: number;
-  elementHoursS: number;
-  spiffsTotal: number;
-  spiffsUsed: number;
-  boardTempC: number;
-}
-
-/**
- * Every `state` the firmware's build_autotune_status_json can emit.
- *
- * Typed as a union rather than a bare string (#217) so the transition table in
- * utils/autotuneSession.ts is checked at compile time instead of by runtime
- * string comparison — adding a state on the firmware side now fails the build
- * here until it is handled.
- */
-export type AutotuneState = "running" | "complete" | "failed" | "stopped" | "idle";
-
-export interface AutotuneStatus {
-  state: AutotuneState;
-  elapsedTime: number;
-  targetTemp: number;
-  currentTemp: number;
-  currentGains: { kp: number; ki: number; kd: number };
-}
-
-/**
- * GET/POST /api/v1/pid.
- *
- * `defaults` and `limits` come from the firmware rather than being mirrored as
- * constants here: a client that hardcodes the bounds drifts silently, and the
- * form goes on accepting values the controller answers with a bare 400.
- */
-export interface PidGains {
-  kp: number;
-  ki: number;
-  kd: number;
-}
-
-export interface PidResponse extends PidGains {
-  defaults: PidGains;
-  limits: { min: number; max: number };
-}
-
 export interface OtaCheckResponse {
   current: string;
   latest: string;
@@ -156,18 +108,6 @@ export interface OtaStatus {
   bootPartition?: string;
   pendingVerify?: boolean;
   rollbackAvailable: boolean;
-}
-
-export interface DiagThermocouple {
-  temperatureC: number;
-  internalTempC: number;
-  fault: boolean;
-  openCircuit: boolean;
-  shortGnd: boolean;
-  shortVcc: boolean;
-  readingAgeMs: number;
-  temperatureAdjustedC: number;
-  tcOffsetC: number;
 }
 
 export const api = {

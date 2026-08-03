@@ -47,6 +47,8 @@ The web tests are **contract tests against the firmware**: `make fixtures` build
 
 Missing or stale fixtures **fail** the contract suite rather than skipping it (#173), so `npm run test:run` / `vitest --watch` can't quietly go green having validated nothing. Alongside the JSON, `make fixtures` writes `_manifest.json` with a SHA256 of every source that can change the emitted bytes — the list lives in `tests/host/fixture_sources.txt` (add a file there when a new source starts feeding a `build_*_json()`), and the test re-hashes it. Editing a serializer without regenerating is therefore a failure with a "run `make fixtures`" message. `BISQUE_SKIP_CONTRACTS=1` is the explicit opt-out for environments where the C build can't run.
 
+The zod schemas those tests validate against live in **`web_ui/src/app/schemas/`** — `api.ts` for response shapes, `kiln.ts` for the form/import schemas — and they are the single source of truth for the frontend's types too: `StatusResponse`, `SystemInfo`, `FiringProfile`, `KilnSettings` and friends are `z.infer`red from them and re-exported by `services/api.ts` / `types/kiln.ts` (#176). Change a response shape in the schema only; the interfaces follow, and every call site that no longer matches fails `npm run typecheck`. The schemas are imported for their types alone, so they stay tree-shaken out of the bundle — verified byte-identical output.
+
 ## Display Simulator
 
 ```bash
