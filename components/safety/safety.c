@@ -55,6 +55,14 @@ static void ssr_timer_cb(void *arg);
 static int64_t s_last_ssr_cmd_us = 0;
 #define SSR_HEARTBEAT_TIMEOUT_US (3LL * 1000000)
 
+/* Set once safety_task is running. Until then the SSR is hard-held off: an
+ * element energized with no over-temp check, no stale-reading check and no
+ * thermocouple-fault watchdog is unsupervised heat. Boot order alone used to be
+ * the only thing preventing that (#250) — this makes it an invariant, so a
+ * future relay self-test or resume-after-reboot path added early in app_main
+ * fails safe instead of silently firing unwatched. */
+static volatile bool s_supervised = false;
+
 static void alarm_tone_on(void)
 {
     ledc_set_duty(ALARM_LEDC_MODE, ALARM_LEDC_CHANNEL, ALARM_TONE_DUTY_50PCT);
@@ -293,7 +301,7 @@ static void ssr_window_apply(void)
     if (s_ssr_pin < 0) {
         return;
     }
-    if (safety_is_emergency()) {
+    if (safety_is_emergency() || !s_supervised) {
         gpio_set_level(s_ssr_pin, 0);
         return;
     }
@@ -326,6 +334,18 @@ void safety_set_ssr(float duty)
         return;
     }
 
+    /* Discard the command outright, don't just decline to apply it.
+       ssr_window_apply() refuses to drive the pin high while unsupervised, but
+       s_supervised latches true for good — so a nonzero duty left in s_ssr_duty
+       would be replayed by the periodic window timer the moment safety_task
+       arms, energizing the element with no fresh command behind it. (The
+       emergency-stop path above can leave a stale duty safely because
+       ssr_window_apply() re-checks that flag every tick and it can clear.) */
+    if (!s_supervised && duty > 0.0f) {
+        ESP_LOGE(TAG, "SSR commanded to %.2f before safety_task started — discarded", duty);
+        duty = 0.0f;
+    }
+
     if (duty < 0.0f) {
         duty = 0.0f;
     }
@@ -352,6 +372,9 @@ void safety_task(void *param)
        temp_read_task, so the first few ticks see no reading at all and a fault
        present at boot must still get the full grace period. */
     int64_t last_valid_reading_us = esp_timer_get_time();
+
+    /* Release the SSR interlock: from here on the element has a watchdog. */
+    s_supervised = true;
 
     ESP_LOGI(TAG, "safety_task started");
 
