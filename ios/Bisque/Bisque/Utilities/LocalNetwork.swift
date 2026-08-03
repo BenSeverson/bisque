@@ -8,6 +8,10 @@ import Foundation
 /// governs and offer the Settings toggle as a thing to check. Loopback (the
 /// simulator's mock server) is deliberately excluded: it needs no permission,
 /// so the hint there would be pure noise.
+///
+/// Only an explicitly routable *address* is confidently non-local; a hostname
+/// is not, so names other than loopback all count as local. See the name branch
+/// below for why an allow-list of LAN suffixes cannot be made complete.
 enum LocalNetwork {
     /// True when reaching `host` requires the local-network permission.
     static func requiresPermission(host: String) -> Bool {
@@ -40,9 +44,19 @@ enum LocalNetwork {
                 || bare.hasPrefix("fc") || bare.hasPrefix("fd")
         }
 
-        // Names: ".local" is mDNS, and a single-label name ("kiln") resolves on
-        // the LAN too. A dotted public name does not.
-        return bare.hasSuffix(".local") || !bare.contains(".")
+        // Names other than loopback are all treated as local. A name says
+        // nothing about the address it resolves to, and routers hand out plenty
+        // of LAN suffixes beyond mDNS — ".lan", ".home.arpa", ".fritz.box" —
+        // so any allow-list of suffixes would miss some kiln that really is on
+        // the far side of this permission. Resolving the name first is no
+        // better: the DNS that would answer is itself on the LAN the permission
+        // gates, so a denial makes the lookup fail too.
+        //
+        // The cost of guessing wrong is a sentence about Local Network access
+        // shown to someone reaching a kiln over a port-forwarded public name;
+        // the cost of the other error is that person stranded with no idea why
+        // nothing works. Bias toward the hint.
+        return true
     }
 
     /// Parses a dotted-quad, returning nil for anything that is not one.
