@@ -334,11 +334,16 @@ void safety_set_ssr(float duty)
         return;
     }
 
-    /* ssr_window_apply() already refuses to drive the pin high before
-       safety_task arms supervision; log it here so the caller is identifiable
-       rather than the heat just quietly not arriving. */
+    /* Discard the command outright, don't just decline to apply it.
+       ssr_window_apply() refuses to drive the pin high while unsupervised, but
+       s_supervised latches true for good — so a nonzero duty left in s_ssr_duty
+       would be replayed by the periodic window timer the moment safety_task
+       arms, energizing the element with no fresh command behind it. (The
+       emergency-stop path above can leave a stale duty safely because
+       ssr_window_apply() re-checks that flag every tick and it can clear.) */
     if (!s_supervised && duty > 0.0f) {
-        ESP_LOGE(TAG, "SSR commanded to %.2f before safety_task started — ignored", duty);
+        ESP_LOGE(TAG, "SSR commanded to %.2f before safety_task started — discarded", duty);
+        duty = 0.0f;
     }
 
     if (duty < 0.0f) {
