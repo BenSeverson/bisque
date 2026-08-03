@@ -85,9 +85,8 @@ jobs:
       - name: Build simulator
         run: cmake --build simulator/build
       # Runs before the pixel diff on purpose: it asserts on dashboard state rather
-      # than on rendered pixels, so it is immune to the capture flakiness tracked in
-      # #196 and a genuine state regression is reported on its own rather than buried
-      # in a wall of screenshot failures.
+      # than on rendered pixels, so a genuine state regression is reported on its own
+      # rather than buried in a wall of screenshot failures.
       - name: Verify dashboard state
         run: ./simulator/build/bisque_sim --verify
       - name: Prepare actual-render dir
