@@ -297,7 +297,22 @@ function tick(): void {
   // Update temperature via physics model
   f.currentTemp = updateTemperature(f.currentTemp, f.setpoint, dt);
   if (f.currentTemp > f.peakTemp) f.peakTemp = f.currentTemp;
-  f.status = determineStatus();
+
+  if (f.running) {
+    f.status = determineStatus();
+  } else {
+    // The segment logic above finished the firing. Close the record here, not
+    // inside advanceSegment(), so this tick's reading is folded in first —
+    // complete_firing() is called with s_state.peak_temp_c as of the current
+    // loop iteration, and recording a tick early under-reports the peak of a
+    // no-hold final ramp.
+    //
+    // determineStatus() is also skipped deliberately: it answers "idle" for
+    // anything not running, so calling it here overwrote the "complete" that
+    // advanceSegment() had just set. Skip-to-complete returns before reaching
+    // this line, which is why that path alone ever showed the status.
+    recordHistoryEnd("complete", FIRING_ERR.NONE);
+  }
 
   broadcast();
 }
@@ -310,9 +325,13 @@ function tick(): void {
  * reachable in `npm run dev`, in Vitest, or in the published demo (#239);
  * verifying it meant stubbing `window.fetch` in the browser by hand.
  *
- * The three outcomes match firing_engine.c:
+ * The outcomes match firing_engine.c, and turn on `s_progress.is_active` —
+ * which an auto-tune raises too (FIRING_CMD_AUTOTUNE_START, :1107):
  *  - firing in progress → status ERROR, elements off, an `error` history record
  *    carrying the code, and the kiln cools passively (:1240-1262)
+ *  - auto-tune running → the same ERROR branch and the same recorded cause, but
+ *    no history record: history_firing_start() runs only in begin_firing(), so
+ *    history_firing_end() returns early on `!s_recording`
  *  - delayed start armed → the arm is cancelled with no history record, since
  *    none was ever opened (:1169-1184)
  *  - idle → the trip latches with no recorded cause, which is the one case the
@@ -320,12 +339,25 @@ function tick(): void {
  */
 export function tripFault(code: number): void {
   const f = state.firing;
-  const wasActive = f.running || f.scheduled;
+  const at = state.autotune;
+  const wasActive = f.running || f.scheduled || at.running;
   const wasFiring = f.running;
 
   state.emergencyStop = true;
   f.scheduled = false;
   f.delayRemainingS = 0;
+
+  // On the device the emergency branch returns before the tune is stepped, so
+  // it simply stops progressing. Here the tune is a separate interval that
+  // would otherwise keep heating and rewriting the status to "autotune" every
+  // second, overwriting the error the operator just asked for.
+  if (at.running) {
+    at.running = false;
+    if (at.interval) {
+      clearInterval(at.interval);
+      at.interval = null;
+    }
+  }
 
   if (wasActive) {
     // Matches the firmware's precedence: NOT_RISING/RUNAWAY assign their code
@@ -344,6 +376,10 @@ export function tripFault(code: number): void {
   // firing to clear it" is the whole truth.
   if (wasFiring) {
     recordHistoryEnd("error", state.lastErrorCode);
+  }
+  // Either way the elements are off and the kiln is hot — hand it to the
+  // passive-cooling tick, as stopAutotune() already does for a cancelled tune.
+  if (wasActive) {
     f.coolingDown = true;
   }
 
@@ -370,7 +406,7 @@ function advanceSegment(): void {
     f.running = false;
     f.status = "complete";
     f.coolingDown = true;
-    recordHistoryEnd("complete", FIRING_ERR.NONE);
+    // tick() writes the record, once this tick's reading has been folded in.
     return;
   }
 

@@ -102,6 +102,14 @@ function generateTraceCsv(record: HistoryRecord): string {
   const lines = ["time_s,temp_c"];
   const steps = Math.floor(record.durationS / 60);
   const peak = record.peakTemp;
+
+  // history_record_temp() samples once a minute, so a firing shorter than that
+  // leaves a header-only trace. Real now that the mock records the firings you
+  // run (a start immediately followed by a stop lasts 0 s) — and `i / steps`
+  // would otherwise be 0/0, emitting a literal `0,NaN` row that the chart
+  // silently drops and that makes the downloaded CSV invalid.
+  if (steps < 1) return lines.join("\n");
+
   for (let i = 0; i <= steps; i++) {
     const t = i * 60;
     const progress = i / steps;

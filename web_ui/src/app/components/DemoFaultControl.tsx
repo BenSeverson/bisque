@@ -46,7 +46,7 @@ export function DemoFaultControl() {
   const trip = useCallback(
     async (code: number) => {
       try {
-        await api.simulateFault(code);
+        const result = await api.simulateFault(code);
         // The fault lands in the simulator, not in React Query's cache: the
         // trip flips /system's emergencyStop and lastErrorCode, and closes out
         // an in-progress firing into a new history record. Neither query
@@ -56,7 +56,19 @@ export function DemoFaultControl() {
           queryClient.invalidateQueries({ queryKey: queryKeys.systemInfo }),
           queryClient.invalidateQueries({ queryKey: queryKeys.history }),
         ]);
-        toast.success(`Simulated fault: ${describeFiringError(code)}`);
+        // Report what the kiln actually did, not what was asked for. A trip
+        // with nothing running latches the bare flag and deliberately records
+        // no cause — s_last_error_code is only ever written inside the firing
+        // loop — so naming the chosen fault here would promise a banner, a
+        // cause and a failed history record that the operator will not find.
+        if (result.status === "error") {
+          toast.success(`Simulated fault: ${describeFiringError(result.lastErrorCode)}`);
+        } else {
+          toast.warning(
+            "Emergency stop latched with no recorded cause — nothing was running. " +
+              "Start a firing first to see the error banner and a failed history record.",
+          );
+        }
       } catch (e) {
         toast.error(`Could not simulate a fault: ${toErrorMessage(e)}`);
       }

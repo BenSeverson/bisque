@@ -6,7 +6,7 @@
  * autotune starts) so it leaves no open handles; the fault block below does
  * start firings and clears the interval it creates in afterEach.
  */
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { dispatch } from "./router";
 import { state } from "./state";
 import type { HistoryRecord } from "../src/app/types/kiln";
@@ -89,6 +89,12 @@ describe("dispatch() fault simulation", () => {
     state.emergencyStop = false;
     state.lastErrorCode = 0;
     state.firing.status = "idle";
+    state.autotune.running = false;
+    state.autotune.completed = false;
+    if (state.autotune.interval) {
+      clearInterval(state.autotune.interval);
+      state.autotune.interval = null;
+    }
     if (state.interval) {
       clearInterval(state.interval);
       state.interval = null;
@@ -168,6 +174,46 @@ describe("dispatch() fault simulation", () => {
     expect(system.lastErrorCode).toBe(0);
   });
 
+  it("treats a running auto-tune as active, like s_progress.is_active", () => {
+    // FIRING_CMD_AUTOTUNE_START raises is_active, so the emergency branch in
+    // firing_loop() applies to a tune exactly as it does to a firing.
+    dispatch("POST", "/autotune/start", { setpoint: 200, hysteresis: 5 });
+    dispatch("POST", "/mock/fault", { code: 2 });
+
+    expect((dispatch("GET", "/status", {}).json as { status: string }).status).toBe("error");
+    expect((dispatch("GET", "/system", {}).json as { lastErrorCode: number }).lastErrorCode).toBe(
+      2,
+    );
+    // The tune must actually stop: its interval would otherwise keep heating
+    // and rewrite the status to "autotune" a second later.
+    expect((dispatch("GET", "/autotune/status", {}).json as { state: string }).state).not.toBe(
+      "running",
+    );
+    expect(state.autotune.interval).toBeNull();
+  });
+
+  it("writes no history record for a faulted auto-tune", () => {
+    // history_firing_start() runs only in begin_firing(), so history_firing_end()
+    // returns early on !s_recording.
+    const before = (dispatch("GET", "/history", {}).json as HistoryRecord[]).length;
+    dispatch("POST", "/autotune/start", { setpoint: 200, hysteresis: 5 });
+    dispatch("POST", "/mock/fault", { code: 1 });
+    expect((dispatch("GET", "/history", {}).json as HistoryRecord[]).length).toBe(before);
+  });
+
+  it("serves a header-only trace for a firing shorter than one sample", () => {
+    // history_record_temp() samples once a minute. `i / steps` used to be 0/0
+    // here, emitting a literal `0,NaN` row into the downloaded CSV.
+    dispatch("POST", "/firing/start", { profileId: profile.id });
+    dispatch("POST", "/firing/stop", {});
+    const record = (dispatch("GET", "/history", {}).json as HistoryRecord[])[0];
+    expect(record.durationS).toBeLessThan(60);
+
+    const csv = dispatch("GET", `/history/${record.id}/trace`, {}).text ?? "";
+    expect(csv).toBe("time_s,temp_c");
+    expect(csv).not.toContain("NaN");
+  });
+
   it("rejects a non-positive fault code", () => {
     expect(dispatch("POST", "/mock/fault", { code: 0 }).status).toBe(400);
     expect(dispatch("POST", "/mock/fault", { code: -1 }).status).toBe(400);
@@ -191,5 +237,64 @@ describe("dispatch() fault simulation", () => {
     dispatch("POST", "/firing/start", { profileId: profile.id, delayMinutes: 30 });
     dispatch("POST", "/firing/stop", {});
     expect((dispatch("GET", "/history", {}).json as HistoryRecord[]).length).toBe(before);
+  });
+});
+
+/**
+ * Natural completion, driven through the real 1 Hz ticker on fake timers.
+ *
+ * Both assertions here are about ordering inside tick(). The record used to be
+ * written from advanceSegment(), one statement before the tick's own
+ * updateTemperature() — so it missed the final reading — and the status
+ * "complete" that advanceSegment() set was then overwritten by
+ * determineStatus(), which answers "idle" for anything not running.
+ */
+describe("dispatch() natural completion", () => {
+  const profile = {
+    id: "completion-test-profile",
+    name: "Completion Test",
+    description: "",
+    segments: [{ id: "s1", name: "Ramp", rampRate: 200, targetTemp: 400, holdTime: 0 }],
+    maxTemp: 400,
+    estimatedDuration: 120,
+  };
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    dispatch("POST", "/profiles", profile);
+  });
+
+  afterEach(() => {
+    dispatch("POST", "/firing/stop", {});
+    dispatch("DELETE", `/profiles/${profile.id}`, {});
+    if (state.interval) {
+      clearInterval(state.interval);
+      state.interval = null;
+    }
+    vi.useRealTimers();
+    state.firing.status = "idle";
+    state.firing.coolingDown = false;
+    state.firing.currentTemp = 20;
+  });
+
+  it("holds the complete status and records the final tick's peak", () => {
+    dispatch("POST", "/firing/start", { profileId: profile.id });
+
+    // 200°C/hr from ambient to 400°C is ~6840 simulated seconds; at 60x that is
+    // 114 ticks. Advance generously, then stop as soon as it lands.
+    for (let i = 0; i < 400 && state.firing.running; i++) {
+      vi.advanceTimersByTime(1000);
+    }
+    expect(state.firing.running).toBe(false);
+
+    // determineStatus() must not get the last word here.
+    expect((dispatch("GET", "/status", {}).json as { status: string }).status).toBe("complete");
+
+    const record = (dispatch("GET", "/history", {}).json as HistoryRecord[])[0];
+    expect(record.outcome).toBe("complete");
+    expect(record.errorCode).toBe(0);
+    // Written after the tick folded in its reading, so it carries the same peak
+    // the simulator ended on rather than the previous tick's.
+    expect(record.peakTemp).toBe(Math.round(state.firing.peakTemp));
   });
 });
