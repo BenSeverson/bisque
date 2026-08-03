@@ -15,6 +15,7 @@
 #include "thermocouple.h"
 #include "unity.h"
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -115,8 +116,11 @@ static void test_status_full_shape(void)
         .timestamp_us = 1234567,
     };
 
-    cJSON *root = build_status_json(&prog, &tc, 5.0f);
+    cJSON *root = build_status_json(&prog, &tc, 5.0f, 0.625f);
     TEST_ASSERT_NOT_NULL(root);
+
+    /* Element power, rounded to whole percent (#180). */
+    TEST_ASSERT_EQUAL_INT(63, cJSON_GetObjectItem(root, "dutyPercent")->valueint);
 
     /* currentTemp carries the tc offset so it matches the WebSocket feed; the
        nested thermocouple block keeps the raw reading. */
@@ -132,6 +136,7 @@ static void test_status_full_shape(void)
     assert_number_field(root, "totalSegments");
     assert_number_field(root, "elapsedTime");
     assert_number_field(root, "estimatedTimeRemaining");
+    assert_number_field(root, "dutyPercent");
     assert_string_field(root, "status");
 
     TEST_ASSERT_EQUAL_STRING("heating", cJSON_GetObjectItem(root, "status")->valuestring);
@@ -157,7 +162,7 @@ static void test_status_zeros_temp_when_fault(void)
         .temperature_c = 999.0f,
         .fault = TC_FAULT_OPEN_CIRCUIT,
     };
-    cJSON *root = build_status_json(&prog, &tc, 5.0f);
+    cJSON *root = build_status_json(&prog, &tc, 5.0f, 0.0f);
 
     /* Top-level currentTemp is zero-clamped on fault (UI shouldn't render the
      * stale last-read temp) — the offset is not applied through a fault. Inner
@@ -167,7 +172,31 @@ static void test_status_zeros_temp_when_fault(void)
                             cJSON_GetObjectItem(cJSON_GetObjectItem(root, "thermocouple"), "temperature")->valuedouble);
     TEST_ASSERT_TRUE(cJSON_IsTrue(cJSON_GetObjectItem(cJSON_GetObjectItem(root, "thermocouple"), "openCircuit")));
     TEST_ASSERT_FALSE(cJSON_IsTrue(cJSON_GetObjectItem(cJSON_GetObjectItem(root, "thermocouple"), "shortGnd")));
+    TEST_ASSERT_EQUAL_INT(0, cJSON_GetObjectItem(root, "dutyPercent")->valueint);
     cJSON_Delete(root);
+}
+
+/* dutyPercent is a percentage in the UI — a value outside 0..100 would render
+ * as a nonsense "Element power: 140%" or drive a progress bar off its track.
+ * safety_get_ssr_duty() already clamps, so this guards the builder against a
+ * future caller that doesn't (and against a NaN reaching lroundf, which is
+ * undefined). */
+static void test_status_clamps_duty(void)
+{
+    firing_progress_t prog = {.status = FIRING_STATUS_HEATING};
+    thermocouple_reading_t tc = {.temperature_c = 500.0f};
+
+    cJSON *over = build_status_json(&prog, &tc, 0.0f, 1.4f);
+    TEST_ASSERT_EQUAL_INT(100, cJSON_GetObjectItem(over, "dutyPercent")->valueint);
+    cJSON_Delete(over);
+
+    cJSON *under = build_status_json(&prog, &tc, 0.0f, -0.2f);
+    TEST_ASSERT_EQUAL_INT(0, cJSON_GetObjectItem(under, "dutyPercent")->valueint);
+    cJSON_Delete(under);
+
+    cJSON *nan_duty = build_status_json(&prog, &tc, 0.0f, NAN);
+    TEST_ASSERT_EQUAL_INT(0, cJSON_GetObjectItem(nan_duty, "dutyPercent")->valueint);
+    cJSON_Delete(nan_duty);
 }
 
 /* ── build_profile_json ──────────────────────────────────────────────────── */
@@ -517,6 +546,7 @@ int main(void)
     UNITY_BEGIN();
     RUN_TEST(test_status_full_shape);
     RUN_TEST(test_status_zeros_temp_when_fault);
+    RUN_TEST(test_status_clamps_duty);
     RUN_TEST(test_profile_shape);
     RUN_TEST(test_settings_shape_redacts_token);
     RUN_TEST(test_settings_apiTokenSet_false_when_empty);

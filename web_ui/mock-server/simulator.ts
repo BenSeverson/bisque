@@ -1,5 +1,5 @@
 import { state, FIRING_ERR, HISTORY_MAX_RECORDS } from "./state";
-import { AMBIENT, updateTemperature, coolingTemperature } from "./physics";
+import { AMBIENT, updateTemperature, coolingTemperature, elementDuty } from "./physics";
 import { HOLD_UNTIL_SKIP } from "../src/app/types/kiln";
 import type { HistoryRecord } from "../src/app/types/kiln";
 
@@ -431,6 +431,27 @@ function publishedTemp(): number {
   return Math.round(raw * 10) / 10;
 }
 
+/**
+ * Element power as the firmware publishes it: whole percent, and 0 whenever the
+ * SSR is not being driven.
+ *
+ * The firmware reports safety_get_ssr_duty(), i.e. what is actually applied to
+ * the element — and firing_engine.c calls safety_set_ssr(0) on every path that
+ * isn't an active control tick (paused, armed-but-not-started, idle, complete,
+ * error). Deriving this from the thermal model alone would keep showing power
+ * to a kiln that had been stopped.
+ *
+ * Auto-tune is checked first and separately: it runs on its own interval with
+ * state.firing.running still false, and the firmware's tune branch drives the
+ * SSR bang-bang (`safety_set_ssr(output)`), not from the firing PID.
+ */
+function publishedDutyPercent(): number {
+  if (state.autotune.running) return state.autotune.relayOn ? 100 : 0;
+  const f = state.firing;
+  if (!f.running || f.paused || f.scheduled) return 0;
+  return Math.round(elementDuty(f.currentTemp, f.setpoint) * 100);
+}
+
 function broadcast(): void {
   const f = state.firing;
   if (state.subscribers.size === 0) return;
@@ -446,6 +467,7 @@ function broadcast(): void {
       elapsedTime: Math.round(f.simulatedElapsed),
       estimatedTimeRemaining: Math.round(estimateTimeRemaining()),
       delayRemaining: Math.round(f.scheduled ? f.delayRemainingS : 0),
+      dutyPercent: publishedDutyPercent(),
       isActive: f.running || f.scheduled,
       // The firmware includes profileId in every frame; omitting it here meant
       // a client could never adopt a firing started elsewhere.
@@ -470,6 +492,7 @@ export function getStatusResponse() {
     elapsedTime: Math.round(f.simulatedElapsed),
     estimatedTimeRemaining: Math.round(estimateTimeRemaining()),
     delayRemaining: Math.round(f.scheduled ? f.delayRemainingS : 0),
+    dutyPercent: publishedDutyPercent(),
     status: f.status,
     thermocouple: {
       temperature: Math.round(f.currentTemp * 10) / 10,

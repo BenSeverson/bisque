@@ -87,7 +87,8 @@ const char *firing_status_to_string(firing_status_t s);
 
 /**
  * Add the shared firing-progress fields (currentTemp, targetTemp, status,
- * segment counters, elapsed/remaining time, isActive, profileId) to `target`.
+ * segment counters, elapsed/remaining time, isActive, profileId, dutyPercent)
+ * to `target`.
  * Used by both the REST status endpoint and the WebSocket broadcast so the two
  * payloads stay in sync.
  *
@@ -95,8 +96,10 @@ const char *firing_status_to_string(firing_status_t s);
  * @param prog         Snapshot from firing_engine_get_progress().
  * @param current_temp Temperature value to publish (caller decides whether
  *                     offset/fault adjustments apply).
+ * @param ssr_duty     Live element duty 0.0–1.0, from safety_get_ssr_duty();
+ *                     published as whole-percent `dutyPercent`.
  */
-void json_add_progress_fields(cJSON *target, const firing_progress_t *prog, float current_temp);
+void json_add_progress_fields(cJSON *target, const firing_progress_t *prog, float current_temp, float ssr_duty);
 
 /**
  * Check Bearer/query-parameter auth on a request. Returns true when the

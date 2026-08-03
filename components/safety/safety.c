@@ -364,6 +364,17 @@ void safety_set_ssr(float duty)
     ssr_window_apply();
 }
 
+float safety_get_ssr_duty(void)
+{
+    /* Emergency stop zeroes s_ssr_duty as it trips (safety_emergency_stop), and
+       safety_set_ssr() discards a nonzero duty while unsupervised, so the stored
+       value already accounts for both — no second check needed here. */
+    portENTER_CRITICAL(&s_safety_mux);
+    float duty = s_ssr_duty;
+    portEXIT_CRITICAL(&s_safety_mux);
+    return duty;
+}
+
 void safety_task(void *param)
 {
     (void)param;

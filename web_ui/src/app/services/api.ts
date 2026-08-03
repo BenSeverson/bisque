@@ -78,6 +78,8 @@ export interface StatusResponse {
   estimatedTimeRemaining: number;
   /** Seconds until an armed delayed start fires; 0 when none is scheduled. */
   delayRemaining: number;
+  /** Live SSR duty as a whole percent, 0–100 (api_json.c `dutyPercent`). */
+  dutyPercent: number;
   status: string;
   thermocouple: {
     temperature: number;

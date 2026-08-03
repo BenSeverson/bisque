@@ -557,6 +557,19 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
 // --- Autotune simulation ---
 
 /**
+ * How far past the switching band the kiln coasts, as a multiple of the
+ * hysteresis.
+ *
+ * Thermal lag always carries a relay tune beyond the point where the element
+ * switched, which is the whole reason the run is measurable: the firmware
+ * derives Ku from (peak_high - peak_low) and bails with "amplitude too small"
+ * when the swing collapses. The mock previously oscillated by exactly the
+ * hysteresis, so the temperature sat on the switching threshold and the relay
+ * had no margin to latch either way.
+ */
+const OVERSHOOT = 1.5;
+
+/**
  * Returns false if the firmware would have rejected the start.
  *
  * FIRING_CMD_AUTOTUNE_START refuses while a firing is active or a delayed start
@@ -576,14 +589,29 @@ function startAutotune(setpoint: number, hysteresis: number): boolean {
   at.currentTemp = state.firing.currentTemp;
   at.startTime = Date.now();
   at.elapsed = 0;
+  // The tune begins at the setpoint, which is where the firmware enters
+  // AUTOTUNE_RELAY_CYCLING with relay_on = false.
+  at.relayOn = false;
 
   let oscillation = 0;
   at.interval = setInterval(() => {
     at.elapsed = (Date.now() - at.startTime) / 1000;
     oscillation += 0.1;
-    at.currentTemp = setpoint + Math.sin(oscillation) * hysteresis + (Math.random() - 0.5) * 2;
+    at.currentTemp =
+      setpoint + Math.sin(oscillation) * hysteresis * OVERSHOOT + (Math.random() - 0.5) * 2;
     state.firing.currentTemp = at.currentTemp;
     state.firing.status = "autotune";
+
+    // Bang-bang element output, same latch as pid_autotune_update(): ON below
+    // setpoint - hysteresis, OFF above setpoint + hysteresis, held in between.
+    // The firmware drives safety_set_ssr() with this on every tune tick, so
+    // without it the Element Power card would read a flat 0% for the whole run
+    // — exactly the case where watching the element cycle is the point.
+    if (at.currentTemp < setpoint - hysteresis) {
+      at.relayOn = true;
+    } else if (at.currentTemp > setpoint + hysteresis) {
+      at.relayOn = false;
+    }
 
     // Complete after ~60 real seconds
     if (at.elapsed >= 60) {

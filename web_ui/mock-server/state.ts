@@ -111,6 +111,10 @@ export interface AutotuneState {
   gains: { kp: number; ki: number; kd: number };
   interval: ReturnType<typeof setInterval> | null;
   completed: boolean;
+  /** Relay state of the bang-bang tuning output, mirroring `at->relay_on` in
+   *  pid_autotune_update(). Latched: it only flips outside setpoint ±
+   *  hysteresis, so it has to be state rather than a function of the reading. */
+  relayOn: boolean;
 }
 
 export const state = {
@@ -167,6 +171,7 @@ export const state = {
     gains: { kp: 2.0, ki: 0.5, kd: 1.0 },
     interval: null,
     completed: false,
+    relayOn: false,
   } as AutotuneState,
 
   wifi: {

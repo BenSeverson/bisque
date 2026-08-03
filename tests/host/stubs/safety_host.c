@@ -113,6 +113,11 @@ void safety_set_ssr(float duty)
     s_last_duty = duty;
 }
 
+float safety_get_ssr_duty(void)
+{
+    return s_last_duty;
+}
+
 void safety_task(void *param)
 {
     (void)param;
