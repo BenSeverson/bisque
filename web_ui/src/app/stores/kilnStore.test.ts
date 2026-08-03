@@ -108,6 +108,7 @@ describe("kilnStore: seedFromStatus (#124)", () => {
       elapsedTime: 1800,
       estimatedTimeRemaining: 3600,
       delayRemaining: 0,
+      dutyPercent: 62,
       status: "heating",
       thermocouple: {
         temperature: 500,
@@ -286,6 +287,29 @@ describe("kilnStore: WebSocket temp_update handling", () => {
     expect(p.elapsedTime).toBe(60);
     expect(p.estimatedTimeRemaining).toBe(1800);
     expect(p.isActive).toBe(true);
+  });
+
+  it("carries element power through from each frame (#180)", () => {
+    wsSubscriber!(tempFrame({ dutyPercent: 62, isActive: true, status: "heating" }));
+    expect(useKilnStore.getState().firingProgress.dutyPercent).toBe(62);
+    wsSubscriber!(tempFrame({ dutyPercent: 0, isActive: true, status: "holding" }));
+    expect(useKilnStore.getState().firingProgress.dutyPercent).toBe(0);
+  });
+
+  it("reports no element power at all on firmware that does not send it (#180)", () => {
+    // Not 0: a kiln that cannot report its power has not told us the element is
+    // off, and the dashboard renders the two differently.
+    wsSubscriber!(tempFrame({ isActive: true, status: "heating" }));
+    expect(useKilnStore.getState().firingProgress.dutyPercent).toBeNull();
+  });
+
+  it("keeps the reported element power when a firing ends (#180)", () => {
+    // The elapsed/segment figures are cleared on this edge because they describe
+    // a firing that is over; the duty describes the kiln, and the same frame
+    // that ends the firing already reports it as 0.
+    wsSubscriber!(tempFrame({ isActive: true, status: "heating", dutyPercent: 80 }));
+    wsSubscriber!(tempFrame({ isActive: false, status: "idle", dutyPercent: 0 }));
+    expect(useKilnStore.getState().firingProgress.dutyPercent).toBe(0);
   });
 
   it("coerces an unknown status string back to 'idle'", () => {

@@ -49,6 +49,7 @@ const initialProgress: FiringProgress = {
   elapsedTime: 0,
   estimatedTimeRemaining: 0,
   delayRemaining: 0,
+  dutyPercent: null,
   status: "idle",
 };
 
@@ -163,6 +164,7 @@ export const useKilnStore = create<KilnState>((set) => ({
           elapsedTime: s.elapsedTime,
           estimatedTimeRemaining: s.estimatedTimeRemaining,
           delayRemaining: s.delayRemaining ?? 0,
+          dutyPercent: s.dutyPercent ?? null,
           status,
         },
         /* A reload landing mid-failure never sees the transition frame, so the
@@ -247,6 +249,12 @@ export const useKilnStore = create<KilnState>((set) => ({
               elapsedTime: endedFiring ? 0 : d.elapsedTime,
               estimatedTimeRemaining: endedFiring ? 0 : d.estimatedTimeRemaining,
               delayRemaining: endedFiring ? 0 : (d.delayRemaining ?? 0),
+              /* Not zeroed on endedFiring: unlike the elapsed/segment figures
+                 above, this one still describes the kiln after the firing ends
+                 — the element is genuinely off, and the firmware says so in the
+                 same frame. Held at the previous value only when the frame
+                 omits the field entirely (pre-#180 firmware). */
+              dutyPercent: d.dutyPercent ?? prev.dutyPercent,
               status,
             },
             currentTempData: newData,

@@ -26,6 +26,7 @@ export const firingProgressResponseSchema = z.object({
   elapsedTime: z.number(),
   estimatedTimeRemaining: z.number(),
   delayRemaining: z.number(),
+  dutyPercent: z.number().min(0).max(100),
   status: z.string(),
   thermocouple: z.object({
     temperature: z.number(),
