@@ -49,6 +49,7 @@ import {
 import { api, DiagThermocouple, OtaCheckResponse } from "../services/api";
 import { kilnWS } from "../services/websocket";
 import { WifiCard } from "./WifiCard";
+import { BrowserAlertsCard } from "./BrowserAlertsCard";
 import { DemoFaultControl } from "./DemoFaultControl";
 
 export function Settings() {
@@ -403,20 +404,6 @@ export function Settings() {
                 onCheckedChange={(checked) => updateField("autoShutdown", checked)}
               />
             </div>
-
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="notifications">Notifications</Label>
-                <p className="text-sm text-muted-foreground">
-                  Receive notifications for important events
-                </p>
-              </div>
-              <Switch
-                id="notifications"
-                checked={watchedSettings.notificationsEnabled}
-                onCheckedChange={(checked) => updateField("notificationsEnabled", checked)}
-              />
-            </div>
           </CardContent>
         </Card>
 
@@ -429,6 +416,26 @@ export function Settings() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Lives here, not under Safety Settings where it used to sit as
+                "Notifications — receive notifications for important events".
+                That copy promised alerts of every kind while the flag gates
+                exactly one thing: the webhook POST two cards below it
+                (api_handlers.c, handle_firing_event). Browser alerts are a
+                separate, browser-local setting (#185). */}
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="notifications">Send webhooks</Label>
+                <p className="text-sm text-muted-foreground">
+                  Master switch. Off means nothing is posted, even with a URL saved below.
+                </p>
+              </div>
+              <Switch
+                id="notifications"
+                checked={watchedSettings.notificationsEnabled}
+                onCheckedChange={(checked) => updateField("notificationsEnabled", checked)}
+              />
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="webhook-url">Webhook URL</Label>
               <Input
@@ -492,6 +499,9 @@ export function Settings() {
           <Button type="submit">Save Settings</Button>
         </div>
       </form>
+
+      {/* Browser-local, so it sits outside the form and its Save button. */}
+      <BrowserAlertsCard />
 
       {/* Wi-Fi Network — hidden in the demo (provisioning needs hardware) */}
       {!__DEMO__ && <WifiCard />}
