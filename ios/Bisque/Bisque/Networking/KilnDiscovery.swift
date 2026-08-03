@@ -58,8 +58,17 @@ final class KilnDiscovery {
     private var probes: [String: Task<Void, Never>] = [:]
 
     /// The token to present while probing, so a kiln we already have
-    /// credentials for is listed as ready rather than locked.
+    /// credentials for is listed as ready rather than locked. It is only ever
+    /// sent to a service that has already identified itself — see `verify`.
     var apiToken: String?
+
+    /// Bumped whenever the browser is torn down, so callbacks still in flight
+    /// from the old one cannot act on the new one's state. `NWBrowser` delivers
+    /// on its own queue and each handler hops to the main actor, so a
+    /// `.cancelled` or a final result set from the browser `restart()` just
+    /// replaced can otherwise land *after* its successor has reported `.ready`
+    /// — resetting the state to idle, or wiping the new generation's kilns.
+    private var generation = 0
 
     // MARK: - Lifecycle
 
@@ -75,19 +84,28 @@ final class KilnDiscovery {
             for: .bonjour(type: Self.serviceType, domain: nil),
             using: parameters)
 
+        let generation = self.generation
+
         browser.stateUpdateHandler = { [weak self] state in
-            Task { @MainActor in self?.handleBrowserState(state) }
+            Task { @MainActor in self?.handleBrowserState(state, generation: generation) }
         }
 
         browser.browseResultsChangedHandler = { [weak self] results, _ in
             // Map to plain strings inside the callback: only Sendable values
             // cross onto the main actor, and rebuilding the endpoint there from
             // name/type/domain resolves to the same service.
+            //
+            // The interface is dropped because there is none to keep: NWBrowser
+            // collapses a service seen on several links into one result with a
+            // nil endpoint interface and the links listed in `result.interfaces`
+            // (verified against a live network — a kiln visible on lo0 and en0
+            // arrives as a single result). Resolving with `interface: nil` then
+            // lets the system pick a link that works.
             let services = results.compactMap { result -> BonjourService? in
                 guard case let .service(name, type, domain, _) = result.endpoint else { return nil }
                 return BonjourService(name: name, type: type, domain: domain)
             }
-            Task { @MainActor in self?.handleResults(services) }
+            Task { @MainActor in self?.handleResults(services, generation: generation) }
         }
 
         self.browser = browser
@@ -95,6 +113,7 @@ final class KilnDiscovery {
     }
 
     func stop() {
+        generation &+= 1
         browser?.cancel()
         browser = nil
         for probe in probes.values { probe.cancel() }
@@ -122,7 +141,8 @@ final class KilnDiscovery {
         let domain: String
     }
 
-    private func handleBrowserState(_ browserState: NWBrowser.State) {
+    private func handleBrowserState(_ browserState: NWBrowser.State, generation: Int) {
+        guard generation == self.generation else { return }
         switch browserState {
         case .ready:
             state = .searching
@@ -147,7 +167,8 @@ final class KilnDiscovery {
             + "Enter the kiln's address below."
     }
 
-    private func handleResults(_ services: [BonjourService]) {
+    private func handleResults(_ services: [BonjourService], generation: Int) {
+        guard generation == self.generation else { return }
         let present = Set(services.map(\.name))
 
         // Drop anything that has gone away, along with its in-flight probe.
@@ -280,11 +301,27 @@ final class KilnDiscovery {
 
     // MARK: - Verification
 
+    private enum ProbeOutcome {
+        /// Answered `/api/v1/status` with something the app can decode.
+        case kiln
+        /// Answered 401, carrying whatever `WWW-Authenticate` it offered.
+        case challenge(String)
+        case other
+    }
+
     /// Asks a candidate whether it is a kiln.
     ///
     /// Returns nil when it is not, otherwise whether it wants an API token.
-    /// A 401 counts as a positive identification only when the challenge (or
-    /// the advertised instance name) says Bisque — the firmware answers
+    ///
+    /// **The first request is always unauthenticated.** The browse enumerates
+    /// every `_http._tcp` service on the network — printers, routers, cameras —
+    /// and sending the saved bearer token to all of them would hand a
+    /// kiln-controlling credential to anything that cared to log it. Only once
+    /// a response has identified the peer as a kiln is the token presented, and
+    /// then only to that peer.
+    ///
+    /// A 401 counts as identification when the challenge (or the advertised
+    /// instance name) says Bisque — the firmware answers
     /// `WWW-Authenticate: Bearer realm="bisque"` — because otherwise every
     /// password-protected HTTP device on the network would list as a kiln.
     nonisolated static func verify(
@@ -293,6 +330,29 @@ final class KilnDiscovery {
     ) async -> Bool? {
         guard let url = URL(string: "http://\(host):\(port)/api/v1/status") else { return nil }
 
+        switch await probeStatus(url: url, apiToken: nil, timeout: timeout) {
+        case .kiln:
+            return false
+        case .other:
+            return nil
+        case .challenge(let challenge):
+            let looksLikeBisque = challenge.lowercased().contains("bisque")
+                || serviceName.lowercased().contains("bisque")
+            guard looksLikeBisque else { return nil }
+            guard let apiToken, !apiToken.isEmpty else { return true }
+
+            // Identified as a kiln, so the token can go to it now. A second
+            // challenge means the token we hold is not the one it wants.
+            if case .kiln = await probeStatus(url: url, apiToken: apiToken, timeout: timeout) {
+                return false
+            }
+            return true
+        }
+    }
+
+    private nonisolated static func probeStatus(
+        url: URL, apiToken: String?, timeout: TimeInterval
+    ) async -> ProbeOutcome {
         var request = URLRequest(url: url)
         request.timeoutInterval = timeout
         request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
@@ -301,17 +361,14 @@ final class KilnDiscovery {
         }
 
         guard let (data, response) = try? await URLSession.shared.data(for: request),
-              let http = response as? HTTPURLResponse else { return nil }
+              let http = response as? HTTPURLResponse else { return .other }
 
         if http.statusCode == 401 {
-            let challenge = (http.value(forHTTPHeaderField: "WWW-Authenticate") ?? "").lowercased()
-            let looksLikeBisque =
-                challenge.contains("bisque") || serviceName.lowercased().contains("bisque")
-            return looksLikeBisque ? true : nil
+            return .challenge(http.value(forHTTPHeaderField: "WWW-Authenticate") ?? "")
         }
 
         guard (200...299).contains(http.statusCode),
-              (try? JSONDecoder().decode(StatusResponse.self, from: data)) != nil else { return nil }
-        return false
+              (try? JSONDecoder().decode(StatusResponse.self, from: data)) != nil else { return .other }
+        return .kiln
     }
 }
