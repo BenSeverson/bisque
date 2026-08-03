@@ -288,4 +288,18 @@ export const api = {
       body: JSON.stringify({ durationSeconds }),
     }),
   getThermocoupleDiag: () => request<DiagThermocouple>("/diagnostics/thermocouple"),
+
+  /**
+   * Trip a simulated safety fault. Mock-server only — a real controller has no
+   * such route and answers 404, so every call site must be `__DEMO__`-gated.
+   *
+   * It exists because a kiln that never fails leaves the whole error path
+   * (banner, history cause, Last Error, emergency-stop guidance) unreachable in
+   * the demo, which is the only place most people will ever see this UI (#239).
+   */
+  simulateFault: (code: number) =>
+    request<{ ok: boolean; lastErrorCode: number; status: string }>("/mock/fault", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    }),
 };

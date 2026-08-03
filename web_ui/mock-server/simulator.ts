@@ -1,8 +1,39 @@
-import { state } from "./state";
+import { state, FIRING_ERR, HISTORY_MAX_RECORDS } from "./state";
 import { AMBIENT, updateTemperature, coolingTemperature } from "./physics";
 import { HOLD_UNTIL_SKIP } from "../src/app/types/kiln";
+import type { HistoryRecord } from "../src/app/types/kiln";
 
 const speed = () => state.speed;
+
+/**
+ * Close out the open history record, mirroring `history_firing_end()`.
+ *
+ * The firmware writes a record on every terminal transition — complete,
+ * aborted, and error alike — and prepends it, capping at HISTORY_MAX_RECORDS.
+ * The mock used to serve a frozen three-record list, so a firing you ran in the
+ * demo left no trace and the error outcome was unreachable (#239).
+ *
+ * `startedAtS` stands in for the firmware's `s_recording`: it is only set in
+ * beginFiring(), so an armed-but-never-started delayed firing records nothing,
+ * matching the early return in history_firing_end().
+ */
+function recordHistoryEnd(outcome: HistoryRecord["outcome"], errorCode: number): void {
+  const f = state.firing;
+  if (f.startedAtS === 0) return;
+
+  state.history.unshift({
+    id: state.nextHistoryId++,
+    startTime: f.startedAtS,
+    profileName: f.profileName,
+    profileId: f.profileId,
+    peakTemp: Math.round(f.peakTemp),
+    durationS: Math.round(f.simulatedElapsed),
+    outcome,
+    errorCode,
+  });
+  state.history.length = Math.min(state.history.length, HISTORY_MAX_RECORDS);
+  f.startedAtS = 0;
+}
 
 /**
  * Start the 1 Hz telemetry ticker.
@@ -23,6 +54,14 @@ export function ensureTicking(): void {
 export function startFiring(profileId: string, delayMinutes = 0): boolean {
   const profile = state.profiles.find((p) => p.id === profileId);
   if (!profile) return false;
+
+  // A START releases any latched trip (safety_clear_emergency(),
+  // firing_engine.c:858) and clears the recorded cause
+  // (s_last_error_code = FIRING_ERR_NONE, :925) — for a delayed arm too. This
+  // is the *only* way out of an emergency stop, which is what the Settings copy
+  // added in #235 tells the operator.
+  state.emergencyStop = false;
+  state.lastErrorCode = FIRING_ERR.NONE;
 
   const f0 = state.firing;
   if (delayMinutes > 0) {
@@ -64,6 +103,9 @@ function beginFiring(profileId: string): boolean {
   f.segmentElapsed = 0;
   f.holdElapsed = 0;
   f.status = "heating";
+  f.peakTemp = f.currentTemp;
+  f.profileName = profile.name;
+  f.startedAtS = Math.floor(Date.now() / 1000);
 
   ensureTicking();
   return true;
@@ -72,6 +114,7 @@ function beginFiring(profileId: string): boolean {
 export function stopFiring(): void {
   const f = state.firing;
   const wasScheduled = f.scheduled;
+  recordHistoryEnd("aborted", FIRING_ERR.NONE);
   f.scheduled = false;
   f.delayRemainingS = 0;
   f.running = false;
@@ -108,6 +151,7 @@ export function skipSegment(): void {
     f.running = false;
     f.status = "complete";
     f.coolingDown = true;
+    recordHistoryEnd("complete", FIRING_ERR.NONE);
     return;
   }
 
@@ -252,9 +296,58 @@ function tick(): void {
 
   // Update temperature via physics model
   f.currentTemp = updateTemperature(f.currentTemp, f.setpoint, dt);
+  if (f.currentTemp > f.peakTemp) f.peakTemp = f.currentTemp;
   f.status = determineStatus();
 
   broadcast();
+}
+
+/**
+ * Trip a safety fault, the way `firing_loop()` handles `safety_is_emergency()`.
+ *
+ * There is no firmware endpoint behind this — a real kiln fails on its own, and
+ * a simulated one has to be told to. Without it none of the error UI (#235) was
+ * reachable in `npm run dev`, in Vitest, or in the published demo (#239);
+ * verifying it meant stubbing `window.fetch` in the browser by hand.
+ *
+ * The three outcomes match firing_engine.c:
+ *  - firing in progress → status ERROR, elements off, an `error` history record
+ *    carrying the code, and the kiln cools passively (:1240-1262)
+ *  - delayed start armed → the arm is cancelled with no history record, since
+ *    none was ever opened (:1169-1184)
+ *  - idle → the trip latches with no recorded cause, which is the one case the
+ *    "start a firing to clear it" copy is accurate for
+ */
+export function tripFault(code: number): void {
+  const f = state.firing;
+  const wasActive = f.running || f.scheduled;
+  const wasFiring = f.running;
+
+  state.emergencyStop = true;
+  f.scheduled = false;
+  f.delayRemainingS = 0;
+
+  if (wasActive) {
+    // Matches the firmware's precedence: NOT_RISING/RUNAWAY assign their code
+    // before tripping, so an already-recorded cause is never overwritten.
+    if (state.lastErrorCode === FIRING_ERR.NONE) state.lastErrorCode = code;
+    f.running = false;
+    f.paused = false;
+    // is_active goes false while the status latches on ERROR — the pair the
+    // dashboard banner keys off.
+    f.status = "error";
+  }
+  // An idle kiln keeps its idle status and records no cause: both assignments
+  // live under `if (s_progress.is_active)`, and s_last_error_code is only ever
+  // written inside the firing loop. The trip is still visible — as the bare
+  // emergencyStop flag Settings renders, which is the one case where "start a
+  // firing to clear it" is the whole truth.
+  if (wasFiring) {
+    recordHistoryEnd("error", state.lastErrorCode);
+    f.coolingDown = true;
+  }
+
+  ensureTicking();
 }
 
 function transitionToHoldOrAdvance(holdTime: number): void {
@@ -277,6 +370,7 @@ function advanceSegment(): void {
     f.running = false;
     f.status = "complete";
     f.coolingDown = true;
+    recordHistoryEnd("complete", FIRING_ERR.NONE);
     return;
   }
 

@@ -1,7 +1,75 @@
 import type { WebSocketServer } from "ws";
-import type { FiringProfile, KilnSettings } from "../src/app/types/kiln";
+import type { FiringProfile, HistoryRecord, KilnSettings } from "../src/app/types/kiln";
 import { mockProfiles } from "../src/app/data/mockProfiles";
 import { AMBIENT } from "./physics";
+
+/** Mirrors HISTORY_MAX_RECORDS in components/history/include/firing_history.h. */
+export const HISTORY_MAX_RECORDS = 20;
+
+/** Mirrors `firing_error_code_t` (components/firing_engine/include/firing_types.h). */
+export const FIRING_ERR = {
+  NONE: 0,
+  TC_FAULT: 1,
+  OVER_TEMP: 2,
+  NOT_RISING: 3,
+  RUNAWAY: 4,
+  EMERGENCY_STOP: 5,
+  INVALID_PROFILE: 6,
+} as const;
+
+const nowS = () => Math.floor(Date.now() / 1000);
+
+/**
+ * Seeded history, newest first — the order `history_get_records()` returns,
+ * since `history_firing_end()` prepends. The mock used to list them oldest
+ * first, which is not what a device shows.
+ *
+ * One record is a real failure. Every seeded record used to carry
+ * `errorCode: 0`, so the history detail's cause line (#235) was dead code in
+ * dev, in the tests, and in the published demo (#239).
+ */
+const seedHistory = (): HistoryRecord[] => [
+  {
+    id: 4,
+    startTime: nowS() - 3600 * 2,
+    profileName: "Custom Test",
+    profileId: "custom-test",
+    peakTemp: 850,
+    durationS: 5400,
+    outcome: "aborted",
+    errorCode: FIRING_ERR.NONE,
+  },
+  {
+    id: 3,
+    startTime: nowS() - 3600 * 8,
+    profileName: "Glaze Cone 6",
+    profileId: "glaze-6",
+    peakTemp: 1043,
+    durationS: 12600,
+    outcome: "error",
+    errorCode: FIRING_ERR.TC_FAULT,
+  },
+  {
+    id: 2,
+    startTime: nowS() - 86400,
+    profileName: "Glaze Cone 6",
+    profileId: "glaze-6",
+    peakTemp: 1222,
+    durationS: 21600,
+    outcome: "complete",
+    errorCode: FIRING_ERR.NONE,
+  },
+  {
+    id: 1,
+    startTime: nowS() - 86400 * 3,
+    profileName: "Bisque Cone 04",
+    profileId: "bisque-04",
+    peakTemp: 1063,
+    durationS: 14400,
+    outcome: "complete",
+    errorCode: FIRING_ERR.NONE,
+  },
+];
 
 export interface FiringState {
   running: boolean;
@@ -24,6 +92,13 @@ export interface FiringState {
   segmentElapsed: number;
   holdElapsed: number;
   status: string;
+  /** Running peak, mirroring s_state.peak_temp_c — goes into the history record. */
+  peakTemp: number;
+  /** Unix seconds the current firing began; 0 when nothing has begun.
+   *  Doubles as "a history record is open", the mock's `s_recording`. */
+  startedAtS: number;
+  /** Name captured at start, so a record survives the profile being edited. */
+  profileName: string;
 }
 
 export interface AutotuneState {
@@ -68,7 +143,19 @@ export const state = {
     segmentElapsed: 0,
     holdElapsed: 0,
     status: "idle",
+    peakTemp: AMBIENT,
+    startedAtS: 0,
+    profileName: "",
   } as FiringState,
+
+  /** Newest first, like history_get_records(). */
+  history: seedHistory(),
+  nextHistoryId: 5,
+
+  /** `safety_is_emergency()` — latched until the next successful start. */
+  emergencyStop: false,
+  /** `firing_engine_get_error_code()` — outlives the firing that set it. */
+  lastErrorCode: FIRING_ERR.NONE as number,
 
   autotune: {
     running: false,

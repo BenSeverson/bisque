@@ -9,13 +9,19 @@
  * interceptor. Keeping the routing here means one simulation core serves the
  * Vite dev server, the iOS standalone mock, and the static GitHub Pages demo.
  */
-import type { FiringProfile, FiringSegment, KilnSettings } from "../src/app/types/kiln";
-import { state } from "./state";
+import type {
+  FiringProfile,
+  FiringSegment,
+  HistoryRecord,
+  KilnSettings,
+} from "../src/app/types/kiln";
+import { state, FIRING_ERR } from "./state";
 import {
   startFiring,
   stopFiring,
   pauseFiring,
   skipSegment,
+  tripFault,
   getStatusResponse,
   ensureTicking,
 } from "./simulator";
@@ -92,41 +98,7 @@ export const CONE_TABLE = [
   { id: 36, name: "14", slowTempC: 1388, mediumTempC: 1395, fastTempC: 1410 },
 ];
 
-// --- Mock firing history ---
-const mockHistory = [
-  {
-    id: 1,
-    startTime: Math.floor(Date.now() / 1000) - 86400 * 3,
-    profileName: "Bisque Cone 04",
-    profileId: "bisque-cone-04",
-    peakTemp: 1063,
-    durationS: 14400,
-    outcome: "complete",
-    errorCode: 0,
-  },
-  {
-    id: 2,
-    startTime: Math.floor(Date.now() / 1000) - 86400,
-    profileName: "Glaze Cone 6",
-    profileId: "glaze-cone-6",
-    peakTemp: 1222,
-    durationS: 21600,
-    outcome: "complete",
-    errorCode: 0,
-  },
-  {
-    id: 3,
-    startTime: Math.floor(Date.now() / 1000) - 3600 * 2,
-    profileName: "Custom Test",
-    profileId: "custom-test",
-    peakTemp: 850,
-    durationS: 5400,
-    outcome: "aborted",
-    errorCode: 0,
-  },
-];
-
-function generateTraceCsv(record: (typeof mockHistory)[0]): string {
+function generateTraceCsv(record: HistoryRecord): string {
   const lines = ["time_s,temp_c"];
   const steps = Math.floor(record.durationS / 60);
   const peak = record.peakTemp;
@@ -344,14 +316,14 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
 
   // GET /history
   if (method === "GET" && apiPath === "/history") {
-    return { status: 200, json: mockHistory };
+    return { status: 200, json: state.history };
   }
 
   // GET /history/:id/trace
   const historyTraceMatch = apiPath.match(/^\/history\/(\d+)\/trace$/);
   if (method === "GET" && historyTraceMatch) {
     const id = parseInt(historyTraceMatch[1], 10);
-    const record = mockHistory.find((r) => r.id === id);
+    const record = state.history.find((r) => r.id === id);
     if (!record) return { status: 404, json: { error: "Not found" } };
     return { status: 200, text: generateTraceCsv(record), contentType: "text/csv" };
   }
@@ -409,8 +381,8 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
         model: "Bisque ESP32-S3 (Simulated)",
         uptimeSeconds: Math.round((Date.now() - state.startupTime) / 1000),
         freeHeap: 200000 + Math.round(Math.random() * 10000),
-        emergencyStop: false,
-        lastErrorCode: 0,
+        emergencyStop: state.emergencyStop,
+        lastErrorCode: state.lastErrorCode,
         elementHoursS: 3600 * 42,
         spiffsTotal: 917504,
         spiffsUsed: 204800 + Math.round(Math.random() * 50000),
@@ -497,6 +469,29 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
   if (method === "POST" && apiPath === "/diagnostics/relay") {
     const durationSeconds = (body as { durationSeconds?: number }).durationSeconds ?? 2;
     return { status: 200, json: { ok: true, durationSeconds } };
+  }
+
+  // POST /mock/fault — simulator-only, no firmware counterpart
+  //
+  // The kiln has no "fail now" command; a real one fails on its own. Everything
+  // downstream of a fault was therefore unreachable in the mock — the dashboard
+  // error banner, the history detail cause, Settings' Last Error and
+  // emergency-stop guidance (all #235) — in dev, in Vitest, and in the
+  // published demo (#239). This is the lever that makes them exercisable.
+  //
+  // The `/mock/` prefix marks it as a simulator affordance rather than API
+  // surface a client may depend on. It cannot leak into a device build: the
+  // whole mock-server tree is dev/demo-only, and a real controller 404s it.
+  if (method === "POST" && apiPath === "/mock/fault") {
+    const code = (body as { code?: number }).code ?? FIRING_ERR.TC_FAULT;
+    if (!Number.isInteger(code) || code < 1) {
+      return { status: 400, json: { ok: false, error: "code must be a positive integer" } };
+    }
+    tripFault(code);
+    return {
+      status: 200,
+      json: { ok: true, lastErrorCode: state.lastErrorCode, status: state.firing.status },
+    };
   }
 
   // GET /diagnostics/thermocouple

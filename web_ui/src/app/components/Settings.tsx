@@ -49,6 +49,7 @@ import {
 import { api, DiagThermocouple, OtaCheckResponse } from "../services/api";
 import { kilnWS } from "../services/websocket";
 import { WifiCard } from "./WifiCard";
+import { DemoFaultControl } from "./DemoFaultControl";
 
 export function Settings() {
   const { data: settings } = useSettings();
@@ -632,6 +633,10 @@ export function Settings() {
               <Thermometer className="h-4 w-4" />
               Read Thermocouple
             </Button>
+            {/* The mirror image of Test Relay: hardware-only there, simulator-only
+                here. A demo kiln never fails on its own, so without this the
+                error UI below is unreachable by clicking (#239). */}
+            {__DEMO__ && <DemoFaultControl />}
           </div>
 
           {tcDiag && (
