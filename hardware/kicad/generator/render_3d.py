@@ -300,6 +300,11 @@ def body(B, fpname, value, fx, fy, frot, pads):
     elif "SW_PUSH_6mm" in fpname:
         box(3.25, 2.25, T, T + 3.5, 6.2, 6.2, "silver")
         cyl(3.25, 2.25, T + 3.5, T + 4.3, 1.7, "black")
+    elif "TS-1187A" in fpname:
+        # SMD tact switch: 5.1 x 5.1 mm body, 1.5 mm actuator, pads on the
+        # board surface rather than legs through it (origin is body centre)
+        box(0, 0, T, T + 1.6, 5.1, 5.1, "silver")
+        cyl(0, 0, T + 1.6, T + 2.5, 1.75, "black")
     elif "Buzzer" in fpname:
         cyl(3.8, 0, T, T + 9.5, 6.0, "buzzer", seg=28)
         cyl(3.8, 0, T + 9.5, T + 9.52, 1.0, "hole_dark", seg=12)

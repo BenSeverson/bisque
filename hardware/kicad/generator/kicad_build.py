@@ -112,7 +112,7 @@ def build_board():
     for ref, (x, y) in {"J5": (33.0, 90.6), "J6": (54.8, 90.6),
                         "J7": (72.0, 90.6), "LED1": (69.8, 89.3),
                         "U3": (104.5, 57.4), "C9": (105.3, 69.5),
-                        "J3": (110.6, 71.6), "SW1": (51.5, 25.0),
+                        "J3": (110.6, 71.6), "SW1": (49.4, 23.2), "SW2": (105.8, 50.2),
                         "H1": (30.5, 25.0)}.items():
         fps[ref].Reference().SetPosition(V(x, y))
     return board, nets, fps
@@ -276,44 +276,111 @@ def add_zones(board, nets):
     return
 
 
+def _gnd_islands(board):
+    """{(layer, index): filled outline} for every GND pour island."""
+    isl = {}
+    for z in board.Zones():
+        if z.GetIsRuleArea() or z.GetNetname() != "GND":
+            continue
+        layer = z.GetLayer()
+        polys = z.GetFilledPolysList(layer)
+        for i in range(polys.OutlineCount()):
+            isl[(layer, i)] = polys.Outline(i)
+    return isl
+
+
+def _gnd_bridges(board):
+    """Points where GND crosses between layers: vias and plated GND pads."""
+    pts = [(pcbnew.ToMM(t.GetPosition().x), pcbnew.ToMM(t.GetPosition().y))
+           for t in board.Tracks()
+           if t.Type() == pcbnew.PCB_VIA_T and t.GetNetname() == "GND"]
+    for fp in board.Footprints():
+        for pad in fp.Pads():
+            if pad.GetAttribute() == pcbnew.PAD_ATTRIB_PTH and \
+               pad.GetNetname() == "GND":
+                pts.append((pcbnew.ToMM(pad.GetPosition().x),
+                            pcbnew.ToMM(pad.GetPosition().y)))
+    return pts
+
+
+def _island_components(isl, bridges):
+    """Union-find over islands linked by a layer-bridging GND point.
+    Returns [[key, ...], ...], largest total copper area first."""
+    def at(layer, x, y):
+        p = pcbnew.VECTOR2I(MM(x), MM(y))
+        for key, ol in isl.items():
+            if key[0] == layer and ol.PointInside(p):
+                return key
+        return None
+
+    parent = {k: k for k in isl}
+
+    def find(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+
+    for (x, y) in bridges:
+        f, b = at(pcbnew.F_Cu, x, y), at(pcbnew.B_Cu, x, y)
+        if f and b:
+            ra, rb = find(f), find(b)
+            if ra != rb:
+                parent[ra] = rb
+
+    groups = {}
+    for k in isl:
+        groups.setdefault(find(k), []).append(k)
+    return sorted(groups.values(),
+                  key=lambda g: -sum(abs(isl[k].Area()) for k in g))
+
+
 def heal_islands(board, nets, r, rounds=1):
-    """Stitch any isolated GND pour island that lacks a via. The caller
-    refills the zones afterwards (kicad-cli --refill-zones) and calls
-    again until the DRC reports no unconnected items."""
-    LNAME = {pcbnew.F_Cu: 0, pcbnew.B_Cu: 1}
+    """Tie stranded GND pour copper back to the main pour with a via.
+
+    Two distinct failure modes, both healed here:
+
+      1. An island with no layer-bridging anchor at all.
+      2. A *group* of islands that bridge to each other but never reach the
+         main pour — e.g. F.Cu island -> via -> B.Cu island -> via -> back to
+         the same F.Cu island. Every island in such a group has a via, so the
+         original "does this island contain any anchor?" test declared them
+         all healthy while KiCad reported "Missing connection between
+         Zone [GND] and Zone [GND]" and heal_islands printed "healed 0".
+
+    Modelling it as connectivity components covers both: anything outside the
+    largest component needs a via placed where it overlaps the main component
+    on the opposite layer. The caller refills the zones (kicad-cli
+    --refill-zones) and calls again until DRC reports no unconnected items.
+    """
     total = 0
     for _ in range(rounds):
+        isl = _gnd_islands(board)
+        comps = _island_components(isl, _gnd_bridges(board))
+        if len(comps) < 2:
+            break
+        main = set(comps[0])
         added = 0
-        via_pts = [(pcbnew.ToMM(v.GetPosition().x), pcbnew.ToMM(v.GetPosition().y))
-                   for v in board.Tracks() if v.Type() == pcbnew.PCB_VIA_T]
-        tht_pts = []
-        for fp in board.Footprints():
-            for pad in fp.Pads():
-                if pad.GetAttribute() == pcbnew.PAD_ATTRIB_PTH and \
-                   pad.GetNetname() == "GND":
-                    tht_pts.append((pcbnew.ToMM(pad.GetPosition().x),
-                                    pcbnew.ToMM(pad.GetPosition().y)))
-        anchors = via_pts + tht_pts
-        for z in board.Zones():
-            if z.GetIsRuleArea() or z.GetNetname() != "GND":
-                continue
-            layer = z.GetLayer()
-            polys = z.GetFilledPolysList(layer)
-            for i in range(polys.OutlineCount()):
-                ol = polys.Outline(i)
-                if any(ol.PointInside(pcbnew.VECTOR2I(MM(x), MM(y)))
-                       for (x, y) in anchors):
-                    continue
-                # island without any layer-bridging anchor: find a via spot
+        for group in comps[1:]:
+            placed = False
+            for key in sorted(group, key=lambda k: -abs(isl[k].Area())):
+                layer, _idx = key
+                other = pcbnew.B_Cu if layer == pcbnew.F_Cu else pcbnew.F_Cu
+                targets = [isl[k] for k in main if k[0] == other]
+                ol = isl[key]
                 bb = ol.BBox()
                 x0, y0 = pcbnew.ToMM(bb.GetLeft()), pcbnew.ToMM(bb.GetTop())
                 x1, y1 = pcbnew.ToMM(bb.GetRight()), pcbnew.ToMM(bb.GetBottom())
-                placed = False
                 yy = y0 + 0.4
                 while yy < y1 and not placed:
                     xx = x0 + 0.4
                     while xx < x1 and not placed:
-                        if ol.PointInside(pcbnew.VECTOR2I(MM(xx), MM(yy))):
+                        p = pcbnew.VECTOR2I(MM(xx), MM(yy))
+                        # must land in this island *and* in main-component
+                        # copper on the other layer, or the via bridges
+                        # nothing useful
+                        if ol.PointInside(p) and \
+                           any(t.PointInside(p) for t in targets):
                             i2, j2 = r.snap(xx, yy)
                             r._begin("GND-heal%d" % total)
                             if r.via_ok("GND", i2, j2):
@@ -328,14 +395,19 @@ def heal_islands(board, nets, r, rounds=1):
                                 v.SetNet(board.FindNet("GND"))
                                 v.SetIsFree(True)
                                 board.Add(v)
+                                print("  bridged stranded GND island to the "
+                                      "main pour at (%.1f, %.1f)" % (cx, cy))
                                 placed = True
                                 added += 1
                                 total += 1
                         xx += 0.4
                     yy += 0.4
-                if not placed:
-                    print("  !! island at (%.1f,%.1f)-(%.1f,%.1f) on %s: no via spot"
-                          % (x0, y0, x1, y1, "F" if layer == pcbnew.F_Cu else "B"))
+                if placed:
+                    break
+            if not placed:
+                area = sum(abs(isl[k].Area()) for k in group) / 1e12
+                print("  !! %.1f mm2 of GND pour (%d island(s)) is stranded "
+                      "and no legal via spot bridges it" % (area, len(group)))
         if not added:
             break
     return total

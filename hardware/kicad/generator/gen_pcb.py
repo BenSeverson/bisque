@@ -50,7 +50,7 @@ def rot_xy(lx, ly, rot):
 
 
 def pad_geometry(comp):
-    """Yield (padname, kind, gx, gy, eff_w, eff_h, circle, layers) for each pad."""
+    """Yield (padname, kind, gx, gy, eff_w, eff_h, circle, layers, drill)."""
     fp = load_fp(comp["fpf"])
     fx, fy, frot = comp["at"]
     for p in find_all(fp, "pad"):
@@ -73,11 +73,16 @@ def pad_geometry(comp):
         if abs(tot - 90) < 1:
             w, h = h, w
         circle = shape == "circle"
+        drill = 0.0
         if kind in ("thru_hole", "np_thru_hole"):
             layers = (0, 1)
+            dr = find(p, "drill")
+            # a plated pad always has a hole; fall back to the min JLCPCB
+            # drill rather than 0, which the router reads as "SMD pad"
+            drill = num(dr[1]) if dr and len(dr) > 1 else 0.3
         else:
             layers = (0,)
-        yield (str(name), kind, gx, gy, w, h, circle, layers)
+        yield (str(name), kind, gx, gy, w, h, circle, layers, drill)
 
 
 def build_router():
@@ -87,14 +92,14 @@ def build_router():
     r.add_keepout(fx - 24, BY0, fx + 24, fy - 6.8)
     pad_pos = {}
     for ref, c in COMPONENTS.items():
-        for (name, kind, gx, gy, w, h, circle, layers) in pad_geometry(c):
+        for (name, kind, gx, gy, w, h, circle, layers, drill) in pad_geometry(c):
             if kind == "np_thru_hole" or name == "":
                 net = None
             else:
                 net = c["pins"].get(name)
                 if net is None:
                     net = "__nc_%s_%s" % (ref, name)
-            r.add_pad(net, layers, gx, gy, w, h, circle)
+            r.add_pad(net, layers, gx, gy, w, h, circle, drill=drill)
             if name:
                 pad_pos.setdefault((ref, name), []).append((gx, gy, layers, w * h))
     return r, pad_pos
@@ -311,8 +316,8 @@ SILK = [
     ("DISPLAY", 40.0, 90.6, 0, 1.0),
     ("NAV", 59.3, 90.6, 0, 1.0),
     ("AUX", 79.4, 90.6, 0, 1.0),
-    ("RESET", 58.2, 25.0, 0, 0.9),
-    ("BOOT", 104.2, 49.7, 0, 0.9),
+    ("RESET", 55.0, 27.2, 0, 0.9),
+    ("BOOT", 101.0, 54.2, 0, 0.9),
     ("USB", 104.0, 93.5, 0, 0.9),
     ("STATUS", 85.0, 90.6, 0, 0.9),
 ]

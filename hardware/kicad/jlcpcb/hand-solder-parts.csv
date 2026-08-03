@@ -1,0 +1,9 @@
+Designator,Comment,Footprint,LCSC Part #,Qty per board,Description,Mouser MPN,Mouser Manufacturer,Second-source note
+BZ1,active 5V,Buzzer_12x9.5RM7.6,C96093,1,TMB12A05 active magnetic buzzer 5V 12mm THT P7.6,CMI-1295-0585T,Same Sky,"12x9.5mm body, 7.6mm pitch, 5V THT active - datasheet-verified"
+J2,5V_IN,"TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal",C8465,1,WJ500V-5.08-2P 5.08mm screw terminal 1x02,1715721,Phoenix Contact,"MKDS 1,5/2-5,08 - the part this footprint is named for"
+J3,TC_K,"TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal",C8465,1,WJ500V-5.08-2P 5.08mm screw terminal 1x02,1715721,Phoenix Contact,"MKDS 1,5/2-5,08 - the part this footprint is named for"
+J4,SSR,"TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal",C8465,1,WJ500V-5.08-2P 5.08mm screw terminal 1x02,1715721,Phoenix Contact,"MKDS 1,5/2-5,08 - the part this footprint is named for"
+J5,DISPLAY,Molex_KK-254_AE-6410-08A_1x08_P2.54mm_Vertical,C240822,1,Molex 22-27-2081 KK-254 friction-lock wafer 1x08,22-27-2081,Molex,identical part - the LCSC line is already genuine Molex
+J6,NAV_SW,Molex_KK-254_AE-6410-06A_1x06_P2.54mm_Vertical,C239381,1,A2547WV-6P KK-254 friction-lock wafer 1x06,22-27-2061,Molex,genuine KK-254 1x06; LCSC line is an A2547WV clone
+J7,AUX,Molex_KK-254_AE-6410-08A_1x08_P2.54mm_Vertical,C240822,1,Molex 22-27-2081 KK-254 friction-lock wafer 1x08,22-27-2081,Molex,identical part - the LCSC line is already genuine Molex
+LED1,WS2812B,LED_WS2812B_PLCC4_5.0x5.0mm_P3.2mm,C2761795,1,WS2812B-B/T 5050 RGB,,,"NOT AT MOUSER - source from LCSC, DigiKey, Adafruit or SparkFun"
