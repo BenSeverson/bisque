@@ -1,0 +1,159 @@
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { Label } from "./ui/label";
+import { Switch } from "./ui/switch";
+import {
+  confirmNotificationsWork,
+  notificationPermission,
+  notificationsSupported,
+  readNotifyPreference,
+  requestNotificationPermission,
+  writeNotifyPreference,
+} from "../utils/browserNotifications";
+
+const BLOCKED_MESSAGE =
+  "Notifications are blocked for this site — allow them in your browser settings";
+
+/**
+ * The opt-in for OS notifications when a firing ends (#185).
+ *
+ * Deliberately outside the settings `<form>`: this is stored in this browser,
+ * not on the controller, and applies the moment it is flipped. Sitting it above
+ * a "Save Settings" button it has nothing to do with would be a lie about where
+ * the value goes.
+ *
+ * The card renders even where the API is missing, with the reason in place of
+ * the switch. Silence there would read as a missing feature rather than as the
+ * consequence of the controller serving plain HTTP.
+ */
+export function BrowserAlertsCard() {
+  const supported = notificationsSupported(window);
+  const [permission, setPermission] = useState(() => notificationPermission(window));
+  const [enabled, setEnabled] = useState(() => readNotifyPreference(window.localStorage));
+
+  /* Permission is granted and revoked outside this app, and the Settings tab is
+     forceMount'ed — it mounts once for the lifetime of the page. Sampling only
+     at mount meant the card told a blocked user to go and allow notifications
+     and then ignored them doing exactly that, staying disabled until a full
+     reload. Re-read whenever they come back to the tab. */
+  useEffect(() => {
+    const resync = () => {
+      if (document.visibilityState === "visible") setPermission(notificationPermission(window));
+    };
+    document.addEventListener("visibilitychange", resync);
+    window.addEventListener("focus", resync);
+    return () => {
+      document.removeEventListener("visibilitychange", resync);
+      window.removeEventListener("focus", resync);
+    };
+  }, []);
+
+  /**
+   * Write the preference, then adopt whatever storage actually holds.
+   *
+   * `writeNotifyPreference` cannot throw, so a rejected write — a browser
+   * blocking site storage — would otherwise leave the switch showing an opt-in
+   * that the announcement hook, which re-reads this same key, will never see.
+   * Reading back makes the control show the state that will actually be
+   * honoured, and reports whether the user got what they asked for.
+   */
+  const persist = (on: boolean): boolean => {
+    writeNotifyPreference(window.localStorage, on);
+    const stored = readNotifyPreference(window.localStorage);
+    setEnabled(stored);
+    return stored === on;
+  };
+
+  const onToggle = async (on: boolean) => {
+    if (!on) {
+      if (!persist(false)) toast.error("This browser is blocking site storage, so this stays on");
+      return;
+    }
+
+    if (permission === "denied") {
+      toast.error(BLOCKED_MESSAGE);
+      return;
+    }
+
+    /* Prompting from this switch is what makes the permission request legal:
+       Safari only honours requestPermission() inside a user gesture, and a
+       prompt raised by a background status change would be hostile anyway. */
+    const result =
+      permission === "granted" ? "granted" : await requestNotificationPermission(window);
+    setPermission(result);
+
+    if (result !== "granted") {
+      // Leave the switch off rather than claiming an opt-in the browser will
+      // not honour — the announcement would then silently never arrive.
+      persist(false);
+      toast.error(
+        result === "denied" ? BLOCKED_MESSAGE : "Permission was not granted, so alerts stay off",
+      );
+      return;
+    }
+
+    /* Confirm with a real notification before claiming this works. Chrome for
+       Android has the constructor but throws on `new Notification()`, and there
+       is no way to detect that without trying — so the alternative to trying
+       here is a switch that turns on, says "you'll be notified", and then
+       silently never notifies. */
+    if (!confirmNotificationsWork(window)) {
+      persist(false);
+      toast.error(
+        "This browser can't show notifications from a web page. Firing results still appear here and in the tab title.",
+      );
+      return;
+    }
+
+    if (!persist(true)) {
+      toast.error("This browser is blocking site storage, so the setting can't be saved");
+      return;
+    }
+    toast.success("You'll be alerted when a firing completes or errors");
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Browser Alerts</CardTitle>
+        <CardDescription>
+          Notify this browser when a firing completes or errors. Saved on this device only, and
+          applies immediately.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {supported ? (
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="browser-notifications">Desktop notifications</Label>
+              {/* Not "with the tab closed", which the first draft of this card
+                  claimed. Nothing observes the kiln once the page is gone —
+                  there is no service worker and no push subscription — so the
+                  alert only fires while Bisque is loaded. Telling an operator
+                  otherwise would invite them to close the tab and wait for
+                  something that is never coming. */}
+              <p className="text-sm text-muted-foreground">
+                {permission === "denied"
+                  ? "Blocked for this site. Allow notifications in your browser settings first."
+                  : "Reaches you while Bisque is open in a background tab — a firing runs for hours."}
+              </p>
+            </div>
+            <Switch
+              id="browser-notifications"
+              checked={enabled}
+              disabled={permission === "denied"}
+              onCheckedChange={onToggle}
+            />
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Your browser only offers notifications over a secure (https) connection, and the
+            controller serves this page over plain http. Firing results still appear as an on-screen
+            message and in the browser tab title.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
