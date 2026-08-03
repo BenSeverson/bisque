@@ -26,7 +26,7 @@ CTEST       := $(shell command -v ctest 2>/dev/null || echo ctest)
 # so every idf.py/idf_tools.py call must activate first. No-op once active.
 IDF         := . ./scripts/idf-env.sh &&
 
-.PHONY: help build web gzip firmware sim sim-verify \
+.PHONY: help build web web-demo gzip firmware sim sim-verify \
         test test-host test-web fixtures \
         lint lint-c lint-web format \
         clang-tidy cppcheck \
@@ -45,6 +45,13 @@ build:  ## Full pipeline: web UI + gzip + firmware (== ./build.sh)
 
 web:  ## Build the web UI bundle into $(SPIFFS_DIR) (does NOT gzip)
 	cd $(WEB_DIR) && npm ci && npm run build
+
+# The demo is the only build that exercises the __DEMO__-gated dynamic import
+# of mock-server/, so nothing else catches a break in it. pages.yml deploys it
+# on push to main, i.e. after a bad merge has already landed — CI's lint-web
+# job runs this so the breakage is caught on the PR instead.
+web-demo:  ## Build the static GitHub Pages demo into $(WEB_DIR)/dist
+	cd $(WEB_DIR) && npm run build:demo
 
 # Keep this file list in sync with the same find in build.sh.
 # PNGs are left alone — already deflate-compressed, so gzip only adds a header.
@@ -157,7 +164,7 @@ ci-firmware:  ## Replicate CI's `build` job locally (no clang-tidy/cppcheck)
 	$(MAKE) firmware
 	$(MAKE) size-firmware
 
-ci: lint test ci-firmware  ## Closest local approximation of full CI
+ci: lint web-demo test ci-firmware  ## Closest local approximation of full CI
 
 clean:  ## Remove build artifacts (firmware, host tests, simulator, SPIFFS)
 	-$(IDF) idf.py fullclean
