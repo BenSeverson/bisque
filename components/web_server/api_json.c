@@ -189,6 +189,29 @@ cJSON *build_autotune_status_json(const firing_progress_t *prog, autotune_state_
     return root;
 }
 
+cJSON *build_pid_json(float kp, float ki, float kd)
+{
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddNumberToObject(root, "kp", kp);
+    cJSON_AddNumberToObject(root, "ki", ki);
+    cJSON_AddNumberToObject(root, "kd", kd);
+
+    float def_kp, def_ki, def_kd;
+    pid_default_gains(&def_kp, &def_ki, &def_kd);
+    cJSON *defaults = cJSON_AddObjectToObject(root, "defaults");
+    cJSON_AddNumberToObject(defaults, "kp", def_kp);
+    cJSON_AddNumberToObject(defaults, "ki", def_ki);
+    cJSON_AddNumberToObject(defaults, "kd", def_kd);
+
+    /* Served rather than mirrored as constants on the client, because a client
+       that hardcodes the bounds drifts from the firmware silently: the form goes
+       on accepting a value POST /pid then rejects with a bare 400. */
+    cJSON *limits = cJSON_AddObjectToObject(root, "limits");
+    cJSON_AddNumberToObject(limits, "min", PID_GAIN_MIN);
+    cJSON_AddNumberToObject(limits, "max", PID_GAIN_MAX);
+    return root;
+}
+
 cJSON *build_thermocouple_diag_json(const thermocouple_reading_t *tc, int64_t age_ms, float tc_offset_c)
 {
     cJSON *root = cJSON_CreateObject();

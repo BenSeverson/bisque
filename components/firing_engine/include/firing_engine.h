@@ -112,6 +112,31 @@ void firing_engine_get_settings(kiln_settings_t *out);
 esp_err_t firing_engine_set_settings(const kiln_settings_t *settings);
 
 /**
+ * Read the gains the control loop is currently using (thread-safe).
+ *
+ * These are the live gains, not a re-read of NVS: after an auto-tune the engine
+ * applies the result to the running controller, and this is what reports it.
+ */
+void firing_engine_get_pid_gains(float *kp, float *ki, float *kd);
+
+/**
+ * Replace the PID gains and persist them to NVS.
+ *
+ * Auto-tune is not the only way a kiln arrives at good gains — people migrate
+ * from other controllers with numbers already derived on the same hardware, and
+ * a bad tuning run otherwise has no correction short of another one (#182).
+ *
+ * @return ESP_OK on success;
+ *         ESP_ERR_INVALID_ARG if the gains fail pid_gains_valid();
+ *         ESP_ERR_INVALID_STATE if a firing, an armed delayed start, or an
+ *         auto-tune is active. The running loop's integrator was wound up under
+ *         the old Ki, so its contribution rescales the instant Ki changes —
+ *         a step in element duty cycle partway up a ramp. Waiting for idle is
+ *         the whole fix, and it costs a kiln owner nothing.
+ */
+esp_err_t firing_engine_set_pid_gains(float kp, float ki, float kd);
+
+/**
  * Get the active temperature display unit ('C' or 'F'). Thread-safe, cheap —
  * intended for presentation-layer formatting (the LVGL display reads this
  * every refresh). All internal temperatures remain Celsius.

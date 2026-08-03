@@ -419,6 +419,36 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
     return { status: 200, json: getAutotuneStatus() };
   }
 
+  // GET /pid
+  if (method === "GET" && apiPath === "/pid") {
+    return { status: 200, json: pidResponse() };
+  }
+
+  // POST /pid
+  if (method === "POST" && apiPath === "/pid") {
+    const { kp, ki, kd } = body as Partial<Record<"kp" | "ki" | "kd", unknown>>;
+    if (![kp, ki, kd].every((v) => typeof v === "number" && Number.isFinite(v))) {
+      return { status: 400, json: { error: "kp, ki and kd are all required and must be numbers" } };
+    }
+
+    // Mirrors firing_engine_set_pid_gains: screen, then quantize to what NVS
+    // holds, then re-check — four decimals of resolution turn a Kp of 5e-5 into
+    // a zero, and {0, 0, kd} is a controller that never heats.
+    const entered = [kp, ki, kd] as number[];
+    if (!gainsValid(entered)) return { status: 400, json: { error: BAD_GAINS } };
+    const [qp, qi, qd] = entered.map(quantizeGain);
+    if (!gainsValid([qp, qi, qd])) return { status: 400, json: { error: BAD_GAINS } };
+
+    // The firmware refuses while the control loop is running, because the
+    // integrator wound up under the old Ki.
+    if (state.firing.running || state.firing.scheduled || state.autotune.running) {
+      return { status: 409, json: { error: "Kiln is busy: stop the firing or auto-tune first" } };
+    }
+
+    state.autotune.gains = { kp: qp, ki: qi, kd: qd };
+    return { status: 200, json: pidResponse() };
+  }
+
   // POST /ota
   if (method === "POST" && apiPath === "/ota") {
     return { status: 200, json: { ok: true } };
@@ -593,6 +623,41 @@ function stopAutotune(): void {
     state.firing.coolingDown = true;
     ensureTicking();
   }
+}
+
+/* ── PID gains (#182) ──────────────────────────────────────────────────────
+ *
+ * Backed by the same state the auto-tune writes, so the two endpoints agree
+ * exactly as they do on the device (both read firing_engine_get_pid_gains).
+ *
+ * These constants mirror PID_GAIN_MIN/MAX in pid_control.h and APP_PID_*_DEFAULT
+ * in app_config.h. Exported because a schema check cannot catch drift in a
+ * *value*: `mock PID limits and defaults match the firmware fixture exactly` in
+ * test/contracts/firmwareContract.test.ts compares them against the JSON the C
+ * serializer emits, the same way the cone table is guarded. Without that, a
+ * firmware change to either would leave the public demo validating against a
+ * range the device rejects, or restoring gains it never shipped. */
+export const PID_GAIN_MIN = 0;
+export const PID_GAIN_MAX = 10000;
+export const PID_DEFAULT_GAINS = { kp: 2.0, ki: 0.01, kd: 5.0 };
+const BAD_GAINS = "Gains must be within the published limits, and Kp or Ki must be above zero";
+
+/** int32 x10000 in NVS, rounded — see pid_quantize_gain in pid_control.c. */
+function quantizeGain(g: number): number {
+  return Math.round(g * 10000) / 10000;
+}
+
+function gainsValid([kp, ki, kd]: number[]): boolean {
+  if (![kp, ki, kd].every((g) => g >= PID_GAIN_MIN && g <= PID_GAIN_MAX)) return false;
+  return kp > 0 || ki > 0;
+}
+
+function pidResponse() {
+  return {
+    ...state.autotune.gains,
+    defaults: { ...PID_DEFAULT_GAINS },
+    limits: { min: PID_GAIN_MIN, max: PID_GAIN_MAX },
+  };
 }
 
 function getAutotuneStatus() {

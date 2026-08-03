@@ -25,6 +25,9 @@ components/web_server/api_json.c
 components/web_server/include/api_json.h
 components/cone_table/cone_table.c
 components/cone_table/include/cone_table.h
+components/pid_control/pid_control.c
+components/pid_control/include/pid_control.h
+components/app_config/include/app_config.h
 components/firing_engine/include/firing_types.h
 components/history/include/firing_history.h
 components/thermocouple/include/thermocouple.h

@@ -120,6 +120,24 @@ export interface AutotuneStatus {
   currentGains: { kp: number; ki: number; kd: number };
 }
 
+/**
+ * GET/POST /api/v1/pid.
+ *
+ * `defaults` and `limits` come from the firmware rather than being mirrored as
+ * constants here: a client that hardcodes the bounds drifts silently, and the
+ * form goes on accepting values the controller answers with a bare 400.
+ */
+export interface PidGains {
+  kp: number;
+  ki: number;
+  kd: number;
+}
+
+export interface PidResponse extends PidGains {
+  defaults: PidGains;
+  limits: { min: number; max: number };
+}
+
 export interface OtaCheckResponse {
   current: string;
   latest: string;
@@ -224,6 +242,12 @@ export const api = {
     }),
   stopAutotune: () => request<{ ok: boolean }>("/autotune/stop", { method: "POST" }),
   getAutotuneStatus: () => request<AutotuneStatus>("/autotune/status"),
+
+  // PID gains — the manual alternative to running a tune (#182)
+  getPidGains: () => request<PidResponse>("/pid"),
+  /** Returns the gains the controller kept, which NVS rounds to 4 decimals. */
+  savePidGains: (gains: PidGains) =>
+    request<PidResponse>("/pid", { method: "POST", body: JSON.stringify(gains) }),
 
   // History
   getHistory: () => request<HistoryRecord[]>("/history"),

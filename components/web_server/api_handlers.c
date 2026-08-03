@@ -1379,9 +1379,87 @@ static esp_err_t handle_autotune_status(httpd_req_t *req)
     autotune_state_t at_state;
     firing_engine_get_autotune_snapshot(&prog, &at_state);
 
+    /* The live gains, not a re-read of NVS: a tune that has just finished has
+       already applied its result to the running controller, and a manual edit
+       (POST /pid) writes both. Reading the engine keeps this endpoint and
+       GET /pid from ever disagreeing. */
     float kp, ki, kd;
-    pid_load_gains(&kp, &ki, &kd);
+    firing_engine_get_pid_gains(&kp, &ki, &kd);
     return send_json(req, build_autotune_status_json(&prog, at_state, kp, ki, kd));
+}
+
+/* ── GET /api/v1/pid ───────────────────────────────── */
+
+static esp_err_t handle_get_pid(httpd_req_t *req)
+{
+    if (!require_auth(req)) {
+        return ESP_FAIL;
+    }
+    float kp, ki, kd;
+    firing_engine_get_pid_gains(&kp, &ki, &kd);
+    return send_json(req, build_pid_json(kp, ki, kd));
+}
+
+/* ── POST /api/v1/pid ──────────────────────────────── */
+
+/* Read one gain out of the body. Unlike POST /settings, which leans on cJSON's
+   valuedouble defaulting to 0 for anything non-numeric, every field here is
+   required and type-checked: a typo'd key or a JSON null would otherwise be
+   read as a gain of 0, and {0,0,0} is a controller that never heats. */
+static bool read_gain(cJSON *root, const char *key, float *out)
+{
+    cJSON *j = cJSON_GetObjectItem(root, key);
+    if (!cJSON_IsNumber(j)) {
+        return false;
+    }
+    *out = (float)j->valuedouble;
+    return true;
+}
+
+static esp_err_t handle_post_pid(httpd_req_t *req)
+{
+    if (!require_auth(req)) {
+        return ESP_FAIL;
+    }
+    char buf[128];
+    cJSON *root = parse_body_json(req, buf, sizeof(buf));
+    if (!root) {
+        return ESP_FAIL;
+    }
+
+    float kp, ki, kd;
+    bool complete = read_gain(root, "kp", &kp) && read_gain(root, "ki", &ki) && read_gain(root, "kd", &kd);
+    cJSON_Delete(root);
+
+    if (!complete) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "kp, ki and kd are all required and must be numbers");
+        return ESP_FAIL;
+    }
+
+    esp_err_t err = firing_engine_set_pid_gains(kp, ki, kd);
+    if (err == ESP_ERR_INVALID_ARG) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
+                            "Gains must be within the published limits, and Kp or Ki must be above zero");
+        return ESP_FAIL;
+    }
+    if (err == ESP_ERR_INVALID_STATE) {
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_set_type(req, "text/plain");
+        httpd_resp_send(req, "Kiln is busy: stop the firing or auto-tune first", HTTPD_RESP_USE_STRLEN);
+        return ESP_FAIL;
+    }
+    if (err != ESP_OK) {
+        /* Applied to the live controller but not written to flash — saying "ok"
+           here would promise the gains survive a reboot. */
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Gains applied but could not be saved");
+        return ESP_FAIL;
+    }
+
+    /* Echo the stored gains so a client shows what the controller kept, not
+       what it sent — NVS round-trips each gain through an int32 x10000, so a
+       value with more precision than that comes back rounded. */
+    firing_engine_get_pid_gains(&kp, &ki, &kd);
+    return send_json(req, build_pid_json(kp, ki, kd));
 }
 
 /* ── GET /api/v1/ota/status ───────────────────────── */
@@ -1687,6 +1765,10 @@ esp_err_t api_handlers_register(httpd_handle_t server)
     REGISTER_API("/api/v1/autotune/start", HTTP_POST, handle_autotune_start);
     REGISTER_API("/api/v1/autotune/stop", HTTP_POST, handle_autotune_stop);
     REGISTER_API("/api/v1/autotune/status", HTTP_GET, handle_autotune_status);
+
+    /* PID gains — the manual alternative to running a tune */
+    REGISTER_API("/api/v1/pid", HTTP_GET, handle_get_pid);
+    REGISTER_API("/api/v1/pid", HTTP_POST, handle_post_pid);
 
     /* Cone table */
     REGISTER_API("/api/v1/cone-table", HTTP_GET, handle_get_cone_table);

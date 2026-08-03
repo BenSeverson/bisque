@@ -844,6 +844,109 @@ static void test_start_rejected_while_relay_test_running(void)
     TEST_ASSERT_FALSE_MESSAGE(prog.is_active, "firing started while the relay test held the SSR");
 }
 
+/* ── manual PID gain entry (#182) ─────────────────────────────────────── */
+
+static void test_manual_gains_apply_and_persist_when_idle(void)
+{
+    TEST_ASSERT_EQUAL(ESP_OK, firing_engine_set_pid_gains(18.0f, 0.12f, 240.0f));
+
+    float kp, ki, kd;
+    firing_engine_get_pid_gains(&kp, &ki, &kd);
+    TEST_ASSERT_EQUAL_FLOAT(18.0f, kp);
+    TEST_ASSERT_EQUAL_FLOAT(0.12f, ki);
+    TEST_ASSERT_EQUAL_FLOAT(240.0f, kd);
+
+    /* The live controller and the next boot have to agree, so what NVS holds is
+       part of the contract, not an implementation detail. */
+    float nkp, nki, nkd;
+    TEST_ASSERT_EQUAL(ESP_OK, pid_load_gains(&nkp, &nki, &nkd));
+    TEST_ASSERT_EQUAL_FLOAT(kp, nkp);
+    TEST_ASSERT_EQUAL_FLOAT(ki, nki);
+    TEST_ASSERT_EQUAL_FLOAT(kd, nkd);
+}
+
+static void test_manual_gains_are_stored_at_nvs_resolution(void)
+{
+    /* Entered with more digits than the int32 x10000 encoding carries. The
+       reported gains must be the stored ones, or the UI shows a number the
+       controller stops using at the next reboot. */
+    TEST_ASSERT_EQUAL(ESP_OK, firing_engine_set_pid_gains(1.23456789f, 0.01f, 5.0f));
+
+    float kp, ki, kd;
+    firing_engine_get_pid_gains(&kp, &ki, &kd);
+    TEST_ASSERT_EQUAL_FLOAT(1.2346f, kp);
+
+    float nkp, nki, nkd;
+    TEST_ASSERT_EQUAL(ESP_OK, pid_load_gains(&nkp, &nki, &nkd));
+    TEST_ASSERT_EQUAL_FLOAT(kp, nkp);
+}
+
+static void test_manual_gains_rejected_while_firing_active(void)
+{
+    float before_kp, before_ki, before_kd;
+    firing_engine_get_pid_gains(&before_kp, &before_ki, &before_kd);
+
+    firing_profile_t p = scenario_short_profile();
+    scenario_start(&p, 0);
+    TEST_ASSERT_TRUE(scenario_run_until_status(&g_plant, FIRING_STATUS_HEATING, 30));
+
+    /* The integrator has wound up under the old Ki, so swapping gains now would
+       step the element duty cycle partway up a ramp. */
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, firing_engine_set_pid_gains(1.0f, 1.0f, 1.0f));
+
+    float kp, ki, kd;
+    firing_engine_get_pid_gains(&kp, &ki, &kd);
+    TEST_ASSERT_EQUAL_FLOAT(before_kp, kp);
+    TEST_ASSERT_EQUAL_FLOAT(before_ki, ki);
+    TEST_ASSERT_EQUAL_FLOAT(before_kd, kd);
+
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL_MESSAGE(FIRING_STATUS_HEATING, prog.status, "a refused gain edit disturbed the firing");
+}
+
+static void test_manual_gains_rejected_while_delayed_start_is_armed(void)
+{
+    /* is_active covers an armed delay too, and it must: the firing it is about
+       to launch would otherwise begin under gains that changed after the user
+       reviewed the profile. */
+    firing_profile_t p = scenario_short_profile();
+    scenario_start(&p, 30);
+    scenario_run_ticks(&g_plant, 2);
+
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, firing_engine_set_pid_gains(1.0f, 1.0f, 1.0f));
+}
+
+static void test_manual_gains_reject_values_the_controller_cannot_use(void)
+{
+    float before_kp, before_ki, before_kd;
+    firing_engine_get_pid_gains(&before_kp, &before_ki, &before_kd);
+
+    /* Also the guard that scenario_setup() really restores gains: the tests
+       above installed 18/0.12/240 and 1.2346/0.01/5 on the same singleton
+       controller, so seeing the defaults here is what says a gain edit cannot
+       leak into the firing-behaviour scenarios that follow. */
+    float def_kp, def_ki, def_kd;
+    pid_default_gains(&def_kp, &def_ki, &def_kd);
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(def_kp, before_kp, "gains leaked from an earlier scenario");
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(def_ki, before_ki, "gains leaked from an earlier scenario");
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(def_kd, before_kd, "gains leaked from an earlier scenario");
+
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, firing_engine_set_pid_gains(NAN, 0.01f, 5.0f));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, firing_engine_set_pid_gains(-1.0f, 0.01f, 5.0f));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, firing_engine_set_pid_gains(PID_GAIN_MAX + 1.0f, 0.01f, 5.0f));
+    /* Derivative-only: the kiln would never reach temperature. */
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, firing_engine_set_pid_gains(0.0f, 0.0f, 5.0f));
+    /* …including when rounding to NVS resolution is what zeroes them. */
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, firing_engine_set_pid_gains(0.00004f, 0.0f, 5.0f));
+
+    float kp, ki, kd;
+    firing_engine_get_pid_gains(&kp, &ki, &kd);
+    TEST_ASSERT_EQUAL_FLOAT(before_kp, kp);
+    TEST_ASSERT_EQUAL_FLOAT(before_ki, ki);
+    TEST_ASSERT_EQUAL_FLOAT(before_kd, kd);
+}
+
 /* ── TC fault during firing → emergency stop ─────────────────────────── */
 
 static void test_tc_fault_triggers_emergency_stop(void)
@@ -1383,6 +1486,11 @@ int main(void)
     RUN_TEST(test_stop_cancels_relay_test);
     RUN_TEST(test_relay_test_rejected_while_firing_active);
     RUN_TEST(test_start_rejected_while_relay_test_running);
+    RUN_TEST(test_manual_gains_apply_and_persist_when_idle);
+    RUN_TEST(test_manual_gains_are_stored_at_nvs_resolution);
+    RUN_TEST(test_manual_gains_rejected_while_firing_active);
+    RUN_TEST(test_manual_gains_rejected_while_delayed_start_is_armed);
+    RUN_TEST(test_manual_gains_reject_values_the_controller_cannot_use);
     RUN_TEST(test_start_rejects_wrong_sign_ramp);
     RUN_TEST(test_start_allows_legitimate_cooling_segment);
     RUN_TEST(test_tc_fault_triggers_emergency_stop);

@@ -125,6 +125,29 @@ export const settingsSchema = z.object({
 
 export type SettingsFormValues = z.infer<typeof settingsSchema>;
 
+/**
+ * Manually entered PID gains (POST /api/v1/pid).
+ *
+ * The numeric bounds are deliberately *not* baked in here — the firmware serves
+ * them in the `limits` block of GET /pid, and mirroring them would drift. This
+ * schema covers what a form can check on its own: three finite, non-negative
+ * numbers, and not the derivative-only set, which the firmware rejects because
+ * the loop then has no term that grows with distance from the setpoint and the
+ * kiln simply never reaches temperature (pid_gains_valid in pid_control.c).
+ */
+export const pidGainsSchema = z
+  .object({
+    kp: finiteNumber("Kp is required").min(0, "Kp cannot be negative"),
+    ki: finiteNumber("Ki is required").min(0, "Ki cannot be negative"),
+    kd: finiteNumber("Kd is required").min(0, "Kd cannot be negative"),
+  })
+  .refine((g) => g.kp > 0 || g.ki > 0, {
+    message: "Kp or Ki must be above zero, or the kiln will never reach temperature",
+    path: ["kp"],
+  });
+
+export type PidGainsFormValues = z.infer<typeof pidGainsSchema>;
+
 // Wi-Fi provisioning credentials. SSID 1–32 chars; WPA2 passphrase 0–63
 // (empty allowed for open networks). Mirrors POST /api/v1/wifi.
 export const wifiCredentialsSchema = z.object({
