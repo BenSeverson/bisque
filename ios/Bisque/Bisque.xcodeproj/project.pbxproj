@@ -44,6 +44,7 @@
 		7B3B05AFEEB31E2B8D5BD5AB /* SettingsTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA92D0A942F9875DFAEA9B4B /* SettingsTab.swift */; };
 		86D5A2CB868BB4CC50EA16B4 /* HistoryRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7764E1BB68840F9971131A /* HistoryRecord.swift */; };
 		885593DECBBDC2EA581774EC /* FiringActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F89C228440A203C89CDC289 /* FiringActivityAttributes.swift */; };
+		8C191BA5602567BF31C27807 /* LocalNetwork.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99C199147CA3F4C3FE369E5E /* LocalNetwork.swift */; };
 		8CD817D289CF5985C1A26E20 /* WebSocketMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8F90B48E0F08776A7EF34D0 /* WebSocketMessage.swift */; };
 		902A63B370C0F78EF61E6D98 /* FiringProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CAF4D46EA741C75819A73BF /* FiringProfile.swift */; };
 		925A3FF058851DFB67CD383D /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A18B9FD404281AF8D3A375EC /* AboutView.swift */; };
@@ -136,6 +137,7 @@
 		8F89C228440A203C89CDC289 /* FiringActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FiringActivityAttributes.swift; sourceTree = "<group>"; };
 		905F7E7B8760083A44A5862A /* ProfilesTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilesTab.swift; sourceTree = "<group>"; };
 		9795B731E74E674B0E13F9C7 /* FiringProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FiringProgress.swift; sourceTree = "<group>"; };
+		99C199147CA3F4C3FE369E5E /* LocalNetwork.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalNetwork.swift; sourceTree = "<group>"; };
 		A18B9FD404281AF8D3A375EC /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
 		A2111E52086147DDDF3B5C11 /* FiringControlsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FiringControlsView.swift; sourceTree = "<group>"; };
 		A73135746827DB70B6782D1E /* KilnWebSocketManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KilnWebSocketManager.swift; sourceTree = "<group>"; };
@@ -372,6 +374,7 @@
 			children = (
 				58BD5B2295FE389DFA09A263 /* Formatters.swift */,
 				47689B2DD31BC05760D2D35C /* KeychainHelper.swift */,
+				99C199147CA3F4C3FE369E5E /* LocalNetwork.swift */,
 				FD61428BE55E6BE3A80EE79D /* TemperatureConverter.swift */,
 				FCDC6F2A43E27E2FDD3AC72B /* UserDefaultsKeys.swift */,
 			);
@@ -526,6 +529,7 @@
 				26AE3C92FFE5875DAE305B41 /* KilnSettings.swift in Sources */,
 				CF0076D09E302D43D81C24E1 /* KilnStore.swift in Sources */,
 				CD851B56BC3AEA3F1C83021E /* KilnWebSocketManager.swift in Sources */,
+				8C191BA5602567BF31C27807 /* LocalNetwork.swift in Sources */,
 				AB25503ABFA048B9FC157C4F /* NotificationManager.swift in Sources */,
 				F73699463FF0E5FF63A0F9E3 /* OTAUpdateView.swift in Sources */,
 				54B802D9C45AC407D20F3CB3 /* PreviewData.swift in Sources */,

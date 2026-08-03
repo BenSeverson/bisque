@@ -23,6 +23,12 @@ final class KilnConnection {
     private(set) var apiClient: KilnAPIClient?
     let webSocket = KilnWebSocketManager()
 
+    /// Set when the last attempt failed at the transport layer against a host
+    /// the local-network permission governs, so the UI can offer the Settings
+    /// toggle (#148). iOS has no API for reading that permission, so this is a
+    /// suggestion of something to check, never a diagnosis.
+    private(set) var suggestsLocalNetworkPermission = false
+
     init() {
         // Restore last connection
         if let savedHost = UserDefaults.standard.string(forKey: UserDefaultsKeys.lastConnectedHost) {
@@ -42,6 +48,7 @@ final class KilnConnection {
         }
 
         connectionState = .connecting
+        suggestsLocalNetworkPermission = false
 
         do {
             let client = try KilnAPIClient(host: host, port: port, apiToken: apiToken)
@@ -61,18 +68,42 @@ final class KilnConnection {
             switch error {
             case .unauthorized:
                 connectionState = .error("Authentication required. Set API token.")
+            case .connectionFailed:
+                reportUnreachable()
             default:
                 connectionState = .error(error.localizedDescription)
             }
         } catch {
-            connectionState = .error("Cannot reach kiln at \(host)")
+            reportUnreachable()
         }
+    }
+
+    /// Reports an unreachable kiln, naming the local-network permission when
+    /// the address is one that permission gates.
+    ///
+    /// A denial is indistinguishable from a wrong IP or a sleeping kiln at the
+    /// URLSession layer — every one of them surfaces as a plain transport
+    /// failure — so the wording offers the toggle as a candidate rather than
+    /// asserting it. Before this, a first-launch "Don't Allow" left the app
+    /// permanently unable to connect with nothing on screen tying the two
+    /// together (#148).
+    private func reportUnreachable() {
+        suggestsLocalNetworkPermission = LocalNetwork.requiresPermission(host: host)
+        connectionState = .error(
+            suggestsLocalNetworkPermission
+                ? """
+                    Cannot reach kiln at \(host). Check that the kiln is powered on \
+                    and on this Wi-Fi network, and that Local Network access is \
+                    enabled for Bisque in Settings.
+                    """
+                : "Cannot reach kiln at \(host)")
     }
 
     func disconnect() {
         webSocket.disconnect()
         apiClient = nil
         connectionState = .disconnected
+        suggestsLocalNetworkPermission = false
     }
 
     /// Re-establishes the live feed after the app has been suspended (#147).
