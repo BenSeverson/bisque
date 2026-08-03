@@ -186,38 +186,136 @@ static void encoder_step(int diff)
 
 /* ── Render / save / diff ────────────────────────────────────────────────── */
 
-/* Allocate-and-fill a pixel buffer from the SDL back buffer. Caller owns the
- * returned buffer; returns NULL on failure. */
+/* Offscreen capture target, created on first use and owned by SDL_Quit(). */
+static SDL_Texture *s_capture_target = NULL;
+
+/* Allocate-and-fill a pixel buffer holding the frame LVGL renders right now.
+ * Caller owns the returned buffer; returns NULL on failure.
+ *
+ * The capture must NOT come from the window's back buffer. LVGL's SDL driver
+ * ends every flush with SDL_RenderPresent (lv_sdl_sw.c: window_update), and a
+ * presented back buffer is invalidated by definition — SDL hands back whichever
+ * swapchain image it recycled next. On macOS's Metal backend that is the frame
+ * from two presents ago, so reading it returned a *previous scene* and every
+ * diff was attributed to the wrong baseline (#196). Swapchain depth and
+ * compositor timing decide how far back it lands, which is why the lag varied
+ * between runs and could stick for several in a row.
+ *
+ * Binding our own render target sidesteps the swapchain entirely: LVGL's
+ * RenderCopy lands in a texture we own, present does not rotate it, and the
+ * read back is deterministic on every platform. It also pins the capture to
+ * APP_LCD_H_RES x APP_LCD_V_RES instead of the window's drawable size. */
 static unsigned char *read_current_pixels(lv_display_t *disp)
 {
-    void *renderer = lv_sdl_window_get_renderer(disp);
+    SDL_Renderer *renderer = (SDL_Renderer *)lv_sdl_window_get_renderer(disp);
     if (!renderer) {
         return NULL;
     }
-    /* Two refresh passes so the current frame is in the back buffer that
-     * SDL_RenderReadPixels samples from. Invalidate both the active screen
-     * and lv_layer_top so any open modal redraws too — without this, a
-     * fully-opaque modal stays clean and the screen redraw paints over it. */
-    lv_obj_invalidate(lv_screen_active());
-    lv_obj_invalidate(lv_layer_top());
-    lv_refr_now(disp);
+
+    if (!s_capture_target) {
+        s_capture_target = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET,
+                                             APP_LCD_H_RES, APP_LCD_V_RES);
+        if (!s_capture_target) {
+            return NULL;
+        }
+    }
+    if (SDL_SetRenderTarget(renderer, s_capture_target) != 0) {
+        return NULL;
+    }
+
+    /* Invalidate both the active screen and lv_layer_top so any open modal
+     * redraws too — without this, a fully-opaque modal stays clean and the
+     * screen redraw paints over it. LV_SDL_RENDER_MODE is DIRECT with two
+     * buffers, so a full invalidate is what makes the active framebuffer a
+     * complete frame rather than a partial update. */
     lv_obj_invalidate(lv_screen_active());
     lv_obj_invalidate(lv_layer_top());
     lv_refr_now(disp);
 
-    int w = APP_LCD_H_RES;
-    int h = APP_LCD_V_RES;
-    int stride = w * 4;
-    unsigned char *pixels = (unsigned char *)malloc((size_t)stride * (size_t)h);
+    int stride = APP_LCD_H_RES * 4;
+    unsigned char *pixels = (unsigned char *)malloc((size_t)stride * (size_t)APP_LCD_V_RES);
     if (!pixels) {
+        SDL_SetRenderTarget(renderer, NULL);
         return NULL;
     }
     /* SDL_PIXELFORMAT_RGBA32 is byte-order R,G,B,A regardless of endianness — what stb_image_write expects. */
-    if (SDL_RenderReadPixels(renderer, NULL, SDL_PIXELFORMAT_RGBA32, pixels, stride) != 0) {
+    int rc = SDL_RenderReadPixels(renderer, NULL, SDL_PIXELFORMAT_RGBA32, pixels, stride);
+    SDL_SetRenderTarget(renderer, NULL);
+    if (rc != 0) {
         free(pixels);
         return NULL;
     }
     return pixels;
+}
+
+/* Guard for #196: prove the capture path returns the frame that was just
+ * rendered, before any scene is compared against a baseline.
+ *
+ * Two full-screen probe colours are drawn and captured in turn. A capture path
+ * that hands back a previously presented frame returns probe 1's colour when
+ * probe 2 was drawn, and fails here — with one line naming the harness — rather
+ * than mis-reporting every scene as a UI regression. One colour would not be
+ * enough: a stale buffer that happens to already hold the probe colour would
+ * pass. */
+static bool capture_self_test(lv_display_t *disp)
+{
+    static const struct {
+        uint32_t rgb;
+        const char *name;
+    } probes[] = {
+        {0xFF0000, "red"},
+        {0x0000FF, "blue"},
+    };
+    /* RGB565 round-trips these exactly, but leave room for renderer dithering. */
+    const int tolerance = 8;
+
+    lv_obj_t *probe = lv_obj_create(lv_layer_top());
+    lv_obj_remove_style_all(probe);
+    lv_obj_set_size(probe, APP_LCD_H_RES, APP_LCD_V_RES);
+    lv_obj_set_pos(probe, 0, 0);
+    lv_obj_set_style_bg_opa(probe, LV_OPA_COVER, 0);
+
+    bool ok = true;
+    for (size_t i = 0; i < sizeof(probes) / sizeof(probes[0]); i++) {
+        lv_obj_set_style_bg_color(probe, lv_color_hex(probes[i].rgb), 0);
+        pump_frames(2);
+
+        unsigned char *px = read_current_pixels(disp);
+        if (!px) {
+            fprintf(stderr, "capture self-test: failed to read render (%s)\n", SDL_GetError());
+            ok = false;
+            break;
+        }
+        /* Centre pixel — away from any window chrome or edge filtering. */
+        size_t centre = ((size_t)(APP_LCD_V_RES / 2) * (size_t)APP_LCD_H_RES + (size_t)(APP_LCD_H_RES / 2)) * 4u;
+        int got[3] = {px[centre], px[centre + 1], px[centre + 2]};
+        int want[3] = {(int)((probes[i].rgb >> 16) & 0xFF), (int)((probes[i].rgb >> 8) & 0xFF),
+                       (int)(probes[i].rgb & 0xFF)};
+        free(px);
+
+        for (int c = 0; c < 3; c++) {
+            int d = got[c] - want[c];
+            if (d < 0) {
+                d = -d;
+            }
+            if (d > tolerance) {
+                fprintf(stderr,
+                        "capture self-test: drew %s (%d,%d,%d) but captured (%d,%d,%d) — the capture "
+                        "path is returning a stale frame (see issue #196). This is a simulator harness "
+                        "failure, not a UI regression.\n",
+                        probes[i].name, want[0], want[1], want[2], got[0], got[1], got[2]);
+                ok = false;
+                break;
+            }
+        }
+        if (!ok) {
+            break;
+        }
+    }
+
+    lv_obj_delete(probe);
+    pump_frames(2);
+    return ok;
 }
 
 static bool save_screenshot(lv_display_t *disp, const char *path)
@@ -315,9 +413,9 @@ typedef void (*scene_action_fn)(lv_display_t *disp, const char *name, void *ctx)
 
 static void for_each_scene(lv_display_t *disp, scene_action_fn action, void *ctx)
 {
-    /* Boot splash — overlays the dashboard, then is torn down. Warm up the
-     * renderer first (the very first capture of a run otherwise comes back
-     * blank), then pump 8 frames so the freshly-created subtree fully draws. */
+    /* Boot splash — overlays the dashboard, then is torn down. Let the
+     * dashboard settle first, then pump 8 frames so the freshly-created
+     * subtree fully draws. */
     pump_frames(4);
     splash_create();
     splash_set_status("Connecting Wi-Fi...");
@@ -389,6 +487,9 @@ static void scene_shoot(lv_display_t *disp, const char *name, void *ctx)
 
 static int run_screenshot_mode(lv_display_t *disp)
 {
+    if (!capture_self_test(disp)) {
+        return 1;
+    }
     for_each_scene(disp, scene_shoot, NULL);
     return 0;
 }
@@ -464,6 +565,10 @@ static int run_diff_mode(lv_display_t *disp)
      * even when invoked from a fresh worktree. mkdir(2) on POSIX returns
      * EEXIST harmlessly. */
     (void)mkdir("docs/screenshots/actual", 0755);
+
+    if (!capture_self_test(disp)) {
+        return 1;
+    }
 
     diff_summary_t s = {0};
     for_each_scene(disp, scene_diff, &s);
