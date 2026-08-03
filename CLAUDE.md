@@ -99,6 +99,37 @@ partitions.csv      # ESP32 partition table (16MB, OTA-enabled)
 Makefile            # Dispatcher over every dev entry point (`make help`)
 ```
 
+### Web UI icons (PWA)
+
+`web_ui/public/` holds the favicon, apple-touch-icon, manifest icons, and
+`manifest.webmanifest` — Vite copies the directory verbatim into the bundle, so
+these ship in SPIFFS and are served by the static handler.
+
+The PNGs are **generated, committed artifacts**. Edit the SVG sources in
+`web_ui/icons/` (or `web_ui/public/favicon.svg`, which is hand-written and
+shipped as-is), then:
+
+```bash
+make web-icons
+```
+
+That rasterizes with whichever of rsvg-convert / cairosvg / `sips` is installed,
+then losslessly re-encodes via `scripts/optimize_png.py` — macOS `sips` writes
+unfiltered RGBA PNGs, which costs ~4.5x on the gradient icons. It is deliberately
+**not** part of `build.sh` or CI, so no SVG rasterizer sits on the critical path
+of a firmware build; regenerate and commit by hand.
+
+Icon art mirrors the app's own header logo (the Lucide `Flame` on an
+orange→red gradient tile), *not* the LCD splash mark in
+`components/display/assets/` — the two brand marks differ on purpose. Keep the
+theme colours in `index.html`, `manifest.webmanifest`, and `THEME_COLORS` in
+`src/app/utils/theme.ts` in agreement; `web_ui/test/pwaAssets.test.ts` enforces
+that, and that every referenced icon file actually exists.
+
+Anything new under `www/` that should be gzipped needs adding to the `find` in
+**both** `build.sh` and the Makefile's `gzip` target, and to `get_mime_type()` in
+`components/web_server/web_server.c`.
+
 ## Display / UI System
 
 ### Hardware

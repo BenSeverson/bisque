@@ -34,6 +34,11 @@ static const char *get_mime_type(const char *path)
     if (strcmp(ext, "json") == 0) {
         return "application/json";
     }
+    /* Chrome ignores a manifest served as anything else, which silently costs
+     * the whole install/home-screen path (#190). */
+    if (strcmp(ext, "webmanifest") == 0) {
+        return "application/manifest+json";
+    }
     if (strcmp(ext, "png") == 0) {
         return "image/png";
     }

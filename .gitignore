@@ -34,6 +34,10 @@ web_ui/dist/
 # macOS
 .DS_Store
 
+# Python bytecode from scripts/
+__pycache__/
+*.pyc
+
 # IDE / tools
 .vscode/
 .idea/
