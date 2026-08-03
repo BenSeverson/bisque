@@ -147,8 +147,12 @@ static esp_err_t static_file_handler(httpd_req_t *req)
 
 /* ── SPIFFS Init ───────────────────────────────────── */
 
-static esp_err_t init_spiffs(void)
+esp_err_t web_server_mount_spiffs(void)
 {
+    if (esp_spiffs_mounted("storage")) {
+        return ESP_OK;
+    }
+
     esp_vfs_spiffs_conf_t conf = {
         .base_path = "/www",
         .partition_label = "storage",
@@ -171,7 +175,7 @@ static esp_err_t init_spiffs(void)
 
 esp_err_t web_server_start(void)
 {
-    esp_err_t ret = init_spiffs();
+    esp_err_t ret = web_server_mount_spiffs();
     if (ret != ESP_OK) {
         ESP_LOGW(TAG, "SPIFFS init failed, static files won't be served");
     }

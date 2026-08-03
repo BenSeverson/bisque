@@ -12,6 +12,15 @@ extern "C" {
 #endif
 
 /**
+ * Mount the "storage" SPIFFS partition at /www. Idempotent — safe to call
+ * before web_server_start() so subsystems that only need the filesystem
+ * (history_init()) can come up without waiting on the network stack.
+ *
+ * @return ESP_OK if mounted (or already mounted)
+ */
+esp_err_t web_server_mount_spiffs(void);
+
+/**
  * Start the HTTP server with REST API, WebSocket, and static file serving.
  * All components must be initialized before calling this.
  *

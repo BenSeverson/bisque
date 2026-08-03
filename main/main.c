@@ -24,6 +24,19 @@
 
 static const char *TAG = "main";
 
+/* Create a Core 1 control task, turning FreeRTOS's silent errCOULD_NOT_ALLOCATE
+   into an esp_err_t the caller can ESP_ERROR_CHECK. A control task that never
+   starts is not a degraded mode: without safety_task there is no over-temp
+   check, no SSR heartbeat, and no thermocouple-fault watchdog. Fail loudly. */
+static esp_err_t start_control_task(TaskFunction_t fn, const char *name, uint32_t stack, UBaseType_t prio)
+{
+    if (xTaskCreatePinnedToCore(fn, name, stack, NULL, prio, NULL, 1) != pdPASS) {
+        ESP_LOGE(TAG, "Failed to create %s task — out of internal RAM?", name);
+        return ESP_ERR_NO_MEM;
+    }
+    return ESP_OK;
+}
+
 static void ws_broadcast_timer_cb(void *arg)
 {
     (void)arg;
@@ -72,6 +85,27 @@ void app_main(void)
     firing_engine_get_settings(&settings);
     safety_set_max_temp(settings.max_safe_temp);
     safety_set_tc_offset(settings.tc_offset_c);
+
+    /* ── Storage for the firing history ────────────── */
+    /* Mounted here rather than implicitly inside web_server_start() so
+       history_init() — firing_task's only external dependency — is ready before
+       the control tasks below. The mount is idempotent; web_server_start()
+       still calls it and gets a no-op. */
+    if (web_server_mount_spiffs() != ESP_OK) {
+        ESP_LOGW(TAG, "SPIFFS mount failed; history and static files unavailable");
+    }
+    history_init();
+
+    /* ── Create Real-Time Control Tasks (Core 1) ───── */
+    /* These come before every optional or slow subsystem below — display, Wi-Fi,
+       mDNS, NTP, web server. Safety supervision must never be gated on hardware
+       that may be absent or on a network stack that can stall for 30 s (#250):
+       safety_task is what runs the over-temp check, the SSR heartbeat, and the
+       thermocouple-fault watchdog, and it is useless if it starts last.
+       Keep it that way — nothing that can energize the SSR belongs above here. */
+    ESP_ERROR_CHECK(start_control_task(safety_task, "safety", APP_TASK_SAFETY_STACK, APP_TASK_SAFETY_PRIO));
+    ESP_ERROR_CHECK(start_control_task(temp_read_task, "temp_read", APP_TASK_TEMP_READ_STACK, APP_TASK_TEMP_READ_PRIO));
+    ESP_ERROR_CHECK(start_control_task(firing_task, "firing", APP_TASK_FIRING_STACK, APP_TASK_FIRING_PRIO));
 
     /* ── Display Init ──────────────────────────────── */
     ret = display_init(APP_SPI_HOST, APP_PIN_LCD_CS, APP_PIN_LCD_DC, APP_PIN_LCD_RST, APP_PIN_LCD_BL);
@@ -163,26 +197,15 @@ void app_main(void)
     esp_sntp_init();
     ESP_LOGI(TAG, "NTP sync started");
 
-    /* ── History Init (after SPIFFS, before web server) ── */
-    /* Web server mounts SPIFFS; we call history_init after it */
-
     /* ── Web Server Init ───────────────────────────── */
+    /* SPIFFS is already mounted (above, for history_init); this re-mount is a
+       no-op and only serves as the fallback if that ordering ever changes. */
     ESP_ERROR_CHECK(web_server_start());
-    history_init(); /* SPIFFS must be mounted first (done inside web_server_start) */
     ESP_LOGI(TAG, "Web server started at http://%s/", wifi_manager_get_ip());
 
-    /* ── Create FreeRTOS Tasks ─────────────────────── */
-
-    /* Core 1: Real-time control tasks */
-    xTaskCreatePinnedToCore(safety_task, "safety", APP_TASK_SAFETY_STACK, NULL, APP_TASK_SAFETY_PRIO, NULL, 1);
-
-    xTaskCreatePinnedToCore(temp_read_task, "temp_read", APP_TASK_TEMP_READ_STACK, NULL, APP_TASK_TEMP_READ_PRIO, NULL,
-                            1);
-
-    xTaskCreatePinnedToCore(firing_task, "firing", APP_TASK_FIRING_STACK, NULL, APP_TASK_FIRING_PRIO, NULL, 1);
-
-    /* Core 0: UI + network tasks. (display_task was created earlier, right after
-     * display_init, so the splash could render during the Wi-Fi wait above.) */
+    /* ── Create Remaining Tasks (Core 0: UI + network) ── */
+    /* The Core 1 control tasks and display_task were created earlier — see the
+     * ordering note above safety_task's creation. */
 
     if (status_led_initialized) {
         xTaskCreatePinnedToCore(status_led_task, "status_led", 2048, NULL, 1, NULL, 0);
