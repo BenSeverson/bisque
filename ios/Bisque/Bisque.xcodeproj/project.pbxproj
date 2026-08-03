@@ -41,6 +41,7 @@
 		64C1D81E3EAF03E6520BA9F9 /* ProfileBuilderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E314DDEAB58993BD0FD56EC /* ProfileBuilderView.swift */; };
 		6C1D988791FAB3469E5A8BA4 /* BisqueLiveActivity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F7FA29E44418078D249C8C5A /* BisqueLiveActivity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		7623DA52F7EBD810BA951A0D /* DiagThermocouple.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C4A80A1C88346C07B79D9BC /* DiagThermocouple.swift */; };
+		768F459B2B12D2D7035C3C1F /* KilnDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BCF50C7ED1597FED0EB4B1A /* KilnDiscovery.swift */; };
 		7B3B05AFEEB31E2B8D5BD5AB /* SettingsTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA92D0A942F9875DFAEA9B4B /* SettingsTab.swift */; };
 		86D5A2CB868BB4CC50EA16B4 /* HistoryRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7764E1BB68840F9971131A /* HistoryRecord.swift */; };
 		885593DECBBDC2EA581774EC /* FiringActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F89C228440A203C89CDC289 /* FiringActivityAttributes.swift */; };
@@ -125,6 +126,7 @@
 		5CAF4D46EA741C75819A73BF /* FiringProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FiringProfile.swift; sourceTree = "<group>"; };
 		5D7F2D56E911D3C0674062A4 /* PreviewData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewData.swift; sourceTree = "<group>"; };
 		5E314DDEAB58993BD0FD56EC /* ProfileBuilderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileBuilderView.swift; sourceTree = "<group>"; };
+		6BCF50C7ED1597FED0EB4B1A /* KilnDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KilnDiscovery.swift; sourceTree = "<group>"; };
 		6C4A80A1C88346C07B79D9BC /* DiagThermocouple.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagThermocouple.swift; sourceTree = "<group>"; };
 		6EC837DDDB8894D22506AF18 /* FiringSegment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FiringSegment.swift; sourceTree = "<group>"; };
 		7397F8683E3C2BEA155266F4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -293,6 +295,7 @@
 			children = (
 				3310994771D8D25E65754D00 /* APIError.swift */,
 				5097775AD49300C0F4CC7090 /* KilnAPIClient.swift */,
+				6BCF50C7ED1597FED0EB4B1A /* KilnDiscovery.swift */,
 				A73135746827DB70B6782D1E /* KilnWebSocketManager.swift */,
 			);
 			path = Networking;
@@ -526,6 +529,7 @@
 				101B582C2AECE4B0BD15D498 /* KeychainHelper.swift in Sources */,
 				EAF5604874FC512E019B77CD /* KilnAPIClient.swift in Sources */,
 				A6EB34376FE93A0485B437B6 /* KilnConnection.swift in Sources */,
+				768F459B2B12D2D7035C3C1F /* KilnDiscovery.swift in Sources */,
 				26AE3C92FFE5875DAE305B41 /* KilnSettings.swift in Sources */,
 				CF0076D09E302D43D81C24E1 /* KilnStore.swift in Sources */,
 				CD851B56BC3AEA3F1C83021E /* KilnWebSocketManager.swift in Sources */,
