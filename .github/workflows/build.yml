@@ -34,6 +34,13 @@ jobs:
         working-directory: web_ui
       - run: npm run format:check
         working-directory: web_ui
+      # pages.yml only builds the demo on push to main, so without this a PR
+      # that breaks the __DEMO__-gated dynamic import of mock-server/ merges
+      # green and takes down the public GitHub Pages deploy. The firmware
+      # `npm run build` in the `build` job doesn't cover it — that import is
+      # tree-shaken out of every non-demo bundle.
+      - name: Build static demo
+        run: make web-demo
       # Generate JSON fixtures from the C-side API builders so the cross-
       # language contract test in web_ui/test/contracts/ has something to
       # validate. This step is load-bearing: since #173 the contract suite

@@ -1,3 +1,9 @@
+// @vitest-environment jsdom
+//
+// The lone exception to the node environment vitest.config.ts gives test/:
+// this file parses index.html with DOMParser. The contract suites next door
+// are pure node, so the directory default stays node and this opts back in.
+
 /**
  * The PWA shell — favicon, apple-touch-icon, manifest, theme-color — is all
  * static markup and static files. Nothing imports it, so a renamed or dropped
