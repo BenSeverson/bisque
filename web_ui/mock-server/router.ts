@@ -137,7 +137,12 @@ function generateConeFire(params: ConeFireParams): FiringProfile | null {
   const targetTemp =
     [cone.slowTempC, cone.mediumTempC, cone.fastTempC][params.speed] ?? cone.mediumTempC;
   const speedLabel = ["slow", "medium", "fast"][params.speed] ?? "medium";
-  const rampRates = [60, 100, 150][params.speed] ?? 100;
+  // s_speed_ramp[] in components/cone_table/cone_table.c. These had drifted to
+  // {60, 100, 150}, so the demo generated a schedule the device would never
+  // fire — and, since the profile cards started naming a nearest cone, a fast
+  // cone 6 (1240°C at what the mock called 150°C/hr) read as cone 7. The
+  // firmware contract test pins all three speeds now.
+  const rampRate = [60, 150, 300][params.speed] ?? 150;
 
   const segments: FiringSegment[] = [];
   let id = 1;
@@ -171,7 +176,7 @@ function generateConeFire(params: ConeFireParams): FiringProfile | null {
   segments.push({
     id: `cone-seg-${id++}`,
     name: `Final Ramp to Cone ${cone.name}`,
-    rampRate: rampRates,
+    rampRate,
     targetTemp,
     holdTime: 10,
   });

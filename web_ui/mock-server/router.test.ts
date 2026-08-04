@@ -7,9 +7,10 @@
  * start firings and clears the interval it creates in afterEach.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { dispatch } from "./router";
+import { dispatch, CONE_TABLE } from "./router";
 import { state } from "./state";
-import type { HistoryRecord } from "../src/app/types/kiln";
+import { coneEquivalentLabel } from "../src/app/utils/cone";
+import type { FiringProfile, HistoryRecord } from "../src/app/types/kiln";
 
 describe("dispatch() router", () => {
   it("GET /status returns a JSON body", () => {
@@ -24,6 +25,29 @@ describe("dispatch() router", () => {
     expect(Array.isArray(r.json)).toBe(true);
     expect((r.json as unknown[]).length).toBeGreaterThan(0);
   });
+
+  // The wizard naming one cone while the profile it just produced is labelled
+  // another reads as a bug in whichever of the two the user trusts less. The
+  // firmware contract test pins the generated schedule; this pins the thing the
+  // demo user actually sees (#179).
+  it.each([0, 1, 2])(
+    "POST /profiles/cone-fire at speed %i labels back as its own cone",
+    (speed) => {
+      for (const cone of CONE_TABLE) {
+        const r = dispatch("POST", "/profiles/cone-fire", {
+          coneId: cone.id,
+          speed,
+          preheat: true,
+          slowCool: false,
+          save: false,
+        });
+        const profile = r.json as FiringProfile;
+        expect(coneEquivalentLabel(profile.maxTemp, profile.segments, CONE_TABLE)).toBe(
+          `≈ Cone ${cone.name}`,
+        );
+      }
+    },
+  );
 
   it("GET /profiles/:id/export sets a download Content-Disposition header", () => {
     const list = dispatch("GET", "/profiles", {}).json as Array<{ id: string }>;

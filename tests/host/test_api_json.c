@@ -10,6 +10,7 @@
  */
 #include "api_json.h"
 #include "cJSON.h"
+#include "cone_table.h"
 #include "firing_history.h"
 #include "firing_types.h"
 #include "thermocouple.h"
@@ -382,6 +383,51 @@ static void test_cone_table_shape(void)
     cJSON_Delete(arr);
 }
 
+/* ── cone_fire_generate → build_profile_json ─────────────────────────────── */
+
+/* The demo's mock server generates its own cone-fire schedule in TypeScript
+ * (web_ui/mock-server/router.ts) rather than calling this code. Its final ramp
+ * rates had drifted to {60, 100, 150} against s_speed_ramp's {60, 150, 300}, so
+ * the public demo handed out a schedule the device would never fire — and once
+ * profiles started naming a nearest cone (#179), a fast cone 6 read as cone 7.
+ *
+ * All three speeds go into one fixture so the web contract test can pin the
+ * mock's whole generated schedule, not just the column the demo happens to
+ * default to. Preheat and slow-cool are on so every optional segment is
+ * covered. */
+static void test_cone_fire_profiles(void)
+{
+    cJSON *arr = cJSON_CreateArray();
+    TEST_ASSERT_NOT_NULL(arr);
+
+    for (int speed = CONE_SPEED_SLOW; speed <= CONE_SPEED_FAST; speed++) {
+        firing_profile_t p;
+        TEST_ASSERT_EQUAL(ESP_OK, cone_fire_generate(CONE_6, (cone_speed_t)speed, true, true, &p));
+        cJSON *root = build_profile_json(&p);
+        TEST_ASSERT_NOT_NULL(root);
+        cJSON_AddItemToArray(arr, root);
+    }
+
+    TEST_ASSERT_EQUAL_INT(3, cJSON_GetArraySize(arr));
+
+    /* Spot-check the field the mock drifted on: the last segment before the
+     * cooling ones ramps at the speed's own rate to that column's temperature. */
+    const float expected_rate[3] = {60.0f, 150.0f, 300.0f};
+    for (int speed = 0; speed < 3; speed++) {
+        cJSON *segs = cJSON_GetObjectItem(cJSON_GetArrayItem(arr, speed), "segments");
+        TEST_ASSERT_NOT_NULL(segs);
+        /* preheat, water smoke, quartz, peak ramp, then two cooling segments */
+        TEST_ASSERT_EQUAL_INT(6, cJSON_GetArraySize(segs));
+        cJSON *peak = cJSON_GetArrayItem(segs, 3);
+        TEST_ASSERT_EQUAL_FLOAT(expected_rate[speed], cJSON_GetObjectItem(peak, "rampRate")->valuedouble);
+        TEST_ASSERT_EQUAL_FLOAT(cone_target_temp_c(CONE_6, (cone_speed_t)speed),
+                                cJSON_GetObjectItem(peak, "targetTemp")->valuedouble);
+    }
+
+    dump_fixture("cone_fire_profiles", arr);
+    cJSON_Delete(arr);
+}
+
 /* ── build_autotune_status_json ──────────────────────────────────────────── */
 
 static void test_autotune_status_idle(void)
@@ -553,6 +599,7 @@ int main(void)
     RUN_TEST(test_history_record_shape);
     RUN_TEST(test_history_outcome_strings);
     RUN_TEST(test_cone_table_shape);
+    RUN_TEST(test_cone_fire_profiles);
     RUN_TEST(test_autotune_status_idle);
     RUN_TEST(test_autotune_status_running_vs_stopped);
     RUN_TEST(test_autotune_terminal_states_are_distinct);
