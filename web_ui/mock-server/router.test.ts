@@ -53,6 +53,24 @@ describe("dispatch() router", () => {
     expect(after.maxSafeTemp).toBe(1234);
   });
 
+  it("POST /diagnostics/relay clamps the pulse the way the firmware does", () => {
+    // handle_diag_relay() truncates to int and clamps to 1–10 s without saying
+    // so, and the UI's success toast quotes the echoed value on that basis.
+    const durationOf = (body: object) =>
+      (
+        dispatch("POST", "/diagnostics/relay", body).json as {
+          durationSeconds: number;
+        }
+      ).durationSeconds;
+
+    expect(durationOf({ durationSeconds: 5 })).toBe(5);
+    expect(durationOf({ durationSeconds: 30 })).toBe(10);
+    expect(durationOf({ durationSeconds: 0 })).toBe(1);
+    expect(durationOf({ durationSeconds: 1.9 })).toBe(1);
+    // An absent field falls back to the firmware's own default.
+    expect(durationOf({})).toBe(2);
+  });
+
   it("unknown route returns 404", () => {
     const r = dispatch("GET", "/nope", {});
     expect(r.status).toBe(404);

@@ -14,6 +14,13 @@ import {
 } from "../utils/autotuneSession";
 import { prepareSettingsPatch } from "../utils/settingsPatch";
 import { preparePidGains, formatGain, type PidGainsDraft } from "../utils/pidGains";
+import { prepareAutotuneRequest, AUTOTUNE_DEFAULT_HYSTERESIS_C } from "../utils/autotuneRequest";
+import {
+  prepareRelayDuration,
+  RELAY_TEST_MIN_SECONDS,
+  RELAY_TEST_MAX_SECONDS,
+  RELAY_TEST_DEFAULT_SECONDS,
+} from "../utils/relayTest";
 import { describeFiringError, emergencyStopExplanation } from "../utils/firingError";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Label } from "./ui/label";
@@ -23,9 +30,17 @@ import { Button } from "./ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
 import { setApiToken } from "../services/api";
 import { toast } from "sonner";
-import { Upload, Zap, Thermometer, AlertTriangle, RefreshCw, Download } from "lucide-react";
+import { Upload, Zap, Thermometer, AlertTriangle, RefreshCw, Download, Power } from "lucide-react";
 import { settingsSchema, SettingsFormValues } from "../schemas/kiln";
 import { TemperatureField } from "./TemperatureField";
 import {
@@ -33,6 +48,7 @@ import {
   toDisplayTemp,
   fromDisplayTemp,
   toDisplayRate,
+  fromDisplayRate,
   unitLabel,
 } from "../utils/temperature";
 import {
@@ -45,6 +61,7 @@ import {
   usePidGains,
   useSavePidGains,
   useTestRelay,
+  useReboot,
   useUploadOta,
   useCheckOta,
   useInstallOta,
@@ -69,6 +86,10 @@ export function Settings() {
     errorUpdatedAt,
   } = useAutotuneStatus(autotuneRunning);
   const [autotuneSetpoint, setAutotuneSetpoint] = useState(500);
+  // The relay band the tune oscillates across, in Celsius like the API. Exposed
+  // rather than pinned to the firmware default because it is the one knob that
+  // trades tune duration against gain quality on a given kiln (#178).
+  const [autotuneHysteresis, setAutotuneHysteresis] = useState(AUTOTUNE_DEFAULT_HYSTERESIS_C);
 
   const startAutotune = useStartAutotune();
   const stopAutotune = useStopAutotune();
@@ -86,6 +107,9 @@ export function Settings() {
   const firingActive = useKilnStore((s) => s.firingProgress.isActive);
   const kilnBusy = firingActive || autotuneRunning;
   const testRelay = useTestRelay();
+  const [relayDurationS, setRelayDurationS] = useState(RELAY_TEST_DEFAULT_SECONDS);
+  const reboot = useReboot();
+  const [restartConfirmOpen, setRestartConfirmOpen] = useState(false);
   const uploadOta = useUploadOta();
   const checkOta = useCheckOta();
   const installOta = useInstallOta();
@@ -223,12 +247,16 @@ export function Settings() {
   }, [getValues, saveSettings]);
 
   const handleStartAutotune = useCallback(async () => {
-    if (!Number.isFinite(autotuneSetpoint) || autotuneSetpoint <= 0) {
-      toast.error("Enter a valid setpoint above 0");
+    const prepared = prepareAutotuneRequest(autotuneSetpoint, autotuneHysteresis);
+    if (!prepared.ok) {
+      toast.error(prepared.message);
       return;
     }
     try {
-      await startAutotune.mutateAsync(autotuneSetpoint);
+      await startAutotune.mutateAsync({
+        setpoint: prepared.setpoint,
+        hysteresis: prepared.hysteresis,
+      });
       // Pending until a *fresh* status frame confirms it: the firmware only
       // queues the start command, so the next poll or two may still read idle.
       setAutotuneSession(beginAutotuneSession(Date.now()));
@@ -236,7 +264,7 @@ export function Settings() {
     } catch (e) {
       toast.error(`Failed: ${toErrorMessage(e)}`);
     }
-  }, [autotuneSetpoint, startAutotune]);
+  }, [autotuneSetpoint, autotuneHysteresis, startAutotune]);
 
   const handleStopAutotune = useCallback(async () => {
     try {
@@ -298,13 +326,33 @@ export function Settings() {
   }, []);
 
   const handleTestRelay = useCallback(async () => {
-    try {
-      await testRelay.mutateAsync();
-      toast.success("Relay activated for 2 seconds");
-    } catch {
-      toast.error("Failed to test relay");
+    const prepared = prepareRelayDuration(relayDurationS);
+    if (!prepared.ok) {
+      toast.error(prepared.message);
+      return;
     }
-  }, [testRelay]);
+    try {
+      // Report the duration the controller echoes, not the one requested: the
+      // firmware clamps silently, so its answer is the only honest number here.
+      const resp = await testRelay.mutateAsync(prepared.seconds);
+      toast.success(`Relay activated for ${resp.durationSeconds} seconds`);
+    } catch (e) {
+      // 409 while a firing, delay or another relay test holds the SSR.
+      toast.error(`Failed to test relay: ${toErrorMessage(e)}`);
+    }
+  }, [relayDurationS, testRelay]);
+
+  const handleRestart = useCallback(async () => {
+    setRestartConfirmOpen(false);
+    try {
+      await reboot.mutateAsync();
+      toast.success("Restarting — reload this page once the controller is back.");
+    } catch (e) {
+      // handle_reboot() refuses with 409 while a firing or relay test is
+      // running, which is the likely failure rather than a dropped request.
+      toast.error(`Restart refused: ${toErrorMessage(e)}`);
+    }
+  }, [reboot]);
 
   const handleOtaUpload = useCallback(async () => {
     if (!otaFile) return;
@@ -719,8 +767,8 @@ export function Settings() {
             </div>
           )}
 
-          <div className="flex items-end gap-4">
-            <div className="space-y-2 flex-1">
+          <div className="flex items-end gap-4 flex-wrap">
+            <div className="space-y-2 flex-1 min-w-40">
               <Label htmlFor="autotune-setpoint">Setpoint Temperature ({unitLabel(unit)})</Label>
               <Input
                 id="autotune-setpoint"
@@ -729,6 +777,23 @@ export function Settings() {
                 onChange={(e) => {
                   const v = parseFloat(e.target.value);
                   setAutotuneSetpoint(Number.isFinite(v) ? fromDisplayTemp(v, unit) : 0);
+                }}
+                disabled={autotuneRunning}
+              />
+            </div>
+            {/* A delta, so it scales by 9/5 with no offset — hence toDisplayRate
+                rather than toDisplayTemp. */}
+            <div className="space-y-2 w-32">
+              <Label htmlFor="autotune-hysteresis">Relay Band (±{unitLabel(unit)})</Label>
+              <Input
+                id="autotune-hysteresis"
+                type="number"
+                min={0}
+                step="any"
+                value={Number(toDisplayRate(autotuneHysteresis, unit).toFixed(1))}
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  setAutotuneHysteresis(Number.isFinite(v) ? fromDisplayRate(v, unit) : 0);
                 }}
                 disabled={autotuneRunning}
               />
@@ -745,6 +810,12 @@ export function Settings() {
             The auto-tune process will heat to the setpoint and oscillate around it to measure the
             system response. This typically takes 15–30 minutes. The kiln must not be in use.
           </p>
+          <p className="text-sm text-muted-foreground">
+            The relay band is how far above and below the setpoint the element switches. The default
+            of ±{toDisplayRate(AUTOTUNE_DEFAULT_HYSTERESIS_C, unit).toFixed(0)}
+            {unitLabel(unit)} suits most kilns; widen it if thermocouple noise makes the relay
+            chatter, narrow it for a tighter-tuned but slower run.
+          </p>
         </CardContent>
       </Card>
 
@@ -755,13 +826,37 @@ export function Settings() {
           <CardDescription>Test hardware components and verify sensor readings</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-3 flex-wrap">
-            {/* Relay test needs hardware — hidden in the demo. */}
+          <div className="flex gap-3 flex-wrap items-end">
+            {/* Relay test needs hardware — hidden in the demo. Its duration was
+                an API parameter with no control behind it (#178); the bounds are
+                the firmware's own silent clamp. */}
             {!__DEMO__ && (
-              <Button variant="outline" className="gap-2" onClick={handleTestRelay}>
-                <Zap className="h-4 w-4" />
-                Test Relay (2 s)
-              </Button>
+              <>
+                <div className="space-y-2 w-28">
+                  <Label htmlFor="relay-test-duration">Pulse (s)</Label>
+                  <Input
+                    id="relay-test-duration"
+                    type="number"
+                    min={RELAY_TEST_MIN_SECONDS}
+                    max={RELAY_TEST_MAX_SECONDS}
+                    step={1}
+                    value={relayDurationS}
+                    onChange={(e) => {
+                      const v = parseInt(e.target.value, 10);
+                      setRelayDurationS(Number.isFinite(v) ? v : 0);
+                    }}
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  onClick={handleTestRelay}
+                  disabled={testRelay.isPending}
+                >
+                  <Zap className="h-4 w-4" />
+                  Test Relay
+                </Button>
+              </>
             )}
             <Button variant="outline" className="gap-2" onClick={handleReadTC}>
               <Thermometer className="h-4 w-4" />
@@ -820,6 +915,31 @@ export function Settings() {
                   <span>No faults detected</span>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Restart. POST /reboot has always existed — the Wi-Fi save flow
+              reboots through it — but nothing offered it on its own, so clearing
+              a wedged controller meant pulling the plug (#178). Hardware-only:
+              there is nothing to restart in the demo. */}
+          {!__DEMO__ && (
+            <div className="border-t pt-4 flex items-end justify-between gap-4 flex-wrap">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Restart Controller</p>
+                <p className="text-sm text-muted-foreground">
+                  Reboots the controller. Settings, profiles and firing history are kept. Refused
+                  while a firing or relay test is running.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => setRestartConfirmOpen(true)}
+                disabled={reboot.isPending || kilnBusy}
+              >
+                <Power className="h-4 w-4" />
+                {reboot.isPending ? "Restarting..." : "Restart"}
+              </Button>
             </div>
           )}
         </CardContent>
@@ -1046,6 +1166,26 @@ export function Settings() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={restartConfirmOpen} onOpenChange={setRestartConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Restart the controller?</DialogTitle>
+            <DialogDescription>
+              The kiln will go offline for a few seconds and this page will lose its connection.
+              Nothing is erased — settings, profiles and history all survive a restart.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRestartConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleRestart}>
+              Restart
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
