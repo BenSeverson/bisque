@@ -37,10 +37,11 @@ After editing any firmware C/H files under `main/` or `components/`, run `clang-
 ## Testing
 
 ```bash
-make test        # Everything: test-host + test-web
+make test        # Everything portable: test-host + test-web
 make test-host   # Unity C unit tests via ctest (tests/host/, no hardware needed)
 make test-web    # Vitest — depends on `fixtures`, which must run first
 make fixtures    # Regenerate JSON API fixtures from the C code
+make test-ios    # XCTest on a simulator — macOS + Xcode only, NOT part of `test`
 ```
 
 The web tests are **contract tests against the firmware**: `make fixtures` builds the `api_fixtures` target from `tests/host/` to emit real JSON from the C serializers, and Vitest asserts the web UI parses it. `test-web` depends on `fixtures`, so run it via `make` rather than `npm run test:run` directly. Host tests cover PID, cone table, firing helpers, firing scenarios (via `plant.c`, a simulated kiln thermal model), and API JSON.
@@ -83,9 +84,36 @@ Bisque, otherwise every password-protected device on the LAN would list as one.
 If you change the mDNS advertisement or the auth challenge in
 `components/web_server/api_handlers.c`, that classifier is what breaks.
 
+A connection remembers both the address and the Bonjour instance name behind
+it. The address is what the next launch dials; the name is the fallback for when
+a DHCP lease has moved the kiln, in which case `connect()` re-resolves the name
+once and retries. That retry fires only after an *unreachable* result and only
+when the resolved address actually differs — a 401 means the kiln was found, and
+a kiln that is simply off should fail once, not twice. A hand-typed address
+carries no service name, so it never re-resolves.
+
 Discovery needs `NSBonjourServices` and `NSLocalNetworkUsageDescription`; both
 live in `project.yml` under `targets.Bisque.info.properties` — `Bisque/Info.plist`
 is **generated** from it by xcodegen, so edit the yml and regenerate.
+
+iOS unit tests live in `ios/Bisque/BisqueTests/` and run via `make test-ios`.
+They are **not** in `make test` — that runs in the Linux container CI uses for
+firmware and web, and these need a Mac with a simulator. `scripts/pick-simulator.sh`
+chooses the destination at run time so no device name is pinned. Two gotchas
+worth knowing before you debug the wrong thing: `BISQUE_MARKETING_VERSION` /
+`BISQUE_BUILD_NUMBER` must be set or the simulator refuses to install the app
+(empty `CFBundleVersion` on the Live Activity extension, reported as
+"bundleVersion must be set in placeholder attributes"), and xcodegen must run
+*without* them so the committed pbxproj keeps its `${BISQUE_*}` placeholders —
+xcodebuild expands those from its own environment. The `test-ios` target handles
+both.
+
+**CI builds iOS with Xcode 16.4; a current Mac has Xcode 26.** That gap is
+wide enough to compile differently, so a green `make test-ios` locally is not
+proof CI will pass. The one that has already bitten: `XCTestCase.setUp()` /
+`tearDown()` are nonisolated in the Xcode 16 XCTest and `@MainActor` in the
+Xcode 26 one, so an override touching `@MainActor` test state builds locally and
+fails on CI. Avoid overriding them — set fixtures up inside each test instead.
 
 ## Project Structure
 

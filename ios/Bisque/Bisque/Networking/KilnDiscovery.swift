@@ -212,6 +212,24 @@ final class KilnDiscovery {
 
     // MARK: - Resolution
 
+    /// Looks up one known Bonjour instance and returns where it lives now.
+    ///
+    /// The address a kiln was reached at last time is only as durable as its
+    /// DHCP lease; the instance name outlives it. Resolving the name is what
+    /// turns "the kiln moved" from something the user has to notice and fix
+    /// into something the app corrects on its own.
+    ///
+    /// No browse is involved — this asks for one specific service, so it costs
+    /// a single resolve rather than a probe of everything on the network.
+    /// Returns nil if the service is not on the network right now.
+    static func resolveService(
+        named serviceName: String, timeout: TimeInterval = resolveTimeout
+    ) async -> (host: String, port: Int)? {
+        await resolve(
+            BonjourService(name: serviceName, type: serviceType, domain: "local."),
+            timeout: timeout)
+    }
+
     /// Box for the one mutable flag in `resolve`. Every access happens on the
     /// connection's own serial queue, including the timeout, which is why the
     /// unchecked conformance is sound.
@@ -301,6 +319,21 @@ final class KilnDiscovery {
 
     // MARK: - Verification
 
+    /// The session probes run on.
+    ///
+    /// Ephemeral and cookie-free on purpose: a probe talks to arbitrary devices
+    /// on the LAN, and nothing they hand back belongs in the store the app's
+    /// own requests share. Separate from `KilnAPIClient`'s sessions for the
+    /// same reason its OTA session is separate — different deadlines, different
+    /// trust.
+    nonisolated static let probeSession: URLSession = {
+        let config = URLSessionConfiguration.ephemeral
+        config.urlCache = nil
+        config.httpCookieStorage = nil
+        config.httpShouldSetCookies = false
+        return URLSession(configuration: config)
+    }()
+
     private enum ProbeOutcome {
         /// Answered `/api/v1/status` with something the app can decode.
         case kiln
@@ -324,13 +357,17 @@ final class KilnDiscovery {
     /// instance name) says Bisque — the firmware answers
     /// `WWW-Authenticate: Bearer realm="bisque"` — because otherwise every
     /// password-protected HTTP device on the network would list as a kiln.
+    ///
+    /// `session:` exists so tests can script the responses; production always
+    /// uses `probeSession`.
     nonisolated static func verify(
         host: String, port: Int, serviceName: String,
-        apiToken: String?, timeout: TimeInterval
+        apiToken: String?, timeout: TimeInterval,
+        session: URLSession = probeSession
     ) async -> Bool? {
         guard let url = URL(string: "http://\(host):\(port)/api/v1/status") else { return nil }
 
-        switch await probeStatus(url: url, apiToken: nil, timeout: timeout) {
+        switch await probeStatus(url: url, apiToken: nil, timeout: timeout, session: session) {
         case .kiln:
             return false
         case .other:
@@ -343,7 +380,8 @@ final class KilnDiscovery {
 
             // Identified as a kiln, so the token can go to it now. A second
             // challenge means the token we hold is not the one it wants.
-            if case .kiln = await probeStatus(url: url, apiToken: apiToken, timeout: timeout) {
+            if case .kiln = await probeStatus(
+                url: url, apiToken: apiToken, timeout: timeout, session: session) {
                 return false
             }
             return true
@@ -351,7 +389,7 @@ final class KilnDiscovery {
     }
 
     private nonisolated static func probeStatus(
-        url: URL, apiToken: String?, timeout: TimeInterval
+        url: URL, apiToken: String?, timeout: TimeInterval, session: URLSession
     ) async -> ProbeOutcome {
         var request = URLRequest(url: url)
         request.timeoutInterval = timeout
@@ -360,7 +398,7 @@ final class KilnDiscovery {
             request.setValue("Bearer \(apiToken)", forHTTPHeaderField: "Authorization")
         }
 
-        guard let (data, response) = try? await URLSession.shared.data(for: request),
+        guard let (data, response) = try? await session.data(for: request),
               let http = response as? HTTPURLResponse else { return .other }
 
         if http.statusCode == 401 {

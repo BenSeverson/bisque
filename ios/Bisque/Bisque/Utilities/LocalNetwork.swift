@@ -36,11 +36,17 @@ enum LocalNetwork {
         }
 
         if bare.contains(":") {
-            // IPv6 literal: ::1 is loopback, fe80::/10 link-local and fc00::/7
-            // unique-local are LAN, everything else is routable.
+            // IPv6 literal: ::1 is loopback; fe80::/10 link-local, fec0::/10
+            // site-local and fc00::/7 unique-local are LAN; everything else is
+            // routable. fec0::/10 was deprecated by RFC 3879 and no router
+            // hands it out any more, but a host that does use it is on the LAN
+            // by definition, and the rule above is "only an explicitly routable
+            // address is confidently non-local".
             if bare == "::1" { return false }
             return bare.hasPrefix("fe8") || bare.hasPrefix("fe9")
                 || bare.hasPrefix("fea") || bare.hasPrefix("feb")
+                || bare.hasPrefix("fec") || bare.hasPrefix("fed")
+                || bare.hasPrefix("fee") || bare.hasPrefix("fef")
                 || bare.hasPrefix("fc") || bare.hasPrefix("fd")
         }
 
