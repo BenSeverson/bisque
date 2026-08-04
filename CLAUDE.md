@@ -20,6 +20,8 @@ So prefer `make firmware` / `make build` / `./build.sh` over a raw `idf.py` — 
 . ./scripts/idf-env.sh && idf.py flash monitor
 ```
 
+**Never conclude ESP-IDF is unavailable from an ad-hoc shell probe, and never ship firmware changes unbuilt because you think it is.** `scripts/idf-env.sh` is the only thing that gets to answer that question — run it, or just run `make firmware` and read the error. A hand-written `ls ~/esp* /opt/esp* ~/.espressif` is not a substitute and has already produced a false negative: the shell here is **zsh**, where an unmatched glob aborts the *entire* command line with `no matches found` before any other argument is listed, so one non-existent path makes every real one invisible. (`find ~ -maxdepth 4` fails differently — the install is deeper than that.) The cost of getting this wrong is high and silent: `tests/host/` links a handful of components, so a change to `api_handlers.c`, `ws_handler.c`, `main/`, or anything else outside that set is **completely uncompiled** by `make test`. "CI will catch it" is not a verification step.
+
 Build profile: `./build.sh` builds release (`-O2`) by default. `BISQUE_PROFILE=debug ./build.sh` overlays `sdkconfig.defaults.debug` (`-Og`, full assertions, and the LVGL on-screen FPS/heap overlays) for on-device profiling.
 
 Web UI demo: `cd web_ui && npm run build:demo` produces a static, serverless build (`BISQUE_DEMO=true` → the `__DEMO__` flag) that bundles the in-browser kiln simulator (`web_ui/mock-server/`, shared with the dev server via the browser-safe `router.ts`/`installDemo.ts`) and is published to GitHub Pages (`https://benseverson.github.io/bisque/`) by `.github/workflows/pages.yml` on every push to `main`. The simulator is loaded via a `__DEMO__`-gated dynamic import, so it is tree-shaken out of the firmware build and flash size is unaffected. Hardware-only controls (OTA, Wi-Fi setup, relay test) are hidden in the demo.
@@ -32,7 +34,15 @@ The top-level `Makefile` is a thin dispatcher over the existing scripts and `idf
 
 After editing any firmware C/H files under `main/` or `components/`, run `clang-format -i` on the changed files (or `./scripts/format.sh` to format all firmware + web sources). The CI format check uses the repo's `.clang-format`; unformatted code will fail the `clang-format` job.
 
-`./scripts/lint.sh` (also installed as the pre-push hook via `./scripts/install-hooks.sh`) is a **subset** of CI: it runs `clang-format --dry-run` plus the web UI typecheck/lint/format checks. It does **not** run `clang-tidy` or `cppcheck` — both require the ESP-IDF toolchain and are CI-only. Pushes that pass `lint.sh` can still fail the `build` job's static-analysis steps; the fastest local check is to rebuild with `idf.py clang-check --run-clang-tidy-options="-warnings-as-errors=*"` after a normal firmware build.
+`./scripts/lint.sh` (also installed as the pre-push hook via `./scripts/install-hooks.sh`) is a **subset** of CI: it runs `clang-format --dry-run` plus the web UI typecheck/lint/format checks. It does **not** run `clang-tidy` or `cppcheck`, so a push that passes `lint.sh` can still fail the `build` job's static-analysis steps. Both are available locally — `make clang-tidy` (after a firmware build) and `make cppcheck` — and are worth running on any firmware change.
+
+Reading `make clang-tidy` output takes a filter. It reports findings from every header a TU pulls in, and `.clang-tidy`'s `HeaderFilterRegex` (`(main|components)/.*\.h$`) matches ESP-IDF's *own* `components/` too, so hundreds of lines come from `~/.espressif/` and `managed_components/` and are not yours. Apply CI's gate, then narrow to the repo:
+
+```bash
+grep -E ':[0-9]+:[0-9]+: (warning|error): ' warnings.txt | grep -v clang-diagnostic- | grep "$PWD/\(components\|main\)/"
+```
+
+`readability-redundant-declaration` is an error here, and it is the one that bites on refactors: declaring a function in both `web_server.h` and `api_json.h` is silent until some translation unit includes both. Declare each function in exactly one header.
 
 ## Testing
 
@@ -48,7 +58,11 @@ The web tests are **contract tests against the firmware**: `make fixtures` build
 
 Missing or stale fixtures **fail** the contract suite rather than skipping it (#173), so `npm run test:run` / `vitest --watch` can't quietly go green having validated nothing. Alongside the JSON, `make fixtures` writes `_manifest.json` with a SHA256 of every source that can change the emitted bytes — the list lives in `tests/host/fixture_sources.txt` (add a file there when a new source starts feeding a `build_*_json()`), and the test re-hashes it. Editing a serializer without regenerating is therefore a failure with a "run `make fixtures`" message. `BISQUE_SKIP_CONTRACTS=1` is the explicit opt-out for environments where the C build can't run.
 
-The zod schemas those tests validate against live in **`web_ui/src/app/schemas/`** — `api.ts` for response shapes, `kiln.ts` for the form/import schemas — and they are the single source of truth for the frontend's types too: `StatusResponse`, `SystemInfo`, `FiringProfile`, `KilnSettings` and friends are `z.infer`red from them and re-exported by `services/api.ts` / `types/kiln.ts` (#176). Change a response shape in the schema only; the interfaces follow, and every call site that no longer matches fails `npm run typecheck`. The schemas are imported for their types alone, so they stay tree-shaken out of the bundle — verified byte-identical output.
+The zod schemas those tests validate against live in **`web_ui/src/app/schemas/`** — `api.ts` for REST response shapes, `ws.ts` for the WebSocket frames, `kiln.ts` for the form/import schemas — and they are the single source of truth for the frontend's types too: `StatusResponse`, `SystemInfo`, `WifiInfo`, `OtaStatus`, `TempUpdateData`, `FiringProfile`, `KilnSettings` and friends are `z.infer`red from them and re-exported by `services/api.ts` / `services/websocket.ts` / `types/kiln.ts` (#176, #174). Change a response shape in the schema only; the interfaces follow, and every call site that no longer matches fails `npm run typecheck`. The schemas are imported for their types alone, so they stay tree-shaken out of the bundle — verified byte-identical output.
+
+Every payload the device emits — including the WebSocket frames and `/system`, `/wifi`, `/ota/check`, `/ota/status` — goes through a `build_*_json()` in `api_json.c`, never inline `cJSON_Add*` at the handler. That is what makes it fixture-dumpable from the host; JSON assembled in `api_handlers.c` or `ws_handler.c` cannot be, and is invisible to the contract test by construction (#174). Handlers gather ESP-specific inputs into a plain struct and delegate. The contract test also rebuilds each schema `.strict()` before checking the fixtures, so a *new* firmware field is a failure until the schema models it — the app-facing schemas stay non-strict so a newer kiln still parses in an older tab.
+
+Error bodies are part of the contract too: the firmware answers a failed request with the bare message (`httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Missing ssid")`), no JSON envelope, and the mock-server's `apiError()` matches it verbatim. `services/api.ts` reads `res.text()` on any non-2xx, so a wrapped body would show up in the toast braces and all.
 
 ## Display Simulator
 

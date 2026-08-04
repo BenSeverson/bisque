@@ -1,6 +1,8 @@
 import type {
   AutotuneStatus,
   DiagThermocouple,
+  OtaCheckResponse,
+  OtaStatus,
   PidGains,
   PidResponse,
   StatusResponse,
@@ -21,6 +23,8 @@ export type {
   AutotuneState,
   AutotuneStatus,
   DiagThermocouple,
+  OtaCheckResponse,
+  OtaStatus,
   PidGains,
   PidResponse,
   StatusResponse,
@@ -90,24 +94,6 @@ async function fetchText(url: string): Promise<string> {
     throw new Error(`API error ${res.status}: ${text}`);
   }
   return res.text();
-}
-
-export interface OtaCheckResponse {
-  current: string;
-  latest: string;
-  updateAvailable: boolean;
-  url: string;
-  sha256: string;
-  size: number;
-  notes: string;
-}
-
-export interface OtaStatus {
-  running?: { label: string; version?: string; state?: string };
-  nextUpdate?: { label: string };
-  bootPartition?: string;
-  pendingVerify?: boolean;
-  rollbackAvailable: boolean;
 }
 
 export const api = {

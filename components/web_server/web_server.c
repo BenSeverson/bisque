@@ -5,8 +5,8 @@
 #include <string.h>
 #include <stdio.h>
 
-/* firing_status_to_string and json_add_progress_fields live in api_json.c so
- * host contract tests can link them without dragging in esp_http_server. */
+/* firing_status_to_string and every build_*_json() live in api_json.c so host
+ * contract tests can link them without dragging in esp_http_server. */
 
 static const char *TAG = "web_server";
 

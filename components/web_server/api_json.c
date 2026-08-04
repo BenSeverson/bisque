@@ -10,6 +10,7 @@
 #include "cone_table.h"
 #include <math.h>
 #include <stdbool.h>
+#include <string.h>
 
 const char *firing_status_to_string(firing_status_t s)
 {
@@ -35,11 +36,10 @@ const char *firing_status_to_string(firing_status_t s)
     }
 }
 
-/* Internal helper: add the shared firing-progress fields. The WS broadcast path
- * also uses these via json_add_progress_fields() in api_handlers.c — that
- * declaration stays in web_server.h, but the body now lives here so the host
- * tests cover it. */
-void json_add_progress_fields(cJSON *target, const firing_progress_t *prog, float current_temp, float ssr_duty)
+/* Internal helper: add the shared firing-progress fields. Both the REST status
+ * response and the WebSocket temp_update frame are built from it, which is what
+ * lets a client run the two through one parser. */
+static void json_add_progress_fields(cJSON *target, const firing_progress_t *prog, float current_temp, float ssr_duty)
 {
     cJSON_AddBoolToObject(target, "isActive", prog->is_active);
     cJSON_AddStringToObject(target, "profileId", prog->profile_id);
@@ -226,6 +226,137 @@ cJSON *build_pid_json(float kp, float ki, float kd)
     cJSON *limits = cJSON_AddObjectToObject(root, "limits");
     cJSON_AddNumberToObject(limits, "min", PID_GAIN_MIN);
     cJSON_AddNumberToObject(limits, "max", PID_GAIN_MAX);
+    return root;
+}
+
+/* ── WebSocket frames ───────────────────────────────────────────────────── */
+
+/* Every frame on the socket is {"type":…,"data":{…}}. Building the envelope in
+ * one place keeps a new event from inventing a second shape. */
+static cJSON *ws_envelope(const char *type, cJSON **out_data)
+{
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "type", type);
+    *out_data = cJSON_AddObjectToObject(root, "data");
+    return root;
+}
+
+cJSON *build_ws_temp_update_json(const firing_progress_t *prog, float current_temp, float ssr_duty)
+{
+    cJSON *data;
+    cJSON *root = ws_envelope("temp_update", &data);
+    json_add_progress_fields(data, prog, current_temp, ssr_duty);
+    return root;
+}
+
+cJSON *build_ws_ota_event_json(ota_phase_t phase, int percent, const char *err)
+{
+    cJSON *data;
+    cJSON *root;
+
+    switch (phase) {
+    case OTA_PHASE_DOWNLOAD:
+    case OTA_PHASE_FLASH:
+        root = ws_envelope("ota_progress", &data);
+        cJSON_AddStringToObject(data, "phase", phase == OTA_PHASE_FLASH ? "flash" : "download");
+        cJSON_AddNumberToObject(data, "percent", percent);
+        return root;
+    case OTA_PHASE_COMPLETE:
+        root = ws_envelope("ota_complete", &data);
+        cJSON_AddNumberToObject(data, "percent", 100);
+        return root;
+    case OTA_PHASE_ERROR:
+        root = ws_envelope("ota_error", &data);
+        /* Never an absent message: the client renders this string, and a
+           missing key would leave the update dialog reporting nothing. */
+        cJSON_AddStringToObject(data, "message", err ? err : "Update failed");
+        return root;
+    default:
+        return NULL;
+    }
+}
+
+/* ── Device/system endpoints ────────────────────────────────────────────── */
+
+cJSON *build_system_json(const system_info_json_t *info)
+{
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "firmware", info->firmware);
+    cJSON_AddStringToObject(root, "model", info->model);
+    cJSON_AddNumberToObject(root, "uptimeSeconds", info->uptime_seconds);
+    cJSON_AddNumberToObject(root, "freeHeap", (double)info->free_heap);
+    cJSON_AddBoolToObject(root, "emergencyStop", info->emergency_stop);
+    cJSON_AddNumberToObject(root, "lastErrorCode", (double)info->last_error_code);
+    cJSON_AddNumberToObject(root, "elementHoursS", (double)info->element_hours_s);
+    cJSON_AddNumberToObject(root, "boardTempC", (double)info->board_temp_c);
+    cJSON_AddNumberToObject(root, "spiffsTotal", (double)info->spiffs_total);
+    cJSON_AddNumberToObject(root, "spiffsUsed", (double)info->spiffs_used);
+    return root;
+}
+
+cJSON *build_wifi_status_json(bool connected, bool ap_mode, const char *ip, const char *saved_ssid)
+{
+    bool has_saved = saved_ssid && saved_ssid[0];
+
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddBoolToObject(root, "connected", connected);
+    cJSON_AddBoolToObject(root, "apMode", ap_mode);
+    cJSON_AddStringToObject(root, "ip", ip ? ip : "");
+    cJSON_AddBoolToObject(root, "hasSavedCredentials", has_saved);
+    if (has_saved) {
+        cJSON_AddStringToObject(root, "savedSsid", saved_ssid);
+    }
+    return root;
+}
+
+cJSON *build_ota_check_json(const char *current_version, const ota_manifest_t *manifest)
+{
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "current", current_version);
+    cJSON_AddStringToObject(root, "latest", manifest->version);
+    cJSON_AddBoolToObject(root, "updateAvailable", strcmp(current_version, manifest->version) != 0);
+    cJSON_AddStringToObject(root, "url", manifest->url);
+    cJSON_AddStringToObject(root, "sha256", manifest->sha256);
+    cJSON_AddNumberToObject(root, "size", manifest->size);
+    cJSON_AddStringToObject(root, "notes", manifest->notes);
+    return root;
+}
+
+cJSON *build_ota_status_json(const ota_status_json_t *info)
+{
+    cJSON *root = cJSON_CreateObject();
+
+    if (info->running_label) {
+        cJSON *run = cJSON_AddObjectToObject(root, "running");
+        cJSON_AddStringToObject(run, "label", info->running_label);
+        cJSON_AddNumberToObject(run, "address", (double)info->running_address);
+        cJSON_AddNumberToObject(run, "size", (double)info->running_size);
+
+        if (info->running_state) {
+            cJSON_AddStringToObject(run, "state", info->running_state);
+            /* Sits on the root, not inside `running` — it is what the client
+               polls to decide whether to offer "confirm this update". */
+            cJSON_AddBoolToObject(root, "pendingVerify", info->pending_verify);
+        }
+        if (info->running_version) {
+            cJSON_AddStringToObject(run, "version", info->running_version);
+            cJSON_AddStringToObject(run, "date", info->running_date ? info->running_date : "");
+            cJSON_AddStringToObject(run, "time", info->running_time ? info->running_time : "");
+            cJSON_AddStringToObject(run, "idfVersion", info->running_idf_version ? info->running_idf_version : "");
+        }
+    }
+
+    if (info->next_label) {
+        cJSON *nxt = cJSON_AddObjectToObject(root, "nextUpdate");
+        cJSON_AddStringToObject(nxt, "label", info->next_label);
+        cJSON_AddNumberToObject(nxt, "size", (double)info->next_size);
+    }
+
+    if (info->boot_partition) {
+        cJSON_AddStringToObject(root, "bootPartition", info->boot_partition);
+    }
+
+    cJSON_AddBoolToObject(root, "rollbackAvailable", info->rollback_available);
     return root;
 }
 

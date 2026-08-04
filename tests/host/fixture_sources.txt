@@ -30,6 +30,7 @@ components/pid_control/include/pid_control.h
 components/app_config/include/app_config.h
 components/firing_engine/include/firing_types.h
 components/history/include/firing_history.h
+components/ota/include/ota_manager.h
 components/thermocouple/include/thermocouple.h
 tests/host/stubs/history_host.c
 tests/host/test_api_json.c

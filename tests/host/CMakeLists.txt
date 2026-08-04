@@ -163,6 +163,7 @@ target_include_directories(test_api_json PRIVATE
     ${ROOT}/components/web_server/include
     ${ROOT}/components/history/include
     ${ROOT}/components/thermocouple/include
+    ${ROOT}/components/ota/include
     stubs)
 
 # auth_helpers — bearer-token parsing and the constant-time token compare,

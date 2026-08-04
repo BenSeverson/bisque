@@ -163,6 +163,10 @@ static void test_status_zeros_temp_when_fault(void)
         .fault = TC_FAULT_OPEN_CIRCUIT,
     };
     cJSON *root = build_status_json(&prog, &tc, 5.0f, 0.0f);
+    /* Every other status fixture is a healthy heating kiln, so the fault flags
+       were only ever serialized false and the frontend's rendering of a raised
+       one went unvalidated end to end (#174). */
+    dump_fixture("status_faulted", root);
 
     /* Top-level currentTemp is zero-clamped on fault (UI shouldn't render the
      * stale last-read temp) — the offset is not applied through a fault. Inner
@@ -250,6 +254,37 @@ static void test_profile_shape(void)
 
     dump_fixture("profile", root);
     cJSON_Delete(root);
+}
+
+/* An indefinite hold serializes as the sentinel 0xFFFF, not as an absent or
+   negative holdTime. The frontend gives it dedicated handling (utils/profile.ts
+   treats HOLD_UNTIL_SKIP as an unschedulable hold), so the value has to survive
+   the round trip — and the only profile fixture until now was two ordinary
+   timed segments (#174). */
+static void test_profile_hold_until_skip(void)
+{
+    firing_profile_t p = make_fixture_profile();
+    p.segments[1].hold_time = FIRING_HOLD_INDEFINITE;
+
+    cJSON *root = build_profile_json(&p);
+    cJSON *seg1 = cJSON_GetArrayItem(cJSON_GetObjectItem(root, "segments"), 1);
+    TEST_ASSERT_EQUAL_INT(65535, cJSON_GetObjectItem(seg1, "holdTime")->valueint);
+
+    dump_fixture("profile_hold_until_skip", root);
+    cJSON_Delete(root);
+}
+
+/* GET /history on a device that has never fired. handle_get_history builds the
+   array itself, so this pins the shape that loop produces at count == 0: an
+   empty array, not null and not an object. The history view renders its empty
+   state off exactly that. */
+static void test_history_empty_list(void)
+{
+    cJSON *arr = cJSON_CreateArray();
+    TEST_ASSERT_TRUE(cJSON_IsArray(arr));
+    TEST_ASSERT_EQUAL_INT(0, cJSON_GetArraySize(arr));
+    dump_fixture("history_empty", arr);
+    cJSON_Delete(arr);
 }
 
 /* ── build_settings_json ─────────────────────────────────────────────────── */
@@ -526,6 +561,363 @@ static void test_thermocouple_diag_shape(void)
     cJSON_Delete(root);
 }
 
+/* ── build_ws_temp_update_json ───────────────────────────────────────────── */
+
+/* The socket's temp_update frame is the highest-frequency payload the firmware
+   emits and, until #174, the only one with no fixture at all: it was assembled
+   inline in ws_handler.c, which the host build cannot link. Its `data` block is
+   the same progress field set GET /status puts at its top level, so this test
+   also pins the two together — a client that parses one parses the other. */
+static void test_ws_temp_update_shape(void)
+{
+    firing_progress_t prog = {
+        .is_active = true,
+        .current_temp = 980.0f,
+        .target_temp = 1063.0f,
+        .current_segment = 3,
+        .total_segments = 4,
+        .elapsed_time = 10800,
+        .estimated_remaining = 1800,
+        .delay_remaining = 0,
+        .status = FIRING_STATUS_HOLDING,
+    };
+    strcpy(prog.profile_id, "bisque-cone-04");
+
+    cJSON *root = build_ws_temp_update_json(&prog, 981.5f, 0.42f);
+    TEST_ASSERT_NOT_NULL(root);
+
+    assert_string_field(root, "type");
+    TEST_ASSERT_EQUAL_STRING("temp_update", cJSON_GetObjectItem(root, "type")->valuestring);
+
+    cJSON *data = cJSON_GetObjectItem(root, "data");
+    TEST_ASSERT_NOT_NULL(data);
+    assert_bool_field(data, "isActive");
+    assert_string_field(data, "profileId");
+    assert_number_field(data, "currentTemp");
+    assert_number_field(data, "targetTemp");
+    assert_number_field(data, "currentSegment");
+    assert_number_field(data, "totalSegments");
+    assert_number_field(data, "elapsedTime");
+    assert_number_field(data, "estimatedTimeRemaining");
+    assert_number_field(data, "delayRemaining");
+    assert_number_field(data, "dutyPercent");
+    assert_string_field(data, "status");
+
+    TEST_ASSERT_EQUAL_FLOAT(981.5f, cJSON_GetObjectItem(data, "currentTemp")->valuedouble);
+    TEST_ASSERT_EQUAL_INT(42, cJSON_GetObjectItem(data, "dutyPercent")->valueint);
+    TEST_ASSERT_EQUAL_STRING("holding", cJSON_GetObjectItem(data, "status")->valuestring);
+
+    /* The frame is telemetry only — no thermocouple diagnostics ride along, so
+       a client must not be written to expect them here. */
+    TEST_ASSERT_NULL(cJSON_GetObjectItem(data, "thermocouple"));
+
+    dump_fixture("ws_temp_update", root);
+    cJSON_Delete(root);
+}
+
+/* /status and the socket must agree field-for-field on the progress block, or a
+   client that renders from both shows different numbers depending on which one
+   arrived last. Compares the key sets rather than the values, since /status
+   nests an extra thermocouple object the frame deliberately omits. */
+static void test_ws_temp_update_matches_status_progress_block(void)
+{
+    firing_progress_t prog = {.status = FIRING_STATUS_HEATING, .target_temp = 500.0f};
+    thermocouple_reading_t tc = {.temperature_c = 480.0f};
+
+    cJSON *status = build_status_json(&prog, &tc, 0.0f, 0.5f);
+    cJSON *frame = build_ws_temp_update_json(&prog, 480.0f, 0.5f);
+    cJSON *data = cJSON_GetObjectItem(frame, "data");
+
+    for (cJSON *k = data->child; k; k = k->next) {
+        TEST_ASSERT_NOT_NULL_MESSAGE(cJSON_GetObjectItem(status, k->string), k->string);
+    }
+    /* And nothing in /status beyond the block plus its thermocouple object. */
+    for (cJSON *k = status->child; k; k = k->next) {
+        if (strcmp(k->string, "thermocouple") == 0) {
+            continue;
+        }
+        TEST_ASSERT_NOT_NULL_MESSAGE(cJSON_GetObjectItem(data, k->string), k->string);
+    }
+
+    cJSON_Delete(status);
+    cJSON_Delete(frame);
+}
+
+/* ── build_ws_ota_event_json ─────────────────────────────────────────────── */
+
+static void test_ws_ota_events(void)
+{
+    cJSON *dl = build_ws_ota_event_json(OTA_PHASE_DOWNLOAD, 37, NULL);
+    TEST_ASSERT_EQUAL_STRING("ota_progress", cJSON_GetObjectItem(dl, "type")->valuestring);
+    cJSON *dl_data = cJSON_GetObjectItem(dl, "data");
+    TEST_ASSERT_EQUAL_STRING("download", cJSON_GetObjectItem(dl_data, "phase")->valuestring);
+    TEST_ASSERT_EQUAL_INT(37, cJSON_GetObjectItem(dl_data, "percent")->valueint);
+    dump_fixture("ws_ota_progress", dl);
+    cJSON_Delete(dl);
+
+    cJSON *fl = build_ws_ota_event_json(OTA_PHASE_FLASH, 80, NULL);
+    TEST_ASSERT_EQUAL_STRING("ota_progress", cJSON_GetObjectItem(fl, "type")->valuestring);
+    TEST_ASSERT_EQUAL_STRING("flash", cJSON_GetObjectItem(cJSON_GetObjectItem(fl, "data"), "phase")->valuestring);
+    cJSON_Delete(fl);
+
+    /* percent is pinned at 100 on completion whatever the caller passes — the
+       progress bar must land on full, not on the last download tick. */
+    cJSON *done = build_ws_ota_event_json(OTA_PHASE_COMPLETE, 4, NULL);
+    TEST_ASSERT_EQUAL_STRING("ota_complete", cJSON_GetObjectItem(done, "type")->valuestring);
+    TEST_ASSERT_EQUAL_INT(100, cJSON_GetObjectItem(cJSON_GetObjectItem(done, "data"), "percent")->valueint);
+    dump_fixture("ws_ota_complete", done);
+    cJSON_Delete(done);
+
+    cJSON *err = build_ws_ota_event_json(OTA_PHASE_ERROR, 0, "SHA256 mismatch");
+    TEST_ASSERT_EQUAL_STRING("ota_error", cJSON_GetObjectItem(err, "type")->valuestring);
+    TEST_ASSERT_EQUAL_STRING("SHA256 mismatch",
+                             cJSON_GetObjectItem(cJSON_GetObjectItem(err, "data"), "message")->valuestring);
+    dump_fixture("ws_ota_error", err);
+    cJSON_Delete(err);
+}
+
+/* A NULL `err` still has to produce a message: the client renders that string,
+   and an absent key leaves the update dialog reporting nothing at all. */
+static void test_ws_ota_error_always_carries_a_message(void)
+{
+    cJSON *err = build_ws_ota_event_json(OTA_PHASE_ERROR, 0, NULL);
+    cJSON *msg = cJSON_GetObjectItem(cJSON_GetObjectItem(err, "data"), "message");
+    TEST_ASSERT_NOT_NULL(msg);
+    TEST_ASSERT_TRUE(cJSON_IsString(msg) && msg->valuestring[0] != '\0');
+    cJSON_Delete(err);
+}
+
+/* OTA_PHASE_IDLE has no frame. NULL (rather than an empty envelope) is what
+   tells ws_send_ota_event to send nothing, so a client is never handed a
+   message with no `type` to switch on. */
+static void test_ws_ota_idle_has_no_frame(void)
+{
+    TEST_ASSERT_NULL(build_ws_ota_event_json(OTA_PHASE_IDLE, 0, NULL));
+    TEST_ASSERT_NULL(build_ws_ota_event_json((ota_phase_t)999, 0, NULL));
+}
+
+/* ── build_system_json ───────────────────────────────────────────────────── */
+
+/* GET /system had a zod schema validated against the mock-server only; the
+   firmware built the same JSON inline, so mock/firmware drift had nothing
+   watching it (#174). */
+static void test_system_shape(void)
+{
+    system_info_json_t info = {
+        .firmware = "1.4.2",
+        .model = "Bisque ESP32-S3",
+        .uptime_seconds = 86412.5,
+        .free_heap = 198432,
+        .emergency_stop = false,
+        .last_error_code = 0,
+        .element_hours_s = 151200,
+        .board_temp_c = 38.25f,
+        .spiffs_total = 917504,
+        .spiffs_used = 233472,
+    };
+    cJSON *root = build_system_json(&info);
+
+    assert_string_field(root, "firmware");
+    assert_string_field(root, "model");
+    assert_number_field(root, "uptimeSeconds");
+    assert_number_field(root, "freeHeap");
+    assert_bool_field(root, "emergencyStop");
+    assert_number_field(root, "lastErrorCode");
+    assert_number_field(root, "elementHoursS");
+    assert_number_field(root, "boardTempC");
+    assert_number_field(root, "spiffsTotal");
+    assert_number_field(root, "spiffsUsed");
+
+    TEST_ASSERT_EQUAL_STRING("1.4.2", cJSON_GetObjectItem(root, "firmware")->valuestring);
+    /* Fractional, and it must stay that way: uptime is esp_timer microseconds
+       divided by 1e6, so truncating it here would hide a builder that rounded. */
+    TEST_ASSERT_EQUAL_FLOAT(86412.5f, cJSON_GetObjectItem(root, "uptimeSeconds")->valuedouble);
+
+    dump_fixture("system", root);
+    cJSON_Delete(root);
+}
+
+/* The emergency-stop banner and the error badge are driven straight off these
+   two, so the faulted state has to serialize as distinctly as the healthy one. */
+static void test_system_emergency_state(void)
+{
+    system_info_json_t info = {
+        .firmware = "1.4.2",
+        .model = "Bisque ESP32-S3",
+        .emergency_stop = true,
+        .last_error_code = 7,
+    };
+    cJSON *root = build_system_json(&info);
+    TEST_ASSERT_TRUE(cJSON_IsTrue(cJSON_GetObjectItem(root, "emergencyStop")));
+    TEST_ASSERT_EQUAL_INT(7, cJSON_GetObjectItem(root, "lastErrorCode")->valueint);
+    dump_fixture("system_emergency", root);
+    cJSON_Delete(root);
+}
+
+/* ── build_wifi_status_json ──────────────────────────────────────────────── */
+
+static void test_wifi_connected_shape(void)
+{
+    cJSON *root = build_wifi_status_json(true, false, "192.168.1.42", "Studio");
+
+    assert_bool_field(root, "connected");
+    assert_bool_field(root, "apMode");
+    assert_string_field(root, "ip");
+    assert_bool_field(root, "hasSavedCredentials");
+    assert_string_field(root, "savedSsid");
+
+    TEST_ASSERT_EQUAL_STRING("192.168.1.42", cJSON_GetObjectItem(root, "ip")->valuestring);
+    TEST_ASSERT_EQUAL_STRING("Studio", cJSON_GetObjectItem(root, "savedSsid")->valuestring);
+    TEST_ASSERT_TRUE(cJSON_IsTrue(cJSON_GetObjectItem(root, "hasSavedCredentials")));
+
+    dump_fixture("wifi", root);
+    cJSON_Delete(root);
+}
+
+/* The provisioning state: no credentials stored, so the device is serving its
+   own AP. `savedSsid` is absent rather than empty — the setup form keys off the
+   key's presence, and an empty string would read as "a network named ''". */
+static void test_wifi_ap_mode_omits_saved_ssid(void)
+{
+    cJSON *root = build_wifi_status_json(false, true, "192.168.4.1", NULL);
+    TEST_ASSERT_FALSE(cJSON_IsTrue(cJSON_GetObjectItem(root, "hasSavedCredentials")));
+    TEST_ASSERT_NULL(cJSON_GetObjectItem(root, "savedSsid"));
+    dump_fixture("wifi_ap_mode", root);
+    cJSON_Delete(root);
+
+    /* An empty SSID is the same case: wifi_manager_load_creds can succeed with
+       a blank slot, and that is not a saved network. */
+    cJSON *blank = build_wifi_status_json(false, true, "192.168.4.1", "");
+    TEST_ASSERT_FALSE(cJSON_IsTrue(cJSON_GetObjectItem(blank, "hasSavedCredentials")));
+    TEST_ASSERT_NULL(cJSON_GetObjectItem(blank, "savedSsid"));
+    cJSON_Delete(blank);
+}
+
+/* Whatever else changes here, the passphrase must never reach the wire. */
+static void test_wifi_never_exposes_password(void)
+{
+    cJSON *root = build_wifi_status_json(true, false, "192.168.1.42", "Studio");
+    char *json = cJSON_PrintUnformatted(root);
+    TEST_ASSERT_NULL(strstr(json, "password"));
+    TEST_ASSERT_NULL(strstr(json, "passphrase"));
+    free(json);
+    cJSON_Delete(root);
+}
+
+/* ── build_ota_check_json ────────────────────────────────────────────────── */
+
+static void test_ota_check_shape(void)
+{
+    ota_manifest_t manifest = {.size = 1449984};
+    strcpy(manifest.version, "1.5.0");
+    strcpy(manifest.url, "https://github.com/BenSeverson/bisque/releases/download/v1.5.0/bisque.bin");
+    strcpy(manifest.sha256, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+    strcpy(manifest.notes, "Faster autotune convergence");
+
+    cJSON *root = build_ota_check_json("1.4.2", &manifest);
+
+    assert_string_field(root, "current");
+    assert_string_field(root, "latest");
+    assert_bool_field(root, "updateAvailable");
+    assert_string_field(root, "url");
+    assert_string_field(root, "sha256");
+    assert_number_field(root, "size");
+    assert_string_field(root, "notes");
+
+    TEST_ASSERT_TRUE(cJSON_IsTrue(cJSON_GetObjectItem(root, "updateAvailable")));
+    TEST_ASSERT_EQUAL_STRING("1.5.0", cJSON_GetObjectItem(root, "latest")->valuestring);
+
+    dump_fixture("ota_check", root);
+    cJSON_Delete(root);
+}
+
+/* An identical version is "no update", not "update to yourself" — the install
+   button is drawn straight off this flag. */
+static void test_ota_check_up_to_date(void)
+{
+    ota_manifest_t manifest = {0};
+    strcpy(manifest.version, "1.4.2");
+    cJSON *root = build_ota_check_json("1.4.2", &manifest);
+    TEST_ASSERT_FALSE(cJSON_IsTrue(cJSON_GetObjectItem(root, "updateAvailable")));
+    dump_fixture("ota_check_current", root);
+    cJSON_Delete(root);
+}
+
+/* ── build_ota_status_json ───────────────────────────────────────────────── */
+
+static void test_ota_status_shape(void)
+{
+    ota_status_json_t info = {
+        .running_label = "ota_0",
+        .running_address = 0x110000,
+        .running_size = 0x300000,
+        .running_state = "pending_verify",
+        .pending_verify = true,
+        .running_version = "1.5.0",
+        .running_date = "Jul 22 2026",
+        .running_time = "19:59:07",
+        .running_idf_version = "v6.0",
+        .next_label = "ota_1",
+        .next_size = 0x300000,
+        .boot_partition = "ota_0",
+        .rollback_available = true,
+    };
+    cJSON *root = build_ota_status_json(&info);
+
+    cJSON *run = cJSON_GetObjectItem(root, "running");
+    TEST_ASSERT_NOT_NULL(run);
+    assert_string_field(run, "label");
+    assert_number_field(run, "address");
+    assert_number_field(run, "size");
+    assert_string_field(run, "state");
+    assert_string_field(run, "version");
+    assert_string_field(run, "date");
+    assert_string_field(run, "time");
+    assert_string_field(run, "idfVersion");
+
+    cJSON *next = cJSON_GetObjectItem(root, "nextUpdate");
+    TEST_ASSERT_NOT_NULL(next);
+    assert_string_field(next, "label");
+    assert_number_field(next, "size");
+
+    assert_string_field(root, "bootPartition");
+    assert_bool_field(root, "pendingVerify");
+    assert_bool_field(root, "rollbackAvailable");
+
+    TEST_ASSERT_TRUE(cJSON_IsTrue(cJSON_GetObjectItem(root, "pendingVerify")));
+
+    dump_fixture("ota_status", root);
+    cJSON_Delete(root);
+}
+
+/* Every esp_ota lookup the handler makes can fail independently, and each
+   failure drops its key rather than emitting a placeholder. `rollbackAvailable`
+   is the one field always present, so a client can rely on that alone. */
+static void test_ota_status_omits_unavailable_parts(void)
+{
+    ota_status_json_t info = {.rollback_available = false};
+    cJSON *root = build_ota_status_json(&info);
+
+    TEST_ASSERT_NULL(cJSON_GetObjectItem(root, "running"));
+    TEST_ASSERT_NULL(cJSON_GetObjectItem(root, "nextUpdate"));
+    TEST_ASSERT_NULL(cJSON_GetObjectItem(root, "bootPartition"));
+    TEST_ASSERT_NULL(cJSON_GetObjectItem(root, "pendingVerify"));
+    assert_bool_field(root, "rollbackAvailable");
+
+    dump_fixture("ota_status_minimal", root);
+    cJSON_Delete(root);
+
+    /* A readable partition whose state could not be queried keeps `running` but
+       drops both `state` and the pendingVerify flag it gates. */
+    ota_status_json_t partial = {.running_label = "factory", .running_size = 0x300000};
+    cJSON *p = build_ota_status_json(&partial);
+    TEST_ASSERT_NOT_NULL(cJSON_GetObjectItem(p, "running"));
+    TEST_ASSERT_NULL(cJSON_GetObjectItem(cJSON_GetObjectItem(p, "running"), "state"));
+    TEST_ASSERT_NULL(cJSON_GetObjectItem(cJSON_GetObjectItem(p, "running"), "version"));
+    TEST_ASSERT_NULL(cJSON_GetObjectItem(p, "pendingVerify"));
+    cJSON_Delete(p);
+}
+
 /* ── firing_status_to_string ─────────────────────────────────────────────── */
 
 static void test_firing_status_strings(void)
@@ -548,6 +940,8 @@ int main(void)
     RUN_TEST(test_status_zeros_temp_when_fault);
     RUN_TEST(test_status_clamps_duty);
     RUN_TEST(test_profile_shape);
+    RUN_TEST(test_profile_hold_until_skip);
+    RUN_TEST(test_history_empty_list);
     RUN_TEST(test_settings_shape_redacts_token);
     RUN_TEST(test_settings_apiTokenSet_false_when_empty);
     RUN_TEST(test_history_record_shape);
@@ -559,6 +953,20 @@ int main(void)
     RUN_TEST(test_autotune_running_outranks_terminal_state);
     RUN_TEST(test_pid_shape);
     RUN_TEST(test_thermocouple_diag_shape);
+    RUN_TEST(test_ws_temp_update_shape);
+    RUN_TEST(test_ws_temp_update_matches_status_progress_block);
+    RUN_TEST(test_ws_ota_events);
+    RUN_TEST(test_ws_ota_error_always_carries_a_message);
+    RUN_TEST(test_ws_ota_idle_has_no_frame);
+    RUN_TEST(test_system_shape);
+    RUN_TEST(test_system_emergency_state);
+    RUN_TEST(test_wifi_connected_shape);
+    RUN_TEST(test_wifi_ap_mode_omits_saved_ssid);
+    RUN_TEST(test_wifi_never_exposes_password);
+    RUN_TEST(test_ota_check_shape);
+    RUN_TEST(test_ota_check_up_to_date);
+    RUN_TEST(test_ota_status_shape);
+    RUN_TEST(test_ota_status_omits_unavailable_parts);
     RUN_TEST(test_firing_status_strings);
     return UNITY_END();
 }

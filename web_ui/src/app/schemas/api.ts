@@ -147,6 +147,69 @@ export const pidResponseSchema = pidGainsResponseSchema.extend({
 
 export type PidResponse = z.infer<typeof pidResponseSchema>;
 
+/**
+ * GET /api/v1/wifi — mirrors build_wifi_status_json in api_json.c.
+ *
+ * `savedSsid` is absent, not empty, when no credentials are stored: the setup
+ * form keys off the key's presence. The passphrase is never part of the
+ * response, and a host test asserts the builder can't start emitting one.
+ */
+export const wifiInfoSchema = z.object({
+  connected: z.boolean(),
+  apMode: z.boolean(),
+  ip: z.string(),
+  hasSavedCredentials: z.boolean(),
+  savedSsid: z.string().optional(),
+});
+
+export type WifiInfo = z.infer<typeof wifiInfoSchema>;
+
+/** POST /api/v1/ota/check — mirrors build_ota_check_json in api_json.c. */
+export const otaCheckResponseSchema = z.object({
+  current: z.string(),
+  latest: z.string(),
+  updateAvailable: z.boolean(),
+  url: z.string(),
+  sha256: z.string(),
+  size: z.number(),
+  notes: z.string(),
+});
+
+export type OtaCheckResponse = z.infer<typeof otaCheckResponseSchema>;
+
+/**
+ * GET /api/v1/ota/status — mirrors build_ota_status_json in api_json.c.
+ *
+ * Almost everything is optional because each part comes from a separate
+ * esp_ota lookup in the handler and a failed lookup drops its key rather than
+ * emitting a placeholder. `rollbackAvailable` is the one field always present.
+ *
+ * The partition sizes and build stamps are modelled even though no component
+ * reads them yet: they *are* on the wire, and a schema that stops short of what
+ * the firmware sends is a schema the contract test can't hold to `.strict()`.
+ */
+export const otaStatusSchema = z.object({
+  running: z
+    .object({
+      label: z.string(),
+      address: z.number(),
+      size: z.number(),
+      state: z.string().optional(),
+      version: z.string().optional(),
+      date: z.string().optional(),
+      time: z.string().optional(),
+      idfVersion: z.string().optional(),
+    })
+    .optional(),
+  nextUpdate: z.object({ label: z.string(), size: z.number() }).optional(),
+  bootPartition: z.string().optional(),
+  /** Only emitted when the running partition's state was readable. */
+  pendingVerify: z.boolean().optional(),
+  rollbackAvailable: z.boolean(),
+});
+
+export type OtaStatus = z.infer<typeof otaStatusSchema>;
+
 export const thermocoupleDiagSchema = z.object({
   temperatureC: z.number(),
   internalTempC: z.number(),

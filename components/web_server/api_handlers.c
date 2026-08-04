@@ -779,29 +779,28 @@ static esp_err_t handle_get_system(httpd_req_t *req)
     if (!require_auth(req)) {
         return ESP_FAIL;
     }
-    cJSON *root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "firmware", esp_app_get_description()->version);
-    cJSON_AddStringToObject(root, "model", "Bisque ESP32-S3");
-    cJSON_AddNumberToObject(root, "uptimeSeconds", (double)esp_timer_get_time() / 1000000.0);
-    cJSON_AddNumberToObject(root, "freeHeap", (double)esp_get_free_heap_size());
-    cJSON_AddBoolToObject(root, "emergencyStop", safety_is_emergency());
-    cJSON_AddNumberToObject(root, "lastErrorCode", (double)firing_engine_get_error_code());
-    cJSON_AddNumberToObject(root, "elementHoursS", (double)firing_engine_get_element_hours_s());
-
     /* Internal temperature sensor (board/chip temp) */
     float board_temp = 0;
     if (s_board_temp_handle) {
         temperature_sensor_get_celsius(s_board_temp_handle, &board_temp);
     }
-    cJSON_AddNumberToObject(root, "boardTempC", (double)board_temp);
 
-    /* SPIFFS info */
     size_t spiffs_total = 0, spiffs_used = 0;
     esp_spiffs_info("storage", &spiffs_total, &spiffs_used);
-    cJSON_AddNumberToObject(root, "spiffsTotal", (double)spiffs_total);
-    cJSON_AddNumberToObject(root, "spiffsUsed", (double)spiffs_used);
 
-    return send_json(req, root);
+    system_info_json_t info = {
+        .firmware = esp_app_get_description()->version,
+        .model = "Bisque ESP32-S3",
+        .uptime_seconds = (double)esp_timer_get_time() / 1000000.0,
+        .free_heap = esp_get_free_heap_size(),
+        .emergency_stop = safety_is_emergency(),
+        .last_error_code = (int)firing_engine_get_error_code(),
+        .element_hours_s = firing_engine_get_element_hours_s(),
+        .board_temp_c = board_temp,
+        .spiffs_total = spiffs_total,
+        .spiffs_used = spiffs_used,
+    };
+    return send_json(req, build_system_json(&info));
 }
 
 /* ── POST /api/v1/firing/skip-segment ─────────────── */
@@ -1145,16 +1144,7 @@ static esp_err_t handle_ota_check(httpd_req_t *req)
         return ESP_FAIL;
     }
 
-    const char *current = ota_current_version();
-    cJSON *root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "current", current);
-    cJSON_AddStringToObject(root, "latest", manifest.version);
-    cJSON_AddBoolToObject(root, "updateAvailable", strcmp(current, manifest.version) != 0);
-    cJSON_AddStringToObject(root, "url", manifest.url);
-    cJSON_AddStringToObject(root, "sha256", manifest.sha256);
-    cJSON_AddNumberToObject(root, "size", manifest.size);
-    cJSON_AddStringToObject(root, "notes", manifest.notes);
-    return send_json(req, root);
+    return send_json(req, build_ota_check_json(ota_current_version(), &manifest));
 }
 
 /* POST /api/v1/ota/install — fetch latest manifest, then install in background. */
@@ -1494,47 +1484,39 @@ static esp_err_t handle_ota_status(httpd_req_t *req)
     const esp_partition_t *next = esp_ota_get_next_update_partition(NULL);
     const esp_partition_t *boot = esp_ota_get_boot_partition();
 
-    cJSON *root = cJSON_CreateObject();
+    /* app_desc must outlive the builder call — it owns the strings the struct
+       below points at, so it cannot be scoped to the `if` that fills it. */
+    esp_app_desc_t app_desc = {0};
+    ota_status_json_t info = {
+        .rollback_available = esp_ota_check_rollback_is_possible(),
+        .boot_partition = boot ? boot->label : NULL,
+    };
 
-    /* Running partition info */
     if (running) {
-        cJSON *run = cJSON_AddObjectToObject(root, "running");
-        cJSON_AddStringToObject(run, "label", running->label);
-        cJSON_AddNumberToObject(run, "address", running->address);
-        cJSON_AddNumberToObject(run, "size", running->size);
+        info.running_label = running->label;
+        info.running_address = running->address;
+        info.running_size = running->size;
 
         esp_ota_img_states_t state;
         if (esp_ota_get_state_partition(running, &state) == ESP_OK) {
-            cJSON_AddStringToObject(run, "state", ota_state_to_string(state));
-            cJSON_AddBoolToObject(root, "pendingVerify", state == ESP_OTA_IMG_PENDING_VERIFY);
+            info.running_state = ota_state_to_string(state);
+            info.pending_verify = (state == ESP_OTA_IMG_PENDING_VERIFY);
         }
 
-        /* Get app description for version info */
-        esp_app_desc_t app_desc;
         if (esp_ota_get_partition_description(running, &app_desc) == ESP_OK) {
-            cJSON_AddStringToObject(run, "version", app_desc.version);
-            cJSON_AddStringToObject(run, "date", app_desc.date);
-            cJSON_AddStringToObject(run, "time", app_desc.time);
-            cJSON_AddStringToObject(run, "idfVersion", app_desc.idf_ver);
+            info.running_version = app_desc.version;
+            info.running_date = app_desc.date;
+            info.running_time = app_desc.time;
+            info.running_idf_version = app_desc.idf_ver;
         }
     }
 
-    /* Next update partition */
     if (next) {
-        cJSON *nxt = cJSON_AddObjectToObject(root, "nextUpdate");
-        cJSON_AddStringToObject(nxt, "label", next->label);
-        cJSON_AddNumberToObject(nxt, "size", next->size);
+        info.next_label = next->label;
+        info.next_size = next->size;
     }
 
-    /* Boot partition */
-    if (boot) {
-        cJSON_AddStringToObject(root, "bootPartition", boot->label);
-    }
-
-    /* Rollback availability */
-    cJSON_AddBoolToObject(root, "rollbackAvailable", esp_ota_check_rollback_is_possible());
-
-    return send_json(req, root);
+    return send_json(req, build_ota_status_json(&info));
 }
 
 /* ── POST /api/v1/ota/rollback ────────────────────── */
@@ -1597,18 +1579,12 @@ static esp_err_t handle_get_wifi(httpd_req_t *req)
 
     char ssid[WIFI_SSID_BUF_LEN] = {0};
     char pass[WIFI_PASS_BUF_LEN] = {0};
-    bool has_saved = wifi_manager_load_creds(ssid, sizeof(ssid), pass, sizeof(pass)) == ESP_OK && ssid[0];
-
-    cJSON *root = cJSON_CreateObject();
-    cJSON_AddBoolToObject(root, "connected", wifi_manager_is_connected());
-    cJSON_AddBoolToObject(root, "apMode", wifi_manager_is_ap_mode());
-    cJSON_AddStringToObject(root, "ip", wifi_manager_get_ip());
-    cJSON_AddBoolToObject(root, "hasSavedCredentials", has_saved);
-    if (has_saved) {
-        cJSON_AddStringToObject(root, "savedSsid", ssid);
+    if (wifi_manager_load_creds(ssid, sizeof(ssid), pass, sizeof(pass)) != ESP_OK) {
+        ssid[0] = '\0';
     }
 
-    return send_json(req, root);
+    return send_json(req, build_wifi_status_json(wifi_manager_is_connected(), wifi_manager_is_ap_mode(),
+                                                 wifi_manager_get_ip(), ssid));
 }
 
 /* ── POST /api/v1/wifi ────────────────────────────── */
