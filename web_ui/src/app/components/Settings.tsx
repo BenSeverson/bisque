@@ -106,6 +106,11 @@ export function Settings() {
   // numbers rather than after.
   const firingActive = useKilnStore((s) => s.firingProgress.isActive);
   const kilnBusy = firingActive || autotuneRunning;
+  // For the auto-tune band checks. `statusObserved` gates the reading because
+  // the store seeds currentTemp to a synthetic 20 °C — validating against that
+  // would reject a legitimate low-setpoint tune on a cold page load.
+  const currentTemp = useKilnStore((s) => s.firingProgress.currentTemp);
+  const statusObserved = useKilnStore((s) => s.statusObserved);
   const testRelay = useTestRelay();
   const [relayDurationS, setRelayDurationS] = useState(RELAY_TEST_DEFAULT_SECONDS);
   const reboot = useReboot();
@@ -124,6 +129,8 @@ export function Settings() {
   const [otaCheck, setOtaCheck] = useState<OtaCheckResponse | null>(null);
   const [otaInstalling, setOtaInstalling] = useState(false);
   const [otaInstallPct, setOtaInstallPct] = useState<number | null>(null);
+  // Either OTA path in flight: a manifest install, or a manual binary upload.
+  const otaBusy = otaInstalling || otaProgress !== null;
 
   // API token local state
   const [newToken, setNewToken] = useState("");
@@ -247,7 +254,11 @@ export function Settings() {
   }, [getValues, saveSettings]);
 
   const handleStartAutotune = useCallback(async () => {
-    const prepared = prepareAutotuneRequest(autotuneSetpoint, autotuneHysteresis);
+    const prepared = prepareAutotuneRequest(autotuneSetpoint, autotuneHysteresis, {
+      currentTemp: statusObserved ? currentTemp : undefined,
+      maxSafeTemp: settings?.maxSafeTemp,
+      formatTemp: (c) => formatTemp(c, unit),
+    });
     if (!prepared.ok) {
       toast.error(prepared.message);
       return;
@@ -264,7 +275,15 @@ export function Settings() {
     } catch (e) {
       toast.error(`Failed: ${toErrorMessage(e)}`);
     }
-  }, [autotuneSetpoint, autotuneHysteresis, startAutotune]);
+  }, [
+    autotuneSetpoint,
+    autotuneHysteresis,
+    startAutotune,
+    statusObserved,
+    currentTemp,
+    settings?.maxSafeTemp,
+    unit,
+  ]);
 
   const handleStopAutotune = useCallback(async () => {
     try {
@@ -841,8 +860,11 @@ export function Settings() {
                     max={RELAY_TEST_MAX_SECONDS}
                     step={1}
                     value={relayDurationS}
+                    // parseFloat, not parseInt: truncating here would hide a
+                    // typed "1.9" from prepareRelayDuration's whole-second rule
+                    // and fire a 1-second pulse under a success toast.
                     onChange={(e) => {
-                      const v = parseInt(e.target.value, 10);
+                      const v = parseFloat(e.target.value);
                       setRelayDurationS(Number.isFinite(v) ? v : 0);
                     }}
                   />
@@ -931,11 +953,15 @@ export function Settings() {
                   while a firing or relay test is running.
                 </p>
               </div>
+              {/* Also blocked during an update. handle_reboot() only guards
+                  against a firing or relay test — not ota_is_busy() — so
+                  restarting from this very page would otherwise discard a
+                  download in progress a few cards further down. */}
               <Button
                 variant="outline"
                 className="gap-2"
                 onClick={() => setRestartConfirmOpen(true)}
-                disabled={reboot.isPending || kilnBusy}
+                disabled={reboot.isPending || kilnBusy || otaBusy}
               >
                 <Power className="h-4 w-4" />
                 {reboot.isPending ? "Restarting..." : "Restart"}

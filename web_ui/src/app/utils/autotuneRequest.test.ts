@@ -33,4 +33,64 @@ describe("prepareAutotuneRequest", () => {
     // Just inside the bound is still the user's call to make.
     expect(prepareAutotuneRequest(500, 499)).toMatchObject({ ok: true });
   });
+
+  describe("against the max safe temperature", () => {
+    // A tune drives the kiln to setpoint + hysteresis, so the firmware's
+    // `setpoint > max_temp` check leaves the band free to overshoot the trip.
+    it("rejects a band that would overshoot the safety trip", () => {
+      const r = prepareAutotuneRequest(1300, 200, { maxSafeTemp: 1400 });
+      expect(r).toMatchObject({ ok: false });
+      expect(r.ok === false && r.message).toContain("1500°C");
+    });
+
+    it("accepts a band that stays under the trip", () => {
+      expect(prepareAutotuneRequest(1300, 50, { maxSafeTemp: 1400 })).toMatchObject({ ok: true });
+      // Exactly at the limit is allowed — the trip is `>`, not `>=`.
+      expect(prepareAutotuneRequest(1300, 100, { maxSafeTemp: 1400 })).toMatchObject({ ok: true });
+    });
+
+    it("skips the check when the limit has not arrived", () => {
+      expect(prepareAutotuneRequest(1300, 200)).toMatchObject({ ok: true });
+    });
+  });
+
+  describe("against the current temperature", () => {
+    it("rejects a turn-on threshold the kiln is already above", () => {
+      // setpoint 50 / band 40 puts the turn-on threshold at 10°C. An idle kiln at
+      // 20°C leaves pid_autotune_update()'s heat-up phase immediately, enters
+      // cycling with the element off, and will not switch it on until the reading
+      // drops below 10°C — which ambient cooling cannot do. Times out at 60 min.
+      const r = prepareAutotuneRequest(50, 40, { currentTemp: 20 });
+      expect(r).toMatchObject({ ok: false });
+      expect(r.ok === false && r.message).toContain("20°C");
+    });
+
+    it("accepts a threshold the kiln still has to heat up to", () => {
+      expect(prepareAutotuneRequest(500, 5, { currentTemp: 20 })).toMatchObject({ ok: true });
+      // One degree of heat-up is enough to reach the threshold properly.
+      expect(prepareAutotuneRequest(500, 479, { currentTemp: 20 })).toMatchObject({ ok: true });
+    });
+
+    it("allows a tune that starts above the setpoint", () => {
+      // Not the stall case: above_setpoint is set correctly, so the kiln cools
+      // through the setpoint, records the crossing, then drops past the turn-on
+      // threshold and cycles normally. Tuning on the way down is legitimate.
+      expect(prepareAutotuneRequest(500, 5, { currentTemp: 600 })).toMatchObject({ ok: true });
+      expect(prepareAutotuneRequest(500, 5, { currentTemp: 500 })).toMatchObject({ ok: true });
+    });
+
+    it("skips the check when no status frame has arrived", () => {
+      // The store seeds currentTemp to a synthetic 20°C; validating against it
+      // would reject a legitimate low-setpoint tune on a cold page load.
+      expect(prepareAutotuneRequest(50, 40)).toMatchObject({ ok: true });
+    });
+  });
+
+  it("reports temperatures in the caller's display unit", () => {
+    const r = prepareAutotuneRequest(1300, 200, {
+      maxSafeTemp: 1400,
+      formatTemp: (c) => `${Math.round(c * (9 / 5) + 32)}°F`,
+    });
+    expect(r.ok === false && r.message).toContain("2732°F");
+  });
 });
