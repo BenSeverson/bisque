@@ -55,6 +55,20 @@ targets:
     dependencies:
       - target: BisqueLiveActivity
 
+  BisqueTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: BisqueTests
+        excludes:
+          - "**/.DS_Store"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bisque.kiln-controller.tests
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: Bisque
+
   BisqueLiveActivity:
     type: app-extension
     platform: iOS
@@ -80,6 +94,11 @@ schemes:
       targets:
         Bisque: all
         BisqueLiveActivity: all
+        BisqueTests: [test]
+    test:
+      config: Debug
+      targets:
+        - BisqueTests
     run:
       config: Debug
     profile:

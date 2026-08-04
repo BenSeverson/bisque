@@ -192,7 +192,15 @@ struct ConnectionView: View {
 
     private var connectButton: some View {
         Button {
-            connect(host: host, port: Int(portString) ?? 80)
+            // Keep the service name when the field still holds the address the
+            // connection is already using. Pressing Connect again after fixing
+            // a token is not the same act as typing a new address, and dropping
+            // the name there would quietly retire the DHCP fallback until the
+            // user next picked the kiln out of discovery.
+            let sameAddress = host == connection.host && Int(portString) == connection.port
+            connect(
+                host: host, port: Int(portString) ?? 80,
+                serviceName: sameAddress ? connection.serviceName : nil)
         } label: {
             Group {
                 if case .connecting = connection.connectionState {
@@ -273,12 +281,17 @@ struct ConnectionView: View {
         if kiln.requiresToken {
             showTokenField = true
         }
-        connect(host: kiln.host, port: kiln.port)
+        connect(host: kiln.host, port: kiln.port, serviceName: kiln.serviceName)
     }
 
-    private func connect(host newHost: String, port newPort: Int) {
+    /// `serviceName` is nil for a hand-typed address and for the mock server:
+    /// neither is tied to a Bonjour instance, so there is nothing to re-resolve
+    /// them against later, and carrying a stale name over would send the app
+    /// chasing a kiln the user just navigated away from.
+    private func connect(host newHost: String, port newPort: Int, serviceName: String? = nil) {
         connection.host = newHost
         connection.port = newPort
+        connection.serviceName = serviceName
         if !token.isEmpty {
             tokenSaveWarning =
                 connection.setAndSaveToken(token)
@@ -288,6 +301,13 @@ struct ConnectionView: View {
         }
         Task {
             await connection.connect()
+            // `connect()` may have followed the kiln to a new address (#153).
+            // Without adopting it here the field still shows the stale one, so
+            // a user who fixes their token and presses Connect resubmits the
+            // address that just failed — and, with no service name attached
+            // this time, without the fallback that rescued it.
+            host = connection.host
+            portString = String(connection.port)
         }
     }
 }

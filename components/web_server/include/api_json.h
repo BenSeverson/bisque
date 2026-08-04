@@ -11,9 +11,10 @@
  * up esp_http_server, and keeps the response contract in one place.
  *
  * The shape each builder produces is the firmware side of the contract that
- * web_ui/test/contracts/responseSchemas.ts validates from the frontend side —
- * any drift between this file and the zod schemas is a deliberate API change
- * and should land in the same PR.
+ * web_ui/src/app/schemas/api.ts validates from the frontend side — and, since
+ * the frontend's response types are inferred from those schemas, the shape the
+ * whole web UI is compiled against. Any drift between this file and the zod
+ * schemas is a deliberate API change and should land in the same PR.
  */
 
 #include "cJSON.h"

@@ -4,8 +4,9 @@
  * The C side (tests/host/test_api_json.c) drives each build_*_json() helper
  * with a fixture input and writes the resulting JSON to disk. This test
  * loads those fixtures and validates them against the same zod schemas the
- * mock-server parity test uses (test/contracts/responseSchemas.ts), which is
- * the contract the frontend relies on.
+ * mock-server parity test uses (src/app/schemas/api.ts), which is the contract
+ * the frontend relies on — and, since #176, the schemas the frontend's own
+ * response types are inferred from.
  *
  * If the firmware changes its response shape, either the C builder + this
  * schema both get updated in the same PR, or this test fails and the drift
@@ -37,7 +38,7 @@ import {
   historyRecordSchema,
   pidResponseSchema,
   thermocoupleDiagSchema,
-} from "./responseSchemas";
+} from "../../src/app/schemas/api";
 import {
   CONE_TABLE as coneTableForTests,
   PID_GAIN_MIN as mockPidGainMin,
