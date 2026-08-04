@@ -108,6 +108,13 @@ worth knowing before you debug the wrong thing: `BISQUE_MARKETING_VERSION` /
 xcodebuild expands those from its own environment. The `test-ios` target handles
 both.
 
+**CI builds iOS with Xcode 16.4; a current Mac has Xcode 26.** That gap is
+wide enough to compile differently, so a green `make test-ios` locally is not
+proof CI will pass. The one that has already bitten: `XCTestCase.setUp()` /
+`tearDown()` are nonisolated in the Xcode 16 XCTest and `@MainActor` in the
+Xcode 26 one, so an override touching `@MainActor` test state builds locally and
+fails on CI. Avoid overriding them — set fixtures up inside each test instead.
+
 ## Project Structure
 
 ```
