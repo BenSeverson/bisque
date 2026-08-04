@@ -109,6 +109,17 @@ void safety_set_tc_offset(float offset_c);
 void safety_set_ssr(float duty);
 
 /**
+ * Last SSR duty actually in force, 0.0 to 1.0 — i.e. element power.
+ *
+ * Read from here rather than from the firing engine's PID output because this
+ * is the value the time-proportional window drives the pin with: it is already
+ * clamped, zeroed by an emergency stop, and zeroed by the unsupervised-boot
+ * guard. Reporting the engine's raw PID output instead would tell an operator
+ * the element is at 80% while safety is holding it off.
+ */
+float safety_get_ssr_duty(void);
+
+/**
  * FreeRTOS task: monitors temperature faults and over-temp at 500ms intervals.
  * Pass NULL as parameter.
  */

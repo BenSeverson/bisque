@@ -67,6 +67,18 @@ export interface FiringProgress {
   estimatedTimeRemaining: number; // seconds
   /** Seconds until an armed delayed start fires; 0 when none is scheduled. */
   delayRemaining: number;
+  /**
+   * Element power: the SSR duty the kiln is driving right now, 0–100.
+   *
+   * Sourced from safety_get_ssr_duty() rather than the PID output, so it is
+   * what the element is actually getting — 0 while an emergency stop holds the
+   * output off, even if the controller is still asking for heat.
+   *
+   * `null` when the connected firmware predates #180 and sends no such field.
+   * Distinct from 0, which means the element really is off: a kiln that cannot
+   * report its power should say nothing rather than claim it is idle.
+   */
+  dutyPercent: number | null;
   status: FiringStatus;
 }
 

@@ -15,6 +15,7 @@
 #include "thermocouple.h"
 #include "unity.h"
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -115,8 +116,11 @@ static void test_status_full_shape(void)
         .timestamp_us = 1234567,
     };
 
-    cJSON *root = build_status_json(&prog, &tc, 5.0f);
+    cJSON *root = build_status_json(&prog, &tc, 5.0f, 0.625f);
     TEST_ASSERT_NOT_NULL(root);
+
+    /* Element power, rounded to whole percent (#180). */
+    TEST_ASSERT_EQUAL_INT(63, cJSON_GetObjectItem(root, "dutyPercent")->valueint);
 
     /* currentTemp carries the tc offset so it matches the WebSocket feed; the
        nested thermocouple block keeps the raw reading. */
@@ -132,6 +136,7 @@ static void test_status_full_shape(void)
     assert_number_field(root, "totalSegments");
     assert_number_field(root, "elapsedTime");
     assert_number_field(root, "estimatedTimeRemaining");
+    assert_number_field(root, "dutyPercent");
     assert_string_field(root, "status");
 
     TEST_ASSERT_EQUAL_STRING("heating", cJSON_GetObjectItem(root, "status")->valuestring);
@@ -157,7 +162,7 @@ static void test_status_zeros_temp_when_fault(void)
         .temperature_c = 999.0f,
         .fault = TC_FAULT_OPEN_CIRCUIT,
     };
-    cJSON *root = build_status_json(&prog, &tc, 5.0f);
+    cJSON *root = build_status_json(&prog, &tc, 5.0f, 0.0f);
 
     /* Top-level currentTemp is zero-clamped on fault (UI shouldn't render the
      * stale last-read temp) — the offset is not applied through a fault. Inner
@@ -167,7 +172,31 @@ static void test_status_zeros_temp_when_fault(void)
                             cJSON_GetObjectItem(cJSON_GetObjectItem(root, "thermocouple"), "temperature")->valuedouble);
     TEST_ASSERT_TRUE(cJSON_IsTrue(cJSON_GetObjectItem(cJSON_GetObjectItem(root, "thermocouple"), "openCircuit")));
     TEST_ASSERT_FALSE(cJSON_IsTrue(cJSON_GetObjectItem(cJSON_GetObjectItem(root, "thermocouple"), "shortGnd")));
+    TEST_ASSERT_EQUAL_INT(0, cJSON_GetObjectItem(root, "dutyPercent")->valueint);
     cJSON_Delete(root);
+}
+
+/* dutyPercent is a percentage in the UI — a value outside 0..100 would render
+ * as a nonsense "Element power: 140%" or drive a progress bar off its track.
+ * safety_get_ssr_duty() already clamps, so this guards the builder against a
+ * future caller that doesn't (and against a NaN reaching lroundf, which is
+ * undefined). */
+static void test_status_clamps_duty(void)
+{
+    firing_progress_t prog = {.status = FIRING_STATUS_HEATING};
+    thermocouple_reading_t tc = {.temperature_c = 500.0f};
+
+    cJSON *over = build_status_json(&prog, &tc, 0.0f, 1.4f);
+    TEST_ASSERT_EQUAL_INT(100, cJSON_GetObjectItem(over, "dutyPercent")->valueint);
+    cJSON_Delete(over);
+
+    cJSON *under = build_status_json(&prog, &tc, 0.0f, -0.2f);
+    TEST_ASSERT_EQUAL_INT(0, cJSON_GetObjectItem(under, "dutyPercent")->valueint);
+    cJSON_Delete(under);
+
+    cJSON *nan_duty = build_status_json(&prog, &tc, 0.0f, NAN);
+    TEST_ASSERT_EQUAL_INT(0, cJSON_GetObjectItem(nan_duty, "dutyPercent")->valueint);
+    cJSON_Delete(nan_duty);
 }
 
 /* ── build_profile_json ──────────────────────────────────────────────────── */
@@ -424,6 +453,48 @@ static void test_autotune_running_outranks_terminal_state(void)
     }
 }
 
+/* ── build_pid_json ──────────────────────────────────────────────────────── */
+
+static void test_pid_shape(void)
+{
+    cJSON *root = build_pid_json(18.0f, 0.12f, 240.0f);
+
+    assert_number_field(root, "kp");
+    assert_number_field(root, "ki");
+    assert_number_field(root, "kd");
+    TEST_ASSERT_EQUAL_FLOAT(18.0f, cJSON_GetObjectItem(root, "kp")->valuedouble);
+    TEST_ASSERT_EQUAL_FLOAT(0.12f, cJSON_GetObjectItem(root, "ki")->valuedouble);
+    TEST_ASSERT_EQUAL_FLOAT(240.0f, cJSON_GetObjectItem(root, "kd")->valuedouble);
+
+    cJSON *defaults = cJSON_GetObjectItem(root, "defaults");
+    TEST_ASSERT_NOT_NULL(defaults);
+    assert_number_field(defaults, "kp");
+    assert_number_field(defaults, "ki");
+    assert_number_field(defaults, "kd");
+
+    /* The defaults block must report the firmware's own fallbacks, not echo the
+       live gains — a "restore defaults" button built on it would otherwise
+       restore whatever was already there. */
+    float def_kp, def_ki, def_kd;
+    pid_default_gains(&def_kp, &def_ki, &def_kd);
+    TEST_ASSERT_EQUAL_FLOAT(def_kp, cJSON_GetObjectItem(defaults, "kp")->valuedouble);
+    TEST_ASSERT_EQUAL_FLOAT(def_ki, cJSON_GetObjectItem(defaults, "ki")->valuedouble);
+    TEST_ASSERT_EQUAL_FLOAT(def_kd, cJSON_GetObjectItem(defaults, "kd")->valuedouble);
+
+    cJSON *limits = cJSON_GetObjectItem(root, "limits");
+    TEST_ASSERT_NOT_NULL(limits);
+    TEST_ASSERT_EQUAL_FLOAT(PID_GAIN_MIN, cJSON_GetObjectItem(limits, "min")->valuedouble);
+    TEST_ASSERT_EQUAL_FLOAT(PID_GAIN_MAX, cJSON_GetObjectItem(limits, "max")->valuedouble);
+
+    /* The bounds the client is told about have to be bounds the firmware would
+       actually accept, or the form validates against a range POST /pid rejects. */
+    TEST_ASSERT_TRUE(pid_gains_valid(PID_GAIN_MAX, PID_GAIN_MAX, PID_GAIN_MAX));
+    TEST_ASSERT_TRUE(pid_gains_valid(def_kp, def_ki, def_kd));
+
+    dump_fixture("pid", root);
+    cJSON_Delete(root);
+}
+
 /* ── build_thermocouple_diag_json ────────────────────────────────────────── */
 
 static void test_thermocouple_diag_shape(void)
@@ -475,6 +546,7 @@ int main(void)
     UNITY_BEGIN();
     RUN_TEST(test_status_full_shape);
     RUN_TEST(test_status_zeros_temp_when_fault);
+    RUN_TEST(test_status_clamps_duty);
     RUN_TEST(test_profile_shape);
     RUN_TEST(test_settings_shape_redacts_token);
     RUN_TEST(test_settings_apiTokenSet_false_when_empty);
@@ -485,6 +557,7 @@ int main(void)
     RUN_TEST(test_autotune_status_running_vs_stopped);
     RUN_TEST(test_autotune_terminal_states_are_distinct);
     RUN_TEST(test_autotune_running_outranks_terminal_state);
+    RUN_TEST(test_pid_shape);
     RUN_TEST(test_thermocouple_diag_shape);
     RUN_TEST(test_firing_status_strings);
     return UNITY_END();

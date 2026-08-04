@@ -29,8 +29,10 @@ extern "C" {
 
 /** GET /api/v1/status — firing progress plus thermocouple block. `tc_offset_c`
  *  is applied to the top-level currentTemp so it matches the WebSocket feed; the
- *  nested thermocouple block keeps the raw reading for diagnostics. */
-cJSON *build_status_json(const firing_progress_t *prog, const thermocouple_reading_t *tc, float tc_offset_c);
+ *  nested thermocouple block keeps the raw reading for diagnostics.
+ *  `ssr_duty` is the live element duty (0.0–1.0), from safety_get_ssr_duty(). */
+cJSON *build_status_json(const firing_progress_t *prog, const thermocouple_reading_t *tc, float tc_offset_c,
+                         float ssr_duty);
 
 /** GET /api/v1/profiles/:id, POST /api/v1/profiles/cone-fire — one firing profile. */
 cJSON *build_profile_json(const firing_profile_t *profile);
@@ -55,6 +57,13 @@ cJSON *build_cone_table_json(void);
  */
 cJSON *build_autotune_status_json(const firing_progress_t *prog, autotune_state_t at_state, float kp, float ki,
                                   float kd);
+
+/**
+ * GET /api/v1/pid — the live PID gains, plus the compile-time defaults and the
+ * accepted range so a client can offer "restore defaults" and validate before
+ * POSTing without hardcoding either.
+ */
+cJSON *build_pid_json(float kp, float ki, float kd);
 
 /**
  * GET /api/v1/diagnostics/thermocouple.

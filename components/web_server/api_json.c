@@ -8,6 +8,7 @@
 #include "api_json.h"
 #include "thermocouple.h"
 #include "cone_table.h"
+#include <math.h>
 #include <stdbool.h>
 
 const char *firing_status_to_string(firing_status_t s)
@@ -38,7 +39,7 @@ const char *firing_status_to_string(firing_status_t s)
  * also uses these via json_add_progress_fields() in api_handlers.c — that
  * declaration stays in web_server.h, but the body now lives here so the host
  * tests cover it. */
-void json_add_progress_fields(cJSON *target, const firing_progress_t *prog, float current_temp)
+void json_add_progress_fields(cJSON *target, const firing_progress_t *prog, float current_temp, float ssr_duty)
 {
     cJSON_AddBoolToObject(target, "isActive", prog->is_active);
     cJSON_AddStringToObject(target, "profileId", prog->profile_id);
@@ -53,16 +54,32 @@ void json_add_progress_fields(cJSON *target, const firing_progress_t *prog, floa
        begin, which is the thing worth confirming before leaving a kiln to run
        overnight (#204). */
     cJSON_AddNumberToObject(target, "delayRemaining", prog->delay_remaining);
+    /* Element power: the SSR duty the safety layer is actually driving, as a
+       whole percent. "Element power: 62%" is what makes a firing legible —
+       whether the kiln is maxed out or merely cycling, whether autotune is
+       still bang-banging, and (over months, at the same ramp) whether the
+       elements are ageing (#180). Whole percent: the output is a 2 s window
+       stepped every 100 ms (APP_SSR_WINDOW_MS / SSR_APPLY_PERIOD_US), so the
+       element itself only resolves ~5% steps — decimals would be invented
+       precision. */
+    float duty = ssr_duty;
+    if (!(duty > 0.0f)) { /* also catches NaN */
+        duty = 0.0f;
+    } else if (duty > 1.0f) {
+        duty = 1.0f;
+    }
+    cJSON_AddNumberToObject(target, "dutyPercent", (double)lroundf(duty * 100.0f));
     cJSON_AddStringToObject(target, "status", firing_status_to_string(prog->status));
 }
 
-cJSON *build_status_json(const firing_progress_t *prog, const thermocouple_reading_t *tc, float tc_offset_c)
+cJSON *build_status_json(const firing_progress_t *prog, const thermocouple_reading_t *tc, float tc_offset_c,
+                         float ssr_duty)
 {
     cJSON *root = cJSON_CreateObject();
     /* Offset-correct the published temperature (and zero it on fault) so the
        REST status matches the WebSocket temp_update feed. */
     float current_temp = tc->fault ? 0.0f : (tc->temperature_c + tc_offset_c);
-    json_add_progress_fields(root, prog, current_temp);
+    json_add_progress_fields(root, prog, current_temp, ssr_duty);
 
     cJSON *tc_obj = cJSON_AddObjectToObject(root, "thermocouple");
     cJSON_AddNumberToObject(tc_obj, "temperature", tc->temperature_c);
@@ -186,6 +203,29 @@ cJSON *build_autotune_status_json(const firing_progress_t *prog, autotune_state_
     cJSON_AddNumberToObject(gains, "kp", kp);
     cJSON_AddNumberToObject(gains, "ki", ki);
     cJSON_AddNumberToObject(gains, "kd", kd);
+    return root;
+}
+
+cJSON *build_pid_json(float kp, float ki, float kd)
+{
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddNumberToObject(root, "kp", kp);
+    cJSON_AddNumberToObject(root, "ki", ki);
+    cJSON_AddNumberToObject(root, "kd", kd);
+
+    float def_kp, def_ki, def_kd;
+    pid_default_gains(&def_kp, &def_ki, &def_kd);
+    cJSON *defaults = cJSON_AddObjectToObject(root, "defaults");
+    cJSON_AddNumberToObject(defaults, "kp", def_kp);
+    cJSON_AddNumberToObject(defaults, "ki", def_ki);
+    cJSON_AddNumberToObject(defaults, "kd", def_kd);
+
+    /* Served rather than mirrored as constants on the client, because a client
+       that hardcodes the bounds drifts from the firmware silently: the form goes
+       on accepting a value POST /pid then rejects with a bare 400. */
+    cJSON *limits = cJSON_AddObjectToObject(root, "limits");
+    cJSON_AddNumberToObject(limits, "min", PID_GAIN_MIN);
+    cJSON_AddNumberToObject(limits, "max", PID_GAIN_MAX);
     return root;
 }
 

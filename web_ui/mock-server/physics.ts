@@ -34,6 +34,30 @@ export function updateTemperature(currentTemp: number, setpoint: number, dt: num
   return Math.max(AMBIENT, newTemp);
 }
 
+/** Tracking error (°C) that alone would call for full power. */
+const DUTY_PROP_BAND_C = 40;
+/** Duty a kiln needs just to hold DUTY_MAX_TEMP against its losses. */
+const DUTY_HOLD_AT_MAX = 0.55;
+const DUTY_MAX_TEMP = 1300;
+
+/**
+ * Element duty (0–1) a controller would be commanding here, so the demo's
+ * "Element Power" reading behaves like a real kiln's (#180).
+ *
+ * The lag model above has no element in it — temperature just relaxes toward
+ * the setpoint — so the duty has to be reconstructed. Two terms, matching what
+ * a PID settles into: a proportional response to the tracking error, plus the
+ * standing power a hot kiln needs merely to hold position against its losses.
+ * In practice the losses term dominates, so the reading climbs with the kiln
+ * (a few percent while warming, ~45% up at cone 04) and spikes only when the
+ * setpoint pulls away faster than the kiln follows.
+ */
+export function elementDuty(currentTemp: number, setpoint: number): number {
+  const losses = DUTY_HOLD_AT_MAX * ((setpoint - AMBIENT) / (DUTY_MAX_TEMP - AMBIENT));
+  const proportional = (setpoint - currentTemp) / DUTY_PROP_BAND_C;
+  return Math.min(1, Math.max(0, losses + proportional));
+}
+
 /** Passive cooling toward ambient after stop. */
 export function coolingTemperature(currentTemp: number, dt: number): number {
   const tau = 600; // slow passive cooling

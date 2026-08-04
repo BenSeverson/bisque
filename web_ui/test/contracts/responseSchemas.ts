@@ -26,6 +26,7 @@ export const firingProgressResponseSchema = z.object({
   elapsedTime: z.number(),
   estimatedTimeRemaining: z.number(),
   delayRemaining: z.number(),
+  dutyPercent: z.number().min(0).max(100),
   status: z.string(),
   thermocouple: z.object({
     temperature: z.number(),
@@ -80,6 +81,27 @@ export const autotuneStatusSchema = z.object({
     kp: z.number(),
     ki: z.number(),
     kd: z.number(),
+  }),
+});
+
+/**
+ * GET/POST /api/v1/pid — mirrors build_pid_json in api_json.c.
+ *
+ * `defaults` and `limits` are part of the contract precisely so the client
+ * never hardcodes them: the UI validates against what the firmware serves.
+ */
+export const pidResponseSchema = z.object({
+  kp: z.number(),
+  ki: z.number(),
+  kd: z.number(),
+  defaults: z.object({
+    kp: z.number(),
+    ki: z.number(),
+    kd: z.number(),
+  }),
+  limits: z.object({
+    min: z.number(),
+    max: z.number(),
   }),
 });
 

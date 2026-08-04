@@ -11,6 +11,10 @@ export interface TempUpdateData {
   estimatedTimeRemaining: number;
   /** Seconds until an armed delayed start fires; 0 when none is scheduled. */
   delayRemaining?: number;
+  /** Live SSR duty as a whole percent, 0–100. Optional so a kiln on firmware
+   *  predating #180 still parses — the UI hides the reading rather than
+   *  claiming 0% element power. */
+  dutyPercent?: number;
   isActive: boolean;
 }
 

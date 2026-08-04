@@ -20,6 +20,7 @@ import { Toaster } from "./components/ui/sonner";
 import { Button } from "./components/ui/button";
 import { useKilnStore } from "./stores/kilnStore";
 import { useTheme } from "./hooks/useTheme";
+import { useFiringAnnouncements } from "./hooks/useFiringAnnouncements";
 import type { ThemePreference } from "./utils/theme";
 
 /** Cycle order for the header toggle, and how each state is announced. */
@@ -33,6 +34,11 @@ export default function App() {
   const initWebSocket = useKilnStore((s) => s.initWebSocket);
   const [activeTab, setActiveTab] = useState("dashboard");
   const { preference, theme, setPreference } = useTheme();
+
+  // Mounted here, not in the Dashboard: the dashboard tab is not forceMount'ed,
+  // so it unmounts whenever the user is on Settings or History — exactly where
+  // they might be sitting when a firing ends.
+  useFiringAnnouncements();
 
   useEffect(() => {
     return initWebSocket();

@@ -1,6 +1,7 @@
 #include "web_server.h"
 #include "firing_engine.h"
 #include "thermocouple.h"
+#include "safety.h"
 #include "esp_log.h"
 #include "cJSON.h"
 #include "freertos/FreeRTOS.h"
@@ -247,7 +248,7 @@ void ws_broadcast_status(void)
     cJSON_AddStringToObject(root, "type", "temp_update");
 
     cJSON *data = cJSON_AddObjectToObject(root, "data");
-    json_add_progress_fields(data, &prog, adjusted_temp);
+    json_add_progress_fields(data, &prog, adjusted_temp, safety_get_ssr_duty());
 
     char *json = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);

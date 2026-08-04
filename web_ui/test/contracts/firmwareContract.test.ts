@@ -29,15 +29,21 @@ import { describe, it, expect } from "vitest";
 import { readFileSync, existsSync } from "fs";
 import { createHash } from "crypto";
 import { join } from "path";
-import { firingProfileSchema, settingsSchema } from "../../src/app/schemas/kiln";
+import { firingProfileSchema, pidGainsSchema, settingsSchema } from "../../src/app/schemas/kiln";
 import {
   autotuneStatusSchema,
   coneEntrySchema,
   firingProgressResponseSchema,
   historyRecordSchema,
+  pidResponseSchema,
   thermocoupleDiagSchema,
 } from "./responseSchemas";
-import { CONE_TABLE as coneTableForTests } from "../../mock-server/router";
+import {
+  CONE_TABLE as coneTableForTests,
+  PID_GAIN_MIN as mockPidGainMin,
+  PID_GAIN_MAX as mockPidGainMax,
+  PID_DEFAULT_GAINS as mockPidDefaultGains,
+} from "../../mock-server/router";
 import { z } from "zod";
 
 const REPO_ROOT = join(__dirname, "../../..");
@@ -52,6 +58,7 @@ const REQUIRED_FIXTURES = [
   "history_record",
   "cone_table",
   "autotune_status",
+  "pid",
   "thermocouple_diag",
 ];
 
@@ -193,6 +200,47 @@ describe.runIf(fixturesUsable)("firmware → frontend API contract", () => {
 
   it("/api/v1/autotune/status payload parses against autotuneStatusSchema", () => {
     expect(autotuneStatusSchema.parse(load("autotune_status"))).toBeDefined();
+  });
+
+  it("/api/v1/pid payload parses against pidResponseSchema", () => {
+    expect(pidResponseSchema.parse(load("pid"))).toBeDefined();
+  });
+
+  /**
+   * The gains a manual edit can enter have to be gains the firmware accepts, so
+   * the form's own rules (schemas/kiln.ts) are checked against the bounds the
+   * firmware publishes rather than against a mirrored copy of them (#182).
+   */
+  it("firmware PID defaults and limits satisfy the client-side gain schema", () => {
+    const pid = pidResponseSchema.parse(load("pid"));
+    expect(pidGainsSchema.parse(pid.defaults)).toBeDefined();
+    expect(
+      pidGainsSchema.parse({ kp: pid.limits.max, ki: pid.limits.max, kd: pid.limits.max }),
+    ).toBeDefined();
+    expect(pid.limits.min).toBe(0);
+  });
+
+  /**
+   * Same failure mode the cone table had, in miniature: both PID suites were
+   * schema-only, so the mock could publish a different range or different
+   * defaults from the firmware and every test stayed green — leaving the demo
+   * validating against bounds the device rejects, or offering "restore
+   * defaults" gains it never shipped. This is a value-level comparison, so the
+   * mock constants and app_config.h's APP_PID_*_DEFAULT must move together.
+   */
+  it("mock-server PID limits and defaults match the firmware fixture exactly", () => {
+    const pid = pidResponseSchema.parse(load("pid"));
+
+    // Compared as float32, not as doubles. The firmware's gains are C floats,
+    // so APP_PID_KI_DEFAULT (0.01f) reaches JSON as 0.00999999977648258 and a
+    // literal 0.01 in the mock is a different double while being the identical
+    // number on the device. Math.fround collapses both to the value the kiln
+    // actually holds, so this still fails on any real change to a default.
+    const f32 = (o: Record<string, number>) =>
+      Object.fromEntries(Object.entries(o).map(([k, v]) => [k, Math.fround(v)]));
+
+    expect(f32({ min: mockPidGainMin, max: mockPidGainMax })).toEqual(f32(pid.limits));
+    expect(f32(mockPidDefaultGains)).toEqual(f32(pid.defaults));
   });
 
   it("/api/v1/diagnostics/thermocouple payload parses against thermocoupleDiagSchema", () => {

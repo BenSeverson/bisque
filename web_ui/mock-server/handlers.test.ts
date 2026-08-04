@@ -15,6 +15,7 @@ import {
   coneEntrySchema,
   firingProgressResponseSchema,
   historyRecordSchema,
+  pidResponseSchema,
   systemInfoSchema,
   thermocoupleDiagSchema,
 } from "../test/contracts/responseSchemas";
@@ -104,6 +105,10 @@ describe("mock-server GET endpoints", () => {
 
   it("GET /autotune/status returns AutotuneStatus", async () => {
     expect(autotuneStatusSchema.safeParse(await get("/autotune/status")).success).toBe(true);
+  });
+
+  it("GET /pid returns the gains plus firmware defaults and limits", async () => {
+    expect(pidResponseSchema.safeParse(await get("/pid")).success).toBe(true);
   });
 
   it("GET /diagnostics/thermocouple returns full reading", async () => {
@@ -281,6 +286,53 @@ describe("mock-server firmware parity", () => {
     // hold-until-skip final segment finishable at all.
     expect((await post("/firing/skip-segment")).body.ok).toBe(true);
     expect((await get("/status")).status).toBe("complete");
+
+    await post("/firing/stop");
+    await fetch(`${baseUrl}/profiles/${profile.id}`, { method: "DELETE" });
+  });
+
+  it("POST /pid stores the gains and reports them back rounded to what NVS holds", async () => {
+    const r = await post("/pid", { kp: 12.3456789, ki: 0.25, kd: 88 });
+    expect(r.status).toBe(200);
+    expect(pidResponseSchema.safeParse(r.body).success).toBe(true);
+    // Rounded to 4 decimals, matching pid_quantize_gain in the firmware, so
+    // the value shown is the value the next boot loads.
+    expect(r.body.kp).toBe(12.3457);
+    expect(await get("/pid")).toMatchObject({ kp: 12.3457, ki: 0.25, kd: 88 });
+
+    // Same gains the auto-tune endpoint reports — one source on the device too.
+    expect((await get("/autotune/status")).currentGains).toMatchObject({ kp: 12.3457 });
+  });
+
+  it("POST /pid rejects gains the controller could not heat with", async () => {
+    const before = await get("/pid");
+    for (const bad of [
+      { kp: 0, ki: 0, kd: 5 },
+      { kp: -1, ki: 0.01, kd: 5 },
+      { kp: 2, ki: 0.01, kd: 1e9 },
+      { kp: "2", ki: 0.01, kd: 5 },
+      { ki: 0.01, kd: 5 },
+    ]) {
+      expect((await post("/pid", bad)).status, JSON.stringify(bad)).toBe(400);
+    }
+    expect(await get("/pid")).toMatchObject({ kp: before.kp, ki: before.ki, kd: before.kd });
+  });
+
+  it("refuses a manual gain edit while a firing is active", async () => {
+    const profile = {
+      id: "pid-parity-profile",
+      name: "PID Parity",
+      description: "",
+      segments: [{ id: "s1", name: "Ramp", rampRate: 60, targetTemp: 900, holdTime: 30 }],
+      maxTemp: 900,
+      estimatedDuration: 120,
+    };
+    expect((await post("/profiles", profile)).body.ok).toBe(true);
+    expect((await post("/firing/start", { profileId: profile.id })).body.ok).toBe(true);
+
+    const before = await get("/pid");
+    expect((await post("/pid", { kp: 1, ki: 1, kd: 1 })).status).toBe(409);
+    expect(await get("/pid")).toMatchObject({ kp: before.kp, ki: before.ki, kd: before.kd });
 
     await post("/firing/stop");
     await fetch(`${baseUrl}/profiles/${profile.id}`, { method: "DELETE" });

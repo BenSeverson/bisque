@@ -20,6 +20,19 @@ interface KilnState {
      because the transition is only visible while folding a frame. */
   errorSince: number | null;
 
+  /* Whether any reading has been folded in yet, by either source.
+     `firingProgress` is initialised to a plausible-looking idle kiln, so its
+     contents alone cannot answer "has this client ever seen the controller?".
+     Consumers that watch for *transitions* need that answer or they mistake the
+     synthetic starting point for an observation: a page loaded while the kiln
+     sits in `complete` — which the firmware holds until the next start — would
+     otherwise read as idle→complete and announce a firing that ended overnight
+     (#185).
+
+     Distinct from `lastUpdateAt`, which timestamps WebSocket frames only. A
+     REST seed is an observation too, and on a fresh load it is the first one. */
+  statusObserved: boolean;
+
   // Real-time firing data (from WebSocket)
   firingProgress: FiringProgress;
   currentTempData: TemperatureDataPoint[];
@@ -49,6 +62,7 @@ const initialProgress: FiringProgress = {
   elapsedTime: 0,
   estimatedTimeRemaining: 0,
   delayRemaining: 0,
+  dutyPercent: null,
   status: "idle",
 };
 
@@ -108,6 +122,7 @@ export const useKilnStore = create<KilnState>((set) => ({
   connectionState: "offline",
   lastUpdateAt: null,
   errorSince: null,
+  statusObserved: false,
 
   firingProgress: initialProgress,
   currentTempData: [...initialTempData],
@@ -152,6 +167,7 @@ export const useKilnStore = create<KilnState>((set) => ({
 
       const status = coerceFiringStatus(s.status);
       return {
+        statusObserved: true,
         firingProgress: {
           isActive: s.isActive,
           profileId: s.profileId || null,
@@ -163,6 +179,7 @@ export const useKilnStore = create<KilnState>((set) => ({
           elapsedTime: s.elapsedTime,
           estimatedTimeRemaining: s.estimatedTimeRemaining,
           delayRemaining: s.delayRemaining ?? 0,
+          dutyPercent: s.dutyPercent ?? null,
           status,
         },
         /* A reload landing mid-failure never sees the transition frame, so the
@@ -234,6 +251,7 @@ export const useKilnStore = create<KilnState>((set) => ({
 
           return {
             lastUpdateAt: receivedAt,
+            statusObserved: true,
             errorSince,
             ...(followProfile ? { selectedProfileId: d.profileId } : {}),
             firingProgress: {
@@ -247,6 +265,18 @@ export const useKilnStore = create<KilnState>((set) => ({
               elapsedTime: endedFiring ? 0 : d.elapsedTime,
               estimatedTimeRemaining: endedFiring ? 0 : d.estimatedTimeRemaining,
               delayRemaining: endedFiring ? 0 : (d.delayRemaining ?? 0),
+              /* Not zeroed on endedFiring: unlike the elapsed/segment figures
+                 above, this one still describes the kiln after the firing ends
+                 — the element is genuinely off, and the firmware says so in the
+                 same frame.
+
+                 An omitted field resets to null rather than holding the last
+                 reading. Whether the field exists is a property of the
+                 firmware, not of the frame, so "absent" means "this kiln cannot
+                 report power" — and the store outlives a reconnect, so after an
+                 OTA rollback to pre-#180 firmware a retained value would sit
+                 there as a stale percentage forever. */
+              dutyPercent: d.dutyPercent ?? null,
               status,
             },
             currentTempData: newData,

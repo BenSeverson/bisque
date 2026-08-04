@@ -25,6 +25,7 @@ import {
   Clock,
   SkipForward,
   Timer,
+  Zap,
 } from "lucide-react";
 import { TemperatureDataPoint, HOLD_UNTIL_SKIP, FiringStatus } from "../types/kiln";
 import { api } from "../services/api";
@@ -310,8 +311,9 @@ export function FiringDashboard() {
         </div>
       )}
 
-      {/* Status Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Status Cards. Five across once there is room; 3+2 at tablet widths
+          rather than 4+1, which left a card stranded on a row of its own. */}
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="pb-3">
             <CardDescription>Current Temperature</CardDescription>
@@ -328,6 +330,23 @@ export function FiringDashboard() {
             <CardTitle className="flex items-center gap-2 text-3xl">
               <Flame className="h-6 w-6" />
               {formatTemp(firingProgress.targetTemp, unit)}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+
+        {/* Element power — the SSR duty the kiln is actually driving (#180).
+            "62%" is what tells an operator whether the kiln is coasting or
+            flat-out: pinned at 100% through a ramp means the elements can no
+            longer hold the programmed rate, and a duty that creeps up over
+            months at the same ramp is elements ageing. An em dash rather than
+            "0%" when the firmware doesn't report it — 0% is a real, different
+            answer (element off). */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardDescription>Element Power</CardDescription>
+            <CardTitle className="flex items-center gap-2 text-3xl">
+              <Zap className="h-6 w-6" />
+              {firingProgress.dutyPercent === null ? "—" : `${firingProgress.dutyPercent}%`}
             </CardTitle>
           </CardHeader>
         </Card>
