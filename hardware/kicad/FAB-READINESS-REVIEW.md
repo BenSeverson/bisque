@@ -1,10 +1,11 @@
 # JLCPCB Fabrication Readiness Review
 
-Board: `bisque-controller` — 2-layer, 100 × 80 mm, 1.6 mm, 49 footprints (38 SMD / 7 THT + 4 mounting holes)
+Board: `bisque-controller` — 2-layer, 100 × 80 mm, 1.6 mm, 52 footprints (41 SMD / 7 THT + 4 mounting holes)
 Reviewed: 2026-07-29 against KiCad 10.0.5, analyzer run `analysis/2026-07-29_1621/`
 Status: **blockers resolved 2026-07-29** — see "What was fixed" below.
 Update 2026-07-30: display moved from +3V3 to +5V — see "Display moved to +5V" below.
 Update 2026-07-30: assembly cost reduction + via-in-pad fix — see "Cost reduction pass" below.
+Update 2026-08-05: lid-switch input filter added (R12/R13/C12) — see "Lid switch input filter" below.
 
 ## Verdict
 
@@ -265,6 +266,44 @@ from pads, stranding the pad on F.Cu.
 - Gerbers, drill, drill map, BOM, CPL, hand-solder list, preview SVG, schematic PDF and
   the 3D renders were all regenerated from the rebuilt board. Smallest drill is still
   0.300 mm.
+
+## Lid switch input filter (2026-08-05)
+
+`LID_SW` (IO21, aux header J7 pin 6) was a bare GPIO on a header pin, relying on the
+ESP32's internal ~45 kΩ pull-up. Firmware issue #83 turns it into a **firing
+interlock**, so a false "lid open" now cuts a firing — and unlike the nav switch's
+short in-enclosure run, this cable goes to a hot kiln lid alongside the SSR output and
+mains wiring.
+
+**Change made:** J7 pin 6 now lands on a new net `LID_IN` and reaches U1.23 (`LID_SW`)
+through **R12** (1 kΩ series), with **R13** (10 kΩ) to +3V3 and **C12** (100 nF) to
+GND. Corner ≈ 1.8 kHz with the switch closed (C12 across R12∥R13 ≈ 0.9 kΩ), ≈ 160 Hz
+with it open — fast enough to leave mechanical bounce to the firmware's 500 ms
+sampling, slow enough to swallow EMI transients.
+Closed-switch level 3.3 V × 1k/11k = 0.30 V, inside the ESP32's 0.25 × VDD (0.83 V)
+V_IL.
+
+No discrete TVS was added: the only one on the board is the USBLC6 (U4), fitted for
+USB 2.0's low-capacitance requirement, and the other externally exposed nets (TC_P at
+J3, the nav switch at J6) rely on an RC plus the pin's own clamp diodes. A TVS would
+have added a unique **Extended** part ($3 feeder fee) for one input and been
+inconsistent with the rest of the board.
+
+**Assembly impact: none beyond three joints each.** All three parts reuse LCSC lines
+already on the BOM — C17513 (1 kΩ), C17414 (10 kΩ), C49678 (100 nF), all **Basic** —
+so the BOM stays at 24 lines / 23 unique parts / 4 Extended, and $12 of feeder fees.
+Placements 37 → 40, machine-soldered joints 170 → 176 (+$0.01/board).
+
+**Verification:** KiCad 10.0.5 DRC **0 errors, 0 unconnected** (14 violations, all the
+same silk/lib-path warnings as before); `check_pcb.py` ALL CHECKS PASS;
+`check_via_in_pad.py` PASS; `check_canonical.py` ALL CHECKS PASS; schematic netlist
+round-trip 43 nets, 0 mismatches; rebuild byte-identical.
+
+**Placement note:** R12 and C12 sit in the free band between LED1 and J7 so the shunt
+is at the point of entry. R13 is 6 mm north, on the +3V3 B.Cu trunk — placing it
+beside C12 forced a 0.7 mm +3V3 spur across the F.Cu pour above J7 pins 1–2 and
+starved J7 pin 2's thermal relief (a DRC *error*, not a warning). A pull-up's position
+is electrically irrelevant, so it moved rather than the pour being patched.
 
 ## Still worth fixing (quality, not blockers)
 

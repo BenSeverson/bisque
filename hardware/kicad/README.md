@@ -8,12 +8,12 @@ down the SMT line, plus seven through-hole parts (terminals, wafers, buzzer)
 and the WS2812B that are fitted by hand — see "Fabrication & assembly"
 below for why that split is much cheaper than it looks.
 
-Built and validated with **real KiCad** (10.0.4, pcbnew Python API +
+Built and validated with **real KiCad** (10.0.5, pcbnew Python API +
 kicad-cli): footprints come from KiCad's installed libraries, ground pours
 are filled and checked by `kicad-cli pcb drc --refill-zones` — **zero
 errors, zero unconnected** (`bisque-controller-drc.rpt`) — and the
 schematic passes a netlist round-trip check (KiCad's exported netlist
-diffed against the design's connectivity table — 42 nets, 0 mismatches).
+diffed against the design's connectivity table — 43 nets, 0 mismatches).
 The 3D renders in `3d/` are raytraced by `kicad-cli pcb render` with the
 official component models.
 
@@ -72,7 +72,26 @@ them).
   internal pull-ups).
 - **Aux header J7** (8-pin KK-254): `3V3 GND TX RX VNT LID A15 A16` — UART0
   plus the optional VENT (IO14) / LID_SWITCH (IO21) firmware GPIOs and two
-  spares.
+  spares. Both are opt-in in firmware (`CONFIG_KILN_PIN_*` default to −1),
+  so nothing need be wired here at all.
+
+  **`LID` (pin 6) is filtered**, unlike every other GPIO on the headers: it
+  reaches IO21 through R12 (1 kΩ series) with R13 (10 kΩ) pulling up to 3V3
+  and C12 (100 nF) to ground — a ~1.8 kHz corner with the switch closed
+  (C12 across R12∥R13 ≈ 0.9 kΩ), ~160 Hz with it open. It is the one input
+  whose cable leaves the enclosure and runs to a hot kiln lid alongside the
+  SSR output and mains wiring, and a false "lid open" cuts a firing. The
+  nav switch (J6) stays bare — a short run inside the box on the ESP32's
+  internal pull-ups. R13 replaces that internal pull-up here (~45 kΩ →
+  10 kΩ), and with the switch closed the pin sits at 0.30 V, well inside
+  the ESP32's 0.83 V V_IL. Wire a **dry contact** between J7 pin 6 and J7
+  pin 2 (GND) — closed = lid shut.
+
+  No TVS: the board's only one is the USBLC6 (U4), fitted for USB 2.0's
+  low-capacitance requirement. The other externally exposed nets (TC_P at
+  J3, the nav switch at J6) rely on an RC plus the pin's own clamp diodes,
+  and a discrete TVS would add a unique Extended part ($3 feeder fee) for a
+  single input.
 
   All three headers are polarized: the mating friction-lock housing only
   latches one way, so the display/nav/aux looms can't be plugged in
@@ -96,7 +115,7 @@ them).
 | 11/13/12 | SPI MOSI/MISO/SCLK | | 4/5/6/2/1 | NAV up/down/left/right/select |
 | 10 | MAX31855 CS | | 48 | WS2812B data |
 | 8/9/46/3 | LCD CS/DC/RST/BL | | 7 | Alarm buzzer |
-| 17 | SSR drive | | 14 / 21 | VENT / LID_SW (aux header) |
+| 17 | SSR drive | | 14 / 21 | VENT / LID_SW (aux header, LID filtered) |
 | 19/20 | USB D−/D+ | | 43/44 | UART0 TX/RX (aux header) |
 
 ## Bill of materials
@@ -113,15 +132,15 @@ them).
 | D4 | 1N4148W | SOD-123 |
 | LED1 | WS2812B | PLCC-4 5050 |
 | LED2 / LED3 | green / amber LED | 0805 |
-| R1, R2, R7, R8 | 10 kΩ | 0805 |
+| R1, R2, R7, R8, R13 | 10 kΩ | 0805 |
 | R3 | 330 Ω | 0805 |
 | R4, R5 | 5.1 kΩ | 0805 |
 | R6, R11 | 100 Ω | 0805 |
-| R9 | 1 kΩ | 0805 |
+| R9, R12 | 1 kΩ | 0805 |
 | R10 | 680 Ω | 0805 |
 | C1 | 22 µF 25 V X5R | 1206 |
 | C3 | 22 µF 10 V X5R | 1206 |
-| C2, C4, C6, C8, C10 | 100 nF | 0805 |
+| C2, C4, C6, C8, C10, C12 | 100 nF | 0805 |
 | C5 | 1 µF | 0805 |
 | C7, C11 | 10 µF | 0805 |
 | C9 | 10 nF | 0805 |
@@ -223,8 +242,8 @@ flip there is cheap to spot and expensive to miss.
 ### Estimated cost
 
 Against JLCPCB's published Economic PCBA rates (setup $8, stencil $1.50,
-feeder loading $3/Extended, SMT $0.0016/joint), with 170 machine-soldered
-joints across 37 placements:
+feeder loading $3/Extended, SMT $0.0016/joint), with 176 machine-soldered
+joints across 40 placements:
 
 | | assemble 2 | assemble 5 |
 |---|---:|---:|
@@ -233,12 +252,12 @@ joints across 37 placements:
 | Stencil | $1.50 | $1.50 |
 | Feeder loading (4 Extended × $3) | $12.00 | $12.00 |
 | Process edges, if required (see below) | $7.81 | $7.81 |
-| SMT assembly (170 joints/board) | $0.54 | $1.36 |
+| SMT assembly (176 joints/board) | $0.56 | $1.41 |
 | Components, machine-placed ($8.34/board) | $16.67 | $41.69 |
-| **JLCPCB subtotal** | **$48.53** | **$74.36** |
+| **JLCPCB subtotal** | **$48.54** | **$74.41** |
 | Hand-solder parts from LCSC ($1.50/board + MOQ) | ~$10 | ~$12 |
 | **Total, ex-shipping** | **~$59** | **~$86** |
-| *per assembled board* | *$29.26* | *$17.27* |
+| *per assembled board* | *$29.27* | *$17.28* |
 
 **Every fee above the components line is charged once per order, not per
 board** — $31.31 of fixed cost either way. The marginal cost of one more
@@ -327,6 +346,9 @@ kicad-cli pcb export drill -o gerbers/ --format excellon --excellon-units mm \
   --gerber-precision 5 bisque-controller.kicad_pcb
 python3 generator/gen_jlc.py jlcpcb          # BOM.csv + CPL.csv (prints rotation fixes)
 kicad-cli sch export pdf -o pdf/bisque-controller-schematic.pdf bisque-controller.kicad_sch
+kicad-cli pcb export pdf --mode-single -l "F.Cu,B.Cu,F.Silkscreen,Edge.Cuts" \
+  -o pdf/bisque-controller-board.pdf bisque-controller.kicad_pcb
+./generator/render-3d.sh                     # 3d/board-3d-*.png (raytraced)
 ```
 
 **The board build is reproducible.** Rebuilding an unchanged `design.py`
