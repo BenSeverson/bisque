@@ -45,6 +45,13 @@ final class FirmwareContractTests: XCTestCase {
     private static let decoded: [FixtureCase] = [
         .decoding("status", as: StatusResponse.self),
         .decoding("status_faulted", as: StatusResponse.self),
+        // The optional-hardware variants. A kiln with no vent relay (#184) or no
+        // lid switch (#83) — the firmware default for both — omits the field
+        // entirely rather than sending false, so these prove the app still
+        // decodes a status that is missing them.
+        .decoding("status_no_vent", as: StatusResponse.self),
+        .decoding("status_no_lid", as: StatusResponse.self),
+        .decoding("status_lid_open", as: StatusResponse.self),
         .decoding("profile", as: FiringProfile.self),
         .decoding("profile_hold_until_skip", as: FiringProfile.self),
         .decoding("cone_fire_profiles", as: [FiringProfile].self),
@@ -90,12 +97,25 @@ final class FirmwareContractTests: XCTestCase {
     /// the app could show and does not.
     private static let knownUnmodelled: [String: Set<String>] = [
         // The app shows neither the pre-start delay countdown nor the relay
-        // duty cycle; the web dashboard shows both.
-        "status": ["delayRemaining", "dutyPercent"],
-        "status_faulted": ["delayRemaining", "dutyPercent"],
-        // Same two, plus the id of the running profile — the app already knows
-        // which profile it started, so the frame's copy is redundant to it.
-        "ws_temp_update": ["data.delayRemaining", "data.dutyPercent", "data.profileId"],
+        // duty cycle; the web dashboard shows both. It also shows neither piece
+        // of optional hardware — the vent relay (#184) and the lid interlock
+        // switch (#83) — both of which the LCD and the web dashboard do show.
+        // Worth closing: an operator watching a firing from the app cannot
+        // currently see that it paused because the lid is up.
+        "status": ["delayRemaining", "dutyPercent", "ventActive", "lidOpen"],
+        "status_faulted": ["delayRemaining", "dutyPercent", "ventActive"],
+        "status_no_vent": ["delayRemaining", "dutyPercent"],
+        "status_no_lid": ["delayRemaining", "dutyPercent"],
+        "status_lid_open": ["delayRemaining", "dutyPercent", "ventActive", "lidOpen"],
+        // Same as `status`, plus the id of the running profile — the app already
+        // knows which profile it started, so the frame's copy is redundant to it.
+        "ws_temp_update": [
+            "data.delayRemaining", "data.dutyPercent", "data.profileId",
+            "data.ventActive", "data.lidOpen",
+        ],
+        // The app does not offer the lid-mode setting; it is configured from the
+        // web UI or the LCD.
+        "settings": ["lidMode"],
     ]
 
     // MARK: - Decoding
