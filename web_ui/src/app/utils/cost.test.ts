@@ -45,6 +45,17 @@ describe("heatingMinutes", () => {
     ];
     expect(heatingMinutes(segments)).toBeCloseTo(180);
   });
+
+  it("ignores an opening cooling segment written for an already-hot kiln", () => {
+    // 1000 -> 800 is a cool, but against the assumed 20 C start its target still
+    // looks like a climb. Only the negative rate says otherwise, so reading the
+    // target alone billed the one segment that most needed excluding.
+    expect(heatingMinutes([{ targetTemp: 800, rampRate: -200, holdTime: 0 }])).toBeCloseTo(0);
+  });
+
+  it("still counts that segment's hold", () => {
+    expect(heatingMinutes([{ targetTemp: 800, rampRate: -200, holdTime: 45 }])).toBeCloseTo(45);
+  });
 });
 
 describe("estimateProfileCost", () => {
@@ -125,6 +136,39 @@ describe("estimateFiringCost", () => {
   it("prices a firing that stopped early below one that ran to completion", () => {
     const short = estimateFiringCost(60 * 60, profile, SETTINGS)!;
     expect(short).toBeCloseTo(estimateFiringCost(120 * 60, profile, SETTINGS)! / 2);
+  });
+
+  it("bills an abort during the heat at full rate, not the profile-wide average", () => {
+    // Two hours of heat then two hours of programmed cool. An abort an hour in
+    // never reached the cool, so all of it was heating — discounting it by the
+    // profile's 50% heating share would charge for half an hour of element time
+    // that the kiln spent at full tilt.
+    const heatThenCool = {
+      segments: [twoHourRamp, { targetTemp: 20, rampRate: -500, holdTime: 0 }],
+      estimatedDuration: 240,
+    };
+    expect(estimateFiringCost(60 * 60, heatThenCool, SETTINGS)).toBeCloseTo(
+      1 * 5 * ASSUMED_DUTY_CYCLE * 0.2,
+    );
+  });
+
+  it("stops charging once the firing reaches the cool", () => {
+    // Three hours in: two of heat, one of cool. Only the heat is billed, so this
+    // costs the same as the two-hour abort above.
+    const heatThenCool = {
+      segments: [twoHourRamp, { targetTemp: 20, rampRate: -500, holdTime: 0 }],
+      estimatedDuration: 240,
+    };
+    expect(estimateFiringCost(180 * 60, heatThenCool, SETTINGS)).toBeCloseTo(
+      estimateFiringCost(120 * 60, heatThenCool, SETTINGS)!,
+    );
+  });
+
+  it("never charges for more hours than the firing actually ran", () => {
+    // A kiln that fell behind schedule reports a duration past its estimate; the
+    // heating tally must not exceed the wall clock.
+    const cost = estimateFiringCost(30 * 60, profile, SETTINGS)!;
+    expect(cost).toBeCloseTo(0.5 * 5 * ASSUMED_DUTY_CYCLE * 0.2);
   });
 
   it("falls back to the whole duration when the profile is gone", () => {

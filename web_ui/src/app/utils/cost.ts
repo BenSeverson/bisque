@@ -44,32 +44,63 @@ interface CostSegment {
 }
 
 /**
- * Minutes of a profile during which the element is doing work.
+ * Walk a profile's timeline, totalling the minutes the element is doing work.
  *
- * A *controlled cooling* segment (negative ramp rate) contributes nothing: the
- * kiln loses heat faster than the schedule asks for over most of its range, so
- * the element is essentially off. Counting it would put the 12-hour crystalline
- * profile — over three hours of which is a programmed cool — at nearly double
- * its real consumption.
+ * A *controlled cooling* segment contributes nothing: the kiln loses heat faster
+ * than the schedule asks for over most of its range, so the element is
+ * essentially off. Counting it would put the 12-hour crystalline profile — over
+ * three hours of which is a programmed cool — at nearly double its real
+ * consumption.
+ *
+ * A ramp counts as heating only when the *rate* and the *target* agree that the
+ * kiln is going up. Reading the target alone is not enough: a profile written
+ * for a kiln that is already hot can open with a cooling segment (1000 °C down
+ * to 800 °C at -200 °C/hr), and against an assumed 20 °C start 800 still looks
+ * like a climb — so the segment that most needs excluding was billed as hours of
+ * heating. The rate's sign is what the author actually declared, and it is what
+ * the firmware steers by (firing_engine.c).
  *
  * Holds always count, whatever precedes them, since maintaining a temperature
  * means replacing losses. An indefinite hold contributes 0 via
  * computeSegmentDurationMinutes, which is the same choice estimatedDuration
  * makes: its length is unknowable up front.
+ *
+ * `limitMinutes` stops the tally partway through, so a firing that ended early
+ * is charged for the part of the schedule it actually reached rather than for an
+ * average over the whole of it. `totalMinutes` is always the full timeline.
  */
-export function heatingMinutes(segments: readonly CostSegment[]): number {
+function walkSegments(
+  segments: readonly CostSegment[],
+  limitMinutes: number,
+): { heatingMinutes: number; totalMinutes: number } {
   let fromTemp = PROFILE_START_TEMP_C;
-  let minutes = 0;
+  let elapsed = 0;
+  let heating = 0;
+
+  /** Advance the clock by `minutes`, returning how many fell inside the limit. */
+  const advance = (minutes: number): number => {
+    const counted = Math.max(0, Math.min(minutes, limitMinutes - elapsed));
+    elapsed += minutes;
+    return counted;
+  };
+
   for (const segment of segments) {
     const { rampMinutes, holdMinutes } = computeSegmentDurationMinutes(
       { targetTemp: segment.targetTemp, rampRate: segment.rampRate, holdMinutes: segment.holdTime },
       fromTemp,
     );
-    if (segment.targetTemp > fromTemp) minutes += rampMinutes;
-    minutes += holdMinutes;
+    const isHeatingRamp = segment.rampRate > 0 && segment.targetTemp > fromTemp;
+    const ramp = advance(rampMinutes);
+    if (isHeatingRamp) heating += ramp;
+    heating += advance(holdMinutes);
     fromTemp = segment.targetTemp;
   }
-  return minutes;
+  return { heatingMinutes: heating, totalMinutes: elapsed };
+}
+
+/** Minutes of a profile during which the element is doing work. */
+export function heatingMinutes(segments: readonly CostSegment[]): number {
+  return walkSegments(segments, Infinity).heatingMinutes;
 }
 
 /** A profile, as far as costing it is concerned. */
@@ -120,21 +151,40 @@ export function estimateProfileCost(profile: CostProfile, settings: CostSettings
 }
 
 /**
- * Estimated cost of a completed firing.
+ * Estimated cost of a firing that has already run.
  *
- * A history record carries only a total duration, which includes any programmed
- * cool. When the profile it ran is still on the kiln, its heating fraction is
- * applied so a record and its profile card quote the same number for a firing
- * that ran to plan; a record whose profile has since been deleted falls back to
- * the whole duration and therefore reads high on a profile with a long cool.
+ * A history record carries only a total duration; the schedule behind it has to
+ * come from the profile it names. Rather than discount that duration by a
+ * profile-wide heating share, this walks the schedule to *where the firing
+ * stopped* — an abort an hour into a two-hour heat followed by a two-hour cool
+ * was all heating, and a flat 50% share would bill it for half. Progress is
+ * measured the way the firing progress bar measures it, against
+ * `estimatedDuration`, and the result is capped at the record's own duration so
+ * a kiln that fell behind schedule is never charged for more hours than it ran.
+ *
+ * Two limits are inherent to what a record stores:
+ *
+ * - It keeps `profileId`, not a snapshot of the segments, so editing a profile
+ *   after a firing re-prices that firing. Ignoring the profile instead would
+ *   avoid the drift but overcharge every slow-cool firing by the whole length of
+ *   its cool, which is the larger error. Fixing it properly means recording the
+ *   shape — or better, the integrated energy — at firing time, in firmware.
+ * - A record whose profile has since been deleted falls back to the whole
+ *   duration, and so reads high on a profile with a long cool.
  */
 export function estimateFiringCost(
   durationS: number,
   profile: CostProfile | undefined,
   settings: CostSettings,
 ): number | null {
-  const hours = (durationS / 3600) * (profile ? heatingFraction(profile) : 1);
-  return costOfHeatingHours(hours, settings);
+  const durationMinutes = durationS / 60;
+  if (!profile) return costOfHeatingHours(durationMinutes / 60, settings);
+
+  const { totalMinutes } = walkSegments(profile.segments, Infinity);
+  const progress =
+    profile.estimatedDuration > 0 ? Math.min(1, durationMinutes / profile.estimatedDuration) : 1;
+  const { heatingMinutes: heating } = walkSegments(profile.segments, progress * totalMinutes);
+  return costOfHeatingHours(Math.min(heating, durationMinutes) / 60, settings);
 }
 
 /**
