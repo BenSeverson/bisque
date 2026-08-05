@@ -539,6 +539,36 @@ export function Settings() {
                 onCheckedChange={(checked) => updateField("autoShutdown", checked)}
               />
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="lid-mode">Lid Switch</Label>
+              <Select
+                value={watchedSettings.lidMode ?? "pause"}
+                onValueChange={(value: "warn" | "pause" | "interlock") =>
+                  updateField("lidMode", value)
+                }
+              >
+                <SelectTrigger id="lid-mode">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="warn">Warn only</SelectItem>
+                  <SelectItem value="pause">Pause firing</SelectItem>
+                  <SelectItem value="interlock">Cut elements, keep running</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground">
+                {watchedSettings.lidMode === "warn" &&
+                  "Show the lid position, but never interrupt a firing."}
+                {(watchedSettings.lidMode ?? "pause") === "pause" &&
+                  "Cut the elements and hold the program while the lid is open, resuming automatically when it closes. Recommended for ceramics."}
+                {watchedSettings.lidMode === "interlock" &&
+                  "Cut the elements but keep the program running. Recommended for heat treating, where the door is opened at temperature by design."}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Not a substitute for a mechanical interlock wired into the element circuit.
+              </p>
+            </div>
           </CardContent>
         </Card>
 

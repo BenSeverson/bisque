@@ -121,6 +121,11 @@ export const settingsSchema = z.object({
     0,
     "Electricity cost cannot be negative",
   ),
+  // What an open lid does to a running firing. Always sent by the firmware —
+  // it is a setting, not a hardware reading, so it is present whether or not a
+  // switch is fitted. Optional here only so a kiln on firmware predating #83
+  // still parses.
+  lidMode: z.enum(["warn", "pause", "interlock"]).optional(),
 });
 
 export type SettingsFormValues = z.infer<typeof settingsSchema>;

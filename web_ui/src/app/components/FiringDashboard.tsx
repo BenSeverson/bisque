@@ -26,6 +26,7 @@ import {
   SkipForward,
   Timer,
   Zap,
+  DoorOpen,
   Fan,
 } from "lucide-react";
 import { TemperatureDataPoint, HOLD_UNTIL_SKIP, FiringStatus } from "../types/kiln";
@@ -397,6 +398,20 @@ export function FiringDashboard() {
                   }`}
                 />
                 Vent {firingProgress.ventActive ? "on" : "off"}
+              </p>
+            )}
+            {firingProgress.lidOpen !== null && (
+              <p
+                className={`flex items-center gap-1.5 text-sm ${
+                  firingProgress.lidOpen ? "text-foreground" : "text-muted-foreground"
+                }`}
+                aria-live="polite"
+              >
+                <DoorOpen
+                  aria-hidden="true"
+                  className={`h-4 w-4 ${firingProgress.lidOpen ? "text-amber-500" : ""}`}
+                />
+                Lid {firingProgress.lidOpen ? "open" : "closed"}
               </p>
             )}
           </CardHeader>

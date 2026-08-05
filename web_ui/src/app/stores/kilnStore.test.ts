@@ -363,6 +363,25 @@ describe("kilnStore: WebSocket temp_update handling", () => {
     expect(useKilnStore.getState().firingProgress.ventActive).toBeNull();
   });
 
+  it("carries the lid switch through from each frame (#83)", () => {
+    wsSubscriber!(tempFrame({ lidOpen: true, isActive: true, status: "paused" }));
+    expect(useKilnStore.getState().firingProgress.lidOpen).toBe(true);
+    wsSubscriber!(tempFrame({ lidOpen: false, isActive: true, status: "heating" }));
+    expect(useKilnStore.getState().firingProgress.lidOpen).toBe(false);
+  });
+
+  it("reports no lid switch at all on a kiln that does not send one (#83)", () => {
+    // Not false: the lid GPIO defaults to disabled, so an omitted field means
+    // there is no switch to report on, and the dashboard hides the indicator
+    // rather than claiming the lid is shut on a kiln that cannot tell.
+    wsSubscriber!(tempFrame({ isActive: true, status: "heating" }));
+    expect(useKilnStore.getState().firingProgress.lidOpen).toBeNull();
+
+    wsSubscriber!(tempFrame({ isActive: true, status: "heating", lidOpen: false }));
+    wsSubscriber!(tempFrame({ isActive: true, status: "heating" }));
+    expect(useKilnStore.getState().firingProgress.lidOpen).toBeNull();
+  });
+
   it("coerces an unknown status string back to 'idle'", () => {
     wsSubscriber!(tempFrame({ status: "WAT" }));
     expect(useKilnStore.getState().firingProgress.status).toBe("idle");

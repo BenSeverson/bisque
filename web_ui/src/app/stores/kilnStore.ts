@@ -64,6 +64,7 @@ const initialProgress: FiringProgress = {
   delayRemaining: 0,
   dutyPercent: null,
   ventActive: null,
+  lidOpen: null,
   status: "idle",
 };
 
@@ -182,6 +183,7 @@ export const useKilnStore = create<KilnState>((set) => ({
           delayRemaining: s.delayRemaining ?? 0,
           dutyPercent: s.dutyPercent ?? null,
           ventActive: s.ventActive ?? null,
+          lidOpen: s.lidOpen ?? null,
           status,
         },
         /* A reload landing mid-failure never sees the transition frame, so the
@@ -285,6 +287,8 @@ export const useKilnStore = create<KilnState>((set) => ({
                  firmware. Not zeroed on endedFiring either: the firmware drops
                  the vent when the firing stops and says so in the same frame. */
               ventActive: d.ventActive ?? null,
+              /* Same omission-means-absent rule as ventActive above. */
+              lidOpen: d.lidOpen ?? null,
               status,
             },
             currentTempData: newData,

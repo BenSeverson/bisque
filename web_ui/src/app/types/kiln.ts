@@ -95,6 +95,15 @@ export interface FiringProgress {
    * where the vent is supposed to be clearing combustion gases.
    */
   ventActive: boolean | null;
+  /**
+   * Lid/door interlock switch position.
+   *
+   * `null` means the kiln reports no lid switch at all — either no lid GPIO is
+   * configured (the firmware default) or the firmware predates #83. That is
+   * different from `false`, which is a fitted switch reporting the lid shut,
+   * and worth showing alongside the mode the kiln is configured for.
+   */
+  lidOpen: boolean | null;
   status: FiringStatus;
 }
 
