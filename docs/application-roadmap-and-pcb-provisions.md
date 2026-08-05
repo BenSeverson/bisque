@@ -65,7 +65,8 @@ Consequences on an ESP32-S3:
    is unreliable while Wi-Fi is active. As wired today, there is effectively **no
    usable analog input** — this is the single most important thing to fix in the PCB
    pin map (see §3.1) if CT current sensing or any analog sensor is ever wanted.
-2. Plenty of clean digital pins remain: **14, 15, 16, 18, 21, 38–42, 47** (avoid
+2. Plenty of clean digital pins remain: **14, 15, 16, 18, 21, 38–42, 47** — enough for
+   the button re-map (§3.1), touch `T_CS`/`T_IRQ` (§3.7), and spares (avoid
    strapping pins 0/45, and keep 19/20 for USB; 46 is a strapping pin already spent on
    LCD RST). GPIO 33–37 depend on the module variant — reserved by octal PSRAM on
    R8 modules, free on quad-PSRAM/flash-only variants; treat them as
@@ -128,7 +129,40 @@ One current-transformer input (burden resistor + divider + clamp diodes) into a 
 ADC1 pin, footprints only on run 1. Enables element-health monitoring and real power
 measurement. If §3.1's re-map is somehow not possible, this moves to the I2C ADC.
 
-### 3.7 Spare-pin header & strategy
+### 3.7 Touch-screen enablement on the LCD header
+
+The 3.5" ST7796S module family uses the standard LCDWIKI-style **14-pin header**, of
+which today's wiring only uses the 9 display pins. The remaining **5 pins are the touch
+panel**: `T_CLK`, `T_CS`, `T_DIN`, `T_DO`, `T_IRQ` — the on-module resistive touch
+controller (XPT2046) with its own SPI interface plus a pen-down interrupt
+(confirmed against the MSP3520 user manual pin table; touch pins may be left
+unconnected when unused, which is exactly today's situation).
+
+Provision for run 1:
+
+- **Route all 14 header pins.** The five touch lines cost only **two new ESP32
+  GPIOs**, not five: `T_CLK`/`T_DIN`/`T_DO` are electrically just SPI
+  SCLK/MOSI/MISO and tie to the existing shared SPI2 nets (GPIO 12/11/13 — the bus
+  already multi-drops the LCD at 40 MHz and the MAX31855 at 1 MHz with per-device
+  clocks; the XPT2046 joins as a third device at ≤2.5 MHz). Only `T_CS` and
+  `T_IRQ` need fresh GPIOs from the free pool (e.g. 14, 15). `T_IRQ` is technically
+  optional (the chip can be polled) but is nearly free and lets firmware skip
+  touch reads until a press occurs — wire it.
+- **Series resistor / solder-jumper on the touch lines** so an untouched build (or a
+  touchless module variant) is unaffected.
+- **Capacitive variant escape hatch:** some ST7796S modules ship with capacitive
+  touch (FT6336U/GT911) on **I2C + INT** instead of the XPT2046. That variant is
+  already covered by the §3.5 I2C header plus one spare input — no extra layout work.
+
+Firmware (when enabled): an XPT2046 driver on the shared bus, registered as an LVGL
+**pointer indev** alongside the existing encoder/group input — LVGL v9 supports both
+simultaneously, and the whole UI is already built from clickable widgets
+(buttons, list rows, button matrices), so modals become directly tappable with the
+5-way switch untouched as a fallback. Resistive touch needs a 4-point calibration
+stored in NVS (small settings + one-time calibration modal). Kconfig: two new pin
+options defaulting to `-1` (disabled), same pattern as vent/lid-switch.
+
+### 3.8 Spare-pin header & strategy
 
 Route every remaining safe GPIO (from §2's free list) to a labeled 0.1" header with
 solder-jumper isolation. Do not spend strapping pins (0, 45) or USB pins (19, 20) on
@@ -136,7 +170,7 @@ new functions. Optional DNP footprint: a mains **zero-cross detector** into one 
 input — only relevant if finer-than-time-proportional SSR control is ever wanted for
 very low-temperature stability; cheap insurance.
 
-### 3.8 Power & safety envelope
+### 3.9 Power & safety envelope
 
 - Size the 5 V rail (or provide separate supply terminals) for solenoid/relay coil
   loads on the aux bank; flyback protection on every inductive channel.
@@ -157,11 +191,13 @@ very low-temperature stability; cheap insurance.
 | Forced-cool assist | 3.3 aux ch | No |
 | Element health / power metering | 3.1 + 3.6 populated | No |
 | Audit-grade timestamps | 3.5 RTC populated | No |
+| Touch-screen UI | 3.7 (all 14 LCD header pins routed; 2 GPIOs) | No |
 | Wood kiln (temp+RH) | 3.5 sensor + 3.3 vent ch (+ big firmware work) | No |
 | Solder reflow | none (engine timing rework only) | No |
 | Below-ambient control | 3.3 can trigger a chiller relay, but bidirectional PID is out of scope | Likely yes (dedicated design) |
 
 Bottom line: with the pin re-map (§3.1), a second TC channel (§3.2), a 3-channel aux
-output bank (§3.3), three protected inputs (§3.4), and an I2C header (§3.5) — most of
-it DNP on the first run — every application in Tiers A and B, and the tractable parts
-of Tier C, fit on the first PCB revision.
+output bank (§3.3), three protected inputs (§3.4), an I2C header (§3.5), and the full
+14-pin LCD header routed for touch (§3.7) — most of it DNP on the first run — every
+application in Tiers A and B, the touch UI, and the tractable parts of Tier C fit on
+the first PCB revision.
