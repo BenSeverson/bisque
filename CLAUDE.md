@@ -121,9 +121,14 @@ chooses the destination at run time so no device name is pinned.
 UI checks (#154): it decodes the `make fixtures` JSON with the app's own
 `Codable` models, so a renamed or retyped key fails the build rather than
 reaching a user as `APIError.decodingError`. `test-ios` therefore depends on
-`fixtures`, exactly as `test-web` does, and missing or stale fixtures **fail**
-(`BISQUE_SKIP_CONTRACTS=1`, or `TEST_RUNNER_BISQUE_SKIP_CONTRACTS=1` through
-xcodebuild, is the explicit opt-out). Three tables in that file must stay
+`fixtures`, exactly as `test-web` does, and missing or stale fixtures **fail**.
+`BISQUE_SKIP_CONTRACTS=1 make test-ios` is the opt-out, and the target has to do
+two things to honour it: drop the `fixtures` prerequisite (a prerequisite runs
+whatever the recipe would have, so it would otherwise start the very C build the
+flag exists to avoid) and re-export the flag as
+`TEST_RUNNER_BISQUE_SKIP_CONTRACTS` — xcodebuild forwards that prefix and
+nothing else, so the plain name set on a bare `xcodebuild test` never reaches
+the simulator and the suite runs anyway. Three tables in that file must stay
 honest, and each one fails loudly when it doesn't: `decoded` (fixture → model),
 `notModelled` (endpoints iOS deliberately doesn't call), and `knownUnmodelled`
 (fields the firmware emits that the app drops — `Codable` ignores unknown keys

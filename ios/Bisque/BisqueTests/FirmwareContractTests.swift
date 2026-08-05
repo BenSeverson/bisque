@@ -18,10 +18,13 @@ import XCTest
 /// web side (#173):
 ///
 ///   1. No fixtures at all — the suite would be green having validated
-///      nothing. Missing fixtures fail; `BISQUE_SKIP_CONTRACTS=1` (or
-///      `TEST_RUNNER_BISQUE_SKIP_CONTRACTS=1`, which is how `xcodebuild`
-///      forwards an environment variable into the test process) is the
-///      explicit opt-out for a Mac that cannot run the C build.
+///      nothing. Missing fixtures fail; `BISQUE_SKIP_CONTRACTS=1 make test-ios`
+///      is the explicit opt-out for a Mac that cannot run the C build. That
+///      target both drops its `fixtures` prerequisite and re-exports the flag
+///      as `TEST_RUNNER_BISQUE_SKIP_CONTRACTS`, which is the only form
+///      `xcodebuild` forwards into a process on the simulator — set the plain
+///      name on a bare `xcodebuild test` and it never arrives, so this reads
+///      both.
 ///   2. Stale fixtures — JSON left over from an older serializer decodes fine.
 ///      `make fixtures` writes `_manifest.json` with a SHA256 of every source
 ///      that can change the emitted bytes; this re-hashes them and fails when
