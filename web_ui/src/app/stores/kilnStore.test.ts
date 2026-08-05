@@ -260,9 +260,30 @@ describe("kilnStore: WebSocket temp_update handling", () => {
   });
 
   it("connect()s on init and disconnect()s on cleanup", () => {
+    // beforeEach has already called initWebSocket() once.
     expect(connectSpy).toHaveBeenCalledOnce();
-    const cleanup = useKilnStore.getState().initWebSocket; // already called
-    expect(cleanup).toBeDefined();
+    expect(disconnectSpy).not.toHaveBeenCalled();
+
+    // Run the returned teardown the way an unmounting effect would. Without
+    // this the socket outlives the component and keeps reconnecting forever.
+    const cleanup = useKilnStore.getState().initWebSocket();
+    cleanup();
+
+    expect(disconnectSpy).toHaveBeenCalledOnce();
+  });
+
+  it("drops its frame and status subscriptions on cleanup", () => {
+    // The subscriptions close over set(), so one that survives teardown keeps
+    // writing to a store nothing is rendering — and a StrictMode double-mount
+    // leaves two of them folding every frame twice.
+    const cleanup = useKilnStore.getState().initWebSocket();
+    expect(wsSubscriber).not.toBeNull();
+    expect(wsStatusSubscriber).not.toBeNull();
+
+    cleanup();
+
+    expect(wsSubscriber).toBeNull();
+    expect(wsStatusSubscriber).toBeNull();
   });
 
   it("merges WS frame into firingProgress with coerced status", () => {
