@@ -68,11 +68,13 @@ type IndexedMatch = RegExpMatchArray & {
 };
 const matchStrings = idfManager.matchStrings.map((s) => new RegExp(s, "gd"));
 
-const canonicalVersion = CANONICAL_PATTERN.exec(read(CANONICAL_FILE))?.[1];
-if (!canonicalVersion) {
+const canonicalMatch = CANONICAL_PATTERN.exec(read(CANONICAL_FILE))?.[1];
+if (!canonicalMatch) {
   throw new Error(`no esp_idf_version pin in ${CANONICAL_FILE} — has the release build moved?`);
 }
-const versionLiteral = new RegExp(canonicalVersion.replace(/\./g, "\\."), "g");
+// Rebound so the narrowing survives into findPins below; TS drops it for a
+// module-scope const captured by a closure.
+const canonicalVersion: string = canonicalMatch;
 
 /**
  * Every text file under version control, minus the historical record. Uses the
@@ -103,17 +105,24 @@ function findPins(file: string): Pin[] {
     return []; // symlink into an unchecked-out submodule, or similar
   }
   if (content.includes("\0")) return []; // binary
-  versionLiteral.lastIndex = 0;
-  return [...content.matchAll(versionLiteral)].map((m) => {
-    const before = content.slice(0, m.index);
+  // A literal indexOf sweep rather than a RegExp built from canonicalVersion:
+  // the version is already constrained to v\d+\.\d+\.\d+ by CANONICAL_PATTERN,
+  // but escaping a value into a pattern is a habit worth not forming, and the
+  // search here is genuinely for a fixed string.
+  const pins: Pin[] = [];
+  for (let at = content.indexOf(canonicalVersion); at !== -1;) {
+    const before = content.slice(0, at);
     const lineStart = before.lastIndexOf("\n") + 1;
-    return {
+    const lineEnd = content.indexOf("\n", at);
+    pins.push({
       file,
       line: before.split("\n").length,
-      start: m.index,
-      text: content.slice(lineStart, content.indexOf("\n", m.index)).trim(),
-    };
-  });
+      start: at,
+      text: content.slice(lineStart, lineEnd === -1 ? undefined : lineEnd).trim(),
+    });
+    at = content.indexOf(canonicalVersion, at + canonicalVersion.length);
+  }
+  return pins;
 }
 
 /** Offsets renovate.json's matchStrings would rewrite in a given file, and what they'd read. */
