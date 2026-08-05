@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "Renovate is scoped to ONLY the ESP-IDF version regex below — the one dependency Dependabot can't see (it lives in workflow YAML, not a manifest). npm and GitHub Actions stay with Dependabot (.github/dependabot.yml); enabledManagers keeps Renovate from opening duplicate PRs for them.",
+  "description": "Renovate is scoped to ONLY the ESP-IDF version regexes below — the one dependency Dependabot can't see (it lives in workflow YAML, container tags and docs, not a manifest). npm and GitHub Actions stay with Dependabot (.github/dependabot.yml); enabledManagers keeps Renovate from opening duplicate PRs for them.",
   "extends": [
     "config:recommended",
     ":dependencyDashboard"
@@ -11,10 +11,27 @@
   "prConcurrentLimit": 3,
   "customManagers": [
     {
+      "description": "The pinned ESP-IDF toolchain is hand-written in 21 places — the release.yml action input, three espressif/idf container tags, the esp-clang cache key, the install-esp-idf.sh default, a shields.io badge and a dozen prose mentions. Matching only the first left every other site to a manual fan-out commit (b63ed0e) and let anything missed go stale in silence, so all of them are matched here and grouped into one PR. Kept as one regex manager rather than enabling the dockerfile/github-actions docker managers: those resolve espressif/idf Docker Hub tags, a different datasource from espressif/esp-idf GitHub releases, and would split a single toolchain bump across two PRs. web_ui/test/idfVersionPins.test.ts fails if a new pin site appears that no matchString below can see.",
       "customType": "regex",
-      "managerFilePatterns": ["/^\\.github/workflows/.*\\.ya?ml$/"],
+      "managerFilePatterns": [
+        "/^\\.github/workflows/.*\\.ya?ml$/",
+        "/^\\.devcontainer/Dockerfile$/",
+        "/^\\.devcontainer/devcontainer\\.json$/",
+        "/^\\.claude/hooks/install-esp-idf\\.sh$/",
+        "/^scripts/idf-env\\.sh$/",
+        "/^(README|RELEASING)\\.md$/",
+        "/^docs/(devcontainer|cloud-dev)\\.md$/"
+      ],
+      "matchStringsStrategy": "any",
       "matchStrings": [
-        "esp_idf_version:\\s*(?<currentValue>v\\d+\\.\\d+\\.\\d+)"
+        "esp_idf_version:\\s*(?<currentValue>v\\d+\\.\\d+\\.\\d+)",
+        "espressif/idf:(?<currentValue>v\\d+\\.\\d+\\.\\d+)",
+        "esp-clang-idf-(?<currentValue>v\\d+\\.\\d+\\.\\d+)",
+        "IDF_VERSION:-(?<currentValue>v\\d+\\.\\d+\\.\\d+)",
+        "ESP-IDF (?<currentValue>v\\d+\\.\\d+\\.\\d+)",
+        "ESP--IDF-(?<currentValue>v\\d+\\.\\d+\\.\\d+)-blue",
+        "esp-idf/en/(?<currentValue>v\\d+\\.\\d+\\.\\d+)/",
+        "\\.espressif/(?<currentValue>v\\d+\\.\\d+\\.\\d+)/esp-idf"
       ],
       "depNameTemplate": "espressif/esp-idf",
       "datasourceTemplate": "github-releases",
