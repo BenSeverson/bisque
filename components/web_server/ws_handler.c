@@ -245,7 +245,7 @@ void ws_broadcast_status(void)
     firing_engine_get_settings(&settings);
     float adjusted_temp = tc.fault ? 0.0f : (tc.temperature_c + settings.tc_offset_c);
 
-    cJSON *root = build_ws_temp_update_json(&prog, adjusted_temp, safety_get_ssr_duty());
+    cJSON *root = build_ws_temp_update_json(&prog, adjusted_temp, safety_get_ssr_duty(), safety_get_vent_state());
 
     char *json = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);

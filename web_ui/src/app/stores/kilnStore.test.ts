@@ -321,6 +321,27 @@ describe("kilnStore: WebSocket temp_update handling", () => {
     expect(useKilnStore.getState().firingProgress.dutyPercent).toBe(0);
   });
 
+  it("carries the vent relay through from each frame (#184)", () => {
+    wsSubscriber!(tempFrame({ ventActive: true, isActive: true, status: "heating" }));
+    expect(useKilnStore.getState().firingProgress.ventActive).toBe(true);
+    wsSubscriber!(tempFrame({ ventActive: false, isActive: true, status: "heating" }));
+    expect(useKilnStore.getState().firingProgress.ventActive).toBe(false);
+  });
+
+  it("reports no vent at all on a kiln that does not send one (#184)", () => {
+    // Not false: the vent GPIO defaults to disabled, so an omitted field means
+    // there is no vent relay to report on, and the dashboard hides the
+    // indicator rather than showing a fan that is permanently off.
+    wsSubscriber!(tempFrame({ isActive: true, status: "heating" }));
+    expect(useKilnStore.getState().firingProgress.ventActive).toBeNull();
+
+    // And a kiln that stops sending it drops back to "no vent" rather than
+    // stranding the last reading — same reasoning as dutyPercent above.
+    wsSubscriber!(tempFrame({ isActive: true, status: "heating", ventActive: true }));
+    wsSubscriber!(tempFrame({ isActive: true, status: "heating" }));
+    expect(useKilnStore.getState().firingProgress.ventActive).toBeNull();
+  });
+
   it("coerces an unknown status string back to 'idle'", () => {
     wsSubscriber!(tempFrame({ status: "WAT" }));
     expect(useKilnStore.getState().firingProgress.status).toBe("idle");

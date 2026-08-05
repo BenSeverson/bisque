@@ -30,6 +30,10 @@ static const char *TAG = "safety";
 static int s_ssr_pin = -1;
 static int s_alarm_gpio = -1;
 static int s_vent_gpio = -1;
+/* Last level written to the vent pin. Read by the web/display tasks via
+   safety_get_vent_state(); a plain bool written from one task and read from
+   others, so volatile to keep the read out of a cached register. */
+static volatile bool s_vent_active = false;
 static float s_max_safe_temp = 1300.0f;
 static float s_tc_offset_c = 0.0f;
 static safety_trip_cause_t s_trip_cause = SAFETY_TRIP_NONE;
@@ -112,6 +116,7 @@ void safety_init_io(int alarm_gpio, int vent_gpio)
         };
         gpio_config(&io);
         gpio_set_level(vent_gpio, 0);
+        s_vent_active = false;
         ESP_LOGI(TAG, "Vent GPIO %d configured", vent_gpio);
     }
 }
@@ -160,6 +165,15 @@ void safety_update_vent(bool is_firing, float current_temp_c)
     /* Vent relay on during firing at temperatures below 700°C */
     int level = (is_firing && current_temp_c < VENT_MAX_TEMP_C) ? 1 : 0;
     gpio_set_level(s_vent_gpio, level);
+    s_vent_active = (level != 0);
+}
+
+vent_state_t safety_get_vent_state(void)
+{
+    if (s_vent_gpio < 0) {
+        return VENT_STATE_NOT_FITTED;
+    }
+    return s_vent_active ? VENT_STATE_ON : VENT_STATE_OFF;
 }
 
 esp_err_t safety_init(int ssr_pin, float max_safe_temp)

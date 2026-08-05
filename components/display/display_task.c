@@ -6,6 +6,7 @@
 #include "boot_status.h"
 #include "thermocouple.h"
 #include "firing_engine.h"
+#include "safety.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
@@ -57,7 +58,7 @@ static void dashboard_tick_cb(lv_timer_t *t)
     firing_progress_t prog;
     firing_engine_get_progress(&prog);
 
-    dashboard_update(&tc, &prog);
+    dashboard_update(&tc, &prog, safety_get_vent_state());
 
     /* This timer fires every 500 ms; logging every tick is ~170k INFO lines per
        day. Emit a status line only when the status changes or roughly once a

@@ -85,6 +85,16 @@ export interface FiringProgress {
    * report its power should say nothing rather than claim it is idle.
    */
   dutyPercent: number | null;
+  /**
+   * Downdraft vent relay: is the fan running right now?
+   *
+   * `null` means the kiln reports no vent at all — either no vent GPIO is
+   * configured (the firmware default) or the firmware predates #184. Either way
+   * there is nothing to show, which is different from `false`: that is a fitted
+   * vent that is currently off, and worth displaying during a bisque firing
+   * where the vent is supposed to be clearing combustion gases.
+   */
+  ventActive: boolean | null;
   status: FiringStatus;
 }
 

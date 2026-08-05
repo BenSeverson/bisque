@@ -63,6 +63,7 @@ const initialProgress: FiringProgress = {
   estimatedTimeRemaining: 0,
   delayRemaining: 0,
   dutyPercent: null,
+  ventActive: null,
   status: "idle",
 };
 
@@ -180,6 +181,7 @@ export const useKilnStore = create<KilnState>((set) => ({
           estimatedTimeRemaining: s.estimatedTimeRemaining,
           delayRemaining: s.delayRemaining ?? 0,
           dutyPercent: s.dutyPercent ?? null,
+          ventActive: s.ventActive ?? null,
           status,
         },
         /* A reload landing mid-failure never sees the transition frame, so the
@@ -277,6 +279,12 @@ export const useKilnStore = create<KilnState>((set) => ({
                  OTA rollback to pre-#180 firmware a retained value would sit
                  there as a stale percentage forever. */
               dutyPercent: d.dutyPercent ?? null,
+              /* Same reasoning as dutyPercent, and the same reset-to-null on an
+                 omitted key — except here an omission is the *normal* answer
+                 from a kiln with no vent relay fitted, not just an old
+                 firmware. Not zeroed on endedFiring either: the firmware drops
+                 the vent when the firing stops and says so in the same frame. */
+              ventActive: d.ventActive ?? null,
               status,
             },
             currentTempData: newData,

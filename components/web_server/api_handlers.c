@@ -362,7 +362,8 @@ static esp_err_t handle_get_status(httpd_req_t *req)
     kiln_settings_t settings;
     firing_engine_get_settings(&settings);
 
-    return send_json(req, build_status_json(&prog, &tc, settings.tc_offset_c, safety_get_ssr_duty()));
+    return send_json(
+        req, build_status_json(&prog, &tc, settings.tc_offset_c, safety_get_ssr_duty(), safety_get_vent_state()));
 }
 
 /* ── GET /api/v1/profiles ──────────────────────────── */

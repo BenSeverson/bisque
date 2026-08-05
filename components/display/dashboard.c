@@ -56,6 +56,12 @@ static lv_obj_t *s_screen = NULL;
 static lv_obj_t *s_status_bar = NULL;
 static lv_obj_t *s_status_label = NULL;
 static lv_obj_t *s_seg_label = NULL;
+/* Downdraft vent indicator, parked in the status bar just left of the segment
+ * label and hidden unless the relay is actually energized. It lives on the bar
+ * rather than inside a view so it survives every layout swap — the vent runs
+ * across IDLE (a delayed start is armed), ACTIVE and PAUSED alike. */
+static lv_obj_t *s_vent_label = NULL;
+static bool s_vent_shown = false;
 /* Invisible focusable widget. The encoder always points at it (in g_input_group),
  * so a SELECT press fires LV_EVENT_CLICKED and we open the contextual modal. */
 static lv_obj_t *s_select_trap = NULL;
@@ -195,6 +201,19 @@ static const char *error_code_description(firing_error_code_t code)
 }
 
 /* ── Widget helpers ──────────────────────────────────── */
+
+/* Re-park the vent marker to the left of the segment label. Must run after any
+ * write to that label: LVGL resolves alignment against the anchor's size at the
+ * moment of the call, so a marker aligned against yesterday's "SEGMENT 1/3"
+ * would sit on top of today's "SEGMENT 12/16". */
+static void align_vent_label(void)
+{
+    if (!s_vent_label || !s_seg_label) {
+        return;
+    }
+    lv_obj_update_layout(s_status_bar);
+    lv_obj_align_to(s_vent_label, s_seg_label, LV_ALIGN_OUT_LEFT_MID, -20, 0);
+}
 
 static lv_obj_t *create_content_area(void)
 {
@@ -672,6 +691,25 @@ void dashboard_create(void)
     s_seg_label = ui_make_label(s_status_bar, UI_FONT_SMALL, UI_COLOR_ON_ACCENT, "");
     lv_obj_align(s_seg_label, LV_ALIGN_RIGHT_MID, -16, 0);
 
+    /* Anchored to the segment label rather than to a fixed x: "SEGMENT n/m"
+     * varies from 11 to 13 characters and is blank outside a firing, and a
+     * constant would have to assume the widest case everywhere — which on a
+     * 480px bar is the difference between sitting clear of "HEATING" and
+     * overlapping it. Created hidden; dashboard_update reveals it. */
+    s_vent_label = ui_make_label(s_status_bar, UI_FONT_SMALL, UI_COLOR_TEXT, "VENT");
+    /* Drawn as a pill rather than as bare text. Everything else on this bar is
+     * plain words in the same font, so a third one read as part of the sentence
+     * — "HEATING VENT SEGMENT 1/3". The chip is also what makes it legible on
+     * every bar colour without tracking status_text_color(). */
+    lv_obj_set_style_bg_color(s_vent_label, UI_COLOR_BG, 0);
+    lv_obj_set_style_bg_opa(s_vent_label, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(s_vent_label, 10, 0);
+    lv_obj_set_style_pad_hor(s_vent_label, 10, 0);
+    lv_obj_set_style_pad_ver(s_vent_label, 2, 0);
+    lv_obj_add_flag(s_vent_label, LV_OBJ_FLAG_HIDDEN);
+    align_vent_label();
+    s_vent_shown = false;
+
     /* Invisible 1x1 trap parked off-screen. It's the only object in g_input_group,
      * so the encoder is always focused on it and SELECT presses fire its click event. */
     s_select_trap = lv_obj_create(s_screen);
@@ -694,7 +732,7 @@ void dashboard_create(void)
     ESP_LOGI(TAG, "dashboard created");
 }
 
-void dashboard_update(const thermocouple_reading_t *tc, const firing_progress_t *prog)
+void dashboard_update(const thermocouple_reading_t *tc, const firing_progress_t *prog, vent_state_t vent)
 {
     if (!s_screen) {
         return;
@@ -745,6 +783,21 @@ void dashboard_update(const thermocouple_reading_t *tc, const firing_progress_t 
         s_prev_status = prog->status;
     }
 
+    /* Vent indicator. Shown only while the relay is energized: a kiln with no
+     * vent GPIO (the default) reports VENT_STATE_NOT_FITTED and must never see
+     * the label, and a fitted-but-idle vent has nothing to announce either. As
+     * with the labels above, only touch it on a change — an lv_obj flag write
+     * invalidates the status bar, and this runs twice a second for hours. */
+    bool show_vent = (vent == VENT_STATE_ON);
+    if (show_vent != s_vent_shown) {
+        if (show_vent) {
+            lv_obj_clear_flag(s_vent_label, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_add_flag(s_vent_label, LV_OBJ_FLAG_HIDDEN);
+        }
+        s_vent_shown = show_vent;
+    }
+
     /* Same reasoning as the status bar above: lv_label_set_text always reallocs
      * and invalidates, so rewriting an unchanged "SEGMENT 3/7" every 500ms
      * repaints the status bar twice a second for the whole multi-hour firing.
@@ -757,10 +810,12 @@ void dashboard_update(const thermocouple_reading_t *tc, const firing_progress_t 
             s_prev_segment = prog->current_segment;
             s_prev_total_segments = prog->total_segments;
             s_seg_label_blank = false;
+            align_vent_label();
         }
     } else if (!s_seg_label_blank) {
         lv_label_set_text(s_seg_label, "");
         s_seg_label_blank = true;
+        align_vent_label();
     }
 
     /* PAUSED overlay visibility. */
