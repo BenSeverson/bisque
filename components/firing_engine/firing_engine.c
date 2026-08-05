@@ -701,6 +701,15 @@ typedef struct {
     float check_start_temp;
     int64_t check_start_time_us;
 
+    /* True only while the *lid* is what paused this firing. A lid close must not
+     * resume a pause the operator asked for, so the auto-resume is gated on this
+     * rather than on status == PAUSED. */
+    bool lid_paused;
+
+    /* Debounced lid position observed on the previous tick, so the policy runs
+     * on transitions rather than re-deciding every tick. */
+    lid_state_t lid_prev;
+
     /* History sampling cadence. */
     int64_t last_history_sample_us;
 
@@ -803,6 +812,11 @@ static void begin_firing(float cur_temp, int64_t now_us)
        redundant flash write per firing (#217). */
     s_state.last_elem_save_us = now_us;
     s_state.peak_temp_c = cur_temp;
+    /* Seed from the live reading rather than from zero: LID_STATE_CLOSED is 0,
+       so a memset default would make a firing that starts with a fitted, closed
+       lid see a spurious "closed" transition on its first tick. */
+    s_state.lid_paused = false;
+    s_state.lid_prev = safety_get_lid_state();
     history_firing_start(s_state.active_profile.id, s_state.active_profile.name);
     progress_lock();
     s_progress.status = FIRING_STATUS_HEATING;
@@ -968,6 +982,15 @@ static void handle_cmd(const firing_cmd_t *cmd)
             }
         }
 
+        /* Refuse rather than start into a firing that would sit at zero power
+           with no visible cause. warn mode is "report only" and must not block
+           anything. Applies to a delayed start too: the lid being up is a
+           now-fact the operator can fix, unlike the temperature checks above. */
+        if (settings.lid_mode != LID_MODE_WARN && safety_get_lid_state() == LID_STATE_OPEN) {
+            ESP_LOGW(TAG, "START rejected: lid is open");
+            break;
+        }
+
         int64_t now_us = esp_timer_get_time();
         s_state.delay_active = false;
         if (cmd->start.delay_minutes > 0) {
@@ -1081,6 +1104,11 @@ static void handle_cmd(const firing_cmd_t *cmd)
             }
             ESP_LOGI(TAG, "Firing resumed");
         }
+        /* An operator who resumes by hand owns the pause from here on: a later
+           lid close must not re-run the auto-resume against a stale
+           pause_start_us. The element stays gated off by safety while the lid is
+           still open, so this cannot re-energize anything. */
+        s_state.lid_paused = false;
         break;
     }
 
@@ -1354,6 +1382,84 @@ void firing_tick(int64_t now_us)
     /* Track the running peak for the completion/error event. */
     if (active && current_temp > s_state.peak_temp_c) {
         s_state.peak_temp_c = current_temp;
+    }
+
+    /* ── Lid interlock ───────────────────────────────────────────────────
+     * The element cut itself is safety's job — ssr_window_apply() holds the pin
+     * low whenever the interlock is armed and the lid is open, which survives a
+     * wedged firing task. What happens here is the bookkeeping: firing status
+     * and the program clock, per the configured mode. */
+    settings_lock();
+    lid_mode_t lid_mode = s_settings.lid_mode;
+    settings_unlock();
+
+    lid_state_t lid_now = safety_get_lid_state();
+    bool lid_opened = (lid_now == LID_STATE_OPEN && s_state.lid_prev != LID_STATE_OPEN);
+    bool lid_closed = (lid_now == LID_STATE_CLOSED && s_state.lid_prev == LID_STATE_OPEN);
+    s_state.lid_prev = lid_now;
+
+    if (lid_mode == LID_MODE_PAUSE && active) {
+        if (lid_opened) {
+            bool did_pause = false;
+            progress_lock();
+            if (s_progress.status != FIRING_STATUS_PAUSED) {
+                s_state.pause_prev_status = s_progress.status;
+                s_progress.status = FIRING_STATUS_PAUSED;
+                did_pause = true;
+            }
+            progress_unlock();
+            if (did_pause) {
+                safety_set_ssr(0.0f);
+                s_state.pause_start_us = now_us;
+                s_state.lid_paused = true;
+                ESP_LOGI(TAG, "Lid opened: firing paused");
+            }
+            status = FIRING_STATUS_PAUSED;
+        } else if (lid_closed && s_state.lid_paused) {
+            progress_lock();
+            s_progress.status = s_state.pause_prev_status;
+            progress_unlock();
+            status = s_state.pause_prev_status;
+            /* The same shift FIRING_CMD_RESUME performs, for the same reason:
+               the ramp setpoint, not-rising window, runaway baseline and hold
+               timer must all resume where they left off. */
+            int64_t paused_us = now_us - s_state.pause_start_us;
+            if (paused_us > 0) {
+                s_state.segment_start_time_us += paused_us;
+                s_state.check_start_time_us += paused_us;
+                if (s_state.holding) {
+                    s_state.segment_hold_start_time_s += (float)paused_us / 1000000.0f;
+                }
+            }
+            s_state.lid_paused = false;
+            ESP_LOGI(TAG, "Lid closed: firing resumed");
+        }
+    } else if (lid_mode == LID_MODE_INTERLOCK && active) {
+        if (lid_closed) {
+            /* The program clock deliberately ran on while the door was open, so
+               the not-rising window has been measuring a kiln that was never
+               being heated. Restart it from here, or a legitimate door-open
+               trips FIRING_ERR_NOT_RISING a few minutes later. */
+            s_state.check_start_time_us = now_us;
+            s_state.check_start_temp = current_temp;
+            ESP_LOGI(TAG, "Lid closed: heat restored");
+        }
+        if (lid_now == LID_STATE_OPEN) {
+            /* Status is untouched and the program clock keeps running — that is
+               the whole difference from pause mode, so the elapsed accumulator
+               has to be advanced here rather than at the bottom of the tick this
+               path never reaches.
+
+               The zero still goes through safety_set_ssr() every tick rather
+               than simply returning: that call is the control-loop heartbeat,
+               and a silent tick would trip the stall watchdog in 3 s. */
+            safety_set_ssr(0.0f);
+            s_state.elapsed_accum_us += dt_us;
+            progress_lock();
+            s_progress.elapsed_time = (uint32_t)(s_state.elapsed_accum_us / 1000000);
+            progress_unlock();
+            return;
+        }
     }
 
     if (!active || status == FIRING_STATUS_PAUSED || status == FIRING_STATUS_IDLE || status == FIRING_STATUS_COMPLETE ||

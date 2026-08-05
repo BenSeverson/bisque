@@ -1520,6 +1520,187 @@ static void test_out_of_range_lid_mode_clamps_to_pause(void)
     TEST_ASSERT_EQUAL_INT(LID_MODE_PAUSE, back.lid_mode);
 }
 
+/* ── Lid interlock: policy ───────────────────────────────────────────────── */
+
+static void set_lid_mode(lid_mode_t mode)
+{
+    kiln_settings_t s;
+    firing_engine_get_settings(&s);
+    s.lid_mode = mode;
+    TEST_ASSERT_EQUAL(ESP_OK, firing_engine_set_settings(&s));
+}
+
+/* warn mode is exactly what it says: the reading is published and nothing else
+   happens. A firing must keep heating with the lid up. */
+static void test_lid_warn_mode_takes_no_action(void)
+{
+    set_lid_mode(LID_MODE_WARN);
+    safety_test_set_lid(LID_STATE_CLOSED);
+
+    firing_profile_t p = scenario_short_profile();
+    scenario_start(&p, 0);
+    TEST_ASSERT_TRUE(scenario_run_until_status(&g_plant, FIRING_STATUS_HEATING, 30));
+
+    safety_test_set_lid(LID_STATE_OPEN);
+    scenario_run_ticks(&g_plant, 5);
+
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL(FIRING_STATUS_HEATING, prog.status);
+    TEST_ASSERT_TRUE_MESSAGE(safety_test_last_duty() > 0.0f, "warn mode must not cut the element");
+}
+
+/* pause mode: elements off, status PAUSED, and the program clock held. */
+static void test_lid_pause_mode_pauses_and_auto_resumes(void)
+{
+    set_lid_mode(LID_MODE_PAUSE);
+    safety_test_set_lid(LID_STATE_CLOSED);
+
+    firing_profile_t p = scenario_short_profile();
+    scenario_start(&p, 0);
+    TEST_ASSERT_TRUE(scenario_run_until_status(&g_plant, FIRING_STATUS_HEATING, 30));
+
+    safety_test_set_lid(LID_STATE_OPEN);
+    scenario_run_ticks(&g_plant, 1);
+
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL(FIRING_STATUS_PAUSED, prog.status);
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, safety_test_last_duty());
+    TEST_ASSERT_TRUE(prog.is_active);
+
+    safety_test_set_lid(LID_STATE_CLOSED);
+    scenario_run_ticks(&g_plant, 1);
+
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL_MESSAGE(FIRING_STATUS_HEATING, prog.status, "closing the lid must resume the firing");
+}
+
+/* The load-bearing case: a firing the operator paused by hand must NOT be
+   resumed by a lid close. Only a lid-initiated pause auto-resumes. */
+static void test_lid_close_does_not_resume_an_operator_pause(void)
+{
+    set_lid_mode(LID_MODE_PAUSE);
+    safety_test_set_lid(LID_STATE_CLOSED);
+
+    firing_profile_t p = scenario_short_profile();
+    scenario_start(&p, 0);
+    TEST_ASSERT_TRUE(scenario_run_until_status(&g_plant, FIRING_STATUS_HEATING, 30));
+
+    scenario_pause();
+    scenario_run_ticks(&g_plant, 1);
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL(FIRING_STATUS_PAUSED, prog.status);
+
+    /* Lid opens and closes while the operator's pause stands. */
+    safety_test_set_lid(LID_STATE_OPEN);
+    scenario_run_ticks(&g_plant, 1);
+    safety_test_set_lid(LID_STATE_CLOSED);
+    scenario_run_ticks(&g_plant, 1);
+
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL_MESSAGE(FIRING_STATUS_PAUSED, prog.status,
+                              "a lid close resumed a firing the operator had paused");
+}
+
+/* interlock mode: heat off, but the status and the program clock run on — the
+   heat-treat convention, where the door is opened at temperature by design. */
+static void test_lid_interlock_mode_cuts_heat_but_keeps_the_clock(void)
+{
+    set_lid_mode(LID_MODE_INTERLOCK);
+    safety_test_set_lid(LID_STATE_CLOSED);
+
+    firing_profile_t p = scenario_short_profile();
+    scenario_start(&p, 0);
+    TEST_ASSERT_TRUE(scenario_run_until_status(&g_plant, FIRING_STATUS_HEATING, 30));
+
+    firing_progress_t before;
+    firing_engine_get_progress(&before);
+
+    safety_test_set_lid(LID_STATE_OPEN);
+    scenario_run_ticks(&g_plant, 10);
+
+    firing_progress_t during;
+    firing_engine_get_progress(&during);
+    TEST_ASSERT_EQUAL_MESSAGE(FIRING_STATUS_HEATING, during.status, "interlock must not change the status");
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, safety_test_last_duty());
+    TEST_ASSERT_TRUE_MESSAGE(during.elapsed_time > before.elapsed_time, "the program clock must keep running");
+}
+
+/* The program clock running on is exactly what would otherwise convince the
+   not-rising watchdog the kiln has stalled. Closing the lid must restart that
+   window rather than let a long, legitimate door-open trip FIRING_ERR_NOT_RISING. */
+static void test_lid_interlock_does_not_trip_not_rising(void)
+{
+    set_lid_mode(LID_MODE_INTERLOCK);
+    safety_test_set_lid(LID_STATE_CLOSED);
+
+    firing_profile_t p = scenario_short_profile();
+    scenario_start(&p, 0);
+    TEST_ASSERT_TRUE(scenario_run_until_status(&g_plant, FIRING_STATUS_HEATING, 30));
+
+    safety_test_set_lid(LID_STATE_OPEN);
+    scenario_run_ticks(&g_plant, 20 * 60); /* longer than RISING_CHECK_INTERVAL_US */
+    safety_test_set_lid(LID_STATE_CLOSED);
+    scenario_run_ticks(&g_plant, 60);
+
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_NOT_EQUAL_MESSAGE(FIRING_STATUS_ERROR, prog.status,
+                                  "a long interlock hold tripped the not-rising watchdog");
+    TEST_ASSERT_EQUAL(FIRING_ERR_NONE, firing_engine_get_error_code());
+}
+
+/* Starting into an open lid is refused, so the operator gets an error at the
+   moment of the click instead of a firing that silently sits at zero power. */
+static void test_start_is_refused_while_the_lid_is_open(void)
+{
+    set_lid_mode(LID_MODE_PAUSE);
+    safety_test_set_lid(LID_STATE_OPEN);
+
+    firing_profile_t p = scenario_short_profile();
+    scenario_start(&p, 0);
+    scenario_run_ticks(&g_plant, 1);
+
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_FALSE_MESSAGE(prog.is_active, "the engine started a firing with the lid open");
+}
+
+/* warn mode is "report only", so it must not block a start either. */
+static void test_start_is_allowed_in_warn_mode_with_the_lid_open(void)
+{
+    set_lid_mode(LID_MODE_WARN);
+    safety_test_set_lid(LID_STATE_OPEN);
+
+    firing_profile_t p = scenario_short_profile();
+    scenario_start(&p, 0);
+    scenario_run_ticks(&g_plant, 1);
+
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_TRUE_MESSAGE(prog.is_active, "warn mode must not block a start");
+}
+
+/* A kiln with no lid switch — the default — must be entirely unaffected, even
+   with a mode configured. LID_STATE_NOT_FITTED is neither open nor closed. */
+static void test_no_lid_switch_fitted_changes_nothing(void)
+{
+    set_lid_mode(LID_MODE_PAUSE);
+    safety_test_set_lid(LID_STATE_NOT_FITTED);
+
+    firing_profile_t p = scenario_short_profile();
+    scenario_start(&p, 0);
+    TEST_ASSERT_TRUE(scenario_run_until_status(&g_plant, FIRING_STATUS_HEATING, 30));
+
+    scenario_run_ticks(&g_plant, 10);
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL(FIRING_STATUS_HEATING, prog.status);
+    TEST_ASSERT_TRUE_MESSAGE(safety_test_last_duty() > 0.0f, "an unfitted lid switch cut the element");
+}
+
 int main(void)
 {
     /* Init firing engine once for the whole binary — queues/mutexes are
@@ -1589,5 +1770,13 @@ int main(void)
     RUN_TEST(test_lid_mode_defaults_to_pause);
     RUN_TEST(test_setting_the_mode_arms_the_safety_gate);
     RUN_TEST(test_out_of_range_lid_mode_clamps_to_pause);
+    RUN_TEST(test_lid_warn_mode_takes_no_action);
+    RUN_TEST(test_lid_pause_mode_pauses_and_auto_resumes);
+    RUN_TEST(test_lid_close_does_not_resume_an_operator_pause);
+    RUN_TEST(test_lid_interlock_mode_cuts_heat_but_keeps_the_clock);
+    RUN_TEST(test_lid_interlock_does_not_trip_not_rising);
+    RUN_TEST(test_start_is_refused_while_the_lid_is_open);
+    RUN_TEST(test_start_is_allowed_in_warn_mode_with_the_lid_open);
+    RUN_TEST(test_no_lid_switch_fitted_changes_nothing);
     return UNITY_END();
 }
