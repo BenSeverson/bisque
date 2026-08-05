@@ -11,13 +11,21 @@ import { formatDurationFromMinutes } from "../utils/time";
 import { downloadBlob } from "../utils/download";
 import { toErrorMessage } from "../utils/error";
 import { useKilnStore } from "../stores/kilnStore";
-import { useProfiles, useDuplicateProfile, useImportProfile, useTempUnit } from "../hooks/queries";
+import {
+  useProfiles,
+  useDuplicateProfile,
+  useImportProfile,
+  useTempUnit,
+  useConeTable,
+} from "../hooks/queries";
 import { formatTemp, formatRate } from "../utils/temperature";
+import { coneEquivalentLabel, CONE_EQUIVALENT_HINT } from "../utils/cone";
 
 export function FiringProfiles() {
   const { selectedProfileId, setSelectedProfileId } = useKilnStore();
   const unit = useTempUnit();
   const { data: profiles = [], isError: profilesFailed, error: profilesError } = useProfiles();
+  const { data: coneEntries = [] } = useConeTable();
   const selectedProfile = useMemo(
     () => profiles.find((p) => p.id === selectedProfileId) ?? null,
     [profiles, selectedProfileId],
@@ -99,101 +107,109 @@ export function FiringProfiles() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {profiles.map((profile) => (
-          // The card cannot itself be a <button>: it contains Duplicate/Export
-          // buttons, and nesting interactive elements is invalid and unusable with
-          // a screen reader. So the profile name is the real focusable control
-          // (keyboard-activatable via Enter and Space for free, with a visible
-          // focus ring), and the card's onClick stays purely as a pointer
-          // convenience so the whole card remains a phone-sized tap target. The
-          // div carries no role/tabIndex — assistive tech is routed to the button,
-          // and the rest of the card stays readable content rather than being
-          // swallowed into one giant button label (#168).
-          <Card
-            key={profile.id}
-            className={`cursor-pointer transition-all ${
-              selectedProfile?.id === profile.id ? "ring-2 ring-primary" : "hover:shadow-lg"
-            }`}
-            onClick={() => setSelectedProfileId(profile.id)}
-          >
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <CardTitle className="text-lg">
-                  <button
-                    type="button"
-                    aria-pressed={selectedProfile?.id === profile.id}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedProfileId(profile.id);
-                    }}
-                    className="cursor-pointer rounded-sm text-left hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                  >
-                    {profile.name}
-                  </button>
-                </CardTitle>
-                {selectedProfile?.id === profile.id && <Badge variant="default">Selected</Badge>}
-              </div>
-              <CardDescription>{profile.description}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center gap-2 text-sm">
-                <Flame className="h-4 w-4 text-orange-500" />
-                <span>Max Temperature: {formatTemp(profile.maxTemp, unit)}</span>
-              </div>
-
-              <div className="flex items-center gap-2 text-sm">
-                <Clock className="h-4 w-4 text-blue-500" />
-                <span>Duration: {formatDurationFromMinutes(profile.estimatedDuration)}</span>
-              </div>
-
-              <div className="flex items-center gap-2 text-sm">
-                <TrendingUp className="h-4 w-4 text-green-500" />
-                <span>{profile.segments.length} segments</span>
-              </div>
-
-              <div className="pt-3 border-t">
-                <p className="text-xs font-semibold text-muted-foreground mb-2">SEGMENTS</p>
-                <div className="space-y-1">
-                  {profile.segments.map((segment) => (
-                    <div key={segment.id} className="text-xs bg-muted/50 p-2 rounded">
-                      <div className="font-medium">{segment.name}</div>
-                      <div className="text-muted-foreground">
-                        {segment.rampRate > 0 ? "+" : ""}
-                        {formatRate(segment.rampRate, unit)} →{" "}
-                        {formatTemp(segment.targetTemp, unit)}
-                        {segment.holdTime === HOLD_UNTIL_SKIP && ` (hold until skip)`}
-                        {segment.holdTime > 0 &&
-                          segment.holdTime !== HOLD_UNTIL_SKIP &&
-                          `, hold ${segment.holdTime} min`}
-                      </div>
-                    </div>
-                  ))}
+        {profiles.map((profile) => {
+          const coneLabel = coneEquivalentLabel(profile.maxTemp, profile.segments, coneEntries);
+          return (
+            // The card cannot itself be a <button>: it contains Duplicate/Export
+            // buttons, and nesting interactive elements is invalid and unusable with
+            // a screen reader. So the profile name is the real focusable control
+            // (keyboard-activatable via Enter and Space for free, with a visible
+            // focus ring), and the card's onClick stays purely as a pointer
+            // convenience so the whole card remains a phone-sized tap target. The
+            // div carries no role/tabIndex — assistive tech is routed to the button,
+            // and the rest of the card stays readable content rather than being
+            // swallowed into one giant button label (#168).
+            <Card
+              key={profile.id}
+              className={`cursor-pointer transition-all ${
+                selectedProfile?.id === profile.id ? "ring-2 ring-primary" : "hover:shadow-lg"
+              }`}
+              onClick={() => setSelectedProfileId(profile.id)}
+            >
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <CardTitle className="text-lg">
+                    <button
+                      type="button"
+                      aria-pressed={selectedProfile?.id === profile.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedProfileId(profile.id);
+                      }}
+                      className="cursor-pointer rounded-sm text-left hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                    >
+                      {profile.name}
+                    </button>
+                  </CardTitle>
+                  {selectedProfile?.id === profile.id && <Badge variant="default">Selected</Badge>}
                 </div>
-              </div>
+                <CardDescription>{profile.description}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <Flame className="h-4 w-4 text-orange-500" />
+                  <span>Max Temperature: {formatTemp(profile.maxTemp, unit)}</span>
+                  {coneLabel && (
+                    <span className="text-muted-foreground" title={CONE_EQUIVALENT_HINT}>
+                      {coneLabel}
+                    </span>
+                  )}
+                </div>
 
-              <div className="flex gap-2 pt-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 gap-1"
-                  onClick={(e) => handleDuplicate(e, profile)}
-                >
-                  <Copy className="h-3 w-3" />
-                  Duplicate
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 gap-1"
-                  onClick={(e) => handleExport(e, profile)}
-                >
-                  <Download className="h-3 w-3" />
-                  Export
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                <div className="flex items-center gap-2 text-sm">
+                  <Clock className="h-4 w-4 text-blue-500" />
+                  <span>Duration: {formatDurationFromMinutes(profile.estimatedDuration)}</span>
+                </div>
+
+                <div className="flex items-center gap-2 text-sm">
+                  <TrendingUp className="h-4 w-4 text-green-500" />
+                  <span>{profile.segments.length} segments</span>
+                </div>
+
+                <div className="pt-3 border-t">
+                  <p className="text-xs font-semibold text-muted-foreground mb-2">SEGMENTS</p>
+                  <div className="space-y-1">
+                    {profile.segments.map((segment) => (
+                      <div key={segment.id} className="text-xs bg-muted/50 p-2 rounded">
+                        <div className="font-medium">{segment.name}</div>
+                        <div className="text-muted-foreground">
+                          {segment.rampRate > 0 ? "+" : ""}
+                          {formatRate(segment.rampRate, unit)} →{" "}
+                          {formatTemp(segment.targetTemp, unit)}
+                          {segment.holdTime === HOLD_UNTIL_SKIP && ` (hold until skip)`}
+                          {segment.holdTime > 0 &&
+                            segment.holdTime !== HOLD_UNTIL_SKIP &&
+                            `, hold ${segment.holdTime} min`}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 gap-1"
+                    onClick={(e) => handleDuplicate(e, profile)}
+                  >
+                    <Copy className="h-3 w-3" />
+                    Duplicate
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 gap-1"
+                    onClick={(e) => handleExport(e, profile)}
+                  >
+                    <Download className="h-3 w-3" />
+                    Export
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {/* A failed fetch is not an empty library — saying "no profiles available"

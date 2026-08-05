@@ -46,6 +46,7 @@ import {
 import { wsMessageSchema } from "../../src/app/schemas/ws";
 import { HOLD_UNTIL_SKIP } from "../../src/app/types/kiln";
 import {
+  dispatch,
   CONE_TABLE as coneTableForTests,
   dispatch,
   PID_GAIN_MIN as mockPidGainMin,
@@ -68,6 +69,7 @@ const REQUIRED_FIXTURES = [
   "history_record",
   "history_empty",
   "cone_table",
+  "cone_fire_profiles",
   "autotune_status",
   "pid",
   "thermocouple_diag",
@@ -524,5 +526,48 @@ describe.runIf(fixturesUsable)("firmware → frontend API contract", () => {
    */
   it("mock-server cone table matches the firmware fixture exactly", () => {
     expect(coneTableForTests).toEqual(load("cone_table"));
+  });
+
+  /**
+   * The same drift one level up: the mock does not call cone_fire_generate(),
+   * it reimplements it, and its final ramp rates had slipped to {60, 100, 150}
+   * against the firmware's {60, 150, 300}. The demo therefore generated a
+   * schedule the device would never fire, and once profiles began naming a
+   * nearest cone (#179) a "fast" cone 6 was labelled cone 7.
+   *
+   * Wording is deliberately not compared — the demo is free to name its
+   * segments differently — but the schedule is the physics, so ramp rates,
+   * targets, holds and the peak must match.
+   */
+  it("mock-server cone-fire schedule matches the firmware fixture", () => {
+    const fixtures = z.array(firingProfileSchema).parse(load("cone_fire_profiles"));
+    const coneSix = coneTableForTests.find((c) => c.name === "6");
+    expect(coneSix).toBeDefined();
+
+    const schedule = (p: z.infer<typeof firingProfileSchema>) => ({
+      maxTemp: p.maxTemp,
+      segments: p.segments.map((s) => ({
+        rampRate: s.rampRate,
+        targetTemp: s.targetTemp,
+        holdTime: s.holdTime,
+      })),
+    });
+
+    fixtures.forEach((expected, speed) => {
+      const generated = dispatch("POST", "/profiles/cone-fire", {
+        coneId: coneSix!.id,
+        speed,
+        preheat: true,
+        slowCool: true,
+        save: false,
+      });
+      expect(generated.status).toBe(200);
+      const actual = firingProfileSchema.parse(generated.json);
+      expect(schedule(actual)).toEqual(schedule(expected));
+      // The firmware truncates its minute estimate where the mock rounds.
+      expect(Math.abs(actual.estimatedDuration - expected.estimatedDuration)).toBeLessThanOrEqual(
+        1,
+      );
+    });
   });
 });

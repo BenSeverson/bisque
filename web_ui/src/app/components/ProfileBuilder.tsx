@@ -13,6 +13,7 @@ import { Plus, Trash2, Save, MoveUp, MoveDown, Flame } from "lucide-react";
 import { toast } from "sonner";
 import { toErrorMessage } from "../utils/error";
 import { computeSegmentDurationMinutes } from "../utils/profile";
+import { coneEquivalentLabel, CONE_EQUIVALENT_HINT } from "../utils/cone";
 import {
   profileFormSchema,
   ProfileFormValues,
@@ -228,6 +229,9 @@ export function ProfileBuilder() {
     return "Fast";
   };
 
+  const maxTemp = calculateMaxTemp();
+  const maxTempCone = coneEquivalentLabel(maxTemp, segments, coneEntries);
+
   const selectedCone = coneEntries.find((c) => c.id === selectedConeId);
   const coneTargetTemp = selectedCone
     ? [selectedCone.slowTempC, selectedCone.mediumTempC, selectedCone.fastTempC][coneSpeed]
@@ -423,7 +427,12 @@ export function ProfileBuilder() {
                 <div className="grid grid-cols-2 gap-4 pt-2 border-t">
                   <div>
                     <p className="text-sm text-muted-foreground">Max Temperature</p>
-                    <p className="text-2xl font-semibold">{formatTemp(calculateMaxTemp(), unit)}</p>
+                    <p className="text-2xl font-semibold">{formatTemp(maxTemp, unit)}</p>
+                    {maxTempCone && (
+                      <p className="text-xs text-muted-foreground" title={CONE_EQUIVALENT_HINT}>
+                        {maxTempCone}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Estimated Duration</p>
