@@ -91,7 +91,26 @@ fixtures:  ## Generate JSON API fixtures for the web contract tests
 	$(CMAKE) -S tests/host -B tests/host/build
 	$(CMAKE) --build tests/host/build --target api_fixtures
 
-test-web: fixtures  ## Web UI tests (Vitest); depends on fixtures target
+# BISQUE_SKIP_CONTRACTS=1 is the opt-out for a machine that cannot run the C
+# build, so it has to drop the `fixtures` prerequisite as well as reach the test
+# runner: a prerequisite runs whatever the recipe would have gone on to do, and
+# generating fixtures *is* the C build the flag exists to avoid. Setting it and
+# still watching cmake start is the whole complaint.
+#
+# Both spellings are honoured because both are documented: the plain one is what
+# a developer types, and the TEST_RUNNER_-prefixed one is the only form that
+# survives into a process on the simulator (xcodebuild forwards that prefix and
+# nothing else — unprefixed, the variable stops at xcodebuild and the suite runs
+# anyway).
+SKIP_CONTRACTS := $(or $(BISQUE_SKIP_CONTRACTS),$(TEST_RUNNER_BISQUE_SKIP_CONTRACTS))
+
+ifeq ($(SKIP_CONTRACTS),1)
+CONTRACT_FIXTURES :=
+else
+CONTRACT_FIXTURES := fixtures
+endif
+
+test-web: $(CONTRACT_FIXTURES)  ## Web UI tests (Vitest); depends on fixtures target
 	cd $(WEB_DIR) && npm run test:run
 
 # Deliberately not part of `test`: it needs a Mac with Xcode and an iOS
@@ -108,12 +127,21 @@ test-web: fixtures  ## Web UI tests (Vitest); depends on fixtures target
 # and the simulator refuses to install the app extension with "bundleVersion
 # must be set in placeholder attributes" — a failure that says nothing about the
 # tests.
-test-ios:  ## iOS unit tests (XCTest on a simulator; needs macOS + Xcode)
+#
+# Depends on `fixtures` for the same reason `test-web` does: BisqueTests includes
+# a firmware contract suite that decodes the generated JSON with the app's models
+# (#154), and reads it straight off disk via #filePath rather than as a bundled
+# resource — tests/host/build/ does not exist when xcodegen runs, so it cannot be
+# declared as one. Missing or stale fixtures fail rather than skip; see
+# SKIP_CONTRACTS above for the opt-out, which this target has to translate into
+# xcodebuild's TEST_RUNNER_ prefix to get it as far as the simulator.
+test-ios: $(CONTRACT_FIXTURES)  ## iOS unit tests (XCTest on a simulator; needs macOS + Xcode)
 	@udid=$$(./scripts/pick-simulator.sh) && \
 	  cd $(IOS_DIR) && \
 	  env -u BISQUE_MARKETING_VERSION -u BISQUE_BUILD_NUMBER xcodegen generate && \
 	  BISQUE_MARKETING_VERSION=$${BISQUE_MARKETING_VERSION:-1.0.0} \
 	  BISQUE_BUILD_NUMBER=$${BISQUE_BUILD_NUMBER:-1} \
+	  TEST_RUNNER_BISQUE_SKIP_CONTRACTS=$(SKIP_CONTRACTS) \
 	  xcodebuild test -scheme Bisque \
 	    -destination "platform=iOS Simulator,id=$$udid" \
 	    CODE_SIGNING_ALLOWED=NO -quiet
