@@ -12,8 +12,9 @@ import { FiringProfile, MIN_ABS_RAMP_RATE_C_PER_HR } from "../types/kiln";
 import { Plus, Trash2, Save, MoveUp, MoveDown, Flame } from "lucide-react";
 import { toast } from "sonner";
 import { toErrorMessage } from "../utils/error";
-import { computeSegmentDurationMinutes } from "../utils/profile";
+import { computeSegmentDurationMinutes, PROFILE_START_TEMP_C } from "../utils/profile";
 import { coneEquivalentLabel, CONE_EQUIVALENT_HINT } from "../utils/cone";
+import { estimateProfileCost, formatCost, COST_ESTIMATE_HINT } from "../utils/cost";
 import {
   profileFormSchema,
   ProfileFormValues,
@@ -28,6 +29,7 @@ import {
   useConeTable,
   useGenerateConeFire,
   useTempUnit,
+  useSettings,
 } from "../hooks/queries";
 import { formatTemp, formatRate, unitLabel, rateLabel } from "../utils/temperature";
 import { TemperatureField } from "./TemperatureField";
@@ -49,6 +51,7 @@ export function ProfileBuilder() {
   const saveProfile = useSaveProfile();
   const deleteProfile = useDeleteProfile();
   const { data: coneEntries = [] } = useConeTable();
+  const { data: settings } = useSettings();
   const generateConeFire = useGenerateConeFire();
 
   const [mode, setMode] = useState<"manual" | "cone">("manual");
@@ -87,7 +90,7 @@ export function ProfileBuilder() {
 
   const estimatedDuration = useMemo(() => {
     let totalMinutes = 0;
-    let currentTemp = 20;
+    let currentTemp = PROFILE_START_TEMP_C;
     segments.forEach((segment) => {
       const { rampMinutes, holdMinutes } = computeSegmentDurationMinutes(
         {
@@ -231,6 +234,9 @@ export function ProfileBuilder() {
 
   const maxTemp = calculateMaxTemp();
   const maxTempCone = coneEquivalentLabel(maxTemp, segments, coneEntries);
+  const estimatedCost = settings
+    ? estimateProfileCost({ segments, estimatedDuration }, settings)
+    : null;
 
   const selectedCone = coneEntries.find((c) => c.id === selectedConeId);
   const coneTargetTemp = selectedCone
@@ -424,7 +430,11 @@ export function ProfileBuilder() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 pt-2 border-t">
+                <div
+                  className={`grid gap-4 pt-2 border-t ${
+                    estimatedCost === null ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3"
+                  }`}
+                >
                   <div>
                     <p className="text-sm text-muted-foreground">Max Temperature</p>
                     <p className="text-2xl font-semibold">{formatTemp(maxTemp, unit)}</p>
@@ -440,6 +450,14 @@ export function ProfileBuilder() {
                       {Math.floor(estimatedDuration / 60)}h {estimatedDuration % 60}m
                     </p>
                   </div>
+                  {estimatedCost !== null && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Estimated Cost</p>
+                      <p className="text-2xl font-semibold" title={COST_ESTIMATE_HINT}>
+                        ~{formatCost(estimatedCost)}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

@@ -1,5 +1,15 @@
 import { HOLD_UNTIL_SKIP } from "../types/kiln";
 
+/**
+ * Temperature a profile is assumed to start from when estimating its shape.
+ *
+ * A cold kiln sits at room temperature, and the first segment's ramp has to
+ * cover that distance. Used by both the duration estimate and the cost
+ * estimate, which must walk the segments identically or a profile's quoted
+ * cost stops matching its quoted duration.
+ */
+export const PROFILE_START_TEMP_C = 20;
+
 export function computeSegmentDurationMinutes(
   segment: { targetTemp: number; rampRate: number; holdMinutes: number },
   fromTemp: number,

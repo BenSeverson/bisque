@@ -4,7 +4,7 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { FiringProfile, HOLD_UNTIL_SKIP } from "../types/kiln";
 import { firingProfileSchema } from "../schemas/kiln";
-import { Flame, Clock, TrendingUp, Copy, Download, Upload } from "lucide-react";
+import { Flame, Clock, TrendingUp, Copy, Download, Upload, Zap } from "lucide-react";
 import { api } from "../services/api";
 import { toast } from "sonner";
 import { formatDurationFromMinutes } from "../utils/time";
@@ -17,15 +17,18 @@ import {
   useImportProfile,
   useTempUnit,
   useConeTable,
+  useSettings,
 } from "../hooks/queries";
 import { formatTemp, formatRate } from "../utils/temperature";
 import { coneEquivalentLabel, CONE_EQUIVALENT_HINT } from "../utils/cone";
+import { estimateProfileCost, formatCost, COST_ESTIMATE_HINT } from "../utils/cost";
 
 export function FiringProfiles() {
   const { selectedProfileId, setSelectedProfileId } = useKilnStore();
   const unit = useTempUnit();
   const { data: profiles = [], isError: profilesFailed, error: profilesError } = useProfiles();
   const { data: coneEntries = [] } = useConeTable();
+  const { data: settings } = useSettings();
   const selectedProfile = useMemo(
     () => profiles.find((p) => p.id === selectedProfileId) ?? null,
     [profiles, selectedProfileId],
@@ -109,6 +112,9 @@ export function FiringProfiles() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {profiles.map((profile) => {
           const coneLabel = coneEquivalentLabel(profile.maxTemp, profile.segments, coneEntries);
+          // null until the kiln's element power and electricity rate are both
+          // configured — see estimateProfileCost.
+          const cost = settings && estimateProfileCost(profile, settings);
           return (
             // The card cannot itself be a <button>: it contains Duplicate/Export
             // buttons, and nesting interactive elements is invalid and unusable with
@@ -165,6 +171,13 @@ export function FiringProfiles() {
                   <TrendingUp className="h-4 w-4 text-green-500" />
                   <span>{profile.segments.length} segments</span>
                 </div>
+
+                {cost !== null && cost !== undefined && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Zap className="h-4 w-4 text-yellow-500" />
+                    <span title={COST_ESTIMATE_HINT}>Est. cost: ~{formatCost(cost)}</span>
+                  </div>
+                )}
 
                 <div className="pt-3 border-t">
                   <p className="text-xs font-semibold text-muted-foreground mb-2">SEGMENTS</p>
