@@ -19,6 +19,13 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  // Components branch on __DEMO__ to hide hardware-only controls (OTA, Wi-Fi,
+  // relay test), and vite.config.ts supplies it via `define`. Without it here a
+  // component test crashes on an undefined global before rendering anything.
+  // Pinned false: the tests cover the device build, which is what ships.
+  define: {
+    __DEMO__: JSON.stringify(false),
+  },
   test: {
     globals: false,
     projects: [
@@ -28,6 +35,9 @@ export default defineConfig({
           name: "app",
           environment: "jsdom",
           include: ["src/**/*.test.{ts,tsx}"],
+          // Attaches jest-dom's matchers and Testing Library's cleanup, neither
+          // of which self-registers while `globals` is false.
+          setupFiles: ["./src/app/test/setup.ts"],
         },
       },
       {

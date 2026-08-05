@@ -64,6 +64,15 @@ Every payload the device emits — including the WebSocket frames and `/system`,
 
 Error bodies are part of the contract too: the firmware answers a failed request with the bare message (`httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Missing ssid")`), no JSON envelope, and the mock-server's `apiError()` matches it verbatim. `services/api.ts` reads `res.text()` on any non-2xx, so a wrapped body would show up in the toast braces and all.
 
+**Component and hook tests** run in the same `app` (jsdom) project via `@testing-library/react` (#172). Four pieces of wiring make them work, and all four are easy to trip over:
+
+- `src/app/test/setup.ts` is the project's `setupFiles`. Because `globals: false`, jest-dom's matchers and Testing Library's `cleanup` do not self-register — it attaches both, plus the browser APIs jsdom lacks and Radix calls unconditionally (`ResizeObserver`, `matchMedia`, pointer capture, `scrollIntoView`). A component that fails on layout measurement before rendering anything is almost always a missing entry here.
+- `vitest.config.ts` defines `__DEMO__: false`. Components branch on it to hide hardware-only controls; without the define a component test crashes on an undefined global.
+- `src/app/test/queryWrapper.tsx` builds the React Query provider. `gcTime: Infinity` is deliberate — an entry seeded with `setQueryData` has no observer, and a zero gcTime collects it before an assertion can read it back.
+- jsdom's `window.location` is unforgeable, so anything needing a different page URL (the wss:// upgrade in `websocket.secure.test.ts`) needs its own file with a `@vitest-environment-options` docblock rather than a redefine.
+
+`services/websocket.ts` is tested against a fake `WebSocket` under fake timers, and the reconnect assertions count `vi.getTimerCount()` rather than sockets: `connect()`'s own idempotence swallows surplus timers that fire in the same tick, so counting sockets would pass with the scheduler's dedupe guard deleted.
+
 ## Display Simulator
 
 ```bash
