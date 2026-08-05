@@ -34,6 +34,12 @@ static int s_vent_gpio = -1;
    safety_get_vent_state(); a plain bool written from one task and read from
    others, so volatile to keep the read out of a cached register. */
 static volatile bool s_vent_active = false;
+static int s_lid_gpio = -1;
+/* Written by safety_task, read by the firing/web/display tasks via
+   safety_get_lid_state(); volatile for the same reason s_vent_active is. */
+static volatile lid_state_t s_lid_state = LID_STATE_NOT_FITTED;
+static volatile bool s_lid_interlock_armed = false;
+static lid_debounce_t s_lid_debounce = {.state = LID_STATE_OPEN, .close_samples = 0};
 static float s_max_safe_temp = 1300.0f;
 static float s_tc_offset_c = 0.0f;
 static safety_trip_cause_t s_trip_cause = SAFETY_TRIP_NONE;
@@ -92,10 +98,34 @@ static void vent_write(bool on)
     s_vent_active = on;
 }
 
-void safety_init_io(int alarm_gpio, int vent_gpio)
+/* Polarity-corrected "is the lid open" reading, straight off the pin. */
+static bool lid_raw_open(void)
+{
+    int level = gpio_get_level(s_lid_gpio);
+    return APP_LID_SWITCH_ACTIVE_HIGH ? (level != 0) : (level == 0);
+}
+
+/* True when the interlock should be holding the element off right now. */
+static bool lid_blocks_output(void)
+{
+    return s_lid_interlock_armed && s_lid_state == LID_STATE_OPEN;
+}
+
+lid_state_t safety_get_lid_state(void)
+{
+    return s_lid_state;
+}
+
+void safety_set_lid_interlock_armed(bool armed)
+{
+    s_lid_interlock_armed = armed;
+}
+
+void safety_init_io(int alarm_gpio, int vent_gpio, int lid_gpio)
 {
     s_alarm_gpio = alarm_gpio;
     s_vent_gpio = vent_gpio;
+    s_lid_gpio = lid_gpio;
 
     if (alarm_gpio >= 0) {
         const ledc_timer_config_t timer = {
@@ -130,6 +160,27 @@ void safety_init_io(int alarm_gpio, int vent_gpio)
         gpio_config(&io);
         vent_write(false); /* s_vent_gpio is already set, above */
         ESP_LOGI(TAG, "Vent GPIO %d configured", vent_gpio);
+    }
+
+    if (lid_gpio >= 0) {
+        gpio_config_t io = {
+            .pin_bit_mask = (1ULL << lid_gpio),
+            .mode = GPIO_MODE_INPUT,
+            .pull_up_en = GPIO_PULLUP_ENABLE,
+            .pull_down_en = GPIO_PULLDOWN_DISABLE,
+            .intr_type = GPIO_INTR_DISABLE,
+        };
+        gpio_config(&io);
+        /* Start from "open" and let safety_task debounce its way to the truth.
+           Assuming closed here would allow one unsupervised SSR window against a
+           lid that might be up. */
+        s_lid_state = LID_STATE_OPEN;
+        s_lid_debounce.state = LID_STATE_OPEN;
+        s_lid_debounce.close_samples = 0;
+        ESP_LOGI(TAG, "Lid switch GPIO %d configured (active %s = open)", lid_gpio,
+                 APP_LID_SWITCH_ACTIVE_HIGH ? "high" : "low");
+    } else {
+        s_lid_state = LID_STATE_NOT_FITTED;
     }
 }
 
@@ -337,7 +388,7 @@ static void ssr_window_apply(void)
     if (s_ssr_pin < 0) {
         return;
     }
-    if (safety_is_emergency() || !s_supervised) {
+    if (safety_is_emergency() || !s_supervised || lid_blocks_output()) {
         gpio_set_level(s_ssr_pin, 0);
         return;
     }
@@ -430,6 +481,17 @@ void safety_task(void *param)
         thermocouple_get_latest(&reading);
 
         int64_t now = esp_timer_get_time();
+
+        /* Lid switch. Sampled before the thermocouple work so an open lid cuts
+           heat on this tick rather than the next one; ssr_window_apply() is what
+           actually holds the pin low, within one 100 ms window. */
+        if (s_lid_gpio >= 0) {
+            lid_state_t lid = safety_lid_debounce_step(&s_lid_debounce, lid_raw_open());
+            if (lid != s_lid_state) {
+                ESP_LOGI(TAG, "Lid %s", lid == LID_STATE_OPEN ? "opened" : "closed");
+            }
+            s_lid_state = lid;
+        }
 
         safety_tc_state_t tc_state = safety_tc_watchdog_step(&reading, now, &last_valid_reading_us);
 

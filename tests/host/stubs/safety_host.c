@@ -12,6 +12,11 @@ static bool s_vent_active;
    assert about. The real driver decides from the GPIO, which safety_init_io()
    below mirrors for a test that wants the vent-less default kiln. */
 static bool s_vent_fitted = true;
+/* Unlike the vent, the lid stub defaults to NOT_FITTED — the production default
+   (CONFIG_KILN_PIN_LID_SWITCH = -1). Tests that care opt in via
+   safety_test_set_lid(). */
+static lid_state_t s_lid_state = LID_STATE_NOT_FITTED;
+static bool s_lid_interlock_armed;
 static safety_trip_cause_t s_trip_cause = SAFETY_TRIP_NONE;
 
 static EventGroupHandle_t event_group_get(void)
@@ -32,11 +37,12 @@ esp_err_t safety_init(int ssr_pin, float max_safe_temp)
     return ESP_OK;
 }
 
-void safety_init_io(int alarm_gpio, int vent_gpio)
+void safety_init_io(int alarm_gpio, int vent_gpio, int lid_gpio)
 {
     (void)alarm_gpio;
     s_vent_fitted = vent_gpio >= 0;
     s_vent_active = false;
+    s_lid_state = (lid_gpio >= 0) ? LID_STATE_CLOSED : LID_STATE_NOT_FITTED;
 }
 
 void safety_trigger_alarm(int pattern)
@@ -60,6 +66,16 @@ vent_state_t safety_get_vent_state(void)
         return VENT_STATE_NOT_FITTED;
     }
     return s_vent_active ? VENT_STATE_ON : VENT_STATE_OFF;
+}
+
+lid_state_t safety_get_lid_state(void)
+{
+    return s_lid_state;
+}
+
+void safety_set_lid_interlock_armed(bool armed)
+{
+    s_lid_interlock_armed = armed;
 }
 
 EventGroupHandle_t safety_get_event_group(void)
@@ -120,7 +136,10 @@ void safety_set_tc_offset(float offset_c)
 void safety_set_ssr(float duty)
 {
     s_ssr_calls++;
-    if (s_emergency) {
+    /* Mirror ssr_window_apply()'s gate: an armed interlock against an open lid
+       holds the output off just as an emergency stop does, so a scenario test
+       sees the same duty the device would drive. */
+    if (s_emergency || (s_lid_interlock_armed && s_lid_state == LID_STATE_OPEN)) {
         s_last_duty = 0.0f;
         return;
     }
@@ -160,6 +179,19 @@ bool safety_test_vent_active(void)
     return s_vent_active;
 }
 
+/* Test hook: place the lid directly, bypassing debounce. The debounce itself is
+   covered by test_safety_helpers.c; scenario tests care about the settled
+   state. Setting a state also marks the switch as fitted. */
+void safety_test_set_lid(lid_state_t state)
+{
+    s_lid_state = state;
+}
+
+bool safety_test_lid_interlock_armed(void)
+{
+    return s_lid_interlock_armed;
+}
+
 void safety_test_reset(void)
 {
     s_emergency = false;
@@ -168,6 +200,8 @@ void safety_test_reset(void)
     s_ssr_calls = 0;
     s_vent_active = false;
     s_vent_fitted = true;
+    s_lid_state = LID_STATE_NOT_FITTED;
+    s_lid_interlock_armed = false;
     s_trip_cause = SAFETY_TRIP_NONE;
     if (s_event_group) {
         xEventGroupClearBits(s_event_group, 0xFFFFFFFFU);
