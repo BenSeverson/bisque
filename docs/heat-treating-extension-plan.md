@@ -1,6 +1,9 @@
 # Extension Plan: Metal Heat Treating & Annealing Support
 
-Status: **proposal / design doc** — no implementation yet.
+Status: **proposal / design doc** — no implementation yet. See also
+[`application-roadmap-and-pcb-provisions.md`](application-roadmap-and-pcb-provisions.md)
+for the broader application catalog and the PCB provisions that support this plan's
+Phase 3 hardware.
 
 ## 1. Summary
 
