@@ -195,6 +195,48 @@ static void test_stale_but_real_reading_is_not_the_no_data_case(void)
     TEST_ASSERT_EQUAL_INT(SAFETY_TC_OK, safety_tc_watchdog_step(&old_good, origin + TEMP_FAULT_TIMEOUT_US * 3, &last));
 }
 
+/* ── Lid debounce ────────────────────────────────────────────────────────── */
+
+static void test_lid_open_is_believed_immediately(void)
+{
+    lid_debounce_t d = {.state = LID_STATE_OPEN, .close_samples = 0};
+    /* Get to a settled closed state first. */
+    safety_lid_debounce_step(&d, false);
+    TEST_ASSERT_EQUAL_INT(LID_STATE_CLOSED, safety_lid_debounce_step(&d, false));
+    /* One open sample is enough — no debounce on the way to cutting heat. */
+    TEST_ASSERT_EQUAL_INT(LID_STATE_OPEN, safety_lid_debounce_step(&d, true));
+}
+
+static void test_lid_close_requires_two_consecutive_samples(void)
+{
+    lid_debounce_t d = {.state = LID_STATE_OPEN, .close_samples = 0};
+    TEST_ASSERT_EQUAL_INT(LID_STATE_OPEN, safety_lid_debounce_step(&d, false));
+    TEST_ASSERT_EQUAL_INT(LID_STATE_CLOSED, safety_lid_debounce_step(&d, false));
+}
+
+/* A switch that bounces while closing must not accumulate credit across the
+   bounce — otherwise two closed samples separated by an open one would declare
+   the lid shut while it is still moving. */
+static void test_lid_bounce_resets_the_close_counter(void)
+{
+    lid_debounce_t d = {.state = LID_STATE_OPEN, .close_samples = 0};
+    TEST_ASSERT_EQUAL_INT(LID_STATE_OPEN, safety_lid_debounce_step(&d, false));
+    TEST_ASSERT_EQUAL_INT(LID_STATE_OPEN, safety_lid_debounce_step(&d, true));
+    TEST_ASSERT_EQUAL_INT(LID_STATE_OPEN, safety_lid_debounce_step(&d, false));
+    TEST_ASSERT_EQUAL_INT(LID_STATE_CLOSED, safety_lid_debounce_step(&d, false));
+}
+
+/* Staying closed must not overflow or change state on long runs. */
+static void test_lid_stays_closed_while_closed(void)
+{
+    lid_debounce_t d = {.state = LID_STATE_OPEN, .close_samples = 0};
+    for (int i = 0; i < 100; i++) {
+        safety_lid_debounce_step(&d, false);
+    }
+    TEST_ASSERT_EQUAL_INT(LID_STATE_CLOSED, d.state);
+    TEST_ASSERT_TRUE(d.close_samples >= LID_CLOSE_DEBOUNCE_SAMPLES);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -207,5 +249,9 @@ int main(void)
     RUN_TEST(test_no_reading_ever_is_grace_then_trip);
     RUN_TEST(test_late_first_reading_cancels_the_no_data_trip);
     RUN_TEST(test_stale_but_real_reading_is_not_the_no_data_case);
+    RUN_TEST(test_lid_open_is_believed_immediately);
+    RUN_TEST(test_lid_close_requires_two_consecutive_samples);
+    RUN_TEST(test_lid_bounce_resets_the_close_counter);
+    RUN_TEST(test_lid_stays_closed_while_closed);
     return UNITY_END();
 }

@@ -29,3 +29,22 @@ safety_tc_state_t safety_tc_watchdog_step(const thermocouple_reading_t *reading,
        is merely slow to start still gets the full grace period. */
     return ((now_us - *last_valid_reading_us) > TEMP_FAULT_TIMEOUT_US) ? SAFETY_TC_FAULT_TRIP : SAFETY_TC_FAULT_GRACE;
 }
+
+lid_state_t safety_lid_debounce_step(lid_debounce_t *d, bool raw_open)
+{
+    if (raw_open) {
+        /* Believed immediately, and the close counter restarts from zero so a
+           bounce partway through closing cannot bank credit toward "shut". */
+        d->close_samples = 0;
+        d->state = LID_STATE_OPEN;
+        return d->state;
+    }
+
+    if (d->close_samples < LID_CLOSE_DEBOUNCE_SAMPLES) {
+        d->close_samples++;
+    }
+    if (d->close_samples >= LID_CLOSE_DEBOUNCE_SAMPLES) {
+        d->state = LID_STATE_CLOSED;
+    }
+    return d->state;
+}

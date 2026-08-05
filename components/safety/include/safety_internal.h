@@ -10,7 +10,9 @@
  */
 
 #include "app_config.h"
+#include "lid_state.h"
 #include "thermocouple.h"
+#include <stdbool.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -47,6 +49,32 @@ typedef enum {
  */
 safety_tc_state_t safety_tc_watchdog_step(const thermocouple_reading_t *reading, int64_t now_us,
                                           int64_t *last_valid_reading_us);
+
+/* Consecutive "closed" samples required before heat is allowed back on. At
+ * safety_task's 500 ms cadence this is ~1 s. */
+#define LID_CLOSE_DEBOUNCE_SAMPLES 2
+
+typedef struct {
+    lid_state_t state; /* debounced result; seed with LID_STATE_OPEN */
+    int close_samples; /* consecutive raw-closed samples seen so far */
+} lid_debounce_t;
+
+/**
+ * Advance the lid debounce by one sample and return the debounced state.
+ *
+ * Deliberately asymmetric: an open reading is believed immediately, while a
+ * closed reading must repeat LID_CLOSE_DEBOUNCE_SAMPLES times before the lid is
+ * declared shut. Cutting heat is cheap and restoring it should be deliberate,
+ * so the asymmetry both fails safe and stops a bouncing or marginal switch from
+ * chattering the SSR.
+ *
+ * Seed `state` with LID_STATE_OPEN: at boot the true position is unknown, and
+ * assuming open costs at most ~1 s before the first firing can start.
+ *
+ * `raw_open` is the polarity-corrected pin reading, not the raw level — see
+ * APP_LID_SWITCH_ACTIVE_HIGH. Pure: no globals, no I/O.
+ */
+lid_state_t safety_lid_debounce_step(lid_debounce_t *d, bool raw_open);
 
 #ifdef __cplusplus
 }

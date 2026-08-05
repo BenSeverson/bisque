@@ -87,8 +87,36 @@ menu "Bisque Configuration"
             int "Lid/door switch GPIO (-1 = disabled)"
             default -1
             help
-                GPIO input for lid/door interlock switch. If kiln is opened
-                above safe temperature during firing, a warning is triggered.
+                GPIO input for a lid/door interlock switch. On the Bisque PCB
+                this net is LID_SW, brought out on aux header J7 pin 6 (GPIO21),
+                with +3V3 and GND on pins 1 and 2 of the same connector.
+
+                When fitted, opening the lid during a firing de-energizes the
+                elements. What happens to the running program depends on the
+                "lid mode" setting: warn (report only), pause (hold the program
+                clock, auto-resume on close) or interlock (elements off, program
+                keeps running — the heat-treat oven convention).
+
+                THIS IS NOT A SAFETY DEVICE. It is a supplementary, firmware-level
+                interlock, and it does nothing if the firmware has crashed or the
+                controller has lost power. The real protection is a mechanical
+                microswitch wired in series with the element contactor. Fit one.
+
+                Set to -1 to disable.
+
+        config KILN_LID_SWITCH_ACTIVE_HIGH
+            bool "Lid switch reads HIGH when open"
+            default n
+            depends on KILN_PIN_LID_SWITCH >= 0
+            help
+                Leave this off for normally-closed wiring, which is the
+                recommended arrangement: lid shut holds the contact closed and
+                pulls the input low against the internal pull-up, so a broken
+                wire, a pulled connector or a failed switch all read OPEN and
+                fail safe.
+
+                Turn it on only if you already have a normally-open switch, and
+                understand that a broken wire will then read "lid closed".
 
         config KILN_PIN_BTN_UP
             int "Button Up GPIO"
