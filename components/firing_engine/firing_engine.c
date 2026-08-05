@@ -196,6 +196,7 @@ esp_err_t firing_engine_init(void)
     s_settings.api_token[0] = '\0';
     s_settings.element_watts = 5000.0f;
     s_settings.electricity_cost_kwh = 0.15f;
+    s_settings.lid_mode = LID_MODE_PAUSE;
 
     nvs_handle_t handle;
     if (nvs_open(NVS_NS_SETTINGS, NVS_READONLY, &handle) == ESP_OK) {
@@ -231,6 +232,11 @@ esp_err_t firing_engine_init(void)
         if (nvs_get_i32(handle, "elec_c", &i32) == ESP_OK) {
             s_settings.electricity_cost_kwh = (float)i32 / 1000.0f;
         }
+        /* Range-check on the way in: a corrupt or downgraded blob must not put
+           an out-of-enum value where the tick's mode switch will read it. */
+        if (nvs_get_u8(handle, "lid_mode", &u8) == ESP_OK && u8 <= LID_MODE_INTERLOCK) {
+            s_settings.lid_mode = (lid_mode_t)u8;
+        }
         nvs_close(handle);
     }
 
@@ -256,6 +262,11 @@ esp_err_t firing_engine_init(void)
 
     /* Load default profiles if none exist */
     load_default_profiles();
+
+    /* Publish the loaded mode to safety, which owns the SSR gate but not the
+       setting. Without this the interlock stays disarmed until someone happens
+       to PUT /settings — a stored "pause" would not survive a reboot. */
+    safety_set_lid_interlock_armed(s_settings.lid_mode != LID_MODE_WARN);
 
     ESP_LOGI(TAG, "Firing engine initialized (PID: Kp=%.4f Ki=%.4f Kd=%.4f)", kp, ki, kd);
     return ESP_OK;
@@ -408,6 +419,11 @@ esp_err_t firing_engine_set_settings(const kiln_settings_t *settings)
     if (safe.max_safe_temp < 100.0f) {
         safe.max_safe_temp = 100.0f;
     }
+    /* An out-of-enum mode would fall through the tick's mode switch and silently
+       behave as "warn" — a disarmed interlock on a kiln whose owner set one. */
+    if (safe.lid_mode < LID_MODE_WARN || safe.lid_mode > LID_MODE_INTERLOCK) {
+        safe.lid_mode = LID_MODE_PAUSE;
+    }
 
     settings_lock();
     s_settings = safe;
@@ -416,6 +432,7 @@ esp_err_t firing_engine_set_settings(const kiln_settings_t *settings)
     /* Update safety module */
     safety_set_max_temp(safe.max_safe_temp);
     safety_set_tc_offset(safe.tc_offset_c);
+    safety_set_lid_interlock_armed(safe.lid_mode != LID_MODE_WARN);
 
     /* Persist to NVS */
     nvs_handle_t handle;
@@ -434,6 +451,7 @@ esp_err_t firing_engine_set_settings(const kiln_settings_t *settings)
     nvs_set_str(handle, "api_tok", safe.api_token);
     nvs_set_i32(handle, "elem_w", (int32_t)safe.element_watts);
     nvs_set_i32(handle, "elec_c", (int32_t)(safe.electricity_cost_kwh * 1000.0f));
+    nvs_set_u8(handle, "lid_mode", (uint8_t)safe.lid_mode);
     err = nvs_commit(handle);
     nvs_close(handle);
     return err;

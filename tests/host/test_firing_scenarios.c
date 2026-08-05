@@ -1475,6 +1475,51 @@ static void test_emergency_during_delay_cancels_firing(void)
     TEST_ASSERT_EQUAL(FIRING_STATUS_ERROR, prog.status);
 }
 
+/* ── Lid interlock: the mode setting ─────────────────────────────────────── */
+
+/* The default matters for anyone who fits a switch without visiting settings:
+   pause is the ceramic convention and this is a ceramic-first controller. */
+static void test_lid_mode_defaults_to_pause(void)
+{
+    kiln_settings_t s;
+    firing_engine_get_settings(&s);
+    TEST_ASSERT_EQUAL_INT(LID_MODE_PAUSE, s.lid_mode);
+}
+
+/* The engine owns the mode; safety only ever learns the boolean. Warn must
+   leave the SSR gate disarmed or a "report only" mode would cut heat. */
+static void test_setting_the_mode_arms_the_safety_gate(void)
+{
+    kiln_settings_t s;
+    firing_engine_get_settings(&s);
+
+    s.lid_mode = LID_MODE_WARN;
+    TEST_ASSERT_EQUAL(ESP_OK, firing_engine_set_settings(&s));
+    TEST_ASSERT_FALSE(safety_test_lid_interlock_armed());
+
+    s.lid_mode = LID_MODE_PAUSE;
+    TEST_ASSERT_EQUAL(ESP_OK, firing_engine_set_settings(&s));
+    TEST_ASSERT_TRUE(safety_test_lid_interlock_armed());
+
+    s.lid_mode = LID_MODE_INTERLOCK;
+    TEST_ASSERT_EQUAL(ESP_OK, firing_engine_set_settings(&s));
+    TEST_ASSERT_TRUE(safety_test_lid_interlock_armed());
+}
+
+/* An out-of-range mode from a corrupt NVS blob or a bad caller must land on a
+   safe value, not on whatever integer happened to be there. */
+static void test_out_of_range_lid_mode_clamps_to_pause(void)
+{
+    kiln_settings_t s;
+    firing_engine_get_settings(&s);
+    s.lid_mode = (lid_mode_t)99;
+    TEST_ASSERT_EQUAL(ESP_OK, firing_engine_set_settings(&s));
+
+    kiln_settings_t back;
+    firing_engine_get_settings(&back);
+    TEST_ASSERT_EQUAL_INT(LID_MODE_PAUSE, back.lid_mode);
+}
+
 int main(void)
 {
     /* Init firing engine once for the whole binary — queues/mutexes are
@@ -1541,5 +1586,8 @@ int main(void)
     RUN_TEST(test_event_reports_true_peak_and_profile_name);
     RUN_TEST(test_skip_ignored_during_delay);
     RUN_TEST(test_emergency_during_delay_cancels_firing);
+    RUN_TEST(test_lid_mode_defaults_to_pause);
+    RUN_TEST(test_setting_the_mode_arms_the_safety_gate);
+    RUN_TEST(test_out_of_range_lid_mode_clamps_to_pause);
     return UNITY_END();
 }
