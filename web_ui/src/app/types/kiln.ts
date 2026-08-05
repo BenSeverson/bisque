@@ -94,14 +94,8 @@ export interface FiringProgress {
  */
 export type KilnSettings = z.infer<typeof settingsSchema>;
 
-/** Wi-Fi connection state, mirrors GET /api/v1/wifi (api_handlers.c handle_get_wifi). */
-export interface WifiInfo {
-  connected: boolean;
-  apMode: boolean;
-  ip: string;
-  hasSavedCredentials: boolean;
-  savedSsid?: string; // present only when credentials are saved
-}
+/** Wi-Fi connection state (GET /api/v1/wifi), inferred from wifiInfoSchema. */
+export type { WifiInfo } from "../schemas/api";
 
 export interface TemperatureDataPoint {
   time: number; // minutes

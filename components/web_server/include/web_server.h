@@ -80,26 +80,17 @@ esp_err_t notification_task_start(void);
  */
 void send_webhook_event(const char *event, const char *profile_name, float peak_temp, uint32_t duration_s);
 
-/**
- * Convert firing status enum to lowercase string for JSON APIs.
- */
-const char *firing_status_to_string(firing_status_t s);
-
-/**
- * Add the shared firing-progress fields (currentTemp, targetTemp, status,
- * segment counters, elapsed/remaining time, isActive, profileId, dutyPercent)
- * to `target`.
- * Used by both the REST status endpoint and the WebSocket broadcast so the two
- * payloads stay in sync.
+/* JSON serialization is not declared here — see api_json.h.
  *
- * @param target       cJSON object to mutate.
- * @param prog         Snapshot from firing_engine_get_progress().
- * @param current_temp Temperature value to publish (caller decides whether
- *                     offset/fault adjustments apply).
- * @param ssr_duty     Live element duty 0.0–1.0, from safety_get_ssr_duty();
- *                     published as whole-percent `dutyPercent`.
+ * `firing_status_to_string` used to be declared in both headers, which
+ * `readability-redundant-declaration` flags as an error in any translation unit
+ * including both; ws_handler.c became one when it started calling a builder.
+ * The shared firing-progress field block is gone for a different reason: both
+ * callers now go through a builder — build_status_json for REST,
+ * build_ws_temp_update_json for the socket — so the frame the WebSocket
+ * actually emits is a fixture the web contract test validates rather than JSON
+ * assembled at the call site (#174).
  */
-void json_add_progress_fields(cJSON *target, const firing_progress_t *prog, float current_temp, float ssr_duty);
 
 /**
  * Check Bearer/query-parameter auth on a request. Returns true when the

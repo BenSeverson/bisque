@@ -1,4 +1,5 @@
 #include "web_server.h"
+#include "api_json.h"
 #include "firing_engine.h"
 #include "thermocouple.h"
 #include "safety.h"
@@ -244,11 +245,7 @@ void ws_broadcast_status(void)
     firing_engine_get_settings(&settings);
     float adjusted_temp = tc.fault ? 0.0f : (tc.temperature_c + settings.tc_offset_c);
 
-    cJSON *root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "type", "temp_update");
-
-    cJSON *data = cJSON_AddObjectToObject(root, "data");
-    json_add_progress_fields(data, &prog, adjusted_temp, safety_get_ssr_duty());
+    cJSON *root = build_ws_temp_update_json(&prog, adjusted_temp, safety_get_ssr_duty());
 
     char *json = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
@@ -263,27 +260,9 @@ void ws_broadcast_status(void)
 
 void ws_send_ota_event(ota_phase_t phase, int percent, const char *err)
 {
-    cJSON *root = cJSON_CreateObject();
-    cJSON *data = cJSON_AddObjectToObject(root, "data");
-
-    switch (phase) {
-    case OTA_PHASE_DOWNLOAD:
-    case OTA_PHASE_FLASH:
-        cJSON_AddStringToObject(root, "type", "ota_progress");
-        cJSON_AddStringToObject(data, "phase", phase == OTA_PHASE_FLASH ? "flash" : "download");
-        cJSON_AddNumberToObject(data, "percent", percent);
-        break;
-    case OTA_PHASE_COMPLETE:
-        cJSON_AddStringToObject(root, "type", "ota_complete");
-        cJSON_AddNumberToObject(data, "percent", 100);
-        break;
-    case OTA_PHASE_ERROR:
-        cJSON_AddStringToObject(root, "type", "ota_error");
-        cJSON_AddStringToObject(data, "message", err ? err : "Update failed");
-        break;
-    default:
-        cJSON_Delete(root);
-        return;
+    cJSON *root = build_ws_ota_event_json(phase, percent, err);
+    if (!root) {
+        return; /* phase with no wire frame */
     }
 
     char *json = cJSON_PrintUnformatted(root);

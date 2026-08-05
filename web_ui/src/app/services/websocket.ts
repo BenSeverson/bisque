@@ -1,41 +1,19 @@
-export interface TempUpdateData {
-  /** Present in every firmware frame (api_json.c) but previously dropped by the
-   *  client, so a firing started elsewhere left this tab on a stale profile. */
-  profileId?: string;
-  currentTemp: number;
-  targetTemp: number;
-  status: string;
-  currentSegment: number;
-  totalSegments: number;
-  elapsedTime: number;
-  estimatedTimeRemaining: number;
-  /** Seconds until an armed delayed start fires; 0 when none is scheduled. */
-  delayRemaining?: number;
-  /** Live SSR duty as a whole percent, 0–100. Optional so a kiln on firmware
-   *  predating #180 still parses — the UI hides the reading rather than
-   *  claiming 0% element power. */
-  dutyPercent?: number;
-  isActive: boolean;
-}
+import type { WSMessage } from "../schemas/ws";
 
-export interface OtaProgressData {
-  phase: "download" | "flash";
-  percent: number;
-}
-
-export interface OtaCompleteData {
-  percent: number;
-}
-
-export interface OtaErrorData {
-  message: string;
-}
-
-export type WSMessage =
-  | { type: "temp_update"; data: TempUpdateData }
-  | { type: "ota_progress"; data: OtaProgressData }
-  | { type: "ota_complete"; data: OtaCompleteData }
-  | { type: "ota_error"; data: OtaErrorData };
+/**
+ * The frame shapes are *not* declared here. They are inferred from the zod
+ * schemas in ../schemas/ws — the same schemas the firmware's WebSocket fixtures
+ * are validated against — so a change to what the device pushes fails the build
+ * at every call site rather than drifting silently past it (#174). The import is
+ * type-only, so zod stays out of the bundle.
+ */
+export type {
+  OtaCompleteData,
+  OtaErrorData,
+  OtaProgressData,
+  TempUpdateData,
+  WSMessage,
+} from "../schemas/ws";
 
 type MessageHandler = (msg: WSMessage) => void;
 

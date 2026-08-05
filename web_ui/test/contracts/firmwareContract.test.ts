@@ -36,11 +36,18 @@ import {
   coneEntrySchema,
   firingProgressResponseSchema,
   historyRecordSchema,
+  otaCheckResponseSchema,
+  otaStatusSchema,
   pidResponseSchema,
+  systemInfoSchema,
   thermocoupleDiagSchema,
+  wifiInfoSchema,
 } from "../../src/app/schemas/api";
+import { wsMessageSchema } from "../../src/app/schemas/ws";
+import { HOLD_UNTIL_SKIP } from "../../src/app/types/kiln";
 import {
   CONE_TABLE as coneTableForTests,
+  dispatch,
   PID_GAIN_MIN as mockPidGainMin,
   PID_GAIN_MAX as mockPidGainMax,
   PID_DEFAULT_GAINS as mockPidDefaultGains,
@@ -54,13 +61,28 @@ const SOURCE_LIST_PATH = join(REPO_ROOT, "tests/host/fixture_sources.txt");
 
 const REQUIRED_FIXTURES = [
   "status",
+  "status_faulted",
   "profile",
+  "profile_hold_until_skip",
   "settings",
   "history_record",
+  "history_empty",
   "cone_table",
   "autotune_status",
   "pid",
   "thermocouple_diag",
+  "system",
+  "system_emergency",
+  "wifi",
+  "wifi_ap_mode",
+  "ota_check",
+  "ota_check_current",
+  "ota_status",
+  "ota_status_minimal",
+  "ws_temp_update",
+  "ws_ota_progress",
+  "ws_ota_complete",
+  "ws_ota_error",
 ];
 
 const REGENERATE = "Run `make fixtures` (or `make test-web`, which depends on it).";
@@ -159,6 +181,75 @@ function load(name: string): unknown {
   return JSON.parse(readFileSync(join(FIXTURE_DIR, `${name}.json`), "utf8"));
 }
 
+/**
+ * A copy of `schema` with every object in it — at any depth, through arrays,
+ * optionals and unions — rejecting unknown keys.
+ *
+ * zod objects are non-strict by default, so a *new* firmware field sailed
+ * through every contract test here: the schema said nothing about it, the parse
+ * succeeded, and the frontend went on not knowing the field existed (#174).
+ * That is the wrong default for a contract. It is still the right default for
+ * the app-facing schemas, which parse responses from kilns whose firmware may
+ * be newer than the tab — so the strictness is applied here, in the test, and
+ * the schemas in src/ stay permissive at runtime.
+ *
+ * Object-level checks (`.refine`/`.superRefine`) are dropped by the rebuild, so
+ * this runs *alongside* the per-endpoint parses below rather than replacing
+ * them — those keep the full schema including its refinements.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function deepStrict(schema: z.ZodType): any {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const def = (schema as any).def;
+  switch (def?.type) {
+    case "object":
+      return z.strictObject(
+        Object.fromEntries(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          Object.entries(def.shape as Record<string, any>).map(([k, v]) => [k, deepStrict(v)]),
+        ),
+      );
+    case "array":
+      return z.array(deepStrict(def.element));
+    case "optional":
+      return deepStrict(def.innerType).optional();
+    case "nullable":
+      return deepStrict(def.innerType).nullable();
+    case "union":
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return z.union((def.options as any[]).map(deepStrict));
+    default:
+      return schema;
+  }
+}
+
+/** Every fixture paired with the schema that is meant to describe it fully. */
+const STRICT_CASES: Array<[fixture: string, schema: z.ZodType]> = [
+  ["status", firingProgressResponseSchema],
+  ["status_faulted", firingProgressResponseSchema],
+  ["profile", firingProfileSchema],
+  ["profile_hold_until_skip", firingProfileSchema],
+  ["settings", settingsSchema],
+  ["history_record", historyRecordSchema],
+  ["history_empty", z.array(historyRecordSchema)],
+  ["cone_table", z.array(coneEntrySchema)],
+  ["autotune_status", autotuneStatusSchema],
+  ["pid", pidResponseSchema],
+  ["thermocouple_diag", thermocoupleDiagSchema],
+  ["system", systemInfoSchema],
+  ["system_emergency", systemInfoSchema],
+  ["wifi", wifiInfoSchema],
+  ["wifi_ap_mode", wifiInfoSchema],
+  ["ota_check", otaCheckResponseSchema],
+  ["ota_check_current", otaCheckResponseSchema],
+  ["ota_status", otaStatusSchema],
+  ["ota_status_minimal", otaStatusSchema],
+  ["ws_temp_update", wsMessageSchema],
+  ["ws_ota_progress", wsMessageSchema],
+  ["ws_ota_complete", wsMessageSchema],
+  ["ws_ota_error", wsMessageSchema],
+];
+
 describe.runIf(skipContracts)("firmware → frontend API contract (opted out)", () => {
   it("is skipped because BISQUE_SKIP_CONTRACTS=1", () => {
     expect(skipContracts).toBe(true);
@@ -246,6 +337,179 @@ describe.runIf(fixturesUsable)("firmware → frontend API contract", () => {
 
   it("/api/v1/diagnostics/thermocouple payload parses against thermocoupleDiagSchema", () => {
     expect(thermocoupleDiagSchema.parse(load("thermocouple_diag"))).toBeDefined();
+  });
+
+  it("/api/v1/system payload parses against systemInfoSchema", () => {
+    expect(systemInfoSchema.parse(load("system"))).toBeDefined();
+    expect(systemInfoSchema.parse(load("system_emergency"))).toBeDefined();
+  });
+
+  it("/api/v1/wifi payload parses against wifiInfoSchema, saved or not", () => {
+    const saved = wifiInfoSchema.parse(load("wifi"));
+    expect(saved.hasSavedCredentials).toBe(true);
+    expect(saved.savedSsid).toBeTypeOf("string");
+
+    // Provisioning: the key is absent rather than empty, which is what the
+    // setup form keys off.
+    const ap = wifiInfoSchema.parse(load("wifi_ap_mode"));
+    expect(ap.hasSavedCredentials).toBe(false);
+    expect(ap.savedSsid).toBeUndefined();
+    expect(Object.keys(load("wifi_ap_mode") as object)).not.toContain("savedSsid");
+  });
+
+  it("/api/v1/ota/check payload parses against otaCheckResponseSchema", () => {
+    expect(otaCheckResponseSchema.parse(load("ota_check")).updateAvailable).toBe(true);
+    expect(otaCheckResponseSchema.parse(load("ota_check_current")).updateAvailable).toBe(false);
+  });
+
+  it("/api/v1/ota/status payload parses against otaStatusSchema", () => {
+    expect(otaStatusSchema.parse(load("ota_status"))).toBeDefined();
+    // Every esp_ota lookup can fail independently; rollbackAvailable is the one
+    // field a client may rely on always being there.
+    const minimal = otaStatusSchema.parse(load("ota_status_minimal"));
+    expect(minimal.running).toBeUndefined();
+    expect(minimal.rollbackAvailable).toBe(false);
+  });
+
+  /**
+   * The highest-frequency payload in the system, and until #174 the only one
+   * with no schema and no fixture at all — it was assembled inline in
+   * ws_handler.c, which the host test binary cannot link.
+   */
+  it("WebSocket frames parse against wsMessageSchema", () => {
+    const temp = wsMessageSchema.parse(load("ws_temp_update"));
+    expect(temp.type).toBe("temp_update");
+
+    const progress = wsMessageSchema.parse(load("ws_ota_progress"));
+    expect(progress.type).toBe("ota_progress");
+    if (progress.type === "ota_progress") expect(progress.data.phase).toBe("download");
+
+    expect(wsMessageSchema.parse(load("ws_ota_complete")).type).toBe("ota_complete");
+
+    const err = wsMessageSchema.parse(load("ws_ota_error"));
+    expect(err.type).toBe("ota_error");
+    // Always a message to render: the firmware substitutes a generic string
+    // rather than omitting the key.
+    if (err.type === "ota_error") expect(err.data.message.length).toBeGreaterThan(0);
+  });
+
+  /**
+   * Three temp_update keys are optional in the schema so a kiln on firmware
+   * predating #180/#204 still parses. Optional is not the same as "the current
+   * firmware might stop sending it", and without this the UI could quietly lose
+   * the profile name or the element-power reading and every test stay green.
+   */
+  it("current firmware sends the temp_update fields that are optional for compatibility", () => {
+    const frame = load("ws_temp_update") as { data: Record<string, unknown> };
+    expect(Object.keys(frame.data)).toEqual(
+      expect.arrayContaining(["profileId", "delayRemaining", "dutyPercent"]),
+    );
+  });
+
+  /**
+   * The socket's progress block and GET /status must stay interchangeable — a
+   * client renders from both, and a field on one but not the other shows
+   * different numbers depending on which arrived last. Asserted on the C side
+   * too; here it is checked on the bytes that actually cross the wire.
+   */
+  it("temp_update data and /status agree on the progress fields", () => {
+    const frame = load("ws_temp_update") as { data: Record<string, unknown> };
+    const status = load("status") as Record<string, unknown>;
+    expect(Object.keys(frame.data).sort()).toEqual(
+      Object.keys(status)
+        .filter((k) => k !== "thermocouple")
+        .sort(),
+    );
+  });
+
+  /**
+   * The other half of #174: a *raised* thermocouple fault had never been
+   * serialized into a fixture, so the schema's booleans were only ever checked
+   * in their false state and the zero-clamping of currentTemp went unvalidated
+   * across the language boundary.
+   */
+  it("a faulted /status payload parses and reports the fault", () => {
+    const faulted = firingProgressResponseSchema.parse(load("status_faulted"));
+    expect(faulted.thermocouple.fault).toBe(true);
+    expect(faulted.thermocouple.openCircuit).toBe(true);
+    expect(faulted.currentTemp).toBe(0);
+    expect(faulted.status).toBe("error");
+  });
+
+  /** An indefinite hold must survive as the sentinel, not as 0 or a negative. */
+  it("a HOLD_UNTIL_SKIP profile parses with the sentinel intact", () => {
+    const profile = firingProfileSchema.parse(load("profile_hold_until_skip"));
+    expect(profile.segments.some((s) => s.holdTime === HOLD_UNTIL_SKIP)).toBe(true);
+  });
+
+  /** A kiln that has never fired serves `[]`, not null and not an object. */
+  it("an empty history list parses as an empty array", () => {
+    expect(z.array(historyRecordSchema).parse(load("history_empty"))).toEqual([]);
+  });
+
+  /**
+   * Shape-checking each side against the same schema is not enough when the
+   * schema is non-strict: a field the firmware added and the frontend never
+   * learned about passes every test above. Rebuilding each schema strict makes
+   * that a failure — and the fix is to model the field, which is what makes the
+   * app aware of it.
+   */
+  /**
+   * Guards the guard. deepStrict walks zod's internals, so a zod upgrade that
+   * renames `def.shape` would make it fall through to the default branch and
+   * return every schema unchanged — at which point the strict suite below
+   * passes unconditionally and proves nothing. Inject a key that is definitely
+   * unknown, at the top level and nested, and require a rejection.
+   */
+  it("deepStrict actually rejects unknown keys, at every depth", () => {
+    const status = load("status") as Record<string, unknown>;
+    const strict = deepStrict(firingProgressResponseSchema);
+
+    expect(strict.safeParse(status).success).toBe(true);
+    expect(strict.safeParse({ ...status, unknownField: 1 }).success).toBe(false);
+    expect(
+      strict.safeParse({
+        ...status,
+        thermocouple: { ...(status.thermocouple as object), unknownField: 1 },
+      }).success,
+    ).toBe(false);
+
+    // Through an array, and through the union that models the WS frames.
+    expect(
+      deepStrict(z.array(coneEntrySchema)).safeParse([
+        { ...((load("cone_table") as object[])[0] as object), unknownField: 1 },
+      ]).success,
+    ).toBe(false);
+    const frame = load("ws_temp_update") as { type: string; data: object };
+    expect(
+      deepStrict(wsMessageSchema).safeParse({ ...frame, data: { ...frame.data, unknownField: 1 } })
+        .success,
+    ).toBe(false);
+  });
+
+  it.each(STRICT_CASES)("%s carries no fields its schema doesn't know about", (name, schema) => {
+    const result = deepStrict(schema).safeParse(load(name));
+    expect(result.success ? null : JSON.stringify(result.error.issues, null, 2)).toBeNull();
+  });
+
+  /**
+   * GET /system was the worked example in #174: a zod schema validated against
+   * the mock-server alone, while the firmware built the same JSON inline and
+   * was never fixture-dumped, so drift between the two was invisible. The
+   * values can't be compared (uptime and heap are live), but the key sets can —
+   * and a missing or extra key is what drift looks like.
+   */
+  it("mock-server /system and /wifi have the same shape as the firmware", () => {
+    const mockSystem = dispatch("GET", "/system", undefined).json as object;
+    expect(Object.keys(mockSystem).sort()).toEqual(Object.keys(load("system") as object).sort());
+
+    const mockWifi = dispatch("GET", "/wifi", undefined).json as {
+      hasSavedCredentials: boolean;
+    };
+    // Two firmware fixtures cover the saved/unsaved split; compare against
+    // whichever one the mock's current state corresponds to.
+    const reference = mockWifi.hasSavedCredentials ? "wifi" : "wifi_ap_mode";
+    expect(Object.keys(mockWifi).sort()).toEqual(Object.keys(load(reference) as object).sort());
   });
 
   /**

@@ -49,13 +49,29 @@ async function get(path: string) {
   return r.json();
 }
 
+/**
+ * `body` is the parsed JSON when there is any, and `text` is always the raw
+ * body. Error responses are deliberately *not* JSON — the firmware answers with
+ * the bare message and the mock now matches it — so this cannot assume a
+ * parseable body without failing on every 4xx it is asked to check.
+ */
 async function post(path: string, body: unknown = {}) {
   const r = await fetch(`${baseUrl}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  return { ok: r.ok, status: r.status, body: await r.json() };
+  const text = await r.text();
+  return { ok: r.ok, status: r.status, body: parseJsonOrUndefined(text), text };
+}
+
+/** JSON.parse's `any` return keeps `body` as loose as `await res.json()` was. */
+function parseJsonOrUndefined(text: string) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
 }
 
 // --- GET endpoints -----------------------------------------------------------
@@ -135,10 +151,10 @@ describe("mock-server GET endpoints", () => {
 const okResponseSchema = z.object({ ok: z.boolean() }).passthrough();
 
 describe("mock-server POST endpoints", () => {
-  it("POST /firing/start with bad profileId returns ok:false", async () => {
+  it("POST /firing/start with bad profileId returns 400 + the firmware's message", async () => {
     const r = await post("/firing/start", { profileId: "nope" });
-    expect(r.ok).toBe(false); // mock returns 400
-    expect(r.body.ok).toBe(false);
+    expect(r.status).toBe(400);
+    expect(r.text).toBe("Profile not found");
   });
 
   it("POST /firing/start with real profileId starts firing", async () => {
@@ -176,8 +192,41 @@ describe("mock-server POST endpoints", () => {
       slowCool: false,
       save: false,
     });
-    expect(r.ok).toBe(false);
-    expect(r.body.error).toBeTypeOf("string");
+    expect(r.status).toBe(400);
+    expect(r.text).toBe("Invalid coneId");
+  });
+
+  /**
+   * Error bodies are part of the contract too, and were the last uncovered
+   * piece of it (#174). The firmware answers every failed request with the bare
+   * message — `httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Missing ssid")`
+   * and friends in api_handlers.c — while the mock used to wrap it in
+   * `{"error": …}`. Nothing parses either one: services/api.ts does
+   * `throw new Error(\`API error \${res.status}: \${await res.text()}\`)`, so the
+   * envelope was pure noise in the demo's toasts and invisible to every test.
+   *
+   * Checked across several endpoints and status codes rather than one, since
+   * the drift was per-call-site.
+   */
+  it("error responses carry the bare message, not a JSON envelope", async () => {
+    // Written out rather than imported from router.ts: these are the firmware's
+    // strings (api_handlers.c), and importing the mock's own copy would only
+    // compare it against itself.
+    const BAD_GAINS_MESSAGE =
+      "Gains must be within the published limits, and Kp or Ki must be above zero";
+    const cases: Array<[path: string, body: unknown, status: number, message: string]> = [
+      ["/wifi", {}, 400, "Missing ssid"],
+      ["/firing/start", { profileId: "nope" }, 400, "Profile not found"],
+      ["/pid", { kp: 0, ki: 0, kd: 5 }, 400, BAD_GAINS_MESSAGE],
+    ];
+    for (const [path, body, status, message] of cases) {
+      const r = await post(path, body);
+      expect(r.status, path).toBe(status);
+      expect(r.text, path).toBe(message);
+      // Not merely "some string that happens to contain it" — a JSON envelope
+      // would satisfy a substring check.
+      expect(() => JSON.parse(r.text), path).toThrow();
+    }
   });
 
   it("POST /settings updates settings and round-trip matches settingsSchema", async () => {

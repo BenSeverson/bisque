@@ -41,10 +41,13 @@ describe("dispatch() router", () => {
     expect(r.text?.split("\n")[0]).toBe("time_s,temp_c");
   });
 
-  it("POST /firing/start with an unknown profile returns 400 + ok:false", () => {
+  it("POST /firing/start with an unknown profile returns 400 + a plain-text message", () => {
     const r = dispatch("POST", "/firing/start", { profileId: "does-not-exist" });
     expect(r.status).toBe(400);
-    expect((r.json as { ok: boolean }).ok).toBe(false);
+    // The firmware's own wording, sent as the body with no JSON envelope
+    // around it — see api_handlers.c and apiError() in router.ts (#174).
+    expect(r.text).toBe("Profile not found");
+    expect(r.json).toBeUndefined();
   });
 
   it("POST /settings persists and round-trips via GET /settings", () => {

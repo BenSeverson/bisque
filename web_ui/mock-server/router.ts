@@ -38,6 +38,28 @@ export interface DispatchResult {
   headers?: Record<string, string>;
 }
 
+/**
+ * An error response, shaped the way the firmware shapes one: the body *is* the
+ * human-readable message, with no JSON envelope around it.
+ *
+ * Every error path in api_handlers.c is either
+ * `httpd_resp_send_err(req, HTTPD_4xx_…, "message")` or an explicit status plus
+ * `httpd_resp_send(req, "message", …)` — a bare string either way. The mock used
+ * to answer `{"error": "message"}`, and nothing tested it, so the demo showed
+ * `API error 400: {"error":"Missing ssid"}` where a real kiln shows
+ * `API error 400: Missing ssid` (#174). Neither side is parsed: services/api.ts
+ * reads `await res.text()` and interpolates it into the thrown Error.
+ *
+ * Messages are copied verbatim from the corresponding firmware call site, so a
+ * reworded firmware error should be reworded here too.
+ *
+ * Simulator-only routes (`/mock/…`) are exempt — they have no firmware
+ * counterpart and stay JSON.
+ */
+function apiError(status: number, message: string): DispatchResult {
+  return { status, text: message };
+}
+
 // --- Orton cone table ---
 // Values are a verbatim copy of components/cone_table/cone_table.c. They drift
 // easily and silently — the mock previously had 36 entries (cone 05.5 missing,
@@ -248,7 +270,7 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
   if (method === "POST" && apiPath === "/profiles/cone-fire") {
     const params = body as ConeFireParams;
     const profile = generateConeFire(params);
-    if (!profile) return { status: 400, json: { error: "Invalid cone ID" } };
+    if (!profile) return apiError(400, "Invalid coneId");
     if (params.save) {
       state.profiles.push(profile);
     }
@@ -262,7 +284,7 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
   // GET /profiles/:id/export
   if (method === "GET" && profileExportMatch) {
     const profile = state.profiles.find((p) => p.id === profileExportMatch[1]);
-    if (!profile) return { status: 404, json: { error: "Not found" } };
+    if (!profile) return apiError(404, "Profile not found");
     return {
       status: 200,
       text: JSON.stringify(profile, null, 2),
@@ -274,7 +296,7 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
   // GET /profiles/:id
   if (method === "GET" && profileMatch) {
     const profile = state.profiles.find((p) => p.id === profileMatch[1]);
-    if (!profile) return { status: 404, json: { error: "Not found" } };
+    if (!profile) return apiError(404, "Profile not found");
     return { status: 200, json: profile };
   }
 
@@ -300,7 +322,7 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
   if (method === "POST" && apiPath === "/firing/start") {
     const req = body as { profileId: string; delayMinutes?: number };
     const ok = startFiring(req.profileId, req.delayMinutes ?? 0);
-    if (!ok) return { status: 400, json: { ok: false, error: "Profile not found" } };
+    if (!ok) return apiError(400, "Profile not found");
     return { status: 200, json: { ok: true } };
   }
 
@@ -332,7 +354,7 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
   if (method === "GET" && historyTraceMatch) {
     const id = parseInt(historyTraceMatch[1], 10);
     const record = state.history.find((r) => r.id === id);
-    if (!record) return { status: 404, json: { error: "Not found" } };
+    if (!record) return apiError(404, "Trace not found");
     return { status: 200, text: generateTraceCsv(record), contentType: "text/csv" };
   }
 
@@ -403,7 +425,7 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
   if (method === "POST" && apiPath === "/autotune/start") {
     const { setpoint, hysteresis } = body as { setpoint: number; hysteresis: number };
     if (!startAutotune(setpoint, hysteresis)) {
-      return { status: 409, json: { error: "A firing is already active" } };
+      return apiError(409, "Firing already active");
     }
     return { status: 200, json: { ok: true } };
   }
@@ -428,21 +450,21 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
   if (method === "POST" && apiPath === "/pid") {
     const { kp, ki, kd } = body as Partial<Record<"kp" | "ki" | "kd", unknown>>;
     if (![kp, ki, kd].every((v) => typeof v === "number" && Number.isFinite(v))) {
-      return { status: 400, json: { error: "kp, ki and kd are all required and must be numbers" } };
+      return apiError(400, "kp, ki and kd are all required and must be numbers");
     }
 
     // Mirrors firing_engine_set_pid_gains: screen, then quantize to what NVS
     // holds, then re-check — four decimals of resolution turn a Kp of 5e-5 into
     // a zero, and {0, 0, kd} is a controller that never heats.
     const entered = [kp, ki, kd] as number[];
-    if (!gainsValid(entered)) return { status: 400, json: { error: BAD_GAINS } };
+    if (!gainsValid(entered)) return apiError(400, BAD_GAINS);
     const [qp, qi, qd] = entered.map(quantizeGain);
-    if (!gainsValid([qp, qi, qd])) return { status: 400, json: { error: BAD_GAINS } };
+    if (!gainsValid([qp, qi, qd])) return apiError(400, BAD_GAINS);
 
     // The firmware refuses while the control loop is running, because the
     // integrator wound up under the old Ki.
     if (state.firing.running || state.firing.scheduled || state.autotune.running) {
-      return { status: 409, json: { error: "Kiln is busy: stop the firing or auto-tune first" } };
+      return apiError(409, "Kiln is busy: stop the firing or auto-tune first");
     }
 
     state.autotune.gains = { kp: qp, ki: qi, kd: qd };
@@ -474,7 +496,7 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
   if (method === "POST" && apiPath === "/wifi") {
     const { ssid } = body as { ssid?: string };
     if (!ssid) {
-      return { status: 400, json: { error: "Missing ssid" } };
+      return apiError(400, "Missing ssid");
     }
     state.wifi.savedSsid = ssid;
     return {
@@ -551,7 +573,7 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
     };
   }
 
-  return { status: 404, json: { error: "Not found" } };
+  return apiError(404, "Not found");
 }
 
 // --- Autotune simulation ---
