@@ -36,11 +36,42 @@ const char *firing_status_to_string(firing_status_t s)
     }
 }
 
+const char *lid_mode_to_string(lid_mode_t m)
+{
+    switch (m) {
+    case LID_MODE_WARN:
+        return "warn";
+    case LID_MODE_PAUSE:
+        return "pause";
+    case LID_MODE_INTERLOCK:
+        return "interlock";
+    default:
+        return "pause";
+    }
+}
+
+bool lid_mode_from_string(const char *s, lid_mode_t *out)
+{
+    if (!s || !out) {
+        return false;
+    }
+    if (strcmp(s, "warn") == 0) {
+        *out = LID_MODE_WARN;
+    } else if (strcmp(s, "pause") == 0) {
+        *out = LID_MODE_PAUSE;
+    } else if (strcmp(s, "interlock") == 0) {
+        *out = LID_MODE_INTERLOCK;
+    } else {
+        return false;
+    }
+    return true;
+}
+
 /* Internal helper: add the shared firing-progress fields. Both the REST status
  * response and the WebSocket temp_update frame are built from it, which is what
  * lets a client run the two through one parser. */
 static void json_add_progress_fields(cJSON *target, const firing_progress_t *prog, float current_temp, float ssr_duty,
-                                     vent_state_t vent)
+                                     vent_state_t vent, lid_state_t lid)
 {
     cJSON_AddBoolToObject(target, "isActive", prog->is_active);
     cJSON_AddStringToObject(target, "profileId", prog->profile_id);
@@ -79,17 +110,25 @@ static void json_add_progress_fields(cJSON *target, const firing_progress_t *pro
     if (vent != VENT_STATE_NOT_FITTED) {
         cJSON_AddBoolToObject(target, "ventActive", vent == VENT_STATE_ON);
     }
+    /* Lid/door interlock switch (#83). Omitted rather than sent false when no
+       switch is fitted, for exactly the reason ventActive is: "the lid is shut"
+       and "this kiln has no lid switch" are different facts, and a client that
+       saw `false` either way would render an indicator on every kiln that never
+       had the hardware. */
+    if (lid != LID_STATE_NOT_FITTED) {
+        cJSON_AddBoolToObject(target, "lidOpen", lid == LID_STATE_OPEN);
+    }
     cJSON_AddStringToObject(target, "status", firing_status_to_string(prog->status));
 }
 
 cJSON *build_status_json(const firing_progress_t *prog, const thermocouple_reading_t *tc, float tc_offset_c,
-                         float ssr_duty, vent_state_t vent)
+                         float ssr_duty, vent_state_t vent, lid_state_t lid)
 {
     cJSON *root = cJSON_CreateObject();
     /* Offset-correct the published temperature (and zero it on fault) so the
        REST status matches the WebSocket temp_update feed. */
     float current_temp = tc->fault ? 0.0f : (tc->temperature_c + tc_offset_c);
-    json_add_progress_fields(root, prog, current_temp, ssr_duty, vent);
+    json_add_progress_fields(root, prog, current_temp, ssr_duty, vent, lid);
 
     cJSON *tc_obj = cJSON_AddObjectToObject(root, "thermocouple");
     cJSON_AddNumberToObject(tc_obj, "temperature", tc->temperature_c);
@@ -138,6 +177,9 @@ cJSON *build_settings_json(const kiln_settings_t *settings)
     cJSON_AddBoolToObject(root, "apiTokenSet", settings->api_token[0] != '\0');
     cJSON_AddNumberToObject(root, "elementWatts", settings->element_watts);
     cJSON_AddNumberToObject(root, "electricityCostKwh", settings->electricity_cost_kwh);
+    /* Always present, unlike lidOpen: this is a setting, and a client needs to
+       render the selector whether or not a switch is currently fitted. */
+    cJSON_AddStringToObject(root, "lidMode", lid_mode_to_string(settings->lid_mode));
     return root;
 }
 
@@ -251,11 +293,12 @@ static cJSON *ws_envelope(const char *type, cJSON **out_data)
     return root;
 }
 
-cJSON *build_ws_temp_update_json(const firing_progress_t *prog, float current_temp, float ssr_duty, vent_state_t vent)
+cJSON *build_ws_temp_update_json(const firing_progress_t *prog, float current_temp, float ssr_duty, vent_state_t vent,
+                                 lid_state_t lid)
 {
     cJSON *data;
     cJSON *root = ws_envelope("temp_update", &data);
-    json_add_progress_fields(data, prog, current_temp, ssr_duty, vent);
+    json_add_progress_fields(data, prog, current_temp, ssr_duty, vent, lid);
     return root;
 }
 

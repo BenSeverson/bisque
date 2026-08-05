@@ -117,7 +117,7 @@ static void test_status_full_shape(void)
         .timestamp_us = 1234567,
     };
 
-    cJSON *root = build_status_json(&prog, &tc, 5.0f, 0.625f, VENT_STATE_ON);
+    cJSON *root = build_status_json(&prog, &tc, 5.0f, 0.625f, VENT_STATE_ON, LID_STATE_CLOSED);
     TEST_ASSERT_NOT_NULL(root);
 
     /* Element power, rounded to whole percent (#180). */
@@ -167,7 +167,7 @@ static void test_status_zeros_temp_when_fault(void)
         .temperature_c = 999.0f,
         .fault = TC_FAULT_OPEN_CIRCUIT,
     };
-    cJSON *root = build_status_json(&prog, &tc, 5.0f, 0.0f, VENT_STATE_OFF);
+    cJSON *root = build_status_json(&prog, &tc, 5.0f, 0.0f, VENT_STATE_OFF, LID_STATE_NOT_FITTED);
     /* Every other status fixture is a healthy heating kiln, so the fault flags
        were only ever serialized false and the frontend's rendering of a raised
        one went unvalidated end to end (#174). */
@@ -197,13 +197,61 @@ static void test_status_omits_vent_when_not_fitted(void)
     firing_progress_t prog = {.status = FIRING_STATUS_HEATING, .target_temp = 500.0f};
     thermocouple_reading_t tc = {.temperature_c = 480.0f};
 
-    cJSON *root = build_status_json(&prog, &tc, 0.0f, 0.5f, VENT_STATE_NOT_FITTED);
+    cJSON *root = build_status_json(&prog, &tc, 0.0f, 0.5f, VENT_STATE_NOT_FITTED, LID_STATE_NOT_FITTED);
     TEST_ASSERT_NULL(cJSON_GetObjectItem(root, "ventActive"));
     /* Everything else is still there — a missing vent is not a degraded status. */
     assert_number_field(root, "dutyPercent");
     assert_string_field(root, "status");
 
     dump_fixture("status_no_vent", root);
+    cJSON_Delete(root);
+}
+
+/* The lid GPIO defaults to disabled (CONFIG_KILN_PIN_LID_SWITCH = -1), so most
+ * kilns have no switch to report on. `lidOpen: false` for those would be
+ * indistinguishable from a fitted switch that happens to be closed, and every
+ * such kiln would render an indicator for hardware it doesn't have. Omit the
+ * key entirely instead — the same contract ventActive follows (#83). */
+static void test_status_omits_lid_when_not_fitted(void)
+{
+    firing_progress_t prog = {.status = FIRING_STATUS_HEATING, .target_temp = 500.0f};
+    thermocouple_reading_t tc = {.temperature_c = 480.0f};
+
+    cJSON *root = build_status_json(&prog, &tc, 0.0f, 0.5f, VENT_STATE_NOT_FITTED, LID_STATE_NOT_FITTED);
+    TEST_ASSERT_NULL(cJSON_GetObjectItem(root, "lidOpen"));
+    /* Everything else is still there — a missing lid switch is not a degraded
+       status. */
+    assert_number_field(root, "dutyPercent");
+    assert_string_field(root, "status");
+
+    dump_fixture("status_no_lid", root);
+    cJSON_Delete(root);
+}
+
+/* A kiln that is paused because its lid is up — the pause-mode steady state. */
+static void test_status_reports_an_open_lid(void)
+{
+    firing_progress_t prog = {.is_active = true, .status = FIRING_STATUS_PAUSED, .target_temp = 700.0f};
+    thermocouple_reading_t tc = {.temperature_c = 640.0f};
+
+    cJSON *root = build_status_json(&prog, &tc, 0.0f, 0.0f, VENT_STATE_ON, LID_STATE_OPEN);
+    TEST_ASSERT_TRUE(cJSON_IsTrue(cJSON_GetObjectItem(root, "lidOpen")));
+
+    dump_fixture("status_lid_open", root);
+    cJSON_Delete(root);
+}
+
+/* Fitted and shut must be an explicit false, not an omission — that is the
+   distinction the whole not-fitted rule rests on. */
+static void test_status_reports_a_closed_lid(void)
+{
+    firing_progress_t prog = {.is_active = true, .status = FIRING_STATUS_HEATING, .target_temp = 700.0f};
+    thermocouple_reading_t tc = {.temperature_c = 640.0f};
+
+    cJSON *root = build_status_json(&prog, &tc, 0.0f, 0.5f, VENT_STATE_ON, LID_STATE_CLOSED);
+    cJSON *j = cJSON_GetObjectItem(root, "lidOpen");
+    TEST_ASSERT_NOT_NULL(j);
+    TEST_ASSERT_TRUE(cJSON_IsFalse(j));
     cJSON_Delete(root);
 }
 
@@ -217,15 +265,15 @@ static void test_status_clamps_duty(void)
     firing_progress_t prog = {.status = FIRING_STATUS_HEATING};
     thermocouple_reading_t tc = {.temperature_c = 500.0f};
 
-    cJSON *over = build_status_json(&prog, &tc, 0.0f, 1.4f, VENT_STATE_OFF);
+    cJSON *over = build_status_json(&prog, &tc, 0.0f, 1.4f, VENT_STATE_OFF, LID_STATE_NOT_FITTED);
     TEST_ASSERT_EQUAL_INT(100, cJSON_GetObjectItem(over, "dutyPercent")->valueint);
     cJSON_Delete(over);
 
-    cJSON *under = build_status_json(&prog, &tc, 0.0f, -0.2f, VENT_STATE_OFF);
+    cJSON *under = build_status_json(&prog, &tc, 0.0f, -0.2f, VENT_STATE_OFF, LID_STATE_NOT_FITTED);
     TEST_ASSERT_EQUAL_INT(0, cJSON_GetObjectItem(under, "dutyPercent")->valueint);
     cJSON_Delete(under);
 
-    cJSON *nan_duty = build_status_json(&prog, &tc, 0.0f, NAN, VENT_STATE_OFF);
+    cJSON *nan_duty = build_status_json(&prog, &tc, 0.0f, NAN, VENT_STATE_OFF, LID_STATE_NOT_FITTED);
     TEST_ASSERT_EQUAL_INT(0, cJSON_GetObjectItem(nan_duty, "dutyPercent")->valueint);
     cJSON_Delete(nan_duty);
 }
@@ -327,6 +375,7 @@ static void test_settings_shape_redacts_token(void)
         .tc_offset_c = -2.5f,
         .element_watts = 2400.0f,
         .electricity_cost_kwh = 0.18f,
+        .lid_mode = LID_MODE_PAUSE,
     };
     strcpy(s.webhook_url, "https://example.test/kiln");
     strcpy(s.api_token, "super-secret-token");
@@ -343,6 +392,7 @@ static void test_settings_shape_redacts_token(void)
     assert_bool_field(root, "apiTokenSet");
     assert_number_field(root, "elementWatts");
     assert_number_field(root, "electricityCostKwh");
+    assert_string_field(root, "lidMode");
 
     /* Token value must never appear in the response. */
     TEST_ASSERT_NULL(cJSON_GetObjectItem(root, "apiToken"));
@@ -361,6 +411,36 @@ static void test_settings_apiTokenSet_false_when_empty(void)
     cJSON *root = build_settings_json(&s);
     TEST_ASSERT_FALSE(cJSON_IsTrue(cJSON_GetObjectItem(root, "apiTokenSet")));
     cJSON_Delete(root);
+}
+
+/* lidMode is a setting, not a hardware reading, so unlike lidOpen it is always
+   present — a client renders the selector whether or not a switch is fitted. */
+static void test_settings_always_carry_the_lid_mode(void)
+{
+    kiln_settings_t s = {.temp_unit = 'C', .max_safe_temp = 1300.0f, .lid_mode = LID_MODE_INTERLOCK};
+    cJSON *root = build_settings_json(&s);
+
+    cJSON *j = cJSON_GetObjectItem(root, "lidMode");
+    TEST_ASSERT_NOT_NULL(j);
+    TEST_ASSERT_TRUE(cJSON_IsString(j));
+    TEST_ASSERT_EQUAL_STRING("interlock", cJSON_GetStringValue(j));
+    cJSON_Delete(root);
+}
+
+static void test_lid_mode_string_round_trip(void)
+{
+    const lid_mode_t modes[] = {LID_MODE_WARN, LID_MODE_PAUSE, LID_MODE_INTERLOCK};
+    for (unsigned i = 0; i < sizeof(modes) / sizeof(modes[0]); i++) {
+        lid_mode_t back;
+        TEST_ASSERT_TRUE(lid_mode_from_string(lid_mode_to_string(modes[i]), &back));
+        TEST_ASSERT_EQUAL_INT(modes[i], back);
+    }
+    /* An unrecognized mode must be rejected rather than silently defaulted: a
+       client typo that quietly disarmed an interlock would be invisible. */
+    lid_mode_t unused;
+    TEST_ASSERT_FALSE(lid_mode_from_string("ajar", &unused));
+    TEST_ASSERT_FALSE(lid_mode_from_string("", &unused));
+    TEST_ASSERT_FALSE(lid_mode_from_string(NULL, &unused));
 }
 
 /* ── build_history_record_json ───────────────────────────────────────────── */
@@ -655,7 +735,7 @@ static void test_ws_temp_update_shape(void)
     };
     strcpy(prog.profile_id, "bisque-cone-04");
 
-    cJSON *root = build_ws_temp_update_json(&prog, 981.5f, 0.42f, VENT_STATE_ON);
+    cJSON *root = build_ws_temp_update_json(&prog, 981.5f, 0.42f, VENT_STATE_ON, LID_STATE_CLOSED);
     TEST_ASSERT_NOT_NULL(root);
 
     assert_string_field(root, "type");
@@ -693,13 +773,13 @@ static void test_ws_temp_update_shape(void)
    client that renders from both shows different numbers depending on which one
    arrived last. Compares the key sets rather than the values, since /status
    nests an extra thermocouple object the frame deliberately omits. */
-static void assert_ws_and_status_agree(vent_state_t vent)
+static void assert_ws_and_status_agree(vent_state_t vent, lid_state_t lid)
 {
     firing_progress_t prog = {.status = FIRING_STATUS_HEATING, .target_temp = 500.0f};
     thermocouple_reading_t tc = {.temperature_c = 480.0f};
 
-    cJSON *status = build_status_json(&prog, &tc, 0.0f, 0.5f, vent);
-    cJSON *frame = build_ws_temp_update_json(&prog, 480.0f, 0.5f, vent);
+    cJSON *status = build_status_json(&prog, &tc, 0.0f, 0.5f, vent, lid);
+    cJSON *frame = build_ws_temp_update_json(&prog, 480.0f, 0.5f, vent, lid);
     cJSON *data = cJSON_GetObjectItem(frame, "data");
 
     for (cJSON *k = data->child; k; k = k->next) {
@@ -719,11 +799,12 @@ static void assert_ws_and_status_agree(vent_state_t vent)
 
 static void test_ws_temp_update_matches_status_progress_block(void)
 {
-    assert_ws_and_status_agree(VENT_STATE_ON);
+    assert_ws_and_status_agree(VENT_STATE_ON, LID_STATE_CLOSED);
     /* Repeated with the vent absent: `ventActive` is the first key either
        payload omits conditionally, so "they agree" now has to hold for a key
        that is missing from both, not only for one present in both. */
-    assert_ws_and_status_agree(VENT_STATE_NOT_FITTED);
+    assert_ws_and_status_agree(VENT_STATE_NOT_FITTED, LID_STATE_NOT_FITTED);
+    assert_ws_and_status_agree(VENT_STATE_OFF, LID_STATE_OPEN);
 }
 
 /* ── build_ws_ota_event_json ─────────────────────────────────────────────── */
@@ -1023,6 +1104,11 @@ int main(void)
     RUN_TEST(test_status_zeros_temp_when_fault);
     RUN_TEST(test_status_clamps_duty);
     RUN_TEST(test_status_omits_vent_when_not_fitted);
+    RUN_TEST(test_status_omits_lid_when_not_fitted);
+    RUN_TEST(test_status_reports_an_open_lid);
+    RUN_TEST(test_status_reports_a_closed_lid);
+    RUN_TEST(test_settings_always_carry_the_lid_mode);
+    RUN_TEST(test_lid_mode_string_round_trip);
     RUN_TEST(test_profile_shape);
     RUN_TEST(test_profile_hold_until_skip);
     RUN_TEST(test_history_empty_list);
