@@ -212,6 +212,42 @@ COMPONENTS = {
     "C10": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
                 value="100nF", at=(69.0, 81.5, 0),
                 pins={"1": "VLED", "2": "GND"}),
+    # --- Lid/door switch input conditioning -------------------------------
+    # LID_SW (IO21) is the one GPIO input whose cable leaves the enclosure
+    # and runs to a hot kiln lid, alongside the SSR output and mains wiring.
+    # The nav switch (J6) is a short internal run and stays bare, but a
+    # false "lid open" here cuts a firing, so the entry point gets an RC:
+    #   J7.6 -> R12 (1k series) -> LID_SW -> U1.23,  R13 10k to +3V3,
+    #   C12 100nF to GND.
+    # R13 replaces the ESP32's weak ~45k internal pull-up with a stiff 10k,
+    # so an open switch holds the node high against far more leakage and
+    # capacitive pickup. R12 limits fault/ESD current into the pin, and C12
+    # sees R12||R13 (~0.9k) with the switch closed - a ~1.8 kHz corner
+    # (~90us), rising to ~160 Hz (10k x 100nF) with it open. Fast enough to
+    # leave mechanical bounce to the firmware, which samples at 500 ms;
+    # slow enough to swallow EMI transients.
+    # Closed-switch level is 3.3V x 1k/11k = 0.30V, well under the ESP32's
+    # 0.25 x VDD (0.83V) V_IL. No discrete TVS: the only one on the board is
+    # the USBLC6 (U4), which is there for USB2.0's low-capacitance
+    # requirement; the other externally-exposed nets (TC_P at J3, the nav
+    # switch at J6) rely on an RC plus the pin's own clamp diodes, and a TVS
+    # would add a unique Extended part ($3 feeder fee) for one input.
+    #
+    # Placement: R12 and C12 sit in the free band between LED1 and J7 so the
+    # shunt is right where the cable enters. R13 is 6 mm further north, on
+    # the +3V3 B.Cu trunk that runs diagonally down to J7.1 - it is a DC
+    # pull-up, so its position is electrically irrelevant, and putting it
+    # beside C12 forced a 0.7 mm-wide +3V3 spur across the F.Cu pour above
+    # J7.1/J7.2, which starved J7.2's thermal relief (DRC error).
+    "R12": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="1k", at=(87.3, 87.6, 180),
+                pins={"1": "LID_IN", "2": "LID_SW"}),
+    "R13": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="10k", at=(83.5, 81.5, 0),
+                pins={"1": "+3V3", "2": "LID_SW"}),
+    "C12": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
+                value="100nF", at=(83.8, 87.6, 0),
+                pins={"1": "LID_SW", "2": "GND"}),
     # --- Headers ---------------------------------------------------------
     "J5": dict(lib="Connector_Generic", sym="Conn_01x08",
                fp="Connector_Molex:Molex_KK-254_AE-6410-08A_1x08_P2.54mm_Vertical",
@@ -243,7 +279,11 @@ COMPONENTS = {
                fpf="Molex_KK-254_AE-6410-08A_1x08_P2.54mm_Vertical.kicad_mod",
                value="AUX", at=(70.5, 95.0, 0),
                pins={"1": "+3V3", "2": "GND", "3": "TXD0", "4": "RXD0",
-                     "5": "VENT", "6": "LID_SW", "7": "AUX_A", "8": "AUX_B"}),
+                     # pin 6 is the raw lid-switch input: it reaches U1.23
+                     # (LID_SW) through the R12/R13/C12 filter above, not
+                     # directly. Wire a dry contact between J7.6 and J7.2
+                     # (GND); closed = lid shut.
+                     "5": "VENT", "6": "LID_IN", "7": "AUX_A", "8": "AUX_B"}),
     # --- Mounting holes (grounded) --------------------------------------
     "H1": dict(lib="Mechanical", sym="MountingHole_Pad",
                fp="MountingHole:MountingHole_3.2mm_M3_Pad_Via",

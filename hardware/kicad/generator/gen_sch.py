@@ -64,6 +64,8 @@ SCH_AT = {
     "LED1": (40, 170), "R3": (78, 168), "D3": (108, 168), "C10": (134, 170),
     # headers row
     "J5": (40, 215), "J6": (76, 215), "J7": (112, 215),
+    # lid switch input filter (sits with the aux header it conditions)
+    "R12": (152, 222), "R13": (180, 222), "C12": (208, 222),
     # en/boot + decoupling row (bottom left)
     "SW1": (40, 258), "R1": (74, 258), "C5": (100, 258), "SW2": (130, 258),
     "R2": (164, 258), "C6": (196, 258), "C7": (222, 258), "C11": (248, 258),
@@ -76,6 +78,7 @@ GROUP_TEXT = [
     ("USB-C  (native USB flashing + ESD)", 25, 66),
     ("WS2812B STATUS LED  (VDD dropped ~4.6V for 3.3V data margin)", 25, 150),
     ("HEADERS  DISPLAY(J5) NAV(J6) AUX(J7)", 25, 198),
+    ("LID SWITCH INPUT FILTER  (1k series + 10k pull-up + 100nF)", 145, 205),
     ("RESET / BOOT / DECOUPLING", 25, 240),
     ("ESP32-S3-WROOM-1  (GPIOs = firmware Kconfig defaults)", 140, 130),
     ("THERMOCOUPLE  MAX31855 (T- grounded per datasheet)", 225, 92),
@@ -89,6 +92,7 @@ NOTES = (
     "SSR terminal J4: +5V / SSR- loop, switched low-side by Q1 (boot-safe: R7 pulldown)\\n"
     "TC terminal J3: pin1 = K+ (yellow), pin2 = K- (red, grounded at U3)\\n"
     "Nav switch J6 is panel-mounted; inputs use ESP32 internal pull-ups\\n"
+    "Aux J7 pin6 = optional lid switch (dry contact to J7 pin2/GND, closed = lid shut)\\n"
     "Display J5 pinout: 3V3 GND CS RST DC MOSI SCK BL (ST7796S SPI module)"
 )
 
