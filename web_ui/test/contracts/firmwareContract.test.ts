@@ -46,7 +46,6 @@ import {
 import { wsMessageSchema } from "../../src/app/schemas/ws";
 import { HOLD_UNTIL_SKIP } from "../../src/app/types/kiln";
 import {
-  dispatch,
   CONE_TABLE as coneTableForTests,
   dispatch,
   PID_GAIN_MIN as mockPidGainMin,

@@ -22,6 +22,7 @@ import {
   RELAY_TEST_DEFAULT_SECONDS,
 } from "../utils/relayTest";
 import { describeFiringError, emergencyStopExplanation } from "../utils/firingError";
+import { ASSUMED_DUTY_CYCLE, costPerHourAtFullPower, formatCost } from "../utils/cost";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Label } from "./ui/label";
 import { Input } from "./ui/input";
@@ -191,6 +192,13 @@ export function Settings() {
   // their payload from getValues().
   const watchedSettings = useWatch({ control });
   const unit = watchedSettings.tempUnit ?? "F";
+
+  // Priced off the live form values, not the saved settings, so the preview
+  // tracks what is being typed rather than waiting for a save.
+  const fullPowerCostPerHour = costPerHourAtFullPower({
+    elementWatts: watchedSettings.elementWatts ?? 0,
+    electricityCostKwh: watchedSettings.electricityCostKwh ?? 0,
+  });
 
   const onSubmit = async (data: SettingsFormValues) => {
     try {
@@ -611,13 +619,21 @@ export function Settings() {
                 />
               </div>
             </div>
-            {(watchedSettings.elementWatts ?? 0) > 0 &&
-              (watchedSettings.electricityCostKwh ?? 0) > 0 && (
-                <p className="text-sm text-muted-foreground">
-                  At 50% average duty cycle: {watchedSettings.elementWatts! / 2000} kW × $
-                  {watchedSettings.electricityCostKwh!.toFixed(2)}/kWh
-                </p>
-              )}
+            {fullPowerCostPerHour === null ? (
+              <p className="text-sm text-muted-foreground">
+                Set both to see estimated firing costs on profiles and history records.
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {(watchedSettings.elementWatts! / 1000).toFixed(1)} kW × $
+                {watchedSettings.electricityCostKwh!.toFixed(2)}/kWh ={" "}
+                <span className="font-medium text-foreground">
+                  {formatCost(fullPowerCostPerHour)}
+                </span>{" "}
+                per hour at full power. Profiles and history records show an estimated cost at{" "}
+                {Math.round(ASSUMED_DUTY_CYCLE * 100)}% average duty.
+              </p>
+            )}
           </CardContent>
         </Card>
 

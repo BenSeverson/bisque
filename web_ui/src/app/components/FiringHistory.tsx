@@ -13,19 +13,24 @@ import {
 } from "recharts";
 import { HistoryRecord } from "../types/kiln";
 import { api } from "../services/api";
-import { Download, Flame, Clock, Thermometer } from "lucide-react";
+import { Download, Flame, Clock, Thermometer, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { formatDuration } from "../utils/time";
 import { downloadBlob } from "../utils/download";
 import { toErrorMessage } from "../utils/error";
-import { useHistory, useTempUnit } from "../hooks/queries";
+import { useHistory, useTempUnit, useSettings, useProfiles } from "../hooks/queries";
 import { formatTemp, toDisplayTemp, unitLabel } from "../utils/temperature";
 import { describeTraceChart } from "../utils/chartAria";
 import { describeFiringError, firingErrorGuidance } from "../utils/firingError";
+import { estimateFiringCost, formatCost, COST_ESTIMATE_HINT } from "../utils/cost";
 
 export function FiringHistory() {
   const { data: records = [], isLoading } = useHistory();
   const unit = useTempUnit();
+  const { data: settings } = useSettings();
+  // Used only to recover the profile's heating fraction, so a record whose
+  // profile has since been deleted still gets an estimate (a coarser one).
+  const { data: profiles = [] } = useProfiles();
   const [selectedRecord, setSelectedRecord] = useState<HistoryRecord | null>(null);
   const [traceData, setTraceData] = useState<{ time_s: number; temp_c: number }[]>([]);
 
@@ -70,6 +75,17 @@ export function FiringHistory() {
     return new Date(timestamp * 1000).toLocaleString();
   };
 
+  const costForRecord = (record: HistoryRecord): number | null => {
+    if (!settings) return null;
+    return estimateFiringCost(
+      record.durationS,
+      profiles.find((p) => p.id === record.profileId),
+      settings,
+    );
+  };
+
+  const selectedCost = selectedRecord ? costForRecord(selectedRecord) : null;
+
   const outcomeVariant = (outcome: string): "default" | "secondary" | "destructive" | "outline" => {
     if (outcome === "complete") return "default";
     if (outcome === "error") return "destructive";
@@ -108,65 +124,73 @@ export function FiringHistory() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Record list */}
           <div className="space-y-3 lg:col-span-1">
-            {records.map((record) => (
-              // Same shape as the profile cards: the record name is the real
-              // focusable button (the card can't be one — it holds a CSV button),
-              // and the card's onClick is a pointer-only convenience so the whole
-              // card stays a tap target. aria-current plus the visible "Viewing
-              // trace" line replace the ring-colour-only selected signal (#168).
-              <Card
-                key={record.id}
-                className={`cursor-pointer transition-all ${
-                  selectedRecord?.id === record.id ? "ring-2 ring-primary" : "hover:shadow-md"
-                }`}
-                onClick={() => handleSelectRecord(record)}
-              >
-                <CardContent className="pt-4 pb-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <button
-                      type="button"
-                      aria-current={selectedRecord?.id === record.id ? "true" : undefined}
+            {records.map((record) => {
+              const recordCost = costForRecord(record);
+              return (
+                // Same shape as the profile cards: the record name is the real
+                // focusable button (the card can't be one — it holds a CSV button),
+                // and the card's onClick is a pointer-only convenience so the whole
+                // card stays a tap target. aria-current plus the visible "Viewing
+                // trace" line replace the ring-colour-only selected signal (#168).
+                <Card
+                  key={record.id}
+                  className={`cursor-pointer transition-all ${
+                    selectedRecord?.id === record.id ? "ring-2 ring-primary" : "hover:shadow-md"
+                  }`}
+                  onClick={() => handleSelectRecord(record)}
+                >
+                  <CardContent className="pt-4 pb-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <button
+                        type="button"
+                        aria-current={selectedRecord?.id === record.id ? "true" : undefined}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSelectRecord(record);
+                        }}
+                        className="cursor-pointer truncate rounded-sm text-left text-sm font-medium hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                      >
+                        {record.profileName}
+                      </button>
+                      <Badge variant={outcomeVariant(record.outcome)} className="ml-2 shrink-0">
+                        {record.outcome}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{formatDate(record.startTime)}</p>
+                    {selectedRecord?.id === record.id && (
+                      <p className="text-xs font-medium text-primary">Viewing trace</p>
+                    )}
+                    <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Thermometer className="h-3 w-3" />
+                        {formatTemp(record.peakTemp, unit)}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {formatDuration(record.durationS)}
+                      </span>
+                      {recordCost !== null && (
+                        <span className="flex items-center gap-1" title={COST_ESTIMATE_HINT}>
+                          <Zap className="h-3 w-3" />~{formatCost(recordCost)}
+                        </span>
+                      )}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full mt-1 gap-1"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleSelectRecord(record);
+                        handleDownloadTrace(record);
                       }}
-                      className="cursor-pointer truncate rounded-sm text-left text-sm font-medium hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                     >
-                      {record.profileName}
-                    </button>
-                    <Badge variant={outcomeVariant(record.outcome)} className="ml-2 shrink-0">
-                      {record.outcome}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground">{formatDate(record.startTime)}</p>
-                  {selectedRecord?.id === record.id && (
-                    <p className="text-xs font-medium text-primary">Viewing trace</p>
-                  )}
-                  <div className="flex gap-3 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Thermometer className="h-3 w-3" />
-                      {formatTemp(record.peakTemp, unit)}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {formatDuration(record.durationS)}
-                    </span>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full mt-1 gap-1"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDownloadTrace(record);
-                    }}
-                  >
-                    <Download className="h-3 w-3" />
-                    CSV
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
+                      <Download className="h-3 w-3" />
+                      CSV
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
 
           {/* Trace chart */}
@@ -188,7 +212,11 @@ export function FiringHistory() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-3 gap-4 mb-4">
+                  <div
+                    className={`grid gap-4 mb-4 ${
+                      selectedCost === null ? "grid-cols-3" : "grid-cols-2 sm:grid-cols-4"
+                    }`}
+                  >
                     <div className="text-center p-3 bg-muted/50 rounded-lg">
                       <p className="text-xs text-muted-foreground">Peak Temp</p>
                       <p className="text-xl font-bold">
@@ -205,6 +233,14 @@ export function FiringHistory() {
                       <p className="text-xs text-muted-foreground">Outcome</p>
                       <p className="text-xl font-bold capitalize">{selectedRecord.outcome}</p>
                     </div>
+                    {selectedCost !== null && (
+                      <div className="text-center p-3 bg-muted/50 rounded-lg">
+                        <p className="text-xs text-muted-foreground">Est. Cost</p>
+                        <p className="text-xl font-bold" title={COST_ESTIMATE_HINT}>
+                          ~{formatCost(selectedCost)}
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* The API has always sent errorCode with every record; until
