@@ -76,6 +76,22 @@ typedef struct {
  */
 lid_state_t safety_lid_debounce_step(lid_debounce_t *d, bool raw_open);
 
+/**
+ * Map a raw pin level onto "is the lid open", per the configured polarity.
+ *
+ * Pure, and separated from the GPIO read purely so it is host-testable: the
+ * polarity mapping lived inline in safety.c, which tests/host/ does not compile,
+ * and it shipped inverted — the default read a shut lid as open and a broken
+ * wire as shut, which is the exact opposite of the fail-safe the default exists
+ * to provide.
+ *
+ * `open_is_low` is APP_LID_SWITCH_OPEN_IS_LOW. The default (false) is
+ * normally-closed wiring against the internal pull-up: a shut lid holds the
+ * contact closed and pulls the input LOW, so open — and any broken wire — is
+ * the pulled-up HIGH.
+ */
+bool safety_lid_level_is_open(int level, bool open_is_low);
+
 #ifdef __cplusplus
 }
 #endif

@@ -30,6 +30,11 @@ safety_tc_state_t safety_tc_watchdog_step(const thermocouple_reading_t *reading,
     return ((now_us - *last_valid_reading_us) > TEMP_FAULT_TIMEOUT_US) ? SAFETY_TC_FAULT_TRIP : SAFETY_TC_FAULT_GRACE;
 }
 
+bool safety_lid_level_is_open(int level, bool open_is_low)
+{
+    return open_is_low ? (level == 0) : (level != 0);
+}
+
 lid_state_t safety_lid_debounce_step(lid_debounce_t *d, bool raw_open)
 {
     if (raw_open) {

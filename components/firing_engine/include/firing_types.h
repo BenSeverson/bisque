@@ -135,6 +135,7 @@ typedef enum {
     FIRING_ERR_RUNAWAY,         /* Rate-of-rise runaway: temp rising >2x programmed rate */
     FIRING_ERR_EMERGENCY_STOP,  /* Emergency stop */
     FIRING_ERR_INVALID_PROFILE, /* Profile unfireable from the actual start temperature */
+    FIRING_ERR_LID_OPEN,        /* Delayed start expired with the lid open */
 } firing_error_code_t;
 
 #ifdef __cplusplus

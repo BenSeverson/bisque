@@ -98,11 +98,11 @@ static void vent_write(bool on)
     s_vent_active = on;
 }
 
-/* Polarity-corrected "is the lid open" reading, straight off the pin. */
+/* Polarity-corrected "is the lid open" reading, straight off the pin. The
+   mapping itself lives in safety_helpers.c so the host tests can reach it. */
 static bool lid_raw_open(void)
 {
-    int level = gpio_get_level(s_lid_gpio);
-    return APP_LID_SWITCH_ACTIVE_HIGH ? (level != 0) : (level == 0);
+    return safety_lid_level_is_open(gpio_get_level(s_lid_gpio), APP_LID_SWITCH_OPEN_IS_LOW);
 }
 
 /* True when the interlock should be holding the element off right now. */
@@ -177,8 +177,8 @@ void safety_init_io(int alarm_gpio, int vent_gpio, int lid_gpio)
         s_lid_state = LID_STATE_OPEN;
         s_lid_debounce.state = LID_STATE_OPEN;
         s_lid_debounce.close_samples = 0;
-        ESP_LOGI(TAG, "Lid switch GPIO %d configured (active %s = open)", lid_gpio,
-                 APP_LID_SWITCH_ACTIVE_HIGH ? "high" : "low");
+        ESP_LOGI(TAG, "Lid switch GPIO %d configured (%s = open)", lid_gpio,
+                 APP_LID_SWITCH_OPEN_IS_LOW ? "low" : "high");
     } else {
         s_lid_state = LID_STATE_NOT_FITTED;
     }

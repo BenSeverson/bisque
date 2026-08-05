@@ -85,12 +85,13 @@
 #define APP_PIN_ALARM      CONFIG_KILN_PIN_ALARM
 #define APP_PIN_VENT       CONFIG_KILN_PIN_VENT
 #define APP_PIN_LID_SWITCH CONFIG_KILN_PIN_LID_SWITCH
-/* True when the switch reads HIGH with the lid open (normally-open wiring).
-   The default is normally-closed, which fails safe — see Kconfig help. The
-   Kconfig symbol only exists when a lid pin is configured, so default it here
-   for the -1 case rather than making every consumer #ifdef. */
-#ifdef CONFIG_KILN_LID_SWITCH_ACTIVE_HIGH
-#define APP_LID_SWITCH_ACTIVE_HIGH 1
+/* True when a LOW level means the lid is open. The default is 0 — normally-closed
+   wiring, where lid-open is the pulled-up HIGH and a broken wire therefore reads
+   open and fails safe. See the Kconfig help. The Kconfig symbol only exists when
+   a lid pin is configured, so default it here for the -1 case rather than making
+   every consumer #ifdef. */
+#ifdef CONFIG_KILN_LID_SWITCH_OPEN_IS_LOW
+#define APP_LID_SWITCH_OPEN_IS_LOW 1
 #else
-#define APP_LID_SWITCH_ACTIVE_HIGH 0
+#define APP_LID_SWITCH_OPEN_IS_LOW 0
 #endif

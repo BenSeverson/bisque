@@ -199,6 +199,8 @@ static const char *error_code_description(firing_error_code_t code)
         return "Emergency stop";
     case FIRING_ERR_INVALID_PROFILE:
         return "Profile invalid at this temperature";
+    case FIRING_ERR_LID_OPEN:
+        return "Lid open at start";
     case FIRING_ERR_NONE:
     default:
         return "Firing halted";

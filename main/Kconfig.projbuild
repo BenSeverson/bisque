@@ -104,19 +104,24 @@ menu "Bisque Configuration"
 
                 Set to -1 to disable.
 
-        config KILN_LID_SWITCH_ACTIVE_HIGH
-            bool "Lid switch reads HIGH when open"
+        config KILN_LID_SWITCH_OPEN_IS_LOW
+            bool "Lid-open reads LOW"
             default n
             depends on KILN_PIN_LID_SWITCH >= 0
             help
-                Leave this off for normally-closed wiring, which is the
-                recommended arrangement: lid shut holds the contact closed and
-                pulls the input low against the internal pull-up, so a broken
-                wire, a pulled connector or a failed switch all read OPEN and
-                fail safe.
+                Which logic level means "lid open". Named for the level rather
+                than for a switch type on purpose — "active high/low" reads
+                ambiguously here and got this backwards once already.
 
-                Turn it on only if you already have a normally-open switch, and
-                understand that a broken wire will then read "lid closed".
+                Leave this OFF for normally-closed wiring, the recommended
+                arrangement: the shut lid holds the contact closed and pulls the
+                input LOW against the internal pull-up, so lid-open is the
+                pulled-up HIGH. A broken wire, a pulled connector or a failed
+                switch all read HIGH, i.e. OPEN, and fail safe.
+
+                Turn it ON only if your switch pulls the input low when the lid
+                opens, and understand that a broken wire will then read "lid
+                closed" — the interlock stops protecting you silently.
 
         config KILN_PIN_BTN_UP
             int "Button Up GPIO"

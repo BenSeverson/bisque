@@ -1315,6 +1315,25 @@ void firing_tick(int64_t now_us)
                 emit_event(FIRING_EVENT_ERROR, s_state.peak_temp_c, 0);
                 return;
             }
+
+            /* The lid has to be re-checked here for the same reason the ramp
+               sign does: START only saw the state at arm time, and an overnight
+               delay is exactly the window in which someone leaves the lid up.
+               begin_firing() seeds lid_prev from the live state, so an
+               already-open lid would never produce an opening edge — pause mode
+               would sit in HEATING, advancing the program clock, while safety
+               held the element off all night. */
+            if (st.lid_mode != LID_MODE_WARN && safety_get_lid_state() == LID_STATE_OPEN) {
+                ESP_LOGE(TAG, "Delayed firing aborted: lid is open");
+                s_last_error_code = FIRING_ERR_LID_OPEN;
+                safety_set_ssr(0.0f);
+                progress_lock();
+                s_progress.is_active = false;
+                s_progress.status = FIRING_STATUS_ERROR;
+                progress_unlock();
+                emit_event(FIRING_EVENT_ERROR, s_state.peak_temp_c, 0);
+                return;
+            }
             begin_firing(cur_temp, now_us);
             /* Reset dt baseline so the PID tick that runs in the rest of this
              * iteration sees dt≈0 (matches pre-refactor behavior). */
@@ -1397,6 +1416,9 @@ void firing_tick(int64_t now_us)
     bool lid_opened = (lid_now == LID_STATE_OPEN && s_state.lid_prev != LID_STATE_OPEN);
     bool lid_closed = (lid_now == LID_STATE_CLOSED && s_state.lid_prev == LID_STATE_OPEN);
     s_state.lid_prev = lid_now;
+    /* Interlock mode: the element is held off for this tick, but the state
+       machine below still runs. Set only by the interlock branch. */
+    bool lid_holds_heat = false;
 
     if (lid_mode == LID_MODE_PAUSE && active) {
         if (lid_opened) {
@@ -1424,42 +1446,39 @@ void firing_tick(int64_t now_us)
                the ramp setpoint, not-rising window, runaway baseline and hold
                timer must all resume where they left off. */
             int64_t paused_us = now_us - s_state.pause_start_us;
-            if (paused_us > 0) {
+            if (status == FIRING_STATUS_AUTOTUNE) {
+                /* Auto-tune keeps absolute timestamps of its own — the overall
+                   timeout and each relay half-cycle — and none of the firing
+                   anchors below apply to it. Shifting the wrong set would let a
+                   lid left open for ten minutes either trip the tune's timeout
+                   the instant the lid shuts, or fold the pause into an
+                   oscillation period and save gains derived from it. The manual
+                   RESUME path does exactly this; so must the lid's. */
+                if (paused_us > 0) {
+                    pid_autotune_shift_time(&s_autotune, paused_us);
+                }
+                ESP_LOGI(TAG, "Lid closed: auto-tune resumed");
+            } else if (paused_us > 0) {
                 s_state.segment_start_time_us += paused_us;
                 s_state.check_start_time_us += paused_us;
                 if (s_state.holding) {
                     s_state.segment_hold_start_time_s += (float)paused_us / 1000000.0f;
                 }
+                ESP_LOGI(TAG, "Lid closed: firing resumed");
             }
             s_state.lid_paused = false;
-            ESP_LOGI(TAG, "Lid closed: firing resumed");
         }
     } else if (lid_mode == LID_MODE_INTERLOCK && active) {
         if (lid_closed) {
-            /* The program clock deliberately ran on while the door was open, so
-               the not-rising window has been measuring a kiln that was never
-               being heated. Restart it from here, or a legitimate door-open
-               trips FIRING_ERR_NOT_RISING a few minutes later. */
-            s_state.check_start_time_us = now_us;
-            s_state.check_start_temp = current_temp;
             ESP_LOGI(TAG, "Lid closed: heat restored");
         }
-        if (lid_now == LID_STATE_OPEN) {
-            /* Status is untouched and the program clock keeps running — that is
-               the whole difference from pause mode, so the elapsed accumulator
-               has to be advanced here rather than at the bottom of the tick this
-               path never reaches.
-
-               The zero still goes through safety_set_ssr() every tick rather
-               than simply returning: that call is the control-loop heartbeat,
-               and a silent tick would trip the stall watchdog in 3 s. */
-            safety_set_ssr(0.0f);
-            s_state.elapsed_accum_us += dt_us;
-            progress_lock();
-            s_progress.elapsed_time = (uint32_t)(s_state.elapsed_accum_us / 1000000);
-            progress_unlock();
-            return;
-        }
+        /* Heat off, everything else carries on. Deliberately a flag rather than
+           an early return: "the program keeps running" has to mean the hold
+           timer keeps counting and segments still advance and complete, which is
+           the entire reason this mode exists. Returning here left a heat-treat
+           soak frozen — the elapsed counter ticked, but the segment could never
+           finish until the door shut, i.e. pause mode wearing interlock's name. */
+        lid_holds_heat = (lid_now == LID_STATE_OPEN);
     }
 
     if (!active || status == FIRING_STATUS_PAUSED || status == FIRING_STATUS_IDLE || status == FIRING_STATUS_COMPLETE ||
@@ -1525,7 +1544,14 @@ void firing_tick(int64_t now_us)
     firing_segment_t *seg = &s_state.active_profile.segments[seg_idx];
 
     /* ── Safety: kiln-not-rising check ──────────────────────────────── */
-    if (status == FIRING_STATUS_HEATING && !s_state.holding) {
+    /* Held off while the interlock has the element cut: the kiln genuinely is
+       not rising, but that is the open door, not a dead element. Re-arm the
+       window every such tick so it cannot elapse across the door-open either. */
+    if (lid_holds_heat) {
+        s_state.check_start_time_us = now_us;
+        s_state.check_start_temp = current_temp;
+    }
+    if (status == FIRING_STATUS_HEATING && !s_state.holding && !lid_holds_heat) {
         if ((now_us - s_state.check_start_time_us) >= RISING_CHECK_INTERVAL_US) {
             float temp_rise = current_temp - s_state.check_start_temp;
             if (temp_rise < RISING_THRESHOLD_C) {
@@ -1540,7 +1566,7 @@ void firing_tick(int64_t now_us)
     }
 
     /* ── Safety: rate-of-rise runaway check ──────────────────────────── */
-    if (status == FIRING_STATUS_HEATING && !s_state.holding && fabsf(seg->ramp_rate) > 0.1f) {
+    if (status == FIRING_STATUS_HEATING && !s_state.holding && !lid_holds_heat && fabsf(seg->ramp_rate) > 0.1f) {
         float elapsed_seg_s = (float)(now_us - s_state.segment_start_time_us) / 1000000.0f;
         if (elapsed_seg_s > 300.0f) { /* Only check after 5 minutes in segment */
             float actual_rate_c_hr = ((current_temp - s_state.segment_start_temp) / elapsed_seg_s) * 3600.0f;
@@ -1557,8 +1583,16 @@ void firing_tick(int64_t now_us)
     float setpoint = compute_dynamic_setpoint(seg, s_state.segment_start_temp, s_state.segment_start_time_us, now_us,
                                               s_state.holding);
 
-    /* PID compute */
-    float output = pid_compute(&s_pid, setpoint, current_temp, dt_s);
+    /* PID compute. Skipped entirely while the interlock holds the element off —
+       not merely discarded — because a door-open is minutes of accumulating
+       error that would wind the integrator up and slam the element to full the
+       moment the door shuts. The zero still goes through safety_set_ssr() every
+       tick: that call is the control-loop heartbeat, and a silent tick trips the
+       stall watchdog in 3 s. */
+    float output = 0.0f;
+    if (!lid_holds_heat) {
+        output = pid_compute(&s_pid, setpoint, current_temp, dt_s);
+    }
     safety_set_ssr(output);
 
     accumulate_element_on(output, dt_us, now_us);

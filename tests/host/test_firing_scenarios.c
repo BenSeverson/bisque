@@ -1683,6 +1683,92 @@ static void test_start_is_allowed_in_warn_mode_with_the_lid_open(void)
     TEST_ASSERT_TRUE_MESSAGE(prog.is_active, "warn mode must not block a start");
 }
 
+/* interlock means the program keeps running, which has to include the hold
+   timer — otherwise a heat-treat soak is frozen except for its elapsed counter,
+   i.e. pause mode wearing interlock's name. */
+static void test_lid_interlock_keeps_timing_a_hold(void)
+{
+    set_lid_mode(LID_MODE_INTERLOCK);
+    safety_test_set_lid(LID_STATE_CLOSED);
+
+    /* One short segment with a 1-minute hold, so the hold can complete inside
+       the door-open window. */
+    firing_profile_t p = {0};
+    strncpy(p.id, "lid-hold", FIRING_ID_LEN - 1);
+    strncpy(p.name, "Lid Hold", FIRING_NAME_LEN - 1);
+    p.segment_count = 1;
+    p.max_temp = 200.0f;
+    p.estimated_duration = 30;
+    p.segments[0].ramp_rate = 600.0f;
+    p.segments[0].target_temp = 100.0f;
+    p.segments[0].hold_time = 1;
+
+    scenario_start(&p, 0);
+    TEST_ASSERT_TRUE(scenario_run_until_status(&g_plant, FIRING_STATUS_HOLDING, 60 * 30));
+
+    /* Door opens mid-soak and stays open well past the hold duration. */
+    safety_test_set_lid(LID_STATE_OPEN);
+    scenario_run_ticks(&g_plant, 5 * 60);
+
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(0.0f, safety_test_last_duty(), "the element must be off while the door is open");
+    TEST_ASSERT_EQUAL_MESSAGE(FIRING_STATUS_COMPLETE, prog.status,
+                              "the hold must keep timing and complete with the door open");
+}
+
+/* A lid pause during an auto-tune has to shift the tune's own absolute
+   timestamps, not the firing anchors — otherwise the run either times out the
+   instant the lid shuts or saves gains derived from a pause. */
+static void test_lid_pause_during_autotune_does_not_time_out(void)
+{
+    set_lid_mode(LID_MODE_PAUSE);
+    safety_test_set_lid(LID_STATE_CLOSED);
+
+    scenario_autotune_start(200.0f, 5.0f);
+    scenario_run_ticks(&g_plant, 5);
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL(FIRING_STATUS_AUTOTUNE, prog.status);
+
+    safety_test_set_lid(LID_STATE_OPEN);
+    scenario_run_ticks(&g_plant, 1);
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL(FIRING_STATUS_PAUSED, prog.status);
+
+    /* Longer than the auto-tune timeout, so an unshifted clock trips it. */
+    scenario_run_ticks(&g_plant, 70 * 60);
+    safety_test_set_lid(LID_STATE_CLOSED);
+    scenario_run_ticks(&g_plant, 2);
+
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_EQUAL_MESSAGE(FIRING_STATUS_AUTOTUNE, prog.status,
+                              "a long lid pause timed out the auto-tune instead of shifting its clock");
+}
+
+/* A delayed start armed with the lid shut, opened before it comes due, must be
+   refused at expiry — not started into a silently heat-less firing. */
+static void test_delayed_start_refuses_a_lid_opened_before_expiry(void)
+{
+    set_lid_mode(LID_MODE_PAUSE);
+    safety_test_set_lid(LID_STATE_CLOSED);
+
+    firing_profile_t p = scenario_short_profile();
+    scenario_start(&p, 1); /* 1 minute delay */
+    scenario_run_ticks(&g_plant, 5);
+
+    /* Lid comes up during the countdown, as it would overnight. */
+    safety_test_set_lid(LID_STATE_OPEN);
+    scenario_run_ticks(&g_plant, 90);
+
+    firing_progress_t prog;
+    firing_engine_get_progress(&prog);
+    TEST_ASSERT_FALSE_MESSAGE(prog.is_active, "the delayed firing started with the lid open");
+    TEST_ASSERT_EQUAL(FIRING_STATUS_ERROR, prog.status);
+    TEST_ASSERT_EQUAL_MESSAGE(FIRING_ERR_LID_OPEN, firing_engine_get_error_code(),
+                              "the abort must name the lid, not a profile fault");
+}
+
 /* A kiln with no lid switch — the default — must be entirely unaffected, even
    with a mode configured. LID_STATE_NOT_FITTED is neither open nor closed. */
 static void test_no_lid_switch_fitted_changes_nothing(void)
@@ -1777,6 +1863,9 @@ int main(void)
     RUN_TEST(test_lid_interlock_does_not_trip_not_rising);
     RUN_TEST(test_start_is_refused_while_the_lid_is_open);
     RUN_TEST(test_start_is_allowed_in_warn_mode_with_the_lid_open);
+    RUN_TEST(test_lid_interlock_keeps_timing_a_hold);
+    RUN_TEST(test_lid_pause_during_autotune_does_not_time_out);
+    RUN_TEST(test_delayed_start_refuses_a_lid_opened_before_expiry);
     RUN_TEST(test_no_lid_switch_fitted_changes_nothing);
     return UNITY_END();
 }

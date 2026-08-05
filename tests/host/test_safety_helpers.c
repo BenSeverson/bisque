@@ -195,6 +195,33 @@ static void test_stale_but_real_reading_is_not_the_no_data_case(void)
     TEST_ASSERT_EQUAL_INT(SAFETY_TC_OK, safety_tc_watchdog_step(&old_good, origin + TEMP_FAULT_TIMEOUT_US * 3, &last));
 }
 
+/* ── Lid polarity ────────────────────────────────────────────────────────── */
+
+/* The default is normally-closed wiring against the internal pull-up: the shut
+   lid holds the contact closed and pulls the input LOW, so lid-open is the
+   pulled-up HIGH. This shipped inverted once — the mapping was inline in
+   safety.c, which the host build does not compile, so nothing could catch it. */
+static void test_default_polarity_is_normally_closed(void)
+{
+    TEST_ASSERT_TRUE_MESSAGE(safety_lid_level_is_open(1, false), "HIGH must read as lid open on NC wiring");
+    TEST_ASSERT_FALSE_MESSAGE(safety_lid_level_is_open(0, false), "LOW is the shut lid holding the contact closed");
+}
+
+/* The whole point of that default: anything that breaks the circuit floats the
+   input up to the pull-up, which must read OPEN and cut the heat. */
+static void test_broken_wire_fails_safe_on_the_default(void)
+{
+    /* A pulled connector, a cut wire and a dead switch all present as HIGH. */
+    TEST_ASSERT_TRUE_MESSAGE(safety_lid_level_is_open(1, false), "a broken lid circuit must fail safe to OPEN");
+}
+
+/* The opt-in inversion, for a switch that pulls low when the lid opens. */
+static void test_open_is_low_inverts_the_mapping(void)
+{
+    TEST_ASSERT_TRUE(safety_lid_level_is_open(0, true));
+    TEST_ASSERT_FALSE(safety_lid_level_is_open(1, true));
+}
+
 /* ── Lid debounce ────────────────────────────────────────────────────────── */
 
 static void test_lid_open_is_believed_immediately(void)
@@ -249,6 +276,9 @@ int main(void)
     RUN_TEST(test_no_reading_ever_is_grace_then_trip);
     RUN_TEST(test_late_first_reading_cancels_the_no_data_trip);
     RUN_TEST(test_stale_but_real_reading_is_not_the_no_data_case);
+    RUN_TEST(test_default_polarity_is_normally_closed);
+    RUN_TEST(test_broken_wire_fails_safe_on_the_default);
+    RUN_TEST(test_open_is_low_inverts_the_mapping);
     RUN_TEST(test_lid_open_is_believed_immediately);
     RUN_TEST(test_lid_close_requires_two_consecutive_samples);
     RUN_TEST(test_lid_bounce_resets_the_close_counter);

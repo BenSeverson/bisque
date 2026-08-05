@@ -24,6 +24,7 @@ export const FIRING_ERROR_CODES = {
   RUNAWAY: 4,
   EMERGENCY_STOP: 5,
   INVALID_PROFILE: 6,
+  LID_OPEN: 7,
 } as const;
 
 export type FiringErrorCode = (typeof FIRING_ERROR_CODES)[keyof typeof FIRING_ERROR_CODES];
@@ -38,6 +39,7 @@ const DESCRIPTIONS: Record<number, string> = {
   [FIRING_ERROR_CODES.RUNAWAY]: "Heating too fast",
   [FIRING_ERROR_CODES.EMERGENCY_STOP]: "Emergency stop",
   [FIRING_ERROR_CODES.INVALID_PROFILE]: "Profile invalid at this temperature",
+  [FIRING_ERROR_CODES.LID_OPEN]: "Lid open at start",
 };
 
 /**
@@ -70,6 +72,8 @@ const GUIDANCE: Record<number, string> = {
     "Starting a new firing clears a stale stop. If the fault is still present, it trips again immediately.",
   [FIRING_ERROR_CODES.INVALID_PROFILE]:
     "The kiln was too hot for this profile's first segment. Let it cool, or edit the profile.",
+  [FIRING_ERROR_CODES.LID_OPEN]:
+    "The delayed start came due with the lid open. Close the lid and start the firing again.",
 };
 
 export function firingErrorGuidance(code: number | undefined | null): string | null {
