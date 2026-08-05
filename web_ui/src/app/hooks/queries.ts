@@ -270,7 +270,8 @@ export function useSkipSegment() {
 
 export function useStartAutotune() {
   return useMutation({
-    mutationFn: (setpoint: number) => api.startAutotune(setpoint),
+    mutationFn: ({ setpoint, hysteresis }: { setpoint: number; hysteresis: number }) =>
+      api.startAutotune(setpoint, hysteresis),
   });
 }
 
@@ -298,7 +299,7 @@ export function useSavePidGains() {
 
 export function useTestRelay() {
   return useMutation({
-    mutationFn: () => api.testRelay(2),
+    mutationFn: (durationSeconds: number) => api.testRelay(durationSeconds),
   });
 }
 

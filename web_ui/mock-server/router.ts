@@ -531,8 +531,15 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
   }
 
   // POST /diagnostics/relay
+  //
+  // The clamp mirrors handle_diag_relay(): whole seconds, 1–10, applied silently.
+  // Without it the mock echoed back whatever it was asked for, so the UI's
+  // "activated for N seconds" toast — which trusts the response over the request
+  // precisely because the firmware clamps — read as correct here and wrong on
+  // hardware.
   if (method === "POST" && apiPath === "/diagnostics/relay") {
-    const durationSeconds = (body as { durationSeconds?: number }).durationSeconds ?? 2;
+    const requested = (body as { durationSeconds?: number }).durationSeconds ?? 2;
+    const durationSeconds = Math.min(10, Math.max(1, Math.trunc(requested) || 0));
     return { status: 200, json: { ok: true, durationSeconds } };
   }
 
