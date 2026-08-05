@@ -974,6 +974,34 @@ static void test_tc_fault_triggers_emergency_stop(void)
     TEST_ASSERT_EQUAL_INT((int)FIRING_ERR_EMERGENCY_STOP, h.last_error_code);
 }
 
+/* ── Vent relay across an emergency stop ─────────────────────────────── */
+
+/* The vent runs through the early, low-temperature part of a firing, so a trip
+ * there is the case where it is actually on when the emergency lands. What the
+ * kiln reports afterwards is now user-visible on /status and the LCD (#184), and
+ * a fan reported as running after an emergency stop is exactly the wrong thing
+ * to be wrong about. */
+static void test_emergency_stop_reports_the_vent_off(void)
+{
+    firing_profile_t p = scenario_short_profile();
+    scenario_start(&p, 0);
+    TEST_ASSERT_TRUE(scenario_run_until_status(&g_plant, FIRING_STATUS_HEATING, 30));
+    TEST_ASSERT_TRUE_MESSAGE(safety_test_vent_active(), "vent should be running early in the firing");
+
+    safety_emergency_stop();
+    TEST_ASSERT_FALSE_MESSAGE(safety_test_vent_active(), "emergency stop must cut the vent immediately");
+
+    /* And the engine must not put it back. The tick that first observes the
+       emergency still sees is_active == true, and it drives the vent before it
+       checks for the stop — so this is the tick that would re-energize a fan the
+       safety layer had just cut. */
+    scenario_run_ticks(&g_plant, 1);
+    TEST_ASSERT_FALSE_MESSAGE(safety_test_vent_active(), "the tick that observes the stop re-energized the vent");
+
+    scenario_run_ticks(&g_plant, 3);
+    TEST_ASSERT_FALSE_MESSAGE(safety_test_vent_active(), "vent came back on after the firing errored");
+}
+
 /* ── Kiln not rising: emergency stop after 15 min of stuck heating ───── */
 
 static void test_kiln_not_rising_trips_emergency_stop(void)
@@ -1494,6 +1522,7 @@ int main(void)
     RUN_TEST(test_start_rejects_wrong_sign_ramp);
     RUN_TEST(test_start_allows_legitimate_cooling_segment);
     RUN_TEST(test_tc_fault_triggers_emergency_stop);
+    RUN_TEST(test_emergency_stop_reports_the_vent_off);
     RUN_TEST(test_kiln_not_rising_trips_emergency_stop);
     RUN_TEST(test_runaway_trips_emergency_stop);
     RUN_TEST(test_tc_fault_holds_ssr_off);

@@ -86,22 +86,42 @@ typedef struct {
     bool tc_fault;
     firing_error_code_t error;
     const char *profile_id; /* "" for none */
+    vent_state_t vent;
 } preset_t;
 
+/* NOTE: for_each_scene() and the interactive keys address several of these by
+ * index (2 = heating, 5 = paused). Append new presets; don't insert. */
 static const preset_t presets[] = {
-    {"idle", FIRING_STATUS_IDLE, 24.0f, 0, 0, 0, 0, 0, false, false, FIRING_ERR_NONE, ""},
-    {"idle-history", FIRING_STATUS_IDLE, 24.0f, 0, 0, 0, 0, 0, true, false, FIRING_ERR_NONE, ""},
-    {"heating", FIRING_STATUS_HEATING, 1180.0f, 1222.0f, 1, 3, 19920, 8040, false, false, FIRING_ERR_NONE, "profile-1"},
-    {"holding", FIRING_STATUS_HOLDING, 1218.0f, 1222.0f, 1, 3, 21300, 6660, false, false, FIRING_ERR_NONE, "profile-1"},
-    {"cooling", FIRING_STATUS_COOLING, 850.0f, 500.0f, 2, 3, 25600, 2360, false, false, FIRING_ERR_NONE, "profile-1"},
-    {"paused", FIRING_STATUS_PAUSED, 1180.0f, 1222.0f, 1, 3, 19920, 8040, false, false, FIRING_ERR_NONE, "profile-1"},
-    {"complete", FIRING_STATUS_COMPLETE, 850.0f, 0, 2, 3, 28720, 0, false, false, FIRING_ERR_NONE, "profile-1"},
-    {"error", FIRING_STATUS_ERROR, 850.0f, 1222.0f, 1, 3, 14400, 0, false, false, FIRING_ERR_TC_FAULT, "profile-1"},
-    {"autotune", FIRING_STATUS_AUTOTUNE, 1100.0f, 1100.0f, 0, 0, 600, 0, false, false, FIRING_ERR_NONE, ""},
+    {"idle", FIRING_STATUS_IDLE, 24.0f, 0, 0, 0, 0, 0, false, false, FIRING_ERR_NONE, "", VENT_STATE_NOT_FITTED},
+    {"idle-history", FIRING_STATUS_IDLE, 24.0f, 0, 0, 0, 0, 0, true, false, FIRING_ERR_NONE, "", VENT_STATE_NOT_FITTED},
+    {"heating", FIRING_STATUS_HEATING, 1180.0f, 1222.0f, 1, 3, 19920, 8040, false, false, FIRING_ERR_NONE, "profile-1",
+     VENT_STATE_NOT_FITTED},
+    {"holding", FIRING_STATUS_HOLDING, 1218.0f, 1222.0f, 1, 3, 21300, 6660, false, false, FIRING_ERR_NONE, "profile-1",
+     VENT_STATE_NOT_FITTED},
+    {"cooling", FIRING_STATUS_COOLING, 850.0f, 500.0f, 2, 3, 25600, 2360, false, false, FIRING_ERR_NONE, "profile-1",
+     VENT_STATE_NOT_FITTED},
+    {"paused", FIRING_STATUS_PAUSED, 1180.0f, 1222.0f, 1, 3, 19920, 8040, false, false, FIRING_ERR_NONE, "profile-1",
+     VENT_STATE_NOT_FITTED},
+    {"complete", FIRING_STATUS_COMPLETE, 850.0f, 0, 2, 3, 28720, 0, false, false, FIRING_ERR_NONE, "profile-1",
+     VENT_STATE_NOT_FITTED},
+    {"error", FIRING_STATUS_ERROR, 850.0f, 1222.0f, 1, 3, 14400, 0, false, false, FIRING_ERR_TC_FAULT, "profile-1",
+     VENT_STATE_NOT_FITTED},
+    {"autotune", FIRING_STATUS_AUTOTUNE, 1100.0f, 1100.0f, 0, 0, 600, 0, false, false, FIRING_ERR_NONE, "",
+     VENT_STATE_NOT_FITTED},
+    /* Early in a bisque ramp on a kiln that has a downdraft vent fitted: below
+       700°C the relay is energized, which is the only state that puts the VENT
+       marker on the status bar (#184). Every preset above is a vent-less kiln —
+       the firmware default — so none of them would ever show it. */
+    {"vent", FIRING_STATUS_HEATING, 240.0f, 1222.0f, 0, 3, 5400, 22560, false, false, FIRING_ERR_NONE, "profile-1",
+     VENT_STATE_ON},
 };
 #define PRESET_COUNT (sizeof(presets) / sizeof(presets[0]))
 
 static int s_current_preset = 0;
+
+/* Vent state the next dashboard_update() will be driven with, standing in for
+ * safety_get_vent_state() on device. */
+static vent_state_t s_vent = VENT_STATE_NOT_FITTED;
 
 static void apply_preset(int idx)
 {
@@ -135,6 +155,7 @@ static void apply_preset(int idx)
     mock_set_progress(&prog);
 
     mock_set_error_code(p->error);
+    s_vent = p->vent;
 
     if (p->with_history) {
         history_record_t r = {0};
@@ -164,7 +185,7 @@ static void pump_frames(int n)
     for (int i = 0; i < n; i++) {
         thermocouple_get_latest(&tc);
         firing_engine_get_progress(&prog);
-        dashboard_update(&tc, &prog);
+        dashboard_update(&tc, &prog, s_vent);
         lv_timer_handler();
         SDL_Delay(16);
     }
@@ -641,7 +662,7 @@ static int run_interactive(lv_display_t *disp)
         firing_progress_t prog;
         thermocouple_get_latest(&tc);
         firing_engine_get_progress(&prog);
-        dashboard_update(&tc, &prog);
+        dashboard_update(&tc, &prog, s_vent);
         lv_timer_handler();
 
         SDL_Delay(16); /* ~60 FPS */
@@ -734,6 +755,35 @@ static bool label_with_exact_text(lv_obj_t *parent, const char *text)
         }
     }
     return false;
+}
+
+/* The status bar's vent marker, or NULL if the dashboard never created one. */
+static lv_obj_t *find_label_by_text(lv_obj_t *parent, const char *text)
+{
+    uint32_t n = lv_obj_get_child_count(parent);
+    for (uint32_t i = 0; i < n; i++) {
+        lv_obj_t *c = lv_obj_get_child(parent, i);
+        if (lv_obj_check_type(c, &lv_label_class)) {
+            const char *t = lv_label_get_text(c);
+            if (t && strcmp(t, text) == 0) {
+                return c;
+            }
+        }
+        lv_obj_t *found = find_label_by_text(c, text);
+        if (found) {
+            return found;
+        }
+    }
+    return NULL;
+}
+
+/* Is the vent marker actually on screen? The label is created once and toggled
+ * with LV_OBJ_FLAG_HIDDEN rather than destroyed, so a text search alone finds it
+ * in both states and would pass unconditionally. */
+static bool vent_marker_visible(void)
+{
+    lv_obj_t *marker = find_label_by_text(lv_screen_active(), "VENT");
+    return marker != NULL && !lv_obj_has_flag(marker, LV_OBJ_FLAG_HIDDEN);
 }
 
 /* Number of plotted points on the chart's "actual" series. dashboard.c adds the planned
@@ -912,6 +962,45 @@ static void verify_unloadable_profile_is_not_reread(void)
     mock_set_profile_load_fail(false);
 }
 
+/* #184 — the vent marker is a status-bar widget that outlives every layout swap,
+ * so "does it appear" is not the interesting question; "does it go away again"
+ * is. Show/hide is also change-guarded, which is exactly the shape of bug that
+ * leaves a stale marker on screen. A screenshot of any single scene would pass
+ * either way. */
+static void verify_vent_indicator_tracks_state(void)
+{
+    printf("[#184] downdraft vent indicator\n");
+
+    /* A kiln with no vent GPIO — the firmware default — must never show it,
+       whatever the firing is doing. */
+    s_vent = VENT_STATE_NOT_FITTED;
+    drive(FIRING_STATUS_IDLE, 25.0f, 0, "");
+    drive(FIRING_STATUS_HEATING, 240.0f, 5400, "profile-1");
+    check(!vent_marker_visible(), "a kiln with no vent relay never shows the marker", NULL);
+
+    /* Vent fitted and running through the early, smoky part of the ramp. */
+    s_vent = VENT_STATE_ON;
+    drive(FIRING_STATUS_HEATING, 300.0f, 6000, "profile-1");
+    check(vent_marker_visible(), "an energized vent shows the marker", NULL);
+
+    /* Past 700°C the firmware drops the relay. The marker has to follow — this
+       is the one that a change-guard bug strands on screen for the rest of the
+       firing. */
+    s_vent = VENT_STATE_OFF;
+    drive(FIRING_STATUS_HEATING, 900.0f, 14000, "profile-1");
+    check(!vent_marker_visible(), "the marker clears when the vent shuts off", NULL);
+
+    /* And it survives a layout swap: the status bar is not rebuilt with the
+       content area, so a re-shown marker must still be there after ACTIVE →
+       COMPLETE → ACTIVE. */
+    s_vent = VENT_STATE_ON;
+    drive(FIRING_STATUS_COMPLETE, 400.0f, 20000, "profile-1");
+    drive(FIRING_STATUS_HEATING, 200.0f, 60, "profile-1");
+    check(vent_marker_visible(), "the marker survives a layout rebuild", NULL);
+
+    s_vent = VENT_STATE_NOT_FITTED;
+}
+
 static int run_verify(void)
 {
     s_verify_failures = 0;
@@ -919,6 +1008,7 @@ static int run_verify(void)
     verify_peak_resets_on_refire();
     verify_peak_survives_unloadable_profile();
     verify_unloadable_profile_is_not_reread();
+    verify_vent_indicator_tracks_state();
 
     printf("\n== Dashboard state verification ==\n");
     printf("  failures: %d\n", s_verify_failures);

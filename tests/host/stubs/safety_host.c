@@ -8,6 +8,10 @@ static float s_max_temp = 1300.0f;
 static float s_last_duty;
 static unsigned s_ssr_calls;
 static bool s_vent_active;
+/* The stub defaults to a vent being fitted — the case a test has something to
+   assert about. The real driver decides from the GPIO, which safety_init_io()
+   below mirrors for a test that wants the vent-less default kiln. */
+static bool s_vent_fitted = true;
 static safety_trip_cause_t s_trip_cause = SAFETY_TRIP_NONE;
 
 static EventGroupHandle_t event_group_get(void)
@@ -31,7 +35,8 @@ esp_err_t safety_init(int ssr_pin, float max_safe_temp)
 void safety_init_io(int alarm_gpio, int vent_gpio)
 {
     (void)alarm_gpio;
-    (void)vent_gpio;
+    s_vent_fitted = vent_gpio >= 0;
+    s_vent_active = false;
 }
 
 void safety_trigger_alarm(int pattern)
@@ -41,8 +46,20 @@ void safety_trigger_alarm(int pattern)
 
 void safety_update_vent(bool is_firing, float current_temp_c)
 {
-    /* Mirror the real driver: vent on during firing below 700°C. */
-    s_vent_active = is_firing && current_temp_c < 700.0f;
+    /* Mirror the real driver: vent on during firing below 700°C, and never
+       while an emergency stop is latched. */
+    if (!s_vent_fitted) {
+        return;
+    }
+    s_vent_active = !s_emergency && is_firing && current_temp_c < 700.0f;
+}
+
+vent_state_t safety_get_vent_state(void)
+{
+    if (!s_vent_fitted) {
+        return VENT_STATE_NOT_FITTED;
+    }
+    return s_vent_active ? VENT_STATE_ON : VENT_STATE_OFF;
 }
 
 EventGroupHandle_t safety_get_event_group(void)
@@ -54,6 +71,9 @@ void safety_emergency_stop_cause(safety_trip_cause_t cause)
 {
     s_emergency = true;
     s_last_duty = 0.0f;
+    /* The real driver cuts the vent relay here too, and a scenario test that
+       asserts on the vent after a trip must see the same thing. */
+    s_vent_active = false;
     if (s_trip_cause == SAFETY_TRIP_NONE) {
         s_trip_cause = cause;
     }
@@ -147,6 +167,7 @@ void safety_test_reset(void)
     s_last_duty = 0.0f;
     s_ssr_calls = 0;
     s_vent_active = false;
+    s_vent_fitted = true;
     s_trip_cause = SAFETY_TRIP_NONE;
     if (s_event_group) {
         xEventGroupClearBits(s_event_group, 0xFFFFFFFFU);

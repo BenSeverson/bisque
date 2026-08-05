@@ -3,6 +3,7 @@
 #include "lvgl.h"
 #include "thermocouple.h"
 #include "firing_types.h"
+#include "vent_state.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -17,9 +18,15 @@ void dashboard_create(void);
 /**
  * Refresh the dashboard from the latest thermocouple reading and firing progress.
  * Layout swaps based on prog->status.
+ *
+ * `vent` is the downdraft vent relay (safety_get_vent_state()), passed in rather
+ * than read here so this file stays free of the safety driver — the SDL
+ * simulator compiles it with no ESP-IDF at all, and gets to drive the indicator
+ * through states a real kiln would take hours to reach.
+ *
  * Must be called with LVGL locked via lv_lock().
  */
-void dashboard_update(const thermocouple_reading_t *tc, const firing_progress_t *prog);
+void dashboard_update(const thermocouple_reading_t *tc, const firing_progress_t *prog, vent_state_t vent);
 
 #ifdef __cplusplus
 }

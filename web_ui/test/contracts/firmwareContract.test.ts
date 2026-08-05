@@ -62,6 +62,7 @@ const SOURCE_LIST_PATH = join(REPO_ROOT, "tests/host/fixture_sources.txt");
 const REQUIRED_FIXTURES = [
   "status",
   "status_faulted",
+  "status_no_vent",
   "profile",
   "profile_hold_until_skip",
   "settings",
@@ -228,6 +229,7 @@ function deepStrict(schema: z.ZodType): any {
 const STRICT_CASES: Array<[fixture: string, schema: z.ZodType]> = [
   ["status", firingProgressResponseSchema],
   ["status_faulted", firingProgressResponseSchema],
+  ["status_no_vent", firingProgressResponseSchema],
   ["profile", firingProfileSchema],
   ["profile_hold_until_skip", firingProfileSchema],
   ["settings", settingsSchema],
@@ -405,6 +407,19 @@ describe.runIf(fixturesUsable)("firmware → frontend API contract", () => {
     expect(Object.keys(frame.data)).toEqual(
       expect.arrayContaining(["profileId", "delayRemaining", "dutyPercent"]),
     );
+  });
+
+  /**
+   * `ventActive` is optional for a different reason than the three above: the
+   * vent GPIO defaults to disabled, so a current, fully-updated kiln really does
+   * omit it. Both halves are asserted here — a kiln with a vent reports it, and
+   * one without leaves the key off rather than sending a misleading `false` —
+   * because the UI hides the whole indicator on absence (#184).
+   */
+  it("ventActive is present with a vent fitted and absent without one", () => {
+    const fitted = load("status") as Record<string, unknown>;
+    expect(fitted.ventActive).toBe(true);
+    expect(Object.keys(load("status_no_vent") as object)).not.toContain("ventActive");
   });
 
   /**

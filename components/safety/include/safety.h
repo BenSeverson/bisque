@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 #include "esp_err.h"
+#include "vent_state.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 
@@ -53,6 +54,17 @@ void safety_trigger_alarm(int pattern);
  * @param current_temp_c  Current kiln temperature.
  */
 void safety_update_vent(bool is_firing, float current_temp_c);
+
+/**
+ * State of the vent relay as of the last safety_update_vent() call, or
+ * VENT_STATE_NOT_FITTED when no vent GPIO was configured.
+ *
+ * This is the pin's own state, not a re-derivation of the is_firing/temperature
+ * rule: an operator looking at a vent indicator wants to know whether the fan is
+ * running, and the two answers diverge whenever the firing task stops calling in
+ * (a wedged control loop, a firing that ended between ticks).
+ */
+vent_state_t safety_get_vent_state(void);
 
 /**
  * Get the global event group for safety/firing events.

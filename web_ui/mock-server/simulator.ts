@@ -452,6 +452,28 @@ function publishedDutyPercent(): number {
   return Math.round(elementDuty(f.currentTemp, f.setpoint) * 100);
 }
 
+/** Vent-off threshold, mirroring VENT_MAX_TEMP_C in components/safety/safety.c. */
+const VENT_MAX_TEMP_C = 700;
+
+/**
+ * Downdraft vent relay, as safety_update_vent() drives it: on while a firing is
+ * active and the kiln is below 700°C, clearing combustion gases through the
+ * smoky early hours.
+ *
+ * The simulated kiln always has a vent fitted, so this never returns undefined.
+ * Real firmware omits `ventActive` entirely when CONFIG_KILN_PIN_VENT is -1 —
+ * the mock cannot model both, and a demo that shows the indicator is the more
+ * useful of the two. The absent case is covered by the `status_no_vent` firmware
+ * fixture instead.
+ *
+ * Note this follows `isActive`, not `running`: firing_engine.c keeps the vent
+ * turning while a delayed start is armed.
+ */
+function publishedVentActive(): boolean {
+  const f = state.firing;
+  return (f.running || f.scheduled) && f.currentTemp < VENT_MAX_TEMP_C;
+}
+
 function broadcast(): void {
   const f = state.firing;
   if (state.subscribers.size === 0) return;
@@ -468,6 +490,7 @@ function broadcast(): void {
       estimatedTimeRemaining: Math.round(estimateTimeRemaining()),
       delayRemaining: Math.round(f.scheduled ? f.delayRemainingS : 0),
       dutyPercent: publishedDutyPercent(),
+      ventActive: publishedVentActive(),
       isActive: f.running || f.scheduled,
       // The firmware includes profileId in every frame; omitting it here meant
       // a client could never adopt a firing started elsewhere.
@@ -493,6 +516,7 @@ export function getStatusResponse() {
     estimatedTimeRemaining: Math.round(estimateTimeRemaining()),
     delayRemaining: Math.round(f.scheduled ? f.delayRemainingS : 0),
     dutyPercent: publishedDutyPercent(),
+    ventActive: publishedVentActive(),
     status: f.status,
     thermocouple: {
       temperature: Math.round(f.currentTemp * 10) / 10,

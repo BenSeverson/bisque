@@ -26,6 +26,7 @@ import {
   SkipForward,
   Timer,
   Zap,
+  Fan,
 } from "lucide-react";
 import { TemperatureDataPoint, HOLD_UNTIL_SKIP, FiringStatus } from "../types/kiln";
 import { api } from "../services/api";
@@ -371,6 +372,33 @@ export function FiringDashboard() {
             <CardTitle className="flex items-center gap-2" aria-live="polite">
               {getStatusBadge()}
             </CardTitle>
+            {/* Downdraft vent relay (#184). The firmware drives this GPIO all
+                through the early, smoky part of a firing and nothing ever said
+                so — an operator had no way to tell the fan was running.
+
+                Tucked into the Status card rather than added as a sixth tile:
+                the grid above is built to sit five across, and a sixth would
+                strand a card on its own row. Absent entirely when the kiln
+                reports no vent (`null`), which is most of them — the GPIO
+                defaults to disabled. */}
+            {firingProgress.ventActive !== null && (
+              <p
+                className={`flex items-center gap-1.5 text-sm ${
+                  firingProgress.ventActive ? "text-foreground" : "text-muted-foreground"
+                }`}
+                aria-live="polite"
+              >
+                <Fan
+                  aria-hidden="true"
+                  className={`h-4 w-4 ${
+                    firingProgress.ventActive
+                      ? "motion-safe:animate-spin [animation-duration:3s]"
+                      : ""
+                  }`}
+                />
+                Vent {firingProgress.ventActive ? "on" : "off"}
+              </p>
+            )}
           </CardHeader>
         </Card>
       </div>

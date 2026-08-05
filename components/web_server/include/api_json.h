@@ -23,6 +23,7 @@
 #include "pid_control.h"
 #include "thermocouple.h"
 #include "firing_history.h"
+#include "vent_state.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -34,9 +35,10 @@ extern "C" {
 /** GET /api/v1/status — firing progress plus thermocouple block. `tc_offset_c`
  *  is applied to the top-level currentTemp so it matches the WebSocket feed; the
  *  nested thermocouple block keeps the raw reading for diagnostics.
- *  `ssr_duty` is the live element duty (0.0–1.0), from safety_get_ssr_duty(). */
+ *  `ssr_duty` is the live element duty (0.0–1.0), from safety_get_ssr_duty();
+ *  `vent` is the downdraft vent relay, from safety_get_vent_state(). */
 cJSON *build_status_json(const firing_progress_t *prog, const thermocouple_reading_t *tc, float tc_offset_c,
-                         float ssr_duty);
+                         float ssr_duty, vent_state_t vent);
 
 /** GET /api/v1/profiles/:id, POST /api/v1/profiles/cone-fire — one firing profile. */
 cJSON *build_profile_json(const firing_profile_t *profile);
@@ -98,7 +100,7 @@ const char *firing_status_to_string(firing_status_t s);
  * top level, so a client can feed both through one parser. `current_temp` is
  * already offset-corrected and zeroed on fault by the caller, matching /status.
  */
-cJSON *build_ws_temp_update_json(const firing_progress_t *prog, float current_temp, float ssr_duty);
+cJSON *build_ws_temp_update_json(const firing_progress_t *prog, float current_temp, float ssr_duty, vent_state_t vent);
 
 /**
  * `ota_progress` / `ota_complete` / `ota_error`, chosen by `phase`.

@@ -117,11 +117,14 @@ static void test_status_full_shape(void)
         .timestamp_us = 1234567,
     };
 
-    cJSON *root = build_status_json(&prog, &tc, 5.0f, 0.625f);
+    cJSON *root = build_status_json(&prog, &tc, 5.0f, 0.625f, VENT_STATE_ON);
     TEST_ASSERT_NOT_NULL(root);
 
     /* Element power, rounded to whole percent (#180). */
     TEST_ASSERT_EQUAL_INT(63, cJSON_GetObjectItem(root, "dutyPercent")->valueint);
+
+    /* Downdraft vent relay (#184). */
+    TEST_ASSERT_TRUE(cJSON_IsTrue(cJSON_GetObjectItem(root, "ventActive")));
 
     /* currentTemp carries the tc offset so it matches the WebSocket feed; the
        nested thermocouple block keeps the raw reading. */
@@ -138,6 +141,7 @@ static void test_status_full_shape(void)
     assert_number_field(root, "elapsedTime");
     assert_number_field(root, "estimatedTimeRemaining");
     assert_number_field(root, "dutyPercent");
+    assert_bool_field(root, "ventActive");
     assert_string_field(root, "status");
 
     TEST_ASSERT_EQUAL_STRING("heating", cJSON_GetObjectItem(root, "status")->valuestring);
@@ -163,7 +167,7 @@ static void test_status_zeros_temp_when_fault(void)
         .temperature_c = 999.0f,
         .fault = TC_FAULT_OPEN_CIRCUIT,
     };
-    cJSON *root = build_status_json(&prog, &tc, 5.0f, 0.0f);
+    cJSON *root = build_status_json(&prog, &tc, 5.0f, 0.0f, VENT_STATE_OFF);
     /* Every other status fixture is a healthy heating kiln, so the fault flags
        were only ever serialized false and the frontend's rendering of a raised
        one went unvalidated end to end (#174). */
@@ -178,6 +182,28 @@ static void test_status_zeros_temp_when_fault(void)
     TEST_ASSERT_TRUE(cJSON_IsTrue(cJSON_GetObjectItem(cJSON_GetObjectItem(root, "thermocouple"), "openCircuit")));
     TEST_ASSERT_FALSE(cJSON_IsTrue(cJSON_GetObjectItem(cJSON_GetObjectItem(root, "thermocouple"), "shortGnd")));
     TEST_ASSERT_EQUAL_INT(0, cJSON_GetObjectItem(root, "dutyPercent")->valueint);
+    TEST_ASSERT_FALSE(cJSON_IsTrue(cJSON_GetObjectItem(root, "ventActive")));
+    cJSON_Delete(root);
+}
+
+/* The vent GPIO defaults to disabled (CONFIG_KILN_PIN_VENT = -1), so most kilns
+ * have no vent relay to report on. Sending `ventActive: false` for those would
+ * be indistinguishable from a fitted vent that happens to be off, and every such
+ * kiln would render a permanently dark indicator for hardware it doesn't have.
+ * The key is dropped instead, which is what lets the client hide the whole
+ * control (#184). */
+static void test_status_omits_vent_when_not_fitted(void)
+{
+    firing_progress_t prog = {.status = FIRING_STATUS_HEATING, .target_temp = 500.0f};
+    thermocouple_reading_t tc = {.temperature_c = 480.0f};
+
+    cJSON *root = build_status_json(&prog, &tc, 0.0f, 0.5f, VENT_STATE_NOT_FITTED);
+    TEST_ASSERT_NULL(cJSON_GetObjectItem(root, "ventActive"));
+    /* Everything else is still there — a missing vent is not a degraded status. */
+    assert_number_field(root, "dutyPercent");
+    assert_string_field(root, "status");
+
+    dump_fixture("status_no_vent", root);
     cJSON_Delete(root);
 }
 
@@ -191,15 +217,15 @@ static void test_status_clamps_duty(void)
     firing_progress_t prog = {.status = FIRING_STATUS_HEATING};
     thermocouple_reading_t tc = {.temperature_c = 500.0f};
 
-    cJSON *over = build_status_json(&prog, &tc, 0.0f, 1.4f);
+    cJSON *over = build_status_json(&prog, &tc, 0.0f, 1.4f, VENT_STATE_OFF);
     TEST_ASSERT_EQUAL_INT(100, cJSON_GetObjectItem(over, "dutyPercent")->valueint);
     cJSON_Delete(over);
 
-    cJSON *under = build_status_json(&prog, &tc, 0.0f, -0.2f);
+    cJSON *under = build_status_json(&prog, &tc, 0.0f, -0.2f, VENT_STATE_OFF);
     TEST_ASSERT_EQUAL_INT(0, cJSON_GetObjectItem(under, "dutyPercent")->valueint);
     cJSON_Delete(under);
 
-    cJSON *nan_duty = build_status_json(&prog, &tc, 0.0f, NAN);
+    cJSON *nan_duty = build_status_json(&prog, &tc, 0.0f, NAN, VENT_STATE_OFF);
     TEST_ASSERT_EQUAL_INT(0, cJSON_GetObjectItem(nan_duty, "dutyPercent")->valueint);
     cJSON_Delete(nan_duty);
 }
@@ -629,7 +655,7 @@ static void test_ws_temp_update_shape(void)
     };
     strcpy(prog.profile_id, "bisque-cone-04");
 
-    cJSON *root = build_ws_temp_update_json(&prog, 981.5f, 0.42f);
+    cJSON *root = build_ws_temp_update_json(&prog, 981.5f, 0.42f, VENT_STATE_ON);
     TEST_ASSERT_NOT_NULL(root);
 
     assert_string_field(root, "type");
@@ -647,10 +673,12 @@ static void test_ws_temp_update_shape(void)
     assert_number_field(data, "estimatedTimeRemaining");
     assert_number_field(data, "delayRemaining");
     assert_number_field(data, "dutyPercent");
+    assert_bool_field(data, "ventActive");
     assert_string_field(data, "status");
 
     TEST_ASSERT_EQUAL_FLOAT(981.5f, cJSON_GetObjectItem(data, "currentTemp")->valuedouble);
     TEST_ASSERT_EQUAL_INT(42, cJSON_GetObjectItem(data, "dutyPercent")->valueint);
+    TEST_ASSERT_TRUE(cJSON_IsTrue(cJSON_GetObjectItem(data, "ventActive")));
     TEST_ASSERT_EQUAL_STRING("holding", cJSON_GetObjectItem(data, "status")->valuestring);
 
     /* The frame is telemetry only — no thermocouple diagnostics ride along, so
@@ -665,13 +693,13 @@ static void test_ws_temp_update_shape(void)
    client that renders from both shows different numbers depending on which one
    arrived last. Compares the key sets rather than the values, since /status
    nests an extra thermocouple object the frame deliberately omits. */
-static void test_ws_temp_update_matches_status_progress_block(void)
+static void assert_ws_and_status_agree(vent_state_t vent)
 {
     firing_progress_t prog = {.status = FIRING_STATUS_HEATING, .target_temp = 500.0f};
     thermocouple_reading_t tc = {.temperature_c = 480.0f};
 
-    cJSON *status = build_status_json(&prog, &tc, 0.0f, 0.5f);
-    cJSON *frame = build_ws_temp_update_json(&prog, 480.0f, 0.5f);
+    cJSON *status = build_status_json(&prog, &tc, 0.0f, 0.5f, vent);
+    cJSON *frame = build_ws_temp_update_json(&prog, 480.0f, 0.5f, vent);
     cJSON *data = cJSON_GetObjectItem(frame, "data");
 
     for (cJSON *k = data->child; k; k = k->next) {
@@ -687,6 +715,15 @@ static void test_ws_temp_update_matches_status_progress_block(void)
 
     cJSON_Delete(status);
     cJSON_Delete(frame);
+}
+
+static void test_ws_temp_update_matches_status_progress_block(void)
+{
+    assert_ws_and_status_agree(VENT_STATE_ON);
+    /* Repeated with the vent absent: `ventActive` is the first key either
+       payload omits conditionally, so "they agree" now has to hold for a key
+       that is missing from both, not only for one present in both. */
+    assert_ws_and_status_agree(VENT_STATE_NOT_FITTED);
 }
 
 /* ── build_ws_ota_event_json ─────────────────────────────────────────────── */
@@ -985,6 +1022,7 @@ int main(void)
     RUN_TEST(test_status_full_shape);
     RUN_TEST(test_status_zeros_temp_when_fault);
     RUN_TEST(test_status_clamps_duty);
+    RUN_TEST(test_status_omits_vent_when_not_fitted);
     RUN_TEST(test_profile_shape);
     RUN_TEST(test_profile_hold_until_skip);
     RUN_TEST(test_history_empty_list);

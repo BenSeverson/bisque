@@ -163,6 +163,10 @@ target_include_directories(bisque_sim PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../components/thermocouple/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../components/app_config/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../components/history/include
+    # dashboard.h takes a vent_state_t. Only vent_state.h is pulled in from
+    # here — it is deliberately free of esp_err/FreeRTOS so the simulator can
+    # share the type without stubbing the safety driver.
+    ${CMAKE_CURRENT_SOURCE_DIR}/../components/safety/include
     # firing_engine.h includes pid_control.h to expose the auto-tune states,
     # so the simulator needs it on the path even though it drives no PID.
     ${CMAKE_CURRENT_SOURCE_DIR}/../components/pid_control/include

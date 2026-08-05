@@ -39,7 +39,8 @@ const char *firing_status_to_string(firing_status_t s)
 /* Internal helper: add the shared firing-progress fields. Both the REST status
  * response and the WebSocket temp_update frame are built from it, which is what
  * lets a client run the two through one parser. */
-static void json_add_progress_fields(cJSON *target, const firing_progress_t *prog, float current_temp, float ssr_duty)
+static void json_add_progress_fields(cJSON *target, const firing_progress_t *prog, float current_temp, float ssr_duty,
+                                     vent_state_t vent)
 {
     cJSON_AddBoolToObject(target, "isActive", prog->is_active);
     cJSON_AddStringToObject(target, "profileId", prog->profile_id);
@@ -69,17 +70,26 @@ static void json_add_progress_fields(cJSON *target, const firing_progress_t *pro
         duty = 1.0f;
     }
     cJSON_AddNumberToObject(target, "dutyPercent", (double)lroundf(duty * 100.0f));
+    /* Downdraft vent relay (#184). The key is omitted entirely — rather than
+       sent false — on a kiln with no vent GPIO configured, which is the default
+       (CONFIG_KILN_PIN_VENT = -1). "Vent: off" and "this kiln has no vent" are
+       different facts, and only the firmware knows which one applies; a client
+       that saw `false` either way would have to render a dead indicator on
+       every kiln that never had the hardware. */
+    if (vent != VENT_STATE_NOT_FITTED) {
+        cJSON_AddBoolToObject(target, "ventActive", vent == VENT_STATE_ON);
+    }
     cJSON_AddStringToObject(target, "status", firing_status_to_string(prog->status));
 }
 
 cJSON *build_status_json(const firing_progress_t *prog, const thermocouple_reading_t *tc, float tc_offset_c,
-                         float ssr_duty)
+                         float ssr_duty, vent_state_t vent)
 {
     cJSON *root = cJSON_CreateObject();
     /* Offset-correct the published temperature (and zero it on fault) so the
        REST status matches the WebSocket temp_update feed. */
     float current_temp = tc->fault ? 0.0f : (tc->temperature_c + tc_offset_c);
-    json_add_progress_fields(root, prog, current_temp, ssr_duty);
+    json_add_progress_fields(root, prog, current_temp, ssr_duty, vent);
 
     cJSON *tc_obj = cJSON_AddObjectToObject(root, "thermocouple");
     cJSON_AddNumberToObject(tc_obj, "temperature", tc->temperature_c);
@@ -241,11 +251,11 @@ static cJSON *ws_envelope(const char *type, cJSON **out_data)
     return root;
 }
 
-cJSON *build_ws_temp_update_json(const firing_progress_t *prog, float current_temp, float ssr_duty)
+cJSON *build_ws_temp_update_json(const firing_progress_t *prog, float current_temp, float ssr_duty, vent_state_t vent)
 {
     cJSON *data;
     cJSON *root = ws_envelope("temp_update", &data);
-    json_add_progress_fields(data, prog, current_temp, ssr_duty);
+    json_add_progress_fields(data, prog, current_temp, ssr_duty, vent);
     return root;
 }
 

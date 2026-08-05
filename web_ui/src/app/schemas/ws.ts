@@ -24,10 +24,15 @@ import { z } from "zod";
  * `data` is the same progress block GET /status puts at its top level, minus the
  * thermocouple diagnostics; a host test asserts the two agree field-for-field.
  *
- * The three optional keys are optional for firmware compatibility, not because
- * a current device omits them — a kiln running firmware from before #180/#204
- * still parses, and the UI hides the reading rather than claiming 0%. The
- * contract test separately asserts that current firmware does send all three.
+ * `profileId`, `delayRemaining` and `dutyPercent` are optional for firmware
+ * compatibility, not because a current device omits them — a kiln running
+ * firmware from before #180/#204 still parses, and the UI hides the reading
+ * rather than claiming 0%. The contract test separately asserts that current
+ * firmware does send all three.
+ *
+ * `ventActive` is the exception: current firmware genuinely omits it whenever
+ * no vent GPIO is configured, so absent there means "this kiln has no vent
+ * relay" rather than "old firmware" (#184).
  */
 export const tempUpdateDataSchema = z.object({
   /** Present in every firmware frame but previously dropped by the client, so a
@@ -45,6 +50,9 @@ export const tempUpdateDataSchema = z.object({
   delayRemaining: z.number().optional(),
   /** Live SSR duty as a whole percent, 0–100. */
   dutyPercent: z.number().min(0).max(100).optional(),
+  /** Downdraft vent relay; absent when the kiln has no vent GPIO configured
+   *  (the firmware default) — see firingProgressResponseSchema. */
+  ventActive: z.boolean().optional(),
   isActive: z.boolean(),
 });
 

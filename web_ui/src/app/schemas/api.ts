@@ -42,6 +42,11 @@ export const firingProgressResponseSchema = z.object({
   delayRemaining: z.number(),
   /** Live SSR duty as a whole percent, 0–100 (api_json.c `dutyPercent`). */
   dutyPercent: z.number().min(0).max(100),
+  /**
+   * Downdraft vent relay. Optional because the firmware omits it on a kiln with
+   * no vent GPIO configured, which is the default — absent means "no vent
+   * relay", not "vent off". */
+  ventActive: z.boolean().optional(),
   // Deliberately not the FiringStatus union: a status a newer firmware invents
   // must still parse, and coerceFiringStatus() in types/kiln.ts narrows it.
   status: z.string(),
