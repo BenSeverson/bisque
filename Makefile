@@ -108,7 +108,13 @@ test-web: fixtures  ## Web UI tests (Vitest); depends on fixtures target
 # and the simulator refuses to install the app extension with "bundleVersion
 # must be set in placeholder attributes" — a failure that says nothing about the
 # tests.
-test-ios:  ## iOS unit tests (XCTest on a simulator; needs macOS + Xcode)
+#
+# Depends on `fixtures` for the same reason `test-web` does: BisqueTests includes
+# a firmware contract suite that decodes the generated JSON with the app's models
+# (#154), and reads it straight off disk via #filePath rather than as a bundled
+# resource — tests/host/build/ does not exist when xcodegen runs, so it cannot be
+# declared as one. Missing or stale fixtures fail rather than skip.
+test-ios: fixtures  ## iOS unit tests (XCTest on a simulator; needs macOS + Xcode)
 	@udid=$$(./scripts/pick-simulator.sh) && \
 	  cd $(IOS_DIR) && \
 	  env -u BISQUE_MARKETING_VERSION -u BISQUE_BUILD_NUMBER xcodegen generate && \

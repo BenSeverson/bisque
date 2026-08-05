@@ -115,7 +115,24 @@ is **generated** from it by xcodegen, so edit the yml and regenerate.
 iOS unit tests live in `ios/Bisque/BisqueTests/` and run via `make test-ios`.
 They are **not** in `make test` — that runs in the Linux container CI uses for
 firmware and web, and these need a Mac with a simulator. `scripts/pick-simulator.sh`
-chooses the destination at run time so no device name is pinned. Two gotchas
+chooses the destination at run time so no device name is pinned.
+
+`FirmwareContractTests` is the iOS half of the same firmware contract the web
+UI checks (#154): it decodes the `make fixtures` JSON with the app's own
+`Codable` models, so a renamed or retyped key fails the build rather than
+reaching a user as `APIError.decodingError`. `test-ios` therefore depends on
+`fixtures`, exactly as `test-web` does, and missing or stale fixtures **fail**
+(`BISQUE_SKIP_CONTRACTS=1`, or `TEST_RUNNER_BISQUE_SKIP_CONTRACTS=1` through
+xcodebuild, is the explicit opt-out). Three tables in that file must stay
+honest, and each one fails loudly when it doesn't: `decoded` (fixture → model),
+`notModelled` (endpoints iOS deliberately doesn't call), and `knownUnmodelled`
+(fields the firmware emits that the app drops — `Codable` ignores unknown keys
+silently, so this is the Swift stand-in for the web schemas' `.strict()` pass).
+A new fixture fails until it lands in one of them. The fixtures are read off
+disk via `#filePath` rather than bundled as a resource: `tests/host/build/`
+doesn't exist when xcodegen generates the project, so it can't be declared one.
+
+Two gotchas
 worth knowing before you debug the wrong thing: `BISQUE_MARKETING_VERSION` /
 `BISQUE_BUILD_NUMBER` must be set or the simulator refuses to install the app
 (empty `CFBundleVersion` on the Live Activity extension, reported as

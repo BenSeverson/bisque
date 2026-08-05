@@ -128,6 +128,12 @@ jobs:
       - name: Build iOS app
         run: xcodebuild -scheme Bisque -sdk iphoneos -arch arm64 CODE_SIGNING_ALLOWED=NO -quiet
         working-directory: ios/Bisque
+      # BisqueTests decodes the firmware's own JSON with the app's models
+      # (#154), so the C serializers have to run first — same dependency
+      # `make test-web` has. Stale or missing fixtures fail that suite rather
+      # than skipping it, so this step is not optional.
+      - name: Generate API fixtures
+        run: make fixtures
       # Separate from the device build above: that one proves it compiles for
       # the hardware target, this one actually runs the logic. The destination
       # is picked at run time — pinning a device rots when the image bumps

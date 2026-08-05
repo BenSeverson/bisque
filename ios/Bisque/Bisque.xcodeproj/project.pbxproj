@@ -76,6 +76,7 @@
 		FBC71B7AA2BEF4D09038CA8E /* FiringActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BF41426D079E1C95F76BF09 /* FiringActivityManager.swift */; };
 		FC074BE5F1B505E5F2701521 /* AutotuneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E241ABE022B1A1E386770FA /* AutotuneView.swift */; };
 		FEEB0907B5D1A5C98FDE16E7 /* BisqueLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEB251D6BE342CD77C664A6A /* BisqueLiveActivity.swift */; };
+		FEF1DDAA685C8D54FB87C2AA /* FirmwareContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D334D6AABD5D063AB4DACAA8 /* FirmwareContractTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -168,6 +169,7 @@
 		C4FAD9335D03E06678762FA8 /* FiringLockScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FiringLockScreenView.swift; sourceTree = "<group>"; };
 		CA9964F6DD097C17C4712CEF /* BisqueApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BisqueApp.swift; sourceTree = "<group>"; };
 		D02765264276A6A461EE7C19 /* SystemInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemInfo.swift; sourceTree = "<group>"; };
+		D334D6AABD5D063AB4DACAA8 /* FirmwareContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirmwareContractTests.swift; sourceTree = "<group>"; };
 		D33E600F45ABE80E851021AC /* LocalNetworkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalNetworkTests.swift; sourceTree = "<group>"; };
 		D79D8576F670DA53C479FD9F /* HistoryDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryDetailView.swift; sourceTree = "<group>"; };
 		DA7764E1BB68840F9971131A /* HistoryRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryRecord.swift; sourceTree = "<group>"; };
@@ -332,6 +334,7 @@
 		997BC860F4CA5F467FFFE13A /* BisqueTests */ = {
 			isa = PBXGroup;
 			children = (
+				D334D6AABD5D063AB4DACAA8 /* FirmwareContractTests.swift */,
 				3CC488E2A445D4C621001CA5 /* KilnConnectionTests.swift */,
 				BF58D42610C054F94875F7E6 /* KilnDiscoveryTests.swift */,
 				D33E600F45ABE80E851021AC /* LocalNetworkTests.swift */,
@@ -537,6 +540,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FEF1DDAA685C8D54FB87C2AA /* FirmwareContractTests.swift in Sources */,
 				D449141973C07312B91DDBCF /* KilnConnectionTests.swift in Sources */,
 				106A87DA3CB2AEE77EBE12CF /* KilnDiscoveryTests.swift in Sources */,
 				2FEEEF8B0D1AC29D5F7EBCD0 /* LocalNetworkTests.swift in Sources */,
