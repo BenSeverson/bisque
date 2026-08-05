@@ -79,6 +79,19 @@ static void alarm_tone_off(void)
     ledc_update_duty(ALARM_LEDC_MODE, ALARM_LEDC_CHANNEL);
 }
 
+/* The only place the vent pin is written. Pin and cache move together here so
+ * they cannot drift: safety_get_vent_state() is what the API and the LCD show,
+ * and an emergency stop that drove the GPIO low directly left both reporting a
+ * fan that had already been cut. No-op when no vent GPIO is configured. */
+static void vent_write(bool on)
+{
+    if (s_vent_gpio < 0) {
+        return;
+    }
+    gpio_set_level(s_vent_gpio, on ? 1 : 0);
+    s_vent_active = on;
+}
+
 void safety_init_io(int alarm_gpio, int vent_gpio)
 {
     s_alarm_gpio = alarm_gpio;
@@ -115,8 +128,7 @@ void safety_init_io(int alarm_gpio, int vent_gpio)
             .intr_type = GPIO_INTR_DISABLE,
         };
         gpio_config(&io);
-        gpio_set_level(vent_gpio, 0);
-        s_vent_active = false;
+        vent_write(false); /* s_vent_gpio is already set, above */
         ESP_LOGI(TAG, "Vent GPIO %d configured", vent_gpio);
     }
 }
@@ -159,13 +171,25 @@ void safety_trigger_alarm(int pattern)
 
 void safety_update_vent(bool is_firing, float current_temp_c)
 {
+    /* Before anything else, so a kiln with no vent relay — the default — never
+       reaches into the event group below. safety_init() happens to run before
+       safety_init_io() today, but nothing here needs to depend on that. */
     if (s_vent_gpio < 0) {
         return;
     }
+    /* Respect a latched emergency stop, the same way safety_set_ssr() does.
+       safety_emergency_stop_cause() cuts the vent, but firing_tick() drives the
+       vent before it checks for the stop — so the tick that first observes an
+       emergency still arrives here with is_firing == true and, below 700°C,
+       switched the relay straight back on for a second. The policy that an
+       emergency stop means the vent is off belongs here, next to the trip that
+       states it, rather than in the caller's statement order. */
+    if (safety_is_emergency()) {
+        vent_write(false);
+        return;
+    }
     /* Vent relay on during firing at temperatures below 700°C */
-    int level = (is_firing && current_temp_c < VENT_MAX_TEMP_C) ? 1 : 0;
-    gpio_set_level(s_vent_gpio, level);
-    s_vent_active = (level != 0);
+    vent_write(is_firing && current_temp_c < VENT_MAX_TEMP_C);
 }
 
 vent_state_t safety_get_vent_state(void)
@@ -236,9 +260,7 @@ void safety_emergency_stop_cause(safety_trip_cause_t cause)
         gpio_set_level(s_ssr_pin, 0);
     }
     /* Turn off vent on emergency stop */
-    if (s_vent_gpio >= 0) {
-        gpio_set_level(s_vent_gpio, 0);
-    }
+    vent_write(false);
     portENTER_CRITICAL(&s_safety_mux);
     s_ssr_duty = 0.0f;
     /* Latch the first cause — safety_task re-trips every 500 ms while a fault

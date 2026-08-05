@@ -46,11 +46,12 @@ void safety_trigger_alarm(int pattern)
 
 void safety_update_vent(bool is_firing, float current_temp_c)
 {
-    /* Mirror the real driver: vent on during firing below 700°C. */
+    /* Mirror the real driver: vent on during firing below 700°C, and never
+       while an emergency stop is latched. */
     if (!s_vent_fitted) {
         return;
     }
-    s_vent_active = is_firing && current_temp_c < 700.0f;
+    s_vent_active = !s_emergency && is_firing && current_temp_c < 700.0f;
 }
 
 vent_state_t safety_get_vent_state(void)
@@ -70,6 +71,9 @@ void safety_emergency_stop_cause(safety_trip_cause_t cause)
 {
     s_emergency = true;
     s_last_duty = 0.0f;
+    /* The real driver cuts the vent relay here too, and a scenario test that
+       asserts on the vent after a trip must see the same thing. */
+    s_vent_active = false;
     if (s_trip_cause == SAFETY_TRIP_NONE) {
         s_trip_cause = cause;
     }
