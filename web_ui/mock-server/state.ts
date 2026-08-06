@@ -128,7 +128,16 @@ export const state = {
     notificationsEnabled: true,
     elementWatts: 5000,
     electricityCostKwh: 0.15,
+    lidMode: "pause",
   } as KilnSettings,
+
+  /* Lid/door interlock switch position. The simulated kiln always has one
+     fitted — real firmware omits `lidOpen` entirely when
+     CONFIG_KILN_PIN_LID_SWITCH is -1, and the mock cannot model both. A demo
+     that can show the indicator is the more useful of the two, exactly as with
+     ventActive; the absent case is covered by the `status_no_lid` firmware
+     fixture. Toggled from the dev-only POST /lid route in router.ts. */
+  lidOpen: false,
 
   firing: {
     running: false,

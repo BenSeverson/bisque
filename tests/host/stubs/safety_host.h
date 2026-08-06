@@ -11,4 +11,8 @@ float safety_test_last_duty(void);
    actually re-fed, which a last-value-only accessor cannot show. */
 unsigned safety_test_ssr_call_count(void);
 bool safety_test_vent_active(void);
+/* Place the lid directly, bypassing the debounce (which test_safety_helpers.c
+   covers). Setting any state other than NOT_FITTED makes the switch "fitted". */
+void safety_test_set_lid(lid_state_t state);
+bool safety_test_lid_interlock_armed(void);
 void safety_test_reset(void);

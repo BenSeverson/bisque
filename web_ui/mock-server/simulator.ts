@@ -172,6 +172,19 @@ export function pauseFiring(): string {
   return f.paused ? "paused" : "resumed";
 }
 
+/** Set the paused flag to a specific value rather than toggling it.
+ *
+ *  pauseFiring() is a toggle because POST /firing/pause is one; the lid policy
+ *  needs "paused because the lid is up" to track the switch, where a toggle
+ *  would invert on a repeated open. */
+export function setFiringPaused(paused: boolean): void {
+  const f = state.firing;
+  if (!f.running || f.paused === paused) return;
+  f.paused = paused;
+  f.status = paused ? "paused" : determineStatus();
+  broadcast();
+}
+
 function determineStatus(): string {
   const f = state.firing;
   if (!f.running) return "idle";
@@ -491,6 +504,7 @@ function broadcast(): void {
       delayRemaining: Math.round(f.scheduled ? f.delayRemainingS : 0),
       dutyPercent: publishedDutyPercent(),
       ventActive: publishedVentActive(),
+      lidOpen: state.lidOpen,
       isActive: f.running || f.scheduled,
       // The firmware includes profileId in every frame; omitting it here meant
       // a client could never adopt a firing started elsewhere.
@@ -517,6 +531,7 @@ export function getStatusResponse() {
     delayRemaining: Math.round(f.scheduled ? f.delayRemainingS : 0),
     dutyPercent: publishedDutyPercent(),
     ventActive: publishedVentActive(),
+    lidOpen: state.lidOpen,
     status: f.status,
     thermocouple: {
       temperature: Math.round(f.currentTemp * 10) / 10,

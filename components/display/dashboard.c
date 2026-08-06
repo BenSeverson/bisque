@@ -62,6 +62,11 @@ static lv_obj_t *s_seg_label = NULL;
  * across IDLE (a delayed start is armed), ACTIVE and PAUSED alike. */
 static lv_obj_t *s_vent_label = NULL;
 static bool s_vent_shown = false;
+/* Lid interlock indicator, parked immediately left of the vent marker and shown
+ * only while the lid is actually open. Same reasoning as the vent: it lives on
+ * the bar rather than in a view, because the lid can be opened in any state. */
+static lv_obj_t *s_lid_label = NULL;
+static bool s_lid_shown = false;
 /* Invisible focusable widget. The encoder always points at it (in g_input_group),
  * so a SELECT press fires LV_EVENT_CLICKED and we open the contextual modal. */
 static lv_obj_t *s_select_trap = NULL;
@@ -194,6 +199,8 @@ static const char *error_code_description(firing_error_code_t code)
         return "Emergency stop";
     case FIRING_ERR_INVALID_PROFILE:
         return "Profile invalid at this temperature";
+    case FIRING_ERR_LID_OPEN:
+        return "Lid open at start";
     case FIRING_ERR_NONE:
     default:
         return "Firing halted";
@@ -202,17 +209,25 @@ static const char *error_code_description(firing_error_code_t code)
 
 /* ── Widget helpers ──────────────────────────────────── */
 
-/* Re-park the vent marker to the left of the segment label. Must run after any
- * write to that label: LVGL resolves alignment against the anchor's size at the
- * moment of the call, so a marker aligned against yesterday's "SEGMENT 1/3"
- * would sit on top of today's "SEGMENT 12/16". */
-static void align_vent_label(void)
+/* Re-park the status-bar markers, right to left: the vent against the segment
+ * label, then the lid against the vent. Must run after any write to that label:
+ * LVGL resolves alignment against the anchor's size at the moment of the call,
+ * so a marker aligned against yesterday's "SEGMENT 1/3" would sit on top of
+ * today's "SEGMENT 12/16".
+ *
+ * The lid anchors to the vent marker even while the vent is hidden — a hidden
+ * LVGL object keeps its geometry, so the lid lands in a stable place either
+ * way, and the two never overlap when both are showing. */
+static void align_status_markers(void)
 {
     if (!s_vent_label || !s_seg_label) {
         return;
     }
     lv_obj_update_layout(s_status_bar);
-    lv_obj_align_to(s_vent_label, s_seg_label, LV_ALIGN_OUT_LEFT_MID, -20, 0);
+    lv_obj_align_to(s_vent_label, s_seg_label, LV_ALIGN_OUT_LEFT_MID, -14, 0);
+    if (s_lid_label) {
+        lv_obj_align_to(s_lid_label, s_vent_label, LV_ALIGN_OUT_LEFT_MID, -8, 0);
+    }
 }
 
 static lv_obj_t *create_content_area(void)
@@ -704,11 +719,23 @@ void dashboard_create(void)
     lv_obj_set_style_bg_color(s_vent_label, UI_COLOR_BG, 0);
     lv_obj_set_style_bg_opa(s_vent_label, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(s_vent_label, 10, 0);
-    lv_obj_set_style_pad_hor(s_vent_label, 10, 0);
+    lv_obj_set_style_pad_hor(s_vent_label, 6, 0);
     lv_obj_set_style_pad_ver(s_vent_label, 2, 0);
     lv_obj_add_flag(s_vent_label, LV_OBJ_FLAG_HIDDEN);
-    align_vent_label();
+    /* Lid marker: same pill treatment, but on the warm accent rather than the
+       screen background. An open lid during a firing is a condition the operator
+       has to act on, not a running accessory like the fan. */
+    s_lid_label = ui_make_label(s_status_bar, UI_FONT_SMALL, UI_COLOR_ON_ACCENT, "LID");
+    lv_obj_set_style_bg_color(s_lid_label, UI_COLOR_HEATING, 0);
+    lv_obj_set_style_bg_opa(s_lid_label, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(s_lid_label, 10, 0);
+    lv_obj_set_style_pad_hor(s_lid_label, 6, 0);
+    lv_obj_set_style_pad_ver(s_lid_label, 2, 0);
+    lv_obj_add_flag(s_lid_label, LV_OBJ_FLAG_HIDDEN);
+
+    align_status_markers();
     s_vent_shown = false;
+    s_lid_shown = false;
 
     /* Invisible 1x1 trap parked off-screen. It's the only object in g_input_group,
      * so the encoder is always focused on it and SELECT presses fire its click event. */
@@ -732,7 +759,8 @@ void dashboard_create(void)
     ESP_LOGI(TAG, "dashboard created");
 }
 
-void dashboard_update(const thermocouple_reading_t *tc, const firing_progress_t *prog, vent_state_t vent)
+void dashboard_update(const thermocouple_reading_t *tc, const firing_progress_t *prog, vent_state_t vent,
+                      lid_state_t lid)
 {
     if (!s_screen) {
         return;
@@ -798,6 +826,20 @@ void dashboard_update(const thermocouple_reading_t *tc, const firing_progress_t 
         s_vent_shown = show_vent;
     }
 
+    /* Lid indicator. Shown only while the lid is open: a kiln with no lid GPIO
+     * (the default) reports LID_STATE_NOT_FITTED and must never see the label,
+     * and a fitted-but-closed lid has nothing to announce. Same change-only
+     * write as the vent, for the same repaint reason. */
+    bool show_lid = (lid == LID_STATE_OPEN);
+    if (show_lid != s_lid_shown) {
+        if (show_lid) {
+            lv_obj_clear_flag(s_lid_label, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_add_flag(s_lid_label, LV_OBJ_FLAG_HIDDEN);
+        }
+        s_lid_shown = show_lid;
+    }
+
     /* Same reasoning as the status bar above: lv_label_set_text always reallocs
      * and invalidates, so rewriting an unchanged "SEGMENT 3/7" every 500ms
      * repaints the status bar twice a second for the whole multi-hour firing.
@@ -805,17 +847,17 @@ void dashboard_update(const thermocouple_reading_t *tc, const firing_progress_t 
     if (view_is_active_family(s_current_view)) {
         if (s_seg_label_blank || prog->current_segment != s_prev_segment ||
             prog->total_segments != s_prev_total_segments) {
-            lv_label_set_text_fmt(s_seg_label, "SEGMENT %u/%u", (unsigned)(prog->current_segment + 1),
+            lv_label_set_text_fmt(s_seg_label, "SEG %u/%u", (unsigned)(prog->current_segment + 1),
                                   (unsigned)prog->total_segments);
             s_prev_segment = prog->current_segment;
             s_prev_total_segments = prog->total_segments;
             s_seg_label_blank = false;
-            align_vent_label();
+            align_status_markers();
         }
     } else if (!s_seg_label_blank) {
         lv_label_set_text(s_seg_label, "");
         s_seg_label_blank = true;
-        align_vent_label();
+        align_status_markers();
     }
 
     /* PAUSED overlay visibility. */

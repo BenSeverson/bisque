@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 #include "esp_err.h"
+#include "lid_state.h"
 #include "vent_state.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
@@ -34,12 +35,15 @@ typedef enum {
 esp_err_t safety_init(int ssr_pin, float max_safe_temp);
 
 /**
- * Configure optional alarm and vent GPIO outputs.
- * Pass -1 to disable either GPIO.
+ * Configure optional alarm, vent and lid-switch GPIOs.
+ * Pass -1 to disable any of them.
  * @param alarm_gpio  GPIO for buzzer/relay on error or complete.
  * @param vent_gpio   GPIO for downdraft vent relay (active when firing at <700°C).
+ * @param lid_gpio    GPIO input for the lid/door interlock switch. Configured
+ *                    with the internal pull-up; polarity from
+ *                    APP_LID_SWITCH_ACTIVE_HIGH.
  */
-void safety_init_io(int alarm_gpio, int vent_gpio);
+void safety_init_io(int alarm_gpio, int vent_gpio, int lid_gpio);
 
 /**
  * Trigger alarm output (call on firing complete or error if alarm_enabled).
@@ -65,6 +69,27 @@ void safety_update_vent(bool is_firing, float current_temp_c);
  * (a wedged control loop, a firing that ended between ticks).
  */
 vent_state_t safety_get_vent_state(void);
+
+/**
+ * Debounced lid position as of the last safety_task tick, or
+ * LID_STATE_NOT_FITTED when no lid GPIO was configured.
+ *
+ * As with safety_get_vent_state(), this is the sampled pin rather than a
+ * re-derivation of anything: an operator looking at a lid indicator wants to
+ * know what the switch says.
+ */
+lid_state_t safety_get_lid_state(void);
+
+/**
+ * Arm or disarm the lid interlock's SSR gate.
+ *
+ * Called by the firing engine whenever settings load or change, with
+ * `armed = (lid_mode != LID_MODE_WARN)`. When armed and the lid reads open, the
+ * SSR is held low by ssr_window_apply() — the same hard gate the emergency stop
+ * uses, so it holds even if the firing task wedges. The mode itself stays in the
+ * engine; safety only needs the boolean.
+ */
+void safety_set_lid_interlock_armed(bool armed);
 
 /**
  * Get the global event group for safety/firing events.

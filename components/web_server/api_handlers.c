@@ -362,8 +362,8 @@ static esp_err_t handle_get_status(httpd_req_t *req)
     kiln_settings_t settings;
     firing_engine_get_settings(&settings);
 
-    return send_json(
-        req, build_status_json(&prog, &tc, settings.tc_offset_c, safety_get_ssr_duty(), safety_get_vent_state()));
+    return send_json(req, build_status_json(&prog, &tc, settings.tc_offset_c, safety_get_ssr_duty(),
+                                            safety_get_vent_state(), safety_get_lid_state()));
 }
 
 /* ── GET /api/v1/profiles ──────────────────────────── */
@@ -604,6 +604,19 @@ static esp_err_t handle_firing_start(httpd_req_t *req)
         return ESP_FAIL;
     }
 
+    /* A firing started into an open lid would sit at zero power with no visible
+       cause; answer at the moment of the click instead. warn mode is
+       report-only and deliberately does not block. The engine repeats this
+       check, so the LCD start path behaves the same way. */
+    kiln_settings_t lid_settings;
+    firing_engine_get_settings(&lid_settings);
+    if (lid_settings.lid_mode != LID_MODE_WARN && safety_get_lid_state() == LID_STATE_OPEN) {
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_set_type(req, "text/plain");
+        httpd_resp_send(req, "Lid is open", HTTPD_RESP_USE_STRLEN);
+        return ESP_FAIL;
+    }
+
     char err[96];
     if (!validate_profile(&profile, err, sizeof(err))) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, err);
@@ -762,6 +775,19 @@ static esp_err_t handle_post_settings(httpd_req_t *req)
     j = cJSON_GetObjectItem(root, "electricityCostKwh");
     if (j) {
         settings.electricity_cost_kwh = (float)j->valuedouble;
+    }
+    j = cJSON_GetObjectItem(root, "lidMode");
+    if (cJSON_IsString(j)) {
+        lid_mode_t mode;
+        /* Reject an unrecognized mode rather than falling back to a default:
+           silently landing on "warn" would disarm an interlock its owner
+           believes is armed, and the client would see a 200. */
+        if (!lid_mode_from_string(cJSON_GetStringValue(j), &mode)) {
+            cJSON_Delete(root);
+            httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid lidMode");
+            return ESP_FAIL;
+        }
+        settings.lid_mode = mode;
     }
 
     cJSON_Delete(root);

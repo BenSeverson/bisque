@@ -87,33 +87,42 @@ typedef struct {
     firing_error_code_t error;
     const char *profile_id; /* "" for none */
     vent_state_t vent;
+    lid_state_t lid;
 } preset_t;
 
 /* NOTE: for_each_scene() and the interactive keys address several of these by
  * index (2 = heating, 5 = paused). Append new presets; don't insert. */
 static const preset_t presets[] = {
-    {"idle", FIRING_STATUS_IDLE, 24.0f, 0, 0, 0, 0, 0, false, false, FIRING_ERR_NONE, "", VENT_STATE_NOT_FITTED},
-    {"idle-history", FIRING_STATUS_IDLE, 24.0f, 0, 0, 0, 0, 0, true, false, FIRING_ERR_NONE, "", VENT_STATE_NOT_FITTED},
+    {"idle", FIRING_STATUS_IDLE, 24.0f, 0, 0, 0, 0, 0, false, false, FIRING_ERR_NONE, "", VENT_STATE_NOT_FITTED,
+     LID_STATE_NOT_FITTED},
+    {"idle-history", FIRING_STATUS_IDLE, 24.0f, 0, 0, 0, 0, 0, true, false, FIRING_ERR_NONE, "", VENT_STATE_NOT_FITTED,
+     LID_STATE_NOT_FITTED},
     {"heating", FIRING_STATUS_HEATING, 1180.0f, 1222.0f, 1, 3, 19920, 8040, false, false, FIRING_ERR_NONE, "profile-1",
-     VENT_STATE_NOT_FITTED},
+     VENT_STATE_NOT_FITTED, LID_STATE_NOT_FITTED},
     {"holding", FIRING_STATUS_HOLDING, 1218.0f, 1222.0f, 1, 3, 21300, 6660, false, false, FIRING_ERR_NONE, "profile-1",
-     VENT_STATE_NOT_FITTED},
+     VENT_STATE_NOT_FITTED, LID_STATE_NOT_FITTED},
     {"cooling", FIRING_STATUS_COOLING, 850.0f, 500.0f, 2, 3, 25600, 2360, false, false, FIRING_ERR_NONE, "profile-1",
-     VENT_STATE_NOT_FITTED},
+     VENT_STATE_NOT_FITTED, LID_STATE_NOT_FITTED},
     {"paused", FIRING_STATUS_PAUSED, 1180.0f, 1222.0f, 1, 3, 19920, 8040, false, false, FIRING_ERR_NONE, "profile-1",
-     VENT_STATE_NOT_FITTED},
+     VENT_STATE_NOT_FITTED, LID_STATE_NOT_FITTED},
     {"complete", FIRING_STATUS_COMPLETE, 850.0f, 0, 2, 3, 28720, 0, false, false, FIRING_ERR_NONE, "profile-1",
-     VENT_STATE_NOT_FITTED},
+     VENT_STATE_NOT_FITTED, LID_STATE_NOT_FITTED},
     {"error", FIRING_STATUS_ERROR, 850.0f, 1222.0f, 1, 3, 14400, 0, false, false, FIRING_ERR_TC_FAULT, "profile-1",
-     VENT_STATE_NOT_FITTED},
+     VENT_STATE_NOT_FITTED, LID_STATE_NOT_FITTED},
     {"autotune", FIRING_STATUS_AUTOTUNE, 1100.0f, 1100.0f, 0, 0, 600, 0, false, false, FIRING_ERR_NONE, "",
-     VENT_STATE_NOT_FITTED},
+     VENT_STATE_NOT_FITTED, LID_STATE_NOT_FITTED},
     /* Early in a bisque ramp on a kiln that has a downdraft vent fitted: below
        700°C the relay is energized, which is the only state that puts the VENT
        marker on the status bar (#184). Every preset above is a vent-less kiln —
        the firmware default — so none of them would ever show it. */
     {"vent", FIRING_STATUS_HEATING, 240.0f, 1222.0f, 0, 3, 5400, 22560, false, false, FIRING_ERR_NONE, "profile-1",
-     VENT_STATE_ON},
+     VENT_STATE_ON, LID_STATE_NOT_FITTED},
+    /* A kiln whose lid was opened mid-firing in pause mode: the engine holds the
+       program and the LID marker joins the bar. Deliberately also has the vent
+       fitted and running, so the scene proves the two markers coexist without
+       overlapping rather than only that each renders alone (#83). */
+    {"lid-open", FIRING_STATUS_PAUSED, 240.0f, 1222.0f, 0, 3, 5400, 22560, false, false, FIRING_ERR_NONE, "profile-1",
+     VENT_STATE_ON, LID_STATE_OPEN},
 };
 #define PRESET_COUNT (sizeof(presets) / sizeof(presets[0]))
 
@@ -122,6 +131,10 @@ static int s_current_preset = 0;
 /* Vent state the next dashboard_update() will be driven with, standing in for
  * safety_get_vent_state() on device. */
 static vent_state_t s_vent = VENT_STATE_NOT_FITTED;
+
+/* Lid state for the next dashboard_update(), standing in for
+ * safety_get_lid_state() on device. */
+static lid_state_t s_lid = LID_STATE_NOT_FITTED;
 
 static void apply_preset(int idx)
 {
@@ -156,6 +169,7 @@ static void apply_preset(int idx)
 
     mock_set_error_code(p->error);
     s_vent = p->vent;
+    s_lid = p->lid;
 
     if (p->with_history) {
         history_record_t r = {0};
@@ -185,7 +199,7 @@ static void pump_frames(int n)
     for (int i = 0; i < n; i++) {
         thermocouple_get_latest(&tc);
         firing_engine_get_progress(&prog);
-        dashboard_update(&tc, &prog, s_vent);
+        dashboard_update(&tc, &prog, s_vent, s_lid);
         lv_timer_handler();
         SDL_Delay(16);
     }
@@ -662,7 +676,7 @@ static int run_interactive(lv_display_t *disp)
         firing_progress_t prog;
         thermocouple_get_latest(&tc);
         firing_engine_get_progress(&prog);
-        dashboard_update(&tc, &prog, s_vent);
+        dashboard_update(&tc, &prog, s_vent, s_lid);
         lv_timer_handler();
 
         SDL_Delay(16); /* ~60 FPS */
@@ -783,6 +797,12 @@ static lv_obj_t *find_label_by_text(lv_obj_t *parent, const char *text)
 static bool vent_marker_visible(void)
 {
     lv_obj_t *marker = find_label_by_text(lv_screen_active(), "VENT");
+    return marker != NULL && !lv_obj_has_flag(marker, LV_OBJ_FLAG_HIDDEN);
+}
+
+static bool lid_marker_visible(void)
+{
+    lv_obj_t *marker = find_label_by_text(lv_screen_active(), "LID");
     return marker != NULL && !lv_obj_has_flag(marker, LV_OBJ_FLAG_HIDDEN);
 }
 
@@ -1001,6 +1021,81 @@ static void verify_vent_indicator_tracks_state(void)
     s_vent = VENT_STATE_NOT_FITTED;
 }
 
+/* #83 — same class of bug as the vent marker, and the same reason a screenshot
+ * cannot catch it: the lid marker is change-guarded status-bar furniture, so
+ * "does it clear again" is the question, not "does it appear". A stale LID on a
+ * kiln whose lid is shut is worse than none at all — it is the marker an
+ * operator would use to decide whether it is safe to walk away. */
+static void verify_lid_indicator_tracks_state(void)
+{
+    printf("[#83] lid interlock indicator\n");
+
+    /* A kiln with no lid GPIO — the firmware default — must never show it. */
+    s_lid = LID_STATE_NOT_FITTED;
+    drive(FIRING_STATUS_IDLE, 25.0f, 0, "");
+    drive(FIRING_STATUS_HEATING, 600.0f, 5400, "profile-1");
+    check(!lid_marker_visible(), "a kiln with no lid switch never shows the marker", NULL);
+
+    /* Fitted and shut is also silent — there is nothing to announce. */
+    s_lid = LID_STATE_CLOSED;
+    drive(FIRING_STATUS_HEATING, 620.0f, 6000, "profile-1");
+    check(!lid_marker_visible(), "a closed lid shows no marker", NULL);
+
+    /* Opened mid-firing: in pause mode the engine holds the program, so the
+       status goes PAUSED and the marker appears together. */
+    s_lid = LID_STATE_OPEN;
+    drive(FIRING_STATUS_PAUSED, 620.0f, 6100, "profile-1");
+    check(lid_marker_visible(), "an open lid shows the marker", NULL);
+
+    /* Closed again: the firing resumes and the marker must go with it. This is
+       the one a change-guard bug strands on screen for the rest of the run. */
+    s_lid = LID_STATE_CLOSED;
+    drive(FIRING_STATUS_HEATING, 615.0f, 6200, "profile-1");
+    check(!lid_marker_visible(), "the marker clears when the lid closes", NULL);
+
+    /* And it survives a layout swap, like the vent marker: the status bar is not
+       rebuilt with the content area. */
+    s_lid = LID_STATE_OPEN;
+    drive(FIRING_STATUS_COMPLETE, 400.0f, 20000, "profile-1");
+    drive(FIRING_STATUS_PAUSED, 200.0f, 60, "profile-1");
+    check(lid_marker_visible(), "the marker survives a layout rebuild", NULL);
+
+    /* Both markers at once must both be present — they are anchored to each
+       other, and an alignment mistake hides one behind the other. */
+    s_vent = VENT_STATE_ON;
+    drive(FIRING_STATUS_PAUSED, 240.0f, 5400, "profile-1");
+    check(lid_marker_visible() && vent_marker_visible(), "lid and vent markers coexist", NULL);
+
+    /* …and they must not land on the status text. The bar is 480px and the
+       markers are anchored right-to-left off the segment label, so the widest
+       case — the longest status word with both markers showing — is where they
+       run into it. This is invisible to a pixel diff of any *other* scene and
+       shows up as a status word with its last letter painted over, which is
+       exactly how it first appeared: "PAUSED" rendered as "PAUSE" under the LID
+       pill. Checked against every status that can be on screen with a segment
+       label, not just the one the lid-open scene happens to use. */
+    static const firing_status_t bar_statuses[] = {
+        FIRING_STATUS_HEATING,
+        FIRING_STATUS_HOLDING,
+        FIRING_STATUS_COOLING,
+        FIRING_STATUS_PAUSED,
+    };
+    for (size_t i = 0; i < sizeof(bar_statuses) / sizeof(bar_statuses[0]); i++) {
+        drive(bar_statuses[i], 240.0f, 5400, "profile-1");
+        lv_obj_t *lid = find_label_by_text(lv_screen_active(), "LID");
+        lv_obj_t *status = find_label_by_text(lv_screen_active(), ui_status_label(bar_statuses[i]));
+        int32_t status_right = status ? lv_obj_get_x(status) + lv_obj_get_width(status) : -1;
+        int32_t lid_left = lid ? lv_obj_get_x(lid) : -1;
+        char detail[128];
+        snprintf(detail, sizeof(detail), "%s ends at x=%d, lid starts at x=%d", ui_status_label(bar_statuses[i]),
+                 (int)status_right, (int)lid_left);
+        check(status && lid && lid_left >= status_right, "markers clear the status text", detail);
+    }
+
+    s_lid = LID_STATE_NOT_FITTED;
+    s_vent = VENT_STATE_NOT_FITTED;
+}
+
 static int run_verify(void)
 {
     s_verify_failures = 0;
@@ -1009,6 +1104,7 @@ static int run_verify(void)
     verify_peak_survives_unloadable_profile();
     verify_unloadable_profile_is_not_reread();
     verify_vent_indicator_tracks_state();
+    verify_lid_indicator_tracks_state();
 
     printf("\n== Dashboard state verification ==\n");
     printf("  failures: %d\n", s_verify_failures);

@@ -58,7 +58,7 @@ static void dashboard_tick_cb(lv_timer_t *t)
     firing_progress_t prog;
     firing_engine_get_progress(&prog);
 
-    dashboard_update(&tc, &prog, safety_get_vent_state());
+    dashboard_update(&tc, &prog, safety_get_vent_state(), safety_get_lid_state());
 
     /* This timer fires every 500 ms; logging every tick is ~170k INFO lines per
        day. Emit a status line only when the status changes or roughly once a

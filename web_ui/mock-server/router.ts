@@ -20,6 +20,7 @@ import {
   startFiring,
   stopFiring,
   pauseFiring,
+  setFiringPaused,
   skipSegment,
   tripFault,
   getStatusResponse,
@@ -78,6 +79,7 @@ const SETTINGS_KEYS = new Set<string>([
   "webhookUrl",
   "elementWatts",
   "electricityCostKwh",
+  "lidMode",
 ]);
 
 export const CONE_TABLE = [
@@ -349,6 +351,24 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
     return { status: 200, json: { ok: true } };
   }
 
+  // POST /lid — MOCK ONLY. No such firmware endpoint exists.
+  //
+  // The real lid position comes from a GPIO, so there is nothing a client could
+  // POST to change it. This route exists purely so the demo and local UI work
+  // can exercise the lid indicator and the pause/interlock behaviour without
+  // hardware. Do not add a client call to it outside the mock.
+  if (method === "POST" && apiPath === "/lid") {
+    const open = (body as { open?: boolean }).open;
+    if (typeof open !== "boolean") return apiError(400, "Missing open");
+    state.lidOpen = open;
+    // Mirror the firmware's pause-mode policy so the demo behaves like a kiln:
+    // an open lid pauses a running firing, closing it resumes.
+    if (state.settings.lidMode === "pause" && state.firing.running) {
+      setFiringPaused(open);
+    }
+    return { status: 200, json: { ok: true, lidOpen: open } };
+  }
+
   // GET /history
   if (method === "GET" && apiPath === "/history") {
     return { status: 200, json: state.history };
@@ -374,6 +394,7 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
         apiTokenSet: false,
         elementWatts: state.settings.elementWatts ?? 5000,
         electricityCostKwh: state.settings.electricityCostKwh ?? 0.15,
+        lidMode: state.settings.lidMode ?? "pause",
       },
     };
   }

@@ -69,6 +69,24 @@ typedef struct {
 } firing_progress_t;
 
 /* Matches KilnSettings */
+/* What an open lid does to a running firing. The mechanism is the same in every
+ * case — the element is de-energized — and only the program-clock policy
+ * differs, which is why this is one setting rather than a build-time fork.
+ *
+ * PAUSE is the ceramic-kiln convention: opening the lid mid-firing is abnormal,
+ * so the program clock stops with the heat and the segment does not run ahead
+ * while the kiln sheds temperature.
+ *
+ * INTERLOCK is the heat-treat / knife-oven convention: opening the door at full
+ * temperature is the normal workflow (pull the blade, quench it), so the program
+ * must keep running and only the elements cut out.
+ */
+typedef enum {
+    LID_MODE_WARN = 0,  /* report the lid position, take no control action */
+    LID_MODE_PAUSE,     /* elements off, program clock held, auto-resume on close */
+    LID_MODE_INTERLOCK, /* elements off, program clock keeps running */
+} lid_mode_t;
+
 typedef struct {
     char temp_unit;      /* 'C' or 'F' */
     float max_safe_temp; /* °C */
@@ -80,6 +98,7 @@ typedef struct {
     char api_token[64];         /* API bearer token (empty = auth disabled) */
     float element_watts;        /* Kiln element power for cost estimation */
     float electricity_cost_kwh; /* Electricity cost per kWh */
+    lid_mode_t lid_mode;        /* behaviour when the lid switch reads open */
 } kiln_settings_t;
 
 /* Commands sent from web API to firing_task */
@@ -116,6 +135,7 @@ typedef enum {
     FIRING_ERR_RUNAWAY,         /* Rate-of-rise runaway: temp rising >2x programmed rate */
     FIRING_ERR_EMERGENCY_STOP,  /* Emergency stop */
     FIRING_ERR_INVALID_PROFILE, /* Profile unfireable from the actual start temperature */
+    FIRING_ERR_LID_OPEN,        /* Delayed start expired with the lid open */
 } firing_error_code_t;
 
 #ifdef __cplusplus

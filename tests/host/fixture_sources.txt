@@ -29,6 +29,7 @@ components/pid_control/pid_control.c
 components/pid_control/include/pid_control.h
 components/app_config/include/app_config.h
 components/safety/include/vent_state.h
+components/safety/include/lid_state.h
 components/firing_engine/include/firing_types.h
 components/history/include/firing_history.h
 components/ota/include/ota_manager.h

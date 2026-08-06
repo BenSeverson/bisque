@@ -47,6 +47,11 @@ export const firingProgressResponseSchema = z.object({
    * no vent GPIO configured, which is the default — absent means "no vent
    * relay", not "vent off". */
   ventActive: z.boolean().optional(),
+  /**
+   * Lid/door interlock switch. Optional for the same reason `ventActive` is:
+   * the firmware omits it entirely on a kiln with no lid GPIO configured, which
+   * is the default — absent means "no lid switch", not "lid closed" (#83). */
+  lidOpen: z.boolean().optional(),
   // Deliberately not the FiringStatus union: a status a newer firmware invents
   // must still parse, and coerceFiringStatus() in types/kiln.ts narrows it.
   status: z.string(),
