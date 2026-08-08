@@ -62,13 +62,27 @@ Append `uint8_t process_type;` to `firing_profile_t` (and `processType` to
   preset library the pickers show.
 
 **NVS compatibility constraint:** profiles are stored as raw struct blobs
-(`firing_engine_save_profile` → `nvs_set_blob(key, profile, sizeof(firing_profile_t))`)
-and loaded with a caller-sized buffer. Old (smaller) blobs load into the grown struct
-fine *only if* new fields are appended at the end and **zero is the correct legacy
-default** (`PROCESS_CERAMIC = 0`). Rule for every field added in this plan: append-only,
-zero-means-legacy-behavior. `firing_cmd_t` carries a profile by value through a
-4-deep queue, so keep an eye on queue RAM as the struct grows (currently ~1.3 KB/profile;
-the additions below are a few dozen bytes).
+(`firing_engine_save_profile` → `nvs_set_blob(key, profile, sizeof(firing_profile_t))`).
+Append-only + **zero-means-legacy-behavior** (`PROCESS_CERAMIC = 0`) is the rule for
+every field added in this plan — but it is *not sufficient on its own*:
+`nvs_get_blob` writes only as many bytes as the stored blob contains, and
+`firing_engine_load_profile()` passes a caller-supplied (often uninitialized stack)
+struct. Loading an old, smaller blob into the grown struct would leave the appended
+`process_type` byte as whatever garbage was on the stack, randomly classifying legacy
+ceramic profiles and applying the wrong vent/safety policy. Phase 1 therefore **must**
+also make the loader deterministic: `memset(profile, 0, sizeof *profile)` before the
+`nvs_get_blob` call (and treat a stored size larger than `sizeof(firing_profile_t)`
+as an error). The old-blob → new-struct round-trip test in §8 exists to pin exactly
+this behavior.
+
+`firing_cmd_t` carries a profile by value through a 4-deep queue, so keep an eye on
+queue RAM as the struct grows. The current footprint is larger than it looks:
+`firing_segment_t` is 100 bytes (40 id + 48 name + 2 floats + hold + padding), so the
+16-segment array alone is 1,600 bytes and `firing_profile_t` totals **~1.83 KB** —
+the 4-deep command queue already reserves ~7.3 KB for profile-bearing commands before
+queue overhead. The additions below are a few dozen bytes, but any *future* schema
+growth should re-check this figure (or switch the START command to a pointer +
+engine-owned copy) rather than assuming a ~1.3 KB baseline.
 
 ### 3.2 `firing_segment_t`: soak tolerance + segment flags (Phase 2)
 
@@ -112,10 +126,25 @@ ETA can use a simple exponential-cooling estimate or report unknown.
 
 `SEG_FLAG_ALERT_ON_COMPLETE` reuses the existing event queue: emit a new
 `FIRING_EVENT_SEGMENT_ALERT` (alongside `FIRING_EVENT_COMPLETE`/`ERROR`) so the existing
-consumer fires `safety_trigger_alarm()` and the webhook. Combined with
-`FIRING_HOLD_INDEFINITE`, this models the hardening flow precisely:
-"soak at 815 °C ≥ 15 min → **beep + webhook: quench now** → operator opens lid, pulls
-part, presses skip".
+consumer fires `safety_trigger_alarm()` and the webhook.
+
+Note the flag must **not** be combined with `FIRING_HOLD_INDEFINITE` on a single
+segment to model a hardening soak: an indefinite hold only ever finishes because the
+operator presses skip, so a completion-triggered alert would fire *after* the action
+it is meant to prompt. Model the minimum soak and the open-ended wait as **two
+segments** at the same temperature instead:
+
+1. Segment N — soak at 815 °C, `hold_time = 15 min` (guaranteed via
+   `hold_tolerance_c`), `SEG_FLAG_ALERT_ON_COMPLETE`. When the minimum soak is
+   satisfied, the segment completes on its own and the alert fires:
+   **beep + webhook: quench now**.
+2. Segment N+1 — same target, `FIRING_HOLD_INDEFINITE`. The kiln keeps holding at
+   temperature while the operator opens the lid, pulls the part, and presses skip.
+
+This needs no new event semantics — the alert rides an ordinary timed-segment
+completion, and the indefinite wait is a plain hold. `heat_treat_generate()` emits
+the two-segment pair for hardening cycles; the ProfileBuilder just documents the
+pattern.
 
 ### 4.4 Control quality at tempering temperatures (Phase 2)
 
@@ -124,18 +153,31 @@ part, presses skip".
   `pid_load_gains/pid_save_gains` grow a band parameter; autotune
   (`FIRING_CMD_AUTOTUNE_START` already takes an arbitrary setpoint) saves into the band
   containing its setpoint. Default: one band = exactly today's behavior.
-- **Smarter not-rising check:** the 10 °C/15 min heating watchdog should be skipped when
-  the setpoint is within ~15 °C of current temp (PID is *supposed* to flatten out near
-  target). This fixes a latent false-trip risk for ceramics too, but matters more for
-  long low-temp tempers where approach is asymptotic.
+- **Smarter not-rising check:** the 10 °C/15 min heating watchdog needs to tolerate
+  the PID flattening out near target *without* exempting slow ramps. A naive "skip
+  when the dynamic setpoint is within ~15 °C of the reading" gate is wrong: on a slow
+  programmed ramp (say 20 °C/hr) the moving setpoint stays within 15 °C of a stalled
+  kiln for ~45 minutes, so a failed element would go undetected long past the
+  existing 15-minute window — and slow ramps are central to these recipes. Instead,
+  compare **measured rise against planned rise over the watchdog window**: from
+  `firing_planned_temp_at()`, compute how much the profile intended to climb during
+  the last 15 minutes, and trip when the planned rise is meaningful (above a small
+  floor, e.g. 5 °C) but the measured rise is less than ~half of it. Near-target
+  flattening naturally has a small planned rise, so no false trip; a dead element on
+  a slow ramp still trips within one window. (An acceptable simpler variant: gate
+  the exemption on proximity to the *final segment target*, never the continuously
+  moving setpoint.) This fixes a latent false-trip risk for ceramics too, but matters
+  more for long low-temp tempers where approach is asymptotic.
 
 ## 5. Safety & hardware policy
 
 ### 5.1 Unchanged and still binding
 
 Over-temp watchdog, TC-fault handling, emergency stop, per-start profile validation
-against `safety_get_max_temp()` all apply as-is. Heat-treat profiles are *lower* risk
-thermally; the new risk is process-quality, not fire.
+against `safety_get_max_temp()` all apply as-is *for the single-sensor phases (1–2)*.
+Heat-treat profiles are *lower* risk thermally; the new risk is process-quality, not
+fire. Phase 3's second sensor changes the picture — once a load TC can gate progress,
+its faults must feed the safety path too (see §5.3).
 
 ### 5.2 Mode-aware vent (Phase 1)
 
@@ -146,20 +188,43 @@ temperature gradients). Pass the active profile's `process_type` through (or a
 
 ### 5.3 Optional hardware (Phase 3)
 
-- **Second thermocouple (load TC):** MAX31855 is SPI with one CS per chip; the shared
-  bus (`APP_SPI_HOST`) has room for another CS GPIO via Kconfig. Extend the
-  `thermocouple` component to N channels; add per-profile `control_source`
-  (air TC controls PID; load TC gates guaranteed-soak). This is the single biggest
-  correctness upgrade for thick sections.
+- **Second thermocouple (load TC):** the shared SPI bus (`APP_SPI_HOST`) has room for
+  another CS GPIO via Kconfig. The companion PCB plan
+  ([roadmap §3.2](application-roadmap-and-pcb-provisions.md)) fits **MAX31856**
+  front-ends, which are *not* drop-in MAX31855s: they need register configuration and
+  MOSI write transactions, where the current driver only does read-only 32-bit frames.
+  This phase therefore includes a **driver replacement, not an extension** — a
+  MAX31856 driver in `components/thermocouple/` (config on init, fault-register
+  decode), generalized to N channels, landing in the same phase as the board that
+  carries the chips. (On today's perfboard hardware a second MAX31855 on another CS
+  works for bench validation of the multi-channel plumbing, but the production
+  target is MAX31856.) Add per-profile `control_source` (air TC controls PID; load
+  TC gates guaranteed-soak). This is the single biggest correctness upgrade for
+  thick sections.
+
+  **Fault handling is part of the feature, not an afterthought:** the current safety
+  task watches only the singleton primary reading, and §5.1's "unchanged" claim stops
+  being true the moment a second sensor can *gate* progress. If the load probe opens
+  or its reading goes stale while the air probe stays valid, a guaranteed soak would
+  sit out-of-band forever with the PID happily holding the chamber at temperature.
+  Multi-channel support must route faults and staleness from **every configured
+  control or gating sensor** into the existing safety path — a load-TC fault during
+  a gated segment raises `FIRING_ERR_TC_FAULT` (SSR off, alarm) rather than
+  silently stalling the profile. Host-harness tests cover the fault-during-soak
+  case explicitly.
 - **Atmosphere purge relay:** one more optional GPIO (pattern: `APP_PIN_VENT`) driving an
   argon/N₂ solenoid to reduce decarb/scale, on during HEATING/HOLDING for heat-treat
   profiles. (Documentation should still recommend stainless foil wrap for tool steels.)
-- **Lid switch:** `APP_PIN_LID_SWITCH` already exists in config; wire it to auto-pause
-  (SSR off) on lid-open during heat-treat runs, with an explicit "transfer window"
-  after a quench alert where opening is expected.
-- **Accuracy note:** K-type + MAX31855 is ±2–3 °C class. Fine for annealing/most
-  tempering; document it, and consider a two-point calibration (extend the existing
-  single `tc_offset_c`) as a stretch item.
+- **Lid switch:** the interlock is now implemented in firmware (PR #286):
+  `components/safety/` debounces the input, reports `lid_state_t` to the UIs, and an
+  armable SSR gate cuts the elements on lid-open (`safety_set_lid_interlock_armed`),
+  with a warn-only mode. What remains for heat treating is the policy layer: an
+  explicit "transfer window" after a quench alert where opening is expected and the
+  interlock temporarily disarms instead of tripping.
+- **Accuracy note:** K-type + MAX31855 (today's hardware) is ±2–3 °C class — fine for
+  annealing/most tempering; document it. The PCB run's MAX31856 improves
+  cold-junction accuracy and adds 50/60 Hz filtering. Consider a two-point
+  calibration (extend the existing single `tc_offset_c`) as a stretch item.
 
 ## 6. Recipe library: `heat_treat_table` component (Phase 1)
 
@@ -200,8 +265,8 @@ version bump needed for existing clients.
 | Phase | Contents | Risk | Est. size |
 |---|---|---|---|
 | **1 — Domain packaging** | `process_type` field end-to-end, `heat_treat_table` component + presets, mode-aware vent, web UI type badge/filter/wizard | Low (append-only data, no control-loop changes) | ~3–5 days |
-| **2 — Engine precision** | Guaranteed soak, natural-cool + alert segment flags, `FIRING_EVENT_SEGMENT_ALERT`, gain scheduling + banded autotune, setpoint-aware not-rising check, ProfileBuilder fields, simulator lag model | Medium (touches `firing_tick`; fully coverable by host tests) | ~1–2 weeks |
-| **3 — Hardware options** | Second (load) TC + control-source selection, purge relay, lid-switch pause, two-point TC cal | Medium (needs bench) | as-needed |
+| **2 — Engine precision** | Guaranteed soak, natural-cool + alert segment flags, `FIRING_EVENT_SEGMENT_ALERT`, gain scheduling + banded autotune, planned-rise not-rising check, ProfileBuilder fields, simulator lag model | Medium (touches `firing_tick`; fully coverable by host tests) | ~1–2 weeks |
+| **3 — Hardware options** | Second (load) TC: MAX31856 driver replacement, N channels, control-source selection, gating-sensor fault routing; purge relay; lid-interlock transfer window; two-point TC cal | Medium (needs bench) | as-needed |
 
 **Testing:** every Phase 2 behavior gets host-harness coverage via `firing_tick()` with a
 virtual clock (soak clock freezes out-of-band; natural-cool completes on threshold;
