@@ -69,9 +69,16 @@ Consequences on an ESP32-S3:
    pins (avoid strapping pins 0/45, and keep 19/20 for USB; 46 is a strapping pin
    already spent on LCD RST). That is enough for the button re-map (§3.1) plus the
    dedicated provisions, but only *just* — see the explicit budget in §3.1; the
-   provisions below are sized to it. GPIO 33–37 depend on the module variant —
-   reserved by octal PSRAM on R8 modules, free on quad-PSRAM/flash-only variants;
-   treat them as module-dependent spares.
+   provisions below are sized to it. The only other candidates are **GPIO 35, 36,
+   37**, which depend on the module variant — free on quad-PSRAM/flash-only
+   variants, consumed by octal PSRAM on the **N16R8 this project actually targets**
+   (`sdkconfig.defaults`, the KiCad BOM, and the DevKitC-1 in the README are all
+   R8), where the KiCad schematic correctly leaves them unconnected. Note the
+   adjacent GPIO 33/34 are **not** an option on any variant: ESP32-S3-WROOM-1 does
+   not break them out at all — the module's castellated pads run IO0–IO18, IO21,
+   IO35–IO42, IO45–IO48 (confirmed against the `RF_Module:ESP32-S3-WROOM-1` symbol
+   in `hardware/kicad/bisque-controller.kicad_sch`), and GPIO 26–34 are internal to
+   the module's flash/PSRAM interface. Do not plan pins around them.
 3. All pins are Kconfig-configurable, so a PCB reshuffle is a defaults change, not a
    firmware change.
 
@@ -111,10 +118,11 @@ silent overrun:
   Kconfig already defaults to `-1`); the header's `T_IRQ` line routes to the spare
   header (§3.8) via solder jumper so a build on a quad-PSRAM module can still wire
   it. See §3.7.
-- **The spare header (§3.8) is populated from GPIO 33–37 only** — i.e. it has real
-  pins on quad-PSRAM/flash-only module variants and is footprint-only on octal-PSRAM
-  (R8) modules. The DNP I2C GPIO expander in §3.5 is the escape valve if a
-  pin-hungry feature ever lands on an R8 build.
+- **The spare header (§3.8) is populated from GPIO 35/36/37 only** — i.e. it has
+  real pins on quad-PSRAM/flash-only module variants and is footprint-only on the
+  octal-PSRAM (R8) module this project ships, whose PSRAM uses all three. The DNP
+  I2C GPIO expander in §3.5 is the escape valve if a pin-hungry feature ever lands
+  on an R8 build.
 
 Any future provision that needs a dedicated GPIO must displace something in the
 table above or ride the I2C expander — there is no slack left.
@@ -185,7 +193,7 @@ Provision for run 1:
   touch reads until a press occurs, but the §3.1 pin budget has no dedicated pin
   for it: the chip is **polled by default**, and the `T_IRQ` line routes to the
   spare header (§3.8) via solder jumper so module variants with free GPIOs
-  (33–37 on quad-PSRAM) can still wire it.
+  (35/36/37 on quad-PSRAM) can still wire it.
 - **Series resistor / solder-jumper on the touch lines** so an untouched build (or a
   touchless module variant) is unaffected.
 - **Capacitive variant escape hatch:** some ST7796S modules ship with capacitive
@@ -202,13 +210,21 @@ options defaulting to `-1` (disabled), same pattern as vent/lid-switch.
 
 ### 3.8 Spare-pin header & strategy
 
-After the §3.1 budget, the only unclaimed pins are the module-dependent **GPIO
-33–37** (free on quad-PSRAM/flash-only variants, reserved by octal PSRAM on R8
-modules). Route them to a labeled 0.1" header with solder-jumper isolation — real
-spares on quad modules, footprint-only on R8 — and land the `T_IRQ` jumper (§3.7)
-here. Do not spend strapping pins (0, 45) or USB pins (19, 20) on new functions. Optional DNP footprint: a mains **zero-cross detector** into one spare
-input — only relevant if finer-than-time-proportional SSR control is ever wanted for
-very low-temperature stability; cheap insurance.
+After the §3.1 budget, the only unclaimed pins are the module-dependent **GPIO 35,
+36, 37** — free on quad-PSRAM/flash-only variants, consumed by octal PSRAM on the R8
+module this design uses (GPIO 33/34 are not module pads at all; see §2). Route the
+three to a labeled 0.1" header with solder-jumper isolation — real spares on quad
+modules, footprint-only on R8 — and land the `T_IRQ` jumper (§3.7) here. Do not
+spend strapping pins (0, 45) or USB pins (19, 20) on new functions.
+
+Because the shipped R8 configuration leaves this header with **zero live pins**, the
+DNP I2C GPIO expander (§3.5) is the real spare-capacity story for run 1, not this
+header. Size the I2C header and expander footprint accordingly.
+
+Optional DNP footprint: a mains **zero-cross detector** into one spare input — only
+relevant if finer-than-time-proportional SSR control is ever wanted for very
+low-temperature stability; cheap insurance (on an R8 build it consumes an expander
+channel or displaces a §3.4 input).
 
 ### 3.9 Power & safety envelope
 

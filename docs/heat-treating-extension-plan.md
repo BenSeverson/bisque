@@ -75,6 +75,43 @@ also make the loader deterministic: `memset(profile, 0, sizeof *profile)` before
 as an error). The old-blob → new-struct round-trip test in §8 exists to pin exactly
 this behavior.
 
+**Zero-filling the destination is not enough for fields that land in existing
+padding.** It works for `process_type` because that byte is *past* the end of a
+legacy blob, so `nvs_get_blob` never writes it. It does **not** work for §3.2's
+segment fields. Measured layout of today's `firing_segment_t`: `id[40]`, `name[48]`,
+`ramp_rate` @88, `target_temp` @92, `hold_time` @96–97, **two bytes of tail padding
+@98–99**, `sizeof == 100`. Appending `hold_tolerance_c` and `flags` fills exactly
+those two padding bytes, so the struct stays 100 bytes and a legacy blob is
+byte-for-byte the same length — `nvs_get_blob` copies all 100 bytes per segment,
+**overwriting the memset zeros with whatever the padding held when the profile was
+saved**. Padding is indeterminate (`nvs_set_blob` writes `sizeof` bytes straight
+from the struct, padding included), so an old profile can come back with guaranteed
+soak, natural cooling, or a quench alert silently enabled.
+
+The fix is an explicit persisted-format version rather than inference from size:
+
+```c
+/* appended to firing_profile_t in Phase 1, before any segment field exists */
+uint8_t schema_version;  /* 0 = pre-versioning legacy blob; 1 = this layout, … */
+```
+
+`schema_version` sits past the legacy blob's end, so the memset above *does* make it
+reliably 0 for old profiles. On load, after `nvs_get_blob`: if `schema_version == 0`,
+explicitly zero the fields that occupy former padding across all
+`FIRING_MAX_SEGMENTS` segments (whatever their indeterminate bytes said), then stamp
+the current version. Two supporting rules:
+
+- **`firing_engine_save_profile()` must zero the whole struct before populating it**
+  so padding written from here on is deterministic — otherwise the same class of bug
+  recurs at the next schema bump.
+- Every future field lands either past the end (covered by memset + version) or in
+  known-zeroed padding (covered by the migration). Bump `schema_version` and add a
+  migration step whenever a field moves into previously indeterminate bytes.
+
+The §8 round-trip test must therefore cover the hostile case, not just the benign
+one: a legacy blob with **0xFF-filled** segment padding must load with
+`hold_tolerance_c == 0` and `flags == 0`.
+
 `firing_cmd_t` carries a profile by value through a 4-deep queue, so keep an eye on
 queue RAM as the struct grows. The current footprint is larger than it looks:
 `firing_segment_t` is 100 bytes (40 id + 48 name + 2 floats + hold + padding), so the
@@ -98,6 +135,10 @@ uint8_t flags;            /* bit0 SEG_FLAG_NATURAL_COOL: SSR forced off, segment
 
 Mirror both in `kiln.ts`, the JSON API (`api_json.c`), the zod schemas
 (`web_ui/src/app/schemas/`), and the mock/demo simulator.
+
+⚠️ These two bytes land in `firing_segment_t`'s existing tail padding (@98–99), so
+they are the exact case the destination memset cannot protect — they require the
+`schema_version` migration described in §3.1. Do not implement Phase 2 without it.
 
 ## 4. Engine changes (`firing_tick`)
 
@@ -153,21 +194,50 @@ pattern.
   `pid_load_gains/pid_save_gains` grow a band parameter; autotune
   (`FIRING_CMD_AUTOTUNE_START` already takes an arbitrary setpoint) saves into the band
   containing its setpoint. Default: one band = exactly today's behavior.
-- **Smarter not-rising check:** the 10 °C/15 min heating watchdog needs to tolerate
-  the PID flattening out near target *without* exempting slow ramps. A naive "skip
-  when the dynamic setpoint is within ~15 °C of the reading" gate is wrong: on a slow
-  programmed ramp (say 20 °C/hr) the moving setpoint stays within 15 °C of a stalled
-  kiln for ~45 minutes, so a failed element would go undetected long past the
-  existing 15-minute window — and slow ramps are central to these recipes. Instead,
-  compare **measured rise against planned rise over the watchdog window**: from
-  `firing_planned_temp_at()`, compute how much the profile intended to climb during
-  the last 15 minutes, and trip when the planned rise is meaningful (above a small
-  floor, e.g. 5 °C) but the measured rise is less than ~half of it. Near-target
-  flattening naturally has a small planned rise, so no false trip; a dead element on
-  a slow ramp still trips within one window. (An acceptable simpler variant: gate
-  the exemption on proximity to the *final segment target*, never the continuously
-  moving setpoint.) This fixes a latent false-trip risk for ceramics too, but matters
-  more for long low-temp tempers where approach is asymptotic.
+- **Smarter not-rising check.** Today's watchdog (`firing_tick`) is unconditional
+  while heating: less than `RISING_THRESHOLD_C` (10 °C) of rise across a 15-minute
+  window trips `FIRING_ERR_NOT_RISING`. It needs to tolerate the PID flattening out
+  as it converges on a target, without ever going blind on a stalled kiln. Two
+  tempting formulations are both wrong, and the reasons are worth recording because
+  each looks correct in isolation:
+
+  - *"Skip when the dynamic setpoint is within ~15 °C of the reading."* On a slow
+    programmed ramp (say 20 °C/hr) the moving setpoint stays within 15 °C of a
+    stalled kiln for ~45 minutes, so a failed element goes undetected far past the
+    existing window — and slow ramps are exactly what these recipes are made of.
+  - *"Compare measured rise against the rise `firing_planned_temp_at()` intended
+    over the window."* This one fails in the opposite direction, permanently. The
+    ideal-profile timeline is anchored to firing start, so it does not slip when the
+    real kiln falls behind: once a dead element makes the kiln lag, the ideal curve
+    runs ahead, reaches the final target, and **plateaus**. Planned rise then reads
+    zero for every subsequent window, so the check exempts itself forever while the
+    kiln sits hundreds of degrees below target. The same misalignment appears after
+    any ordinary ramp or soak overrun, and the first bad window is the one that
+    straddles the ideal plateau — planned rise there is already below any sensible
+    floor.
+
+  The invariant the check actually wants is **segment-relative**, referencing only
+  the active segment's own target and programmed rate — quantities that do not drift
+  with the wall clock:
+
+  - Exempt the window only when the kiln is legitimately near the **active
+    segment's** `target_temp` (e.g. `|target − current| ≤ ~15 °C`), which is the one
+    situation where flattening is expected and correct.
+  - Otherwise require rise proportional to that segment's own `ramp_rate`: expected
+    rise over the window is `ramp_rate × 0.25 h`, and the check trips when measured
+    rise falls below ~half of it, floored at today's 10 °C so fast ramps keep
+    current behavior. A 20 °C/hr ramp expects 5 °C per window and trips below
+    ~2.5 °C; a dead element on a slow ramp still trips inside one window, and a
+    kiln merely running behind schedule does not.
+  - Natural-cool segments (§4.2) and any non-heating status stay exempt as they are
+    today.
+
+  This also fixes a latent false-trip risk for ceramics, but it matters most for
+  long low-temp tempers where the approach is asymptotic. Host-harness coverage:
+  slow ramp with a healthy kiln (no trip), slow ramp with a dead element (trips
+  within one window), near-target convergence (no trip), and a kiln left far below
+  target long after the ideal profile has plateaued (**must still trip** — the
+  regression test for the rejected planned-rise formulation).
 
 ## 5. Safety & hardware policy
 
@@ -193,14 +263,31 @@ temperature gradients). Pass the active profile's `process_type` through (or a
   ([roadmap §3.2](application-roadmap-and-pcb-provisions.md)) fits **MAX31856**
   front-ends, which are *not* drop-in MAX31855s: they need register configuration and
   MOSI write transactions, where the current driver only does read-only 32-bit frames.
-  This phase therefore includes a **driver replacement, not an extension** — a
-  MAX31856 driver in `components/thermocouple/` (config on init, fault-register
-  decode), generalized to N channels, landing in the same phase as the board that
-  carries the chips. (On today's perfboard hardware a second MAX31855 on another CS
-  works for bench validation of the multi-channel plumbing, but the production
-  target is MAX31856.) Add per-profile `control_source` (air TC controls PID; load
-  TC gates guaranteed-soak). This is the single biggest correctness upgrade for
-  thick sections.
+  This phase therefore adds a **second driver backend, never a replacement**: a
+  MAX31856 backend in `components/thermocouple/` (config registers on init,
+  fault-register decode) alongside the existing MAX31855 one, both generalized to N
+  channels behind the current `thermocouple_get_latest()` interface.
+
+  **The installed base makes "replace the driver" a device-bricking change.** Every
+  controller in the field today — the perfboard build and the generated PCB
+  (`hardware/kicad/`, BOM part MAX31855KASA+) — carries a MAX31855, and
+  `.github/workflows/release.yml` publishes a **single** `bisque.bin` plus one
+  `manifest.json` that all devices fetch from
+  `/releases/latest/download/manifest.json`. There is no hardware-revision axis in
+  the release, so a MAX31856-only image would OTA itself onto MAX31855 hardware and
+  leave it unable to read temperature — i.e. unable to fire. A build-time Kconfig
+  choice alone does not fix this either, for the same reason: one published image.
+  So the backend must be **selectable at runtime** — probe at init (the MAX31856 has
+  readable/writable config registers; the MAX31855 is a read-only frame, so a
+  write-then-read-back of a known register value distinguishes them), with a
+  settings override for anything ambiguous, and both backends compiled into the
+  shipped image. Publishing hardware-specific images is the alternative, but it
+  means a release-workflow matrix and an OTA manifest keyed by hardware revision —
+  strictly more work than carrying two small drivers.
+
+  Add per-profile `control_source` (air TC controls PID; load TC gates
+  guaranteed-soak). This is the single biggest correctness upgrade for thick
+  sections.
 
   **Fault handling is part of the feature, not an afterthought:** the current safety
   task watches only the singleton primary reading, and §5.1's "unchanged" claim stops
@@ -217,10 +304,26 @@ temperature gradients). Pass the active profile's `process_type` through (or a
   profiles. (Documentation should still recommend stainless foil wrap for tool steels.)
 - **Lid switch:** the interlock is now implemented in firmware (PR #286):
   `components/safety/` debounces the input, reports `lid_state_t` to the UIs, and an
-  armable SSR gate cuts the elements on lid-open (`safety_set_lid_interlock_armed`),
-  with a warn-only mode. What remains for heat treating is the policy layer: an
-  explicit "transfer window" after a quench alert where opening is expected and the
-  interlock temporarily disarms instead of tripping.
+  armable SSR gate cuts the elements on lid-open (`safety_set_lid_interlock_armed`,
+  enforced in `ssr_window_apply()`), with `warn` / `pause` / `interlock` modes.
+
+  What remains for heat treating is only the **policy** layer around a quench: after
+  a `SEG_FLAG_ALERT_ON_COMPLETE` segment, opening the lid is expected, so it should
+  not read as a fault or stall the program. **The transfer window must never disarm
+  the SSR gate.** That is precisely the moment an operator has both hands in an
+  815 °C oven reaching for a part, and disarming would let the PID — which still
+  sees a large negative error from the open door — energize the elements. The
+  correct behavior already exists as `LID_MODE_INTERLOCK`: `safety.c`'s
+  `lid_blocks_output()` holds the SSR off for as long as the lid reads open, while
+  `firing_tick()` deliberately keeps the program clock and segment advance running
+  (it sets a `lid_holds_heat` flag rather than returning early, so the following
+  indefinite hold still behaves like a hold).
+
+  So the transfer window is a *notification and mode* concern, not a gating one:
+  during it, suppress the lid-open warning/alarm and force interlock semantics for
+  the duration even if the profile is otherwise running in `pause` mode (a
+  pause-then-auto-resume would fight the operator mid-transfer). Elements stay
+  hard-gated off by safety throughout, exactly as on any other lid-open event.
 - **Accuracy note:** K-type + MAX31855 (today's hardware) is ±2–3 °C class — fine for
   annealing/most tempering; document it. The PCB run's MAX31856 improves
   cold-junction accuracy and adds 50/60 Hz filtering. Consider a two-point
@@ -264,14 +367,15 @@ version bump needed for existing clients.
 
 | Phase | Contents | Risk | Est. size |
 |---|---|---|---|
-| **1 — Domain packaging** | `process_type` field end-to-end, `heat_treat_table` component + presets, mode-aware vent, web UI type badge/filter/wizard | Low (append-only data, no control-loop changes) | ~3–5 days |
-| **2 — Engine precision** | Guaranteed soak, natural-cool + alert segment flags, `FIRING_EVENT_SEGMENT_ALERT`, gain scheduling + banded autotune, planned-rise not-rising check, ProfileBuilder fields, simulator lag model | Medium (touches `firing_tick`; fully coverable by host tests) | ~1–2 weeks |
-| **3 — Hardware options** | Second (load) TC: MAX31856 driver replacement, N channels, control-source selection, gating-sensor fault routing; purge relay; lid-interlock transfer window; two-point TC cal | Medium (needs bench) | as-needed |
+| **1 — Domain packaging** | `process_type` + `schema_version` fields end-to-end, load-path zero-fill, `heat_treat_table` component + presets, mode-aware vent, web UI type badge/filter/wizard | Low (append-only data, no control-loop changes) | ~3–5 days |
+| **2 — Engine precision** | Segment-padding migration (§3.1), guaranteed soak, natural-cool + alert segment flags, `FIRING_EVENT_SEGMENT_ALERT`, gain scheduling + banded autotune, segment-relative not-rising check, ProfileBuilder fields, simulator lag model | Medium (touches `firing_tick`; fully coverable by host tests) | ~1–2 weeks |
+| **3 — Hardware options** | Second (load) TC: MAX31856 backend *added alongside* MAX31855 with runtime selection, N channels, control-source selection, gating-sensor fault routing; purge relay; quench transfer-window policy (gate stays armed); two-point TC cal | Medium (needs bench; OTA reaches mixed hardware) | as-needed |
 
 **Testing:** every Phase 2 behavior gets host-harness coverage via `firing_tick()` with a
 virtual clock (soak clock freezes out-of-band; natural-cool completes on threshold;
-alert event emitted once; gain set switches at band edges). Phase 1 is covered by
-existing web UI tests plus profile round-trip (old blob → new struct) tests.
+alert event emitted once; gain set switches at band edges; the four not-rising cases
+in §4.4). Phase 1 is covered by existing web UI tests plus profile round-trip tests —
+including the hostile legacy blob (0xFF segment padding) described in §3.1.
 
 ## 9. Explicit non-goals
 
