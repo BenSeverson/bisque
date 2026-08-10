@@ -13,6 +13,21 @@ CONFIG_SPIRAM=y
 CONFIG_SPIRAM_MODE_OCT=y
 CONFIG_SPIRAM_SPEED_80M=y
 
+# Prefer PSRAM for Wi-Fi and LWIP buffers, falling back to internal RAM.
+# Internal SRAM is the pool that actually runs out here: task stacks, the two
+# 28.8KB LVGL draw buffers (MALLOC_CAP_DMA|INTERNAL) and the Wi-Fi static RX
+# buffers can only come from it, and static allocation already claims 46%.
+# PSRAM has ~8MB spare, so the buffers that *can* live there should.
+#
+# Two consequences worth knowing before changing this back:
+#  - It forces the Wi-Fi TX buffer type to "static": ESP_WIFI_DYNAMIC_TX_BUFFER
+#    carries `depends on !SPIRAM_TRY_ALLOCATE_WIFI_LWIP`, so enabling this flips
+#    TX to 16 static 1.6KB buffers (allocated in PSRAM at esp_wifi_init) plus a
+#    32-deep cache queue. That is the intended pairing, not an accident.
+#  - Buffers in PSRAM cost throughput. This device moves small JSON payloads and
+#    one 1.5MB OTA download, so that is a good trade — but it is a trade.
+CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP=y
+
 # CPU frequency (ESP32-S3 max: 240 MHz)
 CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
 CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ=240
@@ -74,6 +89,24 @@ CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_CMN=y
 
 # LWIP
 CONFIG_LWIP_MAX_SOCKETS=16
+# No IPv6 anywhere in the firmware — nothing under main/ or components/ opens an
+# AF_INET6 socket or touches an in6_addr, and mDNS advertises fine over IPv4
+# alone (Bonjour discovery from the iOS app is unaffected). Disabling it drops
+# ~1.8KB of lwip .bss plus the ND6/DHCPv6 code. Re-enable if anything here ever
+# needs to reach a v6-only host.
+CONFIG_LWIP_IPV6=n
+
+# mDNS: route its runtime allocations to PSRAM (the task stack stays internal,
+# as FreeRTOS stacks must) and drop the interactive console CLI, which nothing
+# in this firmware registers. MAX_SERVICES is 2 because exactly one service is
+# advertised (_http._tcp in main.c).
+#
+# Do NOT lower CONFIG_MDNS_MAX_INTERFACES below 3 — mdns_private.h hard-errors
+# via -Werror=cpp because three netifs are predefined. Tried; it fails the build.
+CONFIG_MDNS_MEMORY_ALLOC_INTERNAL=n
+CONFIG_MDNS_MEMORY_ALLOC_SPIRAM=y
+CONFIG_MDNS_ENABLE_CONSOLE_CLI=n
+CONFIG_MDNS_MAX_SERVICES=2
 
 # LVGL
 CONFIG_LV_COLOR_DEPTH_16=y
