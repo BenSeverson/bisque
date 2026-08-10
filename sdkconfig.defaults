@@ -87,6 +87,44 @@ CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC=y
 # pointed at a host chaining to a root outside that set.
 CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_CMN=y
 
+# Wi-Fi: trade throughput for internal RAM.
+#
+# IRAM_OPT/RX_IRAM_OPT place hot Wi-Fi paths in DIRAM to speed them up. Turning
+# them off moves ~17.6KB of DIRAM .text into flash, which is the single largest
+# internal-RAM win available from Kconfig alone — and internal RAM, not flash,
+# is what constrains this board (36% of the OTA slot used, 46% of DIRAM).
+#
+# The cost is real: Wi-Fi throughput and RX latency both drop, and the 1.5MB OTA
+# download is the path most likely to feel it. Acceptable on a kiln controller
+# that otherwise moves a status JSON once a second. If Wi-Fi ever needs to be
+# fast again, these two are the first things to turn back on.
+CONFIG_ESP_WIFI_IRAM_OPT=n
+CONFIG_ESP_WIFI_RX_IRAM_OPT=n
+# Static RX buffers are DMA targets, so they are pinned to internal RAM no matter
+# what SPIRAM_TRY_ALLOCATE_WIFI_LWIP says: 10 x 1.6KB = 16KB that PSRAM cannot
+# absorb. Six is enough for this traffic profile and returns ~6.4KB.
+#
+# RX_BA_WIN has to move with it. wifi_init.c enforces
+# RX_BA_WIN <= STATIC_RX_BUFFER_NUM * 2 with an #error, and enabling
+# SPIRAM_TRY_ALLOCATE_WIFI_LWIP raises the RX_BA_WIN default from 6 to 16 (more
+# block-ack buffering to hide PSRAM latency) — so leaving it implicit fails the
+# build at 16 > 12. Pinned to 12: the largest value the 6 buffers allow, and
+# still double the pre-PSRAM default.
+CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM=6
+CONFIG_ESP_WIFI_RX_BA_WIN=12
+# 32 management-frame buffers sized for an AP serving many clients; this device
+# is a station plus a provisioning-only SoftAP with one client at a time.
+CONFIG_ESP_WIFI_MGMT_SBUF_NUM=16
+
+# Send plain malloc() allocations over 4KB to PSRAM rather than the 16KB default
+# threshold. Blunt but effective: it applies to every non-capability allocation
+# in the system, so mid-sized buffers stop competing with task stacks and DMA
+# for internal RAM. Explicit heap_caps_malloc(MALLOC_CAP_DMA|INTERNAL) callers
+# (the LVGL draw buffers) are unaffected, and SPIRAM_MALLOC_RESERVE_INTERNAL
+# still holds 32KB back for internal-only requests. Raise it back toward 16384
+# if some 4-16KB buffer on a hot path turns out to need the speed.
+CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=4096
+
 # LWIP
 CONFIG_LWIP_MAX_SOCKETS=16
 # No IPv6 anywhere in the firmware — nothing under main/ or components/ opens an
