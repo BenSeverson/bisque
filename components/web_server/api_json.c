@@ -338,6 +338,7 @@ cJSON *build_system_json(const system_info_json_t *info)
     cJSON_AddStringToObject(root, "model", info->model);
     cJSON_AddNumberToObject(root, "uptimeSeconds", info->uptime_seconds);
     cJSON_AddNumberToObject(root, "freeHeap", (double)info->free_heap);
+    cJSON_AddNumberToObject(root, "freeInternalHeap", (double)info->free_internal_heap);
     cJSON_AddBoolToObject(root, "emergencyStop", info->emergency_stop);
     cJSON_AddNumberToObject(root, "lastErrorCode", (double)info->last_error_code);
     cJSON_AddNumberToObject(root, "elementHoursS", (double)info->element_hours_s);

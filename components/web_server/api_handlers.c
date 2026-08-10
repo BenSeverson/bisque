@@ -18,6 +18,7 @@
 #include "esp_http_client.h"
 #include "ota_manager.h"
 #include "esp_system.h"
+#include "esp_heap_caps.h"
 #include "driver/temperature_sensor.h"
 #include <inttypes.h>
 #include "cJSON.h"
@@ -820,6 +821,7 @@ static esp_err_t handle_get_system(httpd_req_t *req)
         .model = "Bisque ESP32-S3",
         .uptime_seconds = (double)esp_timer_get_time() / 1000000.0,
         .free_heap = esp_get_free_heap_size(),
+        .free_internal_heap = (uint32_t)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
         .emergency_stop = safety_is_emergency(),
         .last_error_code = (int)firing_engine_get_error_code(),
         .element_hours_s = firing_engine_get_element_hours_s(),

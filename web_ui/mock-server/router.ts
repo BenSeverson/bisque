@@ -437,6 +437,7 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
         model: "Bisque ESP32-S3 (Simulated)",
         uptimeSeconds: Math.round((Date.now() - state.startupTime) / 1000),
         freeHeap: 200000 + Math.round(Math.random() * 10000),
+        freeInternalHeap: 30000 + Math.round(Math.random() * 5000),
         emergencyStop: state.emergencyStop,
         lastErrorCode: state.lastErrorCode,
         elementHoursS: 3600 * 42,

@@ -137,6 +137,11 @@ typedef struct {
     const char *model;
     double uptime_seconds;
     uint32_t free_heap;
+    /* Free memory in internal SRAM only. With PSRAM enabled, `free_heap` sums
+       internal + the 8MB of external RAM, so it reads in the megabytes and says
+       nothing about the pool that actually runs out: task stacks, DMA buffers
+       and anything allocated MALLOC_CAP_INTERNAL can only come from here. */
+    uint32_t free_internal_heap;
     bool emergency_stop;
     int last_error_code;
     uint32_t element_hours_s;

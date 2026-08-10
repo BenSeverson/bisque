@@ -96,6 +96,9 @@ export const systemInfoSchema = z.object({
   model: z.string(),
   uptimeSeconds: z.number(),
   freeHeap: z.number(),
+  // Internal SRAM only. `freeHeap` includes the 8MB of PSRAM, so it stays in
+  // the megabytes while this is the number that runs out first.
+  freeInternalHeap: z.number(),
   emergencyStop: z.boolean(),
   lastErrorCode: z.number(),
   elementHoursS: z.number(),

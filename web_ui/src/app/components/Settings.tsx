@@ -1180,6 +1180,12 @@ export function Settings() {
             </span>
           </div>
           <div className="flex justify-between py-2 border-b">
+            <span className="text-sm font-medium">Free Internal RAM</span>
+            <span className="text-sm text-muted-foreground">
+              {systemInfo ? formatBytes(systemInfo.freeInternalHeap) : "--"}
+            </span>
+          </div>
+          <div className="flex justify-between py-2 border-b">
             <span className="text-sm font-medium">Element Hours</span>
             <span className="text-sm text-muted-foreground">
               {systemInfo ? formatHours(systemInfo.elementHoursS) : "--"}
