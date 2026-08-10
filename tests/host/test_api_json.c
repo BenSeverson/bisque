@@ -186,8 +186,9 @@ static void test_status_zeros_temp_when_fault(void)
     cJSON_Delete(root);
 }
 
-/* The vent GPIO defaults to disabled (CONFIG_KILN_PIN_VENT = -1), so most kilns
- * have no vent relay to report on. Sending `ventActive: false` for those would
+/* A kiln built without a vent relay sets CONFIG_KILN_PIN_VENT = -1 (the default
+ * is GPIO 14, matching the PCB) and has no vent to report on. Sending
+ * `ventActive: false` for those would
  * be indistinguishable from a fitted vent that happens to be off, and every such
  * kiln would render a permanently dark indicator for hardware it doesn't have.
  * The key is dropped instead, which is what lets the client hide the whole
@@ -207,8 +208,9 @@ static void test_status_omits_vent_when_not_fitted(void)
     cJSON_Delete(root);
 }
 
-/* The lid GPIO defaults to disabled (CONFIG_KILN_PIN_LID_SWITCH = -1), so most
- * kilns have no switch to report on. `lidOpen: false` for those would be
+/* A kiln built without a lid switch sets CONFIG_KILN_PIN_LID_SWITCH = -1 (the
+ * default is GPIO 21, matching the PCB) and has no switch to report on.
+ * `lidOpen: false` for those would be
  * indistinguishable from a fitted switch that happens to be closed, and every
  * such kiln would render an indicator for hardware it doesn't have. Omit the
  * key entirely instead — the same contract ventActive follows (#83). */

@@ -53,11 +53,16 @@ currently packaged for ceramics. Each new application is mostly a recipe library
 
 ## 2. Current pin budget (why the PCB provisions look the way they do)
 
+Full as-built map (every GPIO, its net, its Kconfig symbol and the J7 aux
+header), plus a concrete pin-by-pin allocation for the §3.1 re-map:
+[`pin-assignments.md`](pin-assignments.md).
+
 Assigned today (Kconfig defaults, `main/Kconfig.projbuild`):
 
 - **GPIO 1–10 all consumed**: buttons (1, 2, 4, 5, 6), LCD BL (3), alarm (7), LCD CS/DC (8, 9), TC CS (10)
 - SPI bus: MOSI 11, SCLK 12, MISO 13; SSR 17; LCD RST 46; WS2812B 48
-- Firmware-supported but unassigned (`-1`): vent relay, lid switch
+- Aux header J7: vent relay 14, lid switch 21 (both default to those GPIOs,
+  matching the PCB); `AUX_A` 15 and `AUX_B` 16 declared but not yet driven
 
 Consequences on an ESP32-S3:
 
@@ -103,6 +108,15 @@ plus the six freed ADC1 pins = **11 GPIOs**. Demands from the provisions below:
 | CT analog sense (§3.6, must be ADC1) | 1 |
 | Touch `T_CS` (§3.7) | 1 |
 | **Total** | **11** |
+
+> **Counting caveat.** GPIO 14, 15, 16 and 21 above are all routed on the board,
+> to aux header J7 — and `VENT` (14) and `LID_SW` (21) are now *driven* by
+> default too, so only `AUX_A`/`AUX_B` are genuinely idle. The budget still
+> balances, but only if §3.3's
+> three aux outputs *are* those existing nets (14/15/16) and the lid switch
+> vacates GPIO 21 for the alarm, becoming one of §3.4's protected inputs. Read
+> literally, this table double-books J7. See
+> [`pin-assignments.md`](pin-assignments.md) §4.
 
 That consumes the pool exactly — which forces two explicit decisions rather than a
 silent overrun:
@@ -198,7 +212,8 @@ simultaneously, and the whole UI is already built from clickable widgets
 (buttons, list rows, button matrices), so modals become directly tappable with the
 5-way switch untouched as a fallback. Resistive touch needs a 4-point calibration
 stored in NVS (small settings + one-time calibration modal). Kconfig: two new pin
-options defaulting to `-1` (disabled), same pattern as vent/lid-switch.
+options defaulting to `-1` (disabled), same pattern as the `AUX_A`/`AUX_B`
+outputs.
 
 ### 3.8 Spare-pin header & strategy
 

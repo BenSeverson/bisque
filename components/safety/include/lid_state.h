@@ -9,10 +9,15 @@
  * the LVGL dashboard (which the SDL simulator compiles with no ESP-IDF at all),
  * and safety.c itself.
  *
- * NOT_FITTED is a distinct state rather than a "closed": the lid GPIO defaults
- * to -1 (see CONFIG_KILN_PIN_LID_SWITCH), so most kilns have no switch at all,
- * and an indicator permanently reading "lid closed" would be reporting on
- * hardware that isn't there. Consumers omit the reading entirely in that case.
+ * NOT_FITTED is a distinct state rather than a "closed": a kiln with no switch
+ * would otherwise show an indicator permanently reading "lid closed", reporting
+ * on hardware that isn't there. Consumers omit the reading entirely in that
+ * case.
+ *
+ * Note that CONFIG_KILN_PIN_LID_SWITCH now defaults to GPIO 21 to match the
+ * PCB, so NOT_FITTED only appears on builds that explicitly set it back to -1.
+ * A build with no switch fitted must do that, or jumper the input to GND —
+ * otherwise the pulled-up pin reads OPEN and the interlock holds the SSR off.
  */
 typedef enum {
     LID_STATE_NOT_FITTED = -1,

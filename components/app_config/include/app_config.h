@@ -85,6 +85,12 @@
 #define APP_PIN_ALARM      CONFIG_KILN_PIN_ALARM
 #define APP_PIN_VENT       CONFIG_KILN_PIN_VENT
 #define APP_PIN_LID_SWITCH CONFIG_KILN_PIN_LID_SWITCH
+/* Aux output bank. Routed on the PCB (AUX_A/AUX_B on J7.7/J7.8, GPIO 15/16) but
+   NOT DRIVEN BY ANY CODE YET — declared so the board and firmware agree on what
+   exists. See docs/pin-assignments.md §5 for the intended roles and why the
+   zone-2 SSR role belongs on the 100 ms window rather than the 1 Hz tick. */
+#define APP_PIN_AUX_A CONFIG_KILN_PIN_AUX_A
+#define APP_PIN_AUX_B CONFIG_KILN_PIN_AUX_B
 /* True when a LOW level means the lid is open. The default is 0 — normally-closed
    wiring, where lid-open is the pulled-up HIGH and a broken wire therefore reads
    open and fails safe. See the Kconfig help. The Kconfig symbol only exists when
