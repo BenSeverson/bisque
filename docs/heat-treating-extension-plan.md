@@ -99,18 +99,31 @@ uint8_t schema_version;  /* 0 = pre-versioning legacy blob; 1 = this layout, …
 reliably 0 for old profiles. On load, after `nvs_get_blob`: if `schema_version == 0`,
 explicitly zero the fields that occupy former padding across all
 `FIRING_MAX_SEGMENTS` segments (whatever their indeterminate bytes said), then stamp
-the current version. Two supporting rules:
+the current version. Three supporting rules:
 
-- **`firing_engine_save_profile()` must zero the whole struct before populating it**
-  so padding written from here on is deterministic — otherwise the same class of bug
-  recurs at the next schema bump.
+- **`firing_engine_save_profile()` must stamp the current version on the struct it
+  writes** — `profile->schema_version = FIRING_SCHEMA_VERSION` immediately before
+  `nvs_set_blob`, on its own canonical copy. Stamping only during load is not
+  enough, and this is the failure that would bite first: `profile_from_json()`
+  begins with `memset(out, 0, sizeof(*out))` (`api_handlers.c:248`), so **every
+  profile arriving over REST or import carries `schema_version == 0`**, as do
+  generated and default profiles that never set the field. A Phase 2 profile with
+  real `hold_tolerance_c`/`flags` would then persist as a version-0 blob, and its
+  very next load would run the legacy migration and silently wipe exactly the
+  fields the user just set. The version must describe *the layout being written*,
+  which only the writer knows.
+- **`firing_engine_save_profile()` must also zero the whole struct before
+  populating it** so padding written from here on is deterministic — otherwise the
+  same class of bug recurs at the next schema bump.
 - Every future field lands either past the end (covered by memset + version) or in
   known-zeroed padding (covered by the migration). Bump `schema_version` and add a
   migration step whenever a field moves into previously indeterminate bytes.
 
-The §8 round-trip test must therefore cover the hostile case, not just the benign
-one: a legacy blob with **0xFF-filled** segment padding must load with
-`hold_tolerance_c == 0` and `flags == 0`.
+The §8 round-trip tests must therefore cover the hostile case and the save path, not
+just the benign read: a legacy blob with **0xFF-filled** segment padding must load
+with `hold_tolerance_c == 0` and `flags == 0`, **and** a profile saved with
+tolerance/flags set must survive a save → load round-trip with those values intact
+(the regression test for an unstamped save).
 
 `firing_cmd_t` carries a profile by value through a 4-deep queue, so keep an eye on
 queue RAM as the struct grows. The current footprint is larger than it looks:
@@ -220,24 +233,46 @@ pattern.
   the active segment's own target and programmed rate — quantities that do not drift
   with the wall clock:
 
-  - Exempt the window only when the kiln is legitimately near the **active
-    segment's** `target_temp` (e.g. `|target − current| ≤ ~15 °C`), which is the one
-    situation where flattening is expected and correct.
-  - Otherwise require rise proportional to that segment's own `ramp_rate`: expected
-    rise over the window is `ramp_rate × 0.25 h`, and the check trips when measured
-    rise falls below ~half of it, floored at today's 10 °C so fast ramps keep
-    current behavior. A 20 °C/hr ramp expects 5 °C per window and trips below
-    ~2.5 °C; a dead element on a slow ramp still trips inside one window, and a
-    kiln merely running behind schedule does not.
+  - **Scale the threshold to the segment's own `ramp_rate`, capping at today's
+    value.** Expected rise over the window is `ramp_rate × 0.25 h`; trip when
+    measured rise falls below
+    `min(RISING_THRESHOLD_C, 0.5 × expected_rise)`. It must be a **cap, not a
+    floor**: a healthy 20 °C/hr ramp only gains 5 °C per 15-minute window, so a
+    10 °C floor would emergency-stop a perfectly good firing. `min()` gives that
+    ramp a 2.5 °C threshold, while any ramp of 80 °C/hr or faster saturates the cap
+    and keeps exactly today's 10 °C behavior.
+  - **The near-target exemption must be bounded**, or it becomes its own blind spot.
+    Exempting purely on `|target − current| ≤ ~15 °C` never terminates: if an element
+    dies 10 °C short, the kiln is permanently "near target" but
+    `at_target_predicate()` needs it within 2 °C to start the hold, so the segment
+    never advances, the exemption never lifts, and nothing ever trips — a stall that
+    hangs forever is precisely what this watchdog exists to catch. Two extra
+    conditions, either of which is sufficient to trip:
+    - **Not saturated.** Genuine PID convergence backs off the element as it
+      closes on target; a dead element sits at full duty with no rise. So exempt
+      only while duty is below ~0.9. Note `pid_compute()` runs *after* this check
+      in `firing_tick()`, so it reads the previous tick's duty — fine at 1 Hz, but
+      store it explicitly rather than relying on statement order.
+    - **Time-bounded.** Cap the exemption at ~2 consecutive windows (~30 min).
+      Converging the last 15 °C takes minutes, not half an hour; past that, trip
+      regardless of duty.
   - Natural-cool segments (§4.2) and any non-heating status stay exempt as they are
     today.
 
   This also fixes a latent false-trip risk for ceramics, but it matters most for
-  long low-temp tempers where the approach is asymptotic. Host-harness coverage:
-  slow ramp with a healthy kiln (no trip), slow ramp with a dead element (trips
-  within one window), near-target convergence (no trip), and a kiln left far below
-  target long after the ideal profile has plateaued (**must still trip** — the
-  regression test for the rejected planned-rise formulation).
+  long low-temp tempers where the approach is asymptotic. Host-harness coverage —
+  the last three are regression tests for formulations rejected above, so they must
+  all assert a **trip**:
+
+  | Scenario | Expected |
+  |---|---|
+  | Healthy 20 °C/hr ramp (5 °C/window) | no trip — the cap-vs-floor case |
+  | Fast ramp, healthy | no trip; threshold is exactly today's 10 °C |
+  | Slow ramp, dead element | trips within one window |
+  | Near-target PID convergence, duty backing off | no trip |
+  | Stalled 10 °C below target at full duty | **trips** (saturation bound) |
+  | Stalled just below target, duty ambiguous | **trips** after ~2 windows (time bound) |
+  | Far below target, ideal profile long since plateaued | **trips** (planned-rise regression) |
 
 ## 5. Safety & hardware policy
 
@@ -266,7 +301,19 @@ temperature gradients). Pass the active profile's `process_type` through (or a
   This phase therefore adds a **second driver backend, never a replacement**: a
   MAX31856 backend in `components/thermocouple/` (config registers on init,
   fault-register decode) alongside the existing MAX31855 one, both generalized to N
-  channels behind the current `thermocouple_get_latest()` interface.
+  channels.
+
+  **The component's public API has to grow channel awareness — it cannot stay as it
+  is.** Today it is single-sensor from top to bottom: `thermocouple_init(host,
+  cs_pin)` takes one CS, and `thermocouple_get_latest(thermocouple_reading_t *out)`
+  returns one cached reading backed by one spinlock-protected slot. Keeping that
+  signature would leave every caller — the firing engine and the safety task
+  included — able to see only the primary probe, which defeats both `control_source`
+  and the fault routing below by construction. Phase 3 needs an indexed accessor
+  (`thermocouple_get_latest_ch(int ch, …)`) or, better, an **atomic multi-channel
+  snapshot** so the engine cannot mix a fresh air reading with a stale load reading
+  inside one tick. Keep a single-channel convenience wrapper so existing call sites
+  and the host harness stay unchanged.
 
   **The installed base makes "replace the driver" a device-bricking change.** Every
   controller in the field today — the perfboard build and the generated PCB

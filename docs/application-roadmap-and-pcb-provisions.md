@@ -125,7 +125,10 @@ silent overrun:
   on an R8 build.
 
 Any future provision that needs a dedicated GPIO must displace something in the
-table above or ride the I2C expander — there is no slack left.
+table above or ride the I2C expander — there is no slack left. The expander only
+covers **slow, non-timing-critical** signals, though (see §3.8): anything
+edge-triggered or phase-sensitive, zero-cross detection above all, has to displace a
+direct pin.
 
 ### 3.2 Thermocouple: two channels, upgraded front-end
 
@@ -219,12 +222,21 @@ spend strapping pins (0, 45) or USB pins (19, 20) on new functions.
 
 Because the shipped R8 configuration leaves this header with **zero live pins**, the
 DNP I2C GPIO expander (§3.5) is the real spare-capacity story for run 1, not this
-header. Size the I2C header and expander footprint accordingly.
+header. Size the I2C header and expander footprint accordingly — but note it is a
+spare-capacity story for *slow* signals only (relay coils, dry-contact interlocks,
+indicator LEDs). An I2C expander is polled over a millisecond-scale bus and has no
+deterministic latency, so it cannot serve anything edge- or timing-critical.
 
-Optional DNP footprint: a mains **zero-cross detector** into one spare input — only
-relevant if finer-than-time-proportional SSR control is ever wanted for very
-low-temperature stability; cheap insurance (on an R8 build it consumes an expander
-channel or displaces a §3.4 input).
+Optional DNP footprint: a mains **zero-cross detector** — only relevant if
+finer-than-time-proportional SSR control is ever wanted for very low-temperature
+stability. **It needs a real interrupt-capable MCU pin; the expander is not an
+option for it.** The signal is a narrow pulse at 100/120 Hz whose *edge timing* is
+the entire payload, and a polled I2C read both misses pulses and cannot resolve
+half-cycle phase. Since §3.1's budget leaves no direct GPIO free, this footprint is
+only honest if its signal **displaces one of the three §3.4 protected inputs**
+(wire it to input 3, the designated spare, and document that a build using
+zero-cross gives up that input). If a future revision wants both, the pin budget
+must gain a dedicated capture-capable pin — not an expander channel.
 
 ### 3.9 Power & safety envelope
 
