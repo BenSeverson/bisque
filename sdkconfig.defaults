@@ -64,6 +64,14 @@ CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
 # download headroom. Requires SPIRAM_USE_MALLOC (set above).
 CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC=y
 
+# Root CA trust store: the "common" bundle (41 CAs) instead of the full one
+# (~130), saving ~50KB of flash in the app image. The only TLS client here is
+# OTA, which talks to github.com (USERTrust ECC/RSA roots) and follows the
+# release redirect to objects.githubusercontent.com (ISRG Root X1/X2) — all
+# four are in cmn_crt_authorities.csv. Revisit if CONFIG_OTA_MANIFEST_URL is
+# pointed at a host chaining to a root outside that set.
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_CMN=y
+
 # LWIP
 CONFIG_LWIP_MAX_SOCKETS=16
 
