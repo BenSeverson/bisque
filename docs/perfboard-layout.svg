@@ -442,6 +442,7 @@
   <text x="410" y="900" font-size="10" fill="#888" text-anchor="middle">Dashed lines show wire routing on bottom side of perfboard</text>
   <text x="410" y="915" font-size="10" fill="#888" text-anchor="middle">ESP32 pin labels follow ESP32-S3-DevKitC-1 pinout (verify against your board)</text>
   <text x="410" y="935" font-size="9" fill="#666" text-anchor="middle">All headers are female for plug-in connections | USB faces bottom edge for cable access</text>
-  <text x="410" y="951" font-size="9" fill="#996699" text-anchor="middle">ALARM / VENT / LID SW are optional - CONFIG_KILN_PIN_* default to -1 (not fitted)</text>
-  <text x="410" y="965" font-size="9" fill="#996699" text-anchor="middle">LID SW takes a dry contact to GND; on the PCB build that is aux header J7 pin 6 + pin 2, filtered by R12/R13/C12</text>
+  <text x="410" y="951" font-size="9" fill="#996699" text-anchor="middle">ALARM / VENT / LID SW default to GP7 / GP14 / GP21 - set CONFIG_KILN_PIN_* to -1 for any you do not fit</text>
+  <text x="410" y="965" font-size="9" fill="#cc4444" text-anchor="middle">LID SW must read closed or the kiln will not heat: dry contact (or a jumper) to GND, else set CONFIG_KILN_PIN_LID_SWITCH=-1</text>
+  <text x="410" y="979" font-size="9" fill="#996699" text-anchor="middle">On the PCB build that contact is aux header J7 pin 6 + pin 2, filtered by R12/R13/C12</text>
 </svg>

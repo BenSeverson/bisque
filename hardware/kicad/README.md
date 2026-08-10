@@ -71,9 +71,16 @@ them).
   panel-mounted 5-way switch (`UP DN LT RT OK GND`, active-low, ESP32
   internal pull-ups).
 - **Aux header J7** (8-pin KK-254): `3V3 GND TX RX VNT LID A15 A16` — UART0
-  plus the optional VENT (IO14) / LID_SWITCH (IO21) firmware GPIOs and two
-  spares. Both are opt-in in firmware (`CONFIG_KILN_PIN_*` default to −1),
-  so nothing need be wired here at all.
+  plus the VENT (IO14) / LID_SWITCH (IO21) firmware GPIOs and two spares
+  (A15/A16, declared in Kconfig but not yet driven by any code).
+
+  VENT and LID_SWITCH **default to those GPIOs** in firmware, matching this
+  board. VENT needs nothing wired — an unused vent pin just drives an
+  unconnected header pin. **LID does:** with no switch fitted, R13 holds the
+  input high, which reads as *lid open*, and the interlock keeps the SSR off
+  so the kiln never heats. Either wire a dry contact between J7 pin 6 and J7
+  pin 2 (GND), **fit a jumper across those same two pins**, or set
+  `CONFIG_KILN_PIN_LID_SWITCH=-1`. See `docs/pin-assignments.md`.
 
   **`LID` (pin 6) is filtered**, unlike every other GPIO on the headers: it
   reaches IO21 through R12 (1 kΩ series) with R13 (10 kΩ) pulling up to 3V3

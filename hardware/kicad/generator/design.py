@@ -9,6 +9,14 @@ source of truth):
   SPI: MOSI=11 MISO=13 SCLK=12 | TC CS=10 | SSR=17
   LCD: CS=8 DC=9 RST=46 BL=3   | WS2812=48 | ALARM=7
   BTN: UP=4 DOWN=5 SEL=1 LEFT=6 RIGHT=2
+  J7:  VENT=14 LID_SW=21 AUX_A=15 AUX_B=16 | TXD0/RXD0 console
+
+All four J7 signal nets are real copper here. VENT and LID_SW default to those
+GPIOs in Kconfig to match this board; AUX_A/AUX_B are declared but not yet
+driven by any code. Note that an enabled-but-unwired LID_SW reads open and
+holds the SSR off — it needs a switch, a jumper to GND, or -1. The full
+as-built map, the constraints behind it, and the planned expansion live in
+docs/pin-assignments.md — keep that table in sync with this one.
 """
 
 # --- board outline (mm, page coords) ---

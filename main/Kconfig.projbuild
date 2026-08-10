@@ -78,24 +78,88 @@ menu "Bisque Configuration"
 
         config KILN_PIN_VENT
             int "Vent relay GPIO (-1 = disabled)"
-            default -1
+            default 14
             help
                 GPIO for downdraft vent relay. Active during early firing stages
-                below 700°C to exhaust combustion gases. Set to -1 to disable.
+                below 700°C to exhaust combustion gases.
+
+                On the Bisque PCB this net is VENT, brought out on aux header
+                J7 pin 5 (GPIO14), with +3V3 and GND on pins 1 and 2 of the
+                same connector. The default matches that board.
+
+                Set to -1 on any build with no vent relay fitted, including the
+                perfboard build. That is not just cosmetic: a configured pin
+                makes the firmware report ventActive over the API/WebSocket and
+                put a VENT marker on the LCD status bar during early firing.
+                "The vent is off" and "this kiln has no vent" are deliberately
+                different facts here (#184), and a pin configured on a kiln with
+                no relay collapses them.
+
+        config KILN_PIN_AUX_A
+            int "Aux output A GPIO (-1 = disabled)"
+            default -1
+            help
+                General-purpose auxiliary output. On the Bisque PCB this net is
+                AUX_A, brought out on aux header J7 pin 7 (GPIO15), with +3V3
+                and GND on pins 1 and 2 of the same connector.
+
+                Reserved for the auxiliary output bank in docs/application-
+                roadmap-and-pcb-provisions.md §3.3 — purge solenoid, cooling
+                fan/damper, second-zone SSR trigger or external beacon.
+
+                NOTHING DRIVES THIS PIN YET. It is declared here so the board
+                and the firmware agree on what is routed; setting it to a GPIO
+                currently has no effect beyond documenting the intent.
+
+                Set to -1 to disable.
+
+        config KILN_PIN_AUX_B
+            int "Aux output B GPIO (-1 = disabled)"
+            default -1
+            help
+                Second general-purpose auxiliary output. On the Bisque PCB this
+                net is AUX_B, brought out on aux header J7 pin 8 (GPIO16), with
+                +3V3 and GND on pins 1 and 2 of the same connector.
+
+                See KILN_PIN_AUX_A. NOTHING DRIVES THIS PIN YET either.
+
+                Set to -1 to disable.
 
         config KILN_PIN_LID_SWITCH
             int "Lid/door switch GPIO (-1 = disabled)"
-            default -1
+            default 21
             help
                 GPIO input for a lid/door interlock switch. On the Bisque PCB
                 this net is LID_SW, brought out on aux header J7 pin 6 (GPIO21),
-                with +3V3 and GND on pins 1 and 2 of the same connector.
+                with +3V3 and GND on pins 1 and 2 of the same connector. The
+                default matches that board.
+
+                IF YOU DO NOT FIT A LID SWITCH, YOU MUST DO ONE OF THESE:
+
+                  * Fit a jumper between J7 pin 6 and J7 pin 2 (GND). That is
+                    the same connection a shut lid makes, so the firmware reads
+                    "lid closed" permanently, or
+                  * set this option to -1.
+
+                Do neither and the kiln will not heat. The input is pulled up
+                (R13 10k on the PCB, plus the ESP32's internal pull-up), so an
+                unconnected pin reads HIGH — which is "lid open" — and the
+                interlock holds the SSR off for as long as it stays that way.
+                On a perfboard build with nothing wired to this GPIO, the same
+                thing happens via the internal pull-up alone.
+
+                That is deliberate fail-safe behaviour, not a bug: a broken
+                wire, a pulled connector or a failed switch all read open, so
+                the interlock can never be defeated by a wiring fault. The cost
+                is that an un-jumpered board looks like a kiln that will not
+                fire.
 
                 When fitted, opening the lid during a firing de-energizes the
                 elements. What happens to the running program depends on the
                 "lid mode" setting: warn (report only), pause (hold the program
-                clock, auto-resume on close) or interlock (elements off, program
-                keeps running — the heat-treat oven convention).
+                clock, auto-resume on close — the default) or interlock
+                (elements off, program keeps running — the heat-treat oven
+                convention). Only "warn" leaves the elements alone.
 
                 THIS IS NOT A SAFETY DEVICE. It is a supplementary, firmware-level
                 interlock, and it does nothing if the firmware has crashed or the

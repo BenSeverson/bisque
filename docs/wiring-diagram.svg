@@ -282,8 +282,12 @@
   <text x="210" y="548" class="note">GP17</text>
 
   <!-- ============ OPTIONAL OUTPUTS / INPUTS (bottom-left row) ============ -->
-  <!-- All three default to -1 (not fitted) in main/Kconfig.projbuild. -->
-  <text x="212" y="583" class="note" text-anchor="middle" fill="#999">OPTIONAL - CONFIG_KILN_PIN_* default to -1 (not fitted)</text>
+  <!-- All three now default to a real GPIO in main/Kconfig.projbuild
+       (ALARM=7, VENT=14, LID_SWITCH=21) to match the PCB. Set the matching
+       CONFIG_KILN_PIN_* to -1 for hardware you do not fit. An enabled but
+       unwired LID_SWITCH reads open and holds the SSR off — see
+       docs/pin-assignments.md. -->
+  <text x="212" y="583" class="note" text-anchor="middle" fill="#999">OPTIONAL HW - pins default to GP7 / GP14 / GP21; set CONFIG_KILN_PIN_* to -1 if not fitted</text>
 
   <rect x="50" y="590" width="98" height="80" class="comp-box" fill="#1a0a00" stroke="#ff6600" opacity="0.7"/>
   <text x="99" y="615" class="comp-label" fill="#ff6600" opacity="0.7">ALARM</text>
