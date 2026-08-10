@@ -24,10 +24,25 @@ static esp_lcd_panel_handle_t s_panel = NULL;
 static lv_display_t *s_disp = NULL;
 static int s_bl_pin = -1;
 
-/* Double-buffered DMA draw buffers: 30 rows each (~1/10.7 of the screen, above
- * LVGL's 1/10 floor). Allocated from DMA-capable internal SRAM in display_init();
- * PSRAM is too slow for the flush DMA hot path. */
-#define DRAW_BUF_LINES 30
+/* Double-buffered DMA draw buffers, allocated from DMA-capable internal SRAM in
+ * display_init(); PSRAM is too slow for the flush DMA hot path, so these two
+ * buffers are a fixed charge against the scarcest heap class on the part (#136).
+ *
+ * 20 rows => 480*20*2 = 19,200 B each, 38,400 B for the pair. At the previous 30
+ * it was 57,600 B, so this returns 19,200 B of internal DMA RAM — more than every
+ * Kconfig-level saving available on this board combined.
+ *
+ * The trade is LVGL's buffer-size guidance, which wants at least 1/10 of the
+ * screen. 320 rows / 10 = 32, so the old 30 was already marginally under it
+ * (1/10.67 — the previous comment here claimed that cleared the floor, but a
+ * 1/10.67 buffer is smaller than a 1/10 one, not larger). 20 rows is 1/16, which
+ * is further under: the same frame takes 16 flushes instead of 11, so per-frame
+ * CPU and SPI overhead both rise. Rendering stays correct — PARTIAL mode accepts
+ * any buffer size — and 320 is an exact multiple of 20, so no flush is a runt.
+ *
+ * If the UI feels sluggish or tears on real hardware, this is the first number to
+ * put back; 24 rows (1/13.3) recovers half the RAM and splits the difference. */
+#define DRAW_BUF_LINES 20
 
 /* Button debounce state — 5-way nav switch */
 enum { BTN_UP = 0, BTN_DOWN, BTN_SELECT, BTN_LEFT, BTN_RIGHT, BTN_COUNT };
