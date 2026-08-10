@@ -367,6 +367,7 @@ final class FirmwareContractTests: XCTestCase {
         XCTAssertEqual(info.model, "Bisque ESP32-S3")
         XCTAssertEqual(info.uptimeSeconds, 86412.5, accuracy: 0.001)
         XCTAssertEqual(info.freeHeap, 198_432)
+        XCTAssertEqual(info.freeInternalHeap, 31_744)
         XCTAssertFalse(info.emergencyStop)
         XCTAssertEqual(info.elementHoursS, 151_200, accuracy: 0.001)
         XCTAssertEqual(info.spiffsTotal, 917_504)

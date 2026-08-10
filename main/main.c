@@ -4,6 +4,7 @@
 #include "freertos/task.h"
 #include "esp_log.h"
 #include "esp_timer.h"
+#include "esp_heap_caps.h"
 #include "nvs_flash.h"
 #include "esp_app_desc.h"
 #include "ota_manager.h"
@@ -236,5 +237,10 @@ void app_main(void)
     boot_status_mark_ready();
 
     ESP_LOGI(TAG, "=== Bisque started successfully ===");
-    ESP_LOGI(TAG, "Free heap: %lu bytes", (unsigned long)esp_get_free_heap_size());
+    /* Report internal SRAM separately: with PSRAM enabled the total is in the
+       megabytes and hides the pool that actually constrains this firmware —
+       task stacks, DMA buffers and MALLOC_CAP_INTERNAL requests all come out
+       of internal RAM only. */
+    ESP_LOGI(TAG, "Free heap: %lu bytes total, %lu bytes internal", (unsigned long)esp_get_free_heap_size(),
+             (unsigned long)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
 }

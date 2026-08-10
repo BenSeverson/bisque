@@ -85,6 +85,7 @@ const systemInfo = {
   idfVersion: "v5.3",
   uptimeSeconds: 3600,
   freeHeap: 120_000,
+  freeInternalHeap: 32_000,
   elementHoursS: 7200,
   spiffsUsed: 100_000,
   spiffsTotal: 1_000_000,

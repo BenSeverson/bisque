@@ -70,6 +70,7 @@ enum PreviewData {
     static let systemInfo = SystemInfo(
         firmware: "1.2.0", model: "Bisque-S3",
         uptimeSeconds: 86400, freeHeap: 120000,
+        freeInternalHeap: 32000,
         emergencyStop: false, lastErrorCode: 0,
         elementHoursS: 360000, spiffsTotal: 1048576,
         spiffsUsed: 524288, boardTempC: 42.5

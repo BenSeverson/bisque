@@ -15,6 +15,7 @@ struct AboutView: View {
 
                 Section("Memory") {
                     LabeledContent("Free Heap", value: "\(info.freeHeap / 1024) KB")
+                    LabeledContent("Free Internal RAM", value: "\(info.freeInternalHeap / 1024) KB")
                     LabeledContent("SPIFFS Used", value: "\(info.spiffsUsed / 1024) / \(info.spiffsTotal / 1024) KB")
                 }
 

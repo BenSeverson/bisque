@@ -872,6 +872,7 @@ static void test_system_shape(void)
         .model = "Bisque ESP32-S3",
         .uptime_seconds = 86412.5,
         .free_heap = 198432,
+        .free_internal_heap = 31744,
         .emergency_stop = false,
         .last_error_code = 0,
         .element_hours_s = 151200,
@@ -885,6 +886,7 @@ static void test_system_shape(void)
     assert_string_field(root, "model");
     assert_number_field(root, "uptimeSeconds");
     assert_number_field(root, "freeHeap");
+    assert_number_field(root, "freeInternalHeap");
     assert_bool_field(root, "emergencyStop");
     assert_number_field(root, "lastErrorCode");
     assert_number_field(root, "elementHoursS");
