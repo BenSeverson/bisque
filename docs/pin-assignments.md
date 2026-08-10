@@ -100,9 +100,16 @@ With the lid reading open, and the default `lid_mode` of `pause`,
 reading is believed with **no debounce** (`safety_lid_debounce_step()` — only
 *closing* is debounced), so it takes effect on the first sample.
 
-That is deliberate fail-safe design: a broken wire, pulled connector or failed
-switch all read open, so a wiring fault can never defeat the interlock. Its
-cost is that an un-jumpered board presents as a kiln that won't fire.
+That is deliberate fail-safe design **for open-circuit faults**: a broken wire,
+a pulled connector or a switch that fails open all read open, so none of them
+can defeat the interlock. Its cost is that an un-jumpered board presents as a
+kiln that won't fire.
+
+It is **not** immune to every fault. A short from the input conductor to GND, or
+a switch welded or jammed closed, both hold the pin LOW — read as *lid shut* —
+so the interlock stays armed but never cuts the element when the lid actually
+opens. A jumper fitted in place of a switch is by definition indistinguishable
+from that failure. The firmware cannot detect either case.
 
 Polarity is inverted by `KILN_LID_SWITCH_OPEN_IS_LOW` if your switch pulls low
 on opening — but read that option's help first, because it makes a broken wire

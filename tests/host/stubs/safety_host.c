@@ -12,9 +12,10 @@ static bool s_vent_active;
    assert about. The real driver decides from the GPIO, which safety_init_io()
    below mirrors for a test that wants the vent-less default kiln. */
 static bool s_vent_fitted = true;
-/* Unlike the vent, the lid stub defaults to NOT_FITTED — the production default
-   (CONFIG_KILN_PIN_LID_SWITCH = -1). Tests that care opt in via
-   safety_test_set_lid(). */
+/* Unlike the vent, the lid stub defaults to NOT_FITTED — the case where there is
+   nothing to assert unless a test opts in via safety_test_set_lid(). Note this
+   is no longer the production default: CONFIG_KILN_PIN_LID_SWITCH defaults to
+   GPIO 21 to match the PCB, and -1 is the opt-out for a build with no switch. */
 static lid_state_t s_lid_state = LID_STATE_NOT_FITTED;
 static bool s_lid_interlock_armed;
 static safety_trip_cause_t s_trip_cause = SAFETY_TRIP_NONE;

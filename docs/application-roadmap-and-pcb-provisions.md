@@ -61,7 +61,8 @@ Assigned today (Kconfig defaults, `main/Kconfig.projbuild`):
 
 - **GPIO 1–10 all consumed**: buttons (1, 2, 4, 5, 6), LCD BL (3), alarm (7), LCD CS/DC (8, 9), TC CS (10)
 - SPI bus: MOSI 11, SCLK 12, MISO 13; SSR 17; LCD RST 46; WS2812B 48
-- Firmware-supported but unassigned (`-1`): vent relay, lid switch
+- Aux header J7: vent relay 14, lid switch 21 (both default to those GPIOs,
+  matching the PCB); `AUX_A` 15 and `AUX_B` 16 declared but not yet driven
 
 Consequences on an ESP32-S3:
 

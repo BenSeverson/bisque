@@ -148,11 +148,20 @@ menu "Bisque Configuration"
                 On a perfboard build with nothing wired to this GPIO, the same
                 thing happens via the internal pull-up alone.
 
-                That is deliberate fail-safe behaviour, not a bug: a broken
-                wire, a pulled connector or a failed switch all read open, so
-                the interlock can never be defeated by a wiring fault. The cost
-                is that an un-jumpered board looks like a kiln that will not
-                fire.
+                That is deliberate fail-safe behaviour for OPEN-CIRCUIT faults,
+                not a bug: a broken wire, a pulled connector or a switch that
+                fails open all read open, so none of them can defeat the
+                interlock. The cost is that an un-jumpered board looks like a
+                kiln that will not fire.
+
+                It does NOT make the interlock immune to every fault. A short
+                from the input conductor to GND, or a switch welded or jammed
+                closed, both hold the pin LOW — which reads "lid shut" — so the
+                interlock stays armed but never cuts the element when the lid is
+                actually opened. A jumper fitted in place of a switch is by
+                definition indistinguishable from that failure. Nothing in the
+                firmware can detect either case, which is one more reason the
+                mechanical interlock below is the real protection.
 
                 When fitted, opening the lid during a firing de-energizes the
                 elements. What happens to the running program depends on the
