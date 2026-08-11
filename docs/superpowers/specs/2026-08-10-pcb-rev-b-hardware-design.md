@@ -37,16 +37,16 @@ externally exposed dry-contact and CT nets, and test points.
 
 ## 2. Decisions taken, and why
 
-### 2.1 Module: ESP32-S3-WROOM-1-N16R8 → **N16R2**
+### 2.1 Module: ESP32-S3-WROOM-1-N16R8 → **WROOM-1U-N16R2**
 
-`C2913202` → `C2913205`. Identical footprint, **−$0.54/board**, 9.3k stock.
+`C2913202` → `C3013945`. $5.15 → $4.84, so **−$0.31/board**, 3.5k stock. Two
+independent changes to the same component.
 
-Octal PSRAM is the sole reason GPIO 35/36/37 are unusable on the current
-module. Quad PSRAM shares the flash data lines and releases all three. The
-budget does not close without them:
-
-The module breaks out 36 signal pads. Subtract USB (19/20), strapping (0/45) and
-the UART0 console (43/44) and 30 remain — less another three on the N16R8:
+**Quad PSRAM, for the pin budget.** Octal PSRAM is the sole reason GPIO 35/36/37
+are unusable on the current module; quad PSRAM shares the flash data lines and
+releases all three. The module breaks out 36 signal pads — subtract USB (19/20),
+strapping (0/45) and the UART0 console (43/44) and 30 remain, less another three
+on an octal part:
 
 | | N16R8 | N16R2 |
 |---|---|---|
@@ -56,10 +56,40 @@ the UART0 console (43/44) and 30 remain — less another three on the N16R8:
 
 PSRAM drops 8 MB → 2 MB. The only consumer is
 `CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC` (`sdkconfig.defaults:60`), which routes OTA
-TLS allocations off internal RAM; that needs tens of KB across GitHub's
-redirect chain, not megabytes. Quad at 80 MHz halves PSRAM bandwidth versus
-octal, which nothing here is sensitive to — LVGL's pool is 24 KB of internal
-RAM and the display buffers are 30-row DMA slices.
+TLS allocations off internal RAM; that needs tens of KB across GitHub's redirect
+chain, not megabytes. Quad at 80 MHz halves PSRAM bandwidth versus octal, which
+nothing here is sensitive to — LVGL's pool is 24 KB of internal RAM and the
+display buffers are 30-row DMA slices.
+
+**U.FL antenna connector, for RF in a metal enclosure.** A kiln controller mounts
+on or near a large grounded steel shell, and a steel enclosure makes a PCB
+antenna close to non-functional. The 1U carries a U.FL connector for an external
+antenna on a pigtail, which can be placed where it actually works.
+
+This also relieves §6.3. The WROOM-1 footprint carries a 48 × 21.7 mm antenna
+keep-out rule area, of which roughly **330 mm²** lands on-board at rev A's
+placement — a 48 × 7 mm copper-free band along the top edge, about 3.4 % of a
+100 × 100 board. The 1U has no such zone, and this design **reclaims the band**
+for parts and ground pour.
+
+Two consequences to hold on to:
+
+- **The land pattern is variant-specific in the CPL, not in copper.** The two
+  KiCad footprints carry geometrically identical pad arrays — every pad differs
+  by the same 3.15 mm Y offset, because the 1U body is 6.3 mm shorter and the
+  origin is the body centre. A WROOM-1 will therefore *solder* onto 1U pads, but
+  `gen_jlc.py` emits a CPL centre 3.15 mm wrong for it. Machine assembly picks
+  one variant; the other is a hand-rework option only. Reclaiming the keep-out
+  band forecloses even that, which is the accepted cost of the decision.
+- **Antenna choice is a certification question.** Espressif's modular approval
+  for the 1U is granted against specified antenna types and gains; a high-gain
+  antenna steps outside it. Rev A's EMC note ("the ESP32-S3-WROOM-1 carries
+  modular certification") must gain this caveat.
+
+The pigtail (U.FL → SMA bulkhead) and the 2.4 GHz antenna are **accessories, not
+BOM lines** — they go on the hand-solder/shopping list, and the enclosure needs a
+bulkhead hole. U.FL is rated for ~30 mating cycles, so treat it as
+assemble-once.
 
 The firmware change for the swap itself is one line:
 `CONFIG_SPIRAM_MODE_OCT` → `CONFIG_SPIRAM_MODE_QUAD`.
@@ -132,8 +162,10 @@ nothing. **The I2C header is the RTC provision.** No RTC firmware in this scope.
 
 ## 3. Pin map
 
-ESP32-S3-WROOM-1-**N16R2**. ADC1 = GPIO 1–10, ADC2 = GPIO 11–20 (unreliable
-with Wi-Fi active). "Module pin" is U1's pin number in `design.py`.
+ESP32-S3-**WROOM-1U-N16R2**. ADC1 = GPIO 1–10, ADC2 = GPIO 11–20 (unreliable
+with Wi-Fi active). "Module pin" is U1's pin number in `design.py`; pad numbering
+and function are identical across WROOM-1 and WROOM-1U, so the map below is
+unaffected by the antenna decision.
 
 | GPIO | Module pin | Net | Function | Kconfig | vs. rev A |
 |---|---|---|---|---|---|
@@ -391,6 +423,7 @@ edge.
 | Switching | ULN2003, SSR optos, aux and SSR terminals, buzzer |
 | Digital | ESP32-S3 module, USB-C, LCD / nav / aux headers |
 | Isolation barrier | Pour keepout band across the opto row; floating `SSR*_RTN` islands |
+| Reclaimed antenna band | 48 × 7 mm at the top edge, freed by the 1U (§2.1) — available for parts and pour |
 
 Cold-junction copper stays away from the regulator and the driver region, per
 roadmap §3.2 and §3.9.
@@ -403,8 +436,10 @@ deliberately rather than designed away.
 | | Rev A | Rev B |
 |---|---|---|
 | Footprints | 52 | ~114 |
-| Area | 8,000 mm² | 10,000 mm² |
-| Density | 6.5 / 1000 mm² | ~11.4 / 1000 mm² |
+| Board area | 8,000 mm² | 10,000 mm² |
+| Antenna keep-out lost to the PCB antenna | −330 mm² | 0 (§2.1) |
+| Usable area | 7,670 mm² | 10,000 mm² |
+| Density | 6.8 / 1000 mm² | ~11.4 / 1000 mm² |
 
 `generator/router.py` is a 2-layer octilinear grid autorouter with GND pours on
 both layers. Rev B roughly doubles its workload while *removing* pour area (the
@@ -437,7 +472,10 @@ ADE7953 (+$3.41).
 
 Extended set changes: MAX31855 leaves; MAX31856, ADE7953 and the crystal join.
 ULN2003ADR, LTV-817S and SRV05-4 are all **Basic** — three new subsystems at zero
-feeder cost. The N16R2 swap returns $0.54/board.
+feeder cost. The module swap returns $0.31/board.
+
+Accessories, off-BOM and per unit: a U.FL → SMA bulkhead pigtail and a 2.4 GHz
+antenna, ~$3–5 (§2.1).
 
 Assembly stays **Economic** (SMD, top-side): the hand-solder split from rev A's
 cost-reduction pass is preserved, with the new screw terminals and headers added
@@ -484,6 +522,14 @@ Additional rev-B-specific checks:
    generic 1×14 2.54 mm header and update the mating-connector list.
 4. **ULN2003 input behaviour with a high-impedance ESP32 pin at boot** — confirm
    the 10 kΩ pulldowns in §3.2 are sufficient to guarantee all channels off.
+5. **WROOM-1U CPL rotation and origin.** `JLC_ROTATION` in `gen_jlc.py` has no
+   entry for the module today because the WROOM-1 needed none. The 1U's origin
+   sits 3.15 mm from the WROOM-1's relative to the same pads (§2.1), so the CPL
+   must be re-checked in JLCPCB's placement preview rather than assumed to carry
+   over. A module placed 3.15 mm off is a dead board.
+6. **U.FL connector clearance.** The connector stands proud of the module and the
+   pigtail exits laterally; confirm the reclaimed antenna band's new parts do not
+   foul either, and that the pigtail has a routing path to an enclosure wall.
 
 ## 8. Files this touches
 
@@ -493,12 +539,13 @@ Additional rev-B-specific checks:
 | `main/Kconfig.projbuild` | All pin defaults per §3; renames (`TC_CS`→`TC1_CS`, `SSR`→`SSR1`, `AUX_A/B`→`AUX2/3`); new symbols for TC2, SSR2, touch CS/IRQ, I2C SDA/SCL, watchdog kick, and the two new protected inputs |
 | `components/app_config/include/app_config.h` | Matching `APP_PIN_*` macros |
 | `sdkconfig.defaults` | `CONFIG_SPIRAM_MODE_OCT` → `QUAD`, comment updated for N16R2 |
-| `hardware/kicad/README.md` | GPIO map, BOM, assembly split, cost table |
+| `hardware/kicad/README.md` | GPIO map, BOM, assembly split, cost table; module variant, the antenna accessory list, the enclosure bulkhead hole, and the modular-certification caveat (§2.1) |
 | `docs/pin-assignments.md` | §1 as-built table, §3 aux header, §4 (planned re-map becomes the as-built map), §5 aux roles, §6 |
 | `docs/application-roadmap-and-pcb-provisions.md` | §2 and §3 — see below |
 | `docs/perfboard-layout.svg`, `docs/wiring-diagram.svg` | Regenerate for the new pin map |
 | `hardware/kicad/generator/gen_jlc.py` | `HAND_SOLDER` set, `JLC_ROTATION` entries for the new packages |
 | `hardware/kicad/gerbers/`, `jlcpcb/`, `pdf/`, `3d/`, `preview-board.svg` | Regenerated artifacts |
+| `hardware/kicad/FAB-READINESS-REVIEW.md` | **New review for rev B.** The existing file documents rev A and stays as history; it must not be edited into a claim about a board it never described. Its `CERT-001` modular-certification note is the one item that carries forward, with the §2.1 antenna caveat attached |
 
 ### 8.1 Roadmap claims this design falsifies
 
