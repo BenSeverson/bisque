@@ -9,16 +9,22 @@ source of truth):
   SPI: MOSI=11 MISO=13 SCLK=12 | TC CS=10 | SSR=17
   LCD: CS=8 DC=9 RST=46 BL=3   | WS2812=48 | ALARM=7
   BTN: UP=4 DOWN=5 SEL=1 LEFT=6 RIGHT=2
-  J7:  VENT=14 AUX_A=15 AUX_B=16 | TXD0/RXD0 console
+  Touch (Task 11): CS=? IRQ=? — dedicated GPIOs; T_CLK/T_DIN/T_DO are the
+    shared SPI2 bus (SPI_SCLK/SPI_MOSI/SPI_MISO) through series resistors.
+  I2C (Task 11): SDA/SCL — shared bus, pulled up on-board, broken out on
+    both J7 (0.1") and J14 (Qwiic/STEMMA QT).
   J11: IN1(lid)=4 IN2(gas flow)=2 IN3(spare)=1
 
-J7's four signal nets are real copper here. VENT defaults to that GPIO in
-Kconfig to match this board; AUX_A/AUX_B are declared but not yet driven by
-any code. IN1/IN2/IN3 (Task 9) land on their own terminal, J11, not J7 -
-rev A's lid switch was the only occupant of J7.6 and has moved there. Note
-that an enabled-but-unwired IN1 (lid) reads open and holds the SSR off - it
-needs a switch, a jumper to GND, or -1. The full as-built map, the
-constraints behind it, and the planned expansion live in
+J7's pins 5-8 carried VENT/(unconnected)/AUX_A/AUX_B through Task 10, all
+either dangling single-pin nets or declared-but-undriven — nothing on this
+board actually sourced them (the real VENT output is AUX1, wired to the
+ULN2003 aux bank, U6). Task 11 re-points J7 5-8 to I2C_SDA/I2C_SCL/+3V3/GND,
+retiring the AUX_A/AUX_B nets for good and giving the I2C bus a 0.1" header
+alongside the Qwiic connector (J14). IN1/IN2/IN3 (Task 9) land on their own
+terminal, J11, not J7 - rev A's lid switch was the only occupant of J7.6 and
+has moved there. Note that an enabled-but-unwired IN1 (lid) reads open and
+holds the SSR off - it needs a switch, a jumper to GND, or -1. The full
+as-built map, the constraints behind it, and the planned expansion live in
 docs/pin-assignments.md — keep that table in sync with this one.
 """
 
@@ -743,12 +749,21 @@ COMPONENTS = {
                 value="AC_SENSE_DNP", at=(96.0, 92.0, 0),
                 pins={"1": "ADE_VP", "2": "ADE_VN"}),
     # --- Headers ---------------------------------------------------------
-    "J5": dict(lib="Connector_Generic", sym="Conn_01x08",
-               fp="Connector_Molex:Molex_KK-254_AE-6410-08A_1x08_P2.54mm_Vertical",
-               fpf="Molex_KK-254_AE-6410-08A_1x08_P2.54mm_Vertical.kicad_mod",
+    "J5": dict(lib="Connector_Generic", sym="Conn_01x14",
+               fp="Connector_Molex:Molex_KK-254_AE-6410-14A_1x14_P2.54mm_Vertical",
+               fpf="Molex_KK-254_AE-6410-14A_1x14_P2.54mm_Vertical.kicad_mod",
                value="DISPLAY", at=(31.0, 115.0, 0),
-               # LCDWIKI 4.0" MSP4020/MSP4021 (ST7796S, 480x320): pin order
-               # VCC/GND/CS/RESET/DC/SDI(MOSI)/SCK/LED matches 1-8 exactly.
+               # LCDWIKI 4.0" MSP4021 (ST7796S + XPT2046 touch), grown from
+               # rev A's 8-pin display-only header (Task 11). Pins 1-8 keep
+               # rev A's assignment (see below); 9 is the panel's SDO (rev A
+               # left it unwired - the firmware never read from the
+               # display); 10-14 are the touch panel. The XPT2046 lives on
+               # the display module, not this board - T_CLK/T_DIN/T_DO ARE
+               # the shared SPI2 bus (SPI_SCLK/SPI_MOSI/SPI_MISO), so only
+               # T_CS and T_IRQ cost new GPIOs (Task 3). R39-R43 damp a bus
+               # that now multi-drops four devices (LCD, TC1, TC2, touch)
+               # at 40 MHz.
+               #
                # VCC accepts 3.3-5V per the module's own manual, and every
                # reference wiring diagram in it (incl. 3.3V-logic STM32
                # boards) ties VCC to 5V while driving CS/RESET/DC/MOSI/SCK
@@ -758,10 +773,31 @@ COMPONENTS = {
                # entirely rather than through its LDO drop.
                pins={"1": "+5V", "2": "GND", "3": "LCD_CS", "4": "LCD_RST",
                      "5": "LCD_DC", "6": "SPI_MOSI", "7": "SPI_SCLK",
-                     "8": "LCD_BL"}),
+                     "8": "LCD_BL", "9": "SPI_MISO", "10": "T_CLK_R",
+                     "11": "T_CS_R", "12": "T_DIN_R", "13": "T_DO_R",
+                     "14": "T_IRQ_R"}),
     "C11": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
                 value="10uF", at=(26.5, 110.5, 0),
                 pins={"1": "+5V", "2": "GND"}),
+    # --- Touch series damping (Task 11) -----------------------------------
+    # T_CLK/T_DIN/T_DO are the shared SPI2 bus; T_CS/T_IRQ are dedicated
+    # GPIOs (Task 3). All five get 33R series damping since the bus now
+    # multi-drops four devices at 40 MHz.
+    "R39": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="33", at=(36.0, 112.0, 0),
+                pins={"1": "SPI_SCLK", "2": "T_CLK_R"}),
+    "R40": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="33", at=(38.0, 113.5, 0),
+                pins={"1": "T_CS", "2": "T_CS_R"}),
+    "R41": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="33", at=(40.0, 115.0, 0),
+                pins={"1": "SPI_MOSI", "2": "T_DIN_R"}),
+    "R42": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="33", at=(42.0, 116.5, 0),
+                pins={"1": "SPI_MISO", "2": "T_DO_R"}),
+    "R43": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="33", at=(44.0, 118.0, 0),
+                pins={"1": "T_IRQ", "2": "T_IRQ_R"}),
     "J6": dict(lib="Connector_Generic", sym="Conn_01x06",
                fp="Connector_Molex:Molex_KK-254_AE-6410-06A_1x06_P2.54mm_Vertical",
                fpf="Molex_KK-254_AE-6410-06A_1x06_P2.54mm_Vertical.kicad_mod",
@@ -772,12 +808,27 @@ COMPONENTS = {
                fp="Connector_Molex:Molex_KK-254_AE-6410-08A_1x08_P2.54mm_Vertical",
                fpf="Molex_KK-254_AE-6410-08A_1x08_P2.54mm_Vertical.kicad_mod",
                value="AUX", at=(70.5, 115.0, 0),
+               # pin 6 carried the raw lid-switch input in rev A; the lid
+               # moved to its own terminal (J11) in Task 9. Pins 5-8 carried
+               # VENT/(unconnected)/AUX_A/AUX_B through Task 10 - all
+               # dangling single-pin nets, nothing on the board actually
+               # drove them (the real VENT output is AUX1, on U6). Task 11
+               # re-points 5-8 to I2C, giving the bus a 0.1" tap alongside
+               # the Qwiic connector (J14) and finally retiring AUX_A/AUX_B.
                pins={"1": "+3V3", "2": "GND", "3": "TXD0", "4": "RXD0",
-                     # pin 6 carried the raw lid-switch input in rev A; the
-                     # lid moved to its own terminal (J11) in Task 9, so
-                     # this pin is unconnected until Task 11 re-points J7's
-                     # pins 5-8 to I2C.
-                     "5": "VENT", "6": None, "7": "AUX_A", "8": "AUX_B"}),
+                     "5": "I2C_SDA", "6": "I2C_SCL", "7": "+3V3", "8": "GND"}),
+    # --- I2C expansion (Task 11) ------------------------------------------
+    "J14": dict(lib="Connector_Generic", sym="Conn_01x04",
+                fp="Connector_JST:JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal",
+                fpf="JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal.kicad_mod",
+                value="QWIIC", at=(64.0, 117.0, 0),
+                pins={"1": "GND", "2": "+3V3", "3": "I2C_SDA", "4": "I2C_SCL"}),
+    "R44": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="4.7k", at=(60.0, 112.0, 90),
+                pins={"1": "+3V3", "2": "I2C_SDA"}),
+    "R45": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="4.7k", at=(63.0, 112.0, 90),
+                pins={"1": "+3V3", "2": "I2C_SCL"}),
     # --- Mounting holes (grounded) --------------------------------------
     "H1": dict(lib="Mechanical", sym="MountingHole_Pad",
                fp="MountingHole:MountingHole_3.2mm_M3_Pad_Via",

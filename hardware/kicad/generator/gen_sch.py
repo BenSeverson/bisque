@@ -109,13 +109,20 @@ SCH_AT = {
     "R34": (430, 160), "R35": (460, 160), "R36": (490, 160),
     "C32": (520, 160), "D6": (550, 160),
     "J12": (430, 190), "J13": (460, 190),
+    # Touch damping + I2C expansion (Task 11) - fresh area clear of
+    # everything else on the page, 30mm grid (>=28mm apart in x or y), the
+    # Task 9/10 hazard margin: Device:R symbols stacked closer than that let
+    # facing pin-label stubs coincide and silently short two nets.
+    "J14": (25, 350), "R44": (55, 350), "R45": (85, 350),
+    "R39": (25, 380), "R40": (55, 380), "R41": (85, 380),
+    "R42": (115, 380), "R43": (145, 380),
 }
 
 GROUP_TEXT = [
     ("POWER IN  (5V DC terminal or USB, ORed Schottky diodes)", 25, 22),
     ("USB-C  (native USB flashing + ESD)", 25, 66),
     ("WS2812B STATUS LED  (VDD dropped ~4.6V for 3.3V data margin)", 25, 150),
-    ("HEADERS  DISPLAY(J5) NAV(J6) AUX(J7)", 25, 198),
+    ("HEADERS  DISPLAY+TOUCH(J5, 14-pin) NAV(J6) AUX+I2C(J7)", 25, 198),
     ("PROTECTED INPUTS x3  lid/gas-flow/spare  (1k + 10k pull-up + 100nF each, SRV05-4 TVS)",
      145, 205),
     ("RESET / BOOT / DECOUPLING", 25, 240),
@@ -130,6 +137,10 @@ GROUP_TEXT = [
      25, 280),
     ("CT CURRENT SENSING  ADE7953, I2C, current-only  (no mains - VP/VN to DNP J13)",
      430, 20),
+    ("TOUCH DAMPING + I2C EXPANSION  (Task 11)  R39-43 damp the shared SPI2\\n"
+     "bus for the display module's XPT2046 (not on this board); J14 Qwiic +\\n"
+     "J7 5-8 (0.1\") share the I2C bus, pulled up by R44/R45",
+     25, 340),
 ]
 
 NOTES = (

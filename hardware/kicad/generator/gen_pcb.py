@@ -144,11 +144,12 @@ ROUTE_ORDER = [
     ("SPI_MOSI", 0.3), ("SPI_SCLK", 0.3), ("SPI_MISO", 0.3),
     # LID_IN/LID_SW retired by Task 9 (lid moved to J11/IN1_RAW/IN1); the
     # three protected-input nets are routed by Task 14 along with the rest
-    # of the board.
-    ("VENT", 0.3), ("LED_DATA", 0.3),
+    # of the board. VENT/AUX_A/AUX_B (rev A dangling single-pin nets on J7)
+    # retired by Task 11, which re-points J7 5-8 to I2C.
+    ("LED_DATA", 0.3),
     # west-column escapes, south -> north (first net hugs the column, the
     # rest pass above its start row and take the next lane west)
-    ("AUX_B", 0.3), ("AUX_A", 0.3), ("ALARM", 0.3),
+    ("ALARM", 0.3),
     ("BTN_LEFT", 0.3), ("BTN_DOWN", 0.3), ("BTN_UP", 0.3),
     # right-column escapes, south -> north
     ("RXD0", 0.3), ("TXD0", 0.3), ("BTN_RIGHT", 0.3), ("BTN_SEL", 0.3),
@@ -324,9 +325,10 @@ SILK = [
     ("USB", 104.0, 93.5, 0, 0.9),
     ("STATUS", 85.0, 90.6, 0, 0.9),
 ]
-J5_PINS = ["5V", "GND", "CS", "RST", "DC", "SDI", "SCK", "BL"]
+J5_PINS = ["5V", "GND", "CS", "RST", "DC", "SDI", "SCK", "BL",
+           "SDO", "TCK", "TCS", "TDI", "TDO", "IRQ"]
 J6_PINS = ["UP", "DN", "LT", "RT", "OK", "G"]
-J7_PINS = ["3V3", "GND", "TX", "RX", "VNT", "LID", "A15", "A16"]
+J7_PINS = ["3V3", "GND", "TX", "RX", "SDA", "SCL", "3V3", "GND"]
 for hdr, names in (("J5", J5_PINS), ("J6", J6_PINS), ("J7", J7_PINS)):
     hx = COMPONENTS[hdr]["at"][0]
     for k, t in enumerate(names):
