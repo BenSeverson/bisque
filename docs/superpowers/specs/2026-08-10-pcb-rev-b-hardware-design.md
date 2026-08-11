@@ -411,9 +411,18 @@ stop being optional.
 
 ### 6.1 Form factor
 
-**2-layer, 100 × 100 mm**, HASL, 1.6 mm — the same cheapest JLCPCB tier as rev A.
-Mounting-hole grid grows from 90 × 70 mm to 90 × 90 mm, still 5 mm in from each
-edge.
+**4-layer, 100 × 100 mm** (target), HASL, 1.6 mm. Signals on F.Cu/B.Cu, an inner
+GND plane and an inner power plane. Mounting-hole grid grows from 90 × 70 mm to
+90 × 90 mm, still 5 mm in from each edge.
+
+> **Revised 2026-08-11, from measurement.** This originally specified **2-layer,
+> 100 × 100 mm** — chosen deliberately over a 4-layer option, with the density
+> risk stated up front. Implementation ran §6.3's escalation ladder and 2-layer
+> did not close; the stack-up decision was escalated and 4-layer approved. The
+> board targets a return to 100 × 100 mm with 0805 passives and rev A's net
+> classes, since moving GND and the power rails onto inner planes should free
+> more than the rung-1 and rung-2 concessions bought. §6.3 records the actual
+> measured outcome.
 
 ### 6.2 Placement partition
 
@@ -458,6 +467,35 @@ produce a board with **0 DRC errors and 0 unconnected**, escalate in this order:
 
 Escalation is not a failure of this design; it is the pre-agreed response to a
 measurement.
+
+#### Measured outcome (2026-08-11)
+
+The ladder ran in order and **2-layer did not close at any rung**:
+
+| Rung | Configuration | Unroutable nets | DRC violations | Unconnected |
+|---|---|---|---|---|
+| 0 | 100 × 100, 0805 | 34 | 149 | 38 |
+| 1 | 100 × 100, 0603 | 23 | 84 | 32 |
+| 2 | 125 × 100, 0603 | 9 | 78 | 27 |
+
+The nine survivors are short local nets **boxed in by neighbours' copper** in the
+SSR driver cluster and the ADE7953 block. Growing the board bought only 23 → 9,
+which is the signature of a **layer** shortage rather than an area shortage —
+more space does not help a net that cannot escape its own neighbourhood. Rung 3
+was approved rather than started by an agent, because it changes stack-up and
+fabrication cost.
+
+Two findings from the attempt stand regardless of stack-up:
+
+- **A router bug:** `EN` runs against U1 pad 4 at 0.195 mm, produced by a code
+  path that is not clearance-checked at all. Latent in the generator, not
+  specific to this board. Fix it.
+- **Track widths had to narrow** from 0.3/0.7 mm to 0.25 mm for signals *and*
+  +3V3 — not a preference, a geometric necessity, since a 0.5 mm-pitch QFN or
+  TSSOP pad cannot be escaped any wider. It clears JLCPCB's 0.127 mm minimum and
+  0.25 mm of 1 oz copper carries ~0.9 A against a ~400 mA rail, so it is safe.
+  With inner power planes the rails leave the signal layers entirely, so rev A's
+  wider net classes should be recoverable; confirm rather than assume.
 
 ### 6.4 Cost
 
