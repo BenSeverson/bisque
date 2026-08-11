@@ -1,65 +1,419 @@
 ** Drc report for bisque-controller.kicad_pcb **
-** Created on 2026-08-05T11:03:45 **
+** Created on 2026-08-11T16:39:57 **
 ** Report includes: Errors, Warnings, Exclusions **
 
-** Found 14 DRC violations **
+** Found 78 DRC violations **
+[clearance]: Clearance violation ( clearance 0.2000 mm; actual 0.1932 mm)
+    Local override; error
+    @(61.2500 mm, 29.4000 mm): Pad 4 [IN1] of U1 on F.Cu
+    @(60.5000 mm, 28.5000 mm): Track [EN] on F.Cu, length 0.7071 mm
+[starved_thermal]: Thermal relief connection to zone incomplete (layer F.Cu; zone min spoke count 2; actual 1)
+    Local override; error
+    @(20.5000 mm, 20.5000 mm): Zone [GND] on F.Cu, priority 0
+    @(50.8250 mm, 39.5000 mm): Pad 2 [GND] of C3 on F.Cu
 [track_dangling]: Track has unconnected end
     Local override; warning
-    @(98.4500 mm, 89.6000 mm): Track [VBUS] on F.Cu, length 0.1500 mm
+    @(49.2500 mm, 28.4450 mm): Track [CC1] on F.Cu, length 3.3050 mm
+[via_dangling]: Via is not connected or connected on only one layer
+    Local override; warning
+    @(69.2500 mm, 42.0000 mm): Via [SPI_SCLK] on F.Cu - B.Cu
+[via_dangling]: Via is not connected or connected on only one layer
+    Local override; warning
+    @(78.0000 mm, 114.0000 mm): Via [GND] on F.Cu - B.Cu
+[via_dangling]: Via is not connected or connected on only one layer
+    Local override; warning
+    @(85.2500 mm, 93.5000 mm): Via [I2C_SDA] on F.Cu - B.Cu
+[track_dangling]: Track has unconnected end
+    Local override; warning
+    @(92.6250 mm, 72.0000 mm): Track [GND] on F.Cu, length 1.6250 mm
+[track_dangling]: Track has unconnected end
+    Local override; warning
+    @(92.6250 mm, 73.0000 mm): Track [GND] on F.Cu, length 1.6250 mm
+[track_dangling]: Track has unconnected end
+    Local override; warning
+    @(94.5000 mm, 74.3750 mm): Track [GND] on F.Cu, length 1.6250 mm
+[track_dangling]: Track has unconnected end
+    Local override; warning
+    @(95.5000 mm, 74.3750 mm): Track [ADE_VP] on F.Cu, length 1.6250 mm
+[track_dangling]: Track has unconnected end
+    Local override; warning
+    @(95.7000 mm, 40.6625 mm): Track [TC1_CS] on F.Cu, length 2.3380 mm
+[track_dangling]: Track has unconnected end
+    Local override; warning
+    @(96.3500 mm, 52.6625 mm): Track [TC2_N_F] on F.Cu, length 1.5906 mm
+[track_dangling]: Track has unconnected end
+    Local override; warning
+    @(97.6500 mm, 34.9375 mm): Track [TC1_N_F] on F.Cu, length 1.4410 mm
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(20.0000 mm, 120.0000 mm): Segment on Edge.Cuts
+    @(22.0000 mm, 47.0000 mm): PCB text 'AUX OUT' on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(20.0000 mm, 20.0000 mm): Segment on Edge.Cuts
+    @(36.5000 mm, 20.4500 mm): Reference field of SW1
+[holes_co_located]: Drilled holes co-located
+    Local override; warning
+    @(101.0000 mm, 81.2500 mm): Via [GND] on F.Cu - B.Cu
+    @(101.0000 mm, 81.2500 mm): Via [GND] on F.Cu - B.Cu
+[holes_co_located]: Drilled holes co-located
+    Local override; warning
+    @(47.0000 mm, 57.0000 mm): Via [GND] on F.Cu - B.Cu
+    @(47.0000 mm, 57.0000 mm): Via [GND] on F.Cu - B.Cu
+[hole_to_hole]: Drilled hole too close to other hole (board setup constraints min 0.2495 mm; actual 0.2000 mm)
+    Rule: board setup constraints; warning
+    @(53.2500 mm, 52.5000 mm): Via [GND] on F.Cu - B.Cu
+    @(52.7500 mm, 52.5000 mm): Via [GND] on F.Cu - B.Cu
 [silk_overlap]: Silkscreen clearance
     Rule: board setup constraints silk; warning
-    @(64.7650 mm, 32.2729 mm): Segment of R9 on F.Silkscreen
-    @(64.6500 mm, 32.5000 mm): Reference field of LED2
+    @(22.0000 mm, 47.0000 mm): PCB text 'AUX OUT' on F.Silkscreen
+    @(23.4000 mm, 36.3400 mm): Segment of J2 on F.Silkscreen
 [silk_overlap]: Silkscreen clearance
     Rule: board setup constraints silk; warning
-    @(34.8500 mm, 50.0000 mm): Reference field of R10
-    @(34.6500 mm, 50.0000 mm): Reference field of LED3
+    @(22.0000 mm, 47.0000 mm): PCB text 'AUX OUT' on F.Silkscreen
+    @(31.3200 mm, 46.7400 mm): Segment of J2 on F.Silkscreen
 [silk_overlap]: Silkscreen clearance
     Rule: board setup constraints silk; warning
-    @(58.7650 mm, 32.2387 mm): Segment of C4 on F.Silkscreen
-    @(58.8500 mm, 32.5000 mm): Reference field of C3
+    @(22.0000 mm, 47.0000 mm): Reference field of J10
+    @(31.3200 mm, 46.7400 mm): Segment of J2 on F.Silkscreen
 [silk_overlap]: Silkscreen clearance
     Rule: board setup constraints silk; warning
-    @(78.8000 mm, 20.1000 mm): Segment of U1 on F.Silkscreen
-    @(88.0000 mm, 22.6000 mm): PCB text 'ANTENNA - KEEP CLEAR' on F.Silkscreen
+    @(22.0000 mm, 34.0000 mm): Reference field of J2
+    @(22.0000 mm, 34.0000 mm): PCB text '5V IN' on F.Silkscreen
 [silk_overlap]: Silkscreen clearance
     Rule: board setup constraints silk; warning
-    @(88.0000 mm, 22.6000 mm): PCB text 'ANTENNA - KEEP CLEAR' on F.Silkscreen
-    @(97.2000 mm, 20.1000 mm): Segment of U1 on F.Silkscreen
+    @(22.0000 mm, 47.0000 mm): PCB text 'AUX OUT' on F.Silkscreen
+    @(21.2800 mm, 46.7400 mm): Segment of J2 on F.Silkscreen
 [silk_overlap]: Silkscreen clearance
     Rule: board setup constraints silk; warning
-    @(69.0000 mm, 79.8200 mm): Reference field of C10
-    @(70.0500 mm, 79.5000 mm): Reference field of D3
+    @(22.0000 mm, 47.0000 mm): PCB text 'AUX OUT' on F.Silkscreen
+    @(22.0000 mm, 47.0000 mm): Reference field of J10
 [silk_overlap]: Silkscreen clearance
     Rule: board setup constraints silk; warning
-    @(118.7200 mm, 67.6600 mm): Segment of J3 on F.Silkscreen
-    @(117.3000 mm, 68.5000 mm): PCB text 'K-' on F.Silkscreen
+    @(21.9000 mm, 36.3400 mm): Segment of J2 on F.Silkscreen
+    @(22.0000 mm, 47.0000 mm): Reference field of J10
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(48.0000 mm, 61.0000 mm): Reference field of BZ1
+    @(50.0000 mm, 61.5000 mm): PCB text 'WDT DEFEAT - REMOVE' on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(36.7500 mm, 43.1000 mm): Reference field of D1
+    @(34.7500 mm, 42.9100 mm): Segment of U2 on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(31.3200 mm, 49.3400 mm): Segment of J10 on F.Silkscreen
+    @(34.0000 mm, 66.0000 mm): PCB text 'AUX_VP=5V' on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(52.0000 mm, 59.2520 mm): Reference field of TP12
+    @(52.7600 mm, 58.0600 mm): Segment of Q3 on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(52.7600 mm, 59.0600 mm): Segment of Q3 on F.Silkscreen
+    @(52.0000 mm, 59.2520 mm): Reference field of TP12
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(52.0000 mm, 59.2520 mm): Reference field of TP12
+    @(51.2400 mm, 59.0600 mm): Segment of Q3 on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(94.2000 mm, 99.5500 mm): Segment of LED1 on F.Silkscreen
+    @(95.2400 mm, 99.7000 mm): PCB text '3V3' on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(97.7800 mm, 99.7000 mm): PCB text 'GND' on F.Silkscreen
+    @(94.2000 mm, 99.5500 mm): Segment of LED1 on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(95.2400 mm, 99.7000 mm): PCB text '3V3' on F.Silkscreen
+    @(94.2000 mm, 94.0500 mm): Segment of LED1 on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(96.0000 mm, 88.0000 mm): Reference field of Y1
+    @(95.0000 mm, 88.5700 mm): Reference field of R34
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(62.5000 mm, 62.0000 mm): PCB text 'BISQUE KILN CONTROLLER' on F.Silkscreen
+    @(50.0000 mm, 61.5000 mm): PCB text 'WDT DEFEAT - REMOVE' on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(40.5000 mm, 22.0000 mm): PCB text 'USB' on F.Silkscreen
+    @(41.0000 mm, 22.0000 mm): Reference field of J1
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(55.5000 mm, 23.5700 mm): Reference field of R9
+    @(54.0150 mm, 23.0350 mm): Segment of LED2 on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(45.7627 mm, 61.5225 mm): Segment of R23 on F.Silkscreen
+    @(50.0000 mm, 61.5000 mm): PCB text 'WDT DEFEAT - REMOVE' on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(36.5000 mm, 20.9000 mm): PCB text 'RESET' on F.Silkscreen
+    @(36.5000 mm, 20.4500 mm): Reference field of SW1
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(35.2000 mm, 26.9500 mm): Segment of SW1 on F.Silkscreen
+    @(36.5000 mm, 27.1520 mm): Reference field of TP2
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(82.5400 mm, 99.7000 mm): PCB text 'GND' on F.Silkscreen
+    @(82.9600 mm, 99.4850 mm): Segment of J14 on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(85.0800 mm, 99.7000 mm): PCB text 'TX' on F.Silkscreen
+    @(82.9600 mm, 99.4850 mm): Segment of J14 on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(62.6000 mm, 108.8000 mm): PCB text 'INPUTS  1 / 2 / 3 / GND' on F.Silkscreen
+    @(61.3400 mm, 108.6800 mm): Segment of J11 on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(62.6000 mm, 108.8000 mm): PCB text 'INPUTS  1 / 2 / 3 / GND' on F.Silkscreen
+    @(61.3400 mm, 118.7200 mm): Segment of J11 on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(60.6200 mm, 100.9700 mm): Rectangle of J6 on F.Silkscreen
+    @(62.6000 mm, 107.0000 mm): Reference field of J11
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(62.6000 mm, 108.8000 mm): PCB text 'INPUTS  1 / 2 / 3 / GND' on F.Silkscreen
+    @(55.0000 mm, 109.5700 mm): Reference field of R27
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(62.0000 mm, 106.9900 mm): Segment of J6 on F.Silkscreen
+    @(62.6000 mm, 107.0000 mm): Reference field of J11
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(62.2500 mm, 106.9900 mm): Segment of J6 on F.Silkscreen
+    @(62.6000 mm, 107.0000 mm): Reference field of J11
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(80.0000 mm, 99.7000 mm): PCB text '3V3' on F.Silkscreen
+    @(78.6000 mm, 99.6000 mm): Reference field of J7
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(84.0000 mm, 93.6000 mm): PCB text 'STATUS' on F.Silkscreen
+    @(82.8400 mm, 95.0150 mm): Segment of J14 on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(84.0000 mm, 93.6000 mm): PCB text 'STATUS' on F.Silkscreen
+    @(84.9000 mm, 92.8200 mm): Reference field of J14
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(100.0000 mm, 20.9000 mm): PCB text 'BOOT' on F.Silkscreen
+    @(100.0000 mm, 21.2500 mm): Reference field of SW2
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(22.0000 mm, 83.0000 mm): PCB text 'SSR2' on F.Silkscreen
+    @(31.3200 mm, 83.2400 mm): Segment of J4 on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(22.0000 mm, 83.0000 mm): Reference field of J9
+    @(22.0000 mm, 83.0000 mm): PCB text 'SSR2' on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(21.9000 mm, 72.8400 mm): Segment of J4 on F.Silkscreen
+    @(22.0000 mm, 83.0000 mm): PCB text 'SSR2' on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(22.0000 mm, 83.0000 mm): PCB text 'SSR2' on F.Silkscreen
+    @(21.2800 mm, 83.2400 mm): Segment of J4 on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(31.3200 mm, 69.9000 mm): Segment of J10 on F.Silkscreen
+    @(22.0000 mm, 70.5000 mm): PCB text 'SSR1' on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(31.3200 mm, 69.9000 mm): Segment of J10 on F.Silkscreen
+    @(22.0000 mm, 70.5000 mm): Reference field of J4
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(22.0000 mm, 70.5000 mm): Reference field of J4
+    @(22.0000 mm, 70.5000 mm): PCB text 'SSR1' on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(22.0000 mm, 83.0000 mm): Reference field of J9
+    @(31.3200 mm, 83.2400 mm): Segment of J4 on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(21.9000 mm, 72.8400 mm): Segment of J4 on F.Silkscreen
+    @(22.0000 mm, 83.0000 mm): Reference field of J9
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(22.0000 mm, 83.0000 mm): PCB text 'SSR2' on F.Silkscreen
+    @(23.4000 mm, 72.8400 mm): Segment of J4 on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(62.5000 mm, 62.0000 mm): PCB text 'BISQUE KILN CONTROLLER' on F.Silkscreen
+    @(48.0000 mm, 61.0000 mm): Reference field of BZ1
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(62.5000 mm, 62.0000 mm): PCB text 'BISQUE KILN CONTROLLER' on F.Silkscreen
+    @(52.0000 mm, 60.7000 mm): Circle of TP12 on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(62.5000 mm, 65.5000 mm): PCB text 'REV B' on F.Silkscreen
+    @(62.6400 mm, 65.0000 mm): Segment of D4 on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(62.5000 mm, 65.5000 mm): PCB text 'REV B' on F.Silkscreen
+    @(62.6400 mm, 65.0000 mm): Segment of D4 on F.Silkscreen
 [silk_over_copper]: Silkscreen clipped by solder mask
     Local override; warning
-    @(64.6500 mm, 32.5000 mm): Reference field of LED2
-    @(65.5000 mm, 33.4125 mm): Pad 2 [GND] of R9 on F.Cu
+    @(50.0000 mm, 61.5000 mm): PCB text 'WDT DEFEAT - REMOVE' on F.Silkscreen
+    @(45.1750 mm, 61.0000 mm): Pad 1 [AUX1] of R23 on F.Cu
 [silk_over_copper]: Silkscreen clipped by solder mask
     Local override; warning
-    @(64.6500 mm, 32.5000 mm): Reference field of LED2
-    @(65.5000 mm, 31.5875 mm): Pad 1 [LEDP_K] of R9 on F.Cu
+    @(50.0000 mm, 61.5000 mm): PCB text 'WDT DEFEAT - REMOVE' on F.Silkscreen
+    @(46.8250 mm, 61.0000 mm): Pad 2 [GND] of R23 on F.Cu
 [silk_over_copper]: Silkscreen clipped by solder mask
     Local override; warning
-    @(58.8500 mm, 32.5000 mm): Reference field of C3
-    @(59.5000 mm, 31.5500 mm): Pad 1 [+3V3] of C4 on F.Cu
+    @(48.0000 mm, 61.0000 mm): Reference field of BZ1
+    @(46.8250 mm, 61.0000 mm): Pad 2 [GND] of R23 on F.Cu
 [silk_over_copper]: Silkscreen clipped by solder mask
     Local override; warning
-    @(58.8500 mm, 32.5000 mm): Reference field of C3
-    @(59.5000 mm, 33.4500 mm): Pad 2 [GND] of C4 on F.Cu
+    @(122.0000 mm, 72.0000 mm): PCB text 'CT A+/A-/B+/B-' on F.Silkscreen
+    @(118.9375 mm, 71.2000 mm): Pad 2 [ADE_CLKOUT] of Y1 on F.Cu
 [silk_over_copper]: Silkscreen clipped by solder mask
     Local override; warning
-    @(75.1200 mm, 28.0000 mm): Reference field of C6
-    @(74.9500 mm, 27.6000 mm): Pad 2 [GND] of C7 on F.Cu
+    @(62.0000 mm, 22.3000 mm): PCB text 'U.FL ANT ->' on F.Silkscreen
+    @(58.6000 mm, 23.0250 mm): Pad 2 [GND] of C7 on F.Cu
 [silk_over_copper]: Silkscreen clipped by solder mask
     Local override; warning
-    @(25.5000 mm, 90.8500 mm): Reference field of H3
-    @(25.5500 mm, 90.5000 mm): Pad 1 [+5V] of C11 on F.Cu
+    @(40.5000 mm, 22.0000 mm): PCB text 'USB' on F.Silkscreen
+    @(39.5000 mm, 22.3250 mm): Pad 1 [EN] of SW1 on F.Cu
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; warning
+    @(82.5400 mm, 99.7000 mm): PCB text 'GND' on F.Silkscreen
+    @(82.1000 mm, 98.6750 mm): Pad MP [<no net>] of J14 on F.Cu
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; warning
+    @(87.6200 mm, 99.7000 mm): PCB text 'RX' on F.Silkscreen
+    @(87.7000 mm, 98.6750 mm): Pad MP [<no net>] of J14 on F.Cu
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; warning
+    @(84.0000 mm, 93.6000 mm): PCB text 'STATUS' on F.Silkscreen
+    @(83.4000 mm, 94.8000 mm): Pad 1 [GND] of J14 on F.Cu
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; warning
+    @(84.0000 mm, 93.6000 mm): PCB text 'STATUS' on F.Silkscreen
+    @(84.4000 mm, 94.8000 mm): Pad 2 [+3V3] of J14 on F.Cu
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; warning
+    @(84.0000 mm, 93.6000 mm): PCB text 'STATUS' on F.Silkscreen
+    @(85.4000 mm, 94.8000 mm): Pad 3 [I2C_SDA] of J14 on F.Cu
 
-** Found 0 unconnected pads **
+** Found 27 unconnected pads **
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(20.5000 mm, 20.5000 mm): Zone [GND] on F.Cu, priority 0
+    @(20.5000 mm, 20.5000 mm): Zone [GND] on B.Cu, priority 0
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(20.5000 mm, 20.5000 mm): Zone [GND] on F.Cu, priority 0
+    @(20.5000 mm, 20.5000 mm): Zone [GND] on F.Cu, priority 0
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(20.5000 mm, 20.5000 mm): Zone [GND] on F.Cu, priority 0
+    @(20.5000 mm, 20.5000 mm): Zone [GND] on F.Cu, priority 0
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(20.5000 mm, 20.5000 mm): Zone [GND] on B.Cu, priority 0
+    @(20.5000 mm, 20.5000 mm): Zone [GND] on F.Cu, priority 0
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(20.5000 mm, 20.5000 mm): Zone [GND] on F.Cu, priority 0
+    @(20.5000 mm, 20.5000 mm): Zone [GND] on F.Cu, priority 0
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(20.5000 mm, 20.5000 mm): Zone [GND] on F.Cu, priority 0
+    @(20.5000 mm, 20.5000 mm): Zone [GND] on F.Cu, priority 0
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(20.5000 mm, 20.5000 mm): Zone [GND] on F.Cu, priority 0
+    @(20.5000 mm, 20.5000 mm): Zone [GND] on F.Cu, priority 0
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(20.5000 mm, 20.5000 mm): Zone [GND] on F.Cu, priority 0
+    @(111.8625 mm, 84.0000 mm): Pad 2 [GND] of D6 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(97.6500 mm, 34.9375 mm): Track [TC1_N_F] on F.Cu, length 1.4410 mm
+    @(109.7500 mm, 38.5000 mm): Track [TC1_N_F] on B.Cu, length 2.8284 mm
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(96.3500 mm, 52.6625 mm): Track [TC2_N_F] on F.Cu, length 1.5906 mm
+    @(109.0000 mm, 49.7500 mm): Track [TC2_N_F] on B.Cu, length 1.7500 mm
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(85.5000 mm, 94.7500 mm): Track [I2C_SDA] on F.Cu, length 0.1118 mm
+    @(84.2500 mm, 93.5000 mm): Track [I2C_SDA] on B.Cu, length 1.4142 mm
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(47.7500 mm, 33.2500 mm): Track [USB_DN] on F.Cu, length 0.3536 mm
+    @(61.2500 mm, 40.8300 mm): Pad 13 [USB_DN] of U1 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(48.7500 mm, 28.4450 mm): Pad B7 [USB_DN] of J1 on F.Cu
+    @(47.7500 mm, 28.4450 mm): Track [USB_DN] on F.Cu, length 1.0550 mm
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(66.8250 mm, 43.3500 mm): Pad 18 [TC1_CS] of U1 on F.Cu
+    @(95.7000 mm, 40.6625 mm): Track [TC1_CS] on F.Cu, length 2.3380 mm
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(69.2500 mm, 43.2500 mm): Track [SPI_SCLK] on F.Cu, length 1.2500 mm
+    @(69.2500 mm, 43.0000 mm): Track [SPI_SCLK] on B.Cu, length 2.5000 mm
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(41.4750 mm, 59.4450 mm): Pad 1 [AUX1] of U6 on F.Cu
+    @(45.1750 mm, 61.0000 mm): Pad 1 [AUX1] of R23 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(45.1750 mm, 61.0000 mm): Pad 1 [AUX1] of R23 on F.Cu
+    @(71.9050 mm, 43.3500 mm): Pad 22 [AUX1] of U1 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(48.1750 mm, 87.5000 mm): Pad 1 [SSR2_CTRL] of R21 on F.Cu
+    @(44.5000 mm, 94.3000 mm): Pad 1 [SSR2_CTRL] of TP10 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(52.8250 mm, 92.5000 mm): Pad 1 [SSR2_CTRL] of R19 on F.Cu
+    @(48.1750 mm, 87.5000 mm): Pad 1 [SSR2_CTRL] of R21 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(56.1750 mm, 92.5000 mm): Pad 1 [SSR2_CTRL] of R20 on F.Cu
+    @(52.8250 mm, 92.5000 mm): Pad 1 [SSR2_CTRL] of R19 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(73.1750 mm, 43.3500 mm): Pad 23 [SSR2_CTRL] of U1 on F.Cu
+    @(48.1750 mm, 87.5000 mm): Pad 1 [SSR2_CTRL] of R21 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(49.8250 mm, 87.5000 mm): Pad 2 [SSR2_IND_A] of R21 on F.Cu
+    @(54.7875 mm, 87.5000 mm): Pad 2 [SSR2_IND_A] of LED4 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(95.5000 mm, 74.3750 mm): Track [ADE_VP] on F.Cu, length 1.6250 mm
+    @(104.0000 mm, 80.5000 mm): PTH pad 1 [ADE_VP] of J13
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(40.8250 mm, 115.0000 mm): Pad 1 [IN3_RAW] of R28 on F.Cu
+    @(57.1375 mm, 115.9500 mm): Pad 4 [IN3_RAW] of D5 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(57.1375 mm, 115.9500 mm): Pad 4 [IN3_RAW] of D5 on F.Cu
+    @(74.1600 mm, 114.0000 mm): PTH pad 3 [IN3_RAW] of J11
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(64.1750 mm, 78.0000 mm): Pad 1 [BUZZ_GATE] of R8 on F.Cu
+    @(65.8250 mm, 74.0000 mm): Pad 2 [BUZZ_GATE] of R11 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(65.8250 mm, 74.0000 mm): Pad 2 [BUZZ_GATE] of R11 on F.Cu
+    @(64.0625 mm, 69.0500 mm): Pad 1 [BUZZ_GATE] of Q2 on F.Cu
 
 ** Found 0 Footprint errors **
 

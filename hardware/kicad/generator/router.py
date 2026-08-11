@@ -8,7 +8,14 @@ terminal connects to the growing net copper via A*.
 import heapq
 import math
 
-GRID = 0.4          # mm per cell
+# 0.25 mm, not rev A's 0.4. Rev B adds a 0.5 mm-pitch QFN-28 (ADE7953) and two
+# 0.65 mm-pitch TSSOP-14s (MAX31856), and a track can only leave pads that fine
+# along the pad's own centreline - a 0.4 mm grid snaps the escape up to 0.2 mm
+# off centre, which puts it inside the neighbouring pin's clearance and makes
+# those pads simply unreachable. At 0.25 mm every 0.5 mm-pitch pad lands
+# exactly on a grid line and the worst 0.65 mm-pitch error falls to 0.125 mm,
+# which a 0.25 mm track clears. The cost is ~2.5x the cells and a slower route.
+GRID = 0.25         # mm per cell
 CLEAR = 0.2         # required copper-to-copper clearance
 VIA_DIA = 0.6
 VIA_DRILL = 0.3
@@ -88,8 +95,16 @@ class Router:
         s = Shape(net, layers, cx, cy, w, h, circle, drill=drill)
         self._insert(s, cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2)
 
-    def add_keepout(self, x0, y0, x1, y1):
-        self.keepouts.append((x0, y0, x1, y1))
+    def add_keepout(self, x0, y0, x1, y1, allow_nets=()):
+        """Rectangle no track or via may enter, except for `allow_nets`.
+
+        The exemption exists for the opto-isolation barrier: the band is a
+        pour keepout in KiCad (see kicad_build.add_zones) and must equally be
+        a *routing* keepout here, or stitch_vias() drops free GND vias inside
+        it and DRC reports every one. But the isolated SSR*_A/B nets have to
+        cross it - the whole point is that their copper is the only copper in
+        there - so they are exempted by name rather than by geometry."""
+        self.keepouts.append((x0, y0, x1, y1, frozenset(allow_nets)))
 
     def add_seg(self, net, layer, x1, y1, x2, y2, w, record=True):
         s = Seg(net, layer, x1, y1, x2, y2, w)
@@ -154,6 +169,8 @@ class Router:
            or (y - self.y0) < self.margin + half or (self.y1 - y) < self.margin + half:
             return True
         for k in self.keepouts:
+            if net in k[4]:
+                continue
             if k[0] - need < x < k[2] + need and k[1] - need < y < k[3] + need:
                 return True
         return not self._clear_of(net, x, y, layer, need)
@@ -171,6 +188,8 @@ class Router:
             r = False
         if r:
             for k in self.keepouts:
+                if net in k[4]:
+                    continue
                 if k[0] - need < x < k[2] + need and k[1] - need < y < k[3] + need:
                     r = False
                     break
@@ -194,8 +213,20 @@ class Router:
         return r
 
     # --- routing ---
-    def route(self, net, terminals, width, layer_pref=0, via_cost=14.0,
-              wrong_layer_cost=0.4, allow_via=True, extra_srcs=()):
+    # wrong_layer_cost was 0.4 in rev A - a 40% surcharge on every B.Cu step,
+    # which kept the back layer as an escape hatch of last resort. Rev B has
+    # roughly twice the nets crossing the same channels, so B.Cu has to be a
+    # real routing layer rather than a jog of last resort; at 0.18 the router
+    # still prefers F.Cu but will run a whole net on the back to get past a
+    # congested band instead of failing.
+    # via_cost was 14 in rev A. Rev B's channels are shared by roughly twice as
+    # many nets, and a greedy router that will not pay for a layer change fails
+    # short local nets that only needed to hop one already-routed trace. 8 grid
+    # steps (2 mm of detour at GRID 0.25) still keeps tracks on the front layer
+    # by default but buys the hop when it is the difference between a route and
+    # no route.
+    def route(self, net, terminals, width, layer_pref=0, via_cost=8.0,
+              wrong_layer_cost=0.18, allow_via=True, extra_srcs=()):
         """terminals: [(x, y, layers-tuple), ...]. First is the seed."""
         if len(terminals) < 2:
             return

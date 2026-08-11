@@ -26,8 +26,17 @@ import pcbnew
 from canonicalize import canonicalize_file
 from design import COMPONENTS, netlist, BX0, BY0, BX1, BY1
 import router as R
-from gen_pcb import (USB_SEEDS, USB_STUB_TERMS, ROUTE_ORDER, route_all,
-                     stitch_vias, SILK, MANUAL_VIAS)
+from gen_pcb import (all_seeds, ROUTE_ORDER, route_all, stitch_vias, SILK,
+                     MANUAL_VIAS)
+
+# Opto-isolation barrier (spec 6.2). The band spans the west edge from just
+# above J4 to just below J9 and stops short of the optocouplers' input pins, so
+# every scrap of isolated copper - J4/J9 and U8/U9 pins 3 and 4 - sits inside
+# it and no GND pour reaches within ~5 mm of any of it. Placement and this
+# rectangle move together; see the router keepout in build_router_model().
+ISO_BARRIER = (20.0, 71.0, 40.8, 95.5)
+ISO_NETS = ("SSR1_A", "SSR1_B", "SSR2_A", "SSR2_B")
+
 
 def _find_fp_base():
     cand = [os.environ.get("KICAD_FOOTPRINT_DIR", "")]
@@ -110,31 +119,39 @@ def build_board():
         t = fp.Reference()
         t.SetTextSize(pcbnew.VECTOR2I(MM(0.8), MM(0.8)))
         t.SetTextThickness(MM(0.12))
-    for ref, (x, y) in {"J5": (33.0, 90.6), "J6": (54.8, 90.6),
-                        "J7": (72.0, 90.6), "LED1": (69.8, 89.3),
-                        # default position lands beside R3's, reading "R3C12"
-                        "C12": (82.4, 89.4),
-                        "U3": (104.5, 57.4), "C9": (105.3, 69.5),
-                        "J3": (110.6, 71.6), "SW1": (49.4, 23.2), "SW2": (105.8, 50.2),
-                        "H1": (30.5, 25.0)}.items():
+    # refs whose default (footprint-relative) position collides with a
+    # neighbour's silk or lands on top of another part
+    for ref, (x, y) in {"J5": (22.6, 99.6), "J6": (60.6, 99.6),
+                        "J7": (78.6, 99.6), "J11": (62.6, 107.0),
+                        "J2": (22.0, 34.0), "J10": (22.0, 47.0),
+                        "J4": (22.0, 70.5), "J9": (22.0, 83.0),
+                        "J3": (110.0, 33.0), "J8": (110.0, 45.0),
+                        "J12": (110.0, 62.5), "J1": (41.0, 22.0),
+                        "U8": (38.5, 73.0), "U9": (38.5, 85.0),
+                        "BZ1": (48.0, 61.0), "Y1": (96.0, 88.0),
+                        "H1": (30.5, 25.0), "H2": (110.5, 25.0),
+                        "H3": (30.5, 115.0), "H4": (110.5, 115.0),
+                        }.items():
         fps[ref].Reference().SetPosition(V(x, y))
     return board, nets, fps
 
 
 def build_router_model(board, fps):
     r = R.Router(BX0, BY0, BX1, BY1)
-    # antenna keepout: from U1's embedded rule areas (fall back to computed)
-    u1 = fps["U1"]
-    got_keepout = False
-    for z in u1.Zones():
+    # Antenna keepout, if the module footprint carries one. The WROOM-1U does
+    # NOT - that is the point of the swap (spec 2.1): the 48 x 7 mm band the
+    # WROOM-1's PCB antenna reserved is reclaimed for parts and pour, and rev
+    # B places USB-C, the reset switch and three test points in it. There is
+    # deliberately no computed fallback: inventing a keepout for a module that
+    # has none would bar tracks from a third of the digital band.
+    for z in fps["U1"].Zones():
         if z.GetIsRuleArea():
             bb = z.GetBoundingBox()
             r.add_keepout(pcbnew.ToMM(bb.GetLeft()), BY0,
                           pcbnew.ToMM(bb.GetRight()), pcbnew.ToMM(bb.GetBottom()))
-            got_keepout = True
-    if not got_keepout:
-        fx, fy, _ = COMPONENTS["U1"]["at"]
-        r.add_keepout(fx - 24, BY0, fx + 24, fy - 6.8)
+    # Opto-isolation barrier - the same rectangle add_zones() carves out of the
+    # pour. Only the isolated nets may route through it.
+    r.add_keepout(*ISO_BARRIER, allow_nets=ISO_NETS)
     pad_pos = {}
     for ref, fp in fps.items():
         c = COMPONENTS[ref]
@@ -282,14 +299,24 @@ def add_zones(board, nets):
     # A rule area (not a zone) - _gnd_islands() skips these by design.
     ka = pcbnew.ZONE(board)
     ka.SetIsRuleArea(True)
+    # Forbid the pour and NOTHING else. A rule area's restrictions apply to
+    # every item in the band, including the isolated copper the band exists to
+    # protect - switching vias off here made KiCad flag J4/J9's own pads and
+    # U8/U9 pins 3-4 as "items not allowed". Keeping GND vias out of the band
+    # is the *router's* job instead (see ISO_BARRIER in build_router_model),
+    # which can exempt the isolated nets by name; a rule area cannot.
     ka.SetDoNotAllowZoneFills(True)
     ka.SetDoNotAllowTracks(False)
-    ka.SetDoNotAllowVias(True)
-    ka.SetLayerSet(pcbnew.LSET(
-        [pcbnew.F_Cu, pcbnew.B_Cu]))
+    ka.SetDoNotAllowVias(False)
+    ka.SetDoNotAllowPads(False)
+    ka.SetDoNotAllowFootprints(False)
+    # LSET's python binding takes no list/LSEQ in KiCad 10; AllCuMask(2) is
+    # exactly F.Cu + B.Cu on this 2-layer stack.
+    ka.SetLayerSet(pcbnew.LSET.AllCuMask(2))
     ol = ka.Outline()
     ol.NewOutline()
-    for (x, y) in [(20.5, 70.0), (34.0, 70.0), (34.0, 96.0), (20.5, 96.0)]:
+    bx0, by0, bx1, by1 = ISO_BARRIER
+    for (x, y) in [(bx0, by0), (bx1, by0), (bx1, by1), (bx0, by1)]:
         ol.Append(MM(x), MM(y))
     board.Add(ka)
     return
@@ -489,13 +516,14 @@ def main(out):
     out = os.path.abspath(out)
     board, nets, fps = build_board()
     r, pad_pos = build_router_model(board, fps)
-    for (net, layer, pts, w) in USB_SEEDS:
+    seed_list, stub_terms = all_seeds(pad_pos)
+    for (net, layer, pts, w) in seed_list:
         for a, b in zip(pts, pts[1:]):
             r.add_seg(net, layer, a[0], a[1], b[0], b[1], w)
     for (net, x, y) in MANUAL_VIAS:
         r.add_via(net, x, y)
     print("routing (obstacles from pcbnew pad geometry)...")
-    route_all(r, pad_pos)
+    route_all(r, pad_pos, seed_list, stub_terms)
     stitches = stitch_vias(r)
     print("stitch vias: %d" % len(stitches))
     route_gnd_stubs(r, pad_pos, stitches)

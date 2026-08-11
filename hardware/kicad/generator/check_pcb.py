@@ -18,6 +18,11 @@ from sexp import parse, find, find_all, num
 MIN_CLEAR = 0.198
 EDGE_CLEAR = 0.4
 
+# Must match kicad_build.ISO_BARRIER / ISO_NETS. Duplicated rather than
+# imported so this checker stays independent of the generator.
+ISO_BARRIER = (20.0, 71.0, 40.8, 95.5)
+ISO_NETS = ("SSR1_A", "SSR1_B", "SSR2_A", "SSR2_B")
+
 
 class Item:
     __slots__ = ("kind", "net", "layers", "x1", "y1", "x2", "y2", "w", "h",
@@ -307,27 +312,31 @@ def main(src):
                             % (netn, len(roots),
                                [g[:10] for g in groups.values()]))
 
-    # 3. keepout (from U1)
-    k = None
-    for fp in find_all(doc, "footprint"):
-        pr = {p[1]: p[2] for p in find_all(fp, "property")}
-        for ft in find_all(fp, "fp_text"):
-            if str(ft[1]) == "reference":
-                pr["Reference"] = str(ft[2])
-        if pr.get("Reference") == "U1":
-            at = find(fp, "at")
-            fx, fy = num(at[1]), num(at[2])
-            k = (fx - 24, by0, fx + 24, fy - 6.8)
+    # 3. opto-isolation barrier (rev B). Rev A checked the WROOM-1's antenna
+    # keep-out here; the WROOM-1U has no PCB antenna and the band is reclaimed
+    # (spec 2.1), so the rectangle that matters now is the pour keepout across
+    # the SSR opto row. Nothing but the four isolated nets - and nothing on the
+    # GND net at all - may have copper inside it.
+    kx0, ky0, kx1, ky1 = ISO_BARRIER
     for it in items:
-        if k is None or it.net in (0, ""):
+        if it.kind not in ("seg", "via"):
             continue
-        x0 = min(it.x1, it.x2) - it.w / 2
-        x1 = max(it.x1, it.x2) + it.w / 2
-        y0 = min(it.y1, it.y2) - it.h / 2
-        y1 = max(it.y1, it.y2) + it.h / 2
-        if it.kind in ("seg", "via"):
-            if x1 > k[0] and x0 < k[2] and y1 > k[1] and y0 < k[3]:
-                problems.append("keepout violation: %s %s" % (it, netnames.get(it.net)))
+        # Sample along the centreline rather than testing the axis-aligned
+        # bounding box: a long 45-degree track has a bbox tens of millimetres
+        # across and would false-positive on any rectangle it merely spans.
+        n = max(1, int(math.hypot(it.x2 - it.x1, it.y2 - it.y1) / 0.1))
+        r = it.w / 2.0
+        hit = False
+        for k in range(n + 1):
+            t = k / float(n)
+            px = it.x1 + (it.x2 - it.x1) * t
+            py = it.y1 + (it.y2 - it.y1) * t
+            if kx0 - r < px < kx1 + r and ky0 - r < py < ky1 + r:
+                hit = True
+                break
+        if hit and it.net not in ISO_NETS:
+            problems.append("isolation barrier violation: %s carries %s"
+                            % (it, it.net))
 
     # 4. edge clearance
     for it in items:

@@ -8,3 +8,7 @@ analysis/
 # deliverable, not cache.
 datasheets/*
 !datasheets/REV-B-NOTES.md
+
+# floorplan.py's output; design.py records the placement it produced
+generator/floorplan.json
+generator/__pycache__/

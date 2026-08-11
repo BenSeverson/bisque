@@ -87,9 +87,10 @@ def pad_geometry(comp):
 
 def build_router():
     r = R.Router(BX0, BY0, BX1, BY1)
-    # antenna keepout from U1 placement
-    fx, fy, _ = COMPONENTS["U1"]["at"]
-    r.add_keepout(fx - 24, BY0, fx + 24, fy - 6.8)
+    # No antenna keepout: rev B's WROOM-1U has no PCB antenna (spec 2.1).
+    # Opto barrier, mirroring kicad_build.ISO_BARRIER / ISO_NETS.
+    r.add_keepout(20.0, 71.0, 40.8, 95.5,
+                  allow_nets=("SSR1_A", "SSR1_B", "SSR2_A", "SSR2_B"))
     pad_pos = {}
     for ref, c in COMPONENTS.items():
         for (name, kind, gx, gy, w, h, circle, layers, drill) in pad_geometry(c):
@@ -105,76 +106,228 @@ def build_router():
     return r, pad_pos
 
 
-# Pre-seeded copper: USB escape stubs (0.5 mm pitch pads) and the +3V3
-# under-module corridor (exits over pad 40 through the antenna-side lane so
-# the right pad column keeps its escape rows).
+# Pre-seeded copper: hand-drawn escapes off J1's 0.5 mm-pitch pad row, which
+# is finer than the router's 0.4 mm grid. J1 sits on the *top* edge in rev B
+# (rot 180, x 42.7..53.3, y 20.2..29.7), so its single pad row is at y 28.445
+# and every escape runs south into the board.
+#
+# The two D+ pads and the two D- pads interleave (DP 47.25, DN 47.75, DP
+# 48.25, DN 48.75), so one net's pad-to-pad link has to hop the other's. The
+# rev A trick still applies: nest the loops. D+ (the outer-left pair) is tied
+# *under the connector body* to the north and escapes on the west side; D-
+# (the outer-right pair) is tied in open board to the south and escapes on the
+# east side. Neither loop is ever crossed.
 USB_SEEDS = [  # (net, layer, [(x,y)...], width)
-    ("+3V3", 0, [(79.25, 29.01), (95.5, 29.01), (95.5, 26.8), (103.4, 26.8),
-                 (103.4, 34.05)], 0.5),
-    ("USB_DN", 0, [(95.25, 91.56), (95.25, 92.8), (96.25, 92.8), (96.25, 91.56)], 0.25),
-    ("USB_DN", 0, [(95.25, 91.56), (95.25, 89.6), (95.4, 89.6)], 0.25),
-    ("USB_DP", 0, [(95.75, 91.56), (95.75, 90.3), (96.75, 90.3), (96.75, 91.56)], 0.25),
-    ("USB_DP", 0, [(96.75, 90.3), (96.75, 89.6), (96.6, 89.6)], 0.25),
-    ("CC1", 0, [(94.75, 91.56), (94.75, 89.6), (94.6, 89.6)], 0.25),
-    ("CC2", 0, [(97.75, 91.56), (97.75, 89.65)], 0.25),
-    ("VBUS", 0, [(98.45, 91.56), (98.45, 89.6), (98.6, 89.6)], 0.4),
-    ("VBUS", 0, [(93.55, 91.56), (93.55, 90.0), (93.4, 90.0)], 0.4),
-    # U4 pin 2 (GND) sits in a 1.2mm alley between the USB data lines; give
-    # it a pre-seeded escape + via so those nets route around it.
-    ("GND", 0, [(96.0, 83.14), (96.0, 85.4)], 0.3),
+    ("USB_DP", 0, [(47.25, 28.445), (47.25, 27.2), (48.25, 27.2),
+                   (48.25, 28.445)], 0.25),
+    ("USB_DP", 0, [(47.25, 28.445), (47.25, 31.25)], 0.25),
+    ("USB_DN", 0, [(47.75, 28.445), (47.75, 30.0), (48.75, 30.0),
+                   (48.75, 31.25)], 0.25),
+    ("CC1", 0, [(49.25, 28.445), (49.25, 31.75)], 0.25),
+    ("CC2", 0, [(46.25, 28.445), (46.25, 31.75)], 0.25),
+    ("VBUS", 0, [(50.45, 28.445), (50.45, 32.0), (50.5, 32.0)], 0.4),
+    ("VBUS", 0, [(45.55, 28.445), (45.55, 32.0), (45.5, 32.0)], 0.4),
 ]
-MANUAL_VIAS = [("GND", 96.0, 85.4)]
+MANUAL_VIAS = []
 # nets whose J1 pads are replaced by stub terminals (ends grid-aligned)
 USB_STUB_TERMS = {
-    "USB_DN": [(95.4, 89.6, (0,))],
-    "USB_DP": [(96.6, 89.6, (0,))],
-    "CC1": [(94.6, 89.6, (0,))],
-    "CC2": [(97.75, 89.65, (0,))],
-    "VBUS": [(98.6, 89.6, (0,)), (93.4, 90.0, (0,))],
+    "USB_DN": [(48.75, 31.25, (0,))],
+    "USB_DP": [(47.25, 31.25, (0,))],
+    "CC1": [(49.25, 31.75, (0,))],
+    "CC2": [(46.25, 31.75, (0,))],
+    "VBUS": [(50.5, 32.0, (0,)), (45.5, 32.0, (0,))],
 }
 
+# ---------------------------------------------------------------------------
+# Fine-pitch fanout
+# ---------------------------------------------------------------------------
+# ref -> radial stub length (mm) measured from the pad centre.
+#
+# A track can only leave a 0.5 mm-pitch QFN or a 0.65 mm-pitch TSSOP along the
+# pad's own centreline; there is no room either side. The A* router will find
+# that lane if it is empty, but it routes one net at a time and never rips up,
+# so whichever net reaches the part first (in practice +3V3, which has pads on
+# three sides of the ADE7953) rings it and strands every remaining pin. In
+# attempt 2 that cost all eight of U7's signal nets at once.
+#
+# The fix is the one the USB-C receptacle already uses by hand: pre-seed a
+# straight escape off every pad before any net is routed, and hand the router
+# the far end as the terminal instead of the pad. Each stub sits exactly on its
+# pad's centreline, ends on a grid node, and claims its lane up front, so the
+# order nets happen to be routed in stops mattering.
+FANOUT = {"U7": 1.75, "U3": 1.5, "U5": 1.5}
+FANOUT_WIDTH = 0.25
+
+
+def _snap(v, origin):
+    return origin + round((v - origin) / R.GRID) * R.GRID
+
+
+def all_seeds(pad_pos):
+    """(seed polylines, {net: [stub terminal, ...]}) for every hand escape.
+
+    Combines the USB-C escapes above with a generated radial fanout for each
+    FANOUT component. GND gets seeds but never a terminal - it is poured, not
+    routed - and on a part with an exposed pad every GND pin additionally gets
+    a short inward stub tying it to that pad, because the pour cannot reach
+    between 0.5 mm-pitch pins.
+    """
+    seeds = list(USB_SEEDS)
+    terms = {k: list(v) for k, v in USB_STUB_TERMS.items()}
+    for ref, out in sorted(FANOUT.items()):
+        comp = COMPONENTS[ref]
+        cx, cy = comp["at"][0], comp["at"][1]
+        pads = [(pin, p) for (r_, pin), pl in pad_pos.items() if r_ == ref
+                for p in pl]
+        ep = max((p for _pin, p in pads), key=lambda p: p[3])
+        ep_big = ep[3] > 4.0
+        # Group the pads by the side they leave from, then stagger along each
+        # side in SPATIAL order. Keyed on pin number the alternation scrambles
+        # and adjacent stubs end up the same length again.
+        sides = {}
+        for pin, (px, py, layers, area) in pads:
+            net = comp["pins"].get(pin)
+            if not net or (ep_big and area == ep[3]):
+                continue
+            dx, dy = px - cx, py - cy
+            if abs(dx) >= abs(dy):
+                side, lat, horiz = (0 if dx < 0 else 1), py, True
+            else:
+                side, lat, horiz = (2 if dy < 0 else 3), px, False
+            sides.setdefault(side, []).append((lat, pin, px, py, dx, dy, horiz))
+        for side in sorted(sides):
+            for k, (lat, pin, px, py, dx, dy, horiz) in \
+                    enumerate(sorted(sides[side])):
+                net = comp["pins"][pin]
+                reach = out + 0.75 * (k % 2)
+                if horiz:
+                    ex = _snap(px + math.copysign(reach, dx), BX0)
+                    ey = _snap(py, BY0)
+                else:
+                    ex = _snap(px, BX0)
+                    ey = _snap(py + math.copysign(reach, dy), BY0)
+                seeds.append((net, 0, [(px, py), (ex, ey)], FANOUT_WIDTH))
+                if net == "GND":
+                    # Ground pins get the outward stub (so the pour can find
+                    # them) and, on a part with an exposed pad, an inward stub
+                    # onto it. The inward run stays on the pin's own centreline
+                    # until it is inside the pad, so it never encroaches on a
+                    # neighbour.
+                    if ep_big:
+                        end = (ep[0], py) if horiz else (px, ep[1])
+                        seeds.append((net, 0, [(px, py), end], FANOUT_WIDTH))
+                    continue
+                terms.setdefault(net, []).append((ex, ey, (0,)))
+    return seeds, terms
+
+
+# Every net except GND, which is poured. Order is the router's only conflict
+# resolution: it is greedy and never rips up, so the widest and least
+# reroutable copper goes first and the many short two-pin locals go last,
+# threading whatever is left.
 ROUTE_ORDER = [
-    ("VIN", 0.8), ("+5V", 0.7), ("+3V3", 0.7), ("VLED", 0.5), ("VBUS", 0.4),
-    ("LEDP_K", 0.3),
-    ("BUZZ_GATE", 0.3), ("BUZZ_K", 0.5), ("WS_DIN", 0.3),
+    # rails
+    # +3V3 is 0.25 mm, not the 0.7 mm rev A could afford, and every signal
+    # drops from 0.3 to 0.25 for the same reason: rev B's rail and its buses
+    # both have to land on 0.65 mm-pitch TSSOP-14 pads (MAX31856 pins 5/8/9-12)
+    # and 0.5 mm-pitch QFN-28 pads (ADE7953), and anything wider cannot sit on
+    # those pads' centrelines without breaking clearance to the neighbouring
+    # pin. 0.25 mm of 1 oz copper carries ~0.9 A at a 20 C rise - several times
+    # the 3V3 rail's draw, whose largest single load is the module at ~0.5 A
+    # peak, and which is decoupled locally at every IC.
+    ("VIN", 0.8), ("+5V", 0.6), ("+3V3", 0.25), ("VLED", 0.5), ("VBUS", 0.4),
+    ("AUX_VP", 0.6),
+    # The multi-drop buses: longest reach, most terminals, hardest to thread.
+    # The two thermocouple chip selects ride the same channel between U3 and U5
+    # and are routed with them rather than with the other escapes, or the bus
+    # takes the channel first and leaves them nothing.
+    ("SPI_MOSI", 0.25), ("SPI_SCLK", 0.25), ("SPI_MISO", 0.25),
+    ("TC1_CS", 0.25), ("TC2_CS", 0.25),
+    ("I2C_SDA", 0.25), ("I2C_SCL", 0.25),
+    # isolated side of the opto barrier - only nets allowed in the keepout
+    ("SSR1_A", 0.4), ("SSR1_B", 0.4), ("SSR2_A", 0.4), ("SSR2_B", 0.4),
+    # aux bank outputs carry relay/solenoid coil current
+    # AUX*_OUT run outermost-first: U6's output pins and J10's terminal
+    # positions are in opposite order, so AUX1 and AUX3 have to swap sides.
+    # Routing the one with the longest reach first lets it take the outside.
+    ("AUX3_OUT", 0.5), ("AUX2_OUT", 0.5), ("AUX1_OUT", 0.5),
+    ("BUZZ_K", 0.5),
+    # straps and indicators
+    ("EN", 0.25), ("IO0", 0.25), ("LEDP_K", 0.25),
+    # Module escapes. Within each pad row the net whose pin sits CLOSEST to the
+    # side of the module it leaves by goes first: the first-routed net hugs the
+    # pad row and every later one takes the next lane out, so ordering the
+    # other way round makes the near pins climb over the far ones' copper.
+    # bottom row, west -> east (all of these leave southward)
+    ("LCD_BL", 0.25), ("LCD_RST", 0.25), ("LCD_DC", 0.25),
+    ("AUX1", 0.25), ("SSR2_CTRL", 0.25), ("LED_DATA", 0.25),
+    # left column, south (nearest the southern exit) -> north
+    ("LCD_CS", 0.25), ("SSR1_CTRL", 0.25), ("AUX3", 0.25), ("AUX2", 0.25),
+    ("ALARM", 0.25), ("T_IRQ", 0.25), ("T_CS", 0.25), ("IN1", 0.25),
+    # right column, south -> north
+    ("WDT_KICK", 0.25), ("BTN_UP", 0.25), ("BTN_DOWN", 0.25),
+    ("BTN_LEFT", 0.25), ("BTN_RIGHT", 0.25), ("BTN_SEL", 0.25),
+    ("RXD0", 0.25), ("TXD0", 0.25), ("IN2", 0.25), ("IN3", 0.25),
+    # USB (pre-seeded escapes, see USB_SEEDS)
     ("CC1", 0.25), ("CC2", 0.25), ("USB_DN", 0.25), ("USB_DP", 0.25),
-    ("EN", 0.3), ("IO0", 0.3),
-    # bottom-row escapes, west -> east so outer pads grab outer lanes
-    ("LCD_CS", 0.3), ("LCD_BL", 0.3), ("LCD_RST", 0.3), ("LCD_DC", 0.3),
-    ("SPI_MOSI", 0.3), ("SPI_SCLK", 0.3), ("SPI_MISO", 0.3),
-    # LID_IN/LID_SW retired by Task 9 (lid moved to J11/IN1_RAW/IN1); the
-    # three protected-input nets are routed by Task 14 along with the rest
-    # of the board. VENT/AUX_A/AUX_B (rev A dangling single-pin nets on J7)
-    # retired by Task 11, which re-points J7 5-8 to I2C.
-    ("LED_DATA", 0.3),
-    # west-column escapes, south -> north (first net hugs the column, the
-    # rest pass above its start row and take the next lane west)
-    ("ALARM", 0.3),
-    ("BTN_LEFT", 0.3), ("BTN_DOWN", 0.3), ("BTN_UP", 0.3),
-    # right-column escapes, south -> north
-    ("RXD0", 0.3), ("TXD0", 0.3), ("BTN_RIGHT", 0.3), ("BTN_SEL", 0.3),
+    # SSR driver chains, watchdog gate
+    ("SSR_EN", 0.4),
+    ("SSR1_LED_A", 0.25), ("SSR1_IND_A", 0.25), ("SSR1_IND_K", 0.25),
+    ("SSR2_LED_A", 0.25), ("SSR2_IND_A", 0.25), ("SSR2_IND_K", 0.25),
+    ("WDT_PUMP", 0.25), ("WDT_HOLD", 0.25),
+    # buzzer, status LED
+    ("BUZZ_GATE", 0.25), ("WS_DIN", 0.25),
+    # thermocouple front-ends (short, local, kept matched)
+    ("TC1_P", 0.25), ("TC1_N", 0.25), ("TC1_P_F", 0.25), ("TC1_N_F", 0.25),
+    ("TC2_P", 0.25), ("TC2_N", 0.25), ("TC2_P_F", 0.25), ("TC2_N_F", 0.25),
+    # CT front-end and its terminal
+    ("CTA_P", 0.4), ("CTA_N", 0.4), ("CTA_F", 0.25),
+    ("CTB_P", 0.4), ("CTB_N", 0.4), ("CTB_F", 0.25),
+    # ADE7953 locals
+    ("ADE_CLKIN", 0.25), ("ADE_CLKOUT", 0.25), ("ADE_REF", 0.25),
+    ("ADE_VINTA", 0.25), ("ADE_VINTD", 0.25), ("ADE_RESET", 0.25),
+    ("ADE_SCLK", 0.25), ("ADE_CS", 0.25), ("ADE_VP", 0.25), ("ADE_VN", 0.25),
+    # protected inputs
+    ("IN1_RAW", 0.25), ("IN2_RAW", 0.25), ("IN3_RAW", 0.25),
+    # touch series damping (header side of R39-R43)
+    ("T_CLK_R", 0.25), ("T_CS_R", 0.25), ("T_DIN_R", 0.25), ("T_DO_R", 0.25),
+    ("T_IRQ_R", 0.25),
 ]
 
 
-def route_all(r, pad_pos):
+def route_all(r, pad_pos, seed_list=None, stub_terms=None):
+    if seed_list is None or stub_terms is None:
+        seed_list, stub_terms = all_seeds(pad_pos)
     nl = netlist()
     routed = set()
     for net, width in ROUTE_ORDER:
         pins = nl[net]
         terms = []
         for (ref, pin) in pins:
-            if ref == "J1" and net in USB_STUB_TERMS:
+            # a pad that already has a hand-drawn escape is represented by the
+            # far end of that escape, never by the pad itself
+            if (ref == "J1" or ref in FANOUT) and net in stub_terms:
                 continue
             for (gx, gy, layers, area) in pad_pos[(ref, pin)]:
-                terms.append((gx, gy, layers, area))
-        # dedupe identical positions, sort largest pad first (THT seeds)
+                terms.append((gx, gy, layers, area, 0 if ref == "U1" else 1))
+        # dedupe identical positions, then order the tree's growth: the module
+        # first, then largest pad first (THT seeds). U1 has to be the seed of
+        # any net it is on - its pad rows are the one place on this board with
+        # no slack, so its escape lane must be claimed while the lane is still
+        # empty. Ordering purely by pad area put the 1.7 mm header pins of
+        # J5/J6/J7 ahead of the module's 0.9 mm ones and left every bottom-row
+        # escape to be attempted last, from the far side of the board.
         seen = {}
         for t in terms:
             seen.setdefault((round(t[0], 3), round(t[1], 3)), t)
-        terms = sorted(seen.values(), key=lambda t: -t[3])
+        terms = sorted(seen.values(), key=lambda t: (t[4], -t[3]))
         terms = [(t[0], t[1], t[2]) for t in terms]
-        if net in USB_STUB_TERMS:
-            terms = USB_STUB_TERMS[net] + terms
+        # USB stub ends must lead (they are the only way into J1, and the seed
+        # attachment below keys off terms[0]); fanout stub ends are ordinary
+        # goals and go last.
+        usb = USB_STUB_TERMS.get(net, [])
+        fan = [t for t in stub_terms.get(net, []) if t not in usb]
+        terms = usb + terms + fan
         seeds = [(slayer, pts) for (snet, slayer, pts, w) in USB_SEEDS
                  if snet == net]
         if seeds:
@@ -309,42 +462,53 @@ def _rot_at(node, frot):
     return out
 
 
+# Free-standing silk. The large clear band between the switching region
+# (x <= 60) and the analog region (x >= 86) is where the title goes; every
+# other label sits beside the connector or control it names.
 SILK = [
-    ("BISQUE KILN CONTROLLER v1.0", 66, 68, 0, 1.5),
-    ("ANTENNA - KEEP CLEAR", 88, 22.6, 0, 1.2),
-    ("5V IN", 23.2, 28.8, 0, 1.0),
-    ("+", 31.5, 33, 0, 1.2), ("-", 31.5, 38, 0, 1.5),
-    ("SSR", 23.0, 49.5, 0, 1.0),
-    ("+", 31.5, 55, 0, 1.2), ("-", 31.5, 60, 0, 1.5),
-    ("TC  K+", 117.3, 60, 90, 1.0), ("K-", 117.3, 68.5, 90, 1.0),
-    ("DISPLAY", 40.0, 90.6, 0, 1.0),
-    ("NAV", 59.3, 90.6, 0, 1.0),
-    ("AUX", 79.4, 90.6, 0, 1.0),
-    ("RESET", 55.0, 27.2, 0, 0.9),
-    ("BOOT", 101.0, 54.2, 0, 0.9),
-    ("USB", 104.0, 93.5, 0, 0.9),
-    ("STATUS", 85.0, 90.6, 0, 0.9),
-    ("WDT DEFEAT - REMOVE", 27.0, 59.5, 0, 1.0),
+    ("BISQUE KILN CONTROLLER", 62.5, 62.0, 0, 1.4),
+    ("REV B", 62.5, 65.5, 0, 1.1),
+    ("U.FL ANT ->", 62.0, 22.3, 0, 0.9),
+    ("USB", 40.5, 22.0, 0, 0.9),
+    ("RESET", 36.5, 20.9, 0, 0.9),
+    ("BOOT", 100.0, 20.9, 0, 0.9),
+    ("5V IN", 22.0, 34.0, 0, 0.9),
+    ("+", 30.0, 39.6, 0, 1.1), ("-", 30.0, 44.7, 0, 1.3),
+    ("AUX OUT", 22.0, 47.0, 0, 0.9),
+    ("SSR1", 22.0, 70.5, 0, 0.9),
+    ("SSR2", 22.0, 83.0, 0, 0.9),
+    ("TC1  K+/K-", 128.0, 33.0, 0, 0.9),
+    ("TC2  K+/K-", 128.0, 45.0, 0, 0.9),
+    ("CT A+/A-/B+/B-", 122.0, 72.0, 0, 0.9),
+    ("AC SENSE - DNP", 104.0, 77.0, 0, 0.8),
+    ("STATUS", 84.0, 93.6, 0, 0.9),
+    ("I2C", 66.0, 93.6, 0, 0.9),
+    ("INPUTS  1 / 2 / 3 / GND", 62.6, 108.8, 0, 0.9),
+    ("AUX_VP=5V", 34.0, 66.0, 0, 0.9),
+    ("WDT DEFEAT - REMOVE", 50.0, 61.5, 0, 0.9),
 ]
 J5_PINS = ["5V", "GND", "CS", "RST", "DC", "SDI", "SCK", "BL",
            "SDO", "TCK", "TCS", "TDI", "TDO", "IRQ"]
 J6_PINS = ["UP", "DN", "LT", "RT", "OK", "G"]
 J7_PINS = ["3V3", "GND", "TX", "RX", "SDA", "SCL", "3V3", "GND"]
+# Pin names go immediately north of each header's body (headers sit at y=104,
+# courtyard 100.6..107.4), reading upright with pin 1 at the header's origin.
 for hdr, names in (("J5", J5_PINS), ("J6", J6_PINS), ("J7", J7_PINS)):
-    hx = COMPONENTS[hdr]["at"][0]
+    hx, hy, _rot = COMPONENTS[hdr]["at"]
     for k, t in enumerate(names):
-        SILK.append((t, hx + 2.54 * k, 98.95, 0, 0.8))
+        SILK.append((t, hx + 2.54 * k, hy - 4.3, 0, 0.8))
 
 
 def main(dst):
     r, pad_pos = build_router()
-    for (net, layer, pts, w) in USB_SEEDS:
+    seed_list, stub_terms = all_seeds(pad_pos)
+    for (net, layer, pts, w) in seed_list:
         for a, b in zip(pts, pts[1:]):
             r.add_seg(net, layer, a[0], a[1], b[0], b[1], w)
     for (net, x, y) in MANUAL_VIAS:
         r.add_via(net, x, y)
     print("routing...")
-    route_all(r, pad_pos)
+    route_all(r, pad_pos, seed_list, stub_terms)
     r._memo = {}
     r._memo_net = None
     print("mitred %d right-angle corners" % r.miter_corners())
