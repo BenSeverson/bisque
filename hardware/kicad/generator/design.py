@@ -9,13 +9,16 @@ source of truth):
   SPI: MOSI=11 MISO=13 SCLK=12 | TC CS=10 | SSR=17
   LCD: CS=8 DC=9 RST=46 BL=3   | WS2812=48 | ALARM=7
   BTN: UP=4 DOWN=5 SEL=1 LEFT=6 RIGHT=2
-  J7:  VENT=14 LID_SW=21 AUX_A=15 AUX_B=16 | TXD0/RXD0 console
+  J7:  VENT=14 AUX_A=15 AUX_B=16 | TXD0/RXD0 console
+  J11: IN1(lid)=4 IN2(gas flow)=2 IN3(spare)=1
 
-All four J7 signal nets are real copper here. VENT and LID_SW default to those
-GPIOs in Kconfig to match this board; AUX_A/AUX_B are declared but not yet
-driven by any code. Note that an enabled-but-unwired LID_SW reads open and
-holds the SSR off — it needs a switch, a jumper to GND, or -1. The full
-as-built map, the constraints behind it, and the planned expansion live in
+J7's four signal nets are real copper here. VENT defaults to that GPIO in
+Kconfig to match this board; AUX_A/AUX_B are declared but not yet driven by
+any code. IN1/IN2/IN3 (Task 9) land on their own terminal, J11, not J7 -
+rev A's lid switch was the only occupant of J7.6 and has moved there. Note
+that an enabled-but-unwired IN1 (lid) reads open and holds the SSR off - it
+needs a switch, a jumper to GND, or -1. The full as-built map, the
+constraints behind it, and the planned expansion live in
 docs/pin-assignments.md — keep that table in sync with this one.
 """
 
@@ -458,42 +461,83 @@ COMPONENTS = {
     "C10": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
                 value="100nF", at=(69.0, 101.5, 0),
                 pins={"1": "VLED", "2": "GND"}),
-    # --- Lid/door switch input conditioning -------------------------------
-    # LID_SW (IO21) is the one GPIO input whose cable leaves the enclosure
-    # and runs to a hot kiln lid, alongside the SSR output and mains wiring.
-    # The nav switch (J6) is a short internal run and stays bare, but a
-    # false "lid open" here cuts a firing, so the entry point gets an RC:
-    #   J7.6 -> R12 (1k series) -> LID_SW -> U1.23,  R13 10k to +3V3,
-    #   C12 100nF to GND.
+    # --- Protected dry-contact inputs (lid / gas flow / spare) -----------
+    # Generalises rev A's single lid-switch filter (below) to three
+    # identical channels, all on J11, plus one SRV05-4 TVS array covering
+    # them. 1k series, 10k pull-up to +3V3, 100nF to GND per channel. Open
+    # contact reads HIGH = "open/inactive", so a broken wire, a pulled
+    # connector or a failed-open switch all read "open" and fail safe.
+    # IN1 = lid (IO4), IN2 = gas-flow interlock (IO2), IN3 = spare (IO1) -
+    # see docs/pin-assignments.md. Wire a dry contact between each channel
+    # and J11.4 (GND).
+    #
     # R13 replaces the ESP32's weak ~45k internal pull-up with a stiff 10k,
     # so an open switch holds the node high against far more leakage and
     # capacitive pickup. R12 limits fault/ESD current into the pin, and C12
     # sees R12||R13 (~0.9k) with the switch closed - a ~1.8 kHz corner
     # (~90us), rising to ~160 Hz (10k x 100nF) with it open. Fast enough to
     # leave mechanical bounce to the firmware, which samples at 500 ms;
-    # slow enough to swallow EMI transients.
-    # Closed-switch level is 3.3V x 1k/11k = 0.30V, well under the ESP32's
-    # 0.25 x VDD (0.83V) V_IL. No discrete TVS: the only one on the board is
-    # the USBLC6 (U4), which is there for USB2.0's low-capacitance
-    # requirement; the other externally-exposed nets (TC_P at J3, the nav
-    # switch at J6) rely on an RC plus the pin's own clamp diodes, and a TVS
-    # would add a unique Extended part ($3 feeder fee) for one input.
+    # slow enough to swallow EMI transients. Closed-switch level is
+    # 3.3V x 1k/11k = 0.30V, well under the ESP32's 0.25 x VDD (0.83V) V_IL.
     #
-    # Placement: R12 and C12 sit in the free band between LED1 and J7 so the
-    # shunt is right where the cable enters. R13 is 6 mm further north, on
-    # the +3V3 B.Cu trunk that runs diagonally down to J7.1 - it is a DC
-    # pull-up, so its position is electrically irrelevant, and putting it
-    # beside C12 forced a 0.7 mm-wide +3V3 spur across the F.Cu pour above
-    # J7.1/J7.2, which starved J7.2's thermal relief (DRC error).
+    # Rev A skipped a TVS (a unique Extended part / $3 feeder fee for one
+    # input); rev B's externally-exposed net count goes from two to ~ten,
+    # so one SRV05-4 array (D5) now covers all three raw inputs upstream of
+    # the series resistors. NOT extended to the thermocouple inputs
+    # (TC1_P/N, TC2_P/N, Task 6) - array leakage into a ~40 uV/C source is
+    # an accuracy error, not protection.
+    #
+    # Designator note: the brief that originated this block called for
+    # R23-R26; R23-R25 were already consumed by Task 8's ULN2003 pulldowns
+    # by the time this landed, so the second and third channels use the
+    # next free run, R26-R29, instead. Re-verify against the live
+    # COMPONENTS dict before reusing numbers near here - a duplicate key
+    # silently overwrites the earlier component.
+    #
+    # Placement: R12/R13/C12 (channel 1, née rev A's lid filter) keep their
+    # original spot in the free band between LED1 and J7. Channels 2 and 3
+    # extend the same schematic row/PCB band eastward; D5 and J11 sit just
+    # past them. See gen_sch.py SCH_AT for the >=20mm spacing rule that
+    # keeps facing pin-label stubs from merging nets (Tasks 7, 8).
     "R12": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
                 value="1k", at=(87.3, 107.6, 180),
-                pins={"1": "LID_IN", "2": "LID_SW"}),
+                pins={"1": "IN1_RAW", "2": "IN1"}),
     "R13": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
                 value="10k", at=(83.5, 101.5, 0),
-                pins={"1": "+3V3", "2": "LID_SW"}),
+                pins={"1": "+3V3", "2": "IN1"}),
     "C12": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
                 value="100nF", at=(83.8, 107.6, 0),
-                pins={"1": "LID_SW", "2": "GND"}),
+                pins={"1": "IN1", "2": "GND"}),
+    "R26": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="1k", at=(96.0, 100.0, 180),
+                pins={"1": "IN2_RAW", "2": "IN2"}),
+    "R27": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="10k", at=(92.0, 97.0, 0),
+                pins={"1": "+3V3", "2": "IN2"}),
+    "C23": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
+                value="100nF", at=(92.0, 106.0, 0),
+                pins={"1": "IN2", "2": "GND"}),
+    "R28": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="1k", at=(96.0, 108.0, 180),
+                pins={"1": "IN3_RAW", "2": "IN3"}),
+    "R29": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="10k", at=(92.0, 109.0, 0),
+                pins={"1": "+3V3", "2": "IN3"}),
+    "C24": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
+                value="100nF", at=(92.0, 112.0, 0),
+                pins={"1": "IN3", "2": "GND"}),
+    # SRV05-4: 1 IO1, 2 VN(GND), 3 IO2, 4 IO3, 5 VP(+3V3), 6 IO4 (spare).
+    "D5": dict(lib="Power_Protection", sym="SRV05-4",
+               fp="Package_TO_SOT_SMD:SOT-23-6", fpf="SOT-23-6.kicad_mod",
+               value="SRV05-4", at=(101.0, 104.0, 0),
+               pins={"1": "IN1_RAW", "2": "GND", "3": "IN2_RAW",
+                     "4": "IN3_RAW", "5": "+3V3", "6": None}),
+    "J11": dict(lib="Connector", sym="Screw_Terminal_01x04",
+                fp="TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-4-5.08_1x04_P5.08mm_Horizontal",
+                fpf="TerminalBlock_Phoenix_MKDS-1,5-4-5.08_1x04_P5.08mm_Horizontal.kicad_mod",
+                value="INPUTS", at=(112.0, 104.0, 90),
+                pins={"1": "IN1_RAW", "2": "IN2_RAW",
+                      "3": "IN3_RAW", "4": "GND"}),
     # --- Headers ---------------------------------------------------------
     "J5": dict(lib="Connector_Generic", sym="Conn_01x08",
                fp="Connector_Molex:Molex_KK-254_AE-6410-08A_1x08_P2.54mm_Vertical",
@@ -525,11 +569,11 @@ COMPONENTS = {
                fpf="Molex_KK-254_AE-6410-08A_1x08_P2.54mm_Vertical.kicad_mod",
                value="AUX", at=(70.5, 115.0, 0),
                pins={"1": "+3V3", "2": "GND", "3": "TXD0", "4": "RXD0",
-                     # pin 6 is the raw lid-switch input: it reaches U1.23
-                     # (LID_SW) through the R12/R13/C12 filter above, not
-                     # directly. Wire a dry contact between J7.6 and J7.2
-                     # (GND); closed = lid shut.
-                     "5": "VENT", "6": "LID_IN", "7": "AUX_A", "8": "AUX_B"}),
+                     # pin 6 carried the raw lid-switch input in rev A; the
+                     # lid moved to its own terminal (J11) in Task 9, so
+                     # this pin is unconnected until Task 11 re-points J7's
+                     # pins 5-8 to I2C.
+                     "5": "VENT", "6": None, "7": "AUX_A", "8": "AUX_B"}),
     # --- Mounting holes (grounded) --------------------------------------
     "H1": dict(lib="Mechanical", sym="MountingHole_Pad",
                fp="MountingHole:MountingHole_3.2mm_M3_Pad_Via",

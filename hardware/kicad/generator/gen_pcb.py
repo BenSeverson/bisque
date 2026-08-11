@@ -142,9 +142,10 @@ ROUTE_ORDER = [
     # bottom-row escapes, west -> east so outer pads grab outer lanes
     ("LCD_CS", 0.3), ("LCD_BL", 0.3), ("LCD_RST", 0.3), ("LCD_DC", 0.3),
     ("SPI_MOSI", 0.3), ("SPI_SCLK", 0.3), ("SPI_MISO", 0.3),
-    # LID_IN is the 3 mm hop from J7.6 up to R12; route it before LID_SW so
-    # the filtered side comes off the far end of the cluster.
-    ("VENT", 0.3), ("LID_IN", 0.3), ("LID_SW", 0.3), ("LED_DATA", 0.3),
+    # LID_IN/LID_SW retired by Task 9 (lid moved to J11/IN1_RAW/IN1); the
+    # three protected-input nets are routed by Task 14 along with the rest
+    # of the board.
+    ("VENT", 0.3), ("LED_DATA", 0.3),
     # west-column escapes, south -> north (first net hugs the column, the
     # rest pass above its start row and take the next lane west)
     ("AUX_B", 0.3), ("AUX_A", 0.3), ("ALARM", 0.3),

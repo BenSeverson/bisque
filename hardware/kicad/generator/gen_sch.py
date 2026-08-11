@@ -80,8 +80,14 @@ SCH_AT = {
     "LED1": (40, 170), "R3": (78, 168), "D3": (108, 168), "C10": (134, 170),
     # headers row
     "J5": (40, 215), "J6": (76, 215), "J7": (112, 215),
-    # lid switch input filter (sits with the aux header it conditions)
+    # protected dry-contact inputs (lid/gas-flow/spare) - channel 1 is rev
+    # A's lid filter, unmoved; channels 2/3 extend the row eastward, then
+    # the TVS array and terminal. All entries here are >=20mm apart in x
+    # or y (Task 7/8 pin-label-stub-merge hazard).
     "R12": (152, 222), "R13": (180, 222), "C12": (208, 222),
+    "R26": (236, 222), "R27": (264, 222), "C23": (292, 222),
+    "R28": (320, 222), "R29": (348, 222), "C24": (376, 222),
+    "D5": (208, 250), "J11": (260, 250),
     # en/boot + decoupling row (bottom left)
     "SW1": (40, 258), "R1": (74, 258), "C5": (100, 258), "SW2": (130, 258),
     "R2": (164, 258), "C6": (196, 258), "C7": (222, 258), "C11": (248, 258),
@@ -94,7 +100,8 @@ GROUP_TEXT = [
     ("USB-C  (native USB flashing + ESD)", 25, 66),
     ("WS2812B STATUS LED  (VDD dropped ~4.6V for 3.3V data margin)", 25, 150),
     ("HEADERS  DISPLAY(J5) NAV(J6) AUX(J7)", 25, 198),
-    ("LID SWITCH INPUT FILTER  (1k series + 10k pull-up + 100nF)", 145, 205),
+    ("PROTECTED INPUTS x3  lid/gas-flow/spare  (1k + 10k pull-up + 100nF each, SRV05-4 TVS)",
+     145, 205),
     ("RESET / BOOT / DECOUPLING", 25, 240),
     ("ESP32-S3-WROOM-1  (GPIOs = firmware Kconfig defaults)", 140, 130),
     ("THERMOCOUPLE 1 (control)  MAX31856  (T- floats to J3, biased via BIAS)", 225, 82),
@@ -116,7 +123,7 @@ NOTES = (
     "AGND only through each MAX31856's internal BIAS network. Ungrounded-junction\\n"
     "probes required: two grounded-junction probes in one kiln would loop through it.\\n"
     "Nav switch J6 is panel-mounted; inputs use ESP32 internal pull-ups\\n"
-    "Aux J7 pin6 = optional lid switch (dry contact to J7 pin2/GND, closed = lid shut)\\n"
+    "J11: IN1/IN2/IN3 (lid/gas-flow/spare) + GND - dry contact each channel to GND\\n"
     "Display J5 pinout: 3V3 GND CS RST DC MOSI SCK BL (ST7796S SPI module)"
 )
 
