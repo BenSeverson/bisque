@@ -64,7 +64,7 @@ def jlc_rotation(fp_name, kicad_rot):
 
 # ref -> (LCSC part, description, basic_part, verified)
 LCSC = {
-    "U1": ("C2913202", "ESP32-S3-WROOM-1-N16R8 (16MB flash, 8MB octal PSRAM)", False, True),
+    "U1": ("C3013945", "ESP32-S3-WROOM-1U-N16R2 (16MB flash, 2MB quad PSRAM, U.FL)", False, True),
     "U2": ("C6186", "AMS1117-3.3 SOT-223", True, True),
     "U3": ("C52028", "MAX31855KASA+T SOIC-8", False, True),
     "U4": ("C7519", "USBLC6-2SC6 SOT-23-6", False, True),

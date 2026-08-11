@@ -43,8 +43,8 @@ TBLOCK = ("TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.0
 COMPONENTS = {
     # --- MCU -------------------------------------------------------------
     "U1": dict(lib="RF_Module", sym="ESP32-S3-WROOM-1",
-               fp="RF_Module:ESP32-S3-WROOM-1", fpf="ESP32-S3-WROOM-1.kicad_mod",
-               value="ESP32-S3-WROOM-1-N16R8", at=(88.0, 33.0, 0),
+               fp="RF_Module:ESP32-S3-WROOM-1U", fpf="ESP32-S3-WROOM-1U.kicad_mod",
+               value="ESP32-S3-WROOM-1U-N16R2", at=(70.0, 33.0, 0),
                pins={"1": "GND", "2": "+3V3", "3": "EN", "4": "BTN_UP",
                      "5": "BTN_DOWN", "6": "BTN_LEFT", "7": "ALARM",
                      "8": "AUX_A", "9": "AUX_B", "10": "SSR_CTRL",
