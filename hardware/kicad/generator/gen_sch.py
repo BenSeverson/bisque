@@ -52,8 +52,13 @@ SCH_AT = {
     "LED2": (252, 40), "R9": (280, 40),
     # usb row
     "J1": (36, 88), "U4": (88, 88), "R4": (122, 88), "R5": (148, 88),
-    # thermocouple row (right)
-    "U3": (250, 110), "J3": (302, 110), "C8": (330, 110), "C9": (356, 110),
+    # thermocouple rows (right) - TC1 (control) then TC2 (load) below it
+    "U3": (250, 95), "C13": (268, 95), "C14": (286, 95), "R14": (304, 95),
+    "R15": (322, 95), "C15": (340, 95), "C16": (358, 95), "C17": (376, 95),
+    "J3": (394, 95),
+    "U5": (250, 135), "C18": (268, 135), "C19": (286, 135), "R16": (304, 135),
+    "R17": (322, 135), "C20": (340, 135), "C21": (358, 135), "C22": (376, 135),
+    "J8": (394, 135),
     # ssr row (right)
     "Q1": (235, 155), "R6": (270, 153), "R7": (296, 155), "J4": (326, 155),
     "LED3": (356, 153), "R10": (384, 155),
@@ -81,7 +86,8 @@ GROUP_TEXT = [
     ("LID SWITCH INPUT FILTER  (1k series + 10k pull-up + 100nF)", 145, 205),
     ("RESET / BOOT / DECOUPLING", 25, 240),
     ("ESP32-S3-WROOM-1  (GPIOs = firmware Kconfig defaults)", 140, 130),
-    ("THERMOCOUPLE  MAX31855 (T- grounded per datasheet)", 225, 92),
+    ("THERMOCOUPLE 1 (control)  MAX31856  (T- floats to J3, biased via BIAS)", 225, 82),
+    ("THERMOCOUPLE 2 (load)  MAX31856  (T- floats to J8, biased via BIAS)", 225, 122),
     ("SSR DRIVE  (low-side switch, J4 supplies the +5V loop)", 225, 138),
     ("ALARM BUZZER", 225, 180),
     ("MOUNTING / POWER FLAGS", 290, 238),
@@ -90,7 +96,9 @@ GROUP_TEXT = [
 NOTES = (
     "Bisque kiln controller  -  ESP32-S3-WROOM-1\\n"
     "SSR terminal J4: +5V / SSR- loop, switched low-side by Q1 (boot-safe: R7 pulldown)\\n"
-    "TC terminal J3: pin1 = K+ (yellow), pin2 = K- (red, grounded at U3)\\n"
+    "TC1 terminal J3 / TC2 terminal J8: pin1 = K+, pin2 = K- - both float, biased near\\n"
+    "AGND only through each MAX31856's internal BIAS network. Ungrounded-junction\\n"
+    "probes required: two grounded-junction probes in one kiln would loop through it.\\n"
     "Nav switch J6 is panel-mounted; inputs use ESP32 internal pull-ups\\n"
     "Aux J7 pin6 = optional lid switch (dry contact to J7 pin2/GND, closed = lid shut)\\n"
     "Display J5 pinout: 3V3 GND CS RST DC MOSI SCK BL (ST7796S SPI module)"
@@ -270,7 +278,7 @@ def main():
     out.append('\t(title_block\n\t\t(title "Bisque Kiln Controller")\n'
                '\t\t(date "2026-07-20")\n\t\t(rev "A")\n'
                '\t\t(company "Bisque project")\n'
-               '\t\t(comment 1 "ESP32-S3-WROOM-1 + MAX31855 + SSR drive")\n'
+               '\t\t(comment 1 "ESP32-S3-WROOM-1 + 2x MAX31856 + SSR drive")\n'
                '\t\t(comment 2 "2-layer, 100 x 80 mm, JLCPCB standard process")\n\t)')
     out.append('\t(lib_symbols\n\t\t' + "\n\t\t".join(libsyms) + '\n\t)')
     out.extend(body)

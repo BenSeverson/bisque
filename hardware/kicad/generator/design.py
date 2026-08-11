@@ -164,23 +164,120 @@ COMPONENTS = {
                pins={"1": "USB_DN", "6": "USB_DN",
                      "3": "USB_DP", "4": "USB_DP",
                      "5": "VBUS", "2": "GND"}),
-    # --- Thermocouple ----------------------------------------------------
-    "U3": dict(lib="Sensor_Temperature", sym="MAX31855KASA",
-               fp="Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
-               fpf="SOIC-8_3.9x4.9mm_P1.27mm.kicad_mod",
-               value="MAX31855KASA+", at=(104.5, 62.0, 90),
-               pins={"1": "GND", "2": "GND", "3": "TC_P", "4": "+3V3",
-                     "5": "SPI_SCLK", "6": "TC_CS", "7": "SPI_MISO",
-                     "8": None}),
+    # --- Thermocouple ------------------------------------------------------
+    # 2x MAX31856 (TSSOP-14) replacing the rev A MAX31855. Pinout confirmed
+    # against the KiCad 10 Sensor_Temperature:MAX31856 symbol and the Maxim
+    # 19-7534 Rev 0 datasheet (see hardware/kicad/datasheets/REV-B-NOTES.md
+    # SS5): 1 AGND 2 BIAS 3 T- 4 T+ 5 AVDD 6 DNC 7 ~DRDY 8 DVDD 9 ~CS 10 SCK
+    # 11 SDO 12 SDI 13 ~FAULT 14 DGND. ~DRDY/~FAULT/DNC are left NC - both
+    # status bits are readable from registers, and polling them is what keeps
+    # the GPIO budget closing (spec 4.1). AVDD/DVDD are separate pins but must
+    # share one 3V3 rail (datasheet: AVDD-DVDD limited to +-100mV) with
+    # independent 100nF decoupling per pin, each to this board's single GND
+    # net (no AGND/DGND split plane exists elsewhere on this board).
+    #
+    # REV-B-NOTES.md SS5a overrides the brief here: there is NO bias bypass
+    # capacitor. "This pin is floating when no conversions are taking place...
+    # No bypass or decoupling is specified" (datasheet p.10), unlike AVDD/DVDD
+    # which both explicitly call for one. The 0.01uF cap in the datasheet's own
+    # application drawings belongs to the T- common-mode filter, not to BIAS -
+    # Figure 8 shows BIAS landing on the thermocouple side of the series
+    # resistor while the filter cap ties from the T- *pin* to AGND. The brief's
+    # C14 (100nF, BIAS->GND) is therefore omitted; BIAS is wired directly to
+    # the chip-side (filtered) T- node instead, per "Connect the BIAS output to
+    # T-. This biases the thermocouple within the common-mode range of the
+    # inputs." (datasheet p.27). That merged node is named TC1_BIAS/TC2_BIAS -
+    # it satisfies the >=2-pin net Task 3/8/10 expect without adding a
+    # capacitor that doesn't belong there.
+    #
+    # Input filter per REV-B-NOTES.md SS5c / datasheet Figure 8 ("Typical
+    # Connection to Reduce the Effect of Noise Pickup"), fit unconditionally -
+    # this board sits beside SSR-switched mains wiring with a Wi-Fi radio on
+    # the same PCB, the RF-field case the datasheet calls out: 100R 1% series
+    # in each leg (1% so the T+/T- series resistors stay matched - datasheet
+    # p.28 ties resistor mismatch directly to offset voltage), then, on the
+    # IC side of those resistors, 100nF differential across T+/T- plus 10nF
+    # common-mode from each leg to GND. No TVS on these nets (spec 4.1): a TVS
+    # array's leakage into a ~40uV/degC source is an accuracy error, not
+    # protection - the RC filter plus the chip's own input clamps are it.
+    #
+    # TC1_N/TC2_N run to the screw terminal raw, NOT to GND - unlike rev A's
+    # MAX31855 whose T- was grounded at the chip, each MAX31856 channel keeps
+    # its own floating differential pair (T- is only soft-referenced near
+    # AGND through the internal ~2k BIAS network, not hard-tied to it).
+    # Ungrounded-junction probes are required on the finished board: both
+    # channels reference T- through that shared internal biasing, so two
+    # grounded-junction probes in one kiln chamber would form a ground loop
+    # through the kiln body (documentation obligation, Task 16 - not a board
+    # change).
+    "U3": dict(lib="Sensor_Temperature", sym="MAX31856",
+               fp="Package_SO:TSSOP-14_4.4x5mm_P0.65mm",
+               fpf="TSSOP-14_4.4x5mm_P0.65mm.kicad_mod",
+               value="MAX31856MUD+", at=(104.0, 56.0, 90),
+               pins={"1": "GND", "2": "TC1_BIAS", "3": "TC1_BIAS",
+                     "4": "TC1_P_F", "5": "+3V3", "6": None, "7": None,
+                     "8": "+3V3", "9": "TC1_CS", "10": "SPI_SCLK",
+                     "11": "SPI_MISO", "12": "SPI_MOSI", "13": None,
+                     "14": "GND"}),
+    "C13": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
+                value="100nF", at=(100.0, 53.0, 90),
+                pins={"1": "+3V3", "2": "GND"}),
+    "C14": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
+                value="100nF", at=(100.0, 59.0, 90),
+                pins={"1": "+3V3", "2": "GND"}),
+    "R14": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="100R 1%", at=(108.0, 54.0, 0),
+                pins={"1": "TC1_P", "2": "TC1_P_F"}),
+    "R15": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="100R 1%", at=(108.0, 58.0, 0),
+                pins={"1": "TC1_N", "2": "TC1_BIAS"}),
+    "C15": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
+                value="100nF", at=(111.0, 56.0, 0),
+                pins={"1": "TC1_P_F", "2": "TC1_BIAS"}),
+    "C16": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
+                value="10nF", at=(111.0, 53.5, 0),
+                pins={"1": "TC1_P_F", "2": "GND"}),
+    "C17": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
+                value="10nF", at=(111.0, 58.5, 0),
+                pins={"1": "TC1_BIAS", "2": "GND"}),
     "J3": dict(lib="Connector", sym="Screw_Terminal_01x02",
-               fp=TBLOCK[0], fpf=TBLOCK[1], value="TC_K", at=(114.0, 65.0, 90),
-               pins={"1": "TC_P", "2": "GND"}),
-    "C8": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
-               value="100nF", at=(100.3, 62.0, 90),
-               pins={"1": "+3V3", "2": "GND"}),
-    "C9": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
-               value="10nF", at=(105.3, 67.5, 0),
-               pins={"1": "TC_P", "2": "GND"}),
+               fp=TBLOCK[0], fpf=TBLOCK[1], value="TC1_K", at=(117.0, 56.0, 90),
+               pins={"1": "TC1_P", "2": "TC1_N"}),
+    # --- Thermocouple channel 2 (load TC) - exact copy of channel 1 above,
+    # 14mm south, TC2_* nets and TC2_CS. ---
+    "U5": dict(lib="Sensor_Temperature", sym="MAX31856",
+               fp="Package_SO:TSSOP-14_4.4x5mm_P0.65mm",
+               fpf="TSSOP-14_4.4x5mm_P0.65mm.kicad_mod",
+               value="MAX31856MUD+", at=(104.0, 70.0, 90),
+               pins={"1": "GND", "2": "TC2_BIAS", "3": "TC2_BIAS",
+                     "4": "TC2_P_F", "5": "+3V3", "6": None, "7": None,
+                     "8": "+3V3", "9": "TC2_CS", "10": "SPI_SCLK",
+                     "11": "SPI_MISO", "12": "SPI_MOSI", "13": None,
+                     "14": "GND"}),
+    "C18": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
+                value="100nF", at=(100.0, 67.0, 90),
+                pins={"1": "+3V3", "2": "GND"}),
+    "C19": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
+                value="100nF", at=(100.0, 73.0, 90),
+                pins={"1": "+3V3", "2": "GND"}),
+    "R16": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="100R 1%", at=(108.0, 68.0, 0),
+                pins={"1": "TC2_P", "2": "TC2_P_F"}),
+    "R17": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="100R 1%", at=(108.0, 72.0, 0),
+                pins={"1": "TC2_N", "2": "TC2_BIAS"}),
+    "C20": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
+                value="100nF", at=(111.0, 70.0, 0),
+                pins={"1": "TC2_P_F", "2": "TC2_BIAS"}),
+    "C21": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
+                value="10nF", at=(111.0, 67.5, 0),
+                pins={"1": "TC2_P_F", "2": "GND"}),
+    "C22": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
+                value="10nF", at=(111.0, 72.5, 0),
+                pins={"1": "TC2_BIAS", "2": "GND"}),
+    "J8": dict(lib="Connector", sym="Screw_Terminal_01x02",
+               fp=TBLOCK[0], fpf=TBLOCK[1], value="TC2_K", at=(117.0, 70.0, 90),
+               pins={"1": "TC2_P", "2": "TC2_N"}),
     # --- SSR output ------------------------------------------------------
     "J4": dict(lib="Connector", sym="Screw_Terminal_01x02",
                fp=TBLOCK[0], fpf=TBLOCK[1], value="SSR", at=(27.0, 55.0, 270),
