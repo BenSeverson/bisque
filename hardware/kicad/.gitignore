@@ -3,4 +3,8 @@ _autosave-*
 
 # Regenerable review byproducts (kicad-happy analyzer runs, datasheet cache)
 analysis/
-datasheets/
+# datasheets/* rather than datasheets/: git cannot re-include a file whose
+# parent directory is excluded, and REV-B-NOTES.md below is a hand-written
+# deliverable, not cache.
+datasheets/*
+!datasheets/REV-B-NOTES.md
