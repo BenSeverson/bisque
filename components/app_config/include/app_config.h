@@ -14,11 +14,13 @@
 #define APP_PIN_SPI_MISO CONFIG_KILN_PIN_SPI_MISO
 #define APP_PIN_SPI_SCLK CONFIG_KILN_PIN_SPI_SCLK
 
-/* --- MAX31855 Thermocouple --- */
-#define APP_PIN_TC_CS CONFIG_KILN_PIN_TC_CS
+/* --- MAX31856 Thermocouple (2 channels on the shared SPI bus) --- */
+#define APP_PIN_TC1_CS CONFIG_KILN_PIN_TC1_CS
+#define APP_PIN_TC2_CS CONFIG_KILN_PIN_TC2_CS
 
-/* --- SSR Output --- */
-#define APP_PIN_SSR CONFIG_KILN_PIN_SSR
+/* --- SSR Outputs (opto-isolated, 2 zones) --- */
+#define APP_PIN_SSR1 CONFIG_KILN_PIN_SSR1
+#define APP_PIN_SSR2 CONFIG_KILN_PIN_SSR2
 
 /* --- ST7796S Display --- */
 #define APP_PIN_LCD_CS  CONFIG_KILN_PIN_LCD_CS
@@ -85,12 +87,27 @@
 #define APP_PIN_ALARM      CONFIG_KILN_PIN_ALARM
 #define APP_PIN_VENT       CONFIG_KILN_PIN_VENT
 #define APP_PIN_LID_SWITCH CONFIG_KILN_PIN_LID_SWITCH
-/* Aux output bank. Routed on the PCB (AUX_A/AUX_B on J7.7/J7.8, GPIO 15/16) but
-   NOT DRIVEN BY ANY CODE YET — declared so the board and firmware agree on what
-   exists. See docs/pin-assignments.md §5 for the intended roles and why the
-   zone-2 SSR role belongs on the 100 ms window rather than the 1 Hz tick. */
-#define APP_PIN_AUX_A CONFIG_KILN_PIN_AUX_A
-#define APP_PIN_AUX_B CONFIG_KILN_PIN_AUX_B
+/* Aux output bank (ULN2003 channels 1-3). Routed and populated on the rev B
+   PCB but NOT DRIVEN BY ANY CODE except AUX1, which components/safety/ drives
+   as the vent. Roles are firmware policy, not wiring — see
+   docs/pin-assignments.md §5. */
+#define APP_PIN_AUX2 CONFIG_KILN_PIN_AUX2
+#define APP_PIN_AUX3 CONFIG_KILN_PIN_AUX3
+
+/* Protected dry-contact inputs. IN1 is the lid switch (APP_PIN_LID_SWITCH). */
+#define APP_PIN_IN_GASFLOW CONFIG_KILN_PIN_IN_GASFLOW
+#define APP_PIN_IN_SPARE   CONFIG_KILN_PIN_IN_SPARE
+
+/* I2C bus: on-board ADE7953 current metering + Qwiic expansion header. */
+#define APP_PIN_I2C_SDA CONFIG_KILN_PIN_I2C_SDA
+#define APP_PIN_I2C_SCL CONFIG_KILN_PIN_I2C_SCL
+
+/* XPT2046 touch controller (on the display module, shared SPI bus). */
+#define APP_PIN_TOUCH_CS  CONFIG_KILN_PIN_TOUCH_CS
+#define APP_PIN_TOUCH_IRQ CONFIG_KILN_PIN_TOUCH_IRQ
+
+/* Hardware watchdog kick — gates both SSR opto channels. */
+#define APP_PIN_WDT_KICK CONFIG_KILN_PIN_WDT_KICK
 /* True when a LOW level means the lid is open. The default is 0 — normally-closed
    wiring, where lid-open is the pulled-up HIGH and a broken wire therefore reads
    open and fails safe. See the Kconfig help. The Kconfig symbol only exists when

@@ -72,10 +72,10 @@ void app_main(void)
     ESP_LOGI(TAG, "SPI bus initialized");
 
     /* ── Thermocouple Init ─────────────────────────── */
-    ESP_ERROR_CHECK(thermocouple_init(APP_SPI_HOST, APP_PIN_TC_CS));
+    ESP_ERROR_CHECK(thermocouple_init(APP_SPI_HOST, APP_PIN_TC1_CS));
 
     /* ── Safety Init ───────────────────────────────── */
-    ESP_ERROR_CHECK(safety_init(APP_PIN_SSR, APP_DEFAULT_MAX_SAFE_TEMP));
+    ESP_ERROR_CHECK(safety_init(APP_PIN_SSR1, APP_DEFAULT_MAX_SAFE_TEMP));
     safety_init_io(APP_PIN_ALARM, APP_PIN_VENT, APP_PIN_LID_SWITCH);
 
     /* ── Firing Engine Init ────────────────────────── */

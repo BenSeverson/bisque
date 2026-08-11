@@ -39,11 +39,11 @@ menu "Bisque Configuration"
             int "SPI SCLK GPIO"
             default 12
 
-        config KILN_PIN_TC_CS
+        config KILN_PIN_TC1_CS
             int "Thermocouple CS GPIO"
             default 10
 
-        config KILN_PIN_SSR
+        config KILN_PIN_SSR1
             int "SSR Output GPIO"
             default 17
 
@@ -95,9 +95,9 @@ menu "Bisque Configuration"
                 different facts here (#184), and a pin configured on a kiln with
                 no relay collapses them.
 
-        config KILN_PIN_AUX_A
+        config KILN_PIN_AUX2
             int "Aux output A GPIO (-1 = disabled)"
-            default -1
+            default 15
             help
                 General-purpose auxiliary output. On the Bisque PCB this net is
                 AUX_A, brought out on aux header J7 pin 7 (GPIO15), with +3V3
@@ -113,21 +113,21 @@ menu "Bisque Configuration"
 
                 Set to -1 to disable.
 
-        config KILN_PIN_AUX_B
+        config KILN_PIN_AUX3
             int "Aux output B GPIO (-1 = disabled)"
-            default -1
+            default 16
             help
                 Second general-purpose auxiliary output. On the Bisque PCB this
                 net is AUX_B, brought out on aux header J7 pin 8 (GPIO16), with
                 +3V3 and GND on pins 1 and 2 of the same connector.
 
-                See KILN_PIN_AUX_A. NOTHING DRIVES THIS PIN YET either.
+                See KILN_PIN_AUX2. NOTHING DRIVES THIS PIN YET either.
 
                 Set to -1 to disable.
 
         config KILN_PIN_LID_SWITCH
             int "Lid/door switch GPIO (-1 = disabled)"
-            default 21
+            default 4
             help
                 GPIO input for a lid/door interlock switch. On the Bisque PCB
                 this net is LID_SW, brought out on aux header J7 pin 6 (GPIO21),
@@ -198,34 +198,130 @@ menu "Bisque Configuration"
 
         config KILN_PIN_BTN_UP
             int "Button Up GPIO"
-            default 4
+            default 38
             help
                 GPIO for the Up/scroll-up navigation button (active-low with internal pull-up).
 
         config KILN_PIN_BTN_DOWN
             int "Button Down GPIO"
-            default 5
+            default 39
             help
                 GPIO for the Down/scroll-down navigation button (active-low with internal pull-up).
 
         config KILN_PIN_BTN_SELECT
             int "Button Select GPIO"
-            default 1
+            default 42
             help
                 GPIO for the Select/enter navigation button (active-low with internal pull-up).
                 Long-press cycles between display screens.
 
         config KILN_PIN_BTN_LEFT
             int "Button Left GPIO"
-            default 6
+            default 40
             help
                 GPIO for the Left navigation button (active-low with internal pull-up).
 
         config KILN_PIN_BTN_RIGHT
             int "Button Right GPIO"
-            default 2
+            default 41
             help
                 GPIO for the Right navigation button (active-low with internal pull-up).
+
+        config KILN_PIN_TC2_CS
+            int "Thermocouple 2 CS GPIO (-1 = disabled)"
+            default 35
+            help
+                Chip select for the second (load) MAX31856 on the shared SPI
+                bus. Populated on the rev B board.
+
+                NOTHING READS THIS PIN YET. The multi-channel thermocouple
+                driver is a follow-on; this exists so the board and the
+                firmware agree on what is routed.
+
+                Set to -1 on any build with only one thermocouple fitted.
+
+        config KILN_PIN_SSR2
+            int "SSR zone 2 output GPIO (-1 = disabled)"
+            default 21
+            help
+                Trigger for the second SSR zone, opto-isolated on the rev B
+                board. Driven from the 100 ms SSR window rather than the 1 Hz
+                firing tick, because zone 2 modulates simultaneously with
+                zone 1.
+
+                NOTHING DRIVES THIS PIN YET. Set to -1 on a single-zone kiln.
+
+        config KILN_PIN_IN_GASFLOW
+            int "Gas-flow interlock input GPIO (-1 = disabled)"
+            default 2
+            help
+                Dry-contact input for a gas-flow switch on the atmosphere
+                purge line. Same conditioning and fail-safe polarity as the
+                lid switch: open contact reads HIGH, so a broken wire reads
+                "no flow".
+
+                NOTHING READS THIS PIN YET.
+
+        config KILN_PIN_IN_SPARE
+            int "Spare protected input GPIO (-1 = disabled)"
+            default 1
+            help
+                Third dry-contact input, unassigned. Same conditioning as the
+                lid and gas-flow inputs.
+
+                NOTHING READS THIS PIN YET.
+
+        config KILN_PIN_I2C_SDA
+            int "I2C SDA GPIO (-1 = disabled)"
+            default 18
+            help
+                I2C data. Carries the on-board ADE7953 current-metering IC and
+                the Qwiic/STEMMA-QT expansion header.
+
+                NO I2C DRIVER EXISTS YET.
+
+        config KILN_PIN_I2C_SCL
+            int "I2C SCL GPIO (-1 = disabled)"
+            default 47
+            help
+                I2C clock. See KILN_PIN_I2C_SDA.
+
+        config KILN_PIN_TOUCH_CS
+            int "Touch controller CS GPIO (-1 = disabled)"
+            default 5
+            help
+                Chip select for the XPT2046 resistive touch controller on the
+                display module. The controller is on the LCD module, not on
+                the Bisque PCB; its clock/data lines are the shared SPI bus.
+
+                NO TOUCH DRIVER EXISTS YET.
+
+        config KILN_PIN_TOUCH_IRQ
+            int "Touch pen-down interrupt GPIO (-1 = disabled)"
+            default 6
+            help
+                Pen-down interrupt from the XPT2046. Lets the firmware skip
+                touch reads until a press occurs rather than polling.
+
+                Set to -1 to poll instead.
+
+        config KILN_PIN_WDT_KICK
+            int "Hardware watchdog kick GPIO (-1 = disabled)"
+            default 36
+            help
+                Square-wave output feeding the charge pump that gates both SSR
+                opto channels. If the firmware stops toggling this pin - or
+                wedges with it stuck high or stuck low - the pump decays and
+                both SSRs de-energize within about a second.
+
+                A charge pump needs TRANSITIONS, which is the whole point: a
+                stuck level fails exactly like a stopped one.
+
+                NOTHING TOGGLES THIS PIN YET, so a rev B board runs with the
+                WDT DEFEAT solder jumper fitted until the kick task lands. A
+                board with neither the jumper nor the kick task will not heat.
+
+                Set to -1 on hardware without the watchdog circuit.
     endmenu
 
     menu "PID Defaults"
