@@ -122,6 +122,14 @@ SCH_AT = {
     # stubs coincide and silently short two nets.
     "C38": (25, 430), "D7": (55, 430), "C39": (85, 430),
     "R46": (115, 430), "Q3": (145, 430), "SJ2": (175, 430),
+    # Test points (Task 13) - fresh area clear of everything else,
+    # 30mm grid (>=28mm apart in x or y), the Task 9/10/11/12 hazard margin:
+    # Device:R/C symbols stacked closer than that let facing pin-label
+    # stubs coincide and silently short two nets.
+    "TP1": (25, 490), "TP2": (55, 490), "TP3": (85, 490), "TP4": (115, 490),
+    "TP5": (145, 490), "TP6": (175, 490),
+    "TP7": (25, 520), "TP8": (55, 520), "TP9": (85, 520), "TP10": (115, 520),
+    "TP11": (145, 520), "TP12": (175, 520),
 }
 
 GROUP_TEXT = [
