@@ -276,6 +276,22 @@ def add_zones(board, nets):
         z.SetThermalReliefSpokeWidth(MM(0.4))
         z.SetPadConnection(pcbnew.ZONE_CONNECTION_THERMAL)
         board.Add(z)
+
+    # Opto-isolation barrier: no GND copper on either layer across the SSR
+    # opto row, or the pour shorts around the barrier the optos exist to make.
+    # A rule area (not a zone) - _gnd_islands() skips these by design.
+    ka = pcbnew.ZONE(board)
+    ka.SetIsRuleArea(True)
+    ka.SetDoNotAllowZoneFills(True)
+    ka.SetDoNotAllowTracks(False)
+    ka.SetDoNotAllowVias(True)
+    ka.SetLayerSet(pcbnew.LSET(
+        [pcbnew.F_Cu, pcbnew.B_Cu]))
+    ol = ka.Outline()
+    ol.NewOutline()
+    for (x, y) in [(20.5, 70.0), (34.0, 70.0), (34.0, 96.0), (20.5, 96.0)]:
+        ol.Append(MM(x), MM(y))
+    board.Add(ka)
     return
 
 

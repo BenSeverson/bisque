@@ -59,9 +59,11 @@ SCH_AT = {
     "U5": (250, 135), "C18": (268, 135), "C19": (286, 135), "R16": (304, 135),
     "R17": (322, 135), "C20": (340, 135), "C21": (358, 135), "C22": (376, 135),
     "J8": (394, 135),
-    # ssr row (right)
-    "Q1": (235, 155), "R6": (270, 153), "R7": (296, 155), "J4": (326, 155),
-    "LED3": (356, 153), "R10": (384, 155),
+    # ssr rows (right) - two opto-isolated channels, ch2 8mm south of ch1
+    "U8": (210, 155), "R6": (240, 153), "R7": (266, 157), "LED3": (296, 153),
+    "R10": (296, 163), "R18": (326, 157), "J4": (356, 155),
+    "U9": (213, 178), "R19": (243, 176), "R20": (269, 180), "LED4": (299, 176),
+    "R21": (299, 186), "R22": (329, 180), "J9": (359, 178),
     # buzzer row (right)
     "BZ1": (235, 195), "Q2": (266, 197), "R11": (296, 193), "R8": (322, 197),
     "D4": (350, 193),
@@ -88,14 +90,17 @@ GROUP_TEXT = [
     ("ESP32-S3-WROOM-1  (GPIOs = firmware Kconfig defaults)", 140, 130),
     ("THERMOCOUPLE 1 (control)  MAX31856  (T- floats to J3, biased via BIAS)", 225, 82),
     ("THERMOCOUPLE 2 (load)  MAX31856  (T- floats to J8, biased via BIAS)", 225, 122),
-    ("SSR DRIVE  (low-side switch, J4 supplies the +5V loop)", 225, 138),
+    ("SSR DRIVE x2  (opto-isolated, LTV-817S; indicator LED parallel branch)",
+     195, 143),
     ("ALARM BUZZER", 225, 180),
     ("MOUNTING / POWER FLAGS", 290, 238),
 ]
 
 NOTES = (
     "Bisque kiln controller  -  ESP32-S3-WROOM-1\\n"
-    "SSR terminal J4: +5V / SSR- loop, switched low-side by Q1 (boot-safe: R7 pulldown)\\n"
+    "SSR terminals J4/J9: opto-isolated (LTV-817S), boot-safe (R7/R20 pulldown).\\n"
+    "SSR1_A/B, SSR2_A/B float - no GND/+3V3/+5V on the isolated side.\\n"
+    "SSR_EN is the shared opto+indicator cathode return, gated by the watchdog.\\n"
     "TC1 terminal J3 / TC2 terminal J8: pin1 = K+, pin2 = K- - both float, biased near\\n"
     "AGND only through each MAX31856's internal BIAS network. Ungrounded-junction\\n"
     "probes required: two grounded-junction probes in one kiln would loop through it.\\n"

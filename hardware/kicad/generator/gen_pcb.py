@@ -135,7 +135,7 @@ USB_STUB_TERMS = {
 
 ROUTE_ORDER = [
     ("VIN", 0.8), ("+5V", 0.7), ("+3V3", 0.7), ("VLED", 0.5), ("VBUS", 0.4),
-    ("LEDP_K", 0.3), ("LEDS_K", 0.3), ("SSR_GATE", 0.3), ("SSR_OUT", 0.6),
+    ("LEDP_K", 0.3),
     ("BUZZ_GATE", 0.3), ("BUZZ_K", 0.5), ("WS_DIN", 0.3),
     ("CC1", 0.25), ("CC2", 0.25), ("USB_DN", 0.25), ("USB_DP", 0.25),
     ("EN", 0.3), ("IO0", 0.3),
@@ -147,7 +147,7 @@ ROUTE_ORDER = [
     ("VENT", 0.3), ("LID_IN", 0.3), ("LID_SW", 0.3), ("LED_DATA", 0.3),
     # west-column escapes, south -> north (first net hugs the column, the
     # rest pass above its start row and take the next lane west)
-    ("SSR_CTRL", 0.3), ("AUX_B", 0.3), ("AUX_A", 0.3), ("ALARM", 0.3),
+    ("AUX_B", 0.3), ("AUX_A", 0.3), ("ALARM", 0.3),
     ("BTN_LEFT", 0.3), ("BTN_DOWN", 0.3), ("BTN_UP", 0.3),
     # right-column escapes, south -> north
     ("RXD0", 0.3), ("TXD0", 0.3), ("BTN_RIGHT", 0.3), ("BTN_SEL", 0.3),

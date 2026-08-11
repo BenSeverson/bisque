@@ -286,25 +286,91 @@ COMPONENTS = {
     "J8": dict(lib="Connector", sym="Screw_Terminal_01x02",
                fp=TBLOCK[0], fpf=TBLOCK[1], value="TC2_K", at=(117.0, 70.0, 90),
                pins={"1": "TC2_P", "2": "TC2_N"}),
-    # --- SSR output ------------------------------------------------------
-    "J4": dict(lib="Connector", sym="Screw_Terminal_01x02",
-               fp=TBLOCK[0], fpf=TBLOCK[1], value="SSR", at=(27.0, 55.0, 270),
-               pins={"1": "+5V", "2": "SSR_OUT"}),
+    # --- SSR output: two opto-isolated channels ---------------------------
+    # LTV-817S-TA1-C (REV-B-NOTES.md SS7). Pinout confirmed from the Lite-On
+    # datasheet SS2.3: 1 anode, 2 cathode, 3 emitter, 4 collector - matches
+    # KiCad's unnamed Isolator:LTV-817 pin order.
+    #
+    # Footprint: NONE of the brief's four SO-4_4.4x*_P2.54mm candidates fit -
+    # all measure ~6.0-6.3mm pad span; the datasheet's own package drawing
+    # (SS2.3) and LCSC's independently-decoded footprint both call for a
+    # ~10.16/10.00mm gull-wing lead span. REV-B-NOTES.md SS7b: "choosing any
+    # of the four would place each pad roughly 1.85mm per side inboard of the
+    # actual gull-wing feet - the part would not land on copper at all."
+    # Using Package_DIP:SMDIP-4_W9.53mm instead (9.53mm span, the closest
+    # stock KiCad part per the notes: ~0.32mm heel / ~0.69mm toe, 0.235mm/side
+    # inboard of LCSC's geometry - acceptable, not ideal, and the least-bad
+    # stock option short of hand-drawing to LCSC's exact geometry). The
+    # _Clearance8mm variant is NOT used: that extra creepage is a mains-
+    # crossing provision, and this barrier is low-voltage on both sides -
+    # the extra 8mm creepage would only burn density-constrained board area.
+    #
+    # GPIO -> R(series) -> opto LED anode -> cathode -> SSR_EN, with the
+    # indicator LED as a PARALLEL branch off the same GPIO (not in series:
+    # ~2.0V indicator + ~1.2V opto leaves nothing to drop from 3.3V). Both
+    # the opto LED cathode and the indicator LED cathode land on SSR_EN,
+    # never GND directly - Task 12's watchdog MOSFET gates SSR_EN as the
+    # shared return path for both LEDs, so an indicator that stayed lit
+    # while the watchdog had cut the SSR would misreport the board's state.
+    # R7/R20 (10k) pulldown each GPIO so both opto LEDs stay dark through
+    # boot and reset.
+    #
+    # 220R series, 3.3V GPIO: I_F = (3.3 - V_F) / 220R. Datasheet SS4.2/Fig.4
+    # (REV-B-NOTES.md SS7c): V_F ~1.09V typ at 5mA, ~1.4V worst-case max
+    # (only specified at 20mA) -> I_F ~8.6-10.1mA. That clears the notes'
+    # "do not drive below 5mA" floor (CTR is only guaranteed at the bin's
+    # 5mA test condition and falls off steeply below it) with margin, and at
+    # I_F >= 5mA the CTR-C bin (200-400% @ 5mA) guarantees I_C >= 10mA min,
+    # comfortably inside the SSR input's few-mA trigger requirement.
+    "U8": dict(lib="Isolator", sym="LTV-817",
+               fp="Package_DIP:SMDIP-4_W9.53mm",
+               fpf="SMDIP-4_W9.53mm.kicad_mod",
+               value="LTV-817S-TA1-C", at=(30.0, 78.0, 0),
+               pins={"1": "SSR1_LED_A", "2": "SSR_EN",
+                     "3": "SSR1_B", "4": "SSR1_A"}),
     "R6": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
-               value="100R", at=(46.0, 53.0, 180),
-               pins={"1": "SSR_CTRL", "2": "SSR_GATE"}),
+               value="220R", at=(36.0, 78.0, 180),
+               pins={"1": "SSR1_CTRL", "2": "SSR1_LED_A"}),
     "R7": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
-               value="10k", at=(41.0, 52.0, 90),
-               pins={"1": "SSR_GATE", "2": "GND"}),
-    "Q1": dict(lib="Transistor_FET", sym="AO3400A", fp=SOT23[0], fpf=SOT23[1],
-               value="AO3400A", at=(42.0, 57.0, 0),
-               pins={"1": "SSR_GATE", "2": "GND", "3": "SSR_OUT"}),
+               value="10k", at=(40.0, 76.0, 90),
+               pins={"1": "SSR1_CTRL", "2": "GND"}),
     "LED3": dict(lib="Device", sym="LED", fp=LED0805[0], fpf=LED0805[1],
-                 value="amber", at=(33.0, 50.0, 270),
-                 pins={"1": "LEDS_K", "2": "+5V"}),
+                 value="amber", at=(24.5, 74.0, 270),
+                 pins={"1": "SSR1_IND_K", "2": "SSR1_IND_A"}),
     "R10": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
-                value="680R", at=(36.5, 50.0, 90),
-                pins={"1": "SSR_OUT", "2": "LEDS_K"}),
+                value="680R", at=(28.0, 74.0, 90),
+                pins={"1": "SSR1_CTRL", "2": "SSR1_IND_A"}),
+    "R18": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="0R", at=(24.5, 71.0, 0),
+                pins={"1": "SSR1_IND_K", "2": "SSR_EN"}),
+    "J4": dict(lib="Connector", sym="Screw_Terminal_01x02",
+               fp=TBLOCK[0], fpf=TBLOCK[1], value="SSR1", at=(22.5, 82.0, 270),
+               pins={"1": "SSR1_A", "2": "SSR1_B"}),
+    # --- SSR channel 2: exact copy of channel 1, 8mm south -----------------
+    "U9": dict(lib="Isolator", sym="LTV-817",
+               fp="Package_DIP:SMDIP-4_W9.53mm",
+               fpf="SMDIP-4_W9.53mm.kicad_mod",
+               value="LTV-817S-TA1-C", at=(30.0, 86.0, 0),
+               pins={"1": "SSR2_LED_A", "2": "SSR_EN",
+                     "3": "SSR2_B", "4": "SSR2_A"}),
+    "R19": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="220R", at=(36.0, 86.0, 180),
+                pins={"1": "SSR2_CTRL", "2": "SSR2_LED_A"}),
+    "R20": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="10k", at=(40.0, 84.0, 90),
+                pins={"1": "SSR2_CTRL", "2": "GND"}),
+    "LED4": dict(lib="Device", sym="LED", fp=LED0805[0], fpf=LED0805[1],
+                 value="amber", at=(24.5, 90.0, 270),
+                 pins={"1": "SSR2_IND_K", "2": "SSR2_IND_A"}),
+    "R21": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="680R", at=(28.0, 90.0, 90),
+                pins={"1": "SSR2_CTRL", "2": "SSR2_IND_A"}),
+    "R22": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="0R", at=(24.5, 93.0, 0),
+                pins={"1": "SSR2_IND_K", "2": "SSR_EN"}),
+    "J9": dict(lib="Connector", sym="Screw_Terminal_01x02",
+               fp=TBLOCK[0], fpf=TBLOCK[1], value="SSR2", at=(22.5, 90.0, 270),
+               pins={"1": "SSR2_A", "2": "SSR2_B"}),
     # --- Buzzer ----------------------------------------------------------
     "BZ1": dict(lib="Device", sym="Buzzer",
                 fp="Buzzer_Beeper:Buzzer_12x9.5RM7.6",
