@@ -20,9 +20,21 @@ docs/pin-assignments.md — keep that table in sync with this one.
 """
 
 # --- board outline (mm, page coords) ---
-BX0, BY0, BX1, BY1 = 20.0, 20.0, 120.0, 100.0   # 100 x 80 mm
+BX0, BY0, BX1, BY1 = 20.0, 20.0, 120.0, 120.0   # 100 x 100 mm
 
-# net name -> netclass ("signal" default)
+# Placement regions (docs/.../2026-08-10-pcb-rev-b-hardware-design.md §6.2).
+# The quiet analog region holds both thermocouple cold junctions and the CT
+# front-end; keep it away from the ULN2003 and the SSR optos.
+#   digital   x 20..120  y 20..48   module, USB-C, reclaimed antenna band
+#   switching x 20..60   y 50..92   ULN2003, SSR optos, watchdog, buzzer
+#   analog    x 92..120  y 50..92   MAX31856 x2, ADE7953, CT front-end
+#   headers   x 20..120  y 94..120  LCD / nav / aux / I2C, screw terminals
+#   barrier   x 20..60   y 74..92   GND pour keepout across the opto row
+
+# net name -> netclass ("signal" default).
+# AUX_VP is an externally supplied coil rail the board does not generate, and
+# the SSR_* nets are on the isolated side of the opto barrier — neither may
+# join the GND/power pour logic.
 POWER_NETS = {"GND", "+5V", "+3V3", "VBUS", "VIN", "VLED"}
 
 # ---------------------------------------------------------------------------
@@ -67,7 +79,7 @@ COMPONENTS = {
                value="SS34", at=(38.0, 28.0, 180),
                pins={"1": "+5V", "2": "VIN"}),
     "D2": dict(lib="Device", sym="D_Schottky", fp=SMA[0], fpf=SMA[1],
-               value="SS34", at=(102.5, 86.0, 270),
+               value="SS34", at=(102.5, 106.0, 270),
                pins={"1": "+5V", "2": "VBUS"}),
     "U2": dict(lib="Regulator_Linear", sym="AMS1117-3.3",
                fp="Package_TO_SOT_SMD:SOT-223-3_TabPin2",
@@ -131,7 +143,7 @@ COMPONENTS = {
     "J1": dict(lib="Connector", sym="USB_C_Receptacle_USB2.0_16P",
                fp="Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12",
                fpf="USB_C_Receptacle_HRO_TYPE-C-31-M-12.kicad_mod",
-               value="USB-C", at=(96.0, 95.6, 0),
+               value="USB-C", at=(96.0, 115.6, 0),
                pins={"A1": "GND", "A12": "GND", "B1": "GND", "B12": "GND",
                      "A4": "VBUS", "A9": "VBUS", "B4": "VBUS", "B9": "VBUS",
                      "A5": "CC1", "B5": "CC2",
@@ -141,14 +153,14 @@ COMPONENTS = {
                      # shield pin: "S1" in KiCad <=9 libs, "SH" in KiCad 10
                      "S1": "GND", "SH": "GND"}),
     "R4": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
-               value="5.1k", at=(91.0, 88.0, 90),
+               value="5.1k", at=(91.0, 108.0, 90),
                pins={"1": "CC1", "2": "GND"}),
     "R5": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
-               value="5.1k", at=(103.5, 97.9, 0),
+               value="5.1k", at=(103.5, 117.9, 0),
                pins={"1": "CC2", "2": "GND"}),
     "U4": dict(lib="Power_Protection", sym="USBLC6-2SC6",
                fp="Package_TO_SOT_SMD:SOT-23-6", fpf="SOT-23-6.kicad_mod",
-               value="USBLC6-2SC6", at=(96.0, 82.0, 90),
+               value="USBLC6-2SC6", at=(96.0, 102.0, 90),
                pins={"1": "USB_DN", "6": "USB_DN",
                      "3": "USB_DP", "4": "USB_DP",
                      "5": "VBUS", "2": "GND"}),
@@ -192,34 +204,34 @@ COMPONENTS = {
     "BZ1": dict(lib="Device", sym="Buzzer",
                 fp="Buzzer_Beeper:Buzzer_12x9.5RM7.6",
                 fpf="Buzzer_12x9.5RM7.6.kicad_mod",
-                value="active 5V", at=(38.0, 78.0, 0),
+                value="active 5V", at=(38.0, 98.0, 0),
                 pins={"1": "+5V", "2": "BUZZ_K"}),
     "D4": dict(lib="Device", sym="D", fp="Diode_SMD:D_SOD-123",
-               fpf="D_SOD-123.kicad_mod", value="1N4148W", at=(49.5, 84.0, 0),
+               fpf="D_SOD-123.kicad_mod", value="1N4148W", at=(49.5, 104.0, 0),
                pins={"1": "+5V", "2": "BUZZ_K"}),
     "Q2": dict(lib="Transistor_FET", sym="AO3400A", fp=SOT23[0], fpf=SOT23[1],
-               value="AO3400A", at=(58.0, 80.0, 0),
+               value="AO3400A", at=(58.0, 100.0, 0),
                pins={"1": "BUZZ_GATE", "2": "GND", "3": "BUZZ_K"}),
     "R11": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
-                value="100R", at=(58.8, 74.0, 0),
+                value="100R", at=(58.8, 94.0, 0),
                 pins={"1": "ALARM", "2": "BUZZ_GATE"}),
     "R8": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
-               value="10k", at=(62.0, 77.5, 90),
+               value="10k", at=(62.0, 97.5, 90),
                pins={"1": "BUZZ_GATE", "2": "GND"}),
     # --- WS2812B status LED ---------------------------------------------
     "LED1": dict(lib="LED", sym="WS2812B",
                  fp="LED_SMD:LED_WS2812B_PLCC4_5.0x5.0mm_P3.2mm",
                  fpf="LED_WS2812B_PLCC4_5.0x5.0mm_P3.2mm.kicad_mod",
-                 value="WS2812B", at=(75.0, 86.0, 0),
+                 value="WS2812B", at=(75.0, 106.0, 0),
                  pins={"1": "VLED", "2": None, "3": "GND", "4": "WS_DIN"}),
     "R3": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
-               value="330R", at=(82.0, 84.35, 180),
+               value="330R", at=(82.0, 104.35, 180),
                pins={"1": "LED_DATA", "2": "WS_DIN"}),
     "D3": dict(lib="Device", sym="D_Schottky", fp=SMA[0], fpf=SMA[1],
-               value="SS14", at=(72.55, 79.5, 90),
+               value="SS14", at=(72.55, 99.5, 90),
                pins={"1": "VLED", "2": "+5V"}),
     "C10": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
-                value="100nF", at=(69.0, 81.5, 0),
+                value="100nF", at=(69.0, 101.5, 0),
                 pins={"1": "VLED", "2": "GND"}),
     # --- Lid/door switch input conditioning -------------------------------
     # LID_SW (IO21) is the one GPIO input whose cable leaves the enclosure
@@ -249,19 +261,19 @@ COMPONENTS = {
     # beside C12 forced a 0.7 mm-wide +3V3 spur across the F.Cu pour above
     # J7.1/J7.2, which starved J7.2's thermal relief (DRC error).
     "R12": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
-                value="1k", at=(87.3, 87.6, 180),
+                value="1k", at=(87.3, 107.6, 180),
                 pins={"1": "LID_IN", "2": "LID_SW"}),
     "R13": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
-                value="10k", at=(83.5, 81.5, 0),
+                value="10k", at=(83.5, 101.5, 0),
                 pins={"1": "+3V3", "2": "LID_SW"}),
     "C12": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
-                value="100nF", at=(83.8, 87.6, 0),
+                value="100nF", at=(83.8, 107.6, 0),
                 pins={"1": "LID_SW", "2": "GND"}),
     # --- Headers ---------------------------------------------------------
     "J5": dict(lib="Connector_Generic", sym="Conn_01x08",
                fp="Connector_Molex:Molex_KK-254_AE-6410-08A_1x08_P2.54mm_Vertical",
                fpf="Molex_KK-254_AE-6410-08A_1x08_P2.54mm_Vertical.kicad_mod",
-               value="DISPLAY", at=(31.0, 95.0, 0),
+               value="DISPLAY", at=(31.0, 115.0, 0),
                # LCDWIKI 4.0" MSP4020/MSP4021 (ST7796S, 480x320): pin order
                # VCC/GND/CS/RESET/DC/SDI(MOSI)/SCK/LED matches 1-8 exactly.
                # VCC accepts 3.3-5V per the module's own manual, and every
@@ -275,18 +287,18 @@ COMPONENTS = {
                      "5": "LCD_DC", "6": "SPI_MOSI", "7": "SPI_SCLK",
                      "8": "LCD_BL"}),
     "C11": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
-                value="10uF", at=(26.5, 90.5, 0),
+                value="10uF", at=(26.5, 110.5, 0),
                 pins={"1": "+5V", "2": "GND"}),
     "J6": dict(lib="Connector_Generic", sym="Conn_01x06",
                fp="Connector_Molex:Molex_KK-254_AE-6410-06A_1x06_P2.54mm_Vertical",
                fpf="Molex_KK-254_AE-6410-06A_1x06_P2.54mm_Vertical.kicad_mod",
-               value="NAV_SW", at=(53.0, 95.0, 0),
+               value="NAV_SW", at=(53.0, 115.0, 0),
                pins={"1": "BTN_UP", "2": "BTN_DOWN", "3": "BTN_LEFT",
                      "4": "BTN_RIGHT", "5": "BTN_SEL", "6": "GND"}),
     "J7": dict(lib="Connector_Generic", sym="Conn_01x08",
                fp="Connector_Molex:Molex_KK-254_AE-6410-08A_1x08_P2.54mm_Vertical",
                fpf="Molex_KK-254_AE-6410-08A_1x08_P2.54mm_Vertical.kicad_mod",
-               value="AUX", at=(70.5, 95.0, 0),
+               value="AUX", at=(70.5, 115.0, 0),
                pins={"1": "+3V3", "2": "GND", "3": "TXD0", "4": "RXD0",
                      # pin 6 is the raw lid-switch input: it reaches U1.23
                      # (LID_SW) through the R12/R13/C12 filter above, not
@@ -305,11 +317,11 @@ COMPONENTS = {
     "H3": dict(lib="Mechanical", sym="MountingHole_Pad",
                fp="MountingHole:MountingHole_3.2mm_M3_Pad_Via",
                fpf="MountingHole_3.2mm_M3_Pad_Via.kicad_mod",
-               value="M3", at=(25.5, 95.0, 0), pins={"1": "GND"}),
+               value="M3", at=(25.5, 115.0, 0), pins={"1": "GND"}),
     "H4": dict(lib="Mechanical", sym="MountingHole_Pad",
                fp="MountingHole:MountingHole_3.2mm_M3_Pad_Via",
                fpf="MountingHole_3.2mm_M3_Pad_Via.kicad_mod",
-               value="M3", at=(115.5, 95.0, 0), pins={"1": "GND"}),
+               value="M3", at=(115.5, 115.0, 0), pins={"1": "GND"}),
 }
 
 # power flag symbols (schematic only): net -> flag
