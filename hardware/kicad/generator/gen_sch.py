@@ -64,6 +64,15 @@ SCH_AT = {
     "R10": (296, 163), "R18": (326, 157), "J4": (356, 155),
     "U9": (213, 178), "R19": (243, 176), "R20": (269, 180), "LED4": (299, 176),
     "R21": (299, 186), "R22": (329, 180), "J9": (359, 178),
+    # aux output bank (vent/purge/spare) - own row, clear of everything else.
+    # Device:R symbols need >12.7mm vertical spacing when stacked at the same
+    # x: each pin's label stub extends 2.54mm past the pin (at +-3.81mm from
+    # the symbol origin), so facing pins on adjacent resistors land their
+    # *labels* on the same point - a short - even once the pins themselves
+    # are clear. 20mm gives solid margin; this is exactly the Task 7 hazard
+    # the brief warned about (it hit the pin-point version of this).
+    "U6": (60, 300), "R23": (94, 280), "R24": (94, 300), "R25": (94, 320),
+    "J10": (140, 300), "SJ1": (170, 280),
     # buzzer row (right)
     "BZ1": (235, 195), "Q2": (266, 197), "R11": (296, 193), "R8": (322, 197),
     "D4": (350, 193),
@@ -94,6 +103,8 @@ GROUP_TEXT = [
      195, 143),
     ("ALARM BUZZER", 225, 180),
     ("MOUNTING / POWER FLAGS", 290, 238),
+    ("AUX OUTPUT BANK  (ULN2003 vent/purge/spare; COM->AUX_VP, SJ1 links to +5V)",
+     25, 280),
 ]
 
 NOTES = (

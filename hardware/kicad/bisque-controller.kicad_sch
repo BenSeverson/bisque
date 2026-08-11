@@ -4136,6 +4136,1031 @@
 		)
 		(embedded_fonts no)
 	)
+		(symbol "Transistor_Array:ULN2003A"
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(property "Reference" "U"
+			(at 0 15.875 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "ULN2003A"
+			(at 0 13.97 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 1.27 -13.97 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" "http://www.ti.com/lit/ds/symlink/uln2003a.pdf"
+			(at 2.54 -5.08 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "High Voltage, High Current Darlington Transistor Arrays, SOIC16/SOIC16W/DIP16/TSSOP16"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_keywords" "darlington transistor array"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_fp_filters" "DIP*W7.62mm* SOIC*3.9x9.9mm*P1.27mm* SSOP*4.4x5.2mm*P0.65mm* TSSOP*4.4x5mm*P0.65mm* SOIC*W*5.3x10.2mm*P1.27mm*"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(symbol "ULN2003A_0_1"
+			(rectangle
+				(start -7.62 -12.7)
+				(end 7.62 12.7)
+				(stroke
+					(width 0.254)
+					(type default)
+				)
+				(fill
+					(type background)
+				)
+			)
+			(polyline
+				(pts
+					(xy -4.572 5.08)
+					(xy -3.556 5.08)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy -3.556 6.096)
+					(xy -3.556 4.064)
+					(xy -2.032 5.08)
+					(xy -3.556 6.096)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(circle
+				(center -1.778 5.08)
+				(radius 0.254)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy -1.524 5.08)
+					(xy 4.064 5.08)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(circle
+				(center -1.27 2.54)
+				(radius 0.254)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type outline)
+				)
+			)
+			(circle
+				(center -1.27 0)
+				(radius 0.254)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type outline)
+				)
+			)
+			(circle
+				(center -1.27 -2.286)
+				(radius 0.254)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type outline)
+				)
+			)
+			(circle
+				(center -0.508 5.08)
+				(radius 0.254)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type outline)
+				)
+			)
+			(polyline
+				(pts
+					(xy -0.508 5.08)
+					(xy -0.508 10.16)
+					(xy 2.921 10.16)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 0 6.731)
+					(xy -1.016 6.731)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 0 5.969)
+					(xy -1.016 5.969)
+					(xy -0.508 6.731)
+					(xy 0 5.969)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+		)
+		(symbol "ULN2003A_1_1"
+			(pin input line
+				(at -10.16 5.08 0)
+				(length 2.54)
+				(name "I1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin input line
+				(at -10.16 2.54 0)
+				(length 2.54)
+				(name "I2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin input line
+				(at -10.16 0 0)
+				(length 2.54)
+				(name "I3"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "3"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin input line
+				(at -10.16 -2.54 0)
+				(length 2.54)
+				(name "I4"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "4"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin input line
+				(at -10.16 -5.08 0)
+				(length 2.54)
+				(name "I5"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "5"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin input line
+				(at -10.16 -7.62 0)
+				(length 2.54)
+				(name "I6"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "6"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin input line
+				(at -10.16 -10.16 0)
+				(length 2.54)
+				(name "I7"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "7"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin power_in line
+				(at 0 -15.24 90)
+				(length 2.54)
+				(name "GND"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "8"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin passive line
+				(at 10.16 10.16 180)
+				(length 2.54)
+				(name "COM"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "9"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin open_collector line
+				(at 10.16 -10.16 180)
+				(length 2.54)
+				(name "O7"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "10"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin open_collector line
+				(at 10.16 -7.62 180)
+				(length 2.54)
+				(name "O6"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "11"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin open_collector line
+				(at 10.16 -5.08 180)
+				(length 2.54)
+				(name "O5"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "12"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin open_collector line
+				(at 10.16 -2.54 180)
+				(length 2.54)
+				(name "O4"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "13"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin open_collector line
+				(at 10.16 0 180)
+				(length 2.54)
+				(name "O3"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "14"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin open_collector line
+				(at 10.16 2.54 180)
+				(length 2.54)
+				(name "O2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "15"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin open_collector line
+				(at 10.16 5.08 180)
+				(length 2.54)
+				(name "O1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "16"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+		)
+		(embedded_fonts no)
+	)
+		(symbol "Connector:Screw_Terminal_01x04"
+		(pin_names
+			(offset 1.016)
+			(hide yes)
+		)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(property "Reference" "J"
+			(at 0 5.08 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "Screw_Terminal_01x04"
+			(at 0 -7.62 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_keywords" "screw terminal"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_fp_filters" "TerminalBlock*:*"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(symbol "Screw_Terminal_01x04_1_1"
+			(rectangle
+				(start -1.27 3.81)
+				(end 1.27 -6.35)
+				(stroke
+					(width 0.254)
+					(type default)
+				)
+				(fill
+					(type background)
+				)
+			)
+			(polyline
+				(pts
+					(xy -0.5334 2.8702)
+					(xy 0.3302 2.032)
+				)
+				(stroke
+					(width 0.1524)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy -0.5334 0.3302)
+					(xy 0.3302 -0.508)
+				)
+				(stroke
+					(width 0.1524)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy -0.5334 -2.2098)
+					(xy 0.3302 -3.048)
+				)
+				(stroke
+					(width 0.1524)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy -0.5334 -4.7498)
+					(xy 0.3302 -5.588)
+				)
+				(stroke
+					(width 0.1524)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy -0.3556 3.048)
+					(xy 0.508 2.2098)
+				)
+				(stroke
+					(width 0.1524)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy -0.3556 0.508)
+					(xy 0.508 -0.3302)
+				)
+				(stroke
+					(width 0.1524)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy -0.3556 -2.032)
+					(xy 0.508 -2.8702)
+				)
+				(stroke
+					(width 0.1524)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy -0.3556 -4.572)
+					(xy 0.508 -5.4102)
+				)
+				(stroke
+					(width 0.1524)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(circle
+				(center 0 2.54)
+				(radius 0.635)
+				(stroke
+					(width 0.1524)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(circle
+				(center 0 0)
+				(radius 0.635)
+				(stroke
+					(width 0.1524)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(circle
+				(center 0 -2.54)
+				(radius 0.635)
+				(stroke
+					(width 0.1524)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(circle
+				(center 0 -5.08)
+				(radius 0.635)
+				(stroke
+					(width 0.1524)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(pin passive line
+				(at -5.08 2.54 0)
+				(length 3.81)
+				(name "Pin_1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin passive line
+				(at -5.08 0 0)
+				(length 3.81)
+				(name "Pin_2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin passive line
+				(at -5.08 -2.54 0)
+				(length 3.81)
+				(name "Pin_3"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "3"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin passive line
+				(at -5.08 -5.08 0)
+				(length 3.81)
+				(name "Pin_4"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "4"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+		)
+		(embedded_fonts no)
+	)
+		(symbol "Jumper:SolderJumper_2_Open"
+		(pin_numbers
+			(hide yes)
+		)
+		(pin_names
+			(offset 0)
+			(hide yes)
+		)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(property "Reference" "JP"
+			(at 0 2.032 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "SolderJumper_2_Open"
+			(at 0 -2.54 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 -7.62 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Solder Jumper, 2-pole, open"
+			(at 0 -5.08 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_keywords" "solder jumper SPST"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_fp_filters" "SolderJumper*Open*"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(symbol "SolderJumper_2_Open_0_1"
+			(polyline
+				(pts
+					(xy -0.254 1.016)
+					(xy -0.254 -1.016)
+				)
+				(stroke
+					(width 0.1524)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(arc
+				(start -0.254 -1.016)
+				(mid -1.2656 0)
+				(end -0.254 1.016)
+				(stroke
+					(width 0.1524)
+					(type default)
+				)
+				(fill
+					(type outline)
+				)
+			)
+			(arc
+				(start 0.254 1.016)
+				(mid 1.2656 0)
+				(end 0.254 -1.016)
+				(stroke
+					(width 0.1524)
+					(type default)
+				)
+				(fill
+					(type outline)
+				)
+			)
+			(polyline
+				(pts
+					(xy 0.254 1.016)
+					(xy 0.254 -1.016)
+				)
+				(stroke
+					(width 0.1524)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+		)
+		(symbol "SolderJumper_2_Open_1_1"
+			(pin passive line
+				(at -5.08 0 0)
+				(length 3.81)
+				(name "A"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin passive line
+				(at 5.08 0 180)
+				(length 3.81)
+				(name "B"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+		)
+		(embedded_fonts no)
+	)
 		(symbol "Device:Buzzer"
 		(pin_names
 			(offset 0.0254)
@@ -9207,6 +10232,382 @@
 			(effects (font (size 1.27 1.27)) hide)
 		)
 	)
+	(symbol (lib_id "Transistor_Array:ULN2003A") (at 59.69 299.72 0) (unit 1)
+		(in_bom yes) (on_board yes) (dnp no)
+		(uuid a247dd51-6608-5380-a783-992c0b9e8b44)
+		(property "Reference" "U6" (at 49.53 285.75 0)
+			(effects (font (size 1.27 1.27)) (justify left))
+		)
+		(property "Value" "ULN2003A" (at 49.53 287.65 0)
+			(effects (font (size 1.27 1.27)) (justify left))
+		)
+		(property "Footprint" "Package_SO:SOIC-16_3.9x9.9mm_P1.27mm" (at 59.69 299.72 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(property "Datasheet" "http://www.ti.com/lit/ds/symlink/uln2003a.pdf" (at 59.69 299.72 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(property "Description" "High Voltage, High Current Darlington Transistor Arrays, SOIC16/SOIC16W/DIP16/TSSOP16" (at 59.69 299.72 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(pin "1" (uuid ba28e1d8-3ccf-5181-9822-93e51459255d))
+		(pin "2" (uuid 70db0bc7-66d3-5123-b168-05f9566d4083))
+		(pin "3" (uuid 27acc64f-d03b-59b6-abbd-79eecc49793d))
+		(pin "4" (uuid 86f01f62-5461-54bb-8b8b-44a1d18a130a))
+		(pin "5" (uuid 4e026ec4-921b-5511-a2c4-fb46f5c173e2))
+		(pin "6" (uuid b608d30c-7835-5ab6-9c33-d6a5ba0bb72d))
+		(pin "7" (uuid 0b0850cf-7005-55f9-b031-72823a25cf5b))
+		(pin "8" (uuid d8953b8c-a08b-5732-81fa-81651021f99f))
+		(pin "9" (uuid 68e6b4da-d60c-5d5a-a0e5-036a7e7478df))
+		(pin "10" (uuid 40f112a0-9cbe-55a5-909c-040a9db9731a))
+		(pin "11" (uuid 8b07a462-5f49-520a-97c3-a0bf51661cd1))
+		(pin "12" (uuid 7261f087-7af8-589e-8582-46426f92b8bf))
+		(pin "13" (uuid a92e7a2c-d44a-5ed7-be64-c0856534e185))
+		(pin "14" (uuid 3fbc0250-d0a3-5175-b143-49b90750fb7f))
+		(pin "15" (uuid 5ed8e7ce-f4dd-54bf-9474-eb4e9066a732))
+		(pin "16" (uuid ac00cb35-095e-559a-bfd4-f1d9da7c5ca6))
+		(instances (project "bisque-controller" (path "/f24e0cd2-71c5-510c-9d15-562ab64c4388" (reference "U6") (unit 1))))
+	)
+	(wire (pts (xy 49.53 294.64) (xy 46.99 294.64))
+		(stroke (width 0) (type default))
+		(uuid 102d51d0-e9c3-5867-85c5-cefed633842b)
+	)
+	(global_label "AUX1" (shape passive) (at 46.99 294.64 180)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid 76dde6c7-4070-58e8-a970-231987508d5f)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 46.99 294.64 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(wire (pts (xy 49.53 297.18) (xy 46.99 297.18))
+		(stroke (width 0) (type default))
+		(uuid 367ad366-3c57-5a60-a533-66c7189f3ca3)
+	)
+	(global_label "AUX2" (shape passive) (at 46.99 297.18 180)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid 46f69bb5-e420-5ca4-855e-b35f21eedbdd)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 46.99 297.18 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(wire (pts (xy 49.53 299.72) (xy 46.99 299.72))
+		(stroke (width 0) (type default))
+		(uuid 47e863e9-bd1a-57b3-87a2-f7929859dcae)
+	)
+	(global_label "AUX3" (shape passive) (at 46.99 299.72 180)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid e4c6e817-5e5d-51dc-9b01-41a10f86fe08)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 46.99 299.72 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(no_connect (at 49.53 302.26) (uuid a9ff931c-6d77-51c2-a9b0-164e0089f907))
+	(no_connect (at 49.53 304.8) (uuid a4fa8d0c-16bd-5c4d-baf1-975f83a54d84))
+	(no_connect (at 49.53 307.34) (uuid 6620edb3-d278-5c57-b04c-8b2575e2f46a))
+	(no_connect (at 49.53 309.88) (uuid 2703057c-c321-5c3f-977c-0f122cb80b9c))
+	(wire (pts (xy 59.69 314.96) (xy 59.69 317.5))
+		(stroke (width 0) (type default))
+		(uuid ef1f55d6-2bd3-5c14-a13f-c7165837a98f)
+	)
+	(global_label "GND" (shape passive) (at 59.69 317.5 270)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid 079c5d8f-d92c-5ee2-9ae3-f9a988c4b33f)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 59.69 317.5 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(wire (pts (xy 69.85 289.56) (xy 72.39 289.56))
+		(stroke (width 0) (type default))
+		(uuid 3757a37d-4823-5df7-9100-72b9e645eef5)
+	)
+	(global_label "AUX_VP" (shape passive) (at 72.39 289.56 0)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid c6540be1-8b4f-5aaf-8c20-0657000910d6)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 72.39 289.56 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(no_connect (at 69.85 309.88) (uuid ab9b9c1d-43b6-5cac-b789-98282f225594))
+	(no_connect (at 69.85 307.34) (uuid 4f523692-75f4-5df3-9bef-8703663826c7))
+	(no_connect (at 69.85 304.8) (uuid e3bdb0f3-77ae-5385-9c84-e460a0c79318))
+	(no_connect (at 69.85 302.26) (uuid ee0731d5-8c83-5165-9401-5334860eb8b0))
+	(wire (pts (xy 69.85 299.72) (xy 72.39 299.72))
+		(stroke (width 0) (type default))
+		(uuid 03188b29-cd97-5e32-b47f-9f53cccfe91f)
+	)
+	(global_label "AUX3_OUT" (shape passive) (at 72.39 299.72 0)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid b956aea8-6369-5f98-a0b5-06fb974f0bb9)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 72.39 299.72 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(wire (pts (xy 69.85 297.18) (xy 72.39 297.18))
+		(stroke (width 0) (type default))
+		(uuid 2f50f2a6-7369-5b3c-84d3-692454e044bd)
+	)
+	(global_label "AUX2_OUT" (shape passive) (at 72.39 297.18 0)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid 60e06913-91c1-5269-9a08-4261166891a9)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 72.39 297.18 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(wire (pts (xy 69.85 294.64) (xy 72.39 294.64))
+		(stroke (width 0) (type default))
+		(uuid 71ec9144-165b-5e11-86ed-cdcbbdea982c)
+	)
+	(global_label "AUX1_OUT" (shape passive) (at 72.39 294.64 0)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid 6dc0c15f-19da-597a-93e6-4a74ebd7637e)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 72.39 294.64 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(symbol (lib_id "Device:R") (at 93.98 279.4 0) (unit 1)
+		(in_bom yes) (on_board yes) (dnp no)
+		(uuid 4ad6111b-f96a-5651-be82-321ff668800c)
+		(property "Reference" "R23" (at 93.98 271.78 0)
+			(effects (font (size 1.27 1.27)) (justify left))
+		)
+		(property "Value" "10k" (at 93.98 273.68 0)
+			(effects (font (size 1.27 1.27)) (justify left))
+		)
+		(property "Footprint" "Resistor_SMD:R_0805_2012Metric" (at 93.98 279.4 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(property "Datasheet" "" (at 93.98 279.4 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(property "Description" "Resistor" (at 93.98 279.4 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(pin "1" (uuid 24062f66-d83c-501a-9987-120493d3cfd5))
+		(pin "2" (uuid b5f3d15c-4e03-58c4-82dc-30d2bd13f061))
+		(instances (project "bisque-controller" (path "/f24e0cd2-71c5-510c-9d15-562ab64c4388" (reference "R23") (unit 1))))
+	)
+	(wire (pts (xy 93.98 275.59) (xy 93.98 273.05))
+		(stroke (width 0) (type default))
+		(uuid 815a507d-2ece-5167-8003-899d85df18bd)
+	)
+	(global_label "AUX1" (shape passive) (at 93.98 273.05 90)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid 2af78c5d-72d2-5a32-9509-fef9cfe01b25)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 93.98 273.05 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(wire (pts (xy 93.98 283.21) (xy 93.98 285.75))
+		(stroke (width 0) (type default))
+		(uuid d8a53365-dfd2-51cf-b8f5-da40e42827a7)
+	)
+	(global_label "GND" (shape passive) (at 93.98 285.75 270)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid 05f11b87-c841-5ac9-a2ca-547fe14c74bd)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 93.98 285.75 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(symbol (lib_id "Device:R") (at 93.98 299.72 0) (unit 1)
+		(in_bom yes) (on_board yes) (dnp no)
+		(uuid 71e3ca5f-9fd1-5c53-b76a-26b406e95a52)
+		(property "Reference" "R24" (at 93.98 292.1 0)
+			(effects (font (size 1.27 1.27)) (justify left))
+		)
+		(property "Value" "10k" (at 93.98 294 0)
+			(effects (font (size 1.27 1.27)) (justify left))
+		)
+		(property "Footprint" "Resistor_SMD:R_0805_2012Metric" (at 93.98 299.72 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(property "Datasheet" "" (at 93.98 299.72 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(property "Description" "Resistor" (at 93.98 299.72 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(pin "1" (uuid 98d0ef3a-a564-5585-8e5a-0f83a3387c4e))
+		(pin "2" (uuid b2431b47-b633-5a1f-8be6-6416f0c229a5))
+		(instances (project "bisque-controller" (path "/f24e0cd2-71c5-510c-9d15-562ab64c4388" (reference "R24") (unit 1))))
+	)
+	(wire (pts (xy 93.98 295.91) (xy 93.98 293.37))
+		(stroke (width 0) (type default))
+		(uuid e83038dc-2958-5fb6-96f0-0bb4887df1e6)
+	)
+	(global_label "AUX2" (shape passive) (at 93.98 293.37 90)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid c3287278-a79a-5b7f-8391-eb0e0f573fea)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 93.98 293.37 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(wire (pts (xy 93.98 303.53) (xy 93.98 306.07))
+		(stroke (width 0) (type default))
+		(uuid 690e03a4-203e-5722-adba-72304c2d3109)
+	)
+	(global_label "GND" (shape passive) (at 93.98 306.07 270)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid 7f1c8689-6a2f-5c2d-a354-71d5f91bd54b)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 93.98 306.07 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(symbol (lib_id "Device:R") (at 93.98 320.04 0) (unit 1)
+		(in_bom yes) (on_board yes) (dnp no)
+		(uuid ac8980f2-7136-53fd-9c05-6713eb20027e)
+		(property "Reference" "R25" (at 93.98 312.42 0)
+			(effects (font (size 1.27 1.27)) (justify left))
+		)
+		(property "Value" "10k" (at 93.98 314.32 0)
+			(effects (font (size 1.27 1.27)) (justify left))
+		)
+		(property "Footprint" "Resistor_SMD:R_0805_2012Metric" (at 93.98 320.04 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(property "Datasheet" "" (at 93.98 320.04 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(property "Description" "Resistor" (at 93.98 320.04 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(pin "1" (uuid ad2a4969-1001-54fe-9bcd-efc089fc4424))
+		(pin "2" (uuid 56bffaea-4384-5267-adb2-1a3c7d2405ff))
+		(instances (project "bisque-controller" (path "/f24e0cd2-71c5-510c-9d15-562ab64c4388" (reference "R25") (unit 1))))
+	)
+	(wire (pts (xy 93.98 316.23) (xy 93.98 313.69))
+		(stroke (width 0) (type default))
+		(uuid dc0e865c-69c9-5afe-9025-714265572dfc)
+	)
+	(global_label "AUX3" (shape passive) (at 93.98 313.69 90)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid b8129eea-f3b8-5d77-a143-1980c0e254ce)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 93.98 313.69 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(wire (pts (xy 93.98 323.85) (xy 93.98 326.39))
+		(stroke (width 0) (type default))
+		(uuid bbbc1527-7f65-5e27-a791-ca5972698d54)
+	)
+	(global_label "GND" (shape passive) (at 93.98 326.39 270)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid f2d9e44f-7fe5-5449-b9f3-7f81730385c2)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 93.98 326.39 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(symbol (lib_id "Connector:Screw_Terminal_01x04") (at 139.7 299.72 0) (unit 1)
+		(in_bom yes) (on_board yes) (dnp no)
+		(uuid 0a897537-3486-5e27-9182-bfb221dfbe40)
+		(property "Reference" "J10" (at 134.62 293.37 0)
+			(effects (font (size 1.27 1.27)) (justify left))
+		)
+		(property "Value" "AUX" (at 134.62 295.27 0)
+			(effects (font (size 1.27 1.27)) (justify left))
+		)
+		(property "Footprint" "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-4-5.08_1x04_P5.08mm_Horizontal" (at 139.7 299.72 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(property "Datasheet" "" (at 139.7 299.72 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(property "Description" "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)" (at 139.7 299.72 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(pin "1" (uuid 894d4105-5571-52fd-a3c0-664670c526e9))
+		(pin "2" (uuid efd21d99-827d-5f76-b8ea-6715db958d55))
+		(pin "3" (uuid f017b9a3-fa0e-5dff-af3e-44b327bba346))
+		(pin "4" (uuid 03a746c5-2c94-5243-a8ec-0cdc4773eead))
+		(instances (project "bisque-controller" (path "/f24e0cd2-71c5-510c-9d15-562ab64c4388" (reference "J10") (unit 1))))
+	)
+	(wire (pts (xy 134.62 297.18) (xy 132.08 297.18))
+		(stroke (width 0) (type default))
+		(uuid 06041c9a-dce7-5643-98ee-869cc4128b2e)
+	)
+	(global_label "AUX_VP" (shape passive) (at 132.08 297.18 180)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid c0ca26b6-6268-5fd6-8185-7e8308801438)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 132.08 297.18 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(wire (pts (xy 134.62 299.72) (xy 132.08 299.72))
+		(stroke (width 0) (type default))
+		(uuid 25114590-0dcc-5034-ba95-6dbb7eda5b1a)
+	)
+	(global_label "AUX1_OUT" (shape passive) (at 132.08 299.72 180)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid 5608e821-0c2c-580b-ad00-2bb513443fb9)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 132.08 299.72 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(wire (pts (xy 134.62 302.26) (xy 132.08 302.26))
+		(stroke (width 0) (type default))
+		(uuid 787bc4ac-5ef1-5876-834f-8375e73b9d2c)
+	)
+	(global_label "AUX2_OUT" (shape passive) (at 132.08 302.26 180)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid 9e6fb139-6958-5000-8e82-1e3bd6defefc)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 132.08 302.26 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(wire (pts (xy 134.62 304.8) (xy 132.08 304.8))
+		(stroke (width 0) (type default))
+		(uuid 632f6156-05db-5208-a278-1d5f7010a0cd)
+	)
+	(global_label "AUX3_OUT" (shape passive) (at 132.08 304.8 180)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid cac75bf5-1d05-5535-ba3e-dc41d5e587b7)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 132.08 304.8 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(symbol (lib_id "Jumper:SolderJumper_2_Open") (at 170.18 279.4 0) (unit 1)
+		(in_bom yes) (on_board yes) (dnp no)
+		(uuid 30ff45b7-2c13-59e3-b40c-bc85149011f4)
+		(property "Reference" "SJ1" (at 165.1 275.59 0)
+			(effects (font (size 1.27 1.27)) (justify left))
+		)
+		(property "Value" "AUX_VP=5V" (at 165.1 277.49 0)
+			(effects (font (size 1.27 1.27)) (justify left))
+		)
+		(property "Footprint" "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm" (at 170.18 279.4 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(property "Datasheet" "" (at 170.18 279.4 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(property "Description" "Solder Jumper, 2-pole, open" (at 170.18 279.4 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(pin "1" (uuid 9aeaf903-6745-5994-a861-6c730c6e5da4))
+		(pin "2" (uuid 928b309b-4e09-5cd4-9467-317b9817dd97))
+		(instances (project "bisque-controller" (path "/f24e0cd2-71c5-510c-9d15-562ab64c4388" (reference "SJ1") (unit 1))))
+	)
+	(wire (pts (xy 165.1 279.4) (xy 162.56 279.4))
+		(stroke (width 0) (type default))
+		(uuid 055a2166-ca0a-544e-b716-afc561baf294)
+	)
+	(global_label "+5V" (shape passive) (at 162.56 279.4 180)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid 5c9dd508-9b50-5708-a93b-32a60c7573d0)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 162.56 279.4 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(wire (pts (xy 175.26 279.4) (xy 177.8 279.4))
+		(stroke (width 0) (type default))
+		(uuid af3c844d-a42f-5417-b01b-e081a0b82b73)
+	)
+	(global_label "AUX_VP" (shape passive) (at 177.8 279.4 0)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid 9b3c6d0f-6a23-5950-96a9-95ee4c9302e3)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 177.8 279.4 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
 	(symbol (lib_id "Device:Buzzer") (at 234.95 195.58 0) (unit 1)
 		(in_bom yes) (on_board yes) (dnp no)
 		(uuid 473b594a-3d50-507a-8cb1-323fd865bb19)
@@ -10449,6 +11850,10 @@
 	(text "MOUNTING / POWER FLAGS" (at 290 238 0)
 		(effects (font (size 2 2) bold) (justify left))
 		(uuid 6843fd1d-8b17-5e86-9187-1805cbf11bf4)
+	)
+	(text "AUX OUTPUT BANK  (ULN2003 vent/purge/spare; COM->AUX_VP, SJ1 links to +5V)" (at 25 280 0)
+		(effects (font (size 2 2) bold) (justify left))
+		(uuid 6321d6d8-462d-5ddc-ac5f-5f8044f6b0b4)
 	)
 	(text "Bisque kiln controller  -  ESP32-S3-WROOM-1\nSSR terminals J4/J9: opto-isolated (LTV-817S), boot-safe (R7/R20 pulldown).\nSSR1_A/B, SSR2_A/B float - no GND/+3V3/+5V on the isolated side.\nSSR_EN is the shared opto+indicator cathode return, gated by the watchdog.\nTC1 terminal J3 / TC2 terminal J8: pin1 = K+, pin2 = K- - both float, biased near\nAGND only through each MAX31856's internal BIAS network. Ungrounded-junction\nprobes required: two grounded-junction probes in one kiln would loop through it.\nNav switch J6 is panel-mounted; inputs use ESP32 internal pull-ups\nAux J7 pin6 = optional lid switch (dry contact to J7 pin2/GND, closed = lid shut)\nDisplay J5 pinout: 3V3 GND CS RST DC MOSI SCK BL (ST7796S SPI module)" (at 25 281 0)
 		(effects (font (size 1.6 1.6)) (justify left))

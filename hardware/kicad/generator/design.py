@@ -371,6 +371,60 @@ COMPONENTS = {
     "J9": dict(lib="Connector", sym="Screw_Terminal_01x02",
                fp=TBLOCK[0], fpf=TBLOCK[1], value="SSR2", at=(22.5, 90.0, 270),
                pins={"1": "SSR2_A", "2": "SSR2_B"}),
+    # --- Aux output bank (vent / purge / spare) --------------------------
+    # ULN2003A: 7 Darlington channels with integrated freewheel diodes to COM,
+    # and a JLCPCB *Basic* part - so it replaces ~19 discrete parts at zero
+    # feeder fee. Pin order (SOIC-16, confirmed against KiCad 10's own
+    # Transistor_Array:ULN2003A symbol): I1..I7 = 1..7, GND = 8, COM = 9,
+    # O7..O1 = 10..16 (note O1 is pin 16, so the outputs run backwards).
+    #
+    # COM goes to AUX_VP, its own screw terminal, NOT the board's +5V: a gas
+    # purge solenoid is realistically 12V or 24V DC and the ULN is rated 50V /
+    # 500mA per channel. A solder link (SJ1) ties AUX_VP to +5V for plain 5V
+    # relays. The buzzer deliberately keeps its discrete driver (Q2/D4/R8/R11)
+    # so a 5V buzzer and a 24V solenoid never share a COM rail.
+    #
+    # R23-R25 hold the inputs low while the ESP32 pins are high-impedance at
+    # boot - a floating Darlington input must not energize a solenoid. Per
+    # REV-B-NOTES.md SS6, 10k is sufficient: worst case (ignoring the ULN's
+    # own nominal-only internal pulldowns) V_in(max) = 50nA x 10k = 0.5mV,
+    # ~1000x margin under any threshold that would turn a channel on, and
+    # GPIO 14/15/16 carry no pull-up at reset.
+    #
+    # Designators: the task brief called these R20-R22, but Task 7 (SSR
+    # optocoupler channels) already consumed R20-R22 - verified against the
+    # live COMPONENTS dict before adding these. Using R23-R25 instead.
+    "U6": dict(lib="Transistor_Array", sym="ULN2003A",
+               fp="Package_SO:SOIC-16_3.9x9.9mm_P1.27mm",
+               fpf="SOIC-16_3.9x9.9mm_P1.27mm.kicad_mod",
+               value="ULN2003A", at=(44.0, 60.0, 0),
+               pins={"1": "AUX1", "2": "AUX2", "3": "AUX3",
+                     "4": None, "5": None, "6": None, "7": None,
+                     "8": "GND", "9": "AUX_VP",
+                     "10": None, "11": None, "12": None, "13": None,
+                     "14": "AUX3_OUT", "15": "AUX2_OUT", "16": "AUX1_OUT"}),
+    "R23": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="10k", at=(38.0, 56.0, 90),
+                pins={"1": "AUX1", "2": "GND"}),
+    "R24": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="10k", at=(38.0, 59.0, 90),
+                pins={"1": "AUX2", "2": "GND"}),
+    "R25": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="10k", at=(38.0, 62.0, 90),
+                pins={"1": "AUX3", "2": "GND"}),
+    # 4-position terminal: coil rail + three switched low sides.
+    "J10": dict(lib="Connector", sym="Screw_Terminal_01x04",
+                fp="TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-4-5.08_1x04_P5.08mm_Horizontal",
+                fpf="TerminalBlock_Phoenix_MKDS-1,5-4-5.08_1x04_P5.08mm_Horizontal.kicad_mod",
+                value="AUX", at=(22.5, 60.0, 270),
+                pins={"1": "AUX_VP", "2": "AUX1_OUT",
+                      "3": "AUX2_OUT", "4": "AUX3_OUT"}),
+    # Solder link: AUX_VP <- +5V for 5V relay coils. Open by default.
+    "SJ1": dict(lib="Jumper", sym="SolderJumper_2_Open",
+                fp="Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",
+                fpf="SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm.kicad_mod",
+                value="AUX_VP=5V", at=(30.0, 55.0, 0),
+                pins={"1": "+5V", "2": "AUX_VP"}),
     # --- Buzzer ----------------------------------------------------------
     "BZ1": dict(lib="Device", sym="Buzzer",
                 fp="Buzzer_Beeper:Buzzer_12x9.5RM7.6",
