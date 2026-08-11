@@ -180,15 +180,23 @@ COMPONENTS = {
     # capacitor. "This pin is floating when no conversions are taking place...
     # No bypass or decoupling is specified" (datasheet p.10), unlike AVDD/DVDD
     # which both explicitly call for one. The 0.01uF cap in the datasheet's own
-    # application drawings belongs to the T- common-mode filter, not to BIAS -
-    # Figure 8 shows BIAS landing on the thermocouple side of the series
-    # resistor while the filter cap ties from the T- *pin* to AGND. The brief's
-    # C14 (100nF, BIAS->GND) is therefore omitted; BIAS is wired directly to
-    # the chip-side (filtered) T- node instead, per "Connect the BIAS output to
-    # T-. This biases the thermocouple within the common-mode range of the
-    # inputs." (datasheet p.27). That merged node is named TC1_BIAS/TC2_BIAS -
-    # it satisfies the >=2-pin net Task 3/8/10 expect without adding a
-    # capacitor that doesn't belong there.
+    # application drawings belongs to the T- common-mode filter, not to BIAS.
+    # The brief's C14 (100nF, BIAS->GND) is therefore omitted outright.
+    #
+    # BIAS routing: Figure 8 (the filtered topology this design follows, with
+    # the 100R series resistors) is explicit that "BIAS connects to the
+    # thermocouple side of the resistor" (SS5a) - i.e. the RAW terminal-side
+    # node, upstream of the series R, NOT the IC-side filtered T- pin. That is
+    # a different diagram from the datasheet's simple Typical Application
+    # Circuit (no series resistors), where BIAS and T- share one pin-level
+    # node - do not conflate the two. So here BIAS (pin 2) joins TC1_N/TC2_N
+    # (the raw terminal net, same node as J3.2/R15.1), while T- (pin 3) stays
+    # alone on the IC-side filtered node TC1_N_F/TC2_N_F, symmetric with
+    # T+'s TC1_P_F/TC2_P_F. The open-thermocouple detection bias current
+    # sources from BIAS through the thermocouple itself, not through the
+    # external filter resistor - routing it through R15/R17 the way the
+    # simple-circuit reading would have put that bias current across the
+    # filter resistor, which Figure 8's topology specifically avoids.
     #
     # Input filter per REV-B-NOTES.md SS5c / datasheet Figure 8 ("Typical
     # Connection to Reduce the Effect of Noise Pickup"), fit unconditionally -
@@ -214,7 +222,7 @@ COMPONENTS = {
                fp="Package_SO:TSSOP-14_4.4x5mm_P0.65mm",
                fpf="TSSOP-14_4.4x5mm_P0.65mm.kicad_mod",
                value="MAX31856MUD+", at=(104.0, 56.0, 90),
-               pins={"1": "GND", "2": "TC1_BIAS", "3": "TC1_BIAS",
+               pins={"1": "GND", "2": "TC1_N", "3": "TC1_N_F",
                      "4": "TC1_P_F", "5": "+3V3", "6": None, "7": None,
                      "8": "+3V3", "9": "TC1_CS", "10": "SPI_SCLK",
                      "11": "SPI_MISO", "12": "SPI_MOSI", "13": None,
@@ -230,16 +238,16 @@ COMPONENTS = {
                 pins={"1": "TC1_P", "2": "TC1_P_F"}),
     "R15": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
                 value="100R 1%", at=(108.0, 58.0, 0),
-                pins={"1": "TC1_N", "2": "TC1_BIAS"}),
+                pins={"1": "TC1_N", "2": "TC1_N_F"}),
     "C15": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
                 value="100nF", at=(111.0, 56.0, 0),
-                pins={"1": "TC1_P_F", "2": "TC1_BIAS"}),
+                pins={"1": "TC1_P_F", "2": "TC1_N_F"}),
     "C16": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
                 value="10nF", at=(111.0, 53.5, 0),
                 pins={"1": "TC1_P_F", "2": "GND"}),
     "C17": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
                 value="10nF", at=(111.0, 58.5, 0),
-                pins={"1": "TC1_BIAS", "2": "GND"}),
+                pins={"1": "TC1_N_F", "2": "GND"}),
     "J3": dict(lib="Connector", sym="Screw_Terminal_01x02",
                fp=TBLOCK[0], fpf=TBLOCK[1], value="TC1_K", at=(117.0, 56.0, 90),
                pins={"1": "TC1_P", "2": "TC1_N"}),
@@ -249,7 +257,7 @@ COMPONENTS = {
                fp="Package_SO:TSSOP-14_4.4x5mm_P0.65mm",
                fpf="TSSOP-14_4.4x5mm_P0.65mm.kicad_mod",
                value="MAX31856MUD+", at=(104.0, 70.0, 90),
-               pins={"1": "GND", "2": "TC2_BIAS", "3": "TC2_BIAS",
+               pins={"1": "GND", "2": "TC2_N", "3": "TC2_N_F",
                      "4": "TC2_P_F", "5": "+3V3", "6": None, "7": None,
                      "8": "+3V3", "9": "TC2_CS", "10": "SPI_SCLK",
                      "11": "SPI_MISO", "12": "SPI_MOSI", "13": None,
@@ -265,16 +273,16 @@ COMPONENTS = {
                 pins={"1": "TC2_P", "2": "TC2_P_F"}),
     "R17": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
                 value="100R 1%", at=(108.0, 72.0, 0),
-                pins={"1": "TC2_N", "2": "TC2_BIAS"}),
+                pins={"1": "TC2_N", "2": "TC2_N_F"}),
     "C20": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
                 value="100nF", at=(111.0, 70.0, 0),
-                pins={"1": "TC2_P_F", "2": "TC2_BIAS"}),
+                pins={"1": "TC2_P_F", "2": "TC2_N_F"}),
     "C21": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
                 value="10nF", at=(111.0, 67.5, 0),
                 pins={"1": "TC2_P_F", "2": "GND"}),
     "C22": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
                 value="10nF", at=(111.0, 72.5, 0),
-                pins={"1": "TC2_BIAS", "2": "GND"}),
+                pins={"1": "TC2_N_F", "2": "GND"}),
     "J8": dict(lib="Connector", sym="Screw_Terminal_01x02",
                fp=TBLOCK[0], fpf=TBLOCK[1], value="TC2_K", at=(117.0, 70.0, 90),
                pins={"1": "TC2_P", "2": "TC2_N"}),
