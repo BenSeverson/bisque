@@ -28,6 +28,11 @@ MODULE_PIN_GPIO = {
     36: 44, 37: 43, 38: 2, 39: 1,
 }
 
+# Nets on U1 that are fixed-function and correctly have NO Kconfig pin symbol:
+# the native USB peripheral (GPIO 19/20), the UART0 console (GPIO 43/44) and
+# the BOOT strapping pin (GPIO 0). These must never count as unmapped.
+NO_KCONFIG_SYMBOL = {"USB_DN", "USB_DP", "TXD0", "RXD0", "IO0"}
+
 # net name -> Kconfig symbol that must hold that GPIO.
 NET_KCONFIG = {
     "SPI_MOSI": "KILN_PIN_SPI_MOSI",
@@ -104,7 +109,7 @@ def main():
             errors.append("%s: Kconfig says GPIO %d, design.py wires net %s to GPIO %d"
                           % (sym, in_kconfig, net, on_board))
 
-    unmapped = sorted(set(board) - set(NET_KCONFIG) - {"IO0", "TXD0", "RXD0"})
+    unmapped = sorted(set(board) - set(NET_KCONFIG) - NO_KCONFIG_SYMBOL)
     if unmapped:
         errors.append("U1 nets with no Kconfig symbol: %s" % ", ".join(unmapped))
 
