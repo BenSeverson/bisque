@@ -380,6 +380,110 @@ COMPONENTS = {
     "J9": dict(lib="Connector", sym="Screw_Terminal_01x02",
                fp=TBLOCK[0], fpf=TBLOCK[1], value="SSR2", at=(22.5, 90.0, 270),
                pins={"1": "SSR2_A", "2": "SSR2_B"}),
+    # --- Hardware watchdog (Task 12) ---------------------------------------
+    # WDT_KICK (U1.29, a firmware square wave) drives a diode charge pump;
+    # the hold node keeps Q3 enhanced, and Q3's drain IS the SSR_EN net - the
+    # shared return path for both opto LED cathodes and both indicator LED
+    # cathodes (U8.2/R18.2/U9.2/R22.2). Stop kicking and the pump decays
+    # below Q3's Vgs(th) in ~1s (R46*C39, see arithmetic below), dropping
+    # both SSRs. This is the only interlock on this board that survives
+    # firmware death - lid/over-temp/stale-TC are firmware-owned and die
+    # with it. It is still only SUPPLEMENTARY: the real protection is a
+    # mechanical over-temperature cutout in series with the element
+    # contactor.
+    #
+    # A CHARGE PUMP NEEDS TRANSITIONS - that is the entire point. Firmware
+    # wedged with WDT_KICK stuck high must fail exactly like firmware that
+    # stopped toggling. C38 is a series (AC-coupling) cap, not a pull-up, so
+    # a DC level at WDT_KICK (high OR low) delivers no net charge per cycle
+    # and WDT_HOLD decays through R46 regardless of which level it stuck at.
+    # A plain RC hold driven by a level would be defeated by a stuck-high
+    # pin; this topology cannot be.
+    #
+    # Gates ONLY the heat outputs (SSR_EN). AUX1-3 (vent/purge/spare, via
+    # U6/ULN2003) and the buzzer are on separate nets entirely - untouched by
+    # Q3 - so a stalled controller can still open its vent.
+    #
+    # --- Parts: REV-B-NOTES.md SS8a overrides the brief -------------------
+    # The brief specified two discrete SOD-123 singles (D6/D7). REV-B-NOTES
+    # SS8a identifies the correct part as ONE BAT54S dual Schottky in a
+    # single SOT-23 (LCSC C7420333, JLCPCB Extended-but-Preferred,
+    # ~$0.011) - specifically the *series* pair: datasheet Table 2 "Pinning
+    # information" gives pin1=A1, pin2=K2, pin3=K1;A2 (shared cathode/anode
+    # junction). KiCad's own Diode:BAT54S library symbol matches exactly
+    # (pin1 "A", pin2 "K", pin3 "COM"; description "dual schottky ... in
+    # series") and already defaults to Footprint Package_TO_SOT_SMD:SOT-23.
+    # BAT54C (common-cathode) and BAT54A (common-anode) are NOT this part -
+    # neither gives a series pair, per the notes.
+    #
+    # The series pair's shared pin (COM, pin 3) IS the pump node: tying
+    # pin1(A1) to GND and pin2(K2) to WDT_HOLD makes the two internal diodes
+    # exactly the clamp diode (GND -> pump, conducts when the AC-coupled
+    # node swings below GND) and the rectifier diode (pump -> hold cap,
+    # conducts when the node swings above WDT_HOLD) that a diode-capacitor
+    # charge pump needs - one part, no extra net.
+    #
+    # Designators: the brief's D6/D7/C33/C34/R41 collide with Task 10 (D6 =
+    # CT TVS array, C33/C34 = ADE7953 decoupling) and Task 11 (R41 = touch
+    # damping resistor). Confirmed free before use (next free at the time:
+    # R46, C38, D7, Q3, SJ2 - see task report for the confirmation command).
+    #
+    # --- Values: brief's 100nF/1uF/1M were estimates; REV-B-NOTES.md SS8
+    # verifies the diode Vf/gate-margin arithmetic but does not specify a
+    # C38/C39/R46 sizing (no target kick frequency or hold-decay spec exists
+    # yet). ASSUMPTION, flagged in the task report: kept at the brief's
+    # values, which are reasonable for a multi-Hz-to-kHz kick square wave -
+    # C38 100nF couples strongly at any plausible kick rate; R46 1M / C39
+    # 1uF gives a ~1s RC decay (see below), fast enough that a wedged
+    # firmware drops the SSRs well within a human's reaction time, slow
+    # enough not to force an unreasonably fast kick task.
+    #
+    # Gate margin (REV-B-NOTES.md SS8d, at the ESP32's *guaranteed* V_OH
+    # min of 0.8*VDD = 2.64V, not the optimistic 3.3V case, and BAT54S max
+    # Vf @ 0.1mA = 240mV, the pump's actual current regime - NOT the 800mV
+    # @ 100mA figure): V_gate = 2.64 - 2*0.240 = 2.16V against AO3400A
+    # Vgs(th) max 1.45V -> margin = +0.71V. POSITIVE, so Q3 turns on; this
+    # is not a blocker. BUT 2.16V is below the 2.5V point at which the
+    # AO3400A's datasheet guarantees ANY Rds(on) (48mOhm max is only
+    # specified at Vgs=2.5V/Id=3A). Do NOT size any load on this watchdog
+    # gate assuming a guaranteed on-resistance in that worst-case corner -
+    # it is a logic-level gate here (SSR_EN return path only, no significant
+    # current), not a power switch, and that is what keeps this corner from
+    # mattering. If a guaranteed 2.5V spec point in every corner is wanted,
+    # a lower-Vf Schottky or a single-diode topology buys the ~0.35V needed
+    # (REV-B-NOTES.md SS8, "corner worth knowing") - not changed here per
+    # the task instructions; flagged in the report instead.
+    #
+    # Decay arithmetic: tau = R46 * C39 = 1MOhm * 1uF = 1.0s. WDT_HOLD decays
+    # from its charged level toward 0V with that time constant once kicking
+    # stops; it crosses Q3's worst-case Vgs(th) (1.45V, starting from the
+    # ~2.16-2.98V range computed above) well under one tau, consistent with
+    # the brief's ~0.5-1s figure.
+    "C38": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
+                value="100nF", at=(48.0, 42.0, 0),
+                pins={"1": "WDT_KICK", "2": "WDT_PUMP"}),
+    "D7": dict(lib="Diode", sym="BAT54S", fp=SOT23[0], fpf=SOT23[1],
+               value="BAT54S", at=(52.0, 42.0, 0),
+               pins={"1": "GND", "2": "WDT_HOLD", "3": "WDT_PUMP"}),
+    "C39": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
+                value="1uF", at=(56.0, 44.0, 90),
+                pins={"1": "WDT_HOLD", "2": "GND"}),
+    "R46": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="1M", at=(60.0, 44.0, 90),
+                pins={"1": "WDT_HOLD", "2": "GND"}),
+    "Q3": dict(lib="Transistor_FET", sym="AO3400A", fp=SOT23[0], fpf=SOT23[1],
+               value="AO3400A", at=(48.0, 48.0, 0),
+               pins={"1": "WDT_HOLD", "2": "GND", "3": "SSR_EN"}),
+    # Bring-up defeat: shorts SSR_EN straight to GND (through Q3's own
+    # source net), bypassing the watchdog gate entirely so the SSRs work
+    # before the firmware kick task exists. Silkscreened "WDT DEFEAT" - see
+    # gen_pcb.py SILK. MUST be removed (left open) in service - this is a
+    # foot-gun by design, not a normal-operation jumper.
+    "SJ2": dict(lib="Jumper", sym="SolderJumper_2_Open",
+                fp="Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",
+                fpf="SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm.kicad_mod",
+                value="WDT_DEFEAT", at=(44.0, 52.0, 0),
+                pins={"1": "SSR_EN", "2": "GND"}),
     # --- Aux output bank (vent / purge / spare) --------------------------
     # ULN2003A: 7 Darlington channels with integrated freewheel diodes to COM,
     # and a JLCPCB *Basic* part - so it replaces ~19 discrete parts at zero

@@ -116,6 +116,12 @@ SCH_AT = {
     "J14": (25, 350), "R44": (55, 350), "R45": (85, 350),
     "R39": (25, 380), "R40": (55, 380), "R41": (85, 380),
     "R42": (115, 380), "R43": (145, 380),
+    # Hardware watchdog (Task 12) - fresh area clear of everything else,
+    # 30mm grid (>=28mm apart in x or y), the Task 9/10/11 hazard margin:
+    # Device:R/C symbols stacked closer than that let facing pin-label
+    # stubs coincide and silently short two nets.
+    "C38": (25, 430), "D7": (55, 430), "C39": (85, 430),
+    "R46": (115, 430), "Q3": (145, 430), "SJ2": (175, 430),
 }
 
 GROUP_TEXT = [
@@ -141,6 +147,10 @@ GROUP_TEXT = [
      "bus for the display module's XPT2046 (not on this board); J14 Qwiic +\\n"
      "J7 5-8 (0.1\") share the I2C bus, pulled up by R44/R45",
      25, 340),
+    ("HARDWARE WATCHDOG  (Task 12)  C38/D7/C39/R46 diode charge pump on\\n"
+     "WDT_KICK holds Q3 on; Q3 gates SSR_EN (both opto + both indicator LED\\n"
+     "returns). SJ2 = bring-up defeat, REMOVE for service.",
+     25, 420),
 ]
 
 NOTES = (

@@ -4136,6 +4136,876 @@
 		)
 		(embedded_fonts no)
 	)
+		(symbol "Diode:BAT54S"
+		(pin_names
+			(offset 0)
+		)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(property "Reference" "D"
+			(at 2.54 -5.08 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "BAT54S"
+			(at -6.35 3.175 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-23"
+			(at 1.905 3.175 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" "https://www.diodes.com/assets/Datasheets/ds11005.pdf"
+			(at -3.048 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Vr 30V, If 200mA, Dual schottky barrier diode, in series, SOT-323"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_keywords" "schottky diode"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_fp_filters" "SOT?23*"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(symbol "BAT54S_0_1"
+			(polyline
+				(pts
+					(xy -4.445 1.27)
+					(xy -4.445 -1.27)
+					(xy -2.54 0)
+					(xy -4.445 1.27)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy -3.81 0)
+					(xy -1.27 0)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy -3.175 -1.27)
+					(xy -3.175 -1.016)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy -2.54 1.27)
+					(xy -1.905 1.27)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy -2.54 -1.27)
+					(xy -3.175 -1.27)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy -2.54 -1.27)
+					(xy -2.54 1.27)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy -1.905 1.27)
+					(xy -1.905 1.016)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy -1.905 0)
+					(xy 1.905 0)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(circle
+				(center 0 0)
+				(radius 0.254)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type outline)
+				)
+			)
+			(polyline
+				(pts
+					(xy 1.27 0)
+					(xy 3.81 0)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 1.905 1.27)
+					(xy 1.905 -1.27)
+					(xy 3.81 0)
+					(xy 1.905 1.27)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 3.175 -1.27)
+					(xy 3.175 -1.016)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 3.81 1.27)
+					(xy 4.445 1.27)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 3.81 -1.27)
+					(xy 3.175 -1.27)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 3.81 -1.27)
+					(xy 3.81 1.27)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 4.445 1.27)
+					(xy 4.445 1.016)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+		)
+		(symbol "BAT54S_1_1"
+			(pin passive line
+				(at -7.62 0 0)
+				(length 3.81)
+				(name "A"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin passive line
+				(at 7.62 0 180)
+				(length 3.81)
+				(name "K"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin passive line
+				(at 0 -5.08 90)
+				(length 5.08)
+				(name "COM"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "3"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+		)
+		(embedded_fonts no)
+	)
+		(symbol "Transistor_FET:AO3400A"
+		(pin_names
+			(offset 0)
+			(hide yes)
+		)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(property "Reference" "Q"
+			(at 5.08 1.905 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "AO3400A"
+			(at 5.08 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-23"
+			(at 5.08 -1.905 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+					(italic yes)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" "http://www.aosmd.com/pdfs/datasheet/AO3400A.pdf"
+			(at 5.08 -3.81 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Description" "30V Vds, 5.7A Id, N-Channel MOSFET, SOT-23"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_keywords" "N-Channel MOSFET"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_fp_filters" "SOT?23*"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(symbol "AO3400A_0_1"
+			(polyline
+				(pts
+					(xy 0.254 1.905)
+					(xy 0.254 -1.905)
+				)
+				(stroke
+					(width 0.254)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 0.254 0)
+					(xy -2.54 0)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 0.762 2.286)
+					(xy 0.762 1.27)
+				)
+				(stroke
+					(width 0.254)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 0.762 0.508)
+					(xy 0.762 -0.508)
+				)
+				(stroke
+					(width 0.254)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 0.762 -1.27)
+					(xy 0.762 -2.286)
+				)
+				(stroke
+					(width 0.254)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 0.762 -1.778)
+					(xy 3.302 -1.778)
+					(xy 3.302 1.778)
+					(xy 0.762 1.778)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 1.016 0)
+					(xy 2.032 0.381)
+					(xy 2.032 -0.381)
+					(xy 1.016 0)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type outline)
+				)
+			)
+			(circle
+				(center 1.651 0)
+				(radius 2.794)
+				(stroke
+					(width 0.254)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 2.54 2.54)
+					(xy 2.54 1.778)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(circle
+				(center 2.54 1.778)
+				(radius 0.254)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type outline)
+				)
+			)
+			(circle
+				(center 2.54 -1.778)
+				(radius 0.254)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type outline)
+				)
+			)
+			(polyline
+				(pts
+					(xy 2.54 -2.54)
+					(xy 2.54 0)
+					(xy 0.762 0)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 2.921 0.381)
+					(xy 3.683 0.381)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 3.302 0.381)
+					(xy 2.921 -0.254)
+					(xy 3.683 -0.254)
+					(xy 3.302 0.381)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+		)
+		(symbol "AO3400A_1_1"
+			(pin input line
+				(at -5.08 0 0)
+				(length 2.54)
+				(name "G"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin passive line
+				(at 2.54 -5.08 90)
+				(length 2.54)
+				(name "S"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin passive line
+				(at 2.54 5.08 270)
+				(length 2.54)
+				(name "D"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "3"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+		)
+		(embedded_fonts no)
+	)
+		(symbol "Jumper:SolderJumper_2_Open"
+		(pin_numbers
+			(hide yes)
+		)
+		(pin_names
+			(offset 0)
+			(hide yes)
+		)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(property "Reference" "JP"
+			(at 0 2.032 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "SolderJumper_2_Open"
+			(at 0 -2.54 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 -7.62 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Solder Jumper, 2-pole, open"
+			(at 0 -5.08 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_keywords" "solder jumper SPST"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_fp_filters" "SolderJumper*Open*"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(symbol "SolderJumper_2_Open_0_1"
+			(polyline
+				(pts
+					(xy -0.254 1.016)
+					(xy -0.254 -1.016)
+				)
+				(stroke
+					(width 0.1524)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(arc
+				(start -0.254 -1.016)
+				(mid -1.2656 0)
+				(end -0.254 1.016)
+				(stroke
+					(width 0.1524)
+					(type default)
+				)
+				(fill
+					(type outline)
+				)
+			)
+			(arc
+				(start 0.254 1.016)
+				(mid 1.2656 0)
+				(end 0.254 -1.016)
+				(stroke
+					(width 0.1524)
+					(type default)
+				)
+				(fill
+					(type outline)
+				)
+			)
+			(polyline
+				(pts
+					(xy 0.254 1.016)
+					(xy 0.254 -1.016)
+				)
+				(stroke
+					(width 0.1524)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+		)
+		(symbol "SolderJumper_2_Open_1_1"
+			(pin passive line
+				(at -5.08 0 0)
+				(length 3.81)
+				(name "A"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin passive line
+				(at 5.08 0 180)
+				(length 3.81)
+				(name "B"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+		)
+		(embedded_fonts no)
+	)
 		(symbol "Transistor_Array:ULN2003A"
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -4981,186 +5851,6 @@
 		)
 		(embedded_fonts no)
 	)
-		(symbol "Jumper:SolderJumper_2_Open"
-		(pin_numbers
-			(hide yes)
-		)
-		(pin_names
-			(offset 0)
-			(hide yes)
-		)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board yes)
-		(in_pos_files yes)
-		(duplicate_pin_numbers_are_jumpers no)
-		(property "Reference" "JP"
-			(at 0 2.032 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "SolderJumper_2_Open"
-			(at 0 -2.54 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 0 0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 -7.62 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Solder Jumper, 2-pole, open"
-			(at 0 -5.08 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "ki_keywords" "solder jumper SPST"
-			(at 0 0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "ki_fp_filters" "SolderJumper*Open*"
-			(at 0 0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(symbol "SolderJumper_2_Open_0_1"
-			(polyline
-				(pts
-					(xy -0.254 1.016)
-					(xy -0.254 -1.016)
-				)
-				(stroke
-					(width 0.1524)
-					(type default)
-				)
-				(fill
-					(type none)
-				)
-			)
-			(arc
-				(start -0.254 -1.016)
-				(mid -1.2656 0)
-				(end -0.254 1.016)
-				(stroke
-					(width 0.1524)
-					(type default)
-				)
-				(fill
-					(type outline)
-				)
-			)
-			(arc
-				(start 0.254 1.016)
-				(mid 1.2656 0)
-				(end 0.254 -1.016)
-				(stroke
-					(width 0.1524)
-					(type default)
-				)
-				(fill
-					(type outline)
-				)
-			)
-			(polyline
-				(pts
-					(xy 0.254 1.016)
-					(xy 0.254 -1.016)
-				)
-				(stroke
-					(width 0.1524)
-					(type default)
-				)
-				(fill
-					(type none)
-				)
-			)
-		)
-		(symbol "SolderJumper_2_Open_1_1"
-			(pin passive line
-				(at -5.08 0 0)
-				(length 3.81)
-				(name "A"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "1"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin passive line
-				(at 5.08 0 180)
-				(length 3.81)
-				(name "B"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "2"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-		)
-		(embedded_fonts no)
-	)
 		(symbol "Device:Buzzer"
 		(pin_names
 			(offset 0.0254)
@@ -5524,339 +6214,6 @@
 					)
 				)
 				(number "2"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-		)
-		(embedded_fonts no)
-	)
-		(symbol "Transistor_FET:AO3400A"
-		(pin_names
-			(offset 0)
-			(hide yes)
-		)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(property "Reference" "Q"
-			(at 5.08 1.905 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "AO3400A"
-			(at 5.08 0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Package_TO_SOT_SMD:SOT-23"
-			(at 5.08 -1.905 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-					(italic yes)
-				)
-				(justify left)
-			)
-		)
-		(property "Datasheet" "http://www.aosmd.com/pdfs/datasheet/AO3400A.pdf"
-			(at 5.08 -3.81 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Description" "30V Vds, 5.7A Id, N-Channel MOSFET, SOT-23"
-			(at 0 0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "ki_keywords" "N-Channel MOSFET"
-			(at 0 0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "ki_fp_filters" "SOT?23*"
-			(at 0 0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(in_pos_files yes)
-		(duplicate_pin_numbers_are_jumpers no)
-		(symbol "AO3400A_0_1"
-			(polyline
-				(pts
-					(xy 0.254 1.905)
-					(xy 0.254 -1.905)
-				)
-				(stroke
-					(width 0.254)
-					(type default)
-				)
-				(fill
-					(type none)
-				)
-			)
-			(polyline
-				(pts
-					(xy 0.254 0)
-					(xy -2.54 0)
-				)
-				(stroke
-					(width 0)
-					(type default)
-				)
-				(fill
-					(type none)
-				)
-			)
-			(polyline
-				(pts
-					(xy 0.762 2.286)
-					(xy 0.762 1.27)
-				)
-				(stroke
-					(width 0.254)
-					(type default)
-				)
-				(fill
-					(type none)
-				)
-			)
-			(polyline
-				(pts
-					(xy 0.762 0.508)
-					(xy 0.762 -0.508)
-				)
-				(stroke
-					(width 0.254)
-					(type default)
-				)
-				(fill
-					(type none)
-				)
-			)
-			(polyline
-				(pts
-					(xy 0.762 -1.27)
-					(xy 0.762 -2.286)
-				)
-				(stroke
-					(width 0.254)
-					(type default)
-				)
-				(fill
-					(type none)
-				)
-			)
-			(polyline
-				(pts
-					(xy 0.762 -1.778)
-					(xy 3.302 -1.778)
-					(xy 3.302 1.778)
-					(xy 0.762 1.778)
-				)
-				(stroke
-					(width 0)
-					(type default)
-				)
-				(fill
-					(type none)
-				)
-			)
-			(polyline
-				(pts
-					(xy 1.016 0)
-					(xy 2.032 0.381)
-					(xy 2.032 -0.381)
-					(xy 1.016 0)
-				)
-				(stroke
-					(width 0)
-					(type default)
-				)
-				(fill
-					(type outline)
-				)
-			)
-			(circle
-				(center 1.651 0)
-				(radius 2.794)
-				(stroke
-					(width 0.254)
-					(type default)
-				)
-				(fill
-					(type none)
-				)
-			)
-			(polyline
-				(pts
-					(xy 2.54 2.54)
-					(xy 2.54 1.778)
-				)
-				(stroke
-					(width 0)
-					(type default)
-				)
-				(fill
-					(type none)
-				)
-			)
-			(circle
-				(center 2.54 1.778)
-				(radius 0.254)
-				(stroke
-					(width 0)
-					(type default)
-				)
-				(fill
-					(type outline)
-				)
-			)
-			(circle
-				(center 2.54 -1.778)
-				(radius 0.254)
-				(stroke
-					(width 0)
-					(type default)
-				)
-				(fill
-					(type outline)
-				)
-			)
-			(polyline
-				(pts
-					(xy 2.54 -2.54)
-					(xy 2.54 0)
-					(xy 0.762 0)
-				)
-				(stroke
-					(width 0)
-					(type default)
-				)
-				(fill
-					(type none)
-				)
-			)
-			(polyline
-				(pts
-					(xy 2.921 0.381)
-					(xy 3.683 0.381)
-				)
-				(stroke
-					(width 0)
-					(type default)
-				)
-				(fill
-					(type none)
-				)
-			)
-			(polyline
-				(pts
-					(xy 3.302 0.381)
-					(xy 2.921 -0.254)
-					(xy 3.683 -0.254)
-					(xy 3.302 0.381)
-				)
-				(stroke
-					(width 0)
-					(type default)
-				)
-				(fill
-					(type none)
-				)
-			)
-		)
-		(symbol "AO3400A_1_1"
-			(pin input line
-				(at -5.08 0 0)
-				(length 2.54)
-				(name "G"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "1"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin passive line
-				(at 2.54 -5.08 90)
-				(length 2.54)
-				(name "S"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "2"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin passive line
-				(at 2.54 5.08 270)
-				(length 2.54)
-				(name "D"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "3"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -12607,6 +12964,294 @@
 			(effects (font (size 1.27 1.27)) hide)
 		)
 	)
+	(symbol (lib_id "Device:C") (at 25.4 430.53 0) (unit 1)
+		(in_bom yes) (on_board yes) (dnp no)
+		(uuid 05f13a82-d769-587c-ba86-194ee1cffc89)
+		(property "Reference" "C38" (at 25.4 422.91 0)
+			(effects (font (size 1.27 1.27)) (justify left))
+		)
+		(property "Value" "100nF" (at 25.4 424.81 0)
+			(effects (font (size 1.27 1.27)) (justify left))
+		)
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric" (at 25.4 430.53 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(property "Datasheet" "" (at 25.4 430.53 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(property "Description" "Unpolarized capacitor" (at 25.4 430.53 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(pin "1" (uuid ef4d3729-cdb0-5b73-a935-bb438ea00dab))
+		(pin "2" (uuid 36e6d32d-581c-5675-860c-0a2a25547a08))
+		(instances (project "bisque-controller" (path "/f24e0cd2-71c5-510c-9d15-562ab64c4388" (reference "C38") (unit 1))))
+	)
+	(wire (pts (xy 25.4 426.72) (xy 25.4 424.18))
+		(stroke (width 0) (type default))
+		(uuid 510100dd-81d8-5b1d-af20-337e6aab481c)
+	)
+	(global_label "WDT_KICK" (shape passive) (at 25.4 424.18 90)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid 880af7c4-6c39-504d-9c92-d85266e44d9d)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 25.4 424.18 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(wire (pts (xy 25.4 434.34) (xy 25.4 436.88))
+		(stroke (width 0) (type default))
+		(uuid 4e7a9760-cab0-5664-b8aa-a4b0462a4068)
+	)
+	(global_label "WDT_PUMP" (shape passive) (at 25.4 436.88 270)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid 979c4941-a8ad-50f9-ba29-ed6055c6fa89)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 25.4 436.88 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(symbol (lib_id "Diode:BAT54S") (at 54.61 430.53 0) (unit 1)
+		(in_bom yes) (on_board yes) (dnp no)
+		(uuid 53806d61-98ff-5535-950f-81675d8022d2)
+		(property "Reference" "D7" (at 46.99 426.72 0)
+			(effects (font (size 1.27 1.27)) (justify left))
+		)
+		(property "Value" "BAT54S" (at 46.99 428.62 0)
+			(effects (font (size 1.27 1.27)) (justify left))
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-23" (at 54.61 430.53 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(property "Datasheet" "https://www.diodes.com/assets/Datasheets/ds11005.pdf" (at 54.61 430.53 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(property "Description" "Vr 30V, If 200mA, Dual schottky barrier diode, in series, SOT-323" (at 54.61 430.53 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(pin "1" (uuid 78620c8b-709a-5f96-8bf0-71f2857d7520))
+		(pin "2" (uuid cc8afef7-79ae-5d68-ad1b-b0f10d0f204e))
+		(pin "3" (uuid 7c9cab19-d341-5109-bc3b-d8437f00c140))
+		(instances (project "bisque-controller" (path "/f24e0cd2-71c5-510c-9d15-562ab64c4388" (reference "D7") (unit 1))))
+	)
+	(wire (pts (xy 46.99 430.53) (xy 44.45 430.53))
+		(stroke (width 0) (type default))
+		(uuid a9b55bf8-46fd-5789-a48f-50de9a1cb14d)
+	)
+	(global_label "GND" (shape passive) (at 44.45 430.53 180)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid 63dd70c7-67f6-51c0-b054-16b4f5595738)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 44.45 430.53 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(wire (pts (xy 62.23 430.53) (xy 64.77 430.53))
+		(stroke (width 0) (type default))
+		(uuid b8d6e7b7-d6c6-52b6-ad92-16835fd7afbf)
+	)
+	(global_label "WDT_HOLD" (shape passive) (at 64.77 430.53 0)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid 0d5673c1-a945-550a-b99e-1811b2b916e4)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 64.77 430.53 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(wire (pts (xy 54.61 435.61) (xy 54.61 438.15))
+		(stroke (width 0) (type default))
+		(uuid 065249b1-5f28-5fe8-9db5-b314d2a4fc31)
+	)
+	(global_label "WDT_PUMP" (shape passive) (at 54.61 438.15 270)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid eab2f34f-6812-5e4a-8ba9-bf1a0e5bcb6a)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 54.61 438.15 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(symbol (lib_id "Device:C") (at 85.09 430.53 0) (unit 1)
+		(in_bom yes) (on_board yes) (dnp no)
+		(uuid aed21e2b-59f9-5316-a4ec-4f19dd657bcf)
+		(property "Reference" "C39" (at 85.09 422.91 0)
+			(effects (font (size 1.27 1.27)) (justify left))
+		)
+		(property "Value" "1uF" (at 85.09 424.81 0)
+			(effects (font (size 1.27 1.27)) (justify left))
+		)
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric" (at 85.09 430.53 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(property "Datasheet" "" (at 85.09 430.53 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(property "Description" "Unpolarized capacitor" (at 85.09 430.53 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(pin "1" (uuid 8e926eb4-8112-5837-9158-20c9b565120d))
+		(pin "2" (uuid c95ba5af-e327-559b-bcdb-46346122309e))
+		(instances (project "bisque-controller" (path "/f24e0cd2-71c5-510c-9d15-562ab64c4388" (reference "C39") (unit 1))))
+	)
+	(wire (pts (xy 85.09 426.72) (xy 85.09 424.18))
+		(stroke (width 0) (type default))
+		(uuid 90eb466a-3a5f-5eba-82a2-c5381079d9d8)
+	)
+	(global_label "WDT_HOLD" (shape passive) (at 85.09 424.18 90)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid 4db72d87-be48-5046-b0dc-a1f66b758868)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 85.09 424.18 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(wire (pts (xy 85.09 434.34) (xy 85.09 436.88))
+		(stroke (width 0) (type default))
+		(uuid bc1adc5b-e245-59ba-9856-ab957caa2bb2)
+	)
+	(global_label "GND" (shape passive) (at 85.09 436.88 270)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid 2ad79c1a-a885-5be9-b0d8-8a3968e69f04)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 85.09 436.88 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(symbol (lib_id "Device:R") (at 115.57 430.53 0) (unit 1)
+		(in_bom yes) (on_board yes) (dnp no)
+		(uuid aafd01fe-8103-5642-9490-04082cca1349)
+		(property "Reference" "R46" (at 115.57 422.91 0)
+			(effects (font (size 1.27 1.27)) (justify left))
+		)
+		(property "Value" "1M" (at 115.57 424.81 0)
+			(effects (font (size 1.27 1.27)) (justify left))
+		)
+		(property "Footprint" "Resistor_SMD:R_0805_2012Metric" (at 115.57 430.53 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(property "Datasheet" "" (at 115.57 430.53 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(property "Description" "Resistor" (at 115.57 430.53 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(pin "1" (uuid 24a7d5ad-ea52-56b0-a7da-490751a259b2))
+		(pin "2" (uuid 02715b5a-3cc4-5e84-ab57-7fe94d3050d9))
+		(instances (project "bisque-controller" (path "/f24e0cd2-71c5-510c-9d15-562ab64c4388" (reference "R46") (unit 1))))
+	)
+	(wire (pts (xy 115.57 426.72) (xy 115.57 424.18))
+		(stroke (width 0) (type default))
+		(uuid 80372876-6557-590b-ae13-f71321e37316)
+	)
+	(global_label "WDT_HOLD" (shape passive) (at 115.57 424.18 90)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid 472d322a-80b7-5f3b-a4d4-7aa2667621c1)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 115.57 424.18 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(wire (pts (xy 115.57 434.34) (xy 115.57 436.88))
+		(stroke (width 0) (type default))
+		(uuid 47da2147-3d07-5a64-8d1a-9427c5e95070)
+	)
+	(global_label "GND" (shape passive) (at 115.57 436.88 270)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid 9233082c-996b-595a-a1d3-df00670e54ae)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 115.57 436.88 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(symbol (lib_id "Transistor_FET:AO3400A") (at 144.78 430.53 0) (unit 1)
+		(in_bom yes) (on_board yes) (dnp no)
+		(uuid 494dcef2-b851-5fb4-bb57-b6fde8b00cb4)
+		(property "Reference" "Q3" (at 139.7 421.64 0)
+			(effects (font (size 1.27 1.27)) (justify left))
+		)
+		(property "Value" "AO3400A" (at 139.7 423.54 0)
+			(effects (font (size 1.27 1.27)) (justify left))
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-23" (at 144.78 430.53 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(property "Datasheet" "http://www.aosmd.com/pdfs/datasheet/AO3400A.pdf" (at 144.78 430.53 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(property "Description" "30V Vds, 5.7A Id, N-Channel MOSFET, SOT-23" (at 144.78 430.53 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(pin "1" (uuid b04c9c62-c0bd-5505-91cf-67482a577a93))
+		(pin "2" (uuid c06465f8-7871-537f-9748-e30c8d0d5e87))
+		(pin "3" (uuid 62d94554-72f4-528b-bb76-604b4e869ad2))
+		(instances (project "bisque-controller" (path "/f24e0cd2-71c5-510c-9d15-562ab64c4388" (reference "Q3") (unit 1))))
+	)
+	(wire (pts (xy 139.7 430.53) (xy 137.16 430.53))
+		(stroke (width 0) (type default))
+		(uuid 7fa8a70d-7f1c-5ab7-85d6-294c81c9d5ec)
+	)
+	(global_label "WDT_HOLD" (shape passive) (at 137.16 430.53 180)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid 3fbb3d0a-90a8-57bf-9546-d86f8caf6e2b)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 137.16 430.53 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(wire (pts (xy 147.32 435.61) (xy 147.32 438.15))
+		(stroke (width 0) (type default))
+		(uuid c5303a2c-b6a6-59a3-9fa2-d47201ee9518)
+	)
+	(global_label "GND" (shape passive) (at 147.32 438.15 270)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid c8043740-85f1-5b34-b027-3d599e24aa92)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 147.32 438.15 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(wire (pts (xy 147.32 425.45) (xy 147.32 422.91))
+		(stroke (width 0) (type default))
+		(uuid 0da9531d-cde8-5a0f-afce-67e35d4b5042)
+	)
+	(global_label "SSR_EN" (shape passive) (at 147.32 422.91 90)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid 9a34f620-1afa-5014-b3d8-3517db669f33)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 147.32 422.91 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(symbol (lib_id "Jumper:SolderJumper_2_Open") (at 175.26 430.53 0) (unit 1)
+		(in_bom yes) (on_board yes) (dnp no)
+		(uuid 3a3435db-4e17-5912-832e-9bd69a07aee1)
+		(property "Reference" "SJ2" (at 170.18 426.72 0)
+			(effects (font (size 1.27 1.27)) (justify left))
+		)
+		(property "Value" "WDT_DEFEAT" (at 170.18 428.62 0)
+			(effects (font (size 1.27 1.27)) (justify left))
+		)
+		(property "Footprint" "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm" (at 175.26 430.53 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(property "Datasheet" "" (at 175.26 430.53 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(property "Description" "Solder Jumper, 2-pole, open" (at 175.26 430.53 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(pin "1" (uuid 6cab122f-258c-5195-8888-bef45d44b454))
+		(pin "2" (uuid 60c260a5-48ce-5169-a62d-f1e667406c52))
+		(instances (project "bisque-controller" (path "/f24e0cd2-71c5-510c-9d15-562ab64c4388" (reference "SJ2") (unit 1))))
+	)
+	(wire (pts (xy 170.18 430.53) (xy 167.64 430.53))
+		(stroke (width 0) (type default))
+		(uuid f3f63094-98cc-5e2f-ad0a-63369dc18e77)
+	)
+	(global_label "SSR_EN" (shape passive) (at 167.64 430.53 180)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid 14653668-578b-5564-bbdd-7c4eda2b58cc)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 167.64 430.53 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(wire (pts (xy 180.34 430.53) (xy 182.88 430.53))
+		(stroke (width 0) (type default))
+		(uuid 868cecfa-af28-58c7-bd93-c4448b02cab9)
+	)
+	(global_label "GND" (shape passive) (at 182.88 430.53 0)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid eef6ca4b-71de-5d49-a4fb-1c8ee8855b74)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 182.88 430.53 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
 	(symbol (lib_id "Transistor_Array:ULN2003A") (at 59.69 299.72 0) (unit 1)
 		(in_bom yes) (on_board yes) (dnp no)
 		(uuid a247dd51-6608-5380-a783-992c0b9e8b44)
@@ -16612,6 +17257,10 @@
 	(text "TOUCH DAMPING + I2C EXPANSION  (Task 11)  R39-43 damp the shared SPI2\\nbus for the display module's XPT2046 (not on this board); J14 Qwiic +\\nJ7 5-8 (0.1\") share the I2C bus, pulled up by R44/R45" (at 25 340 0)
 		(effects (font (size 2 2) bold) (justify left))
 		(uuid d97943dd-2d02-53cf-ac52-ac7a369d5b39)
+	)
+	(text "HARDWARE WATCHDOG  (Task 12)  C38/D7/C39/R46 diode charge pump on\\nWDT_KICK holds Q3 on; Q3 gates SSR_EN (both opto + both indicator LED\\nreturns). SJ2 = bring-up defeat, REMOVE for service." (at 25 420 0)
+		(effects (font (size 2 2) bold) (justify left))
+		(uuid d99640c9-ee6d-540c-a9b5-cdb77e6c0793)
 	)
 	(text "Bisque kiln controller  -  ESP32-S3-WROOM-1\nSSR terminals J4/J9: opto-isolated (LTV-817S), boot-safe (R7/R20 pulldown).\nSSR1_A/B, SSR2_A/B float - no GND/+3V3/+5V on the isolated side.\nSSR_EN is the shared opto+indicator cathode return, gated by the watchdog.\nTC1 terminal J3 / TC2 terminal J8: pin1 = K+, pin2 = K- - both float, biased near\nAGND only through each MAX31856's internal BIAS network. Ungrounded-junction\nprobes required: two grounded-junction probes in one kiln would loop through it.\nNav switch J6 is panel-mounted; inputs use ESP32 internal pull-ups\nJ11: IN1/IN2/IN3 (lid/gas-flow/spare) + GND - dry contact each channel to GND\nDisplay J5 pinout: 3V3 GND CS RST DC MOSI SCK BL (ST7796S SPI module)\nJ12: CT current inputs, CTA_P/CTA_N/CTB_P/CTB_N - one CT clamp per SSR zone.\nJ13: DNP SELV voltage sense header. NOT mains-rated, not fitted - do not wire\n  to AC mains. Y1/C25/C26 load caps are an ASSUMED value (unverified C_L),\n  see design.py comment. ADE7953 I2C address 0x38 collides with PCF8574A." (at 25 281 0)
 		(effects (font (size 1.6 1.6)) (justify left))

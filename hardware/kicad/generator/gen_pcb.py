@@ -324,6 +324,7 @@ SILK = [
     ("BOOT", 101.0, 54.2, 0, 0.9),
     ("USB", 104.0, 93.5, 0, 0.9),
     ("STATUS", 85.0, 90.6, 0, 0.9),
+    ("WDT DEFEAT - REMOVE", 27.0, 59.5, 0, 1.0),
 ]
 J5_PINS = ["5V", "GND", "CS", "RST", "DC", "SDI", "SCK", "BL",
            "SDO", "TCK", "TCS", "TDI", "TDO", "IRQ"]
