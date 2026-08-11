@@ -93,6 +93,22 @@ SCH_AT = {
     "R2": (164, 258), "C6": (196, 258), "C7": (222, 258), "C11": (248, 258),
     # mounting holes
     "H1": (330, 252), "H2": (352, 252), "H3": (374, 252), "H4": (396, 252),
+    # CT current sensing (ADE7953, Task 10) - fresh area clear of everything
+    # else on the page. Entries are on a 30mm grid (>=28mm apart in x or y),
+    # the Task 9 hazard margin: Device:R/C symbols stacked closer than that
+    # let facing pin-label stubs coincide and silently short two nets
+    # (Task 7 SSR2_IND_A/ALARM, Task 8 GND/AUX2/AUX3).
+    "U7": (430, 40), "Y1": (460, 40), "C25": (490, 40), "C26": (520, 40),
+    "R30": (550, 40),
+    "C37": (430, 70), "R37": (460, 70), "R38": (490, 70), "C27": (520, 70),
+    "C28": (550, 70),
+    "C29": (430, 100), "C30": (460, 100), "C33": (490, 100),
+    "C34": (520, 100), "C35": (550, 100),
+    "C36": (430, 130), "R31": (460, 130), "R32": (490, 130),
+    "R33": (520, 130), "C31": (550, 130),
+    "R34": (430, 160), "R35": (460, 160), "R36": (490, 160),
+    "C32": (520, 160), "D6": (550, 160),
+    "J12": (430, 190), "J13": (460, 190),
 }
 
 GROUP_TEXT = [
@@ -112,6 +128,8 @@ GROUP_TEXT = [
     ("MOUNTING / POWER FLAGS", 290, 238),
     ("AUX OUTPUT BANK  (ULN2003 vent/purge/spare; COM->AUX_VP, SJ1 links to +5V)",
      25, 280),
+    ("CT CURRENT SENSING  ADE7953, I2C, current-only  (no mains - VP/VN to DNP J13)",
+     430, 20),
 ]
 
 NOTES = (
@@ -124,7 +142,11 @@ NOTES = (
     "probes required: two grounded-junction probes in one kiln would loop through it.\\n"
     "Nav switch J6 is panel-mounted; inputs use ESP32 internal pull-ups\\n"
     "J11: IN1/IN2/IN3 (lid/gas-flow/spare) + GND - dry contact each channel to GND\\n"
-    "Display J5 pinout: 3V3 GND CS RST DC MOSI SCK BL (ST7796S SPI module)"
+    "Display J5 pinout: 3V3 GND CS RST DC MOSI SCK BL (ST7796S SPI module)\\n"
+    "J12: CT current inputs, CTA_P/CTA_N/CTB_P/CTB_N - one CT clamp per SSR zone.\\n"
+    "J13: DNP SELV voltage sense header. NOT mains-rated, not fitted - do not wire\\n"
+    "  to AC mains. Y1/C25/C26 load caps are an ASSUMED value (unverified C_L),\\n"
+    "  see design.py comment. ADE7953 I2C address 0x38 collides with PCF8574A."
 )
 
 

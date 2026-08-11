@@ -538,6 +538,210 @@ COMPONENTS = {
                 value="INPUTS", at=(112.0, 104.0, 90),
                 pins={"1": "IN1_RAW", "2": "IN2_RAW",
                       "3": "IN3_RAW", "4": "GND"}),
+    # --- CT current sensing (ADE7953, I2C, current-only) -----------------
+    # Two current channels, one per SSR zone. I2C rather than SPI: the bus
+    # exists for the expansion header anyway (Task 11), so the chip costs
+    # zero extra GPIOs.
+    #
+    # NO MAINS ON THIS BOARD. The voltage channel (VP/VN) is unpopulated and
+    # goes to J13, a DNP SELV header, so a future off-board isolated AC
+    # accessory upgrades this to true power in firmware alone. IRMS is
+    # reported against a configured nominal mains voltage until then
+    # (REV-B-NOTES.md SS1: IRMSA/IRMSB are computed entirely within the
+    # current signal path and do not depend on VP/VN).
+    #
+    # Every value below is taken from hardware/kicad/datasheets/REV-B-NOTES.md
+    # (ADE7953 Rev. C), which OVERRIDES the task brief's guessed values.
+    # Designators were renumbered against the live COMPONENTS dict: the
+    # brief's R27-R33/D8 collide with Task 9 (R27/R28/R29) and Task 7 (D5).
+    #
+    # Interface strapping (REV-B-NOTES.md SS3, correcting the brief):
+    #   pins 7/8 PULL_HIGH -> +3V3 direct, no resistor (Table 5: "internal
+    #     node pins", not interface-select - the brief's framing was wrong)
+    #   pin 14 PULL_LOW -> GND direct, no resistor; routed into the EP land
+    #   pin 25 SCLK -> +3V3 via R37 10k pull-up (interface-select: 1 = I2C)
+    #   pin 28 ~CS -> +3V3 via R38 10k pull-up (interface-select: 1 = I2C/UART)
+    #   pin 27 MOSI/SCL/Rx -> I2C_SCL, pin 26 MISO/SDA/Tx -> I2C_SDA (the
+    #     ACTUAL bus signals - the brief had these swapped onto pins 25/28)
+    # 10k is Figure 35's Test Circuit value; the datasheet gives no
+    # resistor spec for 25/28 (COULD NOT VERIFY #3), only "pulled high".
+    # Both pins are static logic inputs nothing else drives, so the value
+    # isn't critical - resistors instead of hard ties buy an override path
+    # for bring-up or a future SPI experiment for 2 cents.
+    #
+    # I2C address is fixed at 0x38 (no address pins, REV-B-NOTES.md SS3) -
+    # collides with a PCF8574A expander and some touch controllers on the
+    # Task 11 expansion header. Nothing else on THIS board's bus conflicts.
+    #
+    # Pins left unconnected: 1 ZX (voltage zero-cross, meaningless with no
+    # voltage channel), 20 ~REVP (needs both channels), 23/24 CF1/CF2
+    # (calibration frequency outputs, unused). 21 ZX_I and 22 ~IRQ are also
+    # left NC for now - REV-B-NOTES.md SS1/SS3 recommend routing both to a
+    # GPIO (ZX_I for the datasheet's recommended synchronous IRMS read;
+    # IRQ for the power-up-complete signal) but no GPIO is allocated to
+    # this task's scope; a bare test point is a candidate for Task 13.
+    #
+    # EP (pin 29) is a ground pin, not just a thermal tab (REV-B-NOTES.md
+    # SS2, Rev. C p.10/p.68: "Connect the pad to AGND and DGND") - tied GND.
+    "U7": dict(lib="Sensor", sym="ADE7953xCP",
+               fp="Package_DFN_QFN:QFN-28-1EP_5x5mm_P0.5mm_EP3.1x3.1mm",
+               fpf="QFN-28-1EP_5x5mm_P0.5mm_EP3.1x3.1mm.kicad_mod",
+               value="ADE7953ACPZ", at=(104.0, 86.0, 0),
+               pins={"1": None, "2": "ADE_RESET", "3": "ADE_VINTD",
+                     "4": "GND", "5": "CTA_F", "6": "GND",
+                     "7": "+3V3", "8": "+3V3", "9": "CTB_F", "10": "GND",
+                     "11": "ADE_VN", "12": "ADE_VP", "13": "ADE_REF",
+                     "14": "GND", "15": "ADE_VINTA", "16": "GND",
+                     "17": "+3V3", "18": "ADE_CLKIN", "19": "ADE_CLKOUT",
+                     "20": None, "21": None, "22": None, "23": None,
+                     "24": None, "25": "ADE_SCLK", "26": "I2C_SDA",
+                     "27": "I2C_SCL", "28": "ADE_CS", "29": "GND"}),
+    # Crystal: 3.579545 MHz parallel-resonant AT, per REV-B-NOTES.md SS4.
+    # Footprint corrected per the task brief's amendment #2: KiCad's
+    # Crystal_SMD_HC49-SD_HandSoldering (NOT the non-"_SMD_" name in the
+    # original brief text).
+    "Y1": dict(lib="Device", sym="Crystal",
+               fp="Crystal:Crystal_SMD_HC49-SD_HandSoldering",
+               fpf="Crystal_SMD_HC49-SD_HandSoldering.kicad_mod",
+               value="3.579545MHz", at=(114.0, 76.0, 0),
+               pins={"1": "ADE_CLKIN", "2": "ADE_CLKOUT"}),
+    # Crystal load caps - ASSUMED VALUE, NOT A VERIFIED DATASHEET NUMBER.
+    # REV-B-NOTES.md SS4/SS10#1: the specified crystal (LCSC C7471632, YXC
+    # H6OEL89CSC-SUGYLC-3.579545M) has no published C_L - LCSC exposes no
+    # datasheet or C_L field for this MPN, and it explicitly warns "Task 10
+    # must not simply copy 20 pF" (ADI's reference-design value is for
+    # ADI's own reference crystal, not this one). The notes give the
+    # formula C = 2 x (C_L - C_stray) and note that IF this part turns out
+    # to be a 20 pF C_L crystal, the load caps should be ~30 pF, not 20 pF.
+    # ASSUMPTION (open item for board bring-up, not a datasheet fact):
+    # 30 pF, taking the notes' own worked "if C_L=20pF" figure as the best
+    # available estimate absent a real C_L. Verify against YXC's datasheet
+    # (if obtainable) or by measuring startup margin/frequency on the first
+    # populated board before relying on accuracy-critical IRMS readings.
+    "C25": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
+                value="30pF", at=(111.0, 74.0, 0),
+                pins={"1": "ADE_CLKIN", "2": "GND"}),
+    "C26": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
+                value="30pF", at=(117.0, 74.0, 0),
+                pins={"1": "ADE_CLKOUT", "2": "GND"}),
+    # ~RESET (pin 2): REV-B-NOTES.md SS4 - Figure 35's Test Circuit shows a
+    # 10k pull-up to 3.3V with a 1uF cap to ground for a power-on reset
+    # stretch (Figure 78's application circuit shows nothing on this pin -
+    # it's application-dependent). Datasheet minimum low pulse is 10us; a
+    # software reset and the datasheet's own reset interrupt are both
+    # available if this network is omitted, but the stretch is cheap.
+    "R30": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="10k", at=(97.0, 78.0, 0),
+                pins={"1": "+3V3", "2": "ADE_RESET"}),
+    "C37": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
+                value="1uF", at=(97.0, 81.0, 0),
+                pins={"1": "ADE_RESET", "2": "GND"}),
+    # SCLK / ~CS interface-select pull-ups - see the strapping note above.
+    "R37": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="10k", at=(97.0, 84.0, 0),
+                pins={"1": "+3V3", "2": "ADE_SCLK"}),
+    "R38": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="10k", at=(97.0, 87.0, 0),
+                pins={"1": "+3V3", "2": "ADE_CS"}),
+    # VINTA/VINTD/REF/VDD decoupling - REV-B-NOTES.md SS4 (Table 5, cross-
+    # checked against Figure 78): each of VINTA, VINTD and REF (all internal
+    # LDO/reference OUTPUTS to be decoupled, never driven) gets 4.7uF || 100nF;
+    # VDD gets 10uF || 100nF. That's 8 physical capacitors, more than the
+    # brief's 4 pre-allocated designators (C27-C30) provided for, so the
+    # extra four are allocated sequentially from C33 as the task instructions
+    # direct. The ceramic (100nF) of each pair is the one to place closest to
+    # the IC per the datasheet's own layout guidance (Rev. C p.68); exact
+    # placement is Task 14's job.
+    "C27": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
+                value="4.7uF", at=(118.0, 76.0, 0),
+                pins={"1": "ADE_VINTA", "2": "GND"}),
+    "C28": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
+                value="100nF", at=(118.0, 78.0, 0),
+                pins={"1": "ADE_VINTA", "2": "GND"}),
+    "C29": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
+                value="4.7uF", at=(118.0, 80.0, 0),
+                pins={"1": "ADE_VINTD", "2": "GND"}),
+    "C30": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
+                value="100nF", at=(118.0, 82.0, 0),
+                pins={"1": "ADE_VINTD", "2": "GND"}),
+    "C33": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
+                value="4.7uF", at=(118.0, 84.0, 0),
+                pins={"1": "ADE_REF", "2": "GND"}),
+    "C34": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
+                value="100nF", at=(118.0, 86.0, 0),
+                pins={"1": "ADE_REF", "2": "GND"}),
+    "C35": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
+                value="10uF", at=(118.0, 88.0, 0),
+                pins={"1": "+3V3", "2": "GND"}),
+    "C36": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
+                value="100nF", at=(118.0, 90.0, 0),
+                pins={"1": "+3V3", "2": "GND"}),
+    # Channel A burden + anti-alias. The ADE7953's current inputs are
+    # bipolar, referenced to AGND directly - no mid-rail bias divider like a
+    # single-supply ADC (this is not in REV-B-NOTES.md; it's how a
+    # differential current-sense front-end normally works, and the brief's
+    # amended text already reflects it). R32/C31 form a ~4.8 kHz pole, well
+    # above the 60 Hz fundamental and its usable harmonics, well below the
+    # modulator rate.
+    #
+    # Sizing (not from REV-B-NOTES.md - the notes don't cover the CT/burden
+    # network, only the ADE7953 itself): a 2000:1 current-output clamp
+    # (100A:50mA, e.g. SCT-013-000) against the ADE7953's +-500mV full-scale
+    # differential input. 100A rms -> 50mA rms -> 70.7mA peak;
+    # 0.5V / 70.7mA ~= 7.1 Ohm, so 6.8 Ohm gives headroom. This CT ratio is
+    # a calibration constant the firmware will need - see docs/pin-
+    # assignments.md (Task 16).
+    "R31": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="6R8", at=(108.0, 82.0, 0),
+                pins={"1": "CTA_P", "2": "CTA_N"}),
+    "R32": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="1k", at=(105.0, 82.0, 0),
+                pins={"1": "CTA_P", "2": "CTA_F"}),
+    "R33": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="1k", at=(105.0, 84.0, 0),
+                pins={"1": "CTA_N", "2": "GND"}),
+    "C31": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
+                value="33nF", at=(102.0, 83.0, 0),
+                pins={"1": "CTA_F", "2": "GND"}),
+    # Channel B - exact copy of channel A above, 6mm south.
+    "R34": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="6R8", at=(108.0, 88.0, 0),
+                pins={"1": "CTB_P", "2": "CTB_N"}),
+    "R35": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="1k", at=(105.0, 88.0, 0),
+                pins={"1": "CTB_P", "2": "CTB_F"}),
+    "R36": dict(lib="Device", sym="R", fp=R0805[0], fpf=R0805[1],
+                value="1k", at=(105.0, 90.0, 0),
+                pins={"1": "CTB_N", "2": "GND"}),
+    "C32": dict(lib="Device", sym="C", fp=C0805[0], fpf=C0805[1],
+                value="33nF", at=(102.0, 89.0, 0),
+                pins={"1": "CTB_F", "2": "GND"}),
+    # Spec SS5.5's second SRV05-4 (the first, D5, covers the dry-contact
+    # inputs). NOT on the thermocouple inputs - array leakage into a
+    # ~40uV/degC source is an accuracy error, not protection. SRV05-4
+    # pinout matches D5's: 1 IO1, 2 GND, 3 IO2, 4 IO3, 5 VP(+3V3), 6 IO4.
+    "D6": dict(lib="Power_Protection", sym="SRV05-4",
+               fp="Package_TO_SOT_SMD:SOT-23-6", fpf="SOT-23-6.kicad_mod",
+               value="SRV05-4", at=(108.0, 91.0, 0),
+               pins={"1": "CTA_P", "2": "GND", "3": "CTA_N",
+                     "4": "CTB_P", "5": "+3V3", "6": "CTB_N"}),
+    "J12": dict(lib="Connector", sym="Screw_Terminal_01x04",
+                fp="TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-4-5.08_1x04_P5.08mm_Horizontal",
+                fpf="TerminalBlock_Phoenix_MKDS-1,5-4-5.08_1x04_P5.08mm_Horizontal.kicad_mod",
+                value="CT", at=(116.0, 86.0, 90),
+                pins={"1": "CTA_P", "2": "CTA_N", "3": "CTB_P", "4": "CTB_N"}),
+    # DNP: SELV AC voltage input for a future true-power upgrade. Not
+    # fitted - NO MAINS ON THIS BOARD. REV-B-NOTES.md SS1 ("Handling of the
+    # unused voltage inputs"): the datasheet gives no explicit guidance for
+    # leaving VP/VN floating (COULD NOT VERIFY #4); this DNP header is the
+    # engineering recommendation - it keeps the high-impedance PGA inputs
+    # off a floating net on a board that also carries SSR switching, while
+    # leaving the pins genuinely unpopulated absent the header being fitted.
+    "J13": dict(lib="Connector_Generic", sym="Conn_01x02",
+                fp="Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
+                fpf="PinHeader_1x02_P2.54mm_Vertical.kicad_mod",
+                value="AC_SENSE_DNP", at=(96.0, 92.0, 0),
+                pins={"1": "ADE_VP", "2": "ADE_VN"}),
     # --- Headers ---------------------------------------------------------
     "J5": dict(lib="Connector_Generic", sym="Conn_01x08",
                fp="Connector_Molex:Molex_KK-254_AE-6410-08A_1x08_P2.54mm_Vertical",
