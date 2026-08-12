@@ -56,6 +56,17 @@ void log_sink_init(log_sink_t *sink, char *storage, size_t capacity);
 void log_sink_write(log_sink_t *sink, const char *data, size_t len);
 
 /**
+ * Feed one already-formatted log record.
+ *
+ * `complete` is false when the formatter truncated the record — which takes the
+ * record's own trailing newline with it. Without that flag the sink is left
+ * mid-line and still in its drop-the-tail state, so it swallows the whole of
+ * the *next* record and uses that record's newline to commit this one: one
+ * oversized message costs two log lines, and the second loss is invisible.
+ */
+void log_sink_write_record(log_sink_t *sink, const char *data, size_t len, bool complete);
+
+/**
  * Copy the retained lines into `dst` as a packed NUL-separated block, oldest
  * first, and return the number of bytes written.
  *

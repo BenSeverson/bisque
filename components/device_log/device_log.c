@@ -44,8 +44,13 @@ static int log_vprintf_hook(const char *fmt, va_list args)
 
     if (n > 0) {
         size_t len = (size_t)n < sizeof(line) - 1 ? (size_t)n : sizeof(line) - 1;
+        /* vsnprintf returns the length it *would* have written, so this is how
+           a record too long for `line` announces itself — and what it dropped
+           includes the record's own trailing newline. Say so, or the sink stays
+           mid-line and swallows the next record as this one's tail. */
+        bool complete = (size_t)n < sizeof(line);
         if (s_mutex && xSemaphoreTake(s_mutex, 1) == pdTRUE) {
-            log_sink_write(&s_sink, line, len);
+            log_sink_write_record(&s_sink, line, len, complete);
             xSemaphoreGive(s_mutex);
         }
     }

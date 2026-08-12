@@ -115,6 +115,18 @@ void log_sink_write(log_sink_t *sink, const char *data, size_t len)
     }
 }
 
+void log_sink_write_record(log_sink_t *sink, const char *data, size_t len, bool complete)
+{
+    log_sink_write(sink, data, len);
+    if (sink && !complete) {
+        /* Terminate the record the formatter cut short. Feeding the newline it
+           lost commits what survived and clears `truncating`, so the next
+           record starts a line of its own instead of being eaten as this
+           one's tail. */
+        log_sink_write(sink, "\n", 1);
+    }
+}
+
 size_t log_sink_snapshot(const log_sink_t *sink, char *dst, size_t dst_capacity, size_t *out_lines)
 {
     if (out_lines) {

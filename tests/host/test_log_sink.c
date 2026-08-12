@@ -134,6 +134,45 @@ static void test_overlong_line_is_truncated_not_dropped(void)
     TEST_ASSERT_EQUAL_STRING("next", nth_line(out, sizeof(out), 1, NULL));
 }
 
+/* The formatter's buffer is finite, so a long enough ESP_LOGx record reaches
+   the sink with its trailing newline already cut off. Left unterminated, the
+   sink stays in its drop-the-tail state and eats the whole of the *next*
+   record, committing this one on that record's newline — one oversized message
+   costing two lines, the second loss invisible. */
+static void test_truncated_record_does_not_swallow_the_next_one(void)
+{
+    reset(sizeof(s_storage));
+    /* Longer than a retained line, so the sink is in `truncating` when the
+       record ends — exactly the state the missing newline used to leave it in. */
+    char cut[LOG_SINK_LINE_MAX + 24];
+    memset(cut, 'x', sizeof(cut));
+    /* No newline: this is what vsnprintf hands back when it truncated. */
+    log_sink_write_record(&s_sink, cut, sizeof(cut), false);
+    log_sink_write_record(&s_sink, "I (99) main: next\n", 18, true);
+
+    char out[sizeof(s_storage)];
+    size_t lines = 0;
+    const char *first = nth_line(out, sizeof(out), 0, &lines);
+    TEST_ASSERT_EQUAL_UINT(2, lines);
+    TEST_ASSERT_EQUAL_UINT(LOG_SINK_LINE_MAX - 1, strlen(first));
+    TEST_ASSERT_EQUAL_STRING("I (99) main: next", nth_line(out, sizeof(out), 1, NULL));
+}
+
+/* A complete record is unchanged by the record entry point — its own newline
+   commits it, and no extra blank line is invented. */
+static void test_complete_record_is_committed_once(void)
+{
+    reset(sizeof(s_storage));
+    log_sink_write_record(&s_sink, "I (10) main: one\n", 17, true);
+    log_sink_write_record(&s_sink, "I (20) main: two\n", 17, true);
+
+    char out[sizeof(s_storage)];
+    size_t lines = 0;
+    TEST_ASSERT_EQUAL_STRING("I (10) main: one", nth_line(out, sizeof(out), 0, &lines));
+    TEST_ASSERT_EQUAL_STRING("I (20) main: two", nth_line(out, sizeof(out), 1, NULL));
+    TEST_ASSERT_EQUAL_UINT(2, lines);
+}
+
 /* A short destination keeps the tail of the log, not the head. */
 static void test_snapshot_keeps_the_newest_lines_when_short(void)
 {
@@ -190,6 +229,8 @@ int main(void)
     RUN_TEST(test_blank_lines_are_not_retained);
     RUN_TEST(test_oldest_lines_are_evicted_when_full);
     RUN_TEST(test_overlong_line_is_truncated_not_dropped);
+    RUN_TEST(test_truncated_record_does_not_swallow_the_next_one);
+    RUN_TEST(test_complete_record_is_committed_once);
     RUN_TEST(test_snapshot_keeps_the_newest_lines_when_short);
     RUN_TEST(test_snapshot_reports_nothing_when_no_line_fits);
     RUN_TEST(test_null_safety);
