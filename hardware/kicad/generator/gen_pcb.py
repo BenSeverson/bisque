@@ -88,8 +88,11 @@ def pad_geometry(comp):
 # Opto-isolation barrier (spec 6.2). The band spans the west edge from just
 # above J4 to just below J9 and stops short of the optocouplers' input pins, so
 # every scrap of isolated copper - J4/J9 and U8/U9 pins 3 and 4 - sits inside
-# it and no pour reaches within ~5 mm of any of it. Placement, the pour keepout
-# and the router keepout all move together; kicad_build.py imports these.
+# it. Measured clearance from the barrier to the nearest copper: 1.12 mm to
+# the nearest fill edge, 1.62 mm to the nearest foreign-net copper - adequate
+# for a SELV-to-SELV noise barrier, not the "~5 mm" this comment used to
+# claim. Placement, the pour keepout and the router keepout all move
+# together; kicad_build.py imports these.
 ISO_BARRIER = (20.0, 71.0, 40.8, 95.5)
 ISO_NETS = ("SSR1_A", "SSR1_B", "SSR2_A", "SSR2_B")
 
@@ -821,7 +824,12 @@ SILK = [
     ("I2C", 66.0, 93.6, 0, 0.9),
     ("INPUTS  1 / 2 / 3 / GND", 62.6, 108.8, 0, 0.9),
     ("AUX_VP=5V", 34.0, 66.0, 0, 0.9),
-    ("WDT DEFEAT - REMOVE", 50.0, 61.5, 0, 0.9),
+    # SJ2 must be FITTED on this rev — nothing kicks the watchdog GPIO yet
+    # (see main/Kconfig.projbuild KILN_PIN_WDT_KICK). "REMOVE" would be a
+    # lie on every board built from this revision, so the silk just names
+    # the jumper; jlcpcb/README.md and the hand-solder BOM carry the
+    # fit-it-or-it-won't-heat instruction where a builder will see it.
+    ("WDT DEFEAT", 50.0, 61.5, 0, 0.9),
 ]
 J5_PINS = ["5V", "GND", "CS", "RST", "DC", "SDI", "SCK", "BL",
            "SDO", "TCK", "TCS", "TDI", "TDO", "IRQ"]

@@ -445,5 +445,5 @@
   <text x="410" y="951" font-size="9" fill="#996699" text-anchor="middle">ALARM / VENT / LID SW default to GP7 / GP14 / GP4 (rev B Kconfig defaults) - set CONFIG_KILN_PIN_* to -1 for any you do not fit</text>
   <text x="410" y="965" font-size="9" fill="#cc4444" text-anchor="middle">LID SW must read closed or the kiln will not heat: dry contact (or a jumper) to GND, else set CONFIG_KILN_PIN_LID_SWITCH=-1</text>
   <text x="410" y="979" font-size="9" fill="#996699" text-anchor="middle">On the rev B PCB that contact is protected-input terminal J11 pin 1 + pin 4 (GND), filtered by R12/R13/C12</text>
-  <text x="410" y="993" font-size="8" fill="#cc4444" text-anchor="middle">NOTE: nav-button/GPIO callouts elsewhere in this diagram still show pre-rev-B numbers (GP4/5/6/2/1) - see docs/pin-assignments.md for the current map (GP38-42)</text>
+  <text x="410" y="993" font-size="8" fill="#cc4444" text-anchor="middle">NOTE: individual GPIO callouts in this diagram still show pre-rev-B numbers (nav buttons GP4/5/6/2/1, LID GP21) - see docs/pin-assignments.md for the current map (nav GP38-42, LID GP4)</text>
 </svg>

@@ -23,10 +23,20 @@ from sexp import parse, find, find_all, num
 MIN_CLEAR = 0.198
 EDGE_CLEAR = 0.4
 
-# Must match kicad_build.ISO_BARRIER / ISO_NETS. Duplicated rather than
-# imported so this checker stays independent of the generator.
+# Must match gen_pcb.ISO_BARRIER / ISO_NETS. Duplicated rather than imported
+# so this checker's geometry logic stays independent of the generator - but
+# an undetected drift here would silently turn the barrier check into a test
+# of an empty rectangle while still printing ALL CHECKS PASS, so the values
+# are asserted equal to the generator's at import time rather than trusted.
 ISO_BARRIER = (20.0, 71.0, 40.8, 95.5)
 ISO_NETS = ("SSR1_A", "SSR1_B", "SSR2_A", "SSR2_B")
+
+from gen_pcb import ISO_BARRIER as _GEN_ISO_BARRIER, ISO_NETS as _GEN_ISO_NETS
+assert ISO_BARRIER == _GEN_ISO_BARRIER, (
+    f"check_pcb.ISO_BARRIER {ISO_BARRIER} != gen_pcb.ISO_BARRIER {_GEN_ISO_BARRIER} - "
+    "the isolation-barrier check would silently test the wrong rectangle")
+assert ISO_NETS == _GEN_ISO_NETS, (
+    f"check_pcb.ISO_NETS {ISO_NETS} != gen_pcb.ISO_NETS {_GEN_ISO_NETS}")
 
 # Copper stack-up, and the nets poured on the inner layers. Must match
 # gen_pcb.PLANE_LAYER; duplicated so this checker stays independent.

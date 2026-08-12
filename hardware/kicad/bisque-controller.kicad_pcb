@@ -30029,10 +30029,10 @@
 			)
 		)
 	)
-	(gr_text "WDT DEFEAT - REMOVE"
+	(gr_text "WDT DEFEAT"
 		(at 50 61.5 0)
 		(layer "F.SilkS")
-		(uuid "99953a82-f20f-57c9-8246-916c5aaf61f3")
+		(uuid "527b49cf-1200-506e-84f5-7e203799bbea")
 		(effects
 			(font
 				(size 0.9 0.9)

@@ -166,6 +166,20 @@ components, not in the parts the spec anticipated.
   against real datasheets before layout (see the Task 4 report); this review
   does not re-litigate them, only records that the layout that shipped is
   the one that was cleared.
+- **GND via hole-to-hole spacing — checked against JLCPCB's published
+  capability, not just assumed.** Two via pairs on the board (e.g.
+  `(44.0, 28.5)` / `(44.0, 29.25)`) sit 0.75 mm centre-to-centre with 0.30 mm
+  drills, i.e. a 0.45 mm hole-edge-to-hole-edge gap. `router.py`'s own
+  hole-gap constant (`router.py:278`) enforces only 0.30 mm, so this pair is
+  the tightest on the board relative to what the router itself requires.
+  JLCPCB's PCB Capabilities page
+  (https://jlcpcb.com/capabilities/pcb-capabilities, fetched 2026-08-11)
+  states **"Via Hole-to-Hole Spacing: 0.2mm"** (a separate, larger 0.45 mm
+  figure is listed for *pad*-to-pad hole spacing, which doesn't apply here —
+  these are plain vias, not pads). 0.45 mm clears the 0.2 mm via minimum with
+  margin, so **no layout change was made**; the previously-cited "commonly
+  quoted 0.5 mm" figure was unconfirmed and did not come from JLCPCB's own
+  page.
 
 ## Not performed / limits on confidence
 

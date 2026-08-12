@@ -131,7 +131,6 @@ LCSC = {
     "LED2": ("C2297", "KT-0805G green LED 0805", True, True),
     "LED3": ("C2296", "KT-0805Y amber LED 0805", True, True),
     "LED4": ("C2296", "KT-0805Y amber LED 0805", True, True),
-    "Q1": ("C20917", "AO3400A SOT-23", True, True),
     "Q2": ("C20917", "AO3400A SOT-23", True, True),
     "Q3": ("C20917", "AO3400A SOT-23", True, True),
     "R1": ("C17414", "10k 0805 1%", True, True),

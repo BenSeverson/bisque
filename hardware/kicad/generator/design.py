@@ -54,7 +54,8 @@ BX0, BY0, BX1, BY1 = 20.0, 20.0, 120.0, 120.0   # 100 x 100 mm
 #   switching x 20..60   y 50..92   ULN2003, SSR optos, watchdog, buzzer
 #   analog    x 92..120  y 50..92   MAX31856 x2, ADE7953, CT front-end
 #   headers   x 20..120  y 94..120  LCD / nav / aux / I2C, screw terminals
-#   barrier   x 20..60   y 74..92   GND pour keepout across the opto row
+#   barrier   x 20..40.8 y 71..95.5 GND pour keepout across the opto row
+#             (load-bearing value is gen_pcb.py's ISO_BARRIER; keep in sync)
 
 # net name -> netclass ("signal" default).
 # AUX_VP is an externally supplied coil rail the board does not generate, and

@@ -2,8 +2,10 @@
 
 KiCad's own DRC reports courtyard overlaps, but only after a 15-minute route
 and fill; this answers the same question from design.py in a second, which is
-what makes iterating on floorplan.py practical. Exit code is advisory - read
-the "total overlaps" line. Needs KiCad's python for the footprint courtyards.
+what makes iterating on floorplan.py practical. Exit code is 0 only when
+there are zero overlaps and zero off-board parts; nonzero (1) otherwise, so
+`make pcb-check` actually fails on a placement regression instead of always
+"passing". Needs KiCad's python for the footprint courtyards.
 """
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -46,9 +48,11 @@ if __name__ == "__main__":
         x0,y0,x1,y1 = b[ref]
         print("%-6s %7.2f %7.2f %7.2f %7.2f   w=%5.2f h=%5.2f" % (ref,x0,y0,x1,y1,x1-x0,y1-y0))
     print("--- outside board ---")
+    n_out = 0
     for ref,(x0,y0,x1,y1) in sorted(b.items()):
         if x0 < BX0 or y0 < BY0 or x1 > BX1 or y1 > BY1:
             print("OUT %-6s %.2f %.2f %.2f %.2f" % (ref,x0,y0,x1,y1))
+            n_out += 1
     print("--- overlaps ---")
     refs = sorted(b)
     n=0
@@ -61,3 +65,5 @@ if __name__ == "__main__":
                 n+=1
                 print("OVL %-6s %-6s  %.2f x %.2f" % (refs[i],refs[j],ox,oy))
     print("total overlaps:", n)
+    print("total outside board:", n_out)
+    sys.exit(0 if (n == 0 and n_out == 0) else 1)

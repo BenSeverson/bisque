@@ -46,6 +46,17 @@ menu "Bisque Configuration"
         config KILN_PIN_SSR1
             int "SSR Output GPIO"
             default 17
+            help
+                Trigger for the primary (zone 1) SSR output — the kiln's main
+                heat output. Opto-isolated on the rev B board (LTV-817S, U8):
+                GPIO -> 220 ohm series resistor -> opto LED -> shared SSR_EN
+                return, driven from the 100 ms SSR window.
+
+                Gated in hardware by the watchdog charge pump on
+                KILN_PIN_WDT_KICK (GPIO 36, see below): if that pin stops
+                toggling, or a rev B board is missing the SJ2 "WDT DEFEAT"
+                jumper it currently needs (nothing kicks GPIO 36 yet), this
+                output de-energizes regardless of what firmware commands.
 
         config KILN_PIN_LCD_CS
             int "LCD CS GPIO"
