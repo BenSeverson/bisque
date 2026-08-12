@@ -2,11 +2,16 @@
 
 Checks:
   1. copper-to-copper clearance between different nets (segments, vias, pads)
-  2. per-net connectivity (tracks/vias/pads touching), GND allowed via zone
-  3. no copper inside the antenna keepout (except the module's own courtyard
-     region is copper-free anyway)
+  2. per-net connectivity (tracks/vias/pads touching); the plane nets are
+     exempt, being carried by an inner pour rather than by tracks
+  3. no track, via or PLANE FILL inside the opto-isolation barrier
   4. copper-to-board-edge margin
   5. courtyard overlaps between footprints
+
+The board is 4-layer (spec 6.1). Tracks only ever sit on F.Cu or B.Cu; the
+inner layers carry the GND and +3V3 plane fills and nothing else. Through
+vias and plated pads are modelled as present on every copper layer, which is
+what they are.
 """
 import math
 import os
@@ -22,6 +27,12 @@ EDGE_CLEAR = 0.4
 # imported so this checker stays independent of the generator.
 ISO_BARRIER = (20.0, 71.0, 40.8, 95.5)
 ISO_NETS = ("SSR1_A", "SSR1_B", "SSR2_A", "SSR2_B")
+
+# Copper stack-up, and the nets poured on the inner layers. Must match
+# gen_pcb.PLANE_LAYER; duplicated so this checker stays independent.
+CU_LAYERS = {"F.Cu": 0, "B.Cu": 1, "In1.Cu": 2, "In2.Cu": 3}
+ALL_CU = set(CU_LAYERS.values())
+PLANE_NETS = ("GND", "+3V3")
 
 
 class Item:
@@ -133,7 +144,7 @@ def load(src):
         it.w = num(find(s, "width")[1])
         it.h = it.w
         it.circle = False
-        it.layers = {0 if str(find(s, "layer")[1]) == "F.Cu" else 1}
+        it.layers = {CU_LAYERS[str(find(s, "layer")[1])]}
         it.net = find(s, "net")[1]
         it.ref = "seg"
         items.append(it)
@@ -146,7 +157,7 @@ def load(src):
         it.w = num(find(v, "size")[1])
         it.h = it.w
         it.circle = True
-        it.layers = {0, 1}
+        it.layers = set(ALL_CU)          # through via: every copper layer
         it.net = find(v, "net")[1]
         it.ref = "via"
         items.append(it)
@@ -204,7 +215,8 @@ def load(src):
             it.w, it.h = w, h
             it.circle = str(p[3]) == "circle"
             kind = str(p[2])
-            it.layers = {0, 1} if kind in ("thru_hole", "np_thru_hole") else {0}
+            it.layers = set(ALL_CU) if kind in ("thru_hole", "np_thru_hole") \
+                else {0}
             netn = find(p, "net")
             if kind == "np_thru_hole":
                 it.net = -2  # blocks everything
@@ -235,6 +247,38 @@ def load(src):
         elif it.net in netnames and it.net >= 0:
             it.net = netnames[it.net]  # normalize numbered nets to names
     return items, netnames, courtyards, edges, doc
+
+
+def point_in_poly(px, py, pts):
+    inside = False
+    n = len(pts)
+    for i in range(n):
+        x1, y1 = pts[i]
+        x2, y2 = pts[(i + 1) % n]
+        if (y1 > py) != (y2 > py):
+            xi = x1 + (py - y1) * (x2 - x1) / (y2 - y1)
+            if px < xi:
+                inside = not inside
+    return inside
+
+
+def zone_fills(doc):
+    """(layer, net, [[(x, y), ...], ...]) for every filled zone."""
+    out = []
+    for z in find_all(doc, "zone"):
+        lay = find(z, "layer")
+        net = find(z, "net")
+        if lay is None or net is None:
+            continue                      # rule area / multi-layer keepout
+        polys = []
+        for fp in find_all(z, "filled_polygon"):
+            pts = find(fp, "pts")
+            if pts:
+                polys.append([(num(p[1]), num(p[2]))
+                              for p in find_all(pts, "xy")])
+        if polys:
+            out.append((str(lay[1]), str(net[1]), polys))
+    return out
 
 
 def main(src):
@@ -284,7 +328,7 @@ def main(src):
         if isinstance(it.net, str) and it.net:
             bynet[it.net].append(idx)
     for netn, idxs in sorted(bynet.items()):
-        if netn == "GND":
+        if netn in PLANE_NETS:
             continue
         parent = list(range(len(idxs)))
 
@@ -337,6 +381,35 @@ def main(src):
         if hit and it.net not in ISO_NETS:
             problems.append("isolation barrier violation: %s carries %s"
                             % (it, it.net))
+
+    # 3b. ...and no PLANE copper either. A GND plane running under the
+    # optocouplers would defeat the barrier completely and nothing in check 3
+    # would see it: a zone fill is not a track, and none of the item-based
+    # checks above model one. The rule area in kicad_build.add_zones is
+    # supposed to keep the fill out on every copper layer; this is the
+    # independent confirmation that it did.
+    #
+    # Tested by sampling the band rather than by looking at fill vertices: the
+    # fill legitimately *touches* the keepout edge, so a vertex on the
+    # boundary means the rule area worked, not that it failed. What must be
+    # true is that no point in the band's interior is inside any fill.
+    fills = zone_fills(doc)
+    for (zlayer, znet, outlines) in fills:
+        hit = None
+        yy = ky0 + 0.5
+        while yy < ky1 and hit is None:
+            xx = kx0 + 0.5
+            while xx < kx1:
+                if any(point_in_poly(xx, yy, pts) for pts in outlines):
+                    hit = (xx, yy)
+                    break
+                xx += 0.5
+            yy += 0.5
+        if hit:
+            problems.append("isolation barrier violation: %s fill on %s covers "
+                            "(%.2f, %.2f)" % (znet, zlayer, hit[0], hit[1]))
+    if not fills:
+        problems.append("no filled zones found - was the board filled?")
 
     # 4. edge clearance
     for it in items:

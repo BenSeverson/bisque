@@ -1,8 +1,8 @@
 """Generate bisque-controller.kicad_pcb (KiCad 9 format).
 
 Embeds the official library footprints, assigns nets from design.py,
-autoroutes signal/power nets with router.py, adds GND pours (unfilled —
-press 'B' in pcbnew), stitching vias, edge cuts and silkscreen labels.
+autoroutes signal/power nets with router.py, adds the inner GND/+3V3
+planes (unfilled — press 'B' in pcbnew), edge cuts and silkscreen labels.
 """
 import math
 import os
@@ -85,12 +85,19 @@ def pad_geometry(comp):
         yield (str(name), kind, gx, gy, w, h, circle, layers, drill)
 
 
+# Opto-isolation barrier (spec 6.2). The band spans the west edge from just
+# above J4 to just below J9 and stops short of the optocouplers' input pins, so
+# every scrap of isolated copper - J4/J9 and U8/U9 pins 3 and 4 - sits inside
+# it and no pour reaches within ~5 mm of any of it. Placement, the pour keepout
+# and the router keepout all move together; kicad_build.py imports these.
+ISO_BARRIER = (20.0, 71.0, 40.8, 95.5)
+ISO_NETS = ("SSR1_A", "SSR1_B", "SSR2_A", "SSR2_B")
+
+
 def build_router():
     r = R.Router(BX0, BY0, BX1, BY1)
     # No antenna keepout: rev B's WROOM-1U has no PCB antenna (spec 2.1).
-    # Opto barrier, mirroring kicad_build.ISO_BARRIER / ISO_NETS.
-    r.add_keepout(20.0, 71.0, 40.8, 95.5,
-                  allow_nets=("SSR1_A", "SSR1_B", "SSR2_A", "SSR2_B"))
+    r.add_keepout(*ISO_BARRIER, allow_nets=ISO_NETS)
     pad_pos = {}
     for ref, c in COMPONENTS.items():
         for (name, kind, gx, gy, w, h, circle, layers, drill) in pad_geometry(c):
@@ -121,8 +128,13 @@ USB_SEEDS = [  # (net, layer, [(x,y)...], width)
     ("USB_DP", 0, [(47.25, 28.445), (47.25, 27.2), (48.25, 27.2),
                    (48.25, 28.445)], 0.25),
     ("USB_DP", 0, [(47.25, 28.445), (47.25, 31.25)], 0.25),
-    ("USB_DN", 0, [(47.75, 28.445), (47.75, 30.0), (48.75, 30.0),
-                   (48.75, 31.25)], 0.25),
+    # The D- link ran (47.75 pad) -> south -> across -> south to the escape
+    # point and never actually touched the second D- pad at x 48.75, which sits
+    # 1.5 mm *north* of where the link crossed; J1.B7 came out unconnected. Two
+    # polylines, mirroring the D+ pair above: the link, and the escape run
+    # started at the pad it is supposed to leave from.
+    ("USB_DN", 0, [(47.75, 28.445), (47.75, 30.0), (48.75, 30.0)], 0.25),
+    ("USB_DN", 0, [(48.75, 28.445), (48.75, 31.25)], 0.25),
     ("CC1", 0, [(49.25, 28.445), (49.25, 31.75)], 0.25),
     ("CC2", 0, [(46.25, 28.445), (46.25, 31.75)], 0.25),
     ("VBUS", 0, [(50.45, 28.445), (50.45, 32.0), (50.5, 32.0)], 0.4),
@@ -156,7 +168,255 @@ USB_STUB_TERMS = {
 # pad's centreline, ends on a grid node, and claims its lane up front, so the
 # order nets happen to be routed in stops mattering.
 FANOUT = {"U7": 1.75, "U3": 1.5, "U5": 1.5}
-FANOUT_WIDTH = 0.25
+SIG_W = 0.25          # default signal track width; see ROUTE_ORDER
+FANOUT_WIDTH = SIG_W
+
+# ---------------------------------------------------------------------------
+# Inner planes (rev B is 4-layer; spec 6.1)
+# ---------------------------------------------------------------------------
+# net -> the inner copper layer it is poured on. These nets are never routed
+# as tracks: every pad instead drops a via straight down to its plane, which
+# is what frees F.Cu and B.Cu for signals. GND was already poured (on both
+# signal layers) in rev A; +3V3 joins it because it is the one rail with pads
+# scattered over the whole board - 36 of them, on every IC, header and
+# strapping network - and so the one rail that competed with signals
+# everywhere at once.
+#
+# In2 carries +3V3 ALONE rather than being split with +5V. A split needs the
+# two nets' consumers to fall in separable regions, and +5V's do not: its 12
+# pads run from the regulator at the top-left corner to the LCD header at the
+# bottom edge, the buzzer in the middle of the switching block and the LED
+# supply diode at the right edge - a partition following them would leave
+# +3V3, the net that actually needs the plane, in slivers. +5V has few enough
+# terminals to route comfortably as 0.6 mm track, so it does.
+PLANE_LAYER = {"GND": "In1.Cu", "+3V3": "In2.Cu"}
+PLANE_NETS = tuple(PLANE_LAYER)
+PLANE_STUB_W = SIG_W
+
+
+def plane_vias(r, pad_pos, seed_list=(), max_r=6.0):
+    """Drop a via from every SMD pad of a plane net down to its plane.
+
+    Through-hole pads already cross every layer, so they reach the plane by
+    existing. An SMD pad does not, and with no pour on the signal layers there
+    is nothing for it to touch: it needs a via and a stub to it.
+
+    Placed BEFORE any signal is routed. These vias are not optional - a missing
+    one is an unconnected pad - so they claim their space while the board is
+    empty and the signal router threads what is left. That makes their number
+    and position matter: on the ADE7953, one via per ground pin put five holes
+    into the same 0.5 mm-pitch escape annulus that eight signals also have to
+    leave through, and cost more nets than the plane saved. So pads already
+    tied to each other in copper are treated as ONE group and share a single
+    via - which for a QFN's five ground pins, all stubbed onto the exposed pad,
+    means one hole instead of five.
+
+    A group's members are physical PADS, not pin numbers. Several footprints
+    here give one pin number to two separate pieces of copper - both halves of
+    a tactile switch's ground side, the SOT-223's tab and its pin 2 - and they
+    are only the same net, not the same copper: each needs its own via.
+    """
+    pads, groups = _plane_groups(r, pad_pos, seed_list)
+    out, fails = [], []
+    load = {ref: _side_load(ref, pad_pos) for ref in FANOUT}
+    # Smallest groups first: a group of one has exactly one escape ray to try,
+    # while the QFN's six-pin ground group can take any of six. Letting the
+    # many-choice group pick first strands the single-choice one.
+    for key in sorted(groups, key=lambda g: (len(groups[g]), sorted(groups[g])[0])):
+        members = sorted(groups[key])
+        net = pads[members[0]][4]
+        # Where a group spans several sides of a fine-pitch part, take the via
+        # off the side carrying the fewest signals. The ADE7953's five ground
+        # pins are one group; putting their single via on the south row - the
+        # busiest, four signals - plugged the corridor those four escape by and
+        # cost three nets. Plain pin order picks that row; side load does not.
+        members.sort(key=lambda m: ((load[m[0]].get(_pad_side(m[0], pads[m]), 0), m)
+                                    if m[0] in load else (0, m)))
+        # Every via changes what the next one may do, so the blocked/via_ok
+        # memo has to be dropped between groups rather than only between nets.
+        r._memo, r._memo_net = {}, net
+        spot = None
+        for m in members:
+            (x, y, layers, area, _net) = pads[m]
+            if len(layers) == 2:
+                spot = "tht"              # reaches the plane by existing
+                break
+            cand = _via_spot_for_pad(r, net, m[0], x, y, max_r)
+            if cand is not None:
+                spot = (layers[0], x, y, cand[0], cand[1])
+                break
+        if spot is None:
+            fails.append("%s (%s)"
+                         % ("/".join("%s.%s" % (m[0], m[1]) for m in members), net))
+            continue
+        if spot == "tht":
+            continue
+        layer, x, y, cx, cy = spot
+        r.add_via(net, cx, cy, fixed=True)
+        if abs(cx - x) > 1e-6 or abs(cy - y) > 1e-6:
+            r.add_seg(net, layer, x, y, cx, cy, PLANE_STUB_W, fixed=True)
+        out.append((net, cx, cy))
+    for f in fails:
+        print("  !! no plane via spot for %s" % f)
+    return out, fails
+
+
+def _plane_groups(r, pad_pos, seed_list):
+    """({(ref, pin, idx): (x, y, layers, area, net)}, {key: {member, ...}})
+
+    Groups are plane-net pads already joined in copper. Two sources of
+    joining, both created before this runs: the inward stubs all_seeds() draws
+    from a fine-pitch part's ground pins onto its exposed pad, and the links
+    added here between same-net pads adjacent on the same side of such a part
+    (the ADE7953's +3V3 pins 7 and 8), which sit 0.5 mm apart and could not
+    both take a via anyway.
+    """
+    pads = {}
+    for (ref, pin), plist in pad_pos.items():
+        net = COMPONENTS[ref]["pins"].get(pin)
+        if net not in PLANE_LAYER:
+            continue
+        for idx, (x, y, layers, area) in enumerate(plist):
+            pads[(ref, pin, idx)] = (x, y, layers, area, net)
+    parent = {k: k for k in pads}
+
+    def find(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+
+    def union(a, b):
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[max(ra, rb)] = min(ra, rb)
+
+    # 1. a seed segment running from one pad's centre into another pad
+    for (net, layer, pts, w) in seed_list:
+        if net not in PLANE_LAYER:
+            continue
+        for (ax, ay), (bx, by) in zip(pts, pts[1:]):
+            hits = []
+            for key in sorted(pads):
+                (px, py, layers, area, pnet) = pads[key]
+                if pnet != net:
+                    continue
+                hw = math.sqrt(area) / 2.0
+                for (qx, qy) in ((ax, ay), (bx, by)):
+                    if abs(qx - px) <= hw + 1e-6 and abs(qy - py) <= hw + 1e-6:
+                        hits.append(key)
+            for k in hits[1:]:
+                union(hits[0], k)
+
+    # 2. same-net neighbours on a fine-pitch part, linked pad centre to pad
+    #    centre. The link stays inside the pads' own row, so its clearance to
+    #    the pins either side is the pads' own.
+    for ref in sorted(FANOUT):
+        mine = sorted(k for k in pads if k[0] == ref)
+        for i in range(len(mine)):
+            for j in range(i + 1, len(mine)):
+                (ax, ay, al, _aa, anet) = pads[mine[i]]
+                (bx, by, _bl, _ba, bnet) = pads[mine[j]]
+                if anet != bnet or math.hypot(bx - ax, by - ay) > 0.8:
+                    continue
+                r.add_seg(anet, al[0], ax, ay, bx, by, PLANE_STUB_W,
+                          fixed=True)
+                union(mine[i], mine[j])
+
+    groups = {}
+    for k in pads:
+        groups.setdefault(find(k), set()).add(k)
+    return pads, groups
+
+
+def _pad_side(ref, pad):
+    """0=west 1=east 2=north 3=south, by the pad's offset from the body."""
+    cx, cy = COMPONENTS[ref]["at"][0], COMPONENTS[ref]["at"][1]
+    dx, dy = pad[0] - cx, pad[1] - cy
+    if abs(dx) >= abs(dy):
+        return 0 if dx < 0 else 1
+    return 2 if dy < 0 else 3
+
+
+def _side_load(ref, pad_pos):
+    """{side: number of routed signals leaving by it} for one part."""
+    load = {}
+    for (r_, pin), plist in pad_pos.items():
+        if r_ != ref:
+            continue
+        net = COMPONENTS[ref]["pins"].get(pin)
+        if not net or net in PLANE_LAYER:
+            continue
+        for p in plist:
+            load[_pad_side(ref, p)] = load.get(_pad_side(ref, p), 0) + 1
+    return load
+
+
+def _via_spot_for_pad(r, net, ref, x, y, max_r):
+    """Where this pad's plane via may go.
+
+    On a fine-pitch part the pin's own centreline is tried first, because a
+    via anywhere else in that annulus plugs a lane some signal has to escape
+    by; the free search is the fallback for a pin whose ray is walled off by
+    the neighbouring part (both MAX31856s sit in a row of filter passives).
+    """
+    if ref in FANOUT:
+        spot = _fanout_via_spot(r, net, ref, x, y, max_r)
+        if spot is not None:
+            return spot
+    return _nearest_via_spot(r, net, x, y, max_r)
+
+
+def _fanout_via_spot(r, net, ref, x, y, max_r):
+    """On a fine-pitch part the via must sit on the pin's OWN centreline and
+    beyond every neighbouring escape stub.
+
+    Anywhere else is either inside the 0.5 mm pitch, where a 0.6 mm via cannot
+    clear the pins either side, or in the ring where the signal stubs end,
+    where it plugs the lane those signals leave by. FANOUT[ref] + 1.25 mm is
+    the first radius at which a via clears a neighbour's stub end (which sits
+    0.5 mm to the side at FANOUT[ref] + 0.75).
+    """
+    cx, cy = COMPONENTS[ref]["at"][0], COMPONENTS[ref]["at"][1]
+    dx, dy = x - cx, y - cy
+    horiz = abs(dx) >= abs(dy)
+    reach = FANOUT[ref] + 1.25
+    while reach <= max_r:
+        if horiz:
+            ex, ey = _snap(x + math.copysign(reach, dx), BX0), _snap(y, BY0)
+        else:
+            ex, ey = _snap(x, BX0), _snap(y + math.copysign(reach, dy), BY0)
+        i, j = r.snap(ex, ey)
+        if 0 <= i < r.nx and 0 <= j < r.ny and r.via_ok(net, i, j) and \
+           r.hop_clear(net, PLANE_STUB_W, i, j, x, y, 0):
+            return (round(r.cell_xy(i, j)[0], 4), round(r.cell_xy(i, j)[1], 4))
+        reach += R.GRID
+    return None
+
+
+def _nearest_via_spot(r, net, x, y, max_r):
+    """Closest grid node that takes a via and a clear straight stub from
+    (x, y). Ties break on (distance, x, y) so the choice is deterministic."""
+    i0, j0 = r.snap(x, y)
+    span = int(math.ceil(max_r / R.GRID))
+    cands = []
+    for di in range(-span, span + 1):
+        for dj in range(-span, span + 1):
+            i, j = i0 + di, j0 + dj
+            if not (0 <= i < r.nx and 0 <= j < r.ny):
+                continue
+            cx, cy = r.cell_xy(i, j)
+            d = math.hypot(cx - x, cy - y)
+            if d > max_r:
+                continue
+            cands.append((round(d, 6), round(cx, 4), round(cy, 4), i, j))
+    for (_d, cx, cy, i, j) in sorted(cands):
+        if not r.via_ok(net, i, j):
+            continue
+        if not r.hop_clear(net, PLANE_STUB_W, i, j, x, y, 0):
+            continue
+        return (cx, cy)
+    return None
 
 
 def _snap(v, origin):
@@ -199,6 +459,20 @@ def all_seeds(pad_pos):
             for k, (lat, pin, px, py, dx, dy, horiz) in \
                     enumerate(sorted(sides[side])):
                 net = comp["pins"][pin]
+                if net in PLANE_NETS:
+                    # A plane net leaves by via, not along the board. Giving it
+                    # a fixed-length outward stub would either fall short of
+                    # the via or overshoot it and leave a dangling tail;
+                    # plane_vias() runs the same centreline lane out to
+                    # exactly where a via fits. What a ground pin does still
+                    # need on a part with an exposed pad is the inward stub
+                    # onto that pad - nothing else can reach between 0.5 mm
+                    # pins - and it stays on the pin's own centreline until it
+                    # is inside the pad, so it never encroaches on a neighbour.
+                    if net == "GND" and ep_big:
+                        end = (ep[0], py) if horiz else (px, ep[1])
+                        seeds.append((net, 0, [(px, py), end], FANOUT_WIDTH))
+                    continue
                 reach = out + 0.75 * (k % 2)
                 if horiz:
                     ex = _snap(px + math.copysign(reach, dx), BX0)
@@ -207,16 +481,6 @@ def all_seeds(pad_pos):
                     ex = _snap(px, BX0)
                     ey = _snap(py + math.copysign(reach, dy), BY0)
                 seeds.append((net, 0, [(px, py), (ex, ey)], FANOUT_WIDTH))
-                if net == "GND":
-                    # Ground pins get the outward stub (so the pour can find
-                    # them) and, on a part with an exposed pad, an inward stub
-                    # onto it. The inward run stays on the pin's own centreline
-                    # until it is inside the pad, so it never encroaches on a
-                    # neighbour.
-                    if ep_big:
-                        end = (ep[0], py) if horiz else (px, ep[1])
-                        seeds.append((net, 0, [(px, py), end], FANOUT_WIDTH))
-                    continue
                 terms.setdefault(net, []).append((ex, ey, (0,)))
     return seeds, terms
 
@@ -226,24 +490,25 @@ def all_seeds(pad_pos):
 # reroutable copper goes first and the many short two-pin locals go last,
 # threading whatever is left.
 ROUTE_ORDER = [
-    # rails
-    # +3V3 is 0.25 mm, not the 0.7 mm rev A could afford, and every signal
-    # drops from 0.3 to 0.25 for the same reason: rev B's rail and its buses
-    # both have to land on 0.65 mm-pitch TSSOP-14 pads (MAX31856 pins 5/8/9-12)
-    # and 0.5 mm-pitch QFN-28 pads (ADE7953), and anything wider cannot sit on
-    # those pads' centrelines without breaking clearance to the neighbouring
-    # pin. 0.25 mm of 1 oz copper carries ~0.9 A at a 20 C rise - several times
-    # the 3V3 rail's draw, whose largest single load is the module at ~0.5 A
-    # peak, and which is decoupled locally at every IC.
-    ("VIN", 0.8), ("+5V", 0.6), ("+3V3", 0.25), ("VLED", 0.5), ("VBUS", 0.4),
+    # rails. GND and +3V3 are absent because they are planes (PLANE_LAYER):
+    # every pad of theirs reaches its layer by via, so they cost the signal
+    # layers nothing but the via.
+    #
+    # Signals are SIG_W. Nets that terminate only on coarse footprints could
+    # be wider, but nothing on this board does uniformly enough to be worth a
+    # second class: the SPI and I2C buses, every strap and every module escape
+    # all end on either a 0.65 mm-pitch TSSOP-14 (MAX31856 pins 5/8/9-12) or a
+    # 0.5 mm-pitch QFN-28 (ADE7953), and a track can only leave pads that fine
+    # along the pad's own centreline.
+    ("VIN", 0.8), ("+5V", 0.6), ("VLED", 0.5), ("VBUS", 0.4),
     ("AUX_VP", 0.6),
     # The multi-drop buses: longest reach, most terminals, hardest to thread.
     # The two thermocouple chip selects ride the same channel between U3 and U5
     # and are routed with them rather than with the other escapes, or the bus
     # takes the channel first and leaves them nothing.
-    ("SPI_MOSI", 0.25), ("SPI_SCLK", 0.25), ("SPI_MISO", 0.25),
-    ("TC1_CS", 0.25), ("TC2_CS", 0.25),
-    ("I2C_SDA", 0.25), ("I2C_SCL", 0.25),
+    ("SPI_MOSI", SIG_W), ("SPI_SCLK", SIG_W), ("SPI_MISO", SIG_W),
+    ("TC1_CS", SIG_W), ("TC2_CS", SIG_W),
+    ("I2C_SDA", SIG_W), ("I2C_SCL", SIG_W),
     # isolated side of the opto barrier - only nets allowed in the keepout
     ("SSR1_A", 0.4), ("SSR1_B", 0.4), ("SSR2_A", 0.4), ("SSR2_B", 0.4),
     # aux bank outputs carry relay/solenoid coil current
@@ -253,141 +518,206 @@ ROUTE_ORDER = [
     ("AUX3_OUT", 0.5), ("AUX2_OUT", 0.5), ("AUX1_OUT", 0.5),
     ("BUZZ_K", 0.5),
     # straps and indicators
-    ("EN", 0.25), ("IO0", 0.25), ("LEDP_K", 0.25),
+    ("EN", SIG_W), ("IO0", SIG_W), ("LEDP_K", SIG_W),
     # Module escapes. Within each pad row the net whose pin sits CLOSEST to the
     # side of the module it leaves by goes first: the first-routed net hugs the
     # pad row and every later one takes the next lane out, so ordering the
     # other way round makes the near pins climb over the far ones' copper.
     # bottom row, west -> east (all of these leave southward)
-    ("LCD_BL", 0.25), ("LCD_RST", 0.25), ("LCD_DC", 0.25),
-    ("AUX1", 0.25), ("SSR2_CTRL", 0.25), ("LED_DATA", 0.25),
+    ("LCD_BL", SIG_W), ("LCD_RST", SIG_W), ("LCD_DC", SIG_W),
+    ("AUX1", SIG_W), ("SSR2_CTRL", SIG_W), ("LED_DATA", SIG_W),
     # left column, south (nearest the southern exit) -> north
-    ("LCD_CS", 0.25), ("SSR1_CTRL", 0.25), ("AUX3", 0.25), ("AUX2", 0.25),
-    ("ALARM", 0.25), ("T_IRQ", 0.25), ("T_CS", 0.25), ("IN1", 0.25),
+    ("LCD_CS", SIG_W), ("SSR1_CTRL", SIG_W), ("AUX3", SIG_W), ("AUX2", SIG_W),
+    ("ALARM", SIG_W), ("T_IRQ", SIG_W), ("T_CS", SIG_W), ("IN1", SIG_W),
     # right column, south -> north
-    ("WDT_KICK", 0.25), ("BTN_UP", 0.25), ("BTN_DOWN", 0.25),
-    ("BTN_LEFT", 0.25), ("BTN_RIGHT", 0.25), ("BTN_SEL", 0.25),
-    ("RXD0", 0.25), ("TXD0", 0.25), ("IN2", 0.25), ("IN3", 0.25),
+    ("WDT_KICK", SIG_W), ("BTN_UP", SIG_W), ("BTN_DOWN", SIG_W),
+    ("BTN_LEFT", SIG_W), ("BTN_RIGHT", SIG_W), ("BTN_SEL", SIG_W),
+    ("RXD0", SIG_W), ("TXD0", SIG_W), ("IN2", SIG_W), ("IN3", SIG_W),
     # USB (pre-seeded escapes, see USB_SEEDS)
-    ("CC1", 0.25), ("CC2", 0.25), ("USB_DN", 0.25), ("USB_DP", 0.25),
+    ("CC1", SIG_W), ("CC2", SIG_W), ("USB_DN", SIG_W), ("USB_DP", SIG_W),
     # SSR driver chains, watchdog gate
     ("SSR_EN", 0.4),
-    ("SSR1_LED_A", 0.25), ("SSR1_IND_A", 0.25), ("SSR1_IND_K", 0.25),
-    ("SSR2_LED_A", 0.25), ("SSR2_IND_A", 0.25), ("SSR2_IND_K", 0.25),
-    ("WDT_PUMP", 0.25), ("WDT_HOLD", 0.25),
+    ("SSR1_LED_A", SIG_W), ("SSR1_IND_A", SIG_W), ("SSR1_IND_K", SIG_W),
+    ("SSR2_LED_A", SIG_W), ("SSR2_IND_A", SIG_W), ("SSR2_IND_K", SIG_W),
+    ("WDT_PUMP", SIG_W), ("WDT_HOLD", SIG_W),
     # buzzer, status LED
-    ("BUZZ_GATE", 0.25), ("WS_DIN", 0.25),
+    ("BUZZ_GATE", SIG_W), ("WS_DIN", SIG_W),
     # thermocouple front-ends (short, local, kept matched)
-    ("TC1_P", 0.25), ("TC1_N", 0.25), ("TC1_P_F", 0.25), ("TC1_N_F", 0.25),
-    ("TC2_P", 0.25), ("TC2_N", 0.25), ("TC2_P_F", 0.25), ("TC2_N_F", 0.25),
+    ("TC1_P", SIG_W), ("TC1_N", SIG_W), ("TC1_P_F", SIG_W), ("TC1_N_F", SIG_W),
+    ("TC2_P", SIG_W), ("TC2_N", SIG_W), ("TC2_P_F", SIG_W), ("TC2_N_F", SIG_W),
     # CT front-end and its terminal
-    ("CTA_P", 0.4), ("CTA_N", 0.4), ("CTA_F", 0.25),
-    ("CTB_P", 0.4), ("CTB_N", 0.4), ("CTB_F", 0.25),
+    ("CTA_P", 0.4), ("CTA_N", 0.4), ("CTA_F", SIG_W),
+    ("CTB_P", 0.4), ("CTB_N", 0.4), ("CTB_F", SIG_W),
     # ADE7953 locals
-    ("ADE_CLKIN", 0.25), ("ADE_CLKOUT", 0.25), ("ADE_REF", 0.25),
-    ("ADE_VINTA", 0.25), ("ADE_VINTD", 0.25), ("ADE_RESET", 0.25),
-    ("ADE_SCLK", 0.25), ("ADE_CS", 0.25), ("ADE_VP", 0.25), ("ADE_VN", 0.25),
+    ("ADE_CLKIN", SIG_W), ("ADE_CLKOUT", SIG_W), ("ADE_REF", SIG_W),
+    ("ADE_VINTA", SIG_W), ("ADE_VINTD", SIG_W), ("ADE_RESET", SIG_W),
+    ("ADE_SCLK", SIG_W), ("ADE_CS", SIG_W), ("ADE_VP", SIG_W), ("ADE_VN", SIG_W),
     # protected inputs
-    ("IN1_RAW", 0.25), ("IN2_RAW", 0.25), ("IN3_RAW", 0.25),
+    ("IN1_RAW", SIG_W), ("IN2_RAW", SIG_W), ("IN3_RAW", SIG_W),
     # touch series damping (header side of R39-R43)
-    ("T_CLK_R", 0.25), ("T_CS_R", 0.25), ("T_DIN_R", 0.25), ("T_DO_R", 0.25),
-    ("T_IRQ_R", 0.25),
+    ("T_CLK_R", SIG_W), ("T_CS_R", SIG_W), ("T_DIN_R", SIG_W), ("T_DO_R", SIG_W),
+    ("T_IRQ_R", SIG_W),
 ]
 
 
-def route_all(r, pad_pos, seed_list=None, stub_terms=None):
+def net_terminals(net, pad_pos, stub_terms):
+    """(terminals, extra source points) for one net, in routing order."""
+    pins = netlist()[net]
+    terms = []
+    for (ref, pin) in pins:
+        # a pad that already has a hand-drawn escape is represented by the
+        # far end of that escape, never by the pad itself
+        if (ref == "J1" or ref in FANOUT) and net in stub_terms:
+            continue
+        for (gx, gy, layers, area) in pad_pos[(ref, pin)]:
+            terms.append((gx, gy, layers, area, 0 if ref == "U1" else 1))
+    # dedupe identical positions, then order the tree's growth: the module
+    # first, then largest pad first (THT seeds). U1 has to be the seed of
+    # any net it is on - its pad rows are the one place on this board with
+    # no slack, so its escape lane must be claimed while the lane is still
+    # empty. Ordering purely by pad area put the 1.7 mm header pins of
+    # J5/J6/J7 ahead of the module's 0.9 mm ones and left every bottom-row
+    # escape to be attempted last, from the far side of the board.
+    seen = {}
+    for t in terms:
+        seen.setdefault((round(t[0], 3), round(t[1], 3)), t)
+    terms = sorted(seen.values(), key=lambda t: (t[4], -t[3]))
+    terms = [(t[0], t[1], t[2]) for t in terms]
+    # USB stub ends must lead (they are the only way into J1, and the seed
+    # attachment below keys off terms[0]); fanout stub ends are ordinary
+    # goals and go last.
+    usb = USB_STUB_TERMS.get(net, [])
+    fan = [t for t in stub_terms.get(net, []) if t not in usb]
+    terms = usb + terms + fan
+    seeds = [(slayer, pts) for (snet, slayer, pts, w) in USB_SEEDS
+             if snet == net]
+    if seeds:
+        # first terminal = the one touching a seed, so the seed copper is
+        # genuinely part of the source component
+        def seed_d(t):
+            return min(math.hypot(t[0] - px, t[1] - py)
+                       for (_l, pts) in seeds for (px, py) in pts)
+        terms.sort(key=seed_d)
+        # only seeds transitively attached to terms[0] become sources;
+        # detached seed polylines keep their far end as a goal terminal
+        attached, todo = [], list(seeds)
+        anchor = [(terms[0][0], terms[0][1])]
+        changed = True
+        while changed:
+            changed = False
+            for sd in list(todo):
+                if any(math.hypot(px - ax, py - ay) < 0.31
+                       for (px, py) in sd[1] for (ax, ay) in anchor):
+                    attached.append(sd)
+                    todo.remove(sd)
+                    anchor.extend(sd[1])
+                    changed = True
+    else:
+        attached = []
+    extra = []
+    for (slayer, pts) in attached:
+        for a, b in zip(pts, pts[1:]):
+            d = math.hypot(b[0] - a[0], b[1] - a[1])
+            n = max(1, int(d / 0.4))
+            for k in range(n + 1):
+                t = k / float(n)
+                extra.append((a[0] + (b[0] - a[0]) * t,
+                              a[1] + (b[1] - a[1]) * t, slayer))
+    return terms, extra
+
+
+def route_one(r, net, width, pad_pos, stub_terms):
+    """Route one net. True if every terminal was reached."""
+    terms, extra = net_terminals(net, pad_pos, stub_terms)
+    try:
+        r.route(net, terms, width, extra_srcs=extra)
+        return True
+    except RuntimeError as e:
+        print("  !! %s" % e)
+        return False
+
+
+def ripup_retry(r, failed, pad_pos, stub_terms, max_blockers=20,
+                radius=8.0):
+    """Rip up one blocking net at a time and retry a net that would not route.
+
+    router.py is greedy and never backtracks, so a failed net failed because
+    something routed earlier took the one lane out of its pocket. Order alone
+    cannot always fix that - promoting the victim just makes a different net
+    the victim - so this does the real thing: delete a neighbouring net's
+    copper, route the victim into the space, then put the neighbour back by a
+    different path. If the neighbour then cannot be re-routed the whole
+    attempt is rolled back and the next candidate is tried, so the board never
+    ends up worse than it started.
+
+    Candidates are the nets with removable copper nearest the terminal that
+    failed, which is where the blockage is by definition. Hand-seeded escapes,
+    fanout stubs and plane-via stubs are marked `fixed` and are never removed:
+    the router cannot re-create them.
+    """
+    width = dict(ROUTE_ORDER)
+    still = []
+    for net in failed:
+        if net not in width:
+            still.append(net)
+            continue
+        fail_at = r.fail_pos.get(net)
+        if fail_at is None:
+            still.append(net)
+            continue
+        base = r.snapshot()
+        fixed_it = False
+        for blocker in r.nets_near(fail_at[0], fail_at[1], radius)[:max_blockers]:
+            if blocker == net or blocker not in width:
+                continue
+            r.restore(base)
+            r.rip_up(blocker)
+            r.rip_up(net)
+            if not route_one(r, net, width[net], pad_pos, stub_terms):
+                continue
+            if route_one(r, blocker, width[blocker], pad_pos, stub_terms):
+                print("  rip-up: routed %s by re-routing %s" % (net, blocker))
+                fixed_it = True
+                break
+        if not fixed_it:
+            r.restore(base)
+            still.append(net)
+    return still
+
+
+def route_all(r, pad_pos, seed_list=None, stub_terms=None, order=None,
+              verbose=True):
+    """Route every non-plane net. Returns the list of nets that did not
+    finish, in order, so the caller can retry with them promoted."""
     if seed_list is None or stub_terms is None:
         seed_list, stub_terms = all_seeds(pad_pos)
     nl = netlist()
     routed = set()
-    for net, width in ROUTE_ORDER:
-        pins = nl[net]
-        terms = []
-        for (ref, pin) in pins:
-            # a pad that already has a hand-drawn escape is represented by the
-            # far end of that escape, never by the pad itself
-            if (ref == "J1" or ref in FANOUT) and net in stub_terms:
-                continue
-            for (gx, gy, layers, area) in pad_pos[(ref, pin)]:
-                terms.append((gx, gy, layers, area, 0 if ref == "U1" else 1))
-        # dedupe identical positions, then order the tree's growth: the module
-        # first, then largest pad first (THT seeds). U1 has to be the seed of
-        # any net it is on - its pad rows are the one place on this board with
-        # no slack, so its escape lane must be claimed while the lane is still
-        # empty. Ordering purely by pad area put the 1.7 mm header pins of
-        # J5/J6/J7 ahead of the module's 0.9 mm ones and left every bottom-row
-        # escape to be attempted last, from the far side of the board.
-        seen = {}
-        for t in terms:
-            seen.setdefault((round(t[0], 3), round(t[1], 3)), t)
-        terms = sorted(seen.values(), key=lambda t: (t[4], -t[3]))
-        terms = [(t[0], t[1], t[2]) for t in terms]
-        # USB stub ends must lead (they are the only way into J1, and the seed
-        # attachment below keys off terms[0]); fanout stub ends are ordinary
-        # goals and go last.
-        usb = USB_STUB_TERMS.get(net, [])
-        fan = [t for t in stub_terms.get(net, []) if t not in usb]
-        terms = usb + terms + fan
-        seeds = [(slayer, pts) for (snet, slayer, pts, w) in USB_SEEDS
-                 if snet == net]
-        if seeds:
-            # first terminal = the one touching a seed, so the seed copper is
-            # genuinely part of the source component
-            def seed_d(t):
-                return min(math.hypot(t[0] - px, t[1] - py)
-                           for (_l, pts) in seeds for (px, py) in pts)
-            terms.sort(key=seed_d)
-            # only seeds transitively attached to terms[0] become sources;
-            # detached seed polylines keep their far end as a goal terminal
-            attached, todo = [], list(seeds)
-            anchor = [(terms[0][0], terms[0][1])]
-            changed = True
-            while changed:
-                changed = False
-                for sd in list(todo):
-                    if any(math.hypot(px - ax, py - ay) < 0.31
-                           for (px, py) in sd[1] for (ax, ay) in anchor):
-                        attached.append(sd)
-                        todo.remove(sd)
-                        anchor.extend(sd[1])
-                        changed = True
-        else:
-            attached = []
-        extra = []
-        for (slayer, pts) in attached:
-            for a, b in zip(pts, pts[1:]):
-                d = math.hypot(b[0] - a[0], b[1] - a[1])
-                n = max(1, int(d / 0.4))
-                for k in range(n + 1):
-                    t = k / float(n)
-                    extra.append((a[0] + (b[0] - a[0]) * t,
-                                  a[1] + (b[1] - a[1]) * t, slayer))
-        try:
-            r.route(net, terms, width, extra_srcs=extra)
-        except RuntimeError as e:
-            print("  !! %s" % e)
+    failed = []
+    for net, width in (order or ROUTE_ORDER):
+        if not route_one(r, net, width, pad_pos, stub_terms):
+            failed.append(net)
         routed.add(net)
-        print("  routed %-10s %d terms, %d segs total" % (net, len(terms), len(r.result_tracks)))
-    missing = set(nl) - routed - {"GND"}
+        if verbose:
+            print("  routed %-10s %d segs total" % (net, len(r.result_tracks)))
+    missing = set(nl) - routed - set(PLANE_NETS)
     assert not missing, "unrouted nets: %s" % missing
+    return failed
 
 
-def stitch_vias(r, count_target=40):
-    r._begin("GND-stitch")
-    out = []
-    step = 6.0
-    y = BY0 + 4
-    while y < BY1 - 3:
-        x = BX0 + 4
-        while x < BX1 - 3:
-            i, j = r.snap(x, y)
-            if r.via_ok("GND", i, j):
-                cx, cy = r.cell_xy(i, j)
-                out.append((cx, cy))
-                r.add_via("GND", cx, cy, record=False)
-            x += step
-        y += step
-    return out
+def promoted_order(promoted):
+    """ROUTE_ORDER with `promoted` moved to the front.
+
+    Order is the router's only conflict resolution - it is greedy and never
+    rips up - so a net that failed did so because something routed earlier
+    took the one lane out of its pocket. Routing it first is the cheapest
+    form of rip-up there is: the blocking net is re-routed around it on the
+    next pass, and being longer it has somewhere else to go. The caller
+    iterates until the failure set stops shrinking (see kicad_build.main).
+    """
+    width = dict(ROUTE_ORDER)
+    head = [(n, width[n]) for n in promoted if n in width]
+    return head + [(n, w) for (n, w) in ROUTE_ORDER if n not in set(promoted)]
 
 
 # ---------------------------------------------------------------------------
@@ -504,16 +834,14 @@ def main(dst):
     seed_list, stub_terms = all_seeds(pad_pos)
     for (net, layer, pts, w) in seed_list:
         for a, b in zip(pts, pts[1:]):
-            r.add_seg(net, layer, a[0], a[1], b[0], b[1], w)
+            r.add_seg(net, layer, a[0], a[1], b[0], b[1], w, fixed=True)
     for (net, x, y) in MANUAL_VIAS:
-        r.add_via(net, x, y)
+        r.add_via(net, x, y, fixed=True)
     print("routing...")
     route_all(r, pad_pos, seed_list, stub_terms)
     r._memo = {}
     r._memo_net = None
     print("mitred %d right-angle corners" % r.miter_corners())
-    stitches = stitch_vias(r)
-    print("stitch vias: %d" % len(stitches))
 
     nets = sorted(netlist())
     netnum = {n: i + 1 for i, n in enumerate(nets)}
@@ -525,7 +853,8 @@ def main(dst):
     ap('\t(paper "A3")')
     ap('\t(layers')
     for lid, lname, ltype, ualias in [
-            (0, "F.Cu", "signal", None), (2, "B.Cu", "signal", None),
+            (0, "F.Cu", "signal", None), (4, "In1.Cu", "signal", None),
+            (6, "In2.Cu", "signal", None), (2, "B.Cu", "signal", None),
             (9, "F.Adhes", "user", "F.Adhesive"), (11, "B.Adhes", "user", "B.Adhesive"),
             (13, "F.Paste", "user", None), (15, "B.Paste", "user", None),
             (5, "F.SilkS", "user", "F.Silkscreen"), (7, "B.SilkS", "user", "B.Silkscreen"),
@@ -568,22 +897,30 @@ def main(dst):
         ap('\t(segment (start %s %s) (end %s %s) (width %s) (layer "%s") (net %d) (uuid "%s"))'
            % (f(s.x1), f(s.y1), f(s.x2), f(s.y2), f(s.w), lname,
               netnum[s.net], uid("seg", i)))
-    for i, (net, x, y) in enumerate(r.result_vias):
+    for i, (net, x, y, _fixed) in enumerate(r.result_vias):
         ap('\t(via (at %s %s) (size %s) (drill %s) (layers "F.Cu" "B.Cu") (net %d) (uuid "%s"))'
            % (f(x), f(y), f(R.VIA_DIA), f(R.VIA_DRILL), netnum[net], uid("via", i)))
-    for i, (x, y) in enumerate(stitches):
-        ap('\t(via (at %s %s) (size %s) (drill %s) (layers "F.Cu" "B.Cu") (net %d) (free yes) (uuid "%s"))'
-           % (f(x), f(y), f(R.VIA_DIA), f(R.VIA_DRILL), netnum["GND"], uid("stitch", i)))
-    # GND pours, one zone covering both layers
-    gnum = netnum["GND"]
+    # inner planes: GND on In1.Cu, +3V3 on In2.Cu (PLANE_LAYER)
     m = 0.5
     pts = [(BX0 + m, BY0 + m), (BX1 - m, BY0 + m), (BX1 - m, BY1 - m), (BX0 + m, BY1 - m)]
     poly = " ".join("(xy %s %s)" % (f(x), f(y)) for x, y in pts)
-    ap('\t(zone (net %d) (net_name "GND") (layers "F.Cu" "B.Cu") (uuid "%s") (hatch edge 0.5)\n'
-       '\t\t(connect_pads (clearance 0.3))\n'
-       '\t\t(min_thickness 0.2) (filled_areas_thickness no)\n'
-       '\t\t(fill yes (thermal_gap 0.3) (thermal_bridge_width 0.4))\n'
-       '\t\t(polygon (pts %s))\n\t)' % (gnum, uid("zone", "gnd"), poly))
+    for pnet, player in sorted(PLANE_LAYER.items()):
+        ap('\t(zone (net %d) (net_name "%s") (layers "%s") (uuid "%s") (hatch edge 0.5)\n'
+           '\t\t(connect_pads (clearance 0.3))\n'
+           '\t\t(min_thickness 0.2) (filled_areas_thickness no)\n'
+           '\t\t(fill yes (thermal_gap 0.3) (thermal_bridge_width 0.4))\n'
+           '\t\t(polygon (pts %s))\n\t)'
+           % (netnum[pnet], pnet, player, uid("zone", pnet), poly))
+    # opto-isolation barrier: a rule area barring the pour on EVERY copper
+    # layer, inner planes included (see kicad_build.add_zones)
+    bpoly = " ".join("(xy %s %s)" % (f(x), f(y)) for x, y in
+                     [(ISO_BARRIER[0], ISO_BARRIER[1]), (ISO_BARRIER[2], ISO_BARRIER[1]),
+                      (ISO_BARRIER[2], ISO_BARRIER[3]), (ISO_BARRIER[0], ISO_BARRIER[3])])
+    ap('\t(zone (net 0) (net_name "") (layers "F.Cu" "In1.Cu" "In2.Cu" "B.Cu")\n'
+       '\t\t(uuid "%s") (hatch edge 0.5) (keepout (tracks allowed) (vias allowed)\n'
+       '\t\t(pads allowed) (copperpour not_allowed) (footprints allowed))\n'
+       '\t\t(fill (thermal_gap 0.3) (thermal_bridge_width 0.4))\n'
+       '\t\t(polygon (pts %s))\n\t)' % (uid("zone", "iso"), bpoly))
     ap(')')
     text = "\n".join(out) + "\n"
     with open(dst, "w") as fh:

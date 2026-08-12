@@ -26,16 +26,18 @@ import pcbnew
 from canonicalize import canonicalize_file
 from design import COMPONENTS, netlist, BX0, BY0, BX1, BY1
 import router as R
-from gen_pcb import (all_seeds, ROUTE_ORDER, route_all, stitch_vias, SILK,
-                     MANUAL_VIAS)
+from gen_pcb import (all_seeds, route_all, ripup_retry, promoted_order, plane_vias,
+                     SILK, MANUAL_VIAS, PLANE_LAYER, ISO_BARRIER, ISO_NETS)
 
-# Opto-isolation barrier (spec 6.2). The band spans the west edge from just
-# above J4 to just below J9 and stops short of the optocouplers' input pins, so
-# every scrap of isolated copper - J4/J9 and U8/U9 pins 3 and 4 - sits inside
-# it and no GND pour reaches within ~5 mm of any of it. Placement and this
-# rectangle move together; see the router keepout in build_router_model().
-ISO_BARRIER = (20.0, 71.0, 40.8, 95.5)
-ISO_NETS = ("SSR1_A", "SSR1_B", "SSR2_A", "SSR2_B")
+# Copper stack-up. Rev B is 4-layer (spec 6.1): signals on the outside, an
+# unbroken GND plane on In1.Cu and the +3V3 plane on In2.Cu. router.py still
+# knows only two routing layers - 0 and 1 - and they map to F.Cu and B.Cu; the
+# inner layers carry no tracks at all, only the plane fills, so the router
+# never needs to model them. Vias stay through-hole, which is what lets a pad
+# reach either plane with a single hole.
+COPPER_LAYERS = 4
+LAYER = {0: pcbnew.F_Cu, 1: pcbnew.B_Cu}
+PLANE_CU = {"In1.Cu": pcbnew.In1_Cu, "In2.Cu": pcbnew.In2_Cu}
 
 
 def _find_fp_base():
@@ -72,6 +74,7 @@ def V(x, y):
 
 def build_board():
     board = pcbnew.BOARD()
+    board.SetCopperLayerCount(COPPER_LAYERS)
     bds = board.GetDesignSettings()
     bds.m_TrackMinWidth = MM(0.2)
     bds.m_ViasMinSize = MM(0.5)
@@ -186,7 +189,6 @@ def build_router_model(board, fps):
 
 
 def add_copper(board, nets, r):
-    LAYER = {0: pcbnew.F_Cu, 1: pcbnew.B_Cu}
     for s in r.result_tracks:
         t = pcbnew.PCB_TRACK(board)
         t.SetStart(V(s.x1, s.y1))
@@ -195,7 +197,7 @@ def add_copper(board, nets, r):
         t.SetLayer(LAYER[s.layer])
         t.SetNet(nets[s.net])
         board.Add(t)
-    for (net, x, y) in r.result_vias:
+    for (net, x, y, _fixed) in r.result_vias:
         v = pcbnew.PCB_VIA(board)
         v.SetPosition(V(x, y))
         v.SetViaType(pcbnew.VIATYPE_THROUGH)
@@ -203,54 +205,6 @@ def add_copper(board, nets, r):
         v.SetWidth(MM(R.VIA_DIA))
         v.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
         v.SetNet(nets[net])
-        board.Add(v)
-
-
-def route_gnd_stubs(r, pad_pos, stitches):
-    """Give every SMD-only GND pad a real track to the nearest GND anchor
-    (stitch via or plated GND hole), so no pad depends on a pour sliver."""
-    anchors = list(stitches)
-    tht = []
-    for (ref, pin), plist in pad_pos.items():
-        if COMPONENTS[ref]["pins"].get(pin) != "GND":
-            continue
-        for (x, y, layers, area) in plist:
-            if len(layers) == 2:
-                tht.append((x, y))
-    anchors += tht
-    extra = [(x, y, l) for (x, y) in anchors for l in (0, 1)]
-    fails = 0
-    for (ref, pin), plist in sorted(pad_pos.items()):
-        if COMPONENTS[ref]["pins"].get(pin) != "GND":
-            continue
-        for (x, y, layers, area) in plist:
-            if len(layers) == 2:
-                continue  # THT already an anchor
-            if any(s.net == "GND" and
-                   min(abs(s.x1 - x) + abs(s.y1 - y),
-                       abs(s.x2 - x) + abs(s.y2 - y)) < 0.3
-                   for s in r.result_tracks):
-                continue  # a seed already lands on this pad
-            try:
-                r.route("GND", [(anchors[0][0], anchors[0][1], (0, 1)),
-                                (x, y, layers)], 0.3, extra_srcs=extra)
-                extra.append((x, y, layers[0]))
-            except RuntimeError:
-                fails += 1
-                print("  !! GND stub failed for %s.%s" % (ref, pin))
-    return fails
-
-
-def add_stitching(board, nets, stitches):
-    for (x, y) in stitches:
-        v = pcbnew.PCB_VIA(board)
-        v.SetPosition(V(x, y))
-        v.SetViaType(pcbnew.VIATYPE_THROUGH)
-        v.SetDrill(MM(R.VIA_DRILL))
-        v.SetWidth(MM(R.VIA_DIA))
-        v.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
-        v.SetNet(nets["GND"])
-        v.SetIsFree(True)
         board.Add(v)
 
 
@@ -277,11 +231,18 @@ def add_outline_and_silk(board):
 
 
 def add_zones(board, nets):
+    """The two inner planes, plus the isolation barrier's pour keepout.
+
+    There is deliberately no pour on F.Cu or B.Cu. Rev A poured GND on both
+    signal layers, which on rev B's density was the single largest consumer of
+    routing space on exactly the two layers the boxed-in signals needed; with
+    GND on In1 and +3V3 on In2 the outer layers are signals only.
+    """
     m = 0.5
-    for layer in (pcbnew.F_Cu, pcbnew.B_Cu):
+    for netname, layername in sorted(PLANE_LAYER.items()):
         z = pcbnew.ZONE(board)
-        z.SetLayer(layer)
-        z.SetNet(nets["GND"])
+        z.SetLayer(PLANE_CU[layername])
+        z.SetNet(nets[netname])
         ol = z.Outline()
         ol.NewOutline()
         for (x, y) in [(BX0 + m, BY0 + m), (BX1 - m, BY0 + m),
@@ -294,213 +255,61 @@ def add_zones(board, nets):
         z.SetPadConnection(pcbnew.ZONE_CONNECTION_THERMAL)
         board.Add(z)
 
-    # Opto-isolation barrier: no GND copper on either layer across the SSR
-    # opto row, or the pour shorts around the barrier the optos exist to make.
-    # A rule area (not a zone) - _gnd_islands() skips these by design.
+    # Opto-isolation barrier: no plane copper across the SSR opto row, or the
+    # pour shorts around the barrier the optos exist to make. This is the one
+    # thing 4 layers could quietly break - a GND plane running under the
+    # optocouplers defeats the barrier completely - so the rule area's layer
+    # set is AllCuMask(COPPER_LAYERS), not the F/B pair it was on 2 layers.
     ka = pcbnew.ZONE(board)
     ka.SetIsRuleArea(True)
     # Forbid the pour and NOTHING else. A rule area's restrictions apply to
     # every item in the band, including the isolated copper the band exists to
     # protect - switching vias off here made KiCad flag J4/J9's own pads and
-    # U8/U9 pins 3-4 as "items not allowed". Keeping GND vias out of the band
-    # is the *router's* job instead (see ISO_BARRIER in build_router_model),
-    # which can exempt the isolated nets by name; a rule area cannot.
+    # U8/U9 pins 3-4 as "items not allowed". Keeping foreign vias out of the
+    # band is the *router's* job instead (see ISO_BARRIER in
+    # build_router_model), which can exempt the isolated nets by name.
     ka.SetDoNotAllowZoneFills(True)
     ka.SetDoNotAllowTracks(False)
     ka.SetDoNotAllowVias(False)
     ka.SetDoNotAllowPads(False)
     ka.SetDoNotAllowFootprints(False)
-    # LSET's python binding takes no list/LSEQ in KiCad 10; AllCuMask(2) is
-    # exactly F.Cu + B.Cu on this 2-layer stack.
-    ka.SetLayerSet(pcbnew.LSET.AllCuMask(2))
+    # LSET's python binding takes no list/LSEQ in KiCad 10.
+    ka.SetLayerSet(pcbnew.LSET.AllCuMask(COPPER_LAYERS))
     ol = ka.Outline()
     ol.NewOutline()
     bx0, by0, bx1, by1 = ISO_BARRIER
     for (x, y) in [(bx0, by0), (bx1, by0), (bx1, by1), (bx0, by1)]:
         ol.Append(MM(x), MM(y))
     board.Add(ka)
-    return
 
 
-def _gnd_islands(board):
-    """{(layer, index): filled outline} for every GND pour island."""
-    isl = {}
+def plane_islands(board):
+    """[(layer, area_mm2, x, y), ...] for every plane island beyond the
+    largest one on its layer.
+
+    A plane is one sheet of copper only until enough antipads line up to cut
+    it. Nothing can bridge a severed island back - there is no second copper
+    layer carrying the same net to via across to - so this is a report, not a
+    repair: it names the layer and the spot so the fix goes into placement.
+    KiCad's own DRC reports the same thing as an unconnected zone, but only
+    when a pad happens to sit on the stranded piece.
+    """
+    out = []
     for z in board.Zones():
-        if z.GetIsRuleArea() or z.GetNetname() != "GND":
+        if z.GetIsRuleArea():
             continue
         layer = z.GetLayer()
         polys = z.GetFilledPolysList(layer)
+        areas = []
         for i in range(polys.OutlineCount()):
-            isl[(layer, i)] = polys.Outline(i)
-    return isl
-
-
-def _gnd_bridges(board):
-    """Points where GND crosses between layers: vias and plated GND pads."""
-    pts = [(pcbnew.ToMM(t.GetPosition().x), pcbnew.ToMM(t.GetPosition().y))
-           for t in board.Tracks()
-           if t.Type() == pcbnew.PCB_VIA_T and t.GetNetname() == "GND"]
-    for fp in board.Footprints():
-        for pad in fp.Pads():
-            if pad.GetAttribute() == pcbnew.PAD_ATTRIB_PTH and \
-               pad.GetNetname() == "GND":
-                pts.append((pcbnew.ToMM(pad.GetPosition().x),
-                            pcbnew.ToMM(pad.GetPosition().y)))
-    return pts
-
-
-def _island_components(isl, bridges):
-    """Union-find over islands linked by a layer-bridging GND point.
-    Returns [[key, ...], ...], largest total copper area first."""
-    def at(layer, x, y):
-        p = pcbnew.VECTOR2I(MM(x), MM(y))
-        for key, ol in isl.items():
-            if key[0] == layer and ol.PointInside(p):
-                return key
-        return None
-
-    parent = {k: k for k in isl}
-
-    def find(a):
-        while parent[a] != a:
-            parent[a] = parent[parent[a]]
-            a = parent[a]
-        return a
-
-    for (x, y) in bridges:
-        f, b = at(pcbnew.F_Cu, x, y), at(pcbnew.B_Cu, x, y)
-        if f and b:
-            ra, rb = find(f), find(b)
-            if ra != rb:
-                parent[ra] = rb
-
-    groups = {}
-    for k in isl:
-        groups.setdefault(find(k), []).append(k)
-    return sorted(groups.values(),
-                  key=lambda g: -sum(abs(isl[k].Area()) for k in g))
-
-
-def heal_islands(board, nets, r, rounds=1):
-    """Tie stranded GND pour copper back to the main pour with a via.
-
-    Two distinct failure modes, both healed here:
-
-      1. An island with no layer-bridging anchor at all.
-      2. A *group* of islands that bridge to each other but never reach the
-         main pour — e.g. F.Cu island -> via -> B.Cu island -> via -> back to
-         the same F.Cu island. Every island in such a group has a via, so the
-         original "does this island contain any anchor?" test declared them
-         all healthy while KiCad reported "Missing connection between
-         Zone [GND] and Zone [GND]" and heal_islands printed "healed 0".
-
-    Modelling it as connectivity components covers both: anything outside the
-    largest component needs a via placed where it overlaps the main component
-    on the opposite layer. The caller refills the zones (kicad-cli
-    --refill-zones) and calls again until DRC reports no unconnected items.
-    """
-    total = 0
-    for _ in range(rounds):
-        isl = _gnd_islands(board)
-        comps = _island_components(isl, _gnd_bridges(board))
-        if len(comps) < 2:
-            break
-        main = set(comps[0])
-        added = 0
-        for group in comps[1:]:
-            placed = False
-            for key in sorted(group, key=lambda k: -abs(isl[k].Area())):
-                layer, _idx = key
-                other = pcbnew.B_Cu if layer == pcbnew.F_Cu else pcbnew.F_Cu
-                targets = [isl[k] for k in main if k[0] == other]
-                ol = isl[key]
-                bb = ol.BBox()
-                x0, y0 = pcbnew.ToMM(bb.GetLeft()), pcbnew.ToMM(bb.GetTop())
-                x1, y1 = pcbnew.ToMM(bb.GetRight()), pcbnew.ToMM(bb.GetBottom())
-                yy = y0 + 0.4
-                while yy < y1 and not placed:
-                    xx = x0 + 0.4
-                    while xx < x1 and not placed:
-                        p = pcbnew.VECTOR2I(MM(xx), MM(yy))
-                        # must land in this island *and* in main-component
-                        # copper on the other layer, or the via bridges
-                        # nothing useful
-                        if ol.PointInside(p) and \
-                           any(t.PointInside(p) for t in targets):
-                            i2, j2 = r.snap(xx, yy)
-                            r._begin("GND-heal%d" % total)
-                            if r.via_ok("GND", i2, j2):
-                                cx, cy = r.cell_xy(i2, j2)
-                                r.add_via("GND", cx, cy, record=False)
-                                v = pcbnew.PCB_VIA(board)
-                                v.SetPosition(V(cx, cy))
-                                v.SetViaType(pcbnew.VIATYPE_THROUGH)
-                                v.SetDrill(MM(R.VIA_DRILL))
-                                v.SetWidth(MM(R.VIA_DIA))
-                                v.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
-                                v.SetNet(board.FindNet("GND"))
-                                v.SetIsFree(True)
-                                board.Add(v)
-                                print("  bridged stranded GND island to the "
-                                      "main pour at (%.1f, %.1f)" % (cx, cy))
-                                placed = True
-                                added += 1
-                                total += 1
-                        xx += 0.4
-                    yy += 0.4
-                if placed:
-                    break
-            if not placed:
-                area = sum(abs(isl[k].Area()) for k in group) / 1e12
-                print("  !! %.1f mm2 of GND pour (%d island(s)) is stranded "
-                      "and no legal via spot bridges it" % (area, len(group)))
-        if not added:
-            break
-    return total
-
-
-def drop_disconnected_stitch_vias(board, rpt_path):
-    """Remove any free GND via that KiCad's post-fill DRC reports as not
-    actually touching copper on one of its layers.
-
-    stitch_vias()/heal_islands() place vias on a coarse grid, checked
-    against the router's own (approximate) obstacle model rather than
-    KiCad's real zone-fill polygons; a via can land just inside a
-    clearance gap the real fill carves out around a nearby track,
-    leaving it isolated on one layer. heal_islands() doesn't catch this
-    - it only bridges pour islands that have *no* via touching them at
-    all, which is a different failure mode.
-
-    This is only ever safe because GND is never point-to-point routed
-    (see the "missing = ... - {'GND'}" assert in route_all): every GND
-    via is a decorative stitching via added by this build script, not a
-    connection some component depends on. Dropping one just means one
-    fewer plane-tying via at that spot; the surrounding pour and its
-    other stitching vias still carry the net. A real signal via being
-    unconnected would be a genuine routing bug and must not be silently
-    dropped - this only ever touches free vias on the GND net.
-    """
-    import re
-    rpt = open(rpt_path).read()
-    coords = set()
-    for m in re.finditer(
-            r"\[unconnected_items\].*?(?=\n\[|\n\*\*|\Z)", rpt, re.S):
-        block = m.group(0)
-        for vm in re.finditer(
-                r"@\(([\d.]+) mm, ([\d.]+) mm\): Via \[(\S+)\] on", block):
-            x, y, net = vm.groups()
-            if net == "GND":
-                coords.add((round(float(x), 3), round(float(y), 3)))
-    removed = 0
-    for via in [t for t in board.Tracks() if t.Type() == pcbnew.PCB_VIA_T]:
-        if not via.GetIsFree() or via.GetNetname() != "GND":
-            continue
-        vx, vy = pcbnew.ToMM(via.GetPosition().x), pcbnew.ToMM(via.GetPosition().y)
-        if (round(vx, 3), round(vy, 3)) in coords:
-            board.Remove(via)
-            removed += 1
-            print("  dropped disconnected GND stitch via at (%.1f, %.1f)" % (vx, vy))
-    return removed
+            ol = polys.Outline(i)
+            bb = ol.BBox()
+            areas.append((abs(ol.Area()) / 1e12,
+                          pcbnew.ToMM(bb.GetCenter().x),
+                          pcbnew.ToMM(bb.GetCenter().y)))
+        for (area, cx, cy) in sorted(areas, reverse=True)[1:]:
+            out.append((board.GetLayerName(layer), area, cx, cy))
+    return out
 
 
 def summarize(rpt_path):
@@ -512,26 +321,70 @@ def summarize(rpt_path):
     return counts
 
 
-def main(out):
-    out = os.path.abspath(out)
-    board, nets, fps = build_board()
+def build_copper(board, fps, order):
+    """One complete routing attempt. Returns (router, failed-net list)."""
     r, pad_pos = build_router_model(board, fps)
     seed_list, stub_terms = all_seeds(pad_pos)
     for (net, layer, pts, w) in seed_list:
         for a, b in zip(pts, pts[1:]):
-            r.add_seg(net, layer, a[0], a[1], b[0], b[1], w)
+            r.add_seg(net, layer, a[0], a[1], b[0], b[1], w, fixed=True)
     for (net, x, y) in MANUAL_VIAS:
-        r.add_via(net, x, y)
-    print("routing (obstacles from pcbnew pad geometry)...")
-    route_all(r, pad_pos, seed_list, stub_terms)
-    stitches = stitch_vias(r)
-    print("stitch vias: %d" % len(stitches))
-    route_gnd_stubs(r, pad_pos, stitches)
+        r.add_via(net, x, y, fixed=True)
+    # Plane vias first: they are not optional (a missing one is an unconnected
+    # pad) and they are short, so they claim their spots while the board is
+    # empty and the signal router threads what is left.
+    pv, pv_fail = plane_vias(r, pad_pos, seed_list)
+    print("  plane vias: %d (%d unplaceable)" % (len(pv), len(pv_fail)))
+    failed = route_all(r, pad_pos, seed_list, stub_terms, order=order,
+                       verbose=False)
+    if failed:
+        failed = ripup_retry(r, failed, pad_pos, stub_terms)
+    failed = failed + pv_fail
     r._memo = {}
     r._memo_net = None
-    print("mitred %d right-angle corners" % r.miter_corners())
+    print("  mitred %d right-angle corners" % r.miter_corners())
+    return r, failed
+
+
+def route_board(board, fps, passes=6):
+    """Route, promoting whatever failed and trying again.
+
+    router.py is greedy and never rips up, so a failed net failed because
+    something routed earlier took the one lane out of its pocket. Re-running
+    with the failures at the head of the order is the cheapest rip-up
+    available: the blocking net gets re-routed around them, and being the
+    longer of the two it usually has somewhere else to go. Iterate until
+    nothing fails or the failure set stops shrinking, and keep the best
+    attempt - promotion can trade one failure for another, and the loop must
+    not end on a worse board than it has already seen.
+    """
+    promoted = []
+    best = None
+    for attempt in range(passes):
+        order = promoted_order(promoted) if promoted else None
+        print("routing pass %d (%d promoted)..." % (attempt + 1, len(promoted)))
+        r, failed = build_copper(board, fps, order)
+        print("  pass %d: %d net(s) unrouted%s"
+              % (attempt + 1, len(failed),
+                 (": " + ", ".join(failed)) if failed else ""))
+        if best is None or len(failed) < len(best[1]):
+            best = (r, failed)
+        if not failed:
+            break
+        new = [n for n in failed if n not in promoted]
+        if not new:
+            break                      # promoting these has stopped helping
+        promoted = promoted + new
+    return best
+
+
+def main(out):
+    out = os.path.abspath(out)
+    board, nets, fps = build_board()
+    r, failed = route_board(board, fps)
+    if failed:
+        print("UNROUTED: %s" % ", ".join(failed))
     add_copper(board, nets, r)
-    add_stitching(board, nets, stitches)
     add_outline_and_silk(board)
     add_zones(board, nets)
     rpt_path = os.path.splitext(out)[0] + "-drc.rpt"
@@ -547,29 +400,14 @@ def main(out):
     # fill is only reproducible if kicad-cli is handed a reproducible board.
     canonicalize_file(out)
     print("saved %s (unfilled); fill+DRC via kicad-cli..." % out)
-    for round_no in range(4):
-        subprocess.run(["kicad-cli", "pcb", "drc", "--refill-zones",
-                        "--save-board", "--severity-all",
-                        "--all-track-errors", "-o", rpt_path, out],
-                       check=True, capture_output=True)
-        canonicalize_file(out)
-        rpt = open(rpt_path).read()
-        import re
-        m = re.search(r"\*\* Found (\d+) unconnected", rpt)
-        unconnected = int(m.group(1)) if m else 0
-        if unconnected == 0:
-            break
-        print("  %d unconnected after fill; healing islands..." % unconnected)
-        b2 = pcbnew.LoadBoard(out)
-        healed = heal_islands(b2, None, r)
-        print("  healed %d islands" % healed)
-        dropped = drop_disconnected_stitch_vias(b2, rpt_path)
-        if dropped:
-            print("  dropped %d disconnected stitch via(s)" % dropped)
-        pcbnew.SaveBoard(out, b2)
-        canonicalize_file(out)
-        if healed == 0 and dropped == 0:
-            break
+    subprocess.run(["kicad-cli", "pcb", "drc", "--refill-zones",
+                    "--save-board", "--severity-all",
+                    "--all-track-errors", "-o", rpt_path, out],
+                   check=True, capture_output=True)
+    canonicalize_file(out)
+    for (lname, area, cx, cy) in plane_islands(pcbnew.LoadBoard(out)):
+        print("  !! %s plane island of %.1f mm2 stranded at (%.1f, %.1f)"
+              % (lname, area, cx, cy))
     print("KiCad DRC report -> %s" % rpt_path)
     summarize(rpt_path)
 
