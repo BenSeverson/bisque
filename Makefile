@@ -277,8 +277,9 @@ pcb-fab:  ## Regenerate gerbers, drill, BOM/CPL, PDFs and the board SVG
 	  && python3 generator/gen_jlc.py jlcpcb \
 	  && kicad-cli sch export pdf -o pdf/bisque-controller-schematic.pdf \
 	       bisque-controller.kicad_sch \
-	  && kicad-cli pcb export pdf --mode-single \
-	       -l "F.Cu,In1.Cu,In2.Cu,B.Cu,F.Silkscreen,Edge.Cuts" \
+	  && kicad-cli pcb export pdf --mode-multipage --include-border-title \
+	       -l "F.Cu,In1.Cu,In2.Cu,B.Cu,F.Silkscreen,B.Silkscreen" \
+	       --common-layers "Edge.Cuts" \
 	       -o pdf/bisque-controller-board.pdf bisque-controller.kicad_pcb \
 	  && python3 generator/render_pcb.py bisque-controller.kicad_pcb preview-board.svg
 

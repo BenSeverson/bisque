@@ -100,6 +100,22 @@ def build_board():
     bds.m_MinThroughDrill = MM(0.3)
     bds.m_CopperEdgeClearance = MM(0.3)
 
+    # Title block. The schematic has carried one since rev A; the board did
+    # not, so every page of the exported board PDF showed a blank Title and
+    # Rev - on six pages that otherwise look nearly identical, since four
+    # copper layers of the same outline are hard to tell apart at a glance.
+    # Values mirror gen_sch.py's block so the two documents agree. The date is
+    # deliberately FIXED, not today's: check_canonical.py requires rebuilds to
+    # be byte-identical, and a live date would break that every midnight.
+    tb = board.GetTitleBlock()
+    tb.SetTitle("Bisque Kiln Controller")
+    tb.SetDate("2026-07-20")
+    tb.SetRevision("B")
+    tb.SetCompany("Bisque project")
+    tb.SetComment(0, "ESP32-S3-WROOM-1U-N16R2 + 2x MAX31856 + dual SSR + ADE7953")
+    tb.SetComment(1, "4-layer, 100 x 100 mm, JLCPCB standard process")
+    board.SetTitleBlock(tb)
+
     # nets
     nets = {}
     for name in sorted(netlist()):
