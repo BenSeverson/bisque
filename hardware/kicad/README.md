@@ -560,6 +560,28 @@ it has no PCB antenna, so that substitution draws the module straight
 through the reclaimed antenna band where USB-C, the reset switch and three
 test points now live, depicting a collision that does not exist.
 
+**The origin mismatch is already handled** — you only need to drop the file
+in. Espressif's STEP is authored with its origin at a body *corner* (body
+spans X 0…18, Y 0…19.2 mm), while KiCad's footprint origin is the body
+*centre*, so the raw model renders the module ~9.6 mm off its own pads and
+hanging over the board edge. `MODEL_OFFSET` in `kicad_build.py` corrects it
+with `(-9, -9.6, 0)`, cross-checked two ways: the body centre measured
+directly off the STEP, and Espressif's own footprint value (`-9, -9.75, 0`)
+adjusted by the 0.15 mm difference between their footprint origin and
+KiCad's — a difference confirmed across all 40 signal pads (`dX` 0.0,
+`dY` −0.15). After the offset, the body clears every castellated pad centre
+by a symmetric 0.25 mm on three sides.
+
+**Why KiCad's footprint rather than Espressif's**, since the model is
+theirs: the two are the same 41-pad array offset by that 0.15 mm, but
+KiCad's pad 41 carries 13 instances including **through-hole thermal vias**
+where Espressif's has 9 surface pads only. On this 4-layer board those vias
+tie the module's ground pad straight to the In1.Cu GND plane, and the
+loader already upsizes their 0.2 mm drills to 0.3 mm for JLCPCB's standard
+range. Switching would lose that, force a re-route for 0.15 mm, invalidate
+the `generator/fp/` snapshot and the CPL, and add a `${KICAD8_3RD_PARTY}`
+path dependency.
+
 If pin assignments change in `main/Kconfig.projbuild`, update
 `generator/design.py` to match and regenerate; `make pcb-check`'s
 `check_pinmap.py` step fails the build if the two drift apart again.

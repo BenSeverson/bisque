@@ -72,6 +72,25 @@ def V(x, y):
     return pcbnew.VECTOR2I(MM(x), MM(y))
 
 
+# 3D-model offsets, in mm, for models whose own origin does not sit where the
+# footprint expects. Cosmetic only - models are never part of a fab output -
+# but a model at the wrong origin renders the part floating off the board,
+# which reads as a layout error rather than a missing file.
+#
+# U1: KiCad 10 ships ESP32-S3-WROOM-1.step and -WROOM-2.step but NOT
+# -WROOM-1U.step, so this board uses Espressif's official model
+# (github.com/espressif/kicad-libraries). Its origin is a body CORNER - the
+# body spans X 0..18, Y 0..19.2 mm, measured off the STEP directly - while
+# KiCad's footprint origin is the body CENTRE.
+#
+# Two independent derivations agree on -9.6:
+#   * body centre from the STEP bounding box = (9.0, 9.6) -> offset (-9, -9.6)
+#   * Espressif's own footprint uses (offset -9 -9.75 0), and their footprint
+#     origin differs from KiCad's by exactly dY -0.15 mm (verified across all
+#     40 signal pads, dX 0.0) -> -9.75 + 0.15 = -9.60
+MODEL_OFFSET = {"U1": (-9.0, -9.6, 0.0)}
+
+
 def build_board():
     board = pcbnew.BOARD()
     board.SetCopperLayerCount(COPPER_LAYERS)
@@ -115,6 +134,20 @@ def build_board():
             if (ref == "U1" and num in ("1", "40", "41")) or \
                (ref == "J1" and num in ("A1", "B1", "A12", "B12", "S1")):
                 pad.SetLocalZoneConnection(pcbnew.ZONE_CONNECTION_FULL)
+        off = MODEL_OFFSET.get(ref)
+        if off:
+            # fp.Models() hands back COPIES - mutating them writes nothing
+            # back to the footprint. Rebuild the entry instead.
+            old = [(m.m_Filename, m.m_Scale, m.m_Rotation) for m in fp.Models()]
+            assert old, "%s: MODEL_OFFSET set but footprint has no 3D model" % ref
+            fp.Models().clear()
+            for fname, scale, rot in old:
+                nm = pcbnew.FP_3DMODEL()
+                nm.m_Filename = fname
+                nm.m_Scale = scale
+                nm.m_Rotation = rot
+                nm.m_Offset = pcbnew.VECTOR3D(*off)
+                fp.Models().push_back(nm)
         board.Add(fp)
         fps[ref] = fp
     # tidy silk: smaller refs everywhere, relocate the ones that collide
