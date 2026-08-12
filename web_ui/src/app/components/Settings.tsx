@@ -142,6 +142,14 @@ export function Settings() {
     isFetching: otaStatusFetching,
     refetch: refetchOtaStatus,
   } = useOtaStatus(!__DEMO__);
+  /* The partition state only counts while the newest fetch succeeded. React
+     Query keeps the last good `data` when a later refetch fails — a
+     window-focus refetch against a kiln that has since gone off the network,
+     say — so `otaStatus` and `otaStatusFailed` can both be set at once.
+     Rendering the card off the data alone would then hide the error, keep the
+     old running version on screen, and go on offering Roll Back from a
+     `rollbackAvailable` nothing can still vouch for. */
+  const partitions = otaStatusFailed ? undefined : otaStatus;
   const resetOtaStatus = useResetOtaStatus();
   const confirmOta = useConfirmOta();
   const rollbackOta = useRollbackOta();
@@ -1242,7 +1250,7 @@ export function Settings() {
                   failed request asserted the same sentence as a successful
                   `rollbackAvailable: false`, and printed it directly beneath
                   "Could not read the partition state". */}
-              {!otaStatus && otaStatusFailed && (
+              {otaStatusFailed && (
                 <div className="flex items-end justify-between gap-4 flex-wrap">
                   <p className="text-sm text-muted-foreground">
                     Could not read the partition state from the controller. It may be restarting
@@ -1260,22 +1268,22 @@ export function Settings() {
                 </div>
               )}
 
-              {!otaStatus && !otaStatusFailed && (
+              {!partitions && !otaStatusFailed && (
                 <p className="text-sm text-muted-foreground">Reading the partition state...</p>
               )}
 
-              {otaStatus && (
+              {partitions && (
                 <div className="space-y-0">
                   <div className="flex justify-between py-2 border-b">
                     <span className="text-sm font-medium">Running Slot</span>
                     <span className="text-sm text-muted-foreground font-mono">
-                      {otaStatus.running?.label ?? "--"}
+                      {partitions.running?.label ?? "--"}
                     </span>
                   </div>
                   <div className="flex justify-between py-2 border-b">
                     <span className="text-sm font-medium">Running Version</span>
                     <span className="text-sm text-muted-foreground">
-                      {otaStatus.running?.version || "--"}
+                      {partitions.running?.version || "--"}
                     </span>
                   </div>
                   {/* The boot slot is what the *next* reboot will run. It only
@@ -1285,16 +1293,16 @@ export function Settings() {
                   <div className="flex justify-between py-2 border-b">
                     <span className="text-sm font-medium">Boots Next From</span>
                     <span className="text-sm text-muted-foreground font-mono">
-                      {otaStatus.bootPartition ?? "--"}
+                      {partitions.bootPartition ?? "--"}
                     </span>
                   </div>
                   <div className="flex justify-between py-2 items-center">
                     <span className="text-sm font-medium">Image State</span>
                     <span className="text-sm">
-                      {otaStatus.pendingVerify ? (
+                      {partitions.pendingVerify ? (
                         <Badge variant="destructive">Pending verification</Badge>
                       ) : (
-                        <Badge variant="secondary">{otaStatus.running?.state ?? "unknown"}</Badge>
+                        <Badge variant="secondary">{partitions.running?.state ?? "unknown"}</Badge>
                       )}
                     </span>
                   </div>
@@ -1306,7 +1314,7 @@ export function Settings() {
                   window — or when the automatic pass did not run. Offering it
                   manually means a user watching a fresh update land does not
                   have to wait out the timer to make it permanent. */}
-              {otaStatus?.pendingVerify && (
+              {partitions?.pendingVerify && (
                 <div className="border-t pt-4 flex items-end justify-between gap-4 flex-wrap">
                   <div className="space-y-1">
                     <p className="text-sm font-medium">Confirm This Firmware</p>
@@ -1327,12 +1335,12 @@ export function Settings() {
                 </div>
               )}
 
-              {otaStatus && (
+              {partitions && (
                 <div className="border-t pt-4 flex items-end justify-between gap-4 flex-wrap">
                   <div className="space-y-1">
                     <p className="text-sm font-medium">Roll Back Firmware</p>
                     <p className="text-sm text-muted-foreground">
-                      {otaStatus.rollbackAvailable
+                      {partitions.rollbackAvailable
                         ? "Reboots into the firmware that was running before the last update. Settings, profiles and firing history are kept."
                         : "No previous firmware to roll back to — the other slot is empty or was never booted successfully."}
                     </p>
@@ -1344,7 +1352,7 @@ export function Settings() {
                     className="gap-2"
                     onClick={() => setRollbackConfirmOpen(true)}
                     disabled={
-                      !otaStatus.rollbackAvailable || rollbackOta.isPending || kilnBusy || otaBusy
+                      !partitions.rollbackAvailable || rollbackOta.isPending || kilnBusy || otaBusy
                     }
                   >
                     <Undo2 className="h-4 w-4" />
@@ -1478,7 +1486,7 @@ export function Settings() {
             <DialogTitle>Roll back to the previous firmware?</DialogTitle>
             <DialogDescription>
               {`The controller reboots immediately into the firmware it ran before ${
-                otaStatus?.running?.version ?? "the last update"
+                partitions?.running?.version ?? "the last update"
               }. Settings, profiles and history are kept. To come back to this version afterwards, install it again from the update card above.`}
             </DialogDescription>
           </DialogHeader>

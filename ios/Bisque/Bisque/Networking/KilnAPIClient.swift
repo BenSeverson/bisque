@@ -417,13 +417,20 @@ actor KilnAPIClient {
     /// separating: `cannotConnectToHost`, `cannotFindHost`, `dnsLookupFailed`,
     /// `notConnectedToInternet` and friends all fail *before* delivery — the
     /// kiln never saw the request and its firmware did not change — so they
-    /// surface as errors. Only failures consistent with losing an established
-    /// request (`networkConnectionLost`, `timedOut`, a truncated reply) come
-    /// back as `.unacknowledged`.
+    /// surface as errors.
+    ///
+    /// `timedOut` is the ambiguous one, and it cannot be settled by its code:
+    /// it covers both a connection that never came up and a request that went
+    /// out to a peer which then went silent — the latter being exactly how a
+    /// rebooting ESP32 looks, since it tears the socket down without an RST.
+    /// So delivery is *observed* rather than inferred: `RequestDeliveryProbe`
+    /// reads `requestEndDate` off the task metrics, which is set only once the
+    /// request has actually been written to the connection. No evidence of
+    /// delivery, no claim that the rollback started.
     ///
     /// A real HTTP status means the device is very much still up and did not
     /// change its firmware — 400 with no image behind the running one, 409
-    /// during a firing, 401 unauthenticated — so those still throw.
+    /// during a firing or an update, 401 unauthenticated — so those still throw.
     func rollbackOTA() async throws -> RollbackOutcome {
         guard let url = URL(string: baseURL.absoluteString + "/ota/rollback") else {
             throw APIError.invalidURL
@@ -435,11 +442,12 @@ actor KilnAPIClient {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
 
+        let probe = RequestDeliveryProbe()
         let (data, response): (Data, URLResponse)
         do {
-            (data, response) = try await session.data(for: request)
+            (data, response) = try await session.data(for: request, delegate: probe)
         } catch let error as URLError {
-            guard Self.mayFollowDelivery(error.code) else {
+            guard Self.mayFollowDelivery(error.code, requestWasSent: probe.requestWasSent) else {
                 throw APIError.connectionFailed
             }
             return .unacknowledged
@@ -468,11 +476,17 @@ actor KilnAPIClient {
     /// kiln. Anything not listed here failed on the way out — name resolution,
     /// no route, no radio, connection refused — and proves the controller never
     /// received the POST.
-    private static func mayFollowDelivery(_ code: URLError.Code) -> Bool {
+    ///
+    /// `timedOut` is admitted only with `requestWasSent`, because the same code
+    /// is reported for a connection that never opened: a deadline that expired
+    /// during connection setup says nothing about the kiln's firmware.
+    private static func mayFollowDelivery(_ code: URLError.Code, requestWasSent: Bool) -> Bool {
         switch code {
-        case .networkConnectionLost, .timedOut, .cannotParseResponse, .zeroByteResource,
+        case .networkConnectionLost, .cannotParseResponse, .zeroByteResource,
              .badServerResponse, .dataLengthExceedsMaximum:
             return true
+        case .timedOut:
+            return requestWasSent
         default:
             return false
         }
@@ -494,6 +508,40 @@ actor KilnAPIClient {
 
     func getThermocoupleDiag() async throws -> DiagThermocouple {
         try await request(path: "/diagnostics/thermocouple")
+    }
+}
+
+// MARK: - Request Delivery Probe
+
+/// Records whether a request was actually written to the connection (#177).
+///
+/// `URLSessionTaskMetrics` carries a `requestEndDate` per transaction, set when
+/// the last byte of the request went out — so a non-nil one is proof the kiln
+/// received the POST, which no `URLError.Code` can establish on its own. Used
+/// by `rollbackOTA()` to tell "the kiln rebooted before replying" apart from
+/// "the connection never came up", which URLSession reports identically as
+/// `.timedOut`.
+///
+/// Metrics are delivered before the task's completion resumes the awaiting
+/// call, so the flag is set by the time it is read. If they never arrive, this
+/// stays false and the caller reports a failure rather than claiming a rollback
+/// it cannot evidence — the safe direction for a destructive operation.
+final class RequestDeliveryProbe: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+    private let lock = NSLock()
+    private var sent = false
+
+    var requestWasSent: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return sent
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask,
+                    didFinishCollecting metrics: URLSessionTaskMetrics) {
+        let delivered = metrics.transactionMetrics.contains { $0.requestEndDate != nil }
+        lock.lock()
+        defer { lock.unlock() }
+        sent = sent || delivered
     }
 }
 

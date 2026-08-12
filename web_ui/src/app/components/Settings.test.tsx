@@ -763,6 +763,26 @@ describe("Settings: firmware partitions and rollback", () => {
     expect(toastFns.success).toHaveBeenCalledWith("Firmware confirmed as valid");
   });
 
+  it("stops trusting the cached state when a later refetch fails", async () => {
+    // React Query keeps the last good `data` when a refetch fails, so the card
+    // could show a stale running version and an enabled Roll Back — off a
+    // `rollbackAvailable` nothing can still vouch for — with no sign anything
+    // was wrong. Reached here the way it happens in practice: confirming
+    // invalidates the query, and the refetch lands on an unreachable kiln.
+    apiMock.otaStatus.mockResolvedValue(otaStatus({ pendingVerify: true }));
+    apiMock.confirmOta.mockResolvedValue({ ok: true, message: "Firmware confirmed as valid" });
+    const user = userEvent.setup();
+    await renderSettled();
+
+    await screen.findByText("Pending verification");
+    apiMock.otaStatus.mockRejectedValue(new Error("API error 503: unreachable"));
+    await user.click(screen.getByRole("button", { name: "Confirm" }));
+
+    expect(await screen.findByText(/Could not read the partition state/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Roll Back" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Running Slot")).not.toBeInTheDocument();
+  });
+
   it("hides the confirm control once the image is valid", async () => {
     await renderSettled();
 

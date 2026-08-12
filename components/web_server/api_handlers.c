@@ -1559,6 +1559,19 @@ static esp_err_t handle_ota_rollback(httpd_req_t *req)
         return ESP_FAIL;
     }
 
+    /* An update in flight is writing the *other* slot — which is precisely the
+       image a rollback boots into. Rebooting now would invalidate the running
+       app and hand control to a partition that is mid-erase, leaving nothing
+       bootable and a kiln that needs a USB cable. The upload and install paths
+       hold the OTA-busy flag for exactly this reason; nothing but per-client UI
+       state stopped a second browser, or the phone, from racing them here. */
+    if (ota_is_busy()) {
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_set_type(req, "text/plain");
+        httpd_resp_sendstr(req, "An OTA operation is already in progress");
+        return ESP_FAIL;
+    }
+
     if (!esp_ota_check_rollback_is_possible()) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Rollback not available");
         return ESP_FAIL;
