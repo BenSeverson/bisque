@@ -22,6 +22,17 @@ final class SettingsViewModel {
     var isInstalling = false
     var installProgress: Double?
 
+    // OTA — partitions, confirm and rollback (#177)
+    var otaStatus: OtaStatus?
+    /// Set when a status fetch failed — a controller too old to serve the
+    /// endpoint 404s it. Deliberately not routed through `error`, which drives
+    /// the red banner: being unable to *describe* the partitions is not a
+    /// failure of anything the user asked for, and it would otherwise paint the
+    /// screen red every time the OTA view opened against an older kiln.
+    var otaStatusUnavailable = false
+    var isConfirmingFirmware = false
+    var isRollingBack = false
+
     @ObservationIgnored private var otaCancellable: AnyCancellable?
 
     // Diagnostics
@@ -177,6 +188,62 @@ final class SettingsViewModel {
             installProgress = nil
             otaCancellable = nil
         }
+    }
+
+    // MARK: - OTA (partitions and rollback)
+
+    func loadOtaStatus(using client: KilnAPIClient) async {
+        do {
+            otaStatus = try await client.getOTAStatus()
+            otaStatusUnavailable = false
+        } catch {
+            otaStatus = nil
+            otaStatusUnavailable = true
+        }
+    }
+
+    func confirmFirmware(using client: KilnAPIClient) async {
+        isConfirmingFirmware = true
+        error = nil
+        do {
+            // The firmware's own wording: it distinguishes a confirmation from
+            // a no-op on an image that was already valid, and which of the two
+            // happened is the whole answer to the question the tap asked.
+            otaMessage = try await client.confirmOTA().message
+            // pendingVerify is what put the button on screen, so the state it
+            // was read from is stale the moment this succeeds.
+            await loadOtaStatus(using: client)
+        } catch {
+            self.error = error.localizedDescription
+        }
+        isConfirmingFirmware = false
+    }
+
+    func rollbackFirmware(using client: KilnAPIClient) async {
+        isRollingBack = true
+        error = nil
+        otaMessage = nil
+        do {
+            try await client.rollbackOTA()
+            otaMessage = "Rolling back. Kiln is rebooting..."
+            /* Everything held about the partitions describes the image on its
+               way out — a "Boots Next From" read before the request is a claim
+               the rollback has just falsified — and the kiln is not answering a
+               refetch mid-reboot. So drop it and say the state is unreadable,
+               which is exactly what it is until the kiln is back and the view
+               refetches. The green "rebooting" message sits beside it. */
+            otaStatus = nil
+            otaStatusUnavailable = true
+            // The offer to install whatever was newest belongs to the firmware
+            // being left behind; the version list is worth rechecking after the
+            // reboot rather than acting on now.
+            availableUpdate = nil
+        } catch {
+            // 400 with nothing to roll back to, 409 during a firing. Both mean
+            // the firmware did not change.
+            self.error = error.localizedDescription
+        }
+        isRollingBack = false
     }
 
     // MARK: - Diagnostics

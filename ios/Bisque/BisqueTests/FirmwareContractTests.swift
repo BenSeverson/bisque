@@ -65,6 +65,12 @@ final class FirmwareContractTests: XCTestCase {
         .decoding("system_emergency", as: SystemInfo.self),
         .decoding("ota_check", as: OtaCheckResponse.self),
         .decoding("ota_check_current", as: OtaCheckResponse.self),
+        .decoding("ota_status", as: OtaStatus.self),
+        // The same response with every optional lookup failed. It is what the
+        // Firmware Partitions section renders against on a kiln that could not
+        // describe its own running image, so it has to decode rather than throw
+        // and take the whole OTA screen with it.
+        .decoding("ota_status_minimal", as: OtaStatus.self),
         .decoding("ws_temp_update", as: WebSocketMessage.self),
         .decoding("ws_ota_progress", as: OTAWebSocketMessage.self),
         .decoding("ws_ota_complete", as: OTAWebSocketMessage.self),
@@ -82,8 +88,6 @@ final class FirmwareContractTests: XCTestCase {
         "pid": "GET /pid — gains are edited from the web UI and the LCD only.",
         "wifi": "GET /wifi — provisioning is a web-UI/on-device flow.",
         "wifi_ap_mode": "GET /wifi in AP mode; same reason.",
-        "ota_status": "GET /ota/status — the app tracks OTA over the WebSocket.",
-        "ota_status_minimal": "GET /ota/status with no running image; same reason.",
     ]
 
     /// Keys the firmware emits that the Swift models deliberately drop.
@@ -401,6 +405,41 @@ final class FirmwareContractTests: XCTestCase {
         XCTAssertEqual(current.current, current.latest)
         XCTAssertEqual(current.url, "")
         XCTAssertEqual(current.size, 0)
+    }
+
+    /// The Firmware Partitions section (#177) reads five of these fields and
+    /// gates a destructive button on a sixth, so each one is pinned rather than
+    /// merely decoded.
+    func testOtaStatusCarriesThePartitionStateTheAppActsOn() throws {
+        try requireUsableFixtures()
+        let status = try Self.decode(OtaStatus.self, from: "ota_status")
+
+        XCTAssertEqual(status.running?.label, "ota_0")
+        XCTAssertEqual(status.running?.version, "1.5.0")
+        XCTAssertEqual(status.running?.state, "pending_verify")
+        XCTAssertEqual(status.bootPartition, "ota_0")
+        XCTAssertEqual(status.nextUpdate?.label, "ota_1")
+        // `state` and `pendingVerify` come from one esp_ota lookup and always
+        // agree; the app offers Confirm off the boolean, so a firmware that
+        // let them diverge would put the button on screen for a valid image.
+        XCTAssertEqual(status.pendingVerify, true)
+        XCTAssertTrue(status.rollbackAvailable)
+    }
+
+    /// Every optional lookup failed, leaving `rollbackAvailable` alone on the
+    /// wire. This is the shape that would crash a model with a non-optional
+    /// `running`, and it is a real response — not a synthetic edge case.
+    func testOtaStatusDecodesWithNothingButTheRollbackFlag() throws {
+        try requireUsableFixtures()
+        let status = try Self.decode(OtaStatus.self, from: "ota_status_minimal")
+
+        XCTAssertNil(status.running)
+        XCTAssertNil(status.nextUpdate)
+        XCTAssertNil(status.bootPartition)
+        // Absent, not false: the firmware emits it only alongside `state`, and
+        // the app must not read the missing key as "not pending".
+        XCTAssertNil(status.pendingVerify)
+        XCTAssertFalse(status.rollbackAvailable)
     }
 
     func testTempUpdateFrameDecodes() throws {

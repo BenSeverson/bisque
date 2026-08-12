@@ -57,6 +57,49 @@ struct OtaInstallResponse: Codable {
     let message: String
 }
 
+struct OtaConfirmResponse: Codable, Sendable {
+    let ok: Bool
+    let message: String
+}
+
+/// GET /api/v1/ota/status — mirrors `build_ota_status_json` in api_json.c.
+///
+/// Almost every field is optional because each part comes from a separate
+/// esp_ota lookup in the handler, and a failed lookup drops its key rather than
+/// emitting a placeholder — `ota_status_minimal.json` is the whole response
+/// reduced to `rollbackAvailable`, which is the one field always present.
+struct OtaStatus: Codable, Sendable {
+    /// The slot the controller booted from, with the build stamp of the image
+    /// in it.
+    struct RunningPartition: Codable, Sendable {
+        let label: String
+        let address: Int
+        let size: Int
+        /// Absent when `esp_ota_get_state_partition()` failed; `pendingVerify`
+        /// on the parent is emitted with it and always agrees.
+        let state: String?
+        let version: String?
+        let date: String?
+        let time: String?
+        let idfVersion: String?
+    }
+
+    /// The slot the *next* update would be written to — labelled and sized, but
+    /// carrying no build stamp, since the firmware does not read one from it.
+    struct UpdatePartition: Codable, Sendable {
+        let label: String
+        let size: Int
+    }
+
+    let running: RunningPartition?
+    let nextUpdate: UpdatePartition?
+    /// What the next reboot will run. Differs from `running?.label` only
+    /// between a rollback request and the reboot that carries it out.
+    let bootPartition: String?
+    let pendingVerify: Bool?
+    let rollbackAvailable: Bool
+}
+
 actor KilnAPIClient {
     private let baseURL: URL
     private let session: URLSession
@@ -341,6 +384,68 @@ actor KilnAPIClient {
     /// deadline (#142).
     func installOTA() async throws -> OtaInstallResponse {
         try await request(method: "POST", path: "/ota/install", session: otaSession)
+    }
+
+    /// Which image is running and whether the previous one can be booted again
+    /// (#177). On the short-deadline session: it is a handful of partition
+    /// lookups, with nothing to fetch from GitHub.
+    func getOTAStatus() async throws -> OtaStatus {
+        try await request(path: "/ota/status")
+    }
+
+    /// Reverts to the previously-booted image (#177).
+    ///
+    /// Written out rather than going through `request()` because it returns
+    /// nothing to decode and, more to the point, because a dropped connection
+    /// here is success. `handle_ota_rollback` calls
+    /// `esp_ota_mark_app_invalid_rollback_and_reboot()`, so the controller is
+    /// gone before it can answer: URLSession usually reports a transport
+    /// failure, and that failure is evidence the rollback took. Reporting it as
+    /// an error would tell the user the rollback failed while the kiln was busy
+    /// performing it.
+    ///
+    /// A real HTTP status means the device is very much still up and did not
+    /// change its firmware — 400 with no image behind the running one, 409
+    /// during a firing, 401 unauthenticated — so those still throw.
+    func rollbackOTA() async throws {
+        guard let url = URL(string: baseURL.absoluteString + "/ota/rollback") else {
+            throw APIError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        if let token = apiToken, !token.isEmpty {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch is URLError {
+            return
+        }
+
+        /* Not an HTTP reply at all: nothing to report a status from, and the
+           request did leave, so this lands with the reboot case above. */
+        guard let httpResponse = response as? HTTPURLResponse else {
+            return
+        }
+
+        if httpResponse.statusCode == 401 {
+            throw APIError.unauthorized
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let message = String(data: data, encoding: .utf8) ?? "Unknown error"
+            throw APIError.serverError(statusCode: httpResponse.statusCode, message: message)
+        }
+    }
+
+    /// Marks the running image valid, cancelling the pending rollback (#177).
+    /// `ota_confirm.c` normally does this on its own after a healthy-uptime
+    /// window; this is the manual path for someone watching an update land.
+    func confirmOTA() async throws -> OtaConfirmResponse {
+        try await request(method: "POST", path: "/ota/confirm")
     }
 
     // MARK: - Diagnostics

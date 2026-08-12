@@ -2,8 +2,10 @@ import SwiftUI
 
 struct OTAUpdateView: View {
     @Environment(KilnConnection.self) private var connection
+    @Environment(KilnStore.self) private var store
     @Bindable var viewModel: SettingsViewModel
     @State private var showFilePicker = false
+    @State private var showRollbackConfirmation = false
 
     var body: some View {
         Form {
@@ -53,6 +55,69 @@ struct OTAUpdateView: View {
                 }
             }
 
+            /* The recovery half of the OTA story (#177). Every update is
+               written to the inactive slot, so the image it replaced is still
+               on the device — without this the only way back from a bad update
+               was a USB cable and physical access to the kiln. */
+            Section("Firmware Partitions") {
+                if let status = viewModel.otaStatus {
+                    if let running = status.running {
+                        LabeledContent("Running Slot", value: running.label)
+                        if let version = running.version {
+                            LabeledContent("Running Version", value: version)
+                        }
+                    }
+                    // Differs from the running slot only between a rollback
+                    // request and the reboot that carries it out, which is
+                    // exactly when it is worth reading.
+                    if let boot = status.bootPartition {
+                        LabeledContent("Boots Next From", value: boot)
+                    }
+                    if status.pendingVerify == true {
+                        LabeledContent("Image State", value: "Pending verification")
+                        Text("""
+                            This image has not been marked valid yet. Until it is, the kiln \
+                            reverts to the previous firmware if it reboots.
+                            """)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Button("Confirm This Firmware") {
+                            guard let client = connection.apiClient else { return }
+                            Task { await viewModel.confirmFirmware(using: client) }
+                        }
+                        .disabled(viewModel.isConfirmingFirmware)
+                    } else if let state = status.running?.state {
+                        LabeledContent("Image State", value: state)
+                    }
+
+                    if status.rollbackAvailable {
+                        Button("Roll Back to Previous Firmware", role: .destructive) {
+                            showRollbackConfirmation = true
+                        }
+                        // handle_ota_rollback() answers 409 during a firing,
+                        // and rebooting mid-firing would abandon the load.
+                        .disabled(viewModel.isRollingBack || store.progress.isActive
+                                  || viewModel.isInstalling || viewModel.isUploading)
+                    } else {
+                        Text("""
+                            No previous firmware to roll back to — the other slot is empty or was \
+                            never booted successfully.
+                            """)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } else if viewModel.otaStatusUnavailable {
+                    // A kiln too old to serve /ota/status 404s it. Saying so
+                    // beats an empty section, which would read as "no previous
+                    // firmware" — a different claim entirely.
+                    Text("Could not read the partition state from the kiln.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ProgressView()
+                }
+            }
+
             if let message = viewModel.otaMessage {
                 Section {
                     Label(message, systemImage: "checkmark.circle.fill")
@@ -67,6 +132,33 @@ struct OTAUpdateView: View {
             }
         }
         .navigationTitle("OTA Update")
+        .task {
+            // No client means no connection at all; the placeholder spinner
+            // would otherwise turn forever waiting on a request never made.
+            guard let client = connection.apiClient else {
+                viewModel.otaStatusUnavailable = true
+                return
+            }
+            await viewModel.loadOtaStatus(using: client)
+        }
+        .confirmationDialog(
+            "Roll back to the previous firmware?",
+            isPresented: $showRollbackConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Roll Back", role: .destructive) {
+                guard let client = connection.apiClient else { return }
+                Task { await viewModel.rollbackFirmware(using: client) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("""
+                The kiln reboots immediately into the firmware it ran before \
+                \(viewModel.otaStatus?.running?.version ?? "the last update"). Settings, profiles \
+                and history are kept. To come back to this version afterwards, install it again \
+                from Check for Updates.
+                """)
+        }
         .fileImporter(isPresented: $showFilePicker, allowedContentTypes: [.data]) { result in
             switch result {
             case .success(let url):
