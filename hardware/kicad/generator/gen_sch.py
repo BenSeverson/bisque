@@ -346,14 +346,14 @@ def main():
     libsyms = out_lib_symbols(symcache)
 
     out = []
-    out.append('(kicad_sch (version 20230121) (generator eeschema)')
+    out.append('(kicad_sch (version 20260306) (generator "eeschema") (generator_version "10.0")')
     out.append('\t(uuid %s)' % ROOT)
     out.append('\t(paper "A3")')
     out.append('\t(title_block\n\t\t(title "Bisque Kiln Controller")\n'
                '\t\t(date "2026-07-20")\n\t\t(rev "A")\n'
                '\t\t(company "Bisque project")\n'
-               '\t\t(comment 1 "ESP32-S3-WROOM-1 + 2x MAX31856 + SSR drive")\n'
-               '\t\t(comment 2 "2-layer, 100 x 80 mm, JLCPCB standard process")\n\t)')
+               '\t\t(comment 1 "ESP32-S3-WROOM-1U-N16R2 + 2x MAX31856 + dual SSR + ADE7953")\n'
+               '\t\t(comment 2 "4-layer, 100 x 100 mm, JLCPCB standard process")\n\t)')
     out.append('\t(lib_symbols\n\t\t' + "\n\t\t".join(libsyms) + '\n\t)')
     out.extend(body)
     out.append('\t(sheet_instances (path "/" (page "1")))')

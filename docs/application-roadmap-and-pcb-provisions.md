@@ -53,37 +53,60 @@ currently packaged for ceramics. Each new application is mostly a recipe library
 
 ## 2. Current pin budget (why the PCB provisions look the way they do)
 
-Full as-built map (every GPIO, its net, its Kconfig symbol and the J7 aux
-header), plus a concrete pin-by-pin allocation for the §3.1 re-map:
-[`pin-assignments.md`](pin-assignments.md).
+**This section originally described a proposed re-map for the first PCB run.**
+That run shipped as the rev B respin
+(`docs/superpowers/specs/2026-08-10-pcb-rev-b-hardware-design.md`), and several
+of the assumptions below turned out wrong once the design was actually laid
+out — most importantly, the module variant changed and the CT current-sense
+input that motivated freeing ADC1 turned out to want a digital I2C chip, not
+an analog pin. This section is rewritten to the as-built state rather than
+left as a stale proposal; see §3.1 and §3.6 below for the two provisions this
+affects most.
 
-Assigned today (Kconfig defaults, `main/Kconfig.projbuild`):
+Full as-built map (every GPIO, its net, its Kconfig symbol and the J7/J10/J11
+headers): [`pin-assignments.md`](pin-assignments.md).
 
-- **GPIO 1–10 all consumed**: buttons (1, 2, 4, 5, 6), LCD BL (3), alarm (7), LCD CS/DC (8, 9), TC CS (10)
-- SPI bus: MOSI 11, SCLK 12, MISO 13; SSR 17; LCD RST 46; WS2812B 48
-- Aux header J7: vent relay 14, lid switch 21 (both default to those GPIOs,
-  matching the PCB); `AUX_A` 15 and `AUX_B` 16 declared but not yet driven
+Assigned today (Kconfig defaults, `main/Kconfig.projbuild`, rev B):
+
+- GPIO 1–10: three protected inputs (1, 2, 4), touch CS/IRQ (5, 6), LCD BL (3),
+  alarm (7), LCD CS/DC (8, 9), TC1 CS (10) — the five nav buttons that used to
+  sit here moved to 38–42 in the re-map (§3.1)
+- SPI bus: MOSI 11, SCLK 12, MISO 13; SSR1 17; I2C SDA 18; LCD RST 46; WS2812B 48
+- SSR2 21; TC2 CS 35; watchdog kick 36; GPIO 37 spare; I2C SCL 47
+- Aux terminal J10 (via the ULN2003 bank, U6): vent relay `AUX1` 14 (driven by
+  default, matching the PCB), `AUX2` 15 and `AUX3` 16 (routed, declared, not
+  yet driven)
+
+**Module: ESP32-S3-WROOM-1U-N16R2**, not the WROOM-1-N16R8 earlier drafts of
+this roadmap assumed. Two changes bundled into one part swap:
+
+- **U.FL external antenna, not a PCB antenna module.** A kiln controller
+  mounts on or near a large grounded steel enclosure, which makes an
+  on-package PCB antenna close to non-functional; the "1U" variant carries a
+  U.FL connector for an antenna on a pigtail placed somewhere that actually
+  radiates. This also reclaims the ~330 mm² antenna keep-out band the
+  standard WROOM-1's footprint requires, freeing it for parts and ground
+  pour on a board that is already area-constrained. The trade is a
+  certification one: Espressif's modular approval for the 1U is granted
+  against specific antenna types and gains, so a non-approved
+  high-gain antenna steps outside that approval (see the `CERT-001` note in
+  `hardware/kicad/FAB-READINESS-REVIEW-REVB.md`).
+- **Quad PSRAM, not octal.** This is what changes the pin budget below: octal
+  PSRAM commits GPIO 35/36/37 internally, quad PSRAM releases all three.
 
 Consequences on an ESP32-S3:
 
-1. **ADC1 (GPIO 1–10) is fully occupied** by digital functions, and ADC2 (GPIO 11–20)
-   is unreliable while Wi-Fi is active. As wired today, there is effectively **no
-   usable analog input** — this is the single most important thing to fix in the PCB
-   pin map (see §3.1) if CT current sensing or any analog sensor is ever wanted.
-2. The clean digital pins remaining are **14, 15, 16, 18, 21, 38–42, 47** — eleven
-   pins (avoid strapping pins 0/45, and keep 19/20 for USB; 46 is a strapping pin
-   already spent on LCD RST). That is enough for the button re-map (§3.1) plus the
-   dedicated provisions, but only *just* — see the explicit budget in §3.1; the
-   provisions below are sized to it. The only other candidates are **GPIO 35, 36,
-   37**, which depend on the module variant — free on quad-PSRAM/flash-only
-   variants, consumed by octal PSRAM on the **N16R8 this project actually targets**
-   (`sdkconfig.defaults`, the KiCad BOM, and the DevKitC-1 in the README are all
-   R8), where the KiCad schematic correctly leaves them unconnected. Note the
-   adjacent GPIO 33/34 are **not** an option on any variant: ESP32-S3-WROOM-1 does
-   not break them out at all — the module's castellated pads run IO0–IO18, IO21,
-   IO35–IO42, IO45–IO48 (confirmed against the `RF_Module:ESP32-S3-WROOM-1` symbol
-   in `hardware/kicad/bisque-controller.kicad_sch`), and GPIO 26–34 are internal to
-   the module's flash/PSRAM interface. Do not plan pins around them.
+1. **ADC1 (GPIO 1–10) is mostly digital, same as before the re-map** — the
+   re-map that moved the nav buttons off it (§3.1) happened for routing and
+   future-interlock reasons, not to free analog input, because the CT
+   current-sense provision (§3.6) turned out to want a digital I2C part with
+   no analog demand at all. ADC1 is not "reclaimed" by this design; it just
+   never needed reclaiming for the reason originally assumed.
+2. The clean digital pins available for the re-map were **14, 15, 16, 18, 21,
+   38–42, 47**, plus **GPIO 35, 36, 37**, freed by the module's **quad** PSRAM
+   (not consumed the way they would be on the octal-PSRAM N16R8 this roadmap
+   originally assumed) — see `pin-assignments.md` §2 for the constraint list
+   as shipped.
 3. All pins are Kconfig-configurable, so a PCB reshuffle is a defaults change, not a
    firmware change.
 
@@ -93,61 +116,55 @@ Goal: one board that ships as today's ceramics controller, where every Tier A/B
 application (and the practical parts of Tier C) is reachable by **populating DNP parts
 and flipping Kconfig defaults** — no respin. Roughly in priority order:
 
-### 3.1 Re-map the pin assignments to free ADC1 (zero cost, must happen at layout time)
+### 3.1 Re-map the pin assignments (shipped, rev B)
 
-Move the five nav buttons and the alarm output off GPIO 1–10 onto the free digital
-pins (e.g. buttons → 38–42, alarm → 21). This frees **six** ADC1-capable pins
-(1, 2, 4, 5, 6, 7) for analog sensing — GPIO 3, 8, 9, 10 remain committed to LCD
-BL/CS/DC and the TC1 CS and are *not* recovered. The re-map costs nothing on the
-first run and is impossible to do later without a respin. Update the Kconfig
-defaults to match the board.
+**Done, as part of the rev B respin.** This section originally proposed
+moving the five nav buttons and the alarm output off GPIO 1–10 to free ADC1
+for analog sensing. The re-map happened — buttons moved to 38–42 — but not
+for that reason: the CT current-sense provision (§3.6) turned out to be a
+digital I2C part, so there was no analog demand left to free ADC1 *for*. The
+re-map survived on two different grounds instead:
 
-**Pin budget after the re-map** — this must balance before layout, so here it is
-explicitly. Available: the five leftover clean digital pins (14, 15, 16, 18, 47)
-plus the six freed ADC1 pins = **11 GPIOs**. Demands from the provisions below:
+1. The five nav buttons originally sat on module pads split across opposite
+   sides of the ESP32-S3 module. Moving them to GPIO 38–42 puts them on
+   contiguous module pads, which materially simplified routing on a board
+   that turned out to have a real routing problem (`hardware/kicad/
+   FAB-READINESS-REVIEW-REVB.md` records the escalation ladder that
+   resulted).
+2. The protected inputs (lid, gas flow, spare) landed on ADC1 pins (1, 2, 4)
+   even though they're digital today, on purpose: staying ADC-capable keeps a
+   resistance-monitored interlock loop — where a cut cable and a closed
+   switch read differently — possible without another respin. This is the one
+   genuine remaining use for ADC1 on this board.
 
-| Provision | Pins |
-|---|---|
-| TC channel 2 CS (§3.2) | 1 |
-| Aux output channels (§3.3) | 3 |
-| Protected inputs (§3.4) | 3 |
-| I2C SDA/SCL (§3.5) | 2 |
-| CT analog sense (§3.6, must be ADC1) | 1 |
-| Touch `T_CS` (§3.7) | 1 |
-| **Total** | **11** |
+**Full pin budget, as shipped:** `pin-assignments.md` §1 has the complete
+GPIO table. Of the 30 usable GPIOs on the WROOM-1U-N16R2 (quad PSRAM frees
+GPIO 35/36/37 versus an octal-PSRAM module — §2 above), **29 are assigned and
+one is spare (GPIO 37)**. There is no elaborate budget-balancing exercise to
+show here the way an earlier draft of this section did: the design is built,
+not proposed, and `check_pinmap.py` (run via `make pcb-check`) now asserts
+`design.py` and the Kconfig defaults agree on every GPIO rather than relying
+on this doc staying accurate by hand.
 
-> **Counting caveat.** GPIO 14, 15, 16 and 21 above are all routed on the board,
-> to aux header J7 — and `VENT` (14) and `LID_SW` (21) are now *driven* by
-> default too, so only `AUX_A`/`AUX_B` are genuinely idle. The budget still
-> balances, but only if §3.3's
-> three aux outputs *are* those existing nets (14/15/16) and the lid switch
-> vacates GPIO 21 for the alarm, becoming one of §3.4's protected inputs. Read
-> literally, this table double-books J7. See
-> [`pin-assignments.md`](pin-assignments.md) §4.
+Two decisions worth calling out because they moved from constrained to
+comfortable during the design:
 
-That consumes the pool exactly — which forces two explicit decisions rather than a
-silent overrun:
+- **`T_IRQ` has a dedicated pin (GPIO 6).** An earlier draft of this roadmap
+  assumed the touch controller would have to be polled because the pin
+  budget had no room for its pen-down interrupt. Once the CT went digital
+  and the module went quad-PSRAM, the budget had enough slack (one full
+  spare pin, GPIO 37, plus the ADC1 pins the re-map no longer needed for
+  analog sensing) to give `T_IRQ` its own line. See §3.7.
+- **The DNP PCA9554 I2C GPIO expander from §3.5/§3.8 was retired.** It
+  existed as the escape valve for a pin budget with zero slack; once the
+  module swap left a real spare pin and the digital CT removed a demand, the
+  expander stopped earning its board area. See §3.5 and §3.8.
 
-- **`T_IRQ` gets no dedicated pin.** The XPT2046 is polled by default (its firmware
-  Kconfig already defaults to `-1`); the header's `T_IRQ` line routes to the spare
-  header (§3.8) via solder jumper so a build on a quad-PSRAM module can still wire
-  it. See §3.7.
-- **The spare header (§3.8) is populated from GPIO 35/36/37 only** — i.e. it has
-  real pins on quad-PSRAM/flash-only module variants and is footprint-only on the
-  octal-PSRAM (R8) module this project ships, whose PSRAM uses all three. The DNP
-  I2C GPIO expander in §3.5 is the escape valve if a pin-hungry feature ever lands
-  on an R8 build.
+### 3.2 Thermocouple: two channels, upgraded front-end (shipped, rev B)
 
-Any future provision that needs a dedicated GPIO must displace something in the
-table above or ride the I2C expander — there is no slack left. The expander only
-covers **slow, non-timing-critical** signals, though (see §3.8): anything
-edge-triggered or phase-sensitive, zero-cross detection above all, has to displace a
-direct pin.
-
-### 3.2 Thermocouple: two channels, upgraded front-end
-
-- **Two TC input channels** on the shared SPI bus, each with its own CS. Populate
-  channel 1; channel 2 is DNP.
+- **Two TC input channels** on the shared SPI bus, each with its own CS. Rev B
+  populates both channels — this was originally planned as channel 1
+  populated / channel 2 DNP, but the board shipped with both MAX31856s fitted.
 - **Prefer MAX31856 over MAX31855** for the PCB run: configurable TC type (K/J/N/T…),
   better cold-junction accuracy, 50/60 Hz filtering, and fault detail — directly
   serves the tighter tolerances heat treating wants. It is *not* pin-compatible with
@@ -156,14 +173,20 @@ direct pin.
 - Panel-mount miniature TC connectors; keep the cold-junction area away from board
   heat sources (SSR driver, regulators) and copper-pour it for thermal uniformity.
 
-### 3.3 Output bank: 1 main + 3 auxiliary channels
+### 3.3 Output bank: 2 SSR zones + 3 auxiliary channels (shipped, rev B)
 
-- **Main SSR trigger** (existing GPIO 17 function): opto-isolated, LED indicator.
-- **Three aux low-side driver channels** (MOSFET or small relay, flyback diodes,
-  LED indicators, screw terminals). Firmware roles are soft-assigned: vent relay,
-  purge solenoid, cooling fan/damper, zone-2 SSR trigger, external alarm/beacon.
-  This one bank covers the vent (already in firmware), the atmosphere purge,
-  forced-cool, and two-zone options without any board change.
+- **Two opto-isolated SSR triggers** (`SSR1_CTRL`/GPIO 17, `SSR2_CTRL`/GPIO 21),
+  each with an LED indicator. This grew from the single main-SSR trigger
+  originally planned here to a full second zone, gated together by the
+  hardware watchdog (§5.3 of the hardware-design spec).
+- **Three aux channels** through a shared ULN2003ADR Darlington array (not the
+  discrete MOSFET/relay-per-channel scheme originally sketched here) — flyback
+  diodes integrated in the chip, LED indicators, one shared screw terminal
+  (J10) fed from an externally-supplied coil rail. Firmware roles are
+  soft-assigned: vent relay (implemented), purge solenoid, cooling
+  fan/damper/beacon. This one bank covers the vent (already in firmware) and
+  the atmosphere purge and forced-cool options without any board change; the
+  second SSR zone is its own dedicated pin, not a member of this bank.
 - On-board buzzer on the alarm GPIO (still present even if an aux channel drives an
   external beacon).
 
@@ -174,21 +197,31 @@ lid/door switch (the interlock is implemented in firmware as of PR #286 —
 `components/safety/` debounces it, reports `lid_state_t`, and gates the SSR when
 armed), gas-flow interlock for the purge line, one spare. Dry-contact friendly.
 
-### 3.5 I2C expansion header (Qwiic/STEMMA-QT footprint + 0.1" header)
+### 3.5 I2C expansion header (Qwiic/STEMMA-QT footprint + 0.1" header) (shipped, rev B)
 
 One connector with on-board pull-ups unlocks a whole class of Tier B/C features with
-zero board changes: SHT4x RH sensor (wood kiln), DS3231 RTC + coin-cell footprint
-(offline audit timestamps — put the RTC + battery holder on-board as DNP),
-ADS1115 external ADC (fallback analog path). Since §3.1's budget closes with zero
-spare GPIOs on octal-PSRAM modules, also place an on-board **DNP I2C GPIO expander
-footprint (e.g. PCA9554)** — the designated escape valve for any future
-slow-signal input/output need without a respin.
+zero board changes: SHT4x RH sensor (wood kiln), an RTC breakout for offline audit
+timestamps, ADS1115 external ADC. The bus also now carries the on-board ADE7953
+CT front-end (§3.6). **The DNP I2C GPIO expander footprint (e.g. PCA9554) that
+this section originally specified as the escape valve for a zero-slack pin
+budget was retired** — the module swap to quad PSRAM left a real spare pin
+(GPIO 37) and the CT going digital removed a demand that would otherwise have
+eaten into the budget, so the expander stopped earning its board area before
+layout. See §3.1.
 
-### 3.6 Analog sense: CT-clamp input (DNP)
+### 3.6 CT current sensing: digital I2C front-end (shipped, rev B)
 
-One current-transformer input (burden resistor + divider + clamp diodes) into a freed
-ADC1 pin, footprints only on run 1. Enables element-health monitoring and real power
-measurement. If §3.1's re-map is somehow not possible, this moves to the I2C ADC.
+**Not an analog ADC1 channel.** This section originally specified a
+current-transformer input as a burden resistor + divider feeding a freed
+ADC1 pin. The design that shipped instead puts both current channels on a
+dedicated ADE7953 metering IC (LFCSP-28, current-only — the mains voltage
+channel is unused and routed to a DNP SELV header for a possible future
+off-board isolated-AC accessory) on the I2C bus from §3.5. This costs zero
+GPIOs beyond the bus that already exists, keeps ESP32 ADC noise out of the
+measurement entirely, and gives one channel per SSR zone instead of one
+channel total. `Irms × configured nominal mains voltage` estimates power to
+within roughly ±3–5%, adequate for element-health diagnosis and cost
+estimation. Both channels are populated on rev B, not DNP.
 
 ### 3.7 Touch-screen enablement on the LCD header
 
@@ -203,14 +236,15 @@ Provision for run 1:
 
 - **Route all 14 header pins.** The five touch lines cost only **two new ESP32
   GPIOs**, not five: `T_CLK`/`T_DIN`/`T_DO` are electrically just SPI
-  SCLK/MOSI/MISO and tie to the existing shared SPI2 nets (GPIO 12/11/13 — the bus
-  already multi-drops the LCD at 40 MHz and the MAX31855 at 1 MHz with per-device
-  clocks; the XPT2046 joins as a third device at ≤2.5 MHz). Only `T_CS` needs a
-  fresh dedicated GPIO from the pool (e.g. 14). `T_IRQ` would let firmware skip
-  touch reads until a press occurs, but the §3.1 pin budget has no dedicated pin
-  for it: the chip is **polled by default**, and the `T_IRQ` line routes to the
-  spare header (§3.8) via solder jumper so module variants with free GPIOs
-  (35/36/37 on quad-PSRAM) can still wire it.
+  SCLK/MOSI/MISO and tie to the existing shared SPI2 nets — the bus now
+  multi-drops the LCD at 40 MHz plus two MAX31856s and the XPT2046 at lower
+  clocks, each configured per-device. `T_CS` (GPIO 5) and **`T_IRQ` (GPIO 6)
+  both get dedicated pins on rev B** — an earlier draft of this section
+  assumed the pin budget had no room for `T_IRQ` and left the XPT2046 polled
+  by default, routing the interrupt line to the spare header instead. Once
+  the CT went digital and the module went quad-PSRAM (§2), the budget had
+  enough slack for a dedicated interrupt pin, so `T_IRQ` did not need the
+  spare-header/solder-jumper workaround after all.
 - **Series resistor / solder-jumper on the touch lines** so an untouched build (or a
   touchless module variant) is unaffected.
 - **Capacitive variant escape hatch:** some ST7796S modules ship with capacitive
@@ -222,36 +256,35 @@ Firmware (when enabled): an XPT2046 driver on the shared bus, registered as an L
 simultaneously, and the whole UI is already built from clickable widgets
 (buttons, list rows, button matrices), so modals become directly tappable with the
 5-way switch untouched as a fallback. Resistive touch needs a 4-point calibration
-stored in NVS (small settings + one-time calibration modal). Kconfig: two new pin
-options defaulting to `-1` (disabled), same pattern as the `AUX_A`/`AUX_B`
-outputs.
+stored in NVS (small settings + one-time calibration modal). Kconfig:
+`KILN_PIN_TOUCH_CS`/`KILN_PIN_TOUCH_IRQ` default to their rev B GPIOs (5/6) so
+a board build routes them without hand-configuration, same as `KILN_PIN_AUX2`/
+`KILN_PIN_AUX3` — declared and routed, but with no driver reading them yet.
 
-### 3.8 Spare-pin header & strategy
+### 3.8 Spare pin (shipped, rev B)
 
-After the §3.1 budget, the only unclaimed pins are the module-dependent **GPIO 35,
-36, 37** — free on quad-PSRAM/flash-only variants, consumed by octal PSRAM on the R8
-module this design uses (GPIO 33/34 are not module pads at all; see §2). Route the
-three to a labeled 0.1" header with solder-jumper isolation — real spares on quad
-modules, footprint-only on R8 — and land the `T_IRQ` jumper (§3.7) here. Do not
-spend strapping pins (0, 45) or USB pins (19, 20) on new functions.
+The **WROOM-1U-N16R2's quad PSRAM** frees GPIO 35, 36 and 37 versus the
+octal-PSRAM WROOM-1-N16R8 an earlier draft of this roadmap assumed (GPIO
+33/34 are not module pads at all on either variant; see §2). Rev B spends two
+of the three — TC2 CS (35) and the hardware watchdog kick (36) — leaving
+**one true spare pin, GPIO 37**, broken out but unclaimed. There is no
+separate solder-jumper-isolated "spare header" concept here as originally
+planned; GPIO 37 is simply the one line in the full pin map
+(`pin-assignments.md` §1) with nothing on it.
 
-Because the shipped R8 configuration leaves this header with **zero live pins**, the
-DNP I2C GPIO expander (§3.5) is the real spare-capacity story for run 1, not this
-header. Size the I2C header and expander footprint accordingly — but note it is a
-spare-capacity story for *slow* signals only (relay coils, dry-contact interlocks,
-indicator LEDs). An I2C expander is polled over a millisecond-scale bus and has no
-deterministic latency, so it cannot serve anything edge- or timing-critical.
+**The DNP PCA9554 I2C GPIO expander this section originally described as "the
+real spare-capacity story for run 1" was retired before layout** (§3.1, §3.5)
+— the quad-PSRAM spare pin and the digital CT together removed the pin
+pressure the expander existed to relieve. Any future slow, non-timing-critical
+signal (relay coils, dry-contact interlocks, indicator LEDs) can still ride
+the I2C bus via an off-board expander breakout on the Qwiic/STEMMA-QT header
+(§3.5) — that option didn't disappear, only the on-board DNP footprint for it.
 
-Optional DNP footprint: a mains **zero-cross detector** — only relevant if
-finer-than-time-proportional SSR control is ever wanted for very low-temperature
-stability. **It needs a real interrupt-capable MCU pin; the expander is not an
-option for it.** The signal is a narrow pulse at 100/120 Hz whose *edge timing* is
-the entire payload, and a polled I2C read both misses pulses and cannot resolve
-half-cycle phase. Since §3.1's budget leaves no direct GPIO free, this footprint is
-only honest if its signal **displaces one of the three §3.4 protected inputs**
-(wire it to input 3, the designated spare, and document that a build using
-zero-cross gives up that input). If a future revision wants both, the pin budget
-must gain a dedicated capture-capable pin — not an expander channel.
+A mains **zero-cross detector** remains out of scope for the same reason it
+always was: it needs a real interrupt-capable MCU pin, not a polled I2C
+expander channel, because the signal is a narrow pulse at 100/120 Hz whose
+*edge timing* is the entire payload. GPIO 37 is available for exactly this if
+it's ever wanted, at the cost of the one pin of slack this board has.
 
 ### 3.9 Power & safety envelope
 
@@ -274,7 +307,7 @@ must gain a dedicated capture-capable pin — not an expander channel.
 | Forced-cool assist | 3.3 aux ch | No |
 | Element health / power metering | 3.1 + 3.6 populated | No |
 | Audit-grade timestamps | 3.5 RTC populated | No |
-| Touch-screen UI | 3.7 (all 14 LCD header pins routed; 1 GPIO, polled) | No |
+| Touch-screen UI | 3.7 (all 14 LCD header pins routed; `T_CS`+`T_IRQ`, both dedicated GPIOs) | No |
 | Wood kiln (temp+RH) | 3.5 sensor + 3.3 vent ch (+ big firmware work) | No |
 | Solder reflow | none (engine timing rework only) | No |
 | Below-ambient control | 3.3 can trigger a chiller relay, but bidirectional PID is out of scope | Likely yes (dedicated design) |

@@ -5,14 +5,20 @@ board generators derive everything from these tables, so the two files can
 never disagree on connectivity.
 
 Pin GPIO mapping mirrors main/Kconfig.projbuild defaults (the firmware's
-source of truth):
-  SPI: MOSI=11 MISO=13 SCLK=12 | TC CS=10 | SSR=17
+source of truth). This is the rev B map — see docs/pin-assignments.md §1 for
+the full as-built table with module pin numbers and net names:
+  SPI: MOSI=11 MISO=13 SCLK=12 | TC1 CS=10 TC2 CS=35 | SSR1=17 SSR2=21
   LCD: CS=8 DC=9 RST=46 BL=3   | WS2812=48 | ALARM=7
-  BTN: UP=4 DOWN=5 SEL=1 LEFT=6 RIGHT=2
-  Touch (Task 11): CS=? IRQ=? — dedicated GPIOs; T_CLK/T_DIN/T_DO are the
+  BTN: UP=38 DOWN=39 SEL=42 LEFT=40 RIGHT=41 (moved off ADC1 in Task 3)
+  AUX bank (U6, ULN2003): AUX1(vent)=14 AUX2=15 AUX3=16, on terminal J10
+    with the external AUX_VP coil rail (SJ1 links it to +5V).
+  Touch (Task 11): T_CS=5 T_IRQ=6 — dedicated GPIOs; T_CLK/T_DIN/T_DO are the
     shared SPI2 bus (SPI_SCLK/SPI_MOSI/SPI_MISO) through series resistors.
-  I2C (Task 11): SDA/SCL — shared bus, pulled up on-board, broken out on
+  I2C: SDA=18 SCL=47 — shared bus, pulled up on-board, broken out on
     both J7 (0.1") and J14 (Qwiic/STEMMA QT).
+  Watchdog: WDT_KICK=36 drives the charge pump gating both SSR opto LEDs;
+    SJ2 ("WDT DEFEAT") shorts the gate MOSFET for bring-up before the
+    firmware kick task exists.
   J11: IN1(lid)=4 IN2(gas flow)=2 IN3(spare)=1
 
 J7's pins 5-8 carried VENT/(unconnected)/AUX_A/AUX_B through Task 10, all
@@ -29,13 +35,16 @@ docs/pin-assignments.md — keep that table in sync with this one.
 """
 
 # --- board outline (mm, page coords) ---
-# 125 x 100 mm - spec 6.3 rung 2. Rev B did not route at 100 x 100 even with
-# every passive on 0603 (rung 1): the ADE7953 block, which has to hold a QFN-28
-# plus a crystal, eight decoupling capacitors, four strapping parts and a
-# ten-part CT front-end between the module's escape corridor and the board
-# edge, was still ~10 nets short. The extra 25 mm all goes to that column. This
-# leaves JLCPCB's <=100x100 promo tier: bare boards go from ~$2-4 to ~$10-15
-# for 5 pieces. See the task 14 report for the DRC counts at each rung.
+# 100 x 100 mm, 4-layer - spec 6.3 rung 3 (measured outcome). The 2-layer
+# escalation ladder never closed: 100x100/0805 (rung 0) left 34 nets
+# unroutable, 100x100/0603 (rung 1) left 23, and 125x100/0603 (rung 2) left 9
+# short local nets boxed in by neighbours' copper in the SSR driver cluster
+# and the ADE7953 block - the signature of a layer shortage, not an area
+# shortage. Going 4-layer (rung 3: GND plane on In1.Cu, +3V3 plane on In2.Cu)
+# closed it at 0 unrouted/0 DRC errors, and then gave back every rung-1/rung-2
+# concession: the board walked back to 100 x 100 mm, 0805 passives, and rev
+# A's 0.3/0.7 mm net classes, staying inside JLCPCB's <=100x100 promo tier.
+# See the task 14 report for the DRC counts at each rung.
 BX0, BY0, BX1, BY1 = 20.0, 20.0, 120.0, 120.0   # 100 x 100 mm
 
 # Placement regions (docs/.../2026-08-10-pcb-rev-b-hardware-design.md §6.2).
@@ -59,13 +68,17 @@ POWER_NETS = {"GND", "+5V", "+3V3", "VBUS", "VIN", "VLED"}
 # ref: (lib, symbol, fp_lib_id, fp_file, value, (pcb_x, pcb_y, rot), {pin: net})
 # net None => explicit no-connect
 
-# Chip passives are 0603, not rev A's 0805 (spec 6.3 rung 1). Rev B put 2.7x
-# rev A's part count on 1.25x the area; at 0805 the board could not be routed -
-# see the task 14 report for the DRC numbers at each rung. 0603 and 0805 are
-# both JLCPCB *Basic* sizes, so this costs no feeder fee and no assembly tier;
-# it only obliges the BOM (gen_jlc.py, task 15) to pick 0603 LCSC parts. The
-# 22 uF/25 V bulk capacitors stay 1206 - that value/voltage is not a Basic part
-# in 0603, and neither sits in a congested area.
+# Chip passives are 0805, same as rev A (spec 6.3 rung 3, walked back from
+# the 0603 the 2-layer escalation ladder tried at rungs 1-2). Rev B put 2.7x
+# rev A's part count on the same 100x100 area; on 2 layers even 0603 at
+# 125x100 left nine nets unroutable, and going 4-layer closed the board
+# without needing the smaller passives at all - see the task 14 report for
+# the DRC numbers at each rung. 0603 and 0805 are both JLCPCB *Basic* sizes,
+# so the walkback cost no feeder fee and no assembly tier. The names below
+# (R0603/C0603) are historical from the rung-1 attempt; the footprints they
+# point to are 0805. The 22 uF/25 V bulk capacitors stay 1206 - that
+# value/voltage is not a Basic part in 0603 or 0805, and neither sits in a
+# congested area.
 R0603 = ("Resistor_SMD:R_0805_2012Metric", "R_0805_2012Metric.kicad_mod")
 C0603 = ("Capacitor_SMD:C_0805_2012Metric", "C_0805_2012Metric.kicad_mod")
 C1206 = ("Capacitor_SMD:C_1206_3216Metric", "C_1206_3216Metric.kicad_mod")

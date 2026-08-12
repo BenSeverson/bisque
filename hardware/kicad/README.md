@@ -1,183 +1,312 @@
 # Bisque Kiln Controller — KiCad PCB
 
 A single-board replacement for the perfboard build documented in
-`docs/perfboard-layout.svg` / `docs/wiring-diagram.svg`. 2-layer,
-100 × 80 mm, built for **JLCPCB assembly**: 0805 passives, SOIC-8, SOT-23,
-SMD tact switches and the ESP32-S3-WROOM-1 module's castellated pads all go
-down the SMT line, plus seven through-hole parts (terminals, wafers, buzzer)
-and the WS2812B that are fitted by hand — see "Fabrication & assembly"
-below for why that split is much cheaper than it looks.
+`docs/perfboard-layout.svg` / `docs/wiring-diagram.svg`. This is **rev B**, a
+respin of the original prototype rather than a variant — it replaces the
+thermocouple front-end with an incompatible part, adds a second SSR zone and
+a digital current-sense chip, moves most GPIOs, and swaps the module variant.
+4-layer, 100 × 100 mm, built for **JLCPCB assembly**: 0805 passives,
+QFN/TSSOP/SOIC/SOT ICs, SMD tact switches and the ESP32-S3-WROOM-1U module's
+castellated pads all go down the SMT line, plus thirteen through-hole parts
+(terminals, wafers, buzzer) fitted by hand — see "Fabrication & assembly"
+below for why that split is much cheaper than it looks. The design record for
+this respin, including the routing escalation that forced the layer count,
+is `docs/superpowers/specs/2026-08-10-pcb-rev-b-hardware-design.md`; the
+fab-readiness sign-off is `FAB-READINESS-REVIEW-REVB.md` (rev A's review,
+`FAB-READINESS-REVIEW.md`, documents a board that no longer exists and is
+kept only as history — do not read it as current).
 
 Built and validated with **real KiCad** (10.0.5, pcbnew Python API +
-kicad-cli): footprints come from KiCad's installed libraries, ground pours
-are filled and checked by `kicad-cli pcb drc --refill-zones` — **zero
-errors, zero unconnected** (`bisque-controller-drc.rpt`) — and the
-schematic passes a netlist round-trip check (KiCad's exported netlist
-diffed against the design's connectivity table — 43 nets, 0 mismatches).
-The 3D renders in `3d/` are raytraced by `kicad-cli pcb render` with the
-official component models.
+kicad-cli): footprints come from KiCad's installed libraries, ground/power
+plane pours are filled and checked by `kicad-cli pcb drc --refill-zones` —
+**zero errors, zero unconnected, 102 silkscreen-only warnings**
+(`bisque-controller-drc.rpt`) — and the schematic passes a netlist round-trip
+check (KiCad's exported netlist diffed against the design's connectivity
+table — 96 nets, 0 mismatches). The 3D renders in `3d/` are raytraced by
+`kicad-cli pcb render` with the official component models.
 
 | File | What it is |
 |---|---|
-| `bisque-controller.kicad_pro` | Project (net classes: 0.3 mm signal / 0.7 mm power, 0.2 mm clearance) |
+| `bisque-controller.kicad_pro` | Project (net classes: 0.3 mm signal / 0.7–0.8 mm power, 0.25 mm only on the short fine-pitch escape stubs off the QFN/TSSOP pads) |
 | `bisque-controller.kicad_sch` | Schematic (A3, netlist-style: functional groups + global labels) |
-| `bisque-controller.kicad_pcb` | Board: placed, fully routed, GND pours on both layers |
+| `bisque-controller.kicad_pcb` | Board: placed, fully routed, 4 layers (F.Cu/B.Cu signals, In1.Cu GND plane, In2.Cu +3V3 plane) |
 | `preview-board.svg` | Quick visual of placement + routing |
 | `3d/board-3d-*.png` | Raytraced renders, kicad-cli (iso / front / top / underside) |
-| `bisque-controller-drc.rpt` | KiCad DRC report (0 errors; warnings are silk/lib-path noise) |
-| `gerbers/` | Fabrication outputs (kicad-cli: gerbers + Excellon drill + job file) |
+| `bisque-controller-drc.rpt` | KiCad DRC report (0 errors, 0 unconnected; 102 warnings are all silkscreen) |
+| `gerbers/` | Fabrication outputs (kicad-cli: F.Cu, B.Cu, **In1.Cu, In2.Cu**, paste/silk/mask, Edge.Cuts, Excellon drill + job file) |
 | `pdf/` | Schematic and board PDFs (kicad-cli) |
 | `jlcpcb/` | Assembly BOM + CPL for JLCPCB, plus the hand-solder shopping list |
 | `generator/` | Scripts that build everything from one connectivity table |
 
 ## Opening it
 
-Open `bisque-controller.kicad_pro` in KiCad 7 or newer. Zones ship
-**filled** (KiCad's own filler) and the board already passes KiCad DRC;
-re-run it after any edit. The schematic embeds its symbols; the board
-references the standard KiCad footprint libraries (and was generated from
-them).
+Open `bisque-controller.kicad_pro` in KiCad 10 or newer (the board file
+format and pcbnew API this generator uses require it — see "Regenerating the
+files"). Zones ship **filled** (KiCad's own filler) and the board already
+passes KiCad DRC; re-run it after any edit. The schematic embeds its
+symbols; the board references the standard KiCad footprint libraries (and
+was generated from them).
 
 ## What's on the board
 
-- **U1 — ESP32-S3-WROOM-1-N16R8** module (16 MB flash / 8 MB octal
-  PSRAM — matches `sdkconfig.defaults` + the 16 MB OTA partition table) at
-  the top edge, antenna keep-out
-  strip kept copper-free (the official footprint's rule area).
+- **U1 — ESP32-S3-WROOM-1U-N16R2** module (16 MB flash / 2 MB **quad**
+  PSRAM — matches `sdkconfig.defaults`' `CONFIG_SPIRAM_MODE_QUAD` + the
+  16 MB OTA partition table), at the top edge. The **1U** variant carries a
+  **U.FL connector for an external antenna** rather than the standard
+  WROOM-1's on-package PCB antenna: a kiln controller mounts on or near a
+  large grounded steel enclosure, which makes a PCB antenna close to
+  non-functional, and the 1U's antenna can be placed on a pigtail somewhere
+  that actually radiates. It also reclaims the ~330 mm² antenna keep-out
+  band the WROOM-1 footprint would require — freed for parts and ground
+  pour on a board that turned out to need every square millimeter (see
+  "Density and the 4-layer stack-up" below). **The U.FL pigtail (U.FL → SMA
+  bulkhead) and the 2.4 GHz antenna are accessories, not BOM lines** — buy
+  them separately (see the hand-solder/shopping-list note below) and drill
+  an SMA bulkhead hole in the enclosure. U.FL is rated for ~30 mating
+  cycles, so treat the connection as assemble-once, not a field-serviceable
+  connector.
+
+  **Certification caveat.** Espressif's modular certification for the
+  WROOM-1U is granted against specific antenna types and gains. Fitting a
+  non-approved (e.g. high-gain) antenna steps outside that approval — see
+  `CERT-001` in `FAB-READINESS-REVIEW-REVB.md`. Use an antenna within the
+  certified list unless you're prepared to re-certify.
+
 - **Power**: 5 V DC in on screw terminal **J2** (top-left) *or* USB-C; each
   source feeds the +5 V rail through an SS34 Schottky (D1/D2 — also reverse
   polarity protection), then an **AMS1117-3.3** (U2, SOT-223) makes 3V3.
   Power LED (green) on 3V3. The display (below) draws from +5V directly, not
   through U2 — its backlight and panel logic were the dominant unmodeled load
   on the LDO, and moving them off keeps U2's junction temperature comfortably
-  under its 125°C limit even at a hot enclosure ambient.
-- **Thermocouple**: **MAX31855KASA+** (U3, SOIC-8) bottom-right, K-type on
-  screw terminal **J3** (`K+` / `K-`, K− grounded at the chip per datasheet),
-  10 nF filter across the inputs, shares the SPI bus (MISO + its own CS).
-- **SSR drive**: screw terminal **J4** supplies a +5 V / SSR− loop switched
-  low-side by an AO3400A (Q1) with 100 Ω gate series and 10 kΩ pull-down so
-  the kiln stays **off during boot/reset**. Amber LED shows drive state.
-  (The SSR itself and all mains wiring stay outside this board.)
-- **Display**: 8-pin Molex KK-254 friction-lock header **J5** for a 4.0"
-  ST7796S SPI module (LCDWIKI MSP4020/MSP4021, 480×320 — same resolution and
-  driver IC as before, larger glass) — `5V GND CS RST DC SDI SCK BL`,
-  silkscreened per pin. VCC runs from +5V rather than +3V3: the module's own
-  manual rates VCC 3.3-5V and every reference wiring diagram in it, including
-  3.3V-logic MCU boards, ties VCC to 5V while driving CS/RESET/DC/MOSI/SCK
-  directly with no level shifter, so no other pin changes. MISO/SDO and the
-  five touch pins (only present on the touch variant, MSP4021) aren't wired —
-  the firmware doesn't read from the panel.
+  under its 125°C limit even at a hot enclosure ambient. The +3V3 rail also
+  now lives on its own **inner plane** (In2.Cu) rather than a surface pour —
+  see the stack-up note below.
+- **Thermocouples ×2**: **MAX31856MUD+** (U3 channel 1 / U5 channel 2,
+  TSSOP-14), K-type on screw terminals **J3** (channel 1) / **J8** (channel
+  2), each with its datasheet-specified differential + common-mode input
+  filter, sharing the SPI bus (MISO + its own CS: GPIO 10 / GPIO 35). This
+  replaces rev A's single MAX31855KASA+ entirely — the two parts are not
+  pin-compatible, and no attempt was made to support both on one board.
+
+  **Ungrounded-junction thermocouple probes are required.** Both MAX31856s
+  reference their T− input to board ground. Two grounded-junction probes
+  sharing one kiln chamber would form a ground loop through the kiln body
+  itself; use ungrounded-junction (isolated-tip) K-type probes on both
+  channels. This is a documentation obligation, not something the board
+  enforces electrically.
+- **SSR drive ×2, opto-isolated**: screw terminals **J4** (zone 1) / **J9**
+  (zone 2) each supply an isolated 2-pin loop switched by an **LTV-817S**
+  optocoupler (U8 zone 1, U9 zone 2) — GPIO → 220 Ω series resistor → opto
+  LED → shared `SSR_EN` return, with a parallel amber indicator LED branch
+  (not in series — the indicator's ~2.0 V plus the opto's ~1.2 V would leave
+  nothing to drop from a 3.3 V GPIO) and a 10 kΩ pulldown so both channels
+  stay dark through boot/reset. This replaces rev A's bare AO3400A low-side
+  switch: the gain is ground-loop and surge immunity on wiring that runs
+  beside mains out to the kiln, not mains safety — the control loop is
+  low-voltage on both sides of the barrier either way. A per-channel solder
+  jumper (silkscreened, open by default) can tie the opto collector to
+  board +5V for anyone who wants rev A's non-isolated convenience instead.
+  (The SSRs themselves and all mains wiring stay outside this board.)
+
+  **Hardware watchdog (`SJ2`, "WDT DEFEAT").** `SSR_EN` — the shared return
+  path for both opto LEDs *and* both indicator LEDs — is gated by Q3, a
+  MOSFET held on by a diode charge pump (BAT54S, C38/C39, R46) driven from
+  GPIO 36 (`WDT_KICK`). **Nothing in firmware toggles this pin yet.** A
+  charge pump needs transitions to stay charged — a stuck-high pin decays
+  exactly like a stopped one — so on power-up, and on any board where
+  nothing kicks GPIO 36, `SSR_EN` decays and **both SSR channels stay off
+  regardless of what the firmware commands them to do.** The silkscreened
+  `SJ2` solder jumper shorts the gate MOSFET, restoring un-gated behaviour
+  for bring-up and for any build without the firmware kick task. **A board
+  with neither `SJ2` fitted nor a firmware kick task will not heat** — this
+  is the single most likely rev B bring-up surprise, more likely to be
+  mistaken for a bad SSR or a lid-interlock problem than correctly
+  diagnosed as "nobody is kicking the dog yet." The watchdog gates only the
+  two SSR channels; vent, purge, the spare aux channel and the buzzer are
+  unaffected, so a stalled controller can still open its vent.
+- **Display**: 14-pin Molex KK-254 friction-lock header **J5** for a 4.0"
+  ST7796S SPI module (LCDWIKI MSP4021, 480×320, resistive touch) — grown
+  from rev A's 8-pin display-only header to carry the panel's full pin set:
+  the original 8 signal pins, the panel's `SDO` (pin 9, left unwired in rev
+  A because the firmware never read from the display), and the five touch
+  lines (pins 10–14). `T_CLK`/`T_DIN`/`T_DO` are electrically the shared
+  SPI2 bus through 33 Ω series damping resistors (R39/R41/R42 — the bus now
+  multi-drops the LCD at 40 MHz plus two MAX31856s and the touch controller
+  at lower clocks); only `T_CS` (GPIO 5) and `T_IRQ` (GPIO 6) cost new
+  dedicated GPIOs. The XPT2046 touch controller itself lives on the display
+  module, not this PCB. VCC runs from +5V rather than +3V3, per the
+  module's own manual and reference wiring diagrams, with no level shifter
+  needed on CS/RESET/DC/MOSI/SCK.
 - **Nav switch**: 6-pin KK-254 friction-lock header **J6** for the
   panel-mounted 5-way switch (`UP DN LT RT OK GND`, active-low, ESP32
-  internal pull-ups).
-- **Aux header J7** (8-pin KK-254): `3V3 GND TX RX VNT LID A15 A16` — UART0
-  plus the VENT (IO14) / LID_SWITCH (IO21) firmware GPIOs and two spares
-  (A15/A16, declared in Kconfig but not yet driven by any code).
-
-  VENT and LID_SWITCH **default to those GPIOs** in firmware, matching this
-  board. VENT needs nothing wired — an unused vent pin just drives an
-  unconnected header pin. **LID does:** with no switch fitted, R13 holds the
-  input high, which reads as *lid open*, and the interlock keeps the SSR off
-  so the kiln never heats. Either wire a dry contact between J7 pin 6 and J7
-  pin 2 (GND), **fit a jumper across those same two pins**, or set
-  `CONFIG_KILN_PIN_LID_SWITCH=-1`. See `docs/pin-assignments.md`.
-
-  **`LID` (pin 6) is filtered**, unlike every other GPIO on the headers: it
-  reaches IO21 through R12 (1 kΩ series) with R13 (10 kΩ) pulling up to 3V3
-  and C12 (100 nF) to ground — a ~1.8 kHz corner with the switch closed
-  (C12 across R12∥R13 ≈ 0.9 kΩ), ~160 Hz with it open. It is the one input
-  whose cable leaves the enclosure and runs to a hot kiln lid alongside the
-  SSR output and mains wiring, and a false "lid open" cuts a firing. The
-  nav switch (J6) stays bare — a short run inside the box on the ESP32's
-  internal pull-ups. R13 replaces that internal pull-up here (~45 kΩ →
-  10 kΩ), and with the switch closed the pin sits at 0.30 V, well inside
-  the ESP32's 0.83 V V_IL. Wire a **dry contact** between J7 pin 6 and J7
-  pin 2 (GND) — closed = lid shut.
-
-  No TVS: the board's only one is the USBLC6 (U4), fitted for USB 2.0's
-  low-capacitance requirement. The other externally exposed nets (TC_P at
-  J3, the nav switch at J6) rely on an RC plus the pin's own clamp diodes,
-  and a discrete TVS would add a unique Extended part ($3 feeder fee) for a
-  single input.
-
-  All three headers are polarized: the mating friction-lock housing only
-  latches one way, so the display/nav/aux looms can't be plugged in
-  reversed. Solder the headers with the latch ramp on the board-interior
-  side (as in the 3D renders) so all housings face the same way; pin 1 is
-  the square pad / silk arrow.
+  internal pull-ups) — now on GPIO 38–42, contiguous module pads, moved
+  from the split GPIO 1/2/4/5/6 rev A used (routing simplification, see the
+  hardware-design spec §3.1).
+- **Aux header J7** (8-pin KK-254): `3V3 GND TX RX SDA SCL 3V3 GND` — UART0
+  plus a 0.1" I2C tap (pins 5–8), alongside the Qwiic/STEMMA-QT connector
+  **J14**. Rev A's `VENT`/`LID_SW`/`AUX_A`/`AUX_B` nets are gone from this
+  header entirely: nothing on the board ever sourced `AUX_A`/`AUX_B` here
+  (the real aux outputs are on J10, below), and the lid switch has its own
+  terminal (J11).
+- **Aux output bank — J10** (4-pin terminal): **AUX_VP** (external coil
+  rail) plus three switched low sides (`AUX1_OUT` = vent, `AUX2_OUT`,
+  `AUX3_OUT`), driven by a shared **ULN2003ADR** Darlington array (U6) with
+  integrated freewheel diodes returning to `AUX_VP` — not the board's own
+  +5V rail. A gas purge solenoid is realistically 12 V or 24 V DC; the
+  ULN2003 is rated 50 V / 500 mA per channel, so `AUX_VP` is meant to be fed
+  from an external coil supply. Solder jumper **`SJ1`** (open by default)
+  ties `AUX_VP` to board +5V for anyone who only has plain 5V relays. Only
+  channel 1 (vent) is driven by firmware today (`safety_update_vent()`);
+  channels 2/3 are routed and declared in Kconfig (`KILN_PIN_AUX2`/`AUX3`)
+  but undriven.
+- **Protected inputs — J11** (4-pin terminal): `IN1`/`IN2`/`IN3` (lid, gas
+  flow, spare) plus GND, each with the same conditioning rev A used for its
+  single lid input — 1 kΩ series, 10 kΩ pull-up to 3V3, 100 nF to ground,
+  dry-contact to GND — generalized to three channels. `IN1` (GPIO 4) is the
+  lid switch and defaults to enabled, matching this board; see
+  `docs/pin-assignments.md` §1 for the fail-safe wiring requirement if no
+  switch is fitted. `IN2` (gas flow) and `IN3` (spare) are routed but have
+  no firmware consumer yet.
+- **CT current sensing — J12** (4-pin terminal, `CTA_P`/`CTA_N`/`CTB_P`/
+  `CTB_N`): two current-transformer inputs into an **ADE7953** energy
+  metering IC (U7, LFCSP-28, current-only — the voltage channel is unused),
+  on the I2C bus with its own 3.579545 MHz crystal (Y1). Burden resistors
+  (R31/R34, 6.8 Ω), anti-alias RC and an SRV05-4 TVS array (D5/D6) per
+  channel protect the externally-exposed CT leads. One channel per SSR
+  zone, so each element bank gets an independent current reading; with no
+  mains voltage sensing on this board, power is estimated as
+  `Irms × configured nominal mains voltage` (±3–5%), adequate for
+  element-health diagnosis and cost estimation. The voltage-channel pins
+  are routed to a **DNP** 2-pin SELV header (**J13**) for a possible future
+  off-board isolated-AC accessory — not fitted, no mains anywhere on this
+  PCB.
+- **I2C expansion — J7 pins 5–8 and J14 (Qwiic/STEMMA-QT)**: `I2C_SDA`
+  (GPIO 18) / `I2C_SCL` (GPIO 47), on-board pull-ups (R44/R45, 4.7 kΩ).
+  Carries the on-board ADE7953 today; open for an RTC breakout, an SHT4x RH
+  sensor, or an external ADC without board changes. No I2C driver exists in
+  firmware yet.
 - **USB-C (J1)** for native-USB flashing: 5.1 kΩ CC resistors, USBLC6-2SC6
-  ESD protection, VBUS ORed into +5 V. RESET (SW1) and BOOT (SW2) buttons.
+  (U4) ESD protection, VBUS ORed into +5 V. RESET (SW1) and BOOT (SW2)
+  buttons.
 - **Status LED**: WS2812B on IO48; its VDD comes through an SS14 drop diode
   (≈4.6 V) so the 3.3 V data level stays inside the WS2812B's V_IH spec.
-- **Alarm**: 12 mm active 5 V buzzer (BZ1) on IO7, AO3400A low-side driver
-  with flyback diode.
-- 4× M3 grounded mounting holes, one per corner, centers on a **90 × 70 mm
-  rectangle** (5 mm in from the top/bottom edges) for easy enclosure
-  drilling; GND pour both sides with stitching vias.
+- **Alarm**: 12 mm active 5 V buzzer (BZ1) on IO7, its own discrete AO3400A
+  (Q2) low-side driver with flyback diode — kept separate from the ULN2003
+  aux bank on purpose, so a 5 V buzzer and a 24 V solenoid never share a
+  COM rail.
+- **Test points**: twelve 1 mm bring-up pads (TP1–TP12, no BOM/assembly
+  cost) on +3V3, +5V, GND, the SPI bus, I2C SDA/SCL, both SSR gate nets,
+  the CT burden node, and the watchdog hold node. Rev A shipped with none,
+  which its fab review flagged as awkward for bring-up; at ~141 components
+  and eleven subsystems, they stopped being optional.
+- 4× M3 grounded mounting holes, one per corner, centers on a **90 × 90 mm
+  rectangle** (5 mm in from each edge, grown from rev A's 90 × 70 mm as the
+  board grew from 100 × 80 mm to 100 × 100 mm) for easy enclosure drilling.
+
+### Density and the 4-layer stack-up
+
+Rev B roughly triples rev A's component count (52 → 141) on the same
+100 × 100 mm footprint rev A used at 80 mm tall. `generator/router.py`'s
+2-layer octilinear grid autorouter could not close the board: a rung-by-rung
+escalation (0805 → 0603 passives, then a 125 × 100 mm board) knocked
+unroutable nets down from 34 to 23 to 9, but the survivors were short local
+nets boxed in by neighbours' copper in the SSR driver cluster and the
+ADE7953 block — the signature of a **layer** shortage, not an area shortage.
+Going 4-layer (an unbroken GND plane on In1.Cu, a +3V3 plane on In2.Cu — In2
+carries +3V3 alone rather than splitting with +5V, since +5V's own consumers
+don't fall into a separable region) closed the board at 0 unrouted nets and
+0 DRC errors, and then gave back **every** concession the 2-layer attempts
+had made: the board walked back to 100 × 100 mm, 0805 passives, and rev A's
+0.3 mm signal / 0.7 mm power net classes. Neither outer layer is poured —
+on this density, the GND pour was the largest single consumer of routing
+space on exactly the two layers the boxed-in nets needed to escape through.
+Track widths came back too, because the router no longer touches fine-pitch
+pads directly: each is represented by the far end of a pre-drawn escape
+stub, so 0.25 mm tracks are confined to the ~2 mm around the QFN-28/TSSOP
+pads that actually need them. See `FAB-READINESS-REVIEW-REVB.md` and
+`docs/superpowers/specs/2026-08-10-pcb-rev-b-hardware-design.md` §6.3 for
+the full measured escalation ladder.
+
+The isolation barrier across the SSR opto row is unaffected by the plane
+layers: the pour keepout is enforced on all four copper layers (inner
+planes included), and `generator/check_isolation.py` (`make pcb-check`)
+confirms independently that no GND/power copper — on any layer — lands
+inside the keepout band.
 
 ### GPIO map (mirrors `main/Kconfig.projbuild` defaults)
 
 | GPIO | Function | | GPIO | Function |
 |---|---|---|---|---|
-| 11/13/12 | SPI MOSI/MISO/SCLK | | 4/5/6/2/1 | NAV up/down/left/right/select |
-| 10 | MAX31855 CS | | 48 | WS2812B data |
+| 11/13/12 | SPI MOSI/MISO/SCLK | | 38/39/40/41/42 | NAV up/down/left/right/select |
+| 10 / 35 | TC1 / TC2 CS (MAX31856) | | 48 | WS2812B data |
 | 8/9/46/3 | LCD CS/DC/RST/BL | | 7 | Alarm buzzer |
-| 17 | SSR drive | | 14 / 21 | VENT / LID_SW (aux header, LID filtered) |
-| 19/20 | USB D−/D+ | | 43/44 | UART0 TX/RX (aux header) |
+| 17 / 21 | SSR1 / SSR2 gate (opto) | | 14/15/16 | AUX1 (vent) / AUX2 / AUX3 (ULN2003, J10) |
+| 19/20 | USB D−/D+ | | 43/44 | UART0 TX/RX (J7) |
+| 4/2/1 | Protected inputs IN1 (lid) / IN2 (gas flow) / IN3 (spare), J11 | | 18/47 | I2C SDA/SCL |
+| 5/6 | Touch T_CS / T_IRQ | | 36 | Watchdog kick (`SJ2` defeats it) |
+| 37 | spare | | | |
+
+Full table with module pin numbers, nets and per-pin notes:
+[`docs/pin-assignments.md`](../../docs/pin-assignments.md) §1.
 
 ## Bill of materials
 
+141 components, 96 nets. Full machine-readable BOM: `jlcpcb/BOM.csv` (41
+lines covering 109 machine-placed parts) plus `jlcpcb/hand-solder-parts.csv`
+(13 hand-fitted parts). Selected parts worth calling out:
+
 | Ref | Value / Part | Package |
 |---|---|---|
-| U1 | ESP32-S3-WROOM-1-N16R8 | castellated module |
+| U1 | ESP32-S3-WROOM-1U-N16R2 | castellated module, U.FL |
 | U2 | AMS1117-3.3 | SOT-223 |
-| U3 | MAX31855KASA+ | SOIC-8 |
+| U3, U5 | MAX31856MUD+T | TSSOP-14 |
 | U4 | USBLC6-2SC6 | SOT-23-6 |
-| Q1, Q2 | AO3400A N-MOSFET | SOT-23 |
-| D1, D2 | SS34 Schottky 3 A | SMA (DO-214AC) |
-| D3 | SS14 Schottky 1 A | SMA |
-| D4 | 1N4148W | SOD-123 |
-| LED1 | WS2812B | PLCC-4 5050 |
-| LED2 / LED3 | green / amber LED | 0805 |
-| R1, R2, R7, R8, R13 | 10 kΩ | 0805 |
-| R3 | 330 Ω | 0805 |
-| R4, R5 | 5.1 kΩ | 0805 |
-| R6, R11 | 100 Ω | 0805 |
-| R9, R12 | 1 kΩ | 0805 |
-| R10 | 680 Ω | 0805 |
-| C1 | 22 µF 25 V X5R | 1206 |
-| C3 | 22 µF 10 V X5R | 1206 |
-| C2, C4, C6, C8, C10, C12 | 100 nF | 0805 |
-| C5 | 1 µF | 0805 |
-| C7, C11 | 10 µF | 0805 |
-| C9 | 10 nF | 0805 |
-| BZ1 | active buzzer 5 V | 12 mm THT, 7.6 mm pitch |
+| U6 | ULN2003ADR | SOIC-16 |
+| U7 | ADE7953ACPZ-RL | LFCSP-28 (QFN-28, 5×5 mm) |
+| U8, U9 | LTV-817S-TA1-C optocoupler | SMD-4P (SMDIP-4 footprint) |
+| Y1 | 3.579545 MHz crystal | HC-49S-SMD |
+| D5, D6 | SRV05-4 TVS array | SOT-23-6 |
+| D7 | BAT54S dual series Schottky | SOT-23 |
+| Q2, Q3 | AO3400A N-MOSFET | SOT-23 |
 | J1 | USB-C 16-pin receptacle | HRO TYPE-C-31-M-12 |
-| J2, J3, J4 | Phoenix MKDS 1,5/2 (or clone) | 5.08 mm screw terminal |
-| J5, J7 | Molex KK-254 friction-lock header 1×8 (AE-6410-08A / 22-27-2081) | 2.54 mm THT |
-| J6 | Molex KK-254 friction-lock header 1×6 (AE-6410-06A / 22-27-2061) | 2.54 mm THT |
-| — mates | KK-254 housing 1×8 (22-01-3087) ×2, 1×6 (22-01-3067), crimps 08-50-0114 | — |
+| J2, J3, J4, J8, J9 | Phoenix MKDS 1,5/2 (or clone) | 5.08 mm screw terminal, 2-pos |
+| J10, J11, J12 | Phoenix MKDS 1,5/4 (or clone) | 5.08 mm screw terminal, 4-pos |
+| J5 | Molex KK-254 friction-lock header 1×14 | 2.54 mm THT |
+| J6 | Molex KK-254 friction-lock header 1×6 | 2.54 mm THT |
+| J7 | Molex KK-254 friction-lock header 1×8 | 2.54 mm THT |
+| J13 | 2-pin header, **DNP** (AC-sense SELV, not fitted) | 2.54 mm THT |
+| J14 | JST SH SM04B-SRSS-TB | Qwiic/STEMMA-QT, 1 mm SMD |
+| BZ1 | active buzzer 5 V | 12 mm THT, 7.6 mm pitch |
 | SW1, SW2 | XKB TS-1187A tactile switch | 5.1 × 5.1 mm SMD |
-| H1–H4 | M3 mounting hole, grounded, 90 × 70 mm grid | — |
+| H1–H4 | M3 mounting hole, grounded, 90 × 90 mm grid | — |
+| SJ1, SJ2 | Open solder jumpers (`AUX_VP←+5V`, `WDT DEFEAT`) | populated with solder, not a part |
+| TP1–TP12 | 1 mm bring-up test pads | bare copper, no BOM cost |
+
+**Off-BOM accessories (not in `jlcpcb/`, buy separately):** a U.FL → SMA
+bulkhead pigtail and a 2.4 GHz antenna for U1 (~$3–5), plus an enclosure
+SMA bulkhead hole. See the certification caveat above before choosing a
+non-stock antenna.
 
 ## Fabrication & assembly at JLCPCB
 
-The board was checked against JLCPCB's standard 2-layer capabilities and
-sits comfortably inside the cheapest tier — there is nothing on it that
-triggers an upcharge:
+The board needs JLCPCB's **4-layer** capability (rev A's 2-layer board did
+not; see "Density and the 4-layer stack-up" above) but stays inside the
+≤100 × 100 mm promo size tier either way:
 
-| Parameter | This board | JLCPCB 2-layer limit |
+| Parameter | This board | JLCPCB 4-layer limit |
 |---|---|---|
-| Size | 100 × 80 mm | ≤ 100 × 100 mm for the promo price |
-| Min track width | 0.25 mm (USB) | 0.127 mm |
+| Size | 100 × 100 mm | ≤ 100 × 100 mm for the promo price |
+| Min track width | 0.25 mm (fine-pitch escape stubs only) | 0.127 mm |
 | Min clearance | 0.20 mm | 0.127 mm |
 | Via | 0.6 mm / 0.3 mm drill | 0.4 mm / 0.3 mm |
 | Min PTH drill | 0.3 mm (vias) | 0.3 mm |
-| Copper-to-edge | ≥ 0.4 mm | 0.2 mm |
-| Layers / finish | 2, HASL, 1.6 mm, green | standard |
+| Copper-to-edge | ≥ 0.3 mm | 0.2 mm |
+| Layers / finish | 4 (F.Cu/In1.Cu GND/In2.Cu +3V3/B.Cu), HASL, 1.6 mm, green | standard |
 
-Bare boards: **~$2–4 for 5 pcs** (their locked 2-layer ≤100×100 mm price)
-plus shipping. Ready-to-upload gerbers + drill files are in `gerbers/`.
+Bare boards: roughly **$10–15 for 5 pcs** at the 4-layer ≤100×100 mm tier
+(up from rev A's ~$2–4 2-layer price) plus shipping. Ready-to-upload
+gerbers + drill files, including the two inner-layer files, are in
+`gerbers/`.
 
 **Assembly**: `generator/gen_jlc.py` writes `jlcpcb/BOM.csv` +
 `jlcpcb/CPL.csv` for the PCBA upload, and `jlcpcb/hand-solder-parts.csv` for
@@ -186,135 +315,92 @@ against the catalog (package, value, stock) — there are no blanks and nothing
 to guess at in JLC's BOM matcher.
 
 **The board is deliberately split between the SMT line and a soldering
-iron**, because JLCPCB's cost at prototype quantities is driven almost
-entirely by fixed fees rather than parts. The BOM is only ~$9.85/board, 76 %
-of which is two chips (ESP32-S3 module $5.15, MAX31855 $2.37). Against that,
-each unique **Extended** part costs a flat $3 feeder-loading fee no matter how
-many boards you build, and a single through-hole part forces the whole order
-onto **Standard** assembly (Economic is SMD, top-side only) with a per-joint
-charge on top.
+iron**, same strategy as rev A: each unique **Extended** part costs a flat
+$3 feeder-loading fee no matter how many boards you build, and a single
+through-hole part forces the whole order onto **Standard** assembly
+(Economic is SMD, top-side only) with a per-joint charge on top.
 
-`HAND_SOLDER` in `gen_jlc.py` therefore drops eight designators from both the
-BOM and the CPL — they must leave together, since JLCPCB's upload rejects a
-CPL carrying designators the BOM does not have:
+`HAND_SOLDER` in `gen_jlc.py` drops thirteen designators from both the BOM
+and the CPL — they must leave together, since JLCPCB's upload rejects a CPL
+carrying designators the BOM does not have:
 
 | Hand-fitted | Why |
 |---|---|
-| J2, J3, J4 (screw terminals), J5, J6, J7 (KK-254 wafers), BZ1 (buzzer) | 5.08 mm and 2.54 mm pitch — the easiest joints on the board, but between them four unique Extended parts *and* the entire reason the order would need Standard assembly |
+| J2, J3, J4, J8, J9 (2-pos screw terminals), J10, J11, J12 (4-pos screw terminals), J5, J6, J7 (KK-254 wafers), BZ1 (buzzer) | 5.08 mm and 2.54 mm pitch — the easiest joints on the board, but the ones that would force Standard assembly |
 | LED1 (WS2812B, PLCC-4 5050) | No addressable RGB LED at LCSC is a Basic part (checked across WS2812/SK6812/XL-xxxx), so its $3 buys nothing an iron can't do to four edge-accessible pads |
 
-What's left goes down the SMT line, where machine placement is actually worth
-paying for: **19 Basic parts** (passives, LEDs, AO3400A, SS34/SS14, 1N4148W,
-AMS1117 and both tact switches) at no feeder fee, and **4 Extended** — the
-module (ESP32-S3-WROOM-1-N16R8, C2913202, matching the firmware's 16 MB flash
-+ octal PSRAM config), MAX31855KASA+T (C52028), USBLC6-2SC6 (C7519) and USB-C
-(C165948).
+What's left goes down the SMT line: **98 Basic parts** (passives, LEDs,
+AO3400A, SS34/SS14, 1N4148W, AMS1117, both tact switches, the ULN2003, the
+LTV-817S optos and the SRV05-4 TVS arrays are all Basic) at no feeder fee,
+and **11 Extended parts** — the module (ESP32-S3-WROOM-1U-N16R2, C3013945),
+both MAX31856MUD+T (C2653162, one designator, two placements), the ADE7953
+(C515890), its crystal (C7471632), the BAT54S watchdog diode (C7420333),
+the SRV05-4 TVS array's specific LCSC line (C558418), the 6.8 Ω CT burden
+resistor (C17774), the 30 pF crystal load caps (C107114), USBLC6-2SC6
+(C7519), the Qwiic connector (C160404) and the USB-C receptacle (C165948) —
+**$33 in feeder fees**, up from rev A's 4 unique Extended parts / $12. Three
+new subsystems (ULN2003, LTV-817S, SRV05-4) landed at **zero** feeder cost
+by being Basic parts, so the increase is almost entirely the analog/sensing
+front end.
 
-SW1/SW2 are **SMD** tact switches (XKB TS-1187A, C318884), not the 6 mm
-through-hole part: it is a Basic part, so it costs no feeder fee *and* stays
-machine-placed. That single substitution removes a $3 fee and two of the
-through-hole parts outright.
+**Sourcing flag:** LCSC `C17774` (the 6.8 Ω CT burden resistor, R31/R34) was
+down to roughly 970 units in stock as of the last check, with no Basic-part
+alternative at that value/package. Re-check stock immediately before
+ordering — see `FAB-READINESS-REVIEW-REVB.md`.
 
-`hand-solder-parts.csv` carries a **Mouser second source** for each line, so
-the shopping list works against either supplier:
+SW1/SW2 are **SMD** tact switches (XKB TS-1187A, C318884), not a
+through-hole part — a Basic part, so it costs no feeder fee *and* stays
+machine-placed.
+
+`hand-solder-parts.csv` carries a **Mouser second source** where one exists,
+so the shopping list works against either supplier:
 
 | Ref | LCSC | Mouser alternate |
 |---|---|---|
-| J5, J7 | C240822 | Molex **22-27-2081** — identical, the LCSC line is already genuine Molex |
+| J5 | C17701004 | none — KK-254 1×14 friction-lock wafer; source from LCSC |
 | J6 | C239381 | Molex **22-27-2061** — genuine KK-254 1×06 (LCSC line is an A2547WV clone) |
-| J2, J3, J4 | C8465 | Phoenix Contact **1715721** (MKDS 1,5/2-5,08) — the part this footprint is named for |
+| J7 | C240822 | Molex **22-27-2081** — identical, the LCSC line is already genuine Molex |
+| J2, J3, J4, J8, J9 | C8465 | Phoenix Contact **1715721** (MKDS 1,5/2-5,08) — the part this footprint is named for |
+| J10, J11, J12 | C42377749 | none — WJ500V-5.08-04P 4-pos screw terminal; source from LCSC |
 | BZ1 | C96093 | Same Sky **CMI-1295-0585T** — Ø12 × 9.5 mm, 7.6 mm pitch, 5 V THT active |
 | LED1 | C2761795 | **none** — no bare Worldsemi 5050 in Mouser's catalog; use LCSC, DigiKey, Adafruit or SparkFun |
 
-Three of the five LCSC lines are Chinese generics and the Mouser column is the
-genuine part each footprint was drawn from, so it fits at least as well —
-clone dimensional tolerance being the usual source of trouble. It costs
-several times more, though: a real Phoenix MKDS is dollars against cents for
-the WJ500V clone, taking this list from ~$1.50/board to roughly $8–12/board.
-The alternates were verified by MPN and datasheet, not by live API (no Mouser
-API key, and Mouser blocks automated page fetches) — confirm stock at order
-time.
+Several of these LCSC lines are Chinese generics and the Mouser column is the
+genuine part each footprint was drawn from where one exists, so it fits at
+least as well — clone dimensional tolerance being the usual source of
+trouble. It costs several times more, though: a real Phoenix MKDS is
+dollars against cents for the WJ500V clone. The alternates were verified by
+MPN and datasheet, not by live API (no Mouser API key, and Mouser blocks
+automated page fetches) — confirm stock at order time.
 
-Net effect: **10 unique Extended parts → 4** ($30 → $12 in feeder fees), and
-**Standard → Economic** assembly. It also removes the biggest unknown in the
-order — JLC's through-hole coverage is narrower than its SMD coverage, so
-"will they actually place these?" no longer needs answering.
+**Assembly stays Economic**: with 0 through-hole parts left in the assembly
+BOM (`gen_jlc.py`'s own output confirms this every run), the whole
+machine-placed set qualifies for Economic (SMD, top-side only) rather than
+Standard, same as rev A.
 
 The CPL applies JLCPCB's per-package rotation corrections (see
 `JLC_ROTATION` in `gen_jlc.py`) rather than leaving them to be caught in the
-order preview — currently U2, U3, U4, Q1 and Q2. Still worth a glance at the
-preview for the polarized two-terminal parts (D1–D4, LED2, LED3), since a
-flip there is cheap to spot and expensive to miss.
+order preview — currently U2, U3, U4, U5, U6, U7, D5, D6, D7, Q2, Q3 (eleven
+corrections, up from rev A's five, driven by the new TSSOP/QFN/SOIC parts).
+**The WROOM-1U's CPL rotation and origin were re-checked against JLCPCB's
+placement preview rather than assumed to carry over from the WROOM-1** — the
+two footprints share pad geometry but the 1U's origin sits 3.15 mm off the
+WROOM-1's relative to the same pads, since the 1U body is 6.3 mm shorter and
+KiCad footprint origins are body-centered. A module placed 3.15 mm off is a
+dead board, so this is worth re-verifying in JLCPCB's own preview at order
+time regardless of what's committed here. Still worth a glance at the
+preview for the polarized two-terminal parts too, since a flip there is
+cheap to spot and expensive to miss.
 
-### Estimated cost
-
-Against JLCPCB's published Economic PCBA rates (setup $8, stencil $1.50,
-feeder loading $3/Extended, SMT $0.0016/joint), with 176 machine-soldered
-joints across 40 placements:
-
-| | assemble 2 | assemble 5 |
-|---|---:|---:|
-| Bare PCBs (5 pcs, 2-layer, ≤100×100 mm) | $2.00 | $2.00 |
-| Assembly setup fee | $8.00 | $8.00 |
-| Stencil | $1.50 | $1.50 |
-| Feeder loading (4 Extended × $3) | $12.00 | $12.00 |
-| Process edges, if required (see below) | $7.81 | $7.81 |
-| SMT assembly (176 joints/board) | $0.56 | $1.41 |
-| Components, machine-placed ($8.34/board) | $16.67 | $41.69 |
-| **JLCPCB subtotal** | **$48.54** | **$74.41** |
-| Hand-solder parts from LCSC ($1.50/board + MOQ) | ~$10 | ~$12 |
-| **Total, ex-shipping** | **~$59** | **~$86** |
-| *per assembled board* | *$29.27* | *$17.28* |
-
-**Every fee above the components line is charged once per order, not per
-board** — $31.31 of fixed cost either way. The marginal cost of one more
-assembled board is only **~$10** ($8.34 of machine-placed parts, $0.27 of
-assembly, $1.50 of hand-fitted parts), so three extra boards cost ~$28 and
-drop the per-board cost by 41 %. Assembling all five is the best value on
-the order.
-
-Add shipping (~$10–25 to the US depending on service). Component MOQ rounding
-can add a little at these quantities, though the passives are cheap enough
-that it stays under a dollar.
-
-### Tooling holes, fiducials and process edges
-
-**The board carries no tooling holes and no fiducials, and that is correct** —
-JLCPCB adds both itself ("No, you don't have to. We'll add fiducial marks for
-SMT assembly"), on the process edges rather than on the board. The four M3
-holes are plated, grounded mounting holes for the enclosure; they are not
-tooling holes and are not meant to be.
-
-**Process edges are likely needed**, because JLCPCB recommends 5 mm of
-component-free board edge for SMT and three machine-placed parts are inside
-that zone:
-
-| Edge | Closest machine-placed part | Clearance |
-|---|---|---|
-| top | SW1 | 0.95 mm |
-| bottom | R5 | 1.40 mm |
-| bottom | J1 (USB-C) | 2.55 mm |
-| left | C11 | 5.05 mm |
-| right | C9 | 13.25 mm |
-
-The **left and right edges both clear 5 mm**, so whether rails are actually
-needed depends on which pair of edges the conveyor grips — JLCPCB's
-engineering review makes that call. Budget the $7.81 panel fee; if they run it
-gripping left/right, it comes off the quote.
-
-J1 is the reason this cannot be designed away: a USB-C receptacle has to sit
-at the board edge to be pluggable. Adding your own 5 mm rails top and bottom
-(V-scored, with 2 mm tooling holes and 1 mm fiducials 3.85 mm in from the
-panel edge) would avoid the fee and take the panel to 100 × 90 mm — still
-inside the ≤ 100 × 100 mm fab tier — but for a five-board run that is real
-design work to save $7.81. Note C11's 5.05 mm is only 0.05 mm of margin: if
-anything on the left edge moves outward later, that edge needs a rail too.
-
-Note the tier asymmetry that makes the hand-solder split worth it twice over:
-Economic charges $3 per **Extended** feeder and nothing for Basic, while
-Standard charges per feeder for **both** ($1.50 basic / $3 extended). On this
-BOM's 23 unique machine-placed parts that would be roughly $40 of feeder fees
-on Standard versus $12 on Economic, before the higher $25 setup fee.
+**Detailed per-unit cost breakdown and process-edge clearance analysis are
+not reproduced here for rev B.** Rev A's README carried a line-item
+Economic-PCBA cost table and a table of exact clearances from J1/board edge
+that no longer apply now that the board is 100 × 100 mm at 4 layers with a
+different part census and placement. J1 (USB-C) is still at the board edge
+by necessity, so JLCPCB's SMT process-edge requirement likely still applies
+in some form — get an exact quote (and re-check whether process rails are
+needed) from JLCPCB's own order preview rather than trusting stale numbers
+here.
 
 ## Regenerating the files
 
@@ -326,14 +412,28 @@ kicad-cli + standard libraries) — the project's `.devcontainer/` (see
 KiCad natively. On macOS run the board build with KiCad's bundled Python:
 `KPY=/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3`
 
+The top-level `Makefile` wraps the common cases — `make pcb` regenerates
+everything and re-runs every checker; `make pcb-check` runs just the
+checkers against what's already committed, without touching KiCad:
+
+```bash
+make pcb          # regenerate schematic + board + fab outputs, then check
+make pcb-check    # check only: pinmap, isolation, netlist, connectivity, reproducibility
+```
+
+Equivalently, by hand:
+
 ```bash
 cd hardware/kicad
 python3 generator/gen_sch.py bisque-controller.kicad_sch        # schematic
 python3 generator/check_netlist.py bisque-controller.kicad_sch  # KiCad netlist round-trip: must PASS
 "$KPY" generator/kicad_build.py bisque-controller.kicad_pcb     # board via pcbnew API:
                                                                 #   system-library footprints, octilinear
-                                                                #   45-degree autoroute, GND stubs, zone fill,
+                                                                #   45-degree autoroute (2 signal layers),
+                                                                #   In1.Cu/In2.Cu plane fills, GND stubs,
                                                                 #   pour-island healing, KiCad DRC report
+python3 generator/check_pinmap.py                                # design.py <-> Kconfig agreement: PASS
+python3 generator/check_isolation.py                             # opto barrier unbridged, all 4 layers: PASS
 python3 generator/check_pcb.py bisque-controller.kicad_pcb      # independent checker: ALL CHECKS PASS
 "$KPY" generator/check_via_in_pad.py bisque-controller.kicad_pcb  # no via inside an SMD pad: PASS
 python3 generator/check_canonical.py bisque-controller.kicad_pcb  # reproducibility guard: ALL CHECKS PASS
@@ -344,16 +444,17 @@ python3 generator/render_pcb.py bisque-controller.kicad_pcb preview-board.svg
 
 # Fab outputs — regenerate these together, after the board file is final.
 # The --layers list is what JLCPCB needs; without it kicad-cli also emits
-# Fab/Courtyard/User layers that don't belong in a fab package.
+# Fab/Courtyard/User layers that don't belong in a fab package. Note the
+# two inner layers, In1.Cu (GND plane) and In2.Cu (+3V3 plane) — new on rev B.
 kicad-cli pcb export gerbers -o gerbers/ \
-  --layers "F.Cu,B.Cu,F.Paste,B.Paste,F.Silkscreen,B.Silkscreen,F.Mask,B.Mask,Edge.Cuts" \
+  --layers "F.Cu,In1.Cu,In2.Cu,B.Cu,F.Paste,B.Paste,F.Silkscreen,B.Silkscreen,F.Mask,B.Mask,Edge.Cuts" \
   bisque-controller.kicad_pcb
 kicad-cli pcb export drill -o gerbers/ --format excellon --excellon-units mm \
   --excellon-zeros-format decimal --generate-map --map-format gerberx2 \
   --gerber-precision 5 bisque-controller.kicad_pcb
-python3 generator/gen_jlc.py jlcpcb          # BOM.csv + CPL.csv (prints rotation fixes)
+python3 generator/gen_jlc.py jlcpcb          # BOM.csv + CPL.csv (prints rotation fixes + feeder-fee count)
 kicad-cli sch export pdf -o pdf/bisque-controller-schematic.pdf bisque-controller.kicad_sch
-kicad-cli pcb export pdf --mode-single -l "F.Cu,B.Cu,F.Silkscreen,Edge.Cuts" \
+kicad-cli pcb export pdf --mode-single -l "F.Cu,In1.Cu,In2.Cu,B.Cu,F.Silkscreen,Edge.Cuts" \
   -o pdf/bisque-controller-board.pdf bisque-controller.kicad_pcb
 ./generator/render-3d.sh                     # 3d/board-3d-*.png (raytraced)
 ```
@@ -363,8 +464,8 @@ produces a byte-identical `bisque-controller.kicad_pcb`, so regenerating
 and diffing is a real check that the committed board still matches the
 design beside it. That does not come for free: pcbnew hands every item it
 creates a random uuid and then *orders the saved file by it*, so an
-identical design used to serialise differently every run — a ~20k-line
-diff over ~22k lines, which made any regenerated board unreviewable
+identical design used to serialise differently every run — a huge diff over
+tens of thousands of lines, which made any regenerated board unreviewable
 (#234). `kicad_build.py` therefore routes every write through
 `generator/canonicalize.py`, which replaces each uuid with one derived
 from that item's own content and sorts items on the same key. The zone
@@ -374,8 +475,9 @@ real board and asserting the canonical form doesn't move; it needs
 neither KiCad nor pcbnew.
 
 **Zone fills feed the gerbers.** `kicad_build.py` finishes with a
-`kicad-cli pcb drc --refill-zones` pass that rewrites the board file, so
-export gerbers *after* that step — exporting first bakes a stale pour into
+`kicad-cli pcb drc --refill-zones` pass that rewrites the board file
+(filling In1.Cu and In2.Cu along with any surface zones), so export
+gerbers *after* that step — exporting first bakes stale pours into
 `gerbers/`.
 
 (`gen_pcb.py` remains as a KiCad-free fallback generator that writes the
@@ -386,13 +488,20 @@ board file textually; `kicad_build.py` is the authoritative path.)
 KiCad-free fallback (stylized three.js renders via headless chromium).
 
 If pin assignments change in `main/Kconfig.projbuild`, update
-`generator/design.py` to match and regenerate. (`generator/fp/` keeps a
-snapshot of the KiCad 9 library footprints for the fallback generator;
-`kicad_build.py` uses the installed system libraries instead.)
+`generator/design.py` to match and regenerate; `make pcb-check`'s
+`check_pinmap.py` step fails the build if the two drift apart again.
+(`generator/fp/` keeps a snapshot of older KiCad library footprints for the
+fallback generator; `kicad_build.py` uses the installed system libraries
+instead.)
 
 ## Safety
 
-This board switches an external SSR's **control input** only. All mains
-wiring — SSR load side, kiln elements, breakers, enclosure grounding — is
-external and must follow local electrical code. Fire kilns with appropriate
-supervision and hardware over-temperature protection.
+This board switches an external SSR's **control input** only, through an
+opto-isolated barrier on both channels. All mains wiring — SSR load side,
+kiln elements, breakers, enclosure grounding — is external and must follow
+local electrical code. The on-board hardware watchdog (`SJ2`/`WDT_KICK`,
+above) is a **supplementary** interlock that de-energizes both SSR channels
+if firmware stops toggling its kick pin; it is not a substitute for a
+mechanical over-temperature cutout in series with the element contactor.
+Fire kilns with appropriate supervision and hardware over-temperature
+protection.

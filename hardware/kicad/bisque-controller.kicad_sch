@@ -1,4 +1,4 @@
-(kicad_sch (version 20230121) (generator eeschema)
+(kicad_sch (version 20260306) (generator "eeschema") (generator_version "10.0")
 	(uuid f24e0cd2-71c5-510c-9d15-562ab64c4388)
 	(paper "A3")
 	(title_block
@@ -6,8 +6,8 @@
 		(date "2026-07-20")
 		(rev "A")
 		(company "Bisque project")
-		(comment 1 "ESP32-S3-WROOM-1 + 2x MAX31856 + SSR drive")
-		(comment 2 "2-layer, 100 x 80 mm, JLCPCB standard process")
+		(comment 1 "ESP32-S3-WROOM-1U-N16R2 + 2x MAX31856 + dual SSR + ADE7953")
+		(comment 2 "4-layer, 100 x 100 mm, JLCPCB standard process")
 	)
 	(lib_symbols
 		(symbol "RF_Module:ESP32-S3-WROOM-1"
