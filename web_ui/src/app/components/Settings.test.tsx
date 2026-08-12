@@ -623,6 +623,41 @@ describe("Settings: firmware partitions and rollback", () => {
     expect(toastFns.warning.mock.calls[0][0]).toContain("stopped answering");
   });
 
+  it("drops the stale partition state once a rollback is under way", async () => {
+    // Kept, the cached `rollbackAvailable: true` re-enables Roll Back against a
+    // kiln that is mid-reboot, and the card never shows the Retry control the
+    // warning toast tells the user to reach for.
+    apiMock.rollbackOta.mockResolvedValue({ acknowledged: false });
+    const user = userEvent.setup();
+    await renderSettled();
+
+    await user.click(await screen.findByRole("button", { name: "Roll Back" }));
+    const dialog = await screen.findByRole("dialog");
+    // The refetch it triggers hits the rebooting controller.
+    apiMock.otaStatus.mockRejectedValue(new Error("API error 503: rebooting"));
+    await user.click(within(dialog).getByRole("button", { name: "Roll Back" }));
+
+    expect(await screen.findByText(/Could not read the partition state/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Roll Back" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the partition state when the rollback was refused", async () => {
+    // 400 or 409 means the firmware did not change, so what is on screen is
+    // still true — clearing it would report a reboot that never started.
+    apiMock.rollbackOta.mockRejectedValue(new Error("API error 409: Cannot update firmware"));
+    const user = userEvent.setup();
+    await renderSettled();
+
+    await user.click(await screen.findByRole("button", { name: "Roll Back" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Roll Back" }));
+
+    await waitFor(() => expect(toastFns.error).toHaveBeenCalled());
+    expect(screen.getByRole("button", { name: "Roll Back" })).toBeInTheDocument();
+    expect(screen.queryByText(/Could not read the partition state/)).not.toBeInTheDocument();
+  });
+
   it("reports a refused rollback", async () => {
     // 409 while a firing runs, 400 when there is no image to go back to.
     apiMock.rollbackOta.mockRejectedValue(new Error("API error 400: Rollback not available"));

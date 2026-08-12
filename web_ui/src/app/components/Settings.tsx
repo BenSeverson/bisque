@@ -477,10 +477,19 @@ export function Settings() {
             "and check the running version.",
         );
       }
+      /* Both outcomes leave the cached slot, version and rollbackAvailable
+         describing an image the controller is in the middle of abandoning.
+         Kept, they would re-enable Roll Back off a stale `true` the moment the
+         mutation settled, and — because the card only offers Retry when it has
+         no data — hide the very control the warning above tells the user to
+         reach for. This is what the install and upload paths do; a rollback is
+         the same reboot. Not on the error path below: a 400 or 409 means the
+         firmware did not change, so the state on screen is still correct. */
+      resetOtaStatus();
     } catch (e) {
       toast.error(`Rollback refused: ${toErrorMessage(e)}`);
     }
-  }, [rollbackOta]);
+  }, [rollbackOta, resetOtaStatus]);
 
   // Stream OTA install progress from the WebSocket while an install runs.
   useEffect(() => {
