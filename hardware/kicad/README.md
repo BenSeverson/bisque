@@ -436,6 +436,12 @@ python3 generator/check_pinmap.py                                # design.py <->
 python3 generator/check_isolation.py                             # opto barrier unbridged, all 4 layers: PASS
 python3 generator/check_pcb.py bisque-controller.kicad_pcb      # independent checker: ALL CHECKS PASS
 "$KPY" generator/check_via_in_pad.py bisque-controller.kicad_pcb  # no via inside an SMD pad: PASS
+python3 generator/check_drill_clearance.py bisque-controller.kicad_pcb  # hole-to-hole >= 0.30 mm: OK
+                                                                #   (net-independent: a drill bit does not
+                                                                #    care that a slot and the via beside it
+                                                                #    are both GND, and every net-aware check
+                                                                #    we own missed a 0.078 mm web because
+                                                                #    of it — see FAB-READINESS-REVIEW-REVB)
 python3 generator/check_canonical.py bisque-controller.kicad_pcb  # reproducibility guard: ALL CHECKS PASS
                                                                 #   (KiCad DRC can't see this - a via and
                                                                 #    the pad it sits in share a net, and

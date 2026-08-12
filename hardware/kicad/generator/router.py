@@ -40,16 +40,51 @@ BUCKET = 2.0
 # opening exposes the barrel anyway.
 VIA_PAD_GAP = 0.15
 
+# Minimum web of laminate between two drilled apertures — via-to-via and
+# via-to-pad-hole alike. This is a *mechanical* rule at the drill, so it
+# applies regardless of net: same-net holes break out into each other exactly
+# as readily as different-net ones, and no clearance rule (KiCad's included,
+# in practice) will say a word about it. JLCPCB's published floor is 0.20 mm;
+# 0.30 buys margin on a constraint whose failure mode is a broken-out hole
+# found at the fab. See check_drill_clearance.py, which enforces the same
+# number on the finished board.
+HOLE_TO_HOLE = 0.30
+
 
 class Shape:
-    """Axis-aligned rect or circle, on layer set. net None = blocks all."""
-    __slots__ = ("net", "layers", "cx", "cy", "w", "h", "circle", "drill")
+    """Axis-aligned rect or circle, on layer set. net None = blocks all.
 
-    def __init__(self, net, layers, cx, cy, w, h, circle=False, drill=0.0):
+    A drilled pad also carries its *hole* geometry, which is not the same
+    thing as its copper: `drill` is the hole diameter and (hx1,hy1)-(hx2,hy2)
+    is the hole's centre segment, degenerate for a round hole and 1.1 mm long
+    for the USB-C shield's `(drill oval 0.6 1.7)` slot. Modelling a slot as a
+    circle of diameter 0.6 understates its reach by (1.7-0.6)/2 = 0.55 mm,
+    which is how a 0.078 mm web to a GND stitching via got past this router.
+    """
+    __slots__ = ("net", "layers", "cx", "cy", "w", "h", "circle", "drill",
+                 "hx1", "hy1", "hx2", "hy2")
+
+    def __init__(self, net, layers, cx, cy, w, h, circle=False, drill=0.0,
+                 drill_len=0.0, drill_ang=0.0, hole=None):
         self.net, self.layers = net, set(layers)
         self.cx, self.cy, self.w, self.h = cx, cy, w, h
         self.circle = circle
         self.drill = drill
+        hcx, hcy = hole if hole is not None else (cx, cy)
+        half = max(0.0, (drill_len - drill) / 2.0)
+        a = math.radians(drill_ang)
+        dx, dy = half * math.cos(a), -half * math.sin(a)
+        self.hx1, self.hy1 = hcx - dx, hcy - dy
+        self.hx2, self.hy2 = hcx + dx, hcy + dy
+
+    def hole_dist(self, x, y):
+        """Distance from (x, y) to this pad's drill aperture edge."""
+        dx, dy = self.hx2 - self.hx1, self.hy2 - self.hy1
+        L2 = dx * dx + dy * dy
+        t = 0.0 if L2 < 1e-15 else max(
+            0.0, min(1.0, ((x - self.hx1) * dx + (y - self.hy1) * dy) / L2))
+        px, py = self.hx1 + t * dx, self.hy1 + t * dy
+        return math.hypot(x - px, y - py) - self.drill / 2.0
 
     def dist(self, x, y):
         if self.circle:
@@ -108,8 +143,10 @@ class Router:
             for by in range(by0, by1 + 1):
                 self.buckets.setdefault((bx, by), []).append(obj)
 
-    def add_pad(self, net, layers, cx, cy, w, h, circle=False, drill=0.0):
-        s = Shape(net, layers, cx, cy, w, h, circle, drill=drill)
+    def add_pad(self, net, layers, cx, cy, w, h, circle=False, drill=0.0,
+                drill_len=0.0, drill_ang=0.0, hole=None):
+        s = Shape(net, layers, cx, cy, w, h, circle, drill=drill,
+                  drill_len=drill_len, drill_ang=drill_ang, hole=hole)
         self.pads.append(s)
         self._insert(s, cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2)
 
@@ -272,10 +309,11 @@ class Router:
                     r = False
                     break
         if r:
-            # hole-to-hole clearance: applies regardless of net
+            # hole-to-hole clearance: applies regardless of net, and treats an
+            # oval drill as the capsule it is rather than a circle
             for o in self._near(x, y):
                 if isinstance(o, Shape) and o.drill > 0:
-                    if math.hypot(x - o.cx, y - o.cy) - o.drill / 2                        - VIA_DRILL / 2 < 0.3:
+                    if o.hole_dist(x, y) - VIA_DRILL / 2.0 < HOLE_TO_HOLE:
                         r = False
                         break
         self._memo[key] = r

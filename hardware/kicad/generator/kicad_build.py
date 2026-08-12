@@ -177,12 +177,27 @@ def build_router_model(board, fps):
                 net = c["pins"].get(num)
                 if net is None:
                     net = "__nc_%s_%s" % (ref, num)
-            drill = pcbnew.ToMM(pad.GetDrillSize().x) \
-                if pad.GetAttribute() in (pcbnew.PAD_ATTRIB_PTH,
-                                          pcbnew.PAD_ATTRIB_NPTH) else 0.0
+            # Hole geometry is not pad geometry. A slot drill (the USB-C
+            # shield's `(drill oval 0.6 1.7)`) has a diameter AND a length,
+            # and its centre is the pad's position, not the copper bounding
+            # box centre — those differ whenever the pad has an offset. Both
+            # distinctions matter to hole-to-hole clearance and neither
+            # survives collapsing the drill to GetDrillSize().x.
+            drill = drill_len = 0.0
+            drill_ang = 0.0
+            hole = None
+            if pad.GetAttribute() in (pcbnew.PAD_ATTRIB_PTH,
+                                      pcbnew.PAD_ATTRIB_NPTH):
+                ds = pad.GetDrillSize()
+                dw, dh = pcbnew.ToMM(ds.x), pcbnew.ToMM(ds.y)
+                drill, drill_len = min(dw, dh), max(dw, dh)
+                drill_ang = pad.GetOrientationDegrees() + (0.0 if dw >= dh else 90.0)
+                hole = (pcbnew.ToMM(pad.GetPosition().x),
+                        pcbnew.ToMM(pad.GetPosition().y))
             r.add_pad(net, layers, cx, cy, w, h,
                       circle=pad.GetShape() == pcbnew.PAD_SHAPE_CIRCLE,
-                      drill=drill)
+                      drill=drill, drill_len=drill_len, drill_ang=drill_ang,
+                      hole=hole)
             if num:
                 pad_pos.setdefault((ref, num), []).append((cx, cy, layers, w * h))
     return r, pad_pos

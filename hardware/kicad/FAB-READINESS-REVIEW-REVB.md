@@ -188,20 +188,67 @@ components, not in the parts the spec anticipated.
   against real datasheets before layout (see the Task 4 report); this review
   does not re-litigate them, only records that the layout that shipped is
   the one that was cleared.
-- **GND via hole-to-hole spacing — checked against JLCPCB's published
-  capability, not just assumed.** Two via pairs on the board (e.g.
-  `(44.0, 28.5)` / `(44.0, 29.25)`) sit 0.75 mm centre-to-centre with 0.30 mm
-  drills, i.e. a 0.45 mm hole-edge-to-hole-edge gap. `router.py`'s own
-  hole-gap constant (`router.py:278`) enforces only 0.30 mm, so this pair is
-  the tightest on the board relative to what the router itself requires.
+- **GND via hole-to-hole spacing — RESOLVED, and the original entry here was
+  wrong.** This item previously concluded that the tightest hole pair on the
+  board was via-to-via at 0.45 mm, which clears JLCPCB's published 0.2 mm
+  floor, and that **no change was needed**. That measurement looked at the
+  wrong pair. It compared the two GND stitching vias beside J1 with *each
+  other* (`(44.0, 28.5)` / `(44.0, 29.25)`, 0.75 mm centre-to-centre, 0.45 mm
+  web) and never compared either of them with the **USB-C shield slot** they
+  sat next to.
+
+  **The defect (found by an independent third-party board review, not by our
+  own pipeline).** J1's shield pads are oval *slots*, not round holes:
+  `(size 1 2.1) (drill oval 0.6 1.7)` at global `(43.68, 27.53)` and
+  `(52.32, 27.53)`. A slot drill is a capsule — a 0.55 mm segment with a
+  0.3 mm radius — so it reaches 0.55 mm further along its long axis than a
+  0.6 mm round hole does. Against the stitching vias at `(44.0, 28.5)` and
+  `(52.0, 28.5)` (0.3 mm drill) the true web is:
+
+  | Slot | Via | Web |
+  |---|---|---|
+  | (43.68, 27.53) | (44.00, 28.50) | **0.078 mm** |
+  | (52.32, 27.53) | (52.00, 28.50) | **0.078 mm** |
+
+  Nearest slot-axis point `(43.68, 28.08)`; centre distance
+  `√(0.32² + 0.42²) = 0.528`; web `= 0.528 − 0.30 − 0.15 = 0.078 mm`. Against
+  JLCPCB's published 0.2 mm minimum that breaks out at the drill.
+
+  **Why three checkers stayed silent.** All the copper involved is GND, and
+  every check we had was net-aware: KiCad's DRC reported nothing,
+  `check_pcb.py` skips same-net pairs by construction, and `router.py`'s
+  hole-gap test measured centre-to-centre against `drill/2` — modelling every
+  hole as a *circle*, which understates a 1.7 mm slot by 0.55 mm. (Two
+  further modelling errors compounded it: `kicad_build.py` collapsed the
+  drill to `GetDrillSize().x`, discarding the slot length, and `gen_pcb.py`'s
+  `(drill oval …)` parse fell through `num()` to `0.0`, i.e. "SMD pad, no
+  hole at all".) **Hole-to-hole is a mechanical constraint at the drill bit —
+  net identity is irrelevant to it**, and treating it as an electrical rule
+  is what made it invisible.
+
+  **What now guards it.** Two changes, both in the generator — the board file
+  is generated and is never hand-edited:
+  1. `router.py` models a drill as the capsule it is (`Shape.hole_dist()`,
+     fed slot diameter/length/angle and the true hole centre by
+     `kicad_build.py` and `gen_pcb.py`), and `via_ok()` enforces
+     `HOLE_TO_HOLE = 0.30 mm` against it regardless of net — 0.30 rather than
+     JLCPCB's 0.20 floor, for margin on a constraint whose failure mode is a
+     broken-out hole discovered at the fab. The four stitching vias moved to
+     `(44.0, 29.0)`, `(44.75, 29.75)`, `(51.25, 29.75)`, `(52.0, 29.0)`;
+     routing stayed complete at 0 unconnected.
+  2. `generator/check_drill_clearance.py` (new, wired into `make pcb-check`)
+     re-checks the *finished* board: every drilled aperture against every
+     other, pads and vias alike, round and oval, **ignoring nets**, failing
+     non-zero below 0.30 mm. It was written before the fix and run against
+     the then-current board, where it reported exactly these two 0.078 mm
+     pairs and nothing else; after the generator fix it reports
+     "492 drilled apertures … no hole-to-hole violations".
+
   JLCPCB's PCB Capabilities page
   (https://jlcpcb.com/capabilities/pcb-capabilities, fetched 2026-08-11)
-  states **"Via Hole-to-Hole Spacing: 0.2mm"** (a separate, larger 0.45 mm
-  figure is listed for *pad*-to-pad hole spacing, which doesn't apply here —
-  these are plain vias, not pads). 0.45 mm clears the 0.2 mm via minimum with
-  margin, so **no layout change was made**; the previously-cited "commonly
-  quoted 0.5 mm" figure was unconfirmed and did not come from JLCPCB's own
-  page.
+  states **"Via Hole-to-Hole Spacing: 0.2mm"**; the previously-cited
+  "commonly quoted 0.5 mm" figure was unconfirmed and did not come from
+  JLCPCB's own page.
 
 ## Not performed / limits on confidence
 

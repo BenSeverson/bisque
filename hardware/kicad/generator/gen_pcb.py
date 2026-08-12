@@ -50,7 +50,13 @@ def rot_xy(lx, ly, rot):
 
 
 def pad_geometry(comp):
-    """Yield (padname, kind, gx, gy, eff_w, eff_h, circle, layers, drill)."""
+    """Yield (padname, kind, gx, gy, eff_w, eff_h, circle, layers, hole).
+
+    `hole` is (diameter, length, angle_deg, hx, hy) and is (0, 0, 0, gx, gy)
+    for an SMD pad. A slot drill — the USB-C shield's `(drill oval 0.6 1.7)`
+    — is a capsule, not a circle, and hole-to-hole clearance is measured off
+    that capsule (see router.Shape.hole_dist).
+    """
     fp = load_fp(comp["fpf"])
     fx, fy, frot = comp["at"]
     for p in find_all(fp, "pad"):
@@ -73,16 +79,32 @@ def pad_geometry(comp):
         if abs(tot - 90) < 1:
             w, h = h, w
         circle = shape == "circle"
-        drill = 0.0
+        hole = (0.0, 0.0, 0.0, gx, gy)
         if kind in ("thru_hole", "np_thru_hole"):
             layers = (0, 1)
             dr = find(p, "drill")
             # a plated pad always has a hole; fall back to the min JLCPCB
             # drill rather than 0, which the router reads as "SMD pad"
-            drill = num(dr[1]) if dr and len(dr) > 1 else 0.3
+            if dr and len(dr) > 1 and str(dr[1]) == "oval":
+                dw, dh = num(dr[2]), num(dr[3])
+            elif dr and len(dr) > 1:
+                dw = dh = num(dr[1])
+            else:
+                dw = dh = 0.3
+            # a drill offset moves the copper, not the hole: back it out so
+            # the hole centre is the hole's, not the pad shape's
+            hx, hy = lx, ly
+            off = find(dr, "offset") if dr else None
+            if off:
+                ox, oy = rot_xy(num(off[1]), num(off[2]), pa)
+                hx, hy = hx - ox, hy - oy
+            hx, hy = rot_xy(hx, hy, frot)
+            hx, hy = hx + fx, hy + fy
+            hole = (min(dw, dh), max(dw, dh),
+                    pa + frot + (0.0 if dw >= dh else 90.0), hx, hy)
         else:
             layers = (0,)
-        yield (str(name), kind, gx, gy, w, h, circle, layers, drill)
+        yield (str(name), kind, gx, gy, w, h, circle, layers, hole)
 
 
 # Opto-isolation barrier (spec 6.2). The band spans the west edge from just
@@ -103,14 +125,16 @@ def build_router():
     r.add_keepout(*ISO_BARRIER, allow_nets=ISO_NETS)
     pad_pos = {}
     for ref, c in COMPONENTS.items():
-        for (name, kind, gx, gy, w, h, circle, layers, drill) in pad_geometry(c):
+        for (name, kind, gx, gy, w, h, circle, layers, hole) in pad_geometry(c):
             if kind == "np_thru_hole" or name == "":
                 net = None
             else:
                 net = c["pins"].get(name)
                 if net is None:
                     net = "__nc_%s_%s" % (ref, name)
-            r.add_pad(net, layers, gx, gy, w, h, circle, drill=drill)
+            r.add_pad(net, layers, gx, gy, w, h, circle,
+                      drill=hole[0], drill_len=hole[1], drill_ang=hole[2],
+                      hole=(hole[3], hole[4]))
             if name:
                 pad_pos.setdefault((ref, name), []).append((gx, gy, layers, w * h))
     return r, pad_pos
