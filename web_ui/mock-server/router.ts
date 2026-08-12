@@ -503,6 +503,67 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
     return { status: 200, json: { ok: true } };
   }
 
+  // GET /ota/status
+  if (method === "GET" && apiPath === "/ota/status") {
+    const o = state.ota;
+    return {
+      status: 200,
+      json: {
+        running: {
+          label: o.running,
+          address: o.running === "ota_0" ? 0x110000 : 0x610000,
+          size: 0x500000,
+          // The firmware only emits `state` (and `pendingVerify` beside it)
+          // when esp_ota_get_state_partition() succeeded, and the two always
+          // agree — see build_ota_status_json().
+          state: o.pendingVerify ? "pending_verify" : "valid",
+          version: "2.0.0-mock",
+          date: "Jan 1 2026",
+          time: "12:00:00",
+          // Deliberately not the real pinned ESP-IDF version: every literal
+          // copy of it has to be tracked in renovate.json so one bump lands as
+          // one PR, and this is mock data like the "2.0.0-mock" above.
+          idfVersion: "v6.x-mock",
+        },
+        nextUpdate: { label: o.nextUpdate, size: 0x500000 },
+        bootPartition: o.bootPartition,
+        pendingVerify: o.pendingVerify,
+        rollbackAvailable: o.rollbackAvailable,
+      },
+    };
+  }
+
+  // POST /ota/rollback
+  if (method === "POST" && apiPath === "/ota/rollback") {
+    // ota_blocked_by_firing() runs first in the handler, so a firing kiln with
+    // nothing to roll back to answers 409 rather than 400.
+    if (state.firing.running || state.firing.scheduled) {
+      return apiError(409, "Cannot update firmware during a firing");
+    }
+    if (!state.ota.rollbackAvailable) {
+      return apiError(400, "Rollback not available");
+    }
+    // The real device reboots here and comes back on the other slot. Nothing
+    // restarts in the mock, so move the boot pointer and drop the offer: a
+    // second rollback with no image behind it is exactly the 400 above.
+    state.ota.bootPartition = state.ota.nextUpdate;
+    state.ota.rollbackAvailable = false;
+    return { status: 200, json: { ok: true } };
+  }
+
+  // POST /ota/confirm
+  if (method === "POST" && apiPath === "/ota/confirm") {
+    const wasPending = state.ota.pendingVerify;
+    state.ota.pendingVerify = false;
+    return {
+      status: 200,
+      json: {
+        ok: true,
+        message: wasPending ? "Firmware confirmed as valid" : "Firmware already confirmed",
+      },
+    };
+  }
+
   // GET /wifi
   if (method === "GET" && apiPath === "/wifi") {
     const w = state.wifi;

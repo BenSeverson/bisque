@@ -220,6 +220,28 @@ export const api = {
   installOta: () =>
     request<{ ok: boolean; version: string; message: string }>("/ota/install", { method: "POST" }),
   otaStatus: () => request<OtaStatus>("/ota/status"),
+  /**
+   * Reverts to the previously-booted image (#177).
+   *
+   * handle_ota_rollback() calls esp_ota_mark_app_invalid_rollback_and_reboot(),
+   * so the controller is gone before it can answer: the fetch rejects on a
+   * dropped connection far more often than it resolves, and that rejection is
+   * evidence the rollback *took*. Only a real HTTP status — 400 "Rollback not
+   * available", 409 while a firing is running, 401 — is a refusal, so those
+   * still throw and the caller reports them.
+   */
+  rollbackOta: async (): Promise<void> => {
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}/ota/rollback`, { method: "POST", headers: authHeaders() });
+    } catch {
+      return;
+    }
+    if (!res.ok) {
+      throw new Error(`API error ${res.status}: ${await res.text()}`);
+    }
+  },
+  confirmOta: () => request<{ ok: boolean; message: string }>("/ota/confirm", { method: "POST" }),
 
   // Wi-Fi provisioning
   getWifi: () => request<WifiInfo>("/wifi"),

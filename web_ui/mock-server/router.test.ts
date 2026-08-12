@@ -10,6 +10,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { dispatch, CONE_TABLE } from "./router";
 import { state } from "./state";
 import { coneEquivalentLabel } from "../src/app/utils/cone";
+import { otaStatusSchema, type OtaStatus } from "../src/app/schemas/api";
 import type { FiringProfile, HistoryRecord } from "../src/app/types/kiln";
 
 describe("dispatch() router", () => {
@@ -101,6 +102,52 @@ describe("dispatch() router", () => {
   it("unknown route returns 404", () => {
     const r = dispatch("GET", "/nope", {});
     expect(r.status).toBe(404);
+  });
+});
+
+/**
+ * The partition endpoints behind the Firmware Partitions card (#177). The
+ * shapes are pinned against the same zod schema the firmware fixtures are
+ * checked with, so the dev server cannot drift from the device.
+ */
+describe("dispatch() firmware partitions", () => {
+  const initialOta = { ...state.ota };
+  afterEach(() => {
+    Object.assign(state.ota, initialOta);
+  });
+
+  it("GET /ota/status matches the firmware's response schema", () => {
+    const r = dispatch("GET", "/ota/status", {});
+    expect(r.status).toBe(200);
+    expect(otaStatusSchema.strict().parse(r.json)).toBeDefined();
+  });
+
+  it("POST /ota/rollback moves the boot slot and then refuses a second one", () => {
+    const before = dispatch("GET", "/ota/status", {}).json as OtaStatus;
+    expect(before.rollbackAvailable).toBe(true);
+
+    expect(dispatch("POST", "/ota/rollback", {}).status).toBe(200);
+
+    const after = dispatch("GET", "/ota/status", {}).json as OtaStatus;
+    expect(after.bootPartition).not.toBe(before.bootPartition);
+    expect(after.rollbackAvailable).toBe(false);
+
+    // esp_ota_check_rollback_is_possible() is false with no image behind the
+    // running one, and the handler answers 400 with that bare message.
+    const second = dispatch("POST", "/ota/rollback", {});
+    expect(second.status).toBe(400);
+    expect(second.text).toBe("Rollback not available");
+  });
+
+  it("POST /ota/confirm clears pendingVerify and reports which case it was", () => {
+    state.ota.pendingVerify = true;
+    const first = dispatch("POST", "/ota/confirm", {}).json as { message: string };
+    expect(first.message).toBe("Firmware confirmed as valid");
+    expect((dispatch("GET", "/ota/status", {}).json as OtaStatus).pendingVerify).toBe(false);
+
+    // Confirming an already-valid image is a no-op the firmware still 200s.
+    const second = dispatch("POST", "/ota/confirm", {}).json as { message: string };
+    expect(second.message).toBe("Firmware already confirmed");
   });
 });
 

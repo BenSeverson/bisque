@@ -41,7 +41,18 @@ import {
 } from "./ui/dialog";
 import { setApiToken } from "../services/api";
 import { toast } from "sonner";
-import { Upload, Zap, Thermometer, AlertTriangle, RefreshCw, Download, Power } from "lucide-react";
+import {
+  Upload,
+  Zap,
+  Thermometer,
+  AlertTriangle,
+  RefreshCw,
+  Download,
+  Power,
+  HardDrive,
+  Undo2,
+  ShieldCheck,
+} from "lucide-react";
 import { settingsSchema, SettingsFormValues } from "../schemas/kiln";
 import { TemperatureField } from "./TemperatureField";
 import {
@@ -66,6 +77,9 @@ import {
   useUploadOta,
   useCheckOta,
   useInstallOta,
+  useOtaStatus,
+  useConfirmOta,
+  useRollbackOta,
 } from "../hooks/queries";
 import { api, DiagThermocouple, OtaCheckResponse } from "../services/api";
 import { kilnWS } from "../services/websocket";
@@ -119,6 +133,12 @@ export function Settings() {
   const uploadOta = useUploadOta();
   const checkOta = useCheckOta();
   const installOta = useInstallOta();
+  // Firmware partitions (#177). Not fetched in the demo: the card that reads it
+  // is hardware-only, and the mock kiln has no partition table to describe.
+  const { data: otaStatus, isError: otaStatusFailed } = useOtaStatus(!__DEMO__);
+  const confirmOta = useConfirmOta();
+  const rollbackOta = useRollbackOta();
+  const [rollbackConfirmOpen, setRollbackConfirmOpen] = useState(false);
 
   // TC diagnostics
   const [tcDiag, setTcDiag] = useState<DiagThermocouple | null>(null);
@@ -419,6 +439,28 @@ export function Settings() {
       setOtaInstallPct(null);
     }
   }, [installOta]);
+
+  const handleConfirmFirmware = useCallback(async () => {
+    try {
+      const resp = await confirmOta.mutateAsync();
+      toast.success(resp.message);
+    } catch (e) {
+      toast.error(`Could not confirm the firmware: ${toErrorMessage(e)}`);
+    }
+  }, [confirmOta]);
+
+  const handleRollback = useCallback(async () => {
+    setRollbackConfirmOpen(false);
+    try {
+      await rollbackOta.mutateAsync();
+      // api.rollbackOta() resolves on a dropped connection too — the device
+      // reboots inside the handler — so this is reached whether or not the
+      // reply survived. Anything that throws was an outright refusal.
+      toast.success("Rolling back — reload this page once the controller is back.");
+    } catch (e) {
+      toast.error(`Rollback refused: ${toErrorMessage(e)}`);
+    }
+  }, [rollbackOta]);
 
   // Stream OTA install progress from the WebSocket while an install runs.
   useEffect(() => {
@@ -1147,6 +1189,116 @@ export function Settings() {
               </p>
             </CardContent>
           </Card>
+
+          {/* Firmware partitions — the other half of the OTA story (#177).
+              Every update writes to the inactive slot, so the image it replaced
+              is still on the device; without this card the only way back from a
+              bad update was a USB cable. */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <HardDrive className="h-5 w-5" />
+                Firmware Partitions
+              </CardTitle>
+              <CardDescription>
+                Which image the controller booted, and how to return to the previous one
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {otaStatusFailed && (
+                <p className="text-sm text-muted-foreground">
+                  Could not read the partition state from the controller.
+                </p>
+              )}
+
+              {otaStatus && (
+                <div className="space-y-0">
+                  <div className="flex justify-between py-2 border-b">
+                    <span className="text-sm font-medium">Running Slot</span>
+                    <span className="text-sm text-muted-foreground font-mono">
+                      {otaStatus.running?.label ?? "--"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b">
+                    <span className="text-sm font-medium">Running Version</span>
+                    <span className="text-sm text-muted-foreground">
+                      {otaStatus.running?.version || "--"}
+                    </span>
+                  </div>
+                  {/* The boot slot is what the *next* reboot will run. It only
+                      differs from the running slot between a rollback request
+                      and the reboot that carries it out, which is exactly when
+                      a user needs to see it. */}
+                  <div className="flex justify-between py-2 border-b">
+                    <span className="text-sm font-medium">Boots Next From</span>
+                    <span className="text-sm text-muted-foreground font-mono">
+                      {otaStatus.bootPartition ?? "--"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-2 items-center">
+                    <span className="text-sm font-medium">Image State</span>
+                    <span className="text-sm">
+                      {otaStatus.pendingVerify ? (
+                        <Badge variant="destructive">Pending verification</Badge>
+                      ) : (
+                        <Badge variant="secondary">{otaStatus.running?.state ?? "unknown"}</Badge>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* ota_confirm.c normally confirms an image on its own after a
+                  healthy-uptime window, so this only shows up inside that
+                  window — or when the automatic pass did not run. Offering it
+                  manually means a user watching a fresh update land does not
+                  have to wait out the timer to make it permanent. */}
+              {otaStatus?.pendingVerify && (
+                <div className="border-t pt-4 flex items-end justify-between gap-4 flex-wrap">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Confirm This Firmware</p>
+                    <p className="text-sm text-muted-foreground">
+                      This image has not been marked valid yet. Until it is, the controller reverts
+                      to the previous firmware if it reboots.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="gap-2"
+                    onClick={handleConfirmFirmware}
+                    disabled={confirmOta.isPending}
+                  >
+                    <ShieldCheck className="h-4 w-4" />
+                    {confirmOta.isPending ? "Confirming..." : "Confirm"}
+                  </Button>
+                </div>
+              )}
+
+              <div className="border-t pt-4 flex items-end justify-between gap-4 flex-wrap">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Roll Back Firmware</p>
+                  <p className="text-sm text-muted-foreground">
+                    {otaStatus?.rollbackAvailable
+                      ? "Reboots into the firmware that was running before the last update. Settings, profiles and firing history are kept."
+                      : "No previous firmware to roll back to — the other slot is empty or was never booted successfully."}
+                  </p>
+                </div>
+                {/* handle_ota_rollback() refuses with 409 while a firing runs,
+                    and rebooting mid-firing would abandon the load anyway. */}
+                <Button
+                  variant="destructive"
+                  className="gap-2"
+                  onClick={() => setRollbackConfirmOpen(true)}
+                  disabled={
+                    !otaStatus?.rollbackAvailable || rollbackOta.isPending || kilnBusy || otaBusy
+                  }
+                >
+                  <Undo2 className="h-4 w-4" />
+                  {rollbackOta.isPending ? "Rolling back..." : "Roll Back"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </>
       )}
 
@@ -1260,6 +1412,27 @@ export function Settings() {
             </Button>
             <Button variant="destructive" onClick={handleRestart}>
               Restart
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={rollbackConfirmOpen} onOpenChange={setRollbackConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Roll back to the previous firmware?</DialogTitle>
+            <DialogDescription>
+              {`The controller reboots immediately into the firmware it ran before ${
+                otaStatus?.running?.version ?? "the last update"
+              }. Settings, profiles and history are kept. To come back to this version afterwards, install it again from the update card above.`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRollbackConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleRollback}>
+              Roll Back
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -392,3 +392,34 @@ describe("api: uploadOta()", () => {
     await expect(promise).rejects.toThrow("OTA error 302: ");
   });
 });
+
+describe("api: rollbackOta()", () => {
+  it("treats a dropped connection as success, because that is the reboot", async () => {
+    // handle_ota_rollback() calls
+    // esp_ota_mark_app_invalid_rollback_and_reboot(), so the socket usually
+    // dies before the reply lands. Rejecting there would tell the user the
+    // rollback failed while the kiln was busy performing it.
+    const { api } = await loadApi();
+    fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
+    await expect(api.rollbackOta()).resolves.toBeUndefined();
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/v1/ota/rollback");
+    expect(fetchMock.mock.calls[0][1].method).toBe("POST");
+  });
+
+  it("still reports an outright refusal", async () => {
+    // 400 with no image behind the running one, 409 while a firing runs. Both
+    // arrive intact — the device is very much still up — and both mean the
+    // firmware did not change.
+    const { api } = await loadApi();
+    fetchMock.mockResolvedValue(errorResponse(400, "Rollback not available"));
+    await expect(api.rollbackOta()).rejects.toThrow("API error 400: Rollback not available");
+  });
+
+  it("bearers the token, since the endpoint is authenticated", async () => {
+    const { api, setApiToken } = await loadApi();
+    setApiToken("secret");
+    fetchMock.mockResolvedValue(jsonResponse({ ok: true }));
+    await api.rollbackOta();
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe("Bearer secret");
+  });
+});
