@@ -411,9 +411,10 @@ stop being optional.
 
 ### 6.1 Form factor
 
-**4-layer, 100 × 100 mm** (target), HASL, 1.6 mm. Signals on F.Cu/B.Cu, an inner
-GND plane and an inner power plane. Mounting-hole grid grows from 90 × 70 mm to
-90 × 90 mm, still 5 mm in from each edge.
+**4-layer, 100 × 100 mm**, HASL, 1.6 mm. Signals on F.Cu/B.Cu, a GND plane on
+In1.Cu and the +3V3 plane on In2.Cu. Mounting-hole grid grows from 90 × 70 mm to
+90 × 90 mm, still 5 mm in from each edge. **Built and verified** — see the rung 3
+outcome in §6.3.
 
 > **Revised 2026-08-11, from measurement.** This originally specified **2-layer,
 > 100 × 100 mm** — chosen deliberately over a 4-layer option, with the density
@@ -421,7 +422,9 @@ GND plane and an inner power plane. Mounting-hole grid grows from 90 × 70 mm to
 > did not close; the stack-up decision was escalated and 4-layer approved. The
 > board targets a return to 100 × 100 mm with 0805 passives and rev A's net
 > classes, since moving GND and the power rails onto inner planes should free
-> more than the rung-1 and rung-2 concessions bought. §6.3 records the actual
+> more than the rung-1 and rung-2 concessions bought. It did: every concession
+> was given back and the board reaches 0 DRC errors / 0 unconnected at
+> 100 × 100 mm with 0805 passives and rev A's net classes. §6.3 records the
 > measured outcome.
 
 ### 6.2 Placement partition
@@ -485,17 +488,49 @@ more space does not help a net that cannot escape its own neighbourhood. Rung 3
 was approved rather than started by an agent, because it changes stack-up and
 fabrication cost.
 
-Two findings from the attempt stand regardless of stack-up:
+Two findings from the attempt stood regardless of stack-up, and both were
+acted on below.
 
-- **A router bug:** `EN` runs against U1 pad 4 at 0.195 mm, produced by a code
-  path that is not clearance-checked at all. Latent in the generator, not
-  specific to this board. Fix it.
-- **Track widths had to narrow** from 0.3/0.7 mm to 0.25 mm for signals *and*
-  +3V3 — not a preference, a geometric necessity, since a 0.5 mm-pitch QFN or
-  TSSOP pad cannot be escaped any wider. It clears JLCPCB's 0.127 mm minimum and
-  0.25 mm of 1 oz copper carries ~0.9 A against a ~400 mA rail, so it is safe.
-  With inner power planes the rails leave the signal layers entirely, so rev A's
-  wider net classes should be recoverable; confirm rather than assume.
+#### Rung 3 outcome (2026-08-11)
+
+4-layer closed it, and then gave back **every one** of the concessions the
+2-layer attempt had made:
+
+| Step | Configuration | Unrouted nets | Unconnected pads | DRC errors |
+|---|---|---|---|---|
+| Layer conversion only | 125 × 100, 0603, 0.25 mm | 0 | 0 | 0 |
+| Walk back rung 2 | **100 × 100**, 0603, 0.25 mm | 0 | 0 | 0 |
+| Walk back rung 1 | 100 × 100, **0805**, 0.25 mm | 0 | 0 | 0 |
+| Walk back net classes | 100 × 100, 0805, **0.3 / 0.7 mm** | 0 | 0 | 0 |
+
+Final board: **100 × 100 mm, 4-layer, 0805 passives, rev A's net classes.**
+The only violations left are silkscreen warnings (102), as in rev A.
+
+Stack-up: signals on F.Cu and B.Cu, an unbroken GND plane on In1.Cu, the +3V3
+plane on In2.Cu. In2 carries +3V3 **alone** rather than being split with +5V —
+a split needs the two nets' consumers to fall in separable regions and +5V's do
+not (regulator at the top-left corner, LCD header at the bottom edge, buzzer
+mid-board, LED supply at the right), so a partition following them would leave
++3V3, the net that actually needs the plane, in slivers. +5V routes comfortably
+as 0.7 mm track. Neither signal layer is poured: on rev B's density the GND
+pour was the largest single consumer of routing space on exactly the two layers
+the boxed-in signals needed.
+
+The isolation barrier's pour keepout is `AllCuMask(4)`, inner planes included —
+a GND plane under the optocouplers would defeat the barrier completely.
+`check_pcb.py` confirms it independently by sampling the band against each
+plane's filled polygons, because a zone fill is not a track and no item-based
+check can see one.
+
+Track widths came all the way back because the router no longer touches a
+fine-pitch pad: each is represented to it by the far end of a pre-drawn escape
+stub, so 0.25 mm is confined to the ~2 mm that geometrically requires it.
+
+Two more unchecked code paths turned up alongside the `EN` one, both in the
+same class and both fixed: `miter_corners()` chamfered corners that had a via
+on them, orphaning the via; and A* took a via on `via_ok()` alone, so the first
+segment after a via was never clearance-checked at its start point (invisible
+at 0.25 mm, 0.172 mm from a pad at 0.7 mm).
 
 ### 6.4 Cost
 
