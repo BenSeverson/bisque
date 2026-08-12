@@ -545,8 +545,20 @@ instead.)
 This board switches an external SSR's **control input** only — board +5 V
 out, switched low side back, both channels. It is **not** opto-isolated: rev
 B built that and reverted it, because an optocoupler only isolates when the
-SSR control loop is powered off-board and this board powers it. All mains
-wiring — SSR load side,
+SSR control loop is powered off-board and this board powers it.
+
+**Consequence — use a genuinely isolated SSR.** `J4` and `J9` are now common
+with board `GND`, which is common with the USB shield and therefore with
+whatever the controller is plugged into. **The SSR's own internal
+control-to-load isolation is the only barrier between the kiln's mains and
+this board.** Every reputable DC-input SSR provides it — it is what the
+"solid state relay" part class means — but it is now load-bearing rather
+than a second line of defence, so specify a part with a stated
+control/load isolation rating and do not substitute a bare TRIAC or MOSFET
+switching module. Check the isolation figure on the datasheet, not the
+marketplace listing.
+
+All mains wiring — SSR load side,
 kiln elements, breakers, enclosure grounding — is external and must follow
 local electrical code. The on-board hardware watchdog (`SJ2`/`WDT_KICK`,
 above) is a **supplementary** interlock that de-energizes both SSR channels
