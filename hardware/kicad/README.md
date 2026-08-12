@@ -28,7 +28,7 @@ table — 93 nets, 0 mismatches). The 3D renders in `3d/` are raytraced by
 | File | What it is |
 |---|---|
 | `bisque-controller.kicad_pro` | Project (net classes: 0.3 mm signal / 0.7–0.8 mm power, 0.25 mm only on the short fine-pitch escape stubs off the QFN/TSSOP pads) |
-| `bisque-controller.kicad_sch` | Schematic (A1, netlist-style: functional groups + global labels). A1, not A3: the rev B blocks span ~565 x 522 mm and an A3 declaration silently clipped ~40% of the circuit out of the exported PDF while every connectivity checker stayed green — `generator/check_sch_bounds.py` now fails on any off-sheet item |
+| `bisque-controller.kicad_sch` | Schematic (A1, netlist-style: functional groups + global labels). Laid out programmatically by `generator/gen_sch.py` — a `GROUPS` taxonomy plus a deterministic column packer, with a reserved right-hand column for the notes block. A1, not A3: an A3 declaration silently clipped ~40% of the circuit out of the exported PDF while every connectivity checker stayed green (`generator/check_sch_bounds.py` now fails on any off-sheet item), and containment is not readability, so `generator/check_sch_layout.py` additionally fails on any symbol/symbol, text/symbol or text/text overlap |
 | `bisque-controller.kicad_pcb` | Board: placed, fully routed, 4 layers (F.Cu/B.Cu signals, In1.Cu GND plane, In2.Cu +3V3 plane) |
 | `preview-board.svg` | Quick visual of placement + routing |
 | `3d/board-3d-*.png` | Raytraced renders, kicad-cli (iso / front / top / underside) |
@@ -470,6 +470,7 @@ python3 generator/check_netlist.py bisque-controller.kicad_sch  # KiCad netlist 
                                                                 #   pour-island healing, KiCad DRC report
 python3 generator/check_pinmap.py                                # design.py <-> Kconfig agreement: PASS
 python3 generator/check_sch_bounds.py bisque-controller.kicad_sch  # nothing off the declared sheet: PASS
+python3 generator/check_sch_layout.py bisque-controller.kicad_sch  # nothing drawn on top of anything: PASS
                                                                 #   (every other checker validates connectivity,
                                                                 #    which is complete no matter where a symbol
                                                                 #    sits — this is the one that notices the

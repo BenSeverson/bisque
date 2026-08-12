@@ -245,6 +245,7 @@ pcb-check:  ## Run every PCB checker (no KiCad rebuild)
 	@$(find_kpy); \
 	cd $(KICAD_DIR) && python3 generator/check_pinmap.py \
 	  && python3 generator/check_sch_bounds.py bisque-controller.kicad_sch \
+	  && python3 generator/check_sch_layout.py bisque-controller.kicad_sch \
 	  && python3 generator/check_netlist.py bisque-controller.kicad_sch \
 	  && python3 generator/check_pcb.py bisque-controller.kicad_pcb \
 	  && python3 generator/check_drill_clearance.py bisque-controller.kicad_pcb \
