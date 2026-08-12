@@ -109,6 +109,30 @@ export const systemInfoSchema = z.object({
 
 export type SystemInfo = z.infer<typeof systemInfoSchema>;
 
+/**
+ * GET /api/v1/log — mirrors build_log_json in api_json.c (#189).
+ *
+ * The counters are not decoration: the firmware keeps the log in a fixed RAM
+ * ring, so `droppedLines` is how much of the firing already aged out. A
+ * diagnostics bundle that lost the interesting minute has to say so rather than
+ * read as a complete record.
+ *
+ * `lines` is always present, empty at worst — a kiln whose log buffer failed to
+ * allocate at boot answers with an empty array rather than omitting the key.
+ */
+export const deviceLogSchema = z.object({
+  lines: z.array(z.string()),
+  lineCount: z.number(),
+  /** Lines evicted from the ring since boot. */
+  droppedLines: z.number(),
+  /** Lines captured since boot, evicted ones included. */
+  totalLines: z.number(),
+  usedBytes: z.number(),
+  capacityBytes: z.number(),
+});
+
+export type DeviceLog = z.infer<typeof deviceLogSchema>;
+
 export const autotuneStatusSchema = z.object({
   // Mirrors autotune_state_to_string in api_json.c. `failed` joined the set
   // when the firmware stopped flattening terminal outcomes onto `idle` (#216).

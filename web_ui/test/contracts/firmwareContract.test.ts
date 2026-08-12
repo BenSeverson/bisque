@@ -42,6 +42,7 @@ import {
   systemInfoSchema,
   thermocoupleDiagSchema,
   wifiInfoSchema,
+  deviceLogSchema,
 } from "../../src/app/schemas/api";
 import { wsMessageSchema } from "../../src/app/schemas/ws";
 import { HOLD_UNTIL_SKIP } from "../../src/app/types/kiln";
@@ -75,6 +76,8 @@ const REQUIRED_FIXTURES = [
   "thermocouple_diag",
   "system",
   "system_emergency",
+  "log",
+  "log_empty",
   "wifi",
   "wifi_ap_mode",
   "ota_check",
@@ -241,6 +244,8 @@ const STRICT_CASES: Array<[fixture: string, schema: z.ZodType]> = [
   ["thermocouple_diag", thermocoupleDiagSchema],
   ["system", systemInfoSchema],
   ["system_emergency", systemInfoSchema],
+  ["log", deviceLogSchema],
+  ["log_empty", deviceLogSchema],
   ["wifi", wifiInfoSchema],
   ["wifi_ap_mode", wifiInfoSchema],
   ["ota_check", otaCheckResponseSchema],
@@ -345,6 +350,25 @@ describe.runIf(fixturesUsable)("firmware → frontend API contract", () => {
   it("/api/v1/system payload parses against systemInfoSchema", () => {
     expect(systemInfoSchema.parse(load("system"))).toBeDefined();
     expect(systemInfoSchema.parse(load("system_emergency"))).toBeDefined();
+  });
+
+  /**
+   * The diagnostics bundle's log section (#189). `lines` is an array even when
+   * the ring is empty — a kiln whose buffer failed to allocate at boot answers
+   * with the same shape as a freshly-booted one, so the UI needs no null path.
+   */
+  it("/api/v1/log payload parses against deviceLogSchema, full or empty", () => {
+    const full = deviceLogSchema.parse(load("log"));
+    expect(full.lines.length).toBeGreaterThan(0);
+    expect(full.lineCount).toBe(full.lines.length);
+    // Eviction is visible to the reader, not silent: a bundle missing the
+    // interesting minute has to say how much it lost.
+    expect(full.droppedLines).toBeGreaterThan(0);
+    expect(full.totalLines).toBeGreaterThanOrEqual(full.lineCount);
+
+    const empty = deviceLogSchema.parse(load("log_empty"));
+    expect(empty.lines).toEqual([]);
+    expect(empty.lineCount).toBe(0);
   });
 
   it("/api/v1/wifi payload parses against wifiInfoSchema, saved or not", () => {

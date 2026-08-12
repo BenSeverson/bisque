@@ -154,6 +154,27 @@ typedef struct {
 cJSON *build_system_json(const system_info_json_t *info);
 
 /**
+ * Inputs to build_log_json — GET /api/v1/log (#189).
+ *
+ * `lines` is an array of `count` NUL-terminated log lines, oldest first, as
+ * captured by components/device_log. The counters are what tell a reader the
+ * log is a window rather than the whole story: `dropped_lines` is how many
+ * lines aged out of the ring, so a bundle that lost the interesting minute says
+ * so instead of looking complete.
+ */
+typedef struct {
+    const char *const *lines;
+    size_t count;
+    uint32_t dropped_lines;
+    uint32_t total_lines;
+    size_t used_bytes;
+    size_t capacity_bytes;
+} device_log_json_t;
+
+/** GET /api/v1/log — recent log lines plus the ring's occupancy counters. */
+cJSON *build_log_json(const device_log_json_t *info);
+
+/**
  * GET /api/v1/wifi.
  *
  * `saved_ssid` is NULL or empty when no credentials are stored; that is what

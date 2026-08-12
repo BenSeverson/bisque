@@ -22,6 +22,7 @@
 #include "boot_status.h"
 #include "firing_history.h"
 #include "status_led.h"
+#include "device_log.h"
 
 static const char *TAG = "main";
 
@@ -48,6 +49,14 @@ static void ws_broadcast_timer_cb(void *arg)
 
 void app_main(void)
 {
+    /* Before the first line worth keeping: the log hook only sees what is
+       logged after it is installed, so this goes ahead of the banner. A failure
+       here is not fatal — it costs the diagnostics bundle its log section and
+       nothing else. */
+    if (device_log_init() != ESP_OK) {
+        ESP_LOGW(TAG, "Device log unavailable — /api/v1/log will be empty");
+    }
+
     /* version already carries a leading 'v' (git describe of v* tags). */
     ESP_LOGI(TAG, "=== Bisque %s ===", esp_app_get_description()->version);
 

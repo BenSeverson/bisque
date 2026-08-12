@@ -84,6 +84,8 @@ final class FirmwareContractTests: XCTestCase {
         "wifi_ap_mode": "GET /wifi in AP mode; same reason.",
         "ota_status": "GET /ota/status — the app tracks OTA over the WebSocket.",
         "ota_status_minimal": "GET /ota/status with no running image; same reason.",
+        "log": "GET /log — the diagnostics bundle is a web-UI download (#189).",
+        "log_empty": "GET /log on a kiln with an empty ring; same reason.",
     ]
 
     /// Keys the firmware emits that the Swift models deliberately drop.

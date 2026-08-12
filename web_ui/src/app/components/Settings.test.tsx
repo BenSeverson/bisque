@@ -36,6 +36,7 @@ const apiMock = {
   getPidGains: vi.fn(),
   savePidGains: vi.fn(),
   getThermocoupleDiag: vi.fn(),
+  getLog: vi.fn(),
   testRelay: vi.fn(),
   reboot: vi.fn(),
   uploadOta: vi.fn(),
@@ -49,6 +50,12 @@ vi.mock("../services/api", () => ({
   api: apiMock,
   setApiToken,
   getApiToken: () => null,
+}));
+
+const downloadBlob = vi.fn();
+vi.mock("../utils/download", () => ({
+  downloadBlob: (...args: unknown[]) => downloadBlob(...args),
+  downloadUrl: vi.fn(),
 }));
 
 /** The OTA install progress stream. Tests push frames through `pushFrame`. */
@@ -94,6 +101,15 @@ const systemInfo = {
   boardTempC: 30,
 };
 
+const deviceLog = {
+  lines: ["I (312) main: === Bisque v1.4.0 ===", "E (940512) firing: aborting, error=3"],
+  lineCount: 2,
+  droppedLines: 5,
+  totalLines: 7,
+  usedBytes: 96,
+  capacityBytes: 6144,
+};
+
 const wifiInfo = {
   connected: true,
   apMode: false,
@@ -135,6 +151,7 @@ beforeEach(() => {
     limits: { min: 0, max: 100 },
   });
   apiMock.getWifi.mockResolvedValue(wifiInfo);
+  apiMock.getLog.mockResolvedValue(deviceLog);
 });
 
 afterEach(() => {
@@ -742,5 +759,64 @@ describe("Settings: thermocouple diagnostics", () => {
 
     await user.click(screen.getByRole("button", { name: /Read Thermocouple/ }));
     await waitFor(() => expect(toastFns.error).toHaveBeenCalledWith("Failed to read thermocouple"));
+  });
+});
+
+/**
+ * The diagnostics bundle (#189) — what a user is asked to attach when they
+ * report a problem. Both branches matter: the whole bundle, and the partial one
+ * a kiln on older firmware produces when GET /log 404s. A partial collection
+ * that silently downloaded as if complete would send someone a file whose
+ * missing log looks like a kiln that logged nothing.
+ */
+describe("Settings: diagnostics bundle", () => {
+  async function downloadDiagnostics() {
+    const user = userEvent.setup();
+    await renderSettled();
+    await user.click(screen.getByRole("button", { name: /Download Diagnostics/ }));
+    await waitFor(() => expect(downloadBlob).toHaveBeenCalled());
+    const [blob, filename] = downloadBlob.mock.calls[0] as [Blob, string];
+    return { bundle: JSON.parse(await blob.text()), filename };
+  }
+
+  it("bundles the log, /system and /settings into one downloaded file", async () => {
+    const { bundle, filename } = await downloadDiagnostics();
+
+    expect(filename).toMatch(/^bisque-diagnostics-\d{8}-\d{6}\.json$/);
+    expect(bundle.log).toEqual(deviceLog);
+    expect(bundle.system).toMatchObject({ firmware: "1.4.0" });
+    expect(bundle.settings).toBeDefined();
+    expect(bundle.errors).toBeUndefined();
+    expect(toastFns.success).toHaveBeenCalledWith("Diagnostics downloaded");
+  });
+
+  it("still downloads when the kiln has no log endpoint, naming what is missing", async () => {
+    apiMock.getLog.mockRejectedValue(new Error("API error 404: Not found"));
+
+    const { bundle } = await downloadDiagnostics();
+
+    expect(bundle.log).toBeUndefined();
+    expect(bundle.errors).toEqual({ log: "API error 404: Not found" });
+    expect(bundle.system).toBeDefined();
+    expect(toastFns.warning).toHaveBeenCalledWith("Diagnostics saved without: log");
+  });
+
+  it("saves nothing and reports failure when every request fails", async () => {
+    const unauthorized = () => Promise.reject(new Error("API error 401: Unauthorized"));
+    apiMock.getLog.mockImplementation(unauthorized);
+    apiMock.getSystemInfo.mockImplementation(unauthorized);
+    apiMock.getSettings.mockImplementation(unauthorized);
+
+    const user = userEvent.setup();
+    renderSettings();
+    await screen.findByText("Kiln Settings");
+    await user.click(screen.getByRole("button", { name: /Download Diagnostics/ }));
+
+    await waitFor(() =>
+      expect(toastFns.error).toHaveBeenCalledWith(
+        "Failed to collect diagnostics — the controller answered nothing",
+      ),
+    );
+    expect(downloadBlob).not.toHaveBeenCalled();
   });
 });
