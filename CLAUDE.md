@@ -62,6 +62,8 @@ The zod schemas those tests validate against live in **`web_ui/src/app/schemas/`
 
 Every payload the device emits — including the WebSocket frames and `/system`, `/wifi`, `/ota/check`, `/ota/status` — goes through a `build_*_json()` in `api_json.c`, never inline `cJSON_Add*` at the handler. That is what makes it fixture-dumpable from the host; JSON assembled in `api_handlers.c` or `ws_handler.c` cannot be, and is invisible to the contract test by construction (#174). Handlers gather ESP-specific inputs into a plain struct and delegate. The contract test also rebuilds each schema `.strict()` before checking the fixtures, so a *new* firmware field is a failure until the schema models it — the app-facing schemas stay non-strict so a newer kiln still parses in an older tab.
 
+**Device log / diagnostics bundle (#189).** `components/device_log` chains an `esp_log_set_vprintf()` hook that tees every `ESP_LOGx` line into a fixed RAM ring (`CONFIG_KILN_LOG_BUFFER_BYTES`, default 6 KiB) while still writing to the UART; `GET /api/v1/log` serves it. The line-assembly and eviction rules live in `log_sink.c` — no ESP-IDF, caller-supplied storage, caller-held lock — precisely so `tests/host/test_log_sink.c` can drive them; `device_log.c` is only the hook, the mutex and the allocation. RAM, not SPIFFS: a firing logs continuously and rotation would spend the flash's erase budget, so the buffer does not survive a reboot. Settings → Diagnostics → **Download Diagnostics** bundles `/log` + `/system` + `/settings` into one JSON file via `utils/diagnostics.ts`, which is built from `Promise.allSettled` on purpose — a kiln on firmware older than `/log` 404s it, and the bundle records the failed section in `errors` rather than downloading as if it were complete. Nothing secret goes in: it takes the `/settings` *response*, where the firmware has already replaced the API token with `apiTokenSet`.
+
 Error bodies are part of the contract too: the firmware answers a failed request with the bare message (`httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Missing ssid")`), no JSON envelope, and the mock-server's `apiError()` matches it verbatim. `services/api.ts` reads `res.text()` on any non-2xx, so a wrapped body would show up in the toast braces and all.
 
 **Component and hook tests** run in the same `app` (jsdom) project via `@testing-library/react` (#172). Four pieces of wiring make them work, and all four are easy to trip over:
@@ -175,6 +177,7 @@ components/
   safety/           # Safety watchdog, over-temp protection
   history/          # Firing history storage (NVS)
   cone_table/       # Ceramic cone temperature lookup
+  device_log/       # In-RAM log ring behind GET /api/v1/log
   web_server/       # HTTP API server
   wifi_manager/     # Wi-Fi provisioning
   ota/              # GitHub-backed OTA firmware updates

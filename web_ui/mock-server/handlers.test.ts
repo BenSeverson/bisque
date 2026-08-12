@@ -18,6 +18,7 @@ import {
   pidResponseSchema,
   systemInfoSchema,
   thermocoupleDiagSchema,
+  deviceLogSchema,
 } from "../src/app/schemas/api";
 
 let server: Server;
@@ -125,6 +126,14 @@ describe("mock-server GET endpoints", () => {
 
   it("GET /pid returns the gains plus firmware defaults and limits", async () => {
     expect(pidResponseSchema.safeParse(await get("/pid")).success).toBe(true);
+  });
+
+  it("GET /log returns the device log the diagnostics bundle downloads", async () => {
+    const parsed = deviceLogSchema.safeParse(await get("/log"));
+    expect(parsed.success).toBe(true);
+    // Seeded at module load, so this is never the empty case — the mock has to
+    // exercise the shape the firmware sends on a kiln that has been running.
+    if (parsed.success) expect(parsed.data.lines.length).toBeGreaterThan(0);
   });
 
   it("GET /diagnostics/thermocouple returns full reading", async () => {

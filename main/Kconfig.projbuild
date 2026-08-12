@@ -248,6 +248,19 @@ menu "Bisque Configuration"
                 Derivative gain multiplied by 1000 (e.g. 50000 = 50.0).
     endmenu
 
+    menu "Diagnostics"
+        config KILN_LOG_BUFFER_BYTES
+            int "Device log buffer (bytes)"
+            default 6144
+            range 1024 32768
+            help
+                Size of the in-RAM ring buffer that captures ESP_LOGx output for
+                GET /api/v1/log and the web UI's diagnostics bundle. Allocated
+                once at boot; the oldest lines are evicted when it fills. Larger
+                buffers keep more history at the cost of heap, and the whole
+                buffer is copied once per /api/v1/log request.
+    endmenu
+
     menu "Safety Limits"
         config KILN_MAX_SAFE_TEMP
             int "Default Max Safe Temperature (C)"

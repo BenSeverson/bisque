@@ -166,6 +166,13 @@ target_include_directories(test_api_json PRIVATE
     ${ROOT}/components/ota/include
     stubs)
 
+# log_sink — the device log's ring buffer, split out of device_log.c so the
+# eviction and line-assembly rules are testable without esp_log or FreeRTOS.
+add_host_test(test_log_sink
+    SOURCES test_log_sink.c
+            ${ROOT}/components/device_log/log_sink.c)
+target_include_directories(test_log_sink PRIVATE ${ROOT}/components/device_log/include)
+
 # auth_helpers — bearer-token parsing and the constant-time token compare,
 # extracted from api_handlers.c's check_auth so the security-relevant part is
 # testable without esp_http_server.

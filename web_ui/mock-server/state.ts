@@ -205,4 +205,36 @@ export const state = {
   // simulator core drive the dev server, the iOS standalone mock, and the
   // serverless GitHub Pages demo.
   subscribers: new Set<(msg: string) => void>(),
+
+  // Device log (#189). The firmware keeps a byte ring; counting lines is close
+  // enough for a mock, and the counters the API publishes are what the UI
+  // renders — `droppedLines` in particular, which is how a diagnostics bundle
+  // admits it only holds a window onto the firing.
+  log: [] as string[],
+  logDropped: 0,
+  logTotal: 0,
 };
+
+/** Mirrors CONFIG_KILN_LOG_BUFFER_BYTES's default (main/Kconfig.projbuild). */
+export const MOCK_LOG_CAPACITY_BYTES = 6144;
+
+/** Lines the mock retains. The device bounds by bytes; this bounds by count. */
+export const MOCK_LOG_MAX_LINES = 200;
+
+/**
+ * Append a line in the firmware's own console format — `I (12345) tag: message`
+ * — since that is exactly what device_log captures off the UART stream and what
+ * anyone reading a bundle from a real kiln will see next to it.
+ */
+export function mockLog(level: "I" | "W" | "E", tag: string, message: string): void {
+  state.log.push(`${level} (${Date.now() - state.startupTime}) ${tag}: ${message}`);
+  state.logTotal++;
+  while (state.log.length > MOCK_LOG_MAX_LINES) {
+    state.log.shift();
+    state.logDropped++;
+  }
+}
+
+mockLog("I", "main", "=== Bisque 2.0.0-mock ===");
+mockLog("I", "wifi", `connected, ip=${state.wifi.ip}`);
+mockLog("I", "web_server", "HTTP server started");
