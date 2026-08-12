@@ -533,6 +533,33 @@ board file textually; `kicad_build.py` is the authoritative path.)
 (raytraced, official component models). `render_3d.py` remains as a
 KiCad-free fallback (stylized three.js renders via headless chromium).
 
+**One 3D model must be installed by hand, or U1 renders as bare pads.**
+KiCad 10 ships `ESP32-S3-WROOM-1.step` and `-WROOM-2.step` but **not**
+`ESP32-S3-WROOM-1U.step`, which is the variant this board uses. The
+footprint references it, `kicad-cli` cannot find it, and — this is the part
+that wastes an afternoon — **it fails silently**: the render exits 0, prints
+"Loading 3D models…", and simply omits the module. Nothing warns you. Fetch
+it from Espressif's own library and drop it where the footprint already
+points:
+
+```bash
+curl -sSL -o "$(dirname "$(which kicad-cli)")/../share/kicad/3dmodels/RF_Module.3dshapes/ESP32-S3-WROOM-1U.step" \
+  https://raw.githubusercontent.com/espressif/kicad-libraries/main/3dmodels/espressif.3dshapes/ESP32-S3-WROOM-1U.STEP
+# macOS app-bundle install:
+#   /Applications/KiCad/KiCad.app/Contents/SharedSupport/3dmodels/RF_Module.3dshapes/
+```
+
+It is 8.4 MB, which is why it is not vendored into this repo — the renders
+are cosmetic, are already a manual step, and nothing in the fab package
+(gerbers, drill, BOM, CPL, DRC) touches 3D models at all. The consequence to
+accept knowingly: the committed renders are **not** reproducible on a clean
+machine until that file is fetched, and a KiCad upgrade wipes an app-bundle
+install. Do **not** work around it by pointing the footprint at the
+`ESP32-S3-WROOM-1` model — the 1U body is 6.3 mm shorter precisely because
+it has no PCB antenna, so that substitution draws the module straight
+through the reclaimed antenna band where USB-C, the reset switch and three
+test points now live, depicting a collision that does not exist.
+
 If pin assignments change in `main/Kconfig.projbuild`, update
 `generator/design.py` to match and regenerate; `make pcb-check`'s
 `check_pinmap.py` step fails the build if the two drift apart again.
