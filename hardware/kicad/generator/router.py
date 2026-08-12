@@ -452,7 +452,15 @@ class Router:
                                            ng, nnode))
             if allow_via:
                 nnode = (i, j, 1 - l)
-                if nnode not in visited and self.via_ok(net, i, j):
+                # The track resumes at this node on the far layer, so that
+                # node has to clear the track's own width - via_ok() only
+                # answers for the 0.6 mm via barrel. Without this the first
+                # segment after a via was never clearance-checked at its
+                # start point, which at 0.25 mm tracks stayed inside the
+                # via's own envelope and hid, and at rev A's 0.7 mm power
+                # width put AUX_VP 0.172 mm from SJ1 pad 1.
+                if nnode not in visited and self.via_ok(net, i, j) and \
+                   not self.blocked(net, width, i, j, 1 - l):
                     ng = g + via_cost
                     old = best.get(nnode)
                     if old is None or ng < old[0] - 1e-9:

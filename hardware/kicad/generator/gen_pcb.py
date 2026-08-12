@@ -168,8 +168,8 @@ USB_STUB_TERMS = {
 # pad's centreline, ends on a grid node, and claims its lane up front, so the
 # order nets happen to be routed in stops mattering.
 FANOUT = {"U7": 1.75, "U3": 1.5, "U5": 1.5}
-SIG_W = 0.25          # default signal track width; see ROUTE_ORDER
-FANOUT_WIDTH = SIG_W
+SIG_W = 0.3           # default signal track width; see ROUTE_ORDER
+FANOUT_WIDTH = 0.25   # fine-pitch escapes only; see the ROUTE_ORDER comment
 
 # ---------------------------------------------------------------------------
 # Inner planes (rev B is 4-layer; spec 6.1)
@@ -191,7 +191,7 @@ FANOUT_WIDTH = SIG_W
 # terminals to route comfortably as 0.6 mm track, so it does.
 PLANE_LAYER = {"GND": "In1.Cu", "+3V3": "In2.Cu"}
 PLANE_NETS = tuple(PLANE_LAYER)
-PLANE_STUB_W = SIG_W
+PLANE_STUB_W = 0.25
 
 
 def plane_vias(r, pad_pos, seed_list=(), max_r=6.0):
@@ -492,16 +492,22 @@ def all_seeds(pad_pos):
 ROUTE_ORDER = [
     # rails. GND and +3V3 are absent because they are planes (PLANE_LAYER):
     # every pad of theirs reaches its layer by via, so they cost the signal
-    # layers nothing but the via.
+    # layers nothing but the via, and the rail is a whole copper layer rather
+    # than the 0.7 mm track rev A could afford.
     #
-    # Signals are SIG_W. Nets that terminate only on coarse footprints could
-    # be wider, but nothing on this board does uniformly enough to be worth a
-    # second class: the SPI and I2C buses, every strap and every module escape
-    # all end on either a 0.65 mm-pitch TSSOP-14 (MAX31856 pins 5/8/9-12) or a
-    # 0.5 mm-pitch QFN-28 (ADE7953), and a track can only leave pads that fine
-    # along the pad's own centreline.
-    ("VIN", 0.8), ("+5V", 0.6), ("VLED", 0.5), ("VBUS", 0.4),
-    ("AUX_VP", 0.6),
+    # Signals are SIG_W = 0.3 mm and the remaining rails 0.7-0.8 mm, which is
+    # rev A's net classes. The 2-layer attempt had to drop every signal AND
+    # +3V3 to 0.25 mm, because on this board a signal ends on either a 0.65
+    # mm-pitch TSSOP-14 (MAX31856 pins 5/8/9-12) or a 0.5 mm-pitch QFN-28
+    # (ADE7953), and a track can only leave pads that fine along the pad's own
+    # centreline - nothing wider clears the neighbouring pin. That constraint
+    # has not gone away; what changed is that the router never touches those
+    # pads any more. Each one is represented by the far end of its fanout stub
+    # (FANOUT_WIDTH, still 0.25 mm) or of its plane-via stub (PLANE_STUB_W),
+    # so the narrow width is confined to the ~2 mm of escape that geometrically
+    # requires it and the rest of the net runs at full width.
+    ("VIN", 0.8), ("+5V", 0.7), ("VLED", 0.7), ("VBUS", 0.5),
+    ("AUX_VP", 0.7),
     # The multi-drop buses: longest reach, most terminals, hardest to thread.
     # The two thermocouple chip selects ride the same channel between U3 and U5
     # and are routed with them rather than with the other escapes, or the bus
