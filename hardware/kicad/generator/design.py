@@ -36,7 +36,7 @@ docs/pin-assignments.md — keep that table in sync with this one.
 # edge, was still ~10 nets short. The extra 25 mm all goes to that column. This
 # leaves JLCPCB's <=100x100 promo tier: bare boards go from ~$2-4 to ~$10-15
 # for 5 pieces. See the task 14 report for the DRC counts at each rung.
-BX0, BY0, BX1, BY1 = 20.0, 20.0, 145.0, 120.0   # 125 x 100 mm
+BX0, BY0, BX1, BY1 = 20.0, 20.0, 120.0, 120.0   # 100 x 100 mm
 
 # Placement regions (docs/.../2026-08-10-pcb-rev-b-hardware-design.md §6.2).
 # The quiet analog region holds both thermocouple cold junctions and the CT
@@ -257,22 +257,22 @@ COMPONENTS = {
                 value="100nF", at=(90.0, 40.5, 0),
                 pins={"1": "+3V3", "2": "GND"}),
     "R14": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="100R 1%", at=(104.0, 37.5, 180),
+                value="100R 1%", at=(102.65, 34.0, 180),
                 pins={"1": "TC1_P", "2": "TC1_P_F"}),
     "R15": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="100R 1%", at=(109.0, 37.5, 180),
+                value="100R 1%", at=(106.1, 34.0, 180),
                 pins={"1": "TC1_N", "2": "TC1_N_F"}),
     "C15": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="100nF", at=(114.0, 37.5, 0),
+                value="100nF", at=(102.65, 38.0, 0),
                 pins={"1": "TC1_P_F", "2": "TC1_N_F"}),
     "C16": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="10nF", at=(119.0, 37.5, 0),
+                value="10nF", at=(106.1, 38.0, 0),
                 pins={"1": "TC1_P_F", "2": "GND"}),
     "C17": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="10nF", at=(124.0, 37.5, 0),
+                value="10nF", at=(103.0, 42.0, 0),
                 pins={"1": "TC1_N_F", "2": "GND"}),
     "J3": dict(lib="Connector", sym="Screw_Terminal_01x02",
-               fp=TBLOCK[0], fpf=TBLOCK[1], value="TC1_K", at=(139.0, 41.0, 90),
+               fp=TBLOCK[0], fpf=TBLOCK[1], value="TC1_K", at=(114.0, 41.0, 90),
                pins={"1": "TC1_P", "2": "TC1_N"}),
     # --- Thermocouple channel 2 (load TC) - exact copy of channel 1 above,
     # 14mm south, TC2_* nets and TC2_CS. ---
@@ -292,22 +292,22 @@ COMPONENTS = {
                 value="100nF", at=(90.0, 53.0, 0),
                 pins={"1": "+3V3", "2": "GND"}),
     "R16": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="100R 1%", at=(104.0, 49.5, 180),
+                value="100R 1%", at=(102.65, 47.5, 180),
                 pins={"1": "TC2_P", "2": "TC2_P_F"}),
     "R17": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="100R 1%", at=(109.0, 49.5, 180),
+                value="100R 1%", at=(106.1, 47.5, 180),
                 pins={"1": "TC2_N", "2": "TC2_N_F"}),
     "C20": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="100nF", at=(114.0, 49.5, 0),
+                value="100nF", at=(102.65, 51.0, 0),
                 pins={"1": "TC2_P_F", "2": "TC2_N_F"}),
     "C21": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="10nF", at=(119.0, 49.5, 0),
+                value="10nF", at=(106.1, 51.0, 0),
                 pins={"1": "TC2_P_F", "2": "GND"}),
     "C22": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="10nF", at=(124.0, 49.5, 0),
+                value="10nF", at=(103.0, 55.0, 0),
                 pins={"1": "TC2_N_F", "2": "GND"}),
     "J8": dict(lib="Connector", sym="Screw_Terminal_01x02",
-               fp=TBLOCK[0], fpf=TBLOCK[1], value="TC2_K", at=(139.0, 53.0, 90),
+               fp=TBLOCK[0], fpf=TBLOCK[1], value="TC2_K", at=(114.0, 53.0, 90),
                pins={"1": "TC2_P", "2": "TC2_N"}),
     # --- SSR output: two opto-isolated channels ---------------------------
     # LTV-817S-TA1-C (REV-B-NOTES.md SS7). Pinout confirmed from the Lite-On
@@ -574,16 +574,16 @@ COMPONENTS = {
     "LED1": dict(lib="LED", sym="WS2812B",
                  fp="LED_SMD:LED_WS2812B_PLCC4_5.0x5.0mm_P3.2mm",
                  fpf="LED_WS2812B_PLCC4_5.0x5.0mm_P3.2mm.kicad_mod",
-                 value="WS2812B", at=(97.7, 96.8, 0),
+                 value="WS2812B", at=(93.05, 97.35, 0),
                  pins={"1": "VLED", "2": None, "3": "GND", "4": "WS_DIN"}),
     "R3": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-               value="330R", at=(91.0, 96.8, 0),
+               value="330R", at=(87.6, 96.8, 0),
                pins={"1": "LED_DATA", "2": "WS_DIN"}),
     "D3": dict(lib="Device", sym="D_Schottky", fp=SMA[0], fpf=SMA[1],
-               value="SS14", at=(105.15, 96.8, 0),
+               value="SS14", at=(100.5, 96.8, 0),
                pins={"1": "VLED", "2": "+5V"}),
     "C10": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="100nF", at=(110.65, 96.5, 0),
+                value="100nF", at=(106.0, 96.5, 0),
                 pins={"1": "VLED", "2": "GND"}),
     # --- Protected dry-contact inputs (lid / gas flow / spare) -----------
     # Generalises rev A's single lid-switch filter (below) to three
@@ -727,7 +727,7 @@ COMPONENTS = {
     "Y1": dict(lib="Device", sym="Crystal",
                fp="Crystal:Crystal_SMD_HC49-SD_HandSoldering",
                fpf="Crystal_SMD_HC49-SD_HandSoldering.kicad_mod",
-               value="3.579545MHz", at=(113.0, 71.2, 0),
+               value="3.579545MHz", at=(96.85, 91.25, 0),
                pins={"1": "ADE_CLKIN", "2": "ADE_CLKOUT"}),
     # Crystal load caps - ASSUMED VALUE, NOT A VERIFIED DATASHEET NUMBER.
     # REV-B-NOTES.md SS4/SS10#1: the specified crystal (LCSC C7471632, YXC
@@ -743,10 +743,10 @@ COMPONENTS = {
     # (if obtainable) or by measuring startup margin/frequency on the first
     # populated board before relying on accuracy-critical IRMS readings.
     "C25": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="30pF", at=(107.0, 65.5, 0),
+                value="30pF", at=(102.65, 65.5, 0),
                 pins={"1": "ADE_CLKIN", "2": "GND"}),
     "C26": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="30pF", at=(119.0, 65.5, 0),
+                value="30pF", at=(106.1, 65.5, 0),
                 pins={"1": "ADE_CLKOUT", "2": "GND"}),
     # ~RESET (pin 2): REV-B-NOTES.md SS4 - Figure 35's Test Circuit shows a
     # 10k pull-up to 3.3V with a 1uF cap to ground for a power-on reset
@@ -755,17 +755,17 @@ COMPONENTS = {
     # software reset and the datasheet's own reset interrupt are both
     # available if this network is omitted, but the stretch is cheap.
     "R30": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="10k", at=(104.0, 60.0, 0),
+                value="10k", at=(95.0, 60.0, 0),
                 pins={"1": "+3V3", "2": "ADE_RESET"}),
     "C37": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="1uF", at=(109.0, 60.0, 0),
+                value="1uF", at=(99.0, 60.0, 0),
                 pins={"1": "ADE_RESET", "2": "GND"}),
     # SCLK / ~CS interface-select pull-ups - see the strapping note above.
     "R37": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="10k", at=(114.0, 60.0, 0),
+                value="10k", at=(102.65, 60.0, 0),
                 pins={"1": "+3V3", "2": "ADE_SCLK"}),
     "R38": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="10k", at=(119.0, 60.0, 0),
+                value="10k", at=(106.1, 60.0, 0),
                 pins={"1": "+3V3", "2": "ADE_CS"}),
     # VINTA/VINTD/REF/VDD decoupling - REV-B-NOTES.md SS4 (Table 5, cross-
     # checked against Figure 78): each of VINTA, VINTD and REF (all internal
@@ -777,10 +777,10 @@ COMPONENTS = {
     # the IC per the datasheet's own layout guidance (Rev. C p.68); exact
     # placement is Task 14's job.
     "C27": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="4.7uF", at=(104.0, 75.8, 0),
+                value="4.7uF", at=(104.8, 69.6, 0),
                 pins={"1": "ADE_VINTA", "2": "GND"}),
     "C28": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="100nF", at=(109.0, 75.8, 0),
+                value="100nF", at=(104.8, 71.8, 0),
                 pins={"1": "ADE_VINTA", "2": "GND"}),
     "C29": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
                 value="4.7uF", at=(88.2, 70.0, 0),
@@ -789,16 +789,16 @@ COMPONENTS = {
                 value="100nF", at=(88.2, 73.5, 0),
                 pins={"1": "ADE_VINTD", "2": "GND"}),
     "C33": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="4.7uF", at=(92.0, 79.5, 0),
+                value="4.7uF", at=(89.0, 79.0, 0),
                 pins={"1": "ADE_REF", "2": "GND"}),
     "C34": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="100nF", at=(97.5, 79.5, 0),
+                value="100nF", at=(93.0, 79.0, 0),
                 pins={"1": "ADE_REF", "2": "GND"}),
     "C35": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="10uF", at=(114.0, 75.8, 0),
+                value="10uF", at=(104.8, 74.0, 0),
                 pins={"1": "+3V3", "2": "GND"}),
     "C36": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="100nF", at=(119.0, 75.8, 0),
+                value="100nF", at=(104.8, 76.2, 0),
                 pins={"1": "+3V3", "2": "GND"}),
     # Channel A burden + anti-alias. The ADE7953's current inputs are
     # bipolar, referenced to AGND directly - no mid-rail bias divider like a
@@ -816,29 +816,29 @@ COMPONENTS = {
     # a calibration constant the firmware will need - see docs/pin-
     # assignments.md (Task 16).
     "R31": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="6R8", at=(95.0, 84.0, 0),
+                value="6R8", at=(93.5, 83.5, 0),
                 pins={"1": "CTA_P", "2": "CTA_N"}),
     "R32": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="1k", at=(89.0, 84.0, 180),
+                value="1k", at=(89.0, 83.5, 180),
                 pins={"1": "CTA_P", "2": "CTA_F"}),
     "R33": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="1k", at=(100.25, 84.0, 0),
+                value="1k", at=(98.0, 84.85, 0),
                 pins={"1": "CTA_N", "2": "GND"}),
     "C31": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="33nF", at=(107.75, 84.0, 0),
+                value="33nF", at=(103.5, 79.0, 0),
                 pins={"1": "CTA_F", "2": "GND"}),
     # Channel B - exact copy of channel A above, 6mm south.
     "R34": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="6R8", at=(95.0, 90.0, 0),
+                value="6R8", at=(93.5, 87.15, 0),
                 pins={"1": "CTB_P", "2": "CTB_N"}),
     "R35": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="1k", at=(89.0, 90.0, 180),
+                value="1k", at=(89.0, 87.15, 180),
                 pins={"1": "CTB_P", "2": "CTB_F"}),
     "R36": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="1k", at=(101.0, 90.0, 0),
+                value="1k", at=(98.0, 87.15, 0),
                 pins={"1": "CTB_N", "2": "GND"}),
     "C32": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="33nF", at=(107.0, 90.0, 0),
+                value="33nF", at=(102.5, 87.15, 0),
                 pins={"1": "CTB_F", "2": "GND"}),
     # Spec SS5.5's second SRV05-4 (the first, D5, covers the dry-contact
     # inputs). NOT on the thermocouple inputs - array leakage into a
@@ -846,13 +846,13 @@ COMPONENTS = {
     # pinout matches D5's: 1 IO1, 2 GND, 3 IO2, 4 IO3, 5 VP(+3V3), 6 IO4.
     "D6": dict(lib="Power_Protection", sym="SRV05-4",
                fp="Package_TO_SOT_SMD:SOT-23-6", fpf="SOT-23-6.kicad_mod",
-               value="SRV05-4", at=(113.0, 84.0, 0),
+               value="SRV05-4", at=(103.0, 83.5, 0),
                pins={"1": "CTA_P", "2": "GND", "3": "CTA_N",
                      "4": "CTB_P", "5": "+3V3", "6": "CTB_N"}),
     "J12": dict(lib="Connector", sym="Screw_Terminal_01x04",
                 fp="TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-4-5.08_1x04_P5.08mm_Horizontal",
                 fpf="TerminalBlock_Phoenix_MKDS-1,5-4-5.08_1x04_P5.08mm_Horizontal.kicad_mod",
-                value="CT", at=(139.0, 92.0, 90),
+                value="CT", at=(114.0, 92.0, 90),
                 pins={"1": "CTA_P", "2": "CTA_N", "3": "CTB_P", "4": "CTB_N"}),
     # DNP: SELV AC voltage input for a future true-power upgrade. Not
     # fitted - NO MAINS ON THIS BOARD. REV-B-NOTES.md SS1 ("Handling of the
@@ -864,7 +864,7 @@ COMPONENTS = {
     "J13": dict(lib="Connector_Generic", sym="Conn_01x02",
                 fp="Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
                 fpf="PinHeader_1x02_P2.54mm_Vertical.kicad_mod",
-                value="AC_SENSE_DNP", at=(104.0, 80.5, 0),
+                value="AC_SENSE_DNP", at=(98.5, 79.3, 0),
                 pins={"1": "ADE_VP", "2": "ADE_VN"}),
     # --- Headers ---------------------------------------------------------
     "J5": dict(lib="Connector_Generic", sym="Conn_01x14",
@@ -939,13 +939,13 @@ COMPONENTS = {
     "J14": dict(lib="Connector_Generic", sym="Conn_01x04",
                 fp="Connector_JST:JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal",
                 fpf="JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal.kicad_mod",
-                value="QWIIC", at=(84.9, 96.8, 0),
+                value="QWIIC", at=(81.75, 96.8, 0),
                 pins={"1": "GND", "2": "+3V3", "3": "I2C_SDA", "4": "I2C_SCL"}),
     "R44": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="4.7k", at=(75.55, 96.5, 0),
+                value="4.7k", at=(72.4, 96.5, 0),
                 pins={"1": "+3V3", "2": "I2C_SDA"}),
     "R45": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="4.7k", at=(79.05, 96.5, 0),
+                value="4.7k", at=(75.85, 96.5, 0),
                 pins={"1": "+3V3", "2": "I2C_SCL"}),
     # --- Mounting holes (grounded) --------------------------------------
     "H1": dict(lib="Mechanical", sym="MountingHole_Pad",
@@ -955,7 +955,7 @@ COMPONENTS = {
     "H2": dict(lib="Mechanical", sym="MountingHole_Pad",
                fp="MountingHole:MountingHole_3.2mm_M3_Pad_Via",
                fpf="MountingHole_3.2mm_M3_Pad_Via.kicad_mod",
-               value="M3", at=(140.5, 25.0, 0), pins={"1": "GND"}),
+               value="M3", at=(114.5, 25.0, 0), pins={"1": "GND"}),
     "H3": dict(lib="Mechanical", sym="MountingHole_Pad",
                fp="MountingHole:MountingHole_3.2mm_M3_Pad_Via",
                fpf="MountingHole_3.2mm_M3_Pad_Via.kicad_mod",
@@ -963,7 +963,7 @@ COMPONENTS = {
     "H4": dict(lib="Mechanical", sym="MountingHole_Pad",
                fp="MountingHole:MountingHole_3.2mm_M3_Pad_Via",
                fpf="MountingHole_3.2mm_M3_Pad_Via.kicad_mod",
-               value="M3", at=(140.5, 115.0, 0), pins={"1": "GND"}),
+               value="M3", at=(114.5, 115.0, 0), pins={"1": "GND"}),
     # --- Test points (bring-up) ------------------------------------------
     # 1 mm pads, no BOM cost, no assembly cost.
     "TP1": dict(lib="Connector", sym="TestPoint",
@@ -1019,7 +1019,7 @@ COMPONENTS = {
     "TP11": dict(lib="Connector", sym="TestPoint",
                  fp="TestPoint:TestPoint_Pad_D1.0mm",
                  fpf="TestPoint_Pad_D1.0mm.kicad_mod",
-                 value="TP", at=(113.0, 90.0, 0),
+                 value="TP", at=(106.5, 86.9, 0),
                  pins={"1": "CTA_P"}),
     "TP12": dict(lib="Connector", sym="TestPoint",
                  fp="TestPoint:TestPoint_Pad_D1.0mm",
