@@ -160,6 +160,28 @@ components, not in the parts the spec anticipated.
   is correct as designed — but it belongs in bring-up notes for anyone
   assembling a board ahead of the kick task, since it presents as a dead
   board rather than an obviously-missing feature.
+- **Eyeball U7's rotation in JLCPCB's order preview before paying.** The
+  ADE7953 is an LFCSP-28 placed on a `QFN-28-1EP_5x5mm_P0.5mm_EP3.1x3.1mm`
+  land pattern and carries a **+90° CPL correction** from `JLC_ROTATION`'s
+  `^QFN-` rule. That table is community-maintained from real order feedback,
+  **not vendor-published**, and this correction was never re-derived from the
+  ADI package drawing. It is the highest-consequence rotation on the board:
+  most placement errors are reworkable, a mis-rotated 0.5 mm-pitch 28-pin QFN
+  is not. The order preview is free to look at and this is the one part worth
+  looking at.
+- **Measure the watchdog's decay on board 1 — it is a safety-path assumption.**
+  `C38` (100 nF), `C39` (1 µF) and `R46` (1 MΩ) are engineering estimates, not
+  datasheet-derived, and are labelled `ASSUMPTION` in `design.py`. The
+  arithmetic gives a decay through the AO3400A's 1.45 V max threshold of
+  **0.40 s** at the ESP32's guaranteed `V_OH` and **0.72 s** typical — inside
+  the intended 0.5–1 s band, and the worst corner fails *faster*, which is the
+  safe direction. But that is arithmetic. On the first board, confirm `Q3`
+  actually conducts and time the drop after the kick stops. All three parts are
+  0805 and reworkable if the measurement disagrees. Related: at the guaranteed
+  `V_OH` the gate sits at ~2.16 V, below the 2.5 V point where the AO3400A
+  datasheet guarantees any `R_DS(on)` — judged benign because `Q3` is a
+  ~20 mA return-path switch whose current is set by the 220 Ω/680 Ω series
+  resistors, so even several ohms costs under 100 mV against ~2 V of headroom.
 - **Datasheet coverage inherited from Task 4's pre-layout risk retirement.**
   The ADE7953's `IRMS`-without-voltage-channel question, the MAX31856
   pinout/filter, and the WROOM-1U CPL rotation/origin were all confirmed
