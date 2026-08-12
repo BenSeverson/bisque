@@ -202,14 +202,15 @@ LCSC = {
 # are.
 #
 # TP1-TP12: 1 mm bring-up test pads (Task 13) - bare copper, nothing to
-# place or buy. SJ1/SJ2: open solder-jumper footprints (AUX_VP<-+5V link,
-# WDT bring-up defeat) - populated with solder, not a component. J13: a
+# place or buy. SJ1-SJ4: open solder-jumper footprints (AUX_VP<-+5V link,
+# WDT bring-up defeat, and the two per-channel SSR collector<-+5V links) -
+# populated with solder, not a component. J13: a
 # fitted-but-DNP 2-pin header for a future SELV AC-sense accessory (Task 10)
 # - "NO MAINS ON THIS BOARD" per design.py, so this build does not stuff it.
 NOT_ASSEMBLED = {
     "TP1", "TP2", "TP3", "TP4", "TP5", "TP6",
     "TP7", "TP8", "TP9", "TP10", "TP11", "TP12",
-    "SJ1", "SJ2",
+    "SJ1", "SJ2", "SJ3", "SJ4",
     "J13",
 }
 

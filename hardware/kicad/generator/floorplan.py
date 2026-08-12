@@ -86,6 +86,10 @@ FIXED = {
     # opto barrier: rot 180 puts the isolated pins (3,4) west, toward J4/J9
     "U8": (38.5, 78.0, 180),
     "U9": (38.5, 90.0, 180),
+    # per-channel +5V links: rot 180 puts pad 2 (the isolated SSRn_A pad)
+    # west, so the jumper's gap lands on the barrier's east edge (x = 40.8)
+    "SJ3": (40.8, 84.0, 180),
+    "SJ4": (40.8, 94.3, 180),
     # right edge screw terminals (rot 90 -> wire entry faces east)
     "J3": (114.0, 41.0, 90),
     "J8": (114.0, 53.0, 90),
@@ -136,6 +140,9 @@ SEED = {
     "R10": (52.0, 76.0, 0, "SWI"), "LED3": (57.0, 76.0, 0, "SWI"),
     "R18": (57.0, 72.0, 0, "SWI"), "R6": (49.0, 80.5, 180, "SWI"),
     "R7": (54.0, 80.5, 0, "SWI"), "TP9": (58.5, 80.5, 0, "SWI"),
+    # SJ3/SJ4 are NOT free to move: each one's 0.3 mm gap must straddle the
+    # ISO_BARRIER east edge (x = 40.8) with pad 2 inside and pad 1 outside,
+    # so they are pinned in FIXED rather than seeded here.
     "R21": (49.0, 87.5, 0, "SWI"), "LED4": (54.0, 87.5, 0, "SWI"),
     "R22": (58.5, 87.5, 0, "SWI"), "R19": (52.0, 92.5, 180, "SWI"),
     "R20": (57.0, 92.5, 0, "SWI"), "TP10": (44.5, 94.5, 0, "SWI"),

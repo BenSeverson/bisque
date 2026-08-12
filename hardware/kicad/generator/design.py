@@ -20,6 +20,9 @@ the full as-built table with module pin numbers and net names:
     SJ2 ("WDT DEFEAT") shorts the gate MOSFET for bring-up before the
     firmware kick task exists.
   J11: IN1(lid)=4 IN2(gas flow)=2 IN3(spare)=1
+  SSR supply links: SJ3 (SSR1_A) and SJ4 (SSR2_A) tie that channel's opto
+    collector to board +5V. SHIPPED OPEN - closing one gives up that
+    channel's isolation. See the SJ3 comment for the barrier geometry.
 
 J7's pins 5-8 carried VENT/(unconnected)/AUX_A/AUX_B through Task 10, all
 either dangling single-pin nets or declared-but-undriven — nothing on this
@@ -383,6 +386,28 @@ COMPONENTS = {
     "J4": dict(lib="Connector", sym="Screw_Terminal_01x02",
                fp=TBLOCK[0], fpf=TBLOCK[1], value="SSR1", at=(26.0, 75.5, 270),
                pins={"1": "SSR1_A", "2": "SSR1_B"}),
+    # Per-channel supply link, spec 5.1 / README "SSR drive x2": ties the
+    # opto's collector to board +5V for anyone who wants rev A's
+    # non-isolated convenience (drive an SSR straight off board power, no
+    # separate control supply). SHIPPED OPEN - closing it gives up that
+    # channel's isolation, which is why it is a solder jumper and not a
+    # header, and why gen_pcb.SILK prints "SSR1 5V" beside it.
+    #
+    # Placement is deliberate: pad 2 (SSR1_A) sits INSIDE the ISO_BARRIER
+    # rectangle and pad 1 (+5V) OUTSIDE it, with the jumper's own 0.3 mm
+    # gap straddling x = 40.8, the barrier's east edge (rot 180 puts pad 2
+    # west). So no non-isolated copper enters the band and no isolated
+    # copper leaves it; the *only* thing bridging the barrier here is the
+    # unsoldered gap the user would have to deliberately fill. That gap is
+    # 0.3 mm rather than the band's 1.12 mm, and it is the isolation
+    # distance at this point - acceptable because the whole barrier is a
+    # SELV-to-SELV noise barrier (see ISO_BARRIER in gen_pcb.py), not a
+    # mains one, and because the feature exists precisely to be closed.
+    "SJ3": dict(lib="Jumper", sym="SolderJumper_2_Open",
+                fp="Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",
+                fpf="SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm.kicad_mod",
+                value="SSR1_A=5V", at=(40.8, 84.0, 180),
+                pins={"1": "+5V", "2": "SSR1_A"}),
     # --- SSR channel 2: exact copy of channel 1, 8mm south -----------------
     "U9": dict(lib="Isolator", sym="LTV-817",
                fp="Package_DIP:SMDIP-4_W9.53mm",
@@ -408,6 +433,13 @@ COMPONENTS = {
     "J9": dict(lib="Connector", sym="Screw_Terminal_01x02",
                fp=TBLOCK[0], fpf=TBLOCK[1], value="SSR2", at=(26.0, 88.0, 270),
                pins={"1": "SSR2_A", "2": "SSR2_B"}),
+    # Channel 2's copy of SJ3 - see the comment there for the geometry and
+    # why a jumper is allowed to straddle the isolation barrier at all.
+    "SJ4": dict(lib="Jumper", sym="SolderJumper_2_Open",
+                fp="Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",
+                fpf="SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm.kicad_mod",
+                value="SSR2_A=5V", at=(40.8, 94.3, 180),
+                pins={"1": "+5V", "2": "SSR2_A"}),
     # --- Hardware watchdog (Task 12) ---------------------------------------
     # WDT_KICK (U1.29, a firmware square wave) drives a diode charge pump;
     # the hold node keeps Q3 enhanced, and Q3's drain IS the SSR_EN net - the

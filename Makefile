@@ -33,7 +33,7 @@ IDF         := . ./scripts/idf-env.sh &&
         clang-tidy cppcheck \
         size size-firmware size-spiffs \
         ci ci-firmware clean \
-        pcb pcb-check
+        pcb pcb-build pcb-fab pcb-render pcb-check
 
 help:  ## List available targets
 	@awk 'BEGIN{FS=":.*## "} /^[a-z][a-zA-Z0-9_-]*:.*## / {printf "  \033[1m%-15s\033[0m %s\n",$$1,$$2}' $(MAKEFILE_LIST)
@@ -214,23 +214,80 @@ size: size-firmware size-spiffs  ## Both partition size checks
 ## ──────────────────────────────────────────────────────────────────────
 
 KICAD_DIR := hardware/kicad
-KPY       := /Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3
+
+# KiCad's Python — the one that can `import pcbnew`. Resolved inside the
+# recipe, not baked in at parse time, because the answer differs per host:
+# the Linux devcontainer (docs/devcontainer.md) has pcbnew on the *system*
+# python3, macOS has it only inside the KiCad.app bundle. Hardcoding the
+# bundle path made `make pcb` / `make pcb-check` fail in the container even
+# though pcbnew was installed and importable. `KPY=... make pcb` still wins.
+KPY_CANDIDATES = python3 \
+  /Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3 \
+  /usr/bin/python3 /usr/local/bin/python3
+define find_kpy
+KPY="$${KPY:-$$(for p in $(KPY_CANDIDATES); do \
+	  "$$p" -c 'import pcbnew' >/dev/null 2>&1 && { echo "$$p"; break; }; \
+	done)}"; \
+if [ -z "$$KPY" ]; then \
+	echo "error: no Python with 'import pcbnew' found. Install KiCad 10+, or" >&2; \
+	echo "       run in the devcontainer (docs/devcontainer.md), or set KPY=..." >&2; \
+	echo "       tried: $(KPY_CANDIDATES)" >&2; \
+	exit 1; \
+fi
+endef
+
+# The gerber layer set JLCPCB needs. In1.Cu/In2.Cu are NOT optional: this is
+# a 4-layer board and a package without them fabricates as 2-layer, with
+# every ground and power connection missing.
+GERBER_LAYERS := F.Cu,In1.Cu,In2.Cu,B.Cu,F.Paste,B.Paste,F.Silkscreen,B.Silkscreen,F.Mask,B.Mask,Edge.Cuts
 
 pcb-check:  ## Run every PCB checker (no KiCad rebuild)
+	@$(find_kpy); \
 	cd $(KICAD_DIR) && python3 generator/check_pinmap.py \
 	  && python3 generator/check_isolation.py \
+	  && python3 generator/check_sch_bounds.py bisque-controller.kicad_sch \
 	  && python3 generator/check_netlist.py bisque-controller.kicad_sch \
 	  && python3 generator/check_pcb.py bisque-controller.kicad_pcb \
 	  && python3 generator/check_drill_clearance.py bisque-controller.kicad_pcb \
 	  && python3 generator/check_canonical.py bisque-controller.kicad_pcb \
-	  && "$(KPY)" generator/check_via_in_pad.py bisque-controller.kicad_pcb \
-	  && "$(KPY)" generator/check_placement.py
+	  && "$$KPY" generator/check_via_in_pad.py bisque-controller.kicad_pcb \
+	  && "$$KPY" generator/check_placement.py
 
-pcb:  ## Regenerate schematic + board + fab outputs from design.py
-	cd $(KICAD_DIR) && python3 generator/gen_sch.py bisque-controller.kicad_sch \
-	  && "$(KPY)" generator/kicad_build.py bisque-controller.kicad_pcb \
-	  && "$(KPY)" generator/check_via_in_pad.py bisque-controller.kicad_pcb
+pcb: pcb-build pcb-fab  ## Regenerate schematic + board + fab outputs from design.py
 	$(MAKE) pcb-check
+
+pcb-build:  ## Regenerate schematic + board only (no fab outputs)
+	@$(find_kpy); \
+	cd $(KICAD_DIR) && python3 generator/gen_sch.py bisque-controller.kicad_sch \
+	  && "$$KPY" generator/kicad_build.py bisque-controller.kicad_pcb \
+	  && "$$KPY" generator/check_via_in_pad.py bisque-controller.kicad_pcb
+
+# Everything a fab order reads. Runs AFTER pcb-build: kicad_build.py ends
+# with a `kicad-cli pcb drc --refill-zones` pass, and exporting before that
+# bakes a stale pour into gerbers/. Stale gerbers are deleted rather than
+# overwritten so a layer that stops being exported cannot linger in the zip.
+# The 3D raytrace is deliberately NOT here — see pcb-render.
+pcb-fab:  ## Regenerate gerbers, drill, BOM/CPL, PDFs and the board SVG
+	cd $(KICAD_DIR) \
+	  && rm -f gerbers/*.gbr gerbers/*.drl gerbers/*.gbrjob \
+	  && kicad-cli pcb export gerbers -o gerbers/ --layers "$(GERBER_LAYERS)" \
+	       bisque-controller.kicad_pcb \
+	  && kicad-cli pcb export drill -o gerbers/ --format excellon \
+	       --excellon-units mm --excellon-zeros-format decimal --generate-map \
+	       --map-format gerberx2 --gerber-precision 5 bisque-controller.kicad_pcb \
+	  && python3 generator/gen_jlc.py jlcpcb \
+	  && kicad-cli sch export pdf -o pdf/bisque-controller-schematic.pdf \
+	       bisque-controller.kicad_sch \
+	  && kicad-cli pcb export pdf --mode-single \
+	       -l "F.Cu,In1.Cu,In2.Cu,B.Cu,F.Silkscreen,Edge.Cuts" \
+	       -o pdf/bisque-controller-board.pdf bisque-controller.kicad_pcb \
+	  && python3 generator/render_pcb.py bisque-controller.kicad_pcb preview-board.svg
+
+# Split out of `pcb` because it is a minutes-long raytrace and nothing in a
+# fab order depends on it — 3d/ is documentation. Regenerate it by hand when
+# the board's appearance changes.
+pcb-render:  ## Re-raytrace hardware/kicad/3d/ (slow; not part of `make pcb`)
+	cd $(KICAD_DIR) && ./generator/render-3d.sh
 
 ## ──────────────────────────────────────────────────────────────────────
 ## Aggregates

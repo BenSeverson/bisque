@@ -1,10 +1,10 @@
 (kicad_sch (version 20260306) (generator "eeschema") (generator_version "10.0")
 	(uuid f24e0cd2-71c5-510c-9d15-562ab64c4388)
-	(paper "A3")
+	(paper "A1")
 	(title_block
 		(title "Bisque Kiln Controller")
 		(date "2026-07-20")
-		(rev "A")
+		(rev "B")
 		(company "Bisque project")
 		(comment 1 "ESP32-S3-WROOM-1U-N16R2 + 2x MAX31856 + dual SSR + ADE7953")
 		(comment 2 "4-layer, 100 x 100 mm, JLCPCB standard process")
@@ -4136,6 +4136,186 @@
 		)
 		(embedded_fonts no)
 	)
+		(symbol "Jumper:SolderJumper_2_Open"
+		(pin_numbers
+			(hide yes)
+		)
+		(pin_names
+			(offset 0)
+			(hide yes)
+		)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(property "Reference" "JP"
+			(at 0 2.032 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "SolderJumper_2_Open"
+			(at 0 -2.54 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 -7.62 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Solder Jumper, 2-pole, open"
+			(at 0 -5.08 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_keywords" "solder jumper SPST"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_fp_filters" "SolderJumper*Open*"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(symbol "SolderJumper_2_Open_0_1"
+			(polyline
+				(pts
+					(xy -0.254 1.016)
+					(xy -0.254 -1.016)
+				)
+				(stroke
+					(width 0.1524)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(arc
+				(start -0.254 -1.016)
+				(mid -1.2656 0)
+				(end -0.254 1.016)
+				(stroke
+					(width 0.1524)
+					(type default)
+				)
+				(fill
+					(type outline)
+				)
+			)
+			(arc
+				(start 0.254 1.016)
+				(mid 1.2656 0)
+				(end 0.254 -1.016)
+				(stroke
+					(width 0.1524)
+					(type default)
+				)
+				(fill
+					(type outline)
+				)
+			)
+			(polyline
+				(pts
+					(xy 0.254 1.016)
+					(xy 0.254 -1.016)
+				)
+				(stroke
+					(width 0.1524)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+		)
+		(symbol "SolderJumper_2_Open_1_1"
+			(pin passive line
+				(at -5.08 0 0)
+				(length 3.81)
+				(name "A"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin passive line
+				(at 5.08 0 180)
+				(length 3.81)
+				(name "B"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+		)
+		(embedded_fonts no)
+	)
 		(symbol "Diode:BAT54S"
 		(pin_names
 			(offset 0)
@@ -4816,186 +4996,6 @@
 					)
 				)
 				(number "3"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-		)
-		(embedded_fonts no)
-	)
-		(symbol "Jumper:SolderJumper_2_Open"
-		(pin_numbers
-			(hide yes)
-		)
-		(pin_names
-			(offset 0)
-			(hide yes)
-		)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board yes)
-		(in_pos_files yes)
-		(duplicate_pin_numbers_are_jumpers no)
-		(property "Reference" "JP"
-			(at 0 2.032 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "SolderJumper_2_Open"
-			(at 0 -2.54 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 0 0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 -7.62 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Solder Jumper, 2-pole, open"
-			(at 0 -5.08 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "ki_keywords" "solder jumper SPST"
-			(at 0 0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "ki_fp_filters" "SolderJumper*Open*"
-			(at 0 0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(symbol "SolderJumper_2_Open_0_1"
-			(polyline
-				(pts
-					(xy -0.254 1.016)
-					(xy -0.254 -1.016)
-				)
-				(stroke
-					(width 0.1524)
-					(type default)
-				)
-				(fill
-					(type none)
-				)
-			)
-			(arc
-				(start -0.254 -1.016)
-				(mid -1.2656 0)
-				(end -0.254 1.016)
-				(stroke
-					(width 0.1524)
-					(type default)
-				)
-				(fill
-					(type outline)
-				)
-			)
-			(arc
-				(start 0.254 1.016)
-				(mid 1.2656 0)
-				(end 0.254 -1.016)
-				(stroke
-					(width 0.1524)
-					(type default)
-				)
-				(fill
-					(type outline)
-				)
-			)
-			(polyline
-				(pts
-					(xy 0.254 1.016)
-					(xy 0.254 -1.016)
-				)
-				(stroke
-					(width 0.1524)
-					(type default)
-				)
-				(fill
-					(type none)
-				)
-			)
-		)
-		(symbol "SolderJumper_2_Open_1_1"
-			(pin passive line
-				(at -5.08 0 0)
-				(length 3.81)
-				(name "A"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "1"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin passive line
-				(at 5.08 0 180)
-				(length 3.81)
-				(name "B"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "2"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -12755,6 +12755,50 @@
 			(effects (font (size 1.27 1.27)) hide)
 		)
 	)
+	(symbol (lib_id "Jumper:SolderJumper_2_Open") (at 386.08 154.94 0) (unit 1)
+		(in_bom yes) (on_board yes) (dnp no)
+		(uuid c753523c-e190-5cbb-92d7-57ea59d31466)
+		(property "Reference" "SJ3" (at 381 151.13 0)
+			(effects (font (size 1.27 1.27)) (justify left))
+		)
+		(property "Value" "SSR1_A=5V" (at 381 153.03 0)
+			(effects (font (size 1.27 1.27)) (justify left))
+		)
+		(property "Footprint" "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm" (at 386.08 154.94 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(property "Datasheet" "" (at 386.08 154.94 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(property "Description" "Solder Jumper, 2-pole, open" (at 386.08 154.94 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(pin "1" (uuid 152b0283-bd68-5dd7-a968-00f195b3894e))
+		(pin "2" (uuid 702d7d6b-279b-5dfa-b3d0-585a3b3e8d16))
+		(instances (project "bisque-controller" (path "/f24e0cd2-71c5-510c-9d15-562ab64c4388" (reference "SJ3") (unit 1))))
+	)
+	(wire (pts (xy 381 154.94) (xy 378.46 154.94))
+		(stroke (width 0) (type default))
+		(uuid 339ec812-6eda-5c75-92ad-2fea8a86a565)
+	)
+	(global_label "+5V" (shape passive) (at 378.46 154.94 180)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid d7492dd0-cebf-5258-8476-293a544a9e6d)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 378.46 154.94 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(wire (pts (xy 391.16 154.94) (xy 393.7 154.94))
+		(stroke (width 0) (type default))
+		(uuid 532407b4-ab9e-515d-a23f-c21d0509e9e0)
+	)
+	(global_label "SSR1_A" (shape passive) (at 393.7 154.94 0)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid dd448c8d-39b7-5a7d-95b9-dff627a6615f)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 393.7 154.94 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
 	(symbol (lib_id "Isolator:LTV-817") (at 213.36 177.8 0) (unit 1)
 		(in_bom yes) (on_board yes) (dnp no)
 		(uuid f88e2e42-69a3-5246-81f0-267993ac7d2c)
@@ -13084,6 +13128,50 @@
 		(effects (font (size 1.27 1.27)) (justify right))
 		(uuid 4cd7fb54-1841-589d-87fb-e033ade789cd)
 		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 351.79 180.34 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(symbol (lib_id "Jumper:SolderJumper_2_Open") (at 388.62 177.8 0) (unit 1)
+		(in_bom yes) (on_board yes) (dnp no)
+		(uuid 4f1873a7-4014-5772-be16-7066db895e2b)
+		(property "Reference" "SJ4" (at 383.54 173.99 0)
+			(effects (font (size 1.27 1.27)) (justify left))
+		)
+		(property "Value" "SSR2_A=5V" (at 383.54 175.89 0)
+			(effects (font (size 1.27 1.27)) (justify left))
+		)
+		(property "Footprint" "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm" (at 388.62 177.8 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(property "Datasheet" "" (at 388.62 177.8 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(property "Description" "Solder Jumper, 2-pole, open" (at 388.62 177.8 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+		(pin "1" (uuid 6a5bd24b-08d8-59fc-9058-a3b1eb4d091a))
+		(pin "2" (uuid 7849ac8d-b2b7-5687-ae92-d63fe5429a6e))
+		(instances (project "bisque-controller" (path "/f24e0cd2-71c5-510c-9d15-562ab64c4388" (reference "SJ4") (unit 1))))
+	)
+	(wire (pts (xy 383.54 177.8) (xy 381 177.8))
+		(stroke (width 0) (type default))
+		(uuid 48c57e58-886a-5eb5-95bd-916bef4f10cf)
+	)
+	(global_label "+5V" (shape passive) (at 381 177.8 180)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid e26f3a0b-d9bb-58d9-9256-85d42e840976)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 381 177.8 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
+	)
+	(wire (pts (xy 393.7 177.8) (xy 396.24 177.8))
+		(stroke (width 0) (type default))
+		(uuid f17cd155-6566-54b7-ad06-257e2e35baec)
+	)
+	(global_label "SSR2_A" (shape passive) (at 396.24 177.8 0)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid 41479602-870c-5de2-9e98-c4445f94352c)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 396.24 177.8 0)
 			(effects (font (size 1.27 1.27)) hide)
 		)
 	)
@@ -17769,7 +17857,7 @@
 		(effects (font (size 2 2) bold) (justify left))
 		(uuid d99640c9-ee6d-540c-a9b5-cdb77e6c0793)
 	)
-	(text "Bisque kiln controller  -  ESP32-S3-WROOM-1\nSSR terminals J4/J9: opto-isolated (LTV-817S), boot-safe (R7/R20 pulldown).\nSSR1_A/B, SSR2_A/B float - no GND/+3V3/+5V on the isolated side.\nSSR_EN is the shared opto+indicator cathode return, gated by the watchdog.\nTC1 terminal J3 / TC2 terminal J8: pin1 = K+, pin2 = K- - both float, biased near\nAGND only through each MAX31856's internal BIAS network. Ungrounded-junction\nprobes required: two grounded-junction probes in one kiln would loop through it.\nNav switch J6 is panel-mounted; inputs use ESP32 internal pull-ups\nJ11: IN1/IN2/IN3 (lid/gas-flow/spare) + GND - dry contact each channel to GND\nDisplay J5 pinout: 3V3 GND CS RST DC MOSI SCK BL (ST7796S SPI module)\nJ12: CT current inputs, CTA_P/CTA_N/CTB_P/CTB_N - one CT clamp per SSR zone.\nJ13: DNP SELV voltage sense header. NOT mains-rated, not fitted - do not wire\n  to AC mains. Y1/C25/C26 load caps are an ASSUMED value (unverified C_L),\n  see design.py comment. ADE7953 I2C address 0x38 collides with PCF8574A." (at 25 281 0)
+	(text "Bisque kiln controller  -  ESP32-S3-WROOM-1U-N16R2 (rev B)\nSSR terminals J4/J9: opto-isolated (LTV-817S), boot-safe (R7/R20 pulldown).\nSSR1_A/B, SSR2_A/B float - no GND/+3V3/+5V on the isolated side. SJ3/SJ4\n  are per-channel solder links to +5V, SHIPPED OPEN: closing one sources the\n  SSR1/SSR2 collector from board +5V and gives up that channel's isolation.\nSSR_EN is the shared opto+indicator cathode return, gated by the watchdog.\nTC1 terminal J3 / TC2 terminal J8: pin1 = K+, pin2 = K- - both float, biased near\nAGND only through each MAX31856's internal BIAS network. Ungrounded-junction\nprobes required: two grounded-junction probes in one kiln would loop through it.\nNav switch J6 is panel-mounted; inputs use ESP32 internal pull-ups\nJ11: IN1/IN2/IN3 (lid/gas-flow/spare) + GND - dry contact each channel to GND\nDisplay J5 (14-pin, ST7796S + XPT2046 touch module - LCDWIKI MSP4021):\n  1=+5V 2=GND 3=CS 4=RST 5=DC 6=SDI/MOSI 7=SCK 8=BL 9=SDO/MISO\n  10=T_CLK 11=T_CS 12=T_DIN 13=T_DO 14=T_IRQ.  PIN 1 IS +5V, NOT 3V3 - the\n  module regulates on board; do not wire a 3.3V-only panel to it. Logic is\n  3.3V; touch shares SPI2 with the LCD and both MAX31856s (R39-R43 damping)\nJ12: CT current inputs, CTA_P/CTA_N/CTB_P/CTB_N - one CT clamp per SSR zone.\nJ13: DNP SELV voltage sense header. NOT mains-rated, not fitted - do not wire\n  to AC mains. Y1/C25/C26 load caps are an ASSUMED value (unverified C_L),\n  see design.py comment. ADE7953 I2C address 0x38 collides with PCF8574A." (at 25 281 0)
 		(effects (font (size 1.6 1.6)) (justify left))
 		(uuid dbadb58a-df2e-53a3-9b2b-6492fe215714)
 	)

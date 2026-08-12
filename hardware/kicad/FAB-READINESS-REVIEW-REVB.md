@@ -1,9 +1,12 @@
 # JLCPCB Fabrication Readiness Review — Rev B
 
-Board: `bisque-controller` — **4-layer**, 100 × 100 mm, 1.6 mm, 141 components
+Board: `bisque-controller` — **4-layer**, 100 × 100 mm, 1.6 mm, 143 components
 (109 machine-placed SMD across 41 BOM lines + 13 hand-fitted THT/wafer parts +
-4 mounting holes)
+4 mounting holes + 17 non-assembled features: 12 test pads, 4 solder jumpers,
+1 DNP header)
 Reviewed: 2026-08-11, against KiCad 10.0.5 and the Task 14 board build.
+Re-reviewed: 2026-08-12, after the PR #301 fix wave (schematic sheet size +
+`SJ3`/`SJ4`) — see "PR #301 review round" below.
 Status: **ready to order, bare or assembled**, subject to the sourcing flag
 in "Open items" below.
 
@@ -34,9 +37,10 @@ order, not before this review, is the CT burden resistor's stock level (see
 - **0 DRC errors**
 - **0 unconnected pads**
 - **0 footprint errors**
-- **102 warnings, all silkscreen** (2 `silk_edge_clearance`, 24
-  `silk_over_copper`, 76 `silk_overlap`) — same category and same order of
-  magnitude as rev A's silkscreen-only warning set; nothing new in kind.
+- **111 warnings, all silkscreen** (2 `silk_edge_clearance`, 26
+  `silk_over_copper`, 83 `silk_overlap`) — same category and same order of
+  magnitude as rev A's silkscreen-only warning set; nothing new in kind. Was
+  102 before `SJ3`/`SJ4` and their four silk labels landed.
 
 Independent checks beyond KiCad's own DRC, all passing:
 
@@ -44,8 +48,9 @@ Independent checks beyond KiCad's own DRC, all passing:
 |---|---|
 | `check_pinmap.py` (design.py ↔ Kconfig) | 29 GPIO assignments agree |
 | `check_isolation.py` (opto barrier, all 4 copper layers) | 4 isolated nets, barrier intact |
+| `check_sch_bounds.py` (nothing off the declared sheet) | all placed items inside A1 |
 | `check_netlist.py` (schematic round-trip) | 96 nets compared, 0 mismatches |
-| `check_pcb.py` (independent connectivity) | 2332 copper items checked, ALL CHECKS PASS |
+| `check_pcb.py` (independent connectivity) | 2346 copper items checked, ALL CHECKS PASS |
 | `check_via_in_pad.py` | PASS |
 | `check_canonical.py` (reproducibility) | PASS — rebuild is byte-identical |
 
@@ -131,6 +136,66 @@ bank, the LTV-817S optocouplers, and the SRV05-4 TVS arrays as a *category*
 — landed at zero feeder cost by being Basic parts; the increase over rev A's
 4/$12 is concentrated in the analog/sensing front end and the CT protection
 components, not in the parts the spec anticipated.
+
+## PR #301 review round — the clipped schematic
+
+A review of PR #301 found a fab-package defect that every gate in this
+document had missed, and it is worth recording *why* it was missed.
+
+**What was wrong.** `gen_sch.py` declared `(paper "A3")` — 420 × 297 mm —
+while `SCH_AT` spread the rev B blocks over roughly 565 × 522 mm. Fifty of
+the 143 designators fell outside the media box, including the entire ADE7953
+CT front-end, the ULN2003 aux bank, and the touch, watchdog and test-point
+rows. `pdf/bisque-controller-schematic.pdf` is a fab deliverable and the
+artifact a human actually reviews, and roughly 40% of the circuit was simply
+not in it. Measured: the old PDF carried 93 designators, the A1 one carries
+142.
+
+**Why nothing caught it.** Every checker in `generator/` validates
+*connectivity* — `check_netlist.py`, `check_pcb.py`, `check_isolation.py`,
+`check_pinmap.py`. Connectivity is complete no matter where a symbol sits on
+a page, so all of them stayed green on a schematic that could not be read.
+This is the same shape of blind spot as the 0.078 mm drill web recorded
+below: a whole class of defect that no existing check could express, rather
+than a check that was wrong.
+
+**Fixed.** The sheet is now **A1** (841 × 594 mm). A2 (594 × 420) was
+rejected — it is about 100 mm too short in y for the content. A1 is a
+standard KiCad paper size, so no `User` dimensions have to survive a round
+trip through anyone's plot dialog, and it leaves margin for another block
+without a second page change.
+
+**Guarded.** `generator/check_sch_bounds.py` parses the generated schematic,
+reads whatever `(paper …)` it declares, and fails if any placed item —
+symbol, global label, free text, wire endpoint — falls outside it, allowing
+a 10 mm frame border plus 25 mm of label reach on the max sides. It was run
+against the A3 declaration first and reported 547 off-sheet items across 62
+designators; on A1 it reports none. It runs in `make pcb-check`.
+
+**Also in that round:** `make pcb` was documented as regenerating "fab
+outputs" and ran no export step at all, so it could succeed while leaving
+the committed gerbers, BOM, CPL and PDFs describing the previous board. It
+now runs `pcb-build` → `pcb-fab` → `pcb-check`, with the gerber layer list
+pinned to include `In1.Cu,In2.Cu` (a package without them fabricates as
+2-layer with every ground and power connection missing) and stale gerbers
+deleted before re-export. The minutes-long 3D raytrace moved to its own
+`make pcb-render`; nothing in a fab order reads `3d/`.
+
+**And `SJ3`/`SJ4` now exist.** The spec (§5.1) and this board's README both
+promised a per-channel solder jumper tying the opto collector to board +5 V,
+open by default. It had never been implemented. It is now: two open
+`SolderJumper-2_P1.3mm` parts, non-assembled (populated with solder, absent
+from BOM/CPL/hand-solder list), silkscreened `SSRn 5V` / `OPEN=ISO`. Each is
+placed so its own 0.3 mm gap straddles the `ISO_BARRIER` east edge — pad 2
+(`SSRn_A`) inside the band, pad 1 (`+5V`) outside — so no non-isolated
+copper enters the barrier and no isolated copper leaves it, and the only
+thing bridging the barrier on a shipped board is solder a user deliberately
+adds. `check_isolation.py` lists those two pins as exact permitted endpoints
+and additionally asserts the exemption is not stale; it remains a
+set-equality test, so any *other* stray connection on an isolated net still
+fails. Note for anyone closing one: the isolation distance at a closed
+jumper is that 0.3 mm gap, not the band's 1.12 mm. This is a SELV-to-SELV
+noise barrier, not a mains one.
 
 ## Open items
 

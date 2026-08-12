@@ -318,7 +318,9 @@ control supply; rejected as an unnecessary constraint.)
 
 Output side floats on a 2-pin screw terminal per channel. A per-channel **solder
 jumper** ties the opto collector to board +5 V for anyone who wants rev A's
-convenience; default open = isolated, silkscreened as such.
+convenience; default open = isolated, silkscreened as such. (As built: `SJ3`
+zone 1, `SJ4` zone 2, each placed so its own 0.3 mm gap straddles the
+isolation band's east edge — pad 2 `SSRn_A` inside, pad 1 `+5V` outside.)
 
 **Cadence:** SSR2 is driven from the 100 ms `ssr_window_apply()` window, not the
 1 Hz firing tick, exactly as `pin-assignments.md` §5 argues. Zone 2 modulates

@@ -62,8 +62,13 @@ SCH_AT = {
     # ssr rows (right) - two opto-isolated channels, ch2 8mm south of ch1
     "U8": (210, 155), "R6": (240, 153), "R7": (266, 157), "LED3": (296, 153),
     "R10": (296, 163), "R18": (326, 157), "J4": (356, 155),
+    # SJ3/SJ4: the per-channel "+5V -> opto collector" solder links. East of
+    # their own terminal, >=20mm clear of every neighbour (the pin-label-stub
+    # merge hazard the SSR/aux rows document above).
+    "SJ3": (386, 155),
     "U9": (213, 178), "R19": (243, 176), "R20": (269, 180), "LED4": (299, 176),
     "R21": (299, 186), "R22": (329, 180), "J9": (359, 178),
+    "SJ4": (389, 178),
     # aux output bank (vent/purge/spare) - own row, clear of everything else.
     # Device:R symbols need >12.7mm vertical spacing when stacked at the same
     # x: each pin's label stub extends 2.54mm past the pin (at +-3.81mm from
@@ -162,16 +167,22 @@ GROUP_TEXT = [
 ]
 
 NOTES = (
-    "Bisque kiln controller  -  ESP32-S3-WROOM-1\\n"
+    "Bisque kiln controller  -  ESP32-S3-WROOM-1U-N16R2 (rev B)\\n"
     "SSR terminals J4/J9: opto-isolated (LTV-817S), boot-safe (R7/R20 pulldown).\\n"
-    "SSR1_A/B, SSR2_A/B float - no GND/+3V3/+5V on the isolated side.\\n"
+    "SSR1_A/B, SSR2_A/B float - no GND/+3V3/+5V on the isolated side. SJ3/SJ4\\n"
+    "  are per-channel solder links to +5V, SHIPPED OPEN: closing one sources the\\n"
+    "  SSR1/SSR2 collector from board +5V and gives up that channel's isolation.\\n"
     "SSR_EN is the shared opto+indicator cathode return, gated by the watchdog.\\n"
     "TC1 terminal J3 / TC2 terminal J8: pin1 = K+, pin2 = K- - both float, biased near\\n"
     "AGND only through each MAX31856's internal BIAS network. Ungrounded-junction\\n"
     "probes required: two grounded-junction probes in one kiln would loop through it.\\n"
     "Nav switch J6 is panel-mounted; inputs use ESP32 internal pull-ups\\n"
     "J11: IN1/IN2/IN3 (lid/gas-flow/spare) + GND - dry contact each channel to GND\\n"
-    "Display J5 pinout: 3V3 GND CS RST DC MOSI SCK BL (ST7796S SPI module)\\n"
+    "Display J5 (14-pin, ST7796S + XPT2046 touch module - LCDWIKI MSP4021):\\n"
+    "  1=+5V 2=GND 3=CS 4=RST 5=DC 6=SDI/MOSI 7=SCK 8=BL 9=SDO/MISO\\n"
+    "  10=T_CLK 11=T_CS 12=T_DIN 13=T_DO 14=T_IRQ.  PIN 1 IS +5V, NOT 3V3 - the\\n"
+    "  module regulates on board; do not wire a 3.3V-only panel to it. Logic is\\n"
+    "  3.3V; touch shares SPI2 with the LCD and both MAX31856s (R39-R43 damping)\\n"
     "J12: CT current inputs, CTA_P/CTA_N/CTB_P/CTB_N - one CT clamp per SSR zone.\\n"
     "J13: DNP SELV voltage sense header. NOT mains-rated, not fitted - do not wire\\n"
     "  to AC mains. Y1/C25/C26 load caps are an ASSUMED value (unverified C_L),\\n"
@@ -348,9 +359,16 @@ def main():
     out = []
     out.append('(kicad_sch (version 20260306) (generator "eeschema") (generator_version "10.0")')
     out.append('\t(uuid %s)' % ROOT)
-    out.append('\t(paper "A3")')
+    # A1 (841 x 594 mm), not A3. SCH_AT spreads the rev B blocks over roughly
+    # 565 x 522 mm of sheet - the ADE7953, ULN2003, touch, watchdog and
+    # test-point rows all live well past A3's 420 x 297 mm, and A2's 594 x 420
+    # is still 100 mm too short in y. On A3 the exported PDF silently clipped
+    # about 40% of the circuit while every connectivity checker stayed green;
+    # check_sch_bounds.py now fails on any item that falls outside whatever
+    # this line declares.
+    out.append('\t(paper "A1")')
     out.append('\t(title_block\n\t\t(title "Bisque Kiln Controller")\n'
-               '\t\t(date "2026-07-20")\n\t\t(rev "A")\n'
+               '\t\t(date "2026-07-20")\n\t\t(rev "B")\n'
                '\t\t(company "Bisque project")\n'
                '\t\t(comment 1 "ESP32-S3-WROOM-1U-N16R2 + 2x MAX31856 + dual SSR + ADE7953")\n'
                '\t\t(comment 2 "4-layer, 100 x 100 mm, JLCPCB standard process")\n\t)')

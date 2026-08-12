@@ -28,11 +28,11 @@ table — 96 nets, 0 mismatches). The 3D renders in `3d/` are raytraced by
 | File | What it is |
 |---|---|
 | `bisque-controller.kicad_pro` | Project (net classes: 0.3 mm signal / 0.7–0.8 mm power, 0.25 mm only on the short fine-pitch escape stubs off the QFN/TSSOP pads) |
-| `bisque-controller.kicad_sch` | Schematic (A3, netlist-style: functional groups + global labels) |
+| `bisque-controller.kicad_sch` | Schematic (A1, netlist-style: functional groups + global labels). A1, not A3: the rev B blocks span ~565 x 522 mm and an A3 declaration silently clipped ~40% of the circuit out of the exported PDF while every connectivity checker stayed green — `generator/check_sch_bounds.py` now fails on any off-sheet item |
 | `bisque-controller.kicad_pcb` | Board: placed, fully routed, 4 layers (F.Cu/B.Cu signals, In1.Cu GND plane, In2.Cu +3V3 plane) |
 | `preview-board.svg` | Quick visual of placement + routing |
 | `3d/board-3d-*.png` | Raytraced renders, kicad-cli (iso / front / top / underside) |
-| `bisque-controller-drc.rpt` | KiCad DRC report (0 errors, 0 unconnected; 102 warnings are all silkscreen) |
+| `bisque-controller-drc.rpt` | KiCad DRC report (0 errors, 0 unconnected; 111 warnings are all silkscreen) |
 | `gerbers/` | Fabrication outputs (kicad-cli: F.Cu, B.Cu, **In1.Cu, In2.Cu**, paste/silk/mask, Edge.Cuts, Excellon drill + job file) |
 | `pdf/` | Schematic and board PDFs (kicad-cli) |
 | `jlcpcb/` | Assembly BOM + CPL for JLCPCB, plus the hand-solder shopping list |
@@ -104,8 +104,14 @@ was generated from them).
   switch: the gain is ground-loop and surge immunity on wiring that runs
   beside mains out to the kiln, not mains safety — the control loop is
   low-voltage on both sides of the barrier either way. A per-channel solder
-  jumper (silkscreened, open by default) can tie the opto collector to
-  board +5V for anyone who wants rev A's non-isolated convenience instead.
+  jumper — **`SJ3`** (zone 1) and **`SJ4`** (zone 2), silkscreened
+  `SSRn 5V / OPEN=ISO` and **open as fabricated** — ties that channel's opto
+  collector to board +5V for anyone who wants rev A's non-isolated
+  convenience instead. Each jumper is placed so its own 0.3 mm gap straddles
+  the isolation band's east edge: pad 2 (`SSRn_A`) sits inside the band, pad
+  1 (`+5V`) outside it, so the only thing bridging the barrier on a shipped
+  board is solder the user deliberately adds. `check_isolation.py` lists
+  those two pins as exact permitted endpoints rather than relaxing the test.
   (The SSRs themselves and all mains wiring stay outside this board.)
 
   **Hardware watchdog (`SJ2`, "WDT DEFEAT").** `SSR_EN` — the shared return
@@ -279,7 +285,7 @@ lines covering 109 machine-placed parts) plus `jlcpcb/hand-solder-parts.csv`
 | BZ1 | active buzzer 5 V | 12 mm THT, 7.6 mm pitch |
 | SW1, SW2 | XKB TS-1187A tactile switch | 5.1 × 5.1 mm SMD |
 | H1–H4 | M3 mounting hole, grounded, 90 × 90 mm grid | — |
-| SJ1, SJ2 | Open solder jumpers (`AUX_VP←+5V`, `WDT DEFEAT`) | populated with solder, not a part |
+| SJ1–SJ4 | Open solder jumpers (`AUX_VP←+5V`, `WDT DEFEAT`, `SSR1_A←+5V`, `SSR2_A←+5V`) | populated with solder, not a part |
 | TP1–TP12 | 1 mm bring-up test pads | bare copper, no BOM cost |
 
 **Off-BOM accessories (not in `jlcpcb/`, buy separately):** a U.FL → SMA
@@ -409,8 +415,11 @@ components, pin→net connectivity and placements — so schematic and board
 can never disagree. Requires **KiCad 10+** (pcbnew Python module +
 kicad-cli + standard libraries) — the project's `.devcontainer/` (see
 `docs/devcontainer.md`) bakes this in, as an alternative to installing
-KiCad natively. On macOS run the board build with KiCad's bundled Python:
-`KPY=/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3`
+KiCad natively. The Makefile finds KiCad's Python itself: it tries `python3`
+first (which is where the devcontainer has `pcbnew`), then the macOS
+`KiCad.app` bundle, and takes the first interpreter that can `import pcbnew`.
+Set `KPY=/path/to/python3` to override it; if none is found the error names
+every path it tried.
 
 The top-level `Makefile` wraps the common cases — `make pcb` regenerates
 everything and re-runs every checker; `make pcb-check` runs just the
@@ -418,8 +427,19 @@ checkers against what's already committed, without touching KiCad:
 
 ```bash
 make pcb          # regenerate schematic + board + fab outputs, then check
-make pcb-check    # check only: pinmap, isolation, netlist, connectivity, reproducibility
+make pcb-build    # schematic + board only (fast inner loop, no fab outputs)
+make pcb-fab      # gerbers, drill, BOM/CPL, PDFs, preview SVG — after pcb-build
+make pcb-check    # check only: pinmap, isolation, sheet bounds, netlist, connectivity, reproducibility
+make pcb-render   # 3d/board-3d-*.png raytrace — SLOW, deliberately not in `make pcb`
 ```
+
+`make pcb` = `pcb-build` + `pcb-fab` + `pcb-check`, in that order, so a
+board change and everything derived from it move together. The 3D raytrace
+is the one thing split out: it takes minutes, nothing in a fab order reads
+`3d/`, and it is regenerated by hand when the board's appearance changes.
+It used to be worse than a split — `make pcb` ran *no* export step at all,
+so it could succeed while leaving the committed gerbers, BOM, CPL and PDFs
+describing the previous board.
 
 Equivalently, by hand:
 
@@ -434,6 +454,11 @@ python3 generator/check_netlist.py bisque-controller.kicad_sch  # KiCad netlist 
                                                                 #   pour-island healing, KiCad DRC report
 python3 generator/check_pinmap.py                                # design.py <-> Kconfig agreement: PASS
 python3 generator/check_isolation.py                             # opto barrier unbridged, all 4 layers: PASS
+python3 generator/check_sch_bounds.py bisque-controller.kicad_sch  # nothing off the declared sheet: PASS
+                                                                #   (every other checker validates connectivity,
+                                                                #    which is complete no matter where a symbol
+                                                                #    sits — this is the one that notices the
+                                                                #    exported PDF is missing half the circuit)
 python3 generator/check_pcb.py bisque-controller.kicad_pcb      # independent checker: ALL CHECKS PASS
 "$KPY" generator/check_via_in_pad.py bisque-controller.kicad_pcb  # no via inside an SMD pad: PASS
 python3 generator/check_drill_clearance.py bisque-controller.kicad_pcb  # hole-to-hole >= 0.30 mm: OK

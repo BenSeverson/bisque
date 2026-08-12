@@ -840,6 +840,16 @@ SILK = [
     ("AUX OUT", 22.0, 47.0, 0, 0.9),
     ("SSR1", 22.0, 70.5, 0, 0.9),
     ("SSR2", 22.0, 83.0, 0, 0.9),
+    # SJ3/SJ4, the per-channel opto-collector-to-+5V links. Silkscreened so
+    # the isolation state of each channel is readable off the bare board:
+    # OPEN (as fabricated) = that channel is isolated; bridged = it is
+    # powered from board +5V and is not. Text sits east of each jumper,
+    # outside the isolation band, so it does not read as isolated-side
+    # marking. gr_text is centre-justified, hence the odd-looking anchors.
+    ("SSR1 5V", 46.4, 83.1, 0, 0.8),
+    ("OPEN=ISO", 46.4, 85.0, 0, 0.8),
+    ("SSR2 5V", 48.0, 92.2, 0, 0.8),
+    ("OPEN=ISO", 48.0, 94.1, 0, 0.8),
     ("TC1  K+/K-", 104.0, 31.0, 0, 0.9),
     ("TC2  K+/K-", 104.0, 58.5, 0, 0.9),
     ("CT A+/A-/B+/B-", 96.0, 76.0, 0, 0.9),
