@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   buildDiagnosticsBundle,
+  redactSettings,
+  REDACTED,
   diagnosticsFilename,
   hasAnySection,
   serializeDiagnosticsBundle,
@@ -27,6 +29,7 @@ const settings = {
   maxTemp: 1300,
   tempUnit: "C",
   apiTokenSet: true,
+  webhookUrl: "https://hooks.slack.com/services/T000/B000/XXXXsecretXXXX",
 } as unknown as KilnSettings;
 
 const log: DeviceLog = {
@@ -60,7 +63,7 @@ describe("buildDiagnosticsBundle", () => {
       href: "http://kiln.local/settings",
     });
     expect(bundle.system).toEqual(system);
-    expect(bundle.settings).toEqual(settings);
+    expect(bundle.settings).toEqual({ ...settings, webhookUrl: REDACTED });
     expect(bundle.log).toEqual(log);
     // No `errors` key at all when nothing failed — an empty object would read
     // as "something went wrong and nobody said what".
@@ -108,6 +111,45 @@ describe("buildDiagnosticsBundle", () => {
 
     expect(text).toContain("\n  ");
     expect(JSON.parse(text)).toEqual(bundle);
+  });
+});
+
+/**
+ * The bundle exists to be handed to someone else, so anything in it that can be
+ * *used* rather than merely read has to go. The firmware already reduces the
+ * API token to `apiTokenSet`; `webhookUrl` is the one credential GET /settings
+ * still returns in full, and for Slack, Discord, ntfy and IFTTT the URL is the
+ * credential.
+ */
+describe("redactSettings", () => {
+  it("replaces a configured webhook URL without hiding that one is configured", () => {
+    const redacted = redactSettings(settings);
+
+    expect(redacted.webhookUrl).toBe(REDACTED);
+    expect(JSON.stringify(redacted)).not.toContain("XXXXsecretXXXX");
+    // Everything else survives — this is a redaction, not a filter.
+    expect(redacted.tempUnit).toBe(settings.tempUnit);
+    expect(redacted.apiTokenSet).toBe(true);
+  });
+
+  it("leaves an unconfigured webhook empty rather than claiming one is set", () => {
+    expect(redactSettings({ ...settings, webhookUrl: "" }).webhookUrl).toBe("");
+  });
+
+  /**
+   * build_settings_json() never emits `apiToken`. Dropping it anyway is the
+   * defensive half: a firmware regression that started returning it must not
+   * find a path into a file people paste into bug reports.
+   */
+  it("drops an api token even though the firmware should never send one", () => {
+    const withToken = { ...settings, apiToken: "hunter2" } as KilnSettings;
+    expect(JSON.stringify(redactSettings(withToken))).not.toContain("hunter2");
+  });
+
+  it("does not mutate the response it was given", () => {
+    const original = { ...settings };
+    redactSettings(settings);
+    expect(settings).toEqual(original);
   });
 });
 

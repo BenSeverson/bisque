@@ -139,7 +139,9 @@ beforeEach(() => {
     statusObserved: false,
   });
 
-  apiMock.getSettings.mockResolvedValue(settings());
+  apiMock.getSettings.mockResolvedValue(
+    settings({ webhookUrl: "https://hooks.slack.com/services/T000/B000/XXXXsecretXXXX" }),
+  );
   apiMock.saveSettings.mockResolvedValue({ ok: true });
   apiMock.getSystemInfo.mockResolvedValue(systemInfo);
   apiMock.getAutotuneStatus.mockResolvedValue({ state: "idle" });
@@ -786,6 +788,9 @@ describe("Settings: diagnostics bundle", () => {
     expect(bundle.log).toEqual(deviceLog);
     expect(bundle.system).toMatchObject({ firmware: "1.4.0" });
     expect(bundle.settings).toBeDefined();
+    // The one credential GET /settings returns in full never reaches the file.
+    expect(bundle.settings.webhookUrl).toBe("[redacted]");
+    expect(JSON.stringify(bundle)).not.toContain("XXXXsecretXXXX");
     expect(bundle.errors).toBeUndefined();
     expect(toastFns.success).toHaveBeenCalledWith("Diagnostics downloaded");
   });

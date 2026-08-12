@@ -16,7 +16,9 @@
  * Nothing secret goes in. GET /settings replaces the API token with the
  * `apiTokenSet` boolean on the firmware side (build_settings_json), which is
  * what makes it safe to attach to a forum post — and the reason the bundle
- * takes the API response rather than the settings form's own values.
+ * takes the API response rather than the settings form's own values. The one
+ * credential the firmware does return verbatim is `webhookUrl`, redacted here;
+ * see redactSettings().
  */
 import type { DeviceLog, SystemInfo } from "../schemas/api";
 import type { KilnSettings } from "../types/kiln";
@@ -47,6 +49,32 @@ export interface DiagnosticsMeta {
   href?: string;
 }
 
+/** What a configured webhook URL is replaced with in the bundle. */
+export const REDACTED = "[redacted]";
+
+/**
+ * Strip the credentials out of a `/settings` response.
+ *
+ * `webhookUrl` is the one secret the firmware returns in full — and for every
+ * service anyone actually points it at (Slack, Discord, ntfy, IFTTT) the URL
+ * *is* the credential, with the token in its path. A bundle is written to be
+ * pasted into a bug report, so anyone holding the file could otherwise fire the
+ * kiln owner's notifications.
+ *
+ * The key is redacted rather than dropped: "a webhook is configured" is worth
+ * knowing when the complaint is that notifications aren't arriving, and an
+ * absent key would read as "not configured". `apiToken` gets the same treatment
+ * defensively — build_settings_json() never emits it, and if some future
+ * firmware regressed and did, this is where it must not reach a file.
+ */
+export function redactSettings(settings: KilnSettings): KilnSettings {
+  const { apiToken: _apiToken, ...rest } = settings as KilnSettings & { apiToken?: string };
+  return {
+    ...rest,
+    webhookUrl: settings.webhookUrl ? REDACTED : "",
+  } as KilnSettings;
+}
+
 export function buildDiagnosticsBundle(
   sources: DiagnosticsSources,
   meta: DiagnosticsMeta,
@@ -70,7 +98,7 @@ export function buildDiagnosticsBundle(
   const system = take(sources.system, "system");
   if (system) bundle.system = system;
   const settings = take(sources.settings, "settings");
-  if (settings) bundle.settings = settings;
+  if (settings) bundle.settings = redactSettings(settings);
   const log = take(sources.log, "log");
   if (log) bundle.log = log;
 
