@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type PidGains } from "../services/api";
 import { FiringProfile, KilnSettings } from "../types/kiln";
@@ -338,6 +339,25 @@ export function useOtaStatus(enabled = true) {
     enabled,
     retry: false,
   });
+}
+
+/**
+ * Forget the partition state and fetch it again.
+ *
+ * For after an update lands: the running slot, version and image state all
+ * changed, and the browser never went offline, so nothing in React Query's
+ * ordinary invalidation triggers fires (#177). `resetQueries` rather than
+ * `invalidateQueries` because the cached value is not merely stale, it is
+ * *wrong* — a failed refetch keeps the previous data, which would leave the
+ * card describing the firmware that was just replaced. Clearing it means the
+ * card falls back to "could not read" while the controller reboots, which is
+ * exactly what is true then.
+ */
+export function useResetOtaStatus() {
+  const queryClient = useQueryClient();
+  return useCallback(() => {
+    queryClient.resetQueries({ queryKey: queryKeys.otaStatus });
+  }, [queryClient]);
 }
 
 export function useConfirmOta() {

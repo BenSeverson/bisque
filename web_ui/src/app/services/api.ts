@@ -2,6 +2,7 @@ import type {
   AutotuneStatus,
   DiagThermocouple,
   OtaCheckResponse,
+  OtaConfirmResponse,
   OtaStatus,
   PidGains,
   PidResponse,
@@ -24,6 +25,7 @@ export type {
   AutotuneStatus,
   DiagThermocouple,
   OtaCheckResponse,
+  OtaConfirmResponse,
   OtaStatus,
   PidGains,
   PidResponse,
@@ -225,23 +227,31 @@ export const api = {
    *
    * handle_ota_rollback() calls esp_ota_mark_app_invalid_rollback_and_reboot(),
    * so the controller is gone before it can answer: the fetch rejects on a
-   * dropped connection far more often than it resolves, and that rejection is
-   * evidence the rollback *took*. Only a real HTTP status — 400 "Rollback not
-   * available", 409 while a firing is running, 401 — is a refusal, so those
-   * still throw and the caller reports them.
+   * dropped connection far more often than it resolves. Only a real HTTP status
+   * — 400 "Rollback not available", 409 while a firing is running, 401 — is a
+   * refusal, and those still throw.
+   *
+   * `acknowledged` is what the browser can honestly say about the rest. A
+   * rejected fetch is a `TypeError` whether the kiln died mid-reply (the
+   * expected case) or was already unreachable and never received the POST
+   * (DNS, refused, no route) — the Fetch spec gives no way to tell those apart,
+   * deliberately. So the caller is told which of the two stories it is in
+   * rather than being handed a "success" that might be a lie: `true` only when
+   * the controller answered.
    */
-  rollbackOta: async (): Promise<void> => {
+  rollbackOta: async (): Promise<{ acknowledged: boolean }> => {
     let res: Response;
     try {
       res = await fetch(`${API_BASE}/ota/rollback`, { method: "POST", headers: authHeaders() });
     } catch {
-      return;
+      return { acknowledged: false };
     }
     if (!res.ok) {
       throw new Error(`API error ${res.status}: ${await res.text()}`);
     }
+    return { acknowledged: true };
   },
-  confirmOta: () => request<{ ok: boolean; message: string }>("/ota/confirm", { method: "POST" }),
+  confirmOta: () => request<OtaConfirmResponse>("/ota/confirm", { method: "POST" }),
 
   // Wi-Fi provisioning
   getWifi: () => request<WifiInfo>("/wifi"),

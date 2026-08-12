@@ -223,6 +223,20 @@ export const otaStatusSchema = z.object({
 
 export type OtaStatus = z.infer<typeof otaStatusSchema>;
 
+/**
+ * POST /api/v1/ota/confirm — mirrors build_ota_confirm_json in api_json.c.
+ *
+ * `message` is shown to the user verbatim, and it is the only thing that
+ * distinguishes a confirmation that just happened from a no-op on an image that
+ * was already valid — so it is contract surface, not a log line.
+ */
+export const otaConfirmResponseSchema = z.object({
+  ok: z.boolean(),
+  message: z.string(),
+});
+
+export type OtaConfirmResponse = z.infer<typeof otaConfirmResponseSchema>;
+
 export const thermocoupleDiagSchema = z.object({
   temperatureC: z.number(),
   internalTempC: z.number(),

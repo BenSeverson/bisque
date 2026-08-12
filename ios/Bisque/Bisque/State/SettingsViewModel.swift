@@ -118,6 +118,7 @@ final class SettingsViewModel {
                 }
             }
             otaMessage = "Update complete. Kiln is rebooting..."
+            markOtaStatusStale()
             isUploading = false
         } catch {
             self.error = error.localizedDescription
@@ -159,6 +160,9 @@ final class SettingsViewModel {
                 case .complete:
                     self.installProgress = 100
                     self.otaMessage = "Update installed. Kiln is rebooting..."
+                    // The partitions on screen belong to the image just
+                    // replaced; the new one may be pending verification.
+                    self.markOtaStatusStale()
                     // Without this the flag stays true after a successful
                     // install, leaving Check for Updates / Install disabled
                     // until the view is recreated (#145). Matches the .failed
@@ -192,6 +196,20 @@ final class SettingsViewModel {
 
     // MARK: - OTA (partitions and rollback)
 
+    /// Drop the partition state after an update or a rollback.
+    ///
+    /// The slot, version and image state on screen describe the firmware that
+    /// was just replaced, and the kiln is rebooting, so a refetch would fail
+    /// anyway. Marking it unreadable rather than leaving the old values up is
+    /// the honest state, and the Refresh button in the section is how the user
+    /// picks it back up once the kiln answers again — otherwise a new image
+    /// could sit in pending-verify for its whole confirmation window with the
+    /// Confirm button never shown (#177).
+    func markOtaStatusStale() {
+        otaStatus = nil
+        otaStatusUnavailable = true
+    }
+
     func loadOtaStatus(using client: KilnAPIClient) async {
         do {
             otaStatus = try await client.getOTAStatus()
@@ -224,16 +242,21 @@ final class SettingsViewModel {
         error = nil
         otaMessage = nil
         do {
-            try await client.rollbackOTA()
-            otaMessage = "Rolling back. Kiln is rebooting..."
-            /* Everything held about the partitions describes the image on its
-               way out — a "Boots Next From" read before the request is a claim
-               the rollback has just falsified — and the kiln is not answering a
-               refetch mid-reboot. So drop it and say the state is unreadable,
-               which is exactly what it is until the kiln is back and the view
-               refetches. The green "rebooting" message sits beside it. */
-            otaStatus = nil
-            otaStatusUnavailable = true
+            switch try await client.rollbackOTA() {
+            case .acknowledged:
+                otaMessage = "Rolling back. Kiln is rebooting..."
+            case .unacknowledged:
+                /* The request went out and nothing came back, which is what the
+                   reboot looks like from here — but it is not proof, so this
+                   says what is known and names the check that settles it. */
+                otaMessage = """
+                    Rollback sent, but the kiln stopped answering before it replied. \
+                    That is expected while it reboots — reopen this screen shortly and \
+                    check the running version.
+                    """
+            }
+            // The partitions on screen describe the image on its way out.
+            markOtaStatusStale()
             // The offer to install whatever was newest belongs to the firmware
             // being left behind; the version list is worth rechecking after the
             // reboot rather than acting on now.

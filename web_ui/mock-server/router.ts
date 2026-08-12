@@ -535,9 +535,13 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
 
   // POST /ota/rollback
   if (method === "POST" && apiPath === "/ota/rollback") {
-    // ota_blocked_by_firing() runs first in the handler, so a firing kiln with
-    // nothing to roll back to answers 409 rather than 400.
-    if (state.firing.running || state.firing.scheduled) {
+    /* ota_blocked_by_firing() runs first in the handler, so a busy kiln with
+       nothing to roll back to answers 409 rather than 400.
+       `is_active` — what that guard reads — covers a running firing, an armed
+       delayed start *and* an auto-tune (firing_engine.c sets it when the tune
+       arms). Testing only the firing flags let the mock accept a rollback
+       mid-tune that a real controller refuses. */
+    if (state.firing.running || state.firing.scheduled || state.autotune.running) {
       return apiError(409, "Cannot update firmware during a firing");
     }
     if (!state.ota.rollbackAvailable) {
@@ -557,10 +561,7 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
     state.ota.pendingVerify = false;
     return {
       status: 200,
-      json: {
-        ok: true,
-        message: wasPending ? "Firmware confirmed as valid" : "Firmware already confirmed",
-      },
+      json: { ok: true, message: wasPending ? OTA_CONFIRMED_MSG : OTA_ALREADY_CONFIRMED_MSG },
     };
   }
 
@@ -782,6 +783,16 @@ function stopAutotune(): void {
  * serializer emits, the same way the cone table is guarded. Without that, a
  * firmware change to either would leave the public demo validating against a
  * range the device rejects, or restoring gains it never shipped. */
+/* The two answers POST /ota/confirm can give, from build_ota_confirm_json in
+   api_json.c. Exported for the same reason the PID constants below are: both
+   clients show this text verbatim, so a mock that words it differently from the
+   firmware would have the demo teaching a sentence the kiln never sends.
+   `mock-server confirm messages match the firmware fixtures` in
+   test/contracts/firmwareContract.test.ts compares them against the emitted
+   JSON (#177). */
+export const OTA_CONFIRMED_MSG = "Firmware confirmed as valid";
+export const OTA_ALREADY_CONFIRMED_MSG = "Firmware already confirmed";
+
 export const PID_GAIN_MIN = 0;
 export const PID_GAIN_MAX = 10000;
 export const PID_DEFAULT_GAINS = { kp: 2.0, ki: 0.01, kd: 5.0 };

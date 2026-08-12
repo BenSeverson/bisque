@@ -71,6 +71,8 @@ final class FirmwareContractTests: XCTestCase {
         // describe its own running image, so it has to decode rather than throw
         // and take the whole OTA screen with it.
         .decoding("ota_status_minimal", as: OtaStatus.self),
+        .decoding("ota_confirm", as: OtaConfirmResponse.self),
+        .decoding("ota_confirm_already", as: OtaConfirmResponse.self),
         .decoding("ws_temp_update", as: WebSocketMessage.self),
         .decoding("ws_ota_progress", as: OTAWebSocketMessage.self),
         .decoding("ws_ota_complete", as: OTAWebSocketMessage.self),
@@ -440,6 +442,20 @@ final class FirmwareContractTests: XCTestCase {
         // the app must not read the missing key as "not pending".
         XCTAssertNil(status.pendingVerify)
         XCTAssertFalse(status.rollbackAvailable)
+    }
+
+    /// `message` is shown to the user verbatim and is the only thing telling
+    /// them whether the tap confirmed the image or found it already valid, so
+    /// the two answers are pinned rather than merely decoded.
+    func testOtaConfirmDistinguishesAConfirmationFromANoOp() throws {
+        try requireUsableFixtures()
+
+        let confirmed = try Self.decode(OtaConfirmResponse.self, from: "ota_confirm")
+        let already = try Self.decode(OtaConfirmResponse.self, from: "ota_confirm_already")
+
+        XCTAssertTrue(confirmed.ok)
+        XCTAssertTrue(already.ok)
+        XCTAssertNotEqual(confirmed.message, already.message)
     }
 
     func testTempUpdateFrameDecodes() throws {

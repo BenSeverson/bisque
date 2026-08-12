@@ -394,16 +394,25 @@ describe("api: uploadOta()", () => {
 });
 
 describe("api: rollbackOta()", () => {
-  it("treats a dropped connection as success, because that is the reboot", async () => {
+  it("reports a dropped connection as unacknowledged rather than failed", async () => {
     // handle_ota_rollback() calls
     // esp_ota_mark_app_invalid_rollback_and_reboot(), so the socket usually
-    // dies before the reply lands. Rejecting there would tell the user the
-    // rollback failed while the kiln was busy performing it.
+    // dies before the reply lands. Rejecting would tell the user the rollback
+    // failed while the kiln was busy performing it — but the same TypeError
+    // arrives when the kiln was already unreachable and never got the POST,
+    // and the Fetch spec gives no way to tell those apart. So it resolves
+    // without claiming the request landed, and the caller words it honestly.
     const { api } = await loadApi();
     fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
-    await expect(api.rollbackOta()).resolves.toBeUndefined();
+    await expect(api.rollbackOta()).resolves.toEqual({ acknowledged: false });
     expect(fetchMock.mock.calls[0][0]).toBe("/api/v1/ota/rollback");
     expect(fetchMock.mock.calls[0][1].method).toBe("POST");
+  });
+
+  it("acknowledges a rollback the controller answered before rebooting", async () => {
+    const { api } = await loadApi();
+    fetchMock.mockResolvedValue(jsonResponse({ ok: true }));
+    await expect(api.rollbackOta()).resolves.toEqual({ acknowledged: true });
   });
 
   it("still reports an outright refusal", async () => {

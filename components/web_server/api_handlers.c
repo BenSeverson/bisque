@@ -1584,18 +1584,12 @@ static esp_err_t handle_ota_confirm(httpd_req_t *req)
 
     const esp_partition_t *running = esp_ota_get_running_partition();
     esp_ota_img_states_t state;
-    if (esp_ota_get_state_partition(running, &state) == ESP_OK && state == ESP_OTA_IMG_PENDING_VERIFY) {
+    bool was_pending = (esp_ota_get_state_partition(running, &state) == ESP_OK && state == ESP_OTA_IMG_PENDING_VERIFY);
+    if (was_pending) {
         esp_ota_mark_app_valid_cancel_rollback();
-        cJSON *resp = cJSON_CreateObject();
-        cJSON_AddBoolToObject(resp, "ok", true);
-        cJSON_AddStringToObject(resp, "message", "Firmware confirmed as valid");
-        return send_json(req, resp);
     }
 
-    cJSON *resp = cJSON_CreateObject();
-    cJSON_AddBoolToObject(resp, "ok", true);
-    cJSON_AddStringToObject(resp, "message", "Firmware already confirmed");
-    return send_json(req, resp);
+    return send_json(req, build_ota_confirm_json(was_pending));
 }
 
 /* ── GET /api/v1/wifi ─────────────────────────────── */

@@ -393,21 +393,38 @@ actor KilnAPIClient {
         try await request(path: "/ota/status")
     }
 
+    /// What a rollback request could be established about the controller.
+    ///
+    /// `acknowledged` is a reply that arrived; `unacknowledged` is a request
+    /// that went out and got nothing back, which is what a reboot mid-reply
+    /// looks like. The caller words its outcome from this instead of being
+    /// handed a "success" the app cannot actually vouch for.
+    enum RollbackOutcome: Sendable {
+        case acknowledged
+        case unacknowledged
+    }
+
     /// Reverts to the previously-booted image (#177).
     ///
     /// Written out rather than going through `request()` because it returns
-    /// nothing to decode and, more to the point, because a dropped connection
-    /// here is success. `handle_ota_rollback` calls
+    /// nothing to decode and because the interesting case is a request that is
+    /// never answered: `handle_ota_rollback` calls
     /// `esp_ota_mark_app_invalid_rollback_and_reboot()`, so the controller is
-    /// gone before it can answer: URLSession usually reports a transport
-    /// failure, and that failure is evidence the rollback took. Reporting it as
-    /// an error would tell the user the rollback failed while the kiln was busy
-    /// performing it.
+    /// gone before it can reply. Treating that as a failure would tell the user
+    /// the rollback failed while the kiln was busy performing it.
+    ///
+    /// Not every transport error means that, though, and the two are worth
+    /// separating: `cannotConnectToHost`, `cannotFindHost`, `dnsLookupFailed`,
+    /// `notConnectedToInternet` and friends all fail *before* delivery — the
+    /// kiln never saw the request and its firmware did not change — so they
+    /// surface as errors. Only failures consistent with losing an established
+    /// request (`networkConnectionLost`, `timedOut`, a truncated reply) come
+    /// back as `.unacknowledged`.
     ///
     /// A real HTTP status means the device is very much still up and did not
     /// change its firmware — 400 with no image behind the running one, 409
     /// during a firing, 401 unauthenticated — so those still throw.
-    func rollbackOTA() async throws {
+    func rollbackOTA() async throws -> RollbackOutcome {
         guard let url = URL(string: baseURL.absoluteString + "/ota/rollback") else {
             throw APIError.invalidURL
         }
@@ -421,14 +438,18 @@ actor KilnAPIClient {
         let (data, response): (Data, URLResponse)
         do {
             (data, response) = try await session.data(for: request)
-        } catch is URLError {
-            return
+        } catch let error as URLError {
+            guard Self.mayFollowDelivery(error.code) else {
+                throw APIError.connectionFailed
+            }
+            return .unacknowledged
         }
 
-        /* Not an HTTP reply at all: nothing to report a status from, and the
-           request did leave, so this lands with the reboot case above. */
+        /* An answer that is not an HTTP response is not one this can read a
+           status from, but it did come back from somewhere — treat it like the
+           truncated-reply case rather than inventing a server error. */
         guard let httpResponse = response as? HTTPURLResponse else {
-            return
+            return .unacknowledged
         }
 
         if httpResponse.statusCode == 401 {
@@ -438,6 +459,22 @@ actor KilnAPIClient {
         guard (200...299).contains(httpResponse.statusCode) else {
             let message = String(data: data, encoding: .utf8) ?? "Unknown error"
             throw APIError.serverError(statusCode: httpResponse.statusCode, message: message)
+        }
+
+        return .acknowledged
+    }
+
+    /// Whether a `URLError` could have happened *after* the request reached the
+    /// kiln. Anything not listed here failed on the way out — name resolution,
+    /// no route, no radio, connection refused — and proves the controller never
+    /// received the POST.
+    private static func mayFollowDelivery(_ code: URLError.Code) -> Bool {
+        switch code {
+        case .networkConnectionLost, .timedOut, .cannotParseResponse, .zeroByteResource,
+             .badServerResponse, .dataLengthExceedsMaximum:
+            return true
+        default:
+            return false
         }
     }
 

@@ -107,15 +107,27 @@ struct OTAUpdateView: View {
                             .foregroundStyle(.secondary)
                     }
                 } else if viewModel.otaStatusUnavailable {
-                    // A kiln too old to serve /ota/status 404s it. Saying so
-                    // beats an empty section, which would read as "no previous
-                    // firmware" — a different claim entirely.
-                    Text("Could not read the partition state from the kiln.")
+                    /* Either the kiln is rebooting after an update, or it is
+                       too old to serve /ota/status and 404s it. Saying so beats
+                       an empty section, which would read as "no previous
+                       firmware" — a different claim entirely. */
+                    Text("Could not read the partition state. The kiln may be restarting after an update.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else {
                     ProgressView()
                 }
+
+                /* `.task` runs once, when the screen appears. Installing from
+                   this very screen therefore left the pre-update partitions on
+                   display — or, after the reload above, nothing — until the
+                   user navigated away and back. This is how they pick it up
+                   again once the kiln has finished rebooting. */
+                Button("Refresh Partition State") {
+                    guard let client = connection.apiClient else { return }
+                    Task { await viewModel.loadOtaStatus(using: client) }
+                }
+                .disabled(viewModel.isRollingBack)
             }
 
             if let message = viewModel.otaMessage {

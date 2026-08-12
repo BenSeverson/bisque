@@ -78,6 +78,7 @@ import {
   useCheckOta,
   useInstallOta,
   useOtaStatus,
+  useResetOtaStatus,
   useConfirmOta,
   useRollbackOta,
 } from "../hooks/queries";
@@ -135,7 +136,13 @@ export function Settings() {
   const installOta = useInstallOta();
   // Firmware partitions (#177). Not fetched in the demo: the card that reads it
   // is hardware-only, and the mock kiln has no partition table to describe.
-  const { data: otaStatus, isError: otaStatusFailed } = useOtaStatus(!__DEMO__);
+  const {
+    data: otaStatus,
+    isError: otaStatusFailed,
+    isFetching: otaStatusFetching,
+    refetch: refetchOtaStatus,
+  } = useOtaStatus(!__DEMO__);
+  const resetOtaStatus = useResetOtaStatus();
   const confirmOta = useConfirmOta();
   const rollbackOta = useRollbackOta();
   const [rollbackConfirmOpen, setRollbackConfirmOpen] = useState(false);
@@ -407,13 +414,16 @@ export function Settings() {
     try {
       await uploadOta.mutateAsync({ file: otaFile, onProgress: (pct) => setOtaProgress(pct) });
       toast.success("Firmware uploaded — controller is rebooting");
+      // The slot, version and image state on screen belong to the firmware
+      // just replaced, and the new image may be pending verification.
+      resetOtaStatus();
       setOtaFile(null);
       setOtaProgress(null);
     } catch (e) {
       toast.error(`OTA failed: ${toErrorMessage(e)}`);
       setOtaProgress(null);
     }
-  }, [otaFile, uploadOta]);
+  }, [otaFile, uploadOta, resetOtaStatus]);
 
   const handleCheckOta = useCallback(async () => {
     setOtaCheck(null);
@@ -452,11 +462,21 @@ export function Settings() {
   const handleRollback = useCallback(async () => {
     setRollbackConfirmOpen(false);
     try {
-      await rollbackOta.mutateAsync();
-      // api.rollbackOta() resolves on a dropped connection too — the device
-      // reboots inside the handler — so this is reached whether or not the
-      // reply survived. Anything that throws was an outright refusal.
-      toast.success("Rolling back — reload this page once the controller is back.");
+      const { acknowledged } = await rollbackOta.mutateAsync();
+      if (acknowledged) {
+        toast.success("Rolling back — reload this page once the controller is back.");
+      } else {
+        /* The request never got an answer. Usually that is the controller
+           rebooting mid-reply, which is the rollback working — but a kiln that
+           had already dropped off the network produces exactly the same
+           TypeError, and claiming success there would be a guess presented as
+           a fact. Say what is known and point at the check that settles it. */
+        toast.warning(
+          "Rollback sent, but the controller stopped answering before it replied. " +
+            "That is expected while it reboots — retry the partition state in a moment " +
+            "and check the running version.",
+        );
+      }
     } catch (e) {
       toast.error(`Rollback refused: ${toErrorMessage(e)}`);
     }
@@ -471,13 +491,14 @@ export function Settings() {
       } else if (msg.type === "ota_complete") {
         setOtaInstallPct(100);
         toast.success("Update installed — controller is rebooting");
+        resetOtaStatus();
       } else if (msg.type === "ota_error") {
         toast.error(`Update failed: ${msg.data.message}`);
         setOtaInstalling(false);
         setOtaInstallPct(null);
       }
     });
-  }, [otaInstalling]);
+  }, [otaInstalling, resetOtaStatus]);
 
   const formatBytes = (bytes: number) => {
     if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -1205,10 +1226,33 @@ export function Settings() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {otaStatusFailed && (
-                <p className="text-sm text-muted-foreground">
-                  Could not read the partition state from the controller.
-                </p>
+              {/* Three states, and the difference matters: everything below —
+                  above all "no previous firmware to roll back to" — is a claim
+                  about the device that is only true once a fetch has actually
+                  landed. Rendered off `otaStatus?.` alone, a still-loading or
+                  failed request asserted the same sentence as a successful
+                  `rollbackAvailable: false`, and printed it directly beneath
+                  "Could not read the partition state". */}
+              {!otaStatus && otaStatusFailed && (
+                <div className="flex items-end justify-between gap-4 flex-wrap">
+                  <p className="text-sm text-muted-foreground">
+                    Could not read the partition state from the controller. It may be restarting
+                    after an update, or running firmware older than this page.
+                  </p>
+                  <Button
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => refetchOtaStatus()}
+                    disabled={otaStatusFetching}
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    {otaStatusFetching ? "Checking..." : "Retry"}
+                  </Button>
+                </div>
+              )}
+
+              {!otaStatus && !otaStatusFailed && (
+                <p className="text-sm text-muted-foreground">Reading the partition state...</p>
               )}
 
               {otaStatus && (
@@ -1274,29 +1318,31 @@ export function Settings() {
                 </div>
               )}
 
-              <div className="border-t pt-4 flex items-end justify-between gap-4 flex-wrap">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">Roll Back Firmware</p>
-                  <p className="text-sm text-muted-foreground">
-                    {otaStatus?.rollbackAvailable
-                      ? "Reboots into the firmware that was running before the last update. Settings, profiles and firing history are kept."
-                      : "No previous firmware to roll back to — the other slot is empty or was never booted successfully."}
-                  </p>
+              {otaStatus && (
+                <div className="border-t pt-4 flex items-end justify-between gap-4 flex-wrap">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Roll Back Firmware</p>
+                    <p className="text-sm text-muted-foreground">
+                      {otaStatus.rollbackAvailable
+                        ? "Reboots into the firmware that was running before the last update. Settings, profiles and firing history are kept."
+                        : "No previous firmware to roll back to — the other slot is empty or was never booted successfully."}
+                    </p>
+                  </div>
+                  {/* handle_ota_rollback() refuses with 409 while a firing runs,
+                      and rebooting mid-firing would abandon the load anyway. */}
+                  <Button
+                    variant="destructive"
+                    className="gap-2"
+                    onClick={() => setRollbackConfirmOpen(true)}
+                    disabled={
+                      !otaStatus.rollbackAvailable || rollbackOta.isPending || kilnBusy || otaBusy
+                    }
+                  >
+                    <Undo2 className="h-4 w-4" />
+                    {rollbackOta.isPending ? "Rolling back..." : "Roll Back"}
+                  </Button>
                 </div>
-                {/* handle_ota_rollback() refuses with 409 while a firing runs,
-                    and rebooting mid-firing would abandon the load anyway. */}
-                <Button
-                  variant="destructive"
-                  className="gap-2"
-                  onClick={() => setRollbackConfirmOpen(true)}
-                  disabled={
-                    !otaStatus?.rollbackAvailable || rollbackOta.isPending || kilnBusy || otaBusy
-                  }
-                >
-                  <Undo2 className="h-4 w-4" />
-                  {rollbackOta.isPending ? "Rolling back..." : "Roll Back"}
-                </Button>
-              </div>
+              )}
             </CardContent>
           </Card>
         </>

@@ -415,6 +415,15 @@ cJSON *build_ota_status_json(const ota_status_json_t *info)
     return root;
 }
 
+cJSON *build_ota_confirm_json(bool was_pending)
+{
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddBoolToObject(root, "ok", true);
+    cJSON_AddStringToObject(root, "message",
+                            was_pending ? "Firmware confirmed as valid" : "Firmware already confirmed");
+    return root;
+}
+
 cJSON *build_thermocouple_diag_json(const thermocouple_reading_t *tc, int64_t age_ms, float tc_offset_c)
 {
     cJSON *root = cJSON_CreateObject();

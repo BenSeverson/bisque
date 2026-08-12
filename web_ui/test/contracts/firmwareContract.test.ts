@@ -38,6 +38,7 @@ import {
   historyRecordSchema,
   otaCheckResponseSchema,
   otaStatusSchema,
+  otaConfirmResponseSchema,
   pidResponseSchema,
   systemInfoSchema,
   thermocoupleDiagSchema,
@@ -51,6 +52,8 @@ import {
   PID_GAIN_MIN as mockPidGainMin,
   PID_GAIN_MAX as mockPidGainMax,
   PID_DEFAULT_GAINS as mockPidDefaultGains,
+  OTA_CONFIRMED_MSG as mockOtaConfirmed,
+  OTA_ALREADY_CONFIRMED_MSG as mockOtaAlreadyConfirmed,
 } from "../../mock-server/router";
 import { z } from "zod";
 
@@ -81,6 +84,8 @@ const REQUIRED_FIXTURES = [
   "ota_check_current",
   "ota_status",
   "ota_status_minimal",
+  "ota_confirm",
+  "ota_confirm_already",
   "ws_temp_update",
   "ws_ota_progress",
   "ws_ota_complete",
@@ -247,6 +252,8 @@ const STRICT_CASES: Array<[fixture: string, schema: z.ZodType]> = [
   ["ota_check_current", otaCheckResponseSchema],
   ["ota_status", otaStatusSchema],
   ["ota_status_minimal", otaStatusSchema],
+  ["ota_confirm", otaConfirmResponseSchema],
+  ["ota_confirm_already", otaConfirmResponseSchema],
   ["ws_temp_update", wsMessageSchema],
   ["ws_ota_progress", wsMessageSchema],
   ["ws_ota_complete", wsMessageSchema],
@@ -336,6 +343,29 @@ describe.runIf(fixturesUsable)("firmware → frontend API contract", () => {
 
     expect(f32({ min: mockPidGainMin, max: mockPidGainMax })).toEqual(f32(pid.limits));
     expect(f32(mockPidDefaultGains)).toEqual(f32(pid.defaults));
+  });
+
+  /**
+   * The confirm response is two sentences and a boolean, and the sentence is
+   * the entire payload as far as a user is concerned: it is what tells them
+   * whether their tap confirmed the image or found it already valid. Both
+   * clients print it verbatim, so it is pinned here at value level — a schema
+   * check would pass on any string at all.
+   */
+  it("/api/v1/ota/confirm payload parses and says which case it was", () => {
+    const confirmed = otaConfirmResponseSchema.parse(load("ota_confirm"));
+    const already = otaConfirmResponseSchema.parse(load("ota_confirm_already"));
+
+    expect(confirmed.ok).toBe(true);
+    expect(already.ok).toBe(true);
+    expect(confirmed.message).not.toBe(already.message);
+  });
+
+  it("mock-server confirm messages match the firmware fixtures", () => {
+    expect(mockOtaConfirmed).toBe(otaConfirmResponseSchema.parse(load("ota_confirm")).message);
+    expect(mockOtaAlreadyConfirmed).toBe(
+      otaConfirmResponseSchema.parse(load("ota_confirm_already")).message,
+    );
   });
 
   it("/api/v1/diagnostics/thermocouple payload parses against thermocoupleDiagSchema", () => {
