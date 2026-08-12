@@ -22,7 +22,7 @@ plane pours are filled and checked by `kicad-cli pcb drc --refill-zones` —
 **zero errors, zero unconnected, 102 silkscreen-only warnings**
 (`bisque-controller-drc.rpt`) — and the schematic passes a netlist round-trip
 check (KiCad's exported netlist diffed against the design's connectivity
-table — 96 nets, 0 mismatches). The 3D renders in `3d/` are raytraced by
+table — 93 nets, 0 mismatches). The 3D renders in `3d/` are raytraced by
 `kicad-cli pcb render` with the official component models.
 
 | File | What it is |
@@ -32,7 +32,7 @@ table — 96 nets, 0 mismatches). The 3D renders in `3d/` are raytraced by
 | `bisque-controller.kicad_pcb` | Board: placed, fully routed, 4 layers (F.Cu/B.Cu signals, In1.Cu GND plane, In2.Cu +3V3 plane) |
 | `preview-board.svg` | Quick visual of placement + routing |
 | `3d/board-3d-*.png` | Raytraced renders, kicad-cli (iso / front / top / underside) |
-| `bisque-controller-drc.rpt` | KiCad DRC report (0 errors, 0 unconnected; 111 warnings are all silkscreen) |
+| `bisque-controller-drc.rpt` | KiCad DRC report (0 errors, 0 unconnected; 109 warnings are all silkscreen) |
 | `gerbers/` | Fabrication outputs (kicad-cli: F.Cu, B.Cu, **In1.Cu, In2.Cu**, paste/silk/mask, Edge.Cuts, Excellon drill + job file) |
 | `pdf/` | Schematic and board PDFs (kicad-cli) |
 | `jlcpcb/` | Assembly BOM + CPL for JLCPCB, plus the hand-solder shopping list |
@@ -94,35 +94,51 @@ was generated from them).
   itself; use ungrounded-junction (isolated-tip) K-type probes on both
   channels. This is a documentation obligation, not something the board
   enforces electrically.
-- **SSR drive ×2, opto-isolated**: screw terminals **J4** (zone 1) / **J9**
-  (zone 2) each supply an isolated 2-pin loop switched by an **LTV-817S**
-  optocoupler (U8 zone 1, U9 zone 2) — GPIO → 220 Ω series resistor → opto
-  LED → shared `SSR_EN` return, with a parallel amber indicator LED branch
-  (not in series — the indicator's ~2.0 V plus the opto's ~1.2 V would leave
-  nothing to drop from a 3.3 V GPIO) and a 10 kΩ pulldown so both channels
-  stay dark through boot/reset. This replaces rev A's bare AO3400A low-side
-  switch: the gain is ground-loop and surge immunity on wiring that runs
-  beside mains out to the kiln, not mains safety — the control loop is
-  low-voltage on both sides of the barrier either way. A per-channel solder
-  jumper — **`SJ3`** (zone 1) and **`SJ4`** (zone 2), silkscreened
-  `SSRn 5V / OPEN=ISO` and **open as fabricated** — ties that channel's opto
-  collector to board +5V for anyone who wants rev A's non-isolated
-  convenience instead. Each jumper is placed so its own 0.3 mm gap straddles
-  the isolation band's east edge: pad 2 (`SSRn_A`) sits inside the band, pad
-  1 (`+5V`) outside it, so the only thing bridging the barrier on a shipped
-  board is solder the user deliberately adds. `check_isolation.py` lists
-  those two pins as exact permitted endpoints rather than relaxing the test.
-  (The SSRs themselves and all mains wiring stay outside this board.)
+- **SSR drive ×2, direct low-side MOSFET**: screw terminals **J4** (zone 1) /
+  **J9** (zone 2), each **pin 1 = `SSR_EN`** (board +5 V, gated by the
+  hardware watchdog — see below) and **pin 2 = the switched low side**
+  (`SSR1_OUT` / `SSR2_OUT`). Per channel: GPIO → 100 Ω series resistor → gate
+  of an AO3400A (**Q5** zone 1, **Q6** zone 2), source to GND, drain on the
+  terminal, with a **10 kΩ gate pulldown** (R7/R20) holding the FET off
+  through boot and reset and an amber indicator LED + 680 Ω across the
+  terminal pair, so the LED shows real drive state. The board supplies the
+  SSR control loop. (The SSRs themselves and all mains wiring stay outside
+  this board.)
 
-  **Hardware watchdog (`SJ2`, "WDT DEFEAT").** `SSR_EN` — the shared return
-  path for both opto LEDs *and* both indicator LEDs — is gated by Q3, a
-  MOSFET held on by a diode charge pump (BAT54S, C38/C39, R46) driven from
-  GPIO 36 (`WDT_KICK`). **Nothing in firmware toggles this pin yet.** A
+  **This is rev A's topology, restored.** Rev B opto-isolated both channels
+  with an LTV-817S each (`U8`/`U9`), floating `J4`/`J9` as dry contacts,
+  carving a four-layer pour keepout across the opto row, adding `SJ3`/`SJ4`
+  to optionally tie each opto collector to board +5 V, and checking the
+  barrier with `check_isolation.py`. That was **reversed** before fab: an
+  optocoupler only isolates if the SSR control loop is powered from a supply
+  that is *not this board*, and this board's is. Close the loop through board
+  `+5V` and board `GND` — exactly what `SJ3`/`SJ4` existed to permit — and
+  both sides of the "barrier" are one SELV domain, leaving a sacrificial part
+  in series with the SSR input. The as-built terminals could not have closed
+  an isolated loop anyway: neither carried a `GND` pin. So the optos, the
+  jumpers, the pour and router keepouts and `check_isolation.py` are all gone,
+  and the freed area went back to pour and routing. Do not re-add
+  opto-isolation without also specifying an off-board control supply and a
+  terminal that carries it.
+
+  **Hardware watchdog (`SJ2`, "WDT DEFEAT").** `SSR_EN` — the +5 V rail
+  feeding *both* SSR terminals and both indicator LEDs — is supplied by Q4, a
+  P-channel high-side MOSFET (AO3401A) whose gate node `SSR_PG` is held down
+  by Q3, itself held on by a diode charge pump (BAT54S, C38/C39, R46) driven
+  from GPIO 36 (`WDT_KICK`); R47 (100 kΩ) pulls `SSR_PG` up as the fail-safe.
+  The watchdog moved to the supply side when the optocouplers were reverted:
+  the two-parts-cheaper stacked-low-side alternative would have left the
+  channel MOSFET only 140 mV of Vgs margin to the AO3400A's lowest guaranteed
+  `R_DS(on)` point before subtracting Q3's own (datasheet-unbounded) drop.
+  Going high-side cuts Q3's load from ~30 mA to 50 µA and puts both switching
+  FETs past a guaranteed spec point — see the arithmetic in
+  `generator/design.py`'s watchdog block. **Nothing in firmware toggles this pin yet.** A
   charge pump needs transitions to stay charged — a stuck-high pin decays
   exactly like a stopped one — so on power-up, and on any board where
-  nothing kicks GPIO 36, `SSR_EN` decays and **both SSR channels stay off
+  nothing kicks GPIO 36, `SSR_EN` collapses and **both SSR channels stay off
   regardless of what the firmware commands them to do.** The silkscreened
-  `SJ2` solder jumper shorts the gate MOSFET, restoring un-gated behaviour
+  `SJ2` solder jumper shorts `SSR_PG` to GND, holding Q4 on and restoring
+  un-gated behaviour
   for bring-up and for any build without the firmware kick task. **A board
   with neither `SJ2` fitted nor a firmware kick task will not heat** — this
   is the single most likely rev B bring-up surprise, more likely to be
@@ -233,11 +249,11 @@ pads that actually need them. See `FAB-READINESS-REVIEW-REVB.md` and
 `docs/superpowers/specs/2026-08-10-pcb-rev-b-hardware-design.md` §6.3 for
 the full measured escalation ladder.
 
-The isolation barrier across the SSR opto row is unaffected by the plane
-layers: the pour keepout is enforced on all four copper layers (inner
-planes included), and `generator/check_isolation.py` (`make pcb-check`)
-confirms independently that no GND/power copper — on any layer — lands
-inside the keepout band.
+Both planes run whole: there are **no rule areas** on this board. Rev B
+carved a four-layer pour keepout across the SSR optocoupler row and had
+`generator/check_isolation.py` confirm nothing landed in it; both went with
+the optocouplers (see "SSR drive ×2" above), returning ~21 × 24 mm of pour
+and routing area on every layer.
 
 ### GPIO map (mirrors `main/Kconfig.projbuild` defaults)
 
@@ -246,7 +262,7 @@ inside the keepout band.
 | 11/13/12 | SPI MOSI/MISO/SCLK | | 38/39/40/41/42 | NAV up/down/left/right/select |
 | 10 / 35 | TC1 / TC2 CS (MAX31856) | | 48 | WS2812B data |
 | 8/9/46/3 | LCD CS/DC/RST/BL | | 7 | Alarm buzzer |
-| 17 / 21 | SSR1 / SSR2 gate (opto) | | 14/15/16 | AUX1 (vent) / AUX2 / AUX3 (ULN2003, J10) |
+| 17 / 21 | SSR1 / SSR2 MOSFET gate | | 14/15/16 | AUX1 (vent) / AUX2 / AUX3 (ULN2003, J10) |
 | 19/20 | USB D−/D+ | | 43/44 | UART0 TX/RX (J7) |
 | 4/2/1 | Protected inputs IN1 (lid) / IN2 (gas flow) / IN3 (spare), J11 | | 18/47 | I2C SDA/SCL |
 | 5/6 | Touch T_CS / T_IRQ | | 36 | Watchdog kick (`SJ2` defeats it) |
@@ -257,7 +273,7 @@ Full table with module pin numbers, nets and per-pin notes:
 
 ## Bill of materials
 
-141 components, 96 nets. Full machine-readable BOM: `jlcpcb/BOM.csv` (41
+141 components, 93 nets. Full machine-readable BOM: `jlcpcb/BOM.csv` (40
 lines covering 109 machine-placed parts) plus `jlcpcb/hand-solder-parts.csv`
 (13 hand-fitted parts). Selected parts worth calling out:
 
@@ -269,11 +285,11 @@ lines covering 109 machine-placed parts) plus `jlcpcb/hand-solder-parts.csv`
 | U4 | USBLC6-2SC6 | SOT-23-6 |
 | U6 | ULN2003ADR | SOIC-16 |
 | U7 | ADE7953ACPZ-RL | LFCSP-28 (QFN-28, 5×5 mm) |
-| U8, U9 | LTV-817S-TA1-C optocoupler | SMD-4P (SMDIP-4 footprint) |
 | Y1 | 3.579545 MHz crystal | HC-49S-SMD |
 | D5, D6 | SRV05-4 TVS array | SOT-23-6 |
 | D7 | BAT54S dual series Schottky | SOT-23 |
-| Q2, Q3 | AO3400A N-MOSFET | SOT-23 |
+| Q2, Q3, Q5, Q6 | AO3400A N-MOSFET | SOT-23 |
+| Q4 | AO3401A P-MOSFET (watchdog high-side switch) | SOT-23 |
 | J1 | USB-C 16-pin receptacle | HRO TYPE-C-31-M-12 |
 | J2, J3, J4, J8, J9 | Phoenix MKDS 1,5/2 (or clone) | 5.08 mm screw terminal, 2-pos |
 | J10, J11, J12 | Phoenix MKDS 1,5/4 (or clone) | 5.08 mm screw terminal, 4-pos |
@@ -285,7 +301,7 @@ lines covering 109 machine-placed parts) plus `jlcpcb/hand-solder-parts.csv`
 | BZ1 | active buzzer 5 V | 12 mm THT, 7.6 mm pitch |
 | SW1, SW2 | XKB TS-1187A tactile switch | 5.1 × 5.1 mm SMD |
 | H1–H4 | M3 mounting hole, grounded, 90 × 90 mm grid | — |
-| SJ1–SJ4 | Open solder jumpers (`AUX_VP←+5V`, `WDT DEFEAT`, `SSR1_A←+5V`, `SSR2_A←+5V`) | populated with solder, not a part |
+| SJ1, SJ2 | Open solder jumpers (`AUX_VP←+5V`, `WDT DEFEAT`) | populated with solder, not a part |
 | TP1–TP12 | 1 mm bring-up test pads | bare copper, no BOM cost |
 
 **Off-BOM accessories (not in `jlcpcb/`, buy separately):** a U.FL → SMA
@@ -336,8 +352,8 @@ carrying designators the BOM does not have:
 | LED1 (WS2812B, PLCC-4 5050) | No addressable RGB LED at LCSC is a Basic part (checked across WS2812/SK6812/XL-xxxx), so its $3 buys nothing an iron can't do to four edge-accessible pads |
 
 What's left goes down the SMT line: **98 Basic parts** (passives, LEDs,
-AO3400A, SS34/SS14, 1N4148W, AMS1117, both tact switches, the ULN2003, the
-LTV-817S optos and the SRV05-4 TVS arrays are all Basic) at no feeder fee,
+AO3400A, AO3401A, SS34/SS14, 1N4148W, AMS1117, both tact switches, the
+ULN2003 and the SRV05-4 TVS arrays are all Basic) at no feeder fee,
 and **11 Extended parts** — the module (ESP32-S3-WROOM-1U-N16R2, C3013945),
 both MAX31856MUD+T (C2653162, one designator, two placements), the ADE7953
 (C515890), its crystal (C7471632), the BAT54S watchdog diode (C7420333),
@@ -345,7 +361,7 @@ the SRV05-4 TVS array's specific LCSC line (C558418), the 6.8 Ω CT burden
 resistor (C17774), the 30 pF crystal load caps (C107114), USBLC6-2SC6
 (C7519), the Qwiic connector (C160404) and the USB-C receptacle (C165948) —
 **$33 in feeder fees**, up from rev A's 4 unique Extended parts / $12. Three
-new subsystems (ULN2003, LTV-817S, SRV05-4) landed at **zero** feeder cost
+new subsystems (ULN2003, SRV05-4, watchdog) landed at **zero** feeder cost
 by being Basic parts, so the increase is almost entirely the analog/sensing
 front end.
 
@@ -429,7 +445,7 @@ checkers against what's already committed, without touching KiCad:
 make pcb          # regenerate schematic + board + fab outputs, then check
 make pcb-build    # schematic + board only (fast inner loop, no fab outputs)
 make pcb-fab      # gerbers, drill, BOM/CPL, PDFs, preview SVG — after pcb-build
-make pcb-check    # check only: pinmap, isolation, sheet bounds, netlist, connectivity, reproducibility
+make pcb-check    # check only: pinmap, sheet bounds, netlist, connectivity, reproducibility
 make pcb-render   # 3d/board-3d-*.png raytrace — SLOW, deliberately not in `make pcb`
 ```
 
@@ -453,7 +469,6 @@ python3 generator/check_netlist.py bisque-controller.kicad_sch  # KiCad netlist 
                                                                 #   In1.Cu/In2.Cu plane fills, GND stubs,
                                                                 #   pour-island healing, KiCad DRC report
 python3 generator/check_pinmap.py                                # design.py <-> Kconfig agreement: PASS
-python3 generator/check_isolation.py                             # opto barrier unbridged, all 4 layers: PASS
 python3 generator/check_sch_bounds.py bisque-controller.kicad_sch  # nothing off the declared sheet: PASS
                                                                 #   (every other checker validates connectivity,
                                                                 #    which is complete no matter where a symbol
@@ -527,8 +542,11 @@ instead.)
 
 ## Safety
 
-This board switches an external SSR's **control input** only, through an
-opto-isolated barrier on both channels. All mains wiring — SSR load side,
+This board switches an external SSR's **control input** only — board +5 V
+out, switched low side back, both channels. It is **not** opto-isolated: rev
+B built that and reverted it, because an optocoupler only isolates when the
+SSR control loop is powered off-board and this board powers it. All mains
+wiring — SSR load side,
 kiln elements, breakers, enclosure grounding — is external and must follow
 local electrical code. The on-board hardware watchdog (`SJ2`/`WDT_KICK`,
 above) is a **supplementary** interlock that de-energizes both SSR channels

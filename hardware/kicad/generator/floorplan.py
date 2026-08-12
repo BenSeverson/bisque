@@ -1,9 +1,8 @@
 """Rev B floorplan: region assignment, seed placement, overlap legalizer.
 
 This is where the board's *layout intent* lives - which subsystem occupies
-which rectangle, which parts are pinned (board-edge connectors, the module,
-the optocouplers that straddle the isolation barrier), and roughly where each
-remaining part wants to sit. The legalizer then pushes overlapping courtyards
+which rectangle, which parts are pinned (board-edge connectors, the module),
+and roughly where each remaining part wants to sit. The legalizer then pushes overlapping courtyards
 apart within each part's region until nothing collides.
 
 design.py records the RESULT as `at=(x, y, rot)`; this file records the
@@ -46,8 +45,8 @@ REGIONS = {
     # SPI on a 40 mm detour around the module and starved the escape fan.
     "MID": (62.0, 55.0, 86.0, 63.5),
     # The buzzer's driver chain moves out of the switching region into the open
-    # band east of it. SWI is only 27.5 mm wide once J10/J4/J9 and the isolation
-    # barrier have taken x 20..41, and it is also where every long net from the
+    # band east of it. SWI is only 27.5 mm wide once J10/J4/J9 have taken
+    # x 20..32.5, and it is also where every long net from the
     # module terminates; four parts moved out is four parts' worth of channel
     # back for the SSR driver chains.
     "SWI2": (61.5, 64.0, 70.0, 84.0),
@@ -83,13 +82,9 @@ FIXED = {
     "J10": (26.0, 52.0, 270),
     "J4": (26.0, 75.5, 270),
     "J9": (26.0, 88.0, 270),
-    # opto barrier: rot 180 puts the isolated pins (3,4) west, toward J4/J9
-    "U8": (38.5, 78.0, 180),
-    "U9": (38.5, 90.0, 180),
-    # per-channel +5V links: rot 180 puts pad 2 (the isolated SSRn_A pad)
-    # west, so the jumper's gap lands on the barrier's east edge (x = 40.8)
-    "SJ3": (40.8, 84.0, 180),
-    "SJ4": (40.8, 94.3, 180),
+    # SSR low-side drivers, each just east of its own terminal
+    "Q5": (38.5, 78.0, 0),
+    "Q6": (38.5, 90.0, 0),
     # right edge screw terminals (rot 90 -> wire entry faces east)
     "J3": (114.0, 41.0, 90),
     "J8": (114.0, 53.0, 90),
@@ -138,13 +133,14 @@ SEED = {
     "D4": (65.0, 66.0, 0, "SWI2"), "Q2": (65.0, 70.0, 0, "SWI2"),
     "R11": (65.0, 74.0, 0, "SWI2"), "R8": (65.0, 78.0, 0, "SWI2"),
     "R10": (52.0, 76.0, 0, "SWI"), "LED3": (57.0, 76.0, 0, "SWI"),
-    "R18": (57.0, 72.0, 0, "SWI"), "R6": (49.0, 80.5, 180, "SWI"),
+    "R6": (49.0, 80.5, 180, "SWI"),
     "R7": (54.0, 80.5, 0, "SWI"), "TP9": (58.5, 80.5, 0, "SWI"),
-    # SJ3/SJ4 are NOT free to move: each one's 0.3 mm gap must straddle the
-    # ISO_BARRIER east edge (x = 40.8) with pad 2 inside and pad 1 outside,
-    # so they are pinned in FIXED rather than seeded here.
+    # Q4/R47: the watchdog's high-side switch and its fail-safe gate pull-up,
+    # in the band the isolation barrier used to reserve, midway between the
+    # two terminals SSR_EN feeds.
+    "Q4": (40.8, 84.0, 0, "SWI"), "R47": (45.5, 84.0, 0, "SWI"),
     "R21": (49.0, 87.5, 0, "SWI"), "LED4": (54.0, 87.5, 0, "SWI"),
-    "R22": (58.5, 87.5, 0, "SWI"), "R19": (52.0, 92.5, 180, "SWI"),
+    "R19": (52.0, 92.5, 180, "SWI"),
     "R20": (57.0, 92.5, 0, "SWI"), "TP10": (44.5, 94.5, 0, "SWI"),
     # --- ANA1 / ANA2: the two thermocouple front-ends ---------------------
     # The thermocouple filter network (100R series, 100nF differential, 10nF

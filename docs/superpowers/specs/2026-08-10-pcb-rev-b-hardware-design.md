@@ -35,6 +35,14 @@ Added on top, by explicit decision during design review: opto-isolated SSR
 triggers, a hardware watchdog gating both SSR channels, TVS protection on the
 externally exposed dry-contact and CT nets, and test points.
 
+**The opto-isolated SSR triggers were subsequently REVERSED** — implemented,
+then reverted to rev A's direct low-side MOSFET drive after the final review.
+The reasoning is recorded in §2.4; the short version is that an optocoupler
+only isolates if the SSR control loop is powered from a supply that is not
+this board, and this board's is. Everything else in that list stands, the
+watchdog included: it survives the reversal and still gates both channels
+(§4.4).
+
 ## 2. Decisions taken, and why
 
 ### 2.1 Module: ESP32-S3-WROOM-1-N16R8 → **WROOM-1U-N16R2**
@@ -131,18 +139,44 @@ Darlington channels with integrated freewheel diodes arrive at **zero feeder
 fee**, replacing roughly nineteen discrete parts. On a board that is
 density-constrained (§6) this is the single largest area saving available.
 
-### 2.4 Opto-isolated SSR triggers: LTV-817S-TA1-C
+### 2.4 Opto-isolated SSR triggers: ~~LTV-817S-TA1-C~~ — **decided, built, reversed**
 
-`C109227`, SMD-4P, $0.075, 598k stock, JLCPCB **Basic** — also no feeder fee.
+**Status: REVERSED.** The board ships rev A's direct low-side MOSFET drive.
+This section is kept in full because the decision was made, implemented and
+then unmade, and a future reader who only sees the MOSFETs deserves to know
+the isolated version was tried rather than overlooked.
 
-Roadmap §3.3 specifies "opto-isolated" for the main SSR trigger; rev A never
-implemented it and used a bare AO3400A low-side switch.
+**What was decided.** Roadmap §3.3 specifies "opto-isolated" for the main SSR
+trigger; rev A never implemented it and used a bare AO3400A low-side switch.
+Rev B added an `LTV-817S-TA1-C` per channel (`C109227`, SMD-4P, $0.075,
+JLCPCB Basic), floating `J4`/`J9` as dry contacts, a four-layer pour keepout
+across the optocoupler row, a matching router keepout, `SJ3`/`SJ4` to
+optionally tie each opto collector to board +5 V, and `check_isolation.py` to
+assert the barrier was never bridged. The claimed gain was ground-loop and
+surge immunity — not mains safety, since the control loop is low voltage on
+both sides — so that a surge on SSR wiring running beside mains had no
+conductive path back into the MCU.
 
-**What this buys is ground-loop and surge immunity, not mains safety.** The SSR
-control loop is low-voltage on both sides of the barrier. The gain is that a
-surge on SSR wiring — which runs beside mains and out to the kiln — no longer
-has a conductive path back into the MCU, and the controller stops sharing a
-ground reference with that wiring.
+**Why it was reversed.** That gain is contingent on something the schematic
+cannot enforce: the SSR control loop must be powered from a supply that is
+**not this board**. Close the loop with board `+5V` and board `GND` — which
+is exactly what `SJ3`/`SJ4` existed to permit, and what this controller's
+wiring actually does — and both sides of the "barrier" are the same SELV
+domain. The optocoupler is then a sacrificial part in series with the SSR
+input and the isolation is nominal. Worse, the as-built terminals never
+closed an isolated loop at all: neither `J4` nor `J9` carried a `GND` pin, so
+a genuinely isolated installation needed the user to bring both rails in from
+outside, and no one was going to.
+
+The owner's decision is that the loop is board-powered in practice. The
+isolation therefore is not preserved by the wiring, while its costs are real
+and paid on every board: two parts, an ~21 × 24 mm pour keepout on all four
+layers in the densest corner, a routing keepout on top of it, and a checker.
+So `U8`/`U9`, `SJ3`/`SJ4`, the keepouts and `check_isolation.py` are all
+gone, and the channels revert to §5.1's MOSFET drive.
+
+**Do not re-add opto-isolation without also specifying an off-board control
+supply and a terminal that carries it.** Without both, it buys nothing.
 
 ### 2.5 RTC: deleted from the board, provided by the I2C header
 
@@ -227,7 +261,7 @@ once the CT is digital. The re-map is kept for two different reasons:
 Every output that can energize a heater, solenoid or relay must be inactive
 from power-on through reset and through a firmware crash:
 
-- `SSR1_CTRL`, `SSR2_CTRL` (17, 21): 10 kΩ pulldown at the opto input LED.
+- `SSR1_CTRL`, `SSR2_CTRL` (17, 21): 10 kΩ pulldown at the drive MOSFET gate.
   Additionally gated by the §5.3 watchdog, which is un-kicked at boot.
 - `AUX1`–`AUX3` (14, 15, 16): 10 kΩ pulldowns at the ULN2003 inputs. A
   high-impedance ESP32 pin at boot must not float the Darlington on.
@@ -272,7 +306,7 @@ probing the MAX31856's writable config registers.
 - CT lead pair gets a TVS channel (§5.4) and a screw terminal.
 - Voltage-channel pins routed to a DNP 2-pin SELV header (§2.2). Unpopulated.
 - Placement sits in the quiet analog region with the thermocouple front-ends,
-  away from the ULN2003 and the SSR/opto region (§6.2).
+  away from the ULN2003 and the SSR driver region (§6.2).
 
 **Measurement caveat for the firmware plan:** with time-proportional control the
 element current is a burst, not a continuous waveform, so `Irms` is only
@@ -303,24 +337,27 @@ ADC without board changes.
 
 ## 5. Output, interlock and safety subsystem
 
-### 5.1 SSR channels ×2 (opto-isolated)
+### 5.1 SSR channels ×2 (direct low-side MOSFET drive)
 
-Per channel: GPIO → series resistor → LTV-817S input LED → GND, with a **parallel**
-indicator-LED branch off the same GPIO and a 10 kΩ pulldown. Five parts per
-channel — the same count as rev A's discrete AO3400A driver.
+**This section was rewritten when the opto-isolation decision was reversed
+(§2.4). As specified it described an LTV-817S per channel with a floating
+2-pin terminal and a `SJ3`/`SJ4` solder link to board +5 V; as built it is rev
+A's discrete driver, restored.**
 
-The indicator cannot sit in series with the opto's input LED: ~2.0 V (indicator)
-+ ~1.2 V (opto) leaves nothing to drop across a resistor from a 3.3 V GPIO. The
-parallel branch costs one extra resistor and imposes no constraint on the user's
-SSR control voltage. (An indicator placed in the isolated output loop would show
-true end-to-end drive current for one fewer part, but would require a ≥ 5 V SSR
-control supply; rejected as an unnecessary constraint.)
+Per channel, five parts: `SSRn_CTRL` → 100 Ω series resistor → gate of an
+AO3400A (`Q5` zone 1, `Q6` zone 2), source hard to GND, drain = `SSRn_OUT`,
+the switched low side. A **10 kΩ gate pulldown** (`R7`/`R20`) holds the FET
+off through boot and reset, while the ESP32's pins are high-impedance — this
+is what keeps the kiln cold at power-on and is not optional. An amber
+indicator LED plus 680 Ω sits across the same terminal pair, so it shows real
+drive state rather than the state of a GPIO.
 
-Output side floats on a 2-pin screw terminal per channel. A per-channel **solder
-jumper** ties the opto collector to board +5 V for anyone who wants rev A's
-convenience; default open = isolated, silkscreened as such. (As built: `SJ3`
-zone 1, `SJ4` zone 2, each placed so its own 0.3 mm gap straddles the
-isolation band's east edge — pad 2 `SSRn_A` inside, pad 1 `+5V` outside.)
+Terminal `J4`/`J9` is a 2-pin screw terminal: **pin 1 = `SSR_EN`, pin 2 = the
+switched low side**. `SSR_EN` is board +5 V *switched by the hardware
+watchdog's high-side MOSFET* (§5.3), so the board supplies the control loop
+and the watchdog gates it. This is the arrangement the reverted opto version
+could never quite reach — its terminals had no `GND` pin, so its isolated
+loop only closed if the user brought both rails in from outside.
 
 **Cadence:** SSR2 is driven from the 100 ms `ssr_window_apply()` window, not the
 1 Hz firing tick, exactly as `pin-assignments.md` §5 argues. Zone 2 modulates
@@ -355,8 +392,23 @@ policy** (§9).
 ### 5.3 Hardware watchdog
 
 GPIO 36 emits a square wave from firmware into a diode charge pump (BAT54S dual
-Schottky, coupling cap, hold cap, bleed resistor) whose hold node drives a
-MOSFET gating the **return path of both SSR opto input LEDs**. ~7 parts.
+Schottky, coupling cap, hold cap, bleed resistor) whose hold node drives `Q3`.
+As originally built, `Q3`'s drain *was* `SSR_EN`, the shared return path of
+both SSR opto input LEDs. When the optos were reverted (§2.4) the watchdog had
+to keep gating both channels, and the topology moved to the **supply side**:
+`Q3` now pulls `SSR_PG` low, which turns on `Q4` (AO3401A, P-channel) in the
++5 V feed, and `Q4`'s drain is `SSR_EN` — the rail both SSR terminals hang
+off. `R47` (100 kΩ) pulls `SSR_PG` up as the fail-safe. ~9 parts.
+
+The stacked-low-side alternative (each channel FET's source on `SSR_EN`, `Q3`
+below it) was two parts cheaper and was rejected on arithmetic: at the ESP32's
+*guaranteed* `V_OH` of 2.64 V the channel FET has only 140 mV of margin to the
+2.5 V point where the AO3400A guarantees any `R_DS(on)`, and `Q3`'s own drop —
+unbounded by its datasheet at the 2.16 V gate the pump delivers in that corner
+— subtracts directly from it. Going high-side drops `Q3`'s load from ~30 mA to
+50 µA, which makes its operating point provable from its own `V_GS(th)` test
+condition, and puts both switching FETs at or past a guaranteed `R_DS(on)`
+spec point. The full arithmetic is in `generator/design.py`'s watchdog block.
 
 - **Gates only the heat outputs.** Vent, purge and the spare aux channel are
   untouched — a stalled controller should still be able to have its vent open.
@@ -397,7 +449,10 @@ revision takes the count of externally exposed signal nets from two to roughly
 ten, so one feeder fee covers the whole board.
 
 **Explicitly not protected by TVS:** thermocouple inputs (§4.1, leakage) and the
-SSR outputs (isolated — a clamp to board ground would bridge the barrier).
+SSR outputs. The original reason for the latter was that a clamp to board ground
+would bridge the isolation barrier; with the barrier gone (§2.4) the reason is
+now simply that it was not re-costed, and a TVS on `SSR1_OUT`/`SSR2_OUT` is a
+legitimate candidate for a future revision.
 
 ### 5.6 Test points
 
@@ -434,9 +489,8 @@ outcome in §6.3.
 | Region | Contents |
 |---|---|
 | Quiet analog | TC1, TC2 and their cold-junction copper; ADE7953, crystal, CT front-end |
-| Switching | ULN2003, SSR optos, aux and SSR terminals, buzzer |
+| Switching | ULN2003, SSR drivers, aux and SSR terminals, buzzer |
 | Digital | ESP32-S3 module, USB-C, LCD / nav / aux headers |
-| Isolation barrier | Pour keepout band across the opto row; floating `SSR*_RTN` islands |
 | Reclaimed antenna band | 48 × 7 mm at the top edge, freed by the 1U (§2.1) — available for parts and pour |
 
 Cold-junction copper stays away from the regulator and the driver region, per
@@ -456,8 +510,9 @@ deliberately rather than designed away.
 | Density | 6.8 / 1000 mm² | ~11.4 / 1000 mm² |
 
 `generator/router.py` is a 2-layer octilinear grid autorouter with GND pours on
-both layers. Rev B roughly doubles its workload while *removing* pour area (the
-isolation keepout) and adding an analog region that wants a quiet reference.
+both layers. Rev B roughly doubles its workload and adds an analog region that
+wants a quiet reference. (It also, as specified, removed pour area for the
+isolation keepout — that keepout is gone again with the optos, §2.4.)
 
 **Trigger and fallback, to be decided by evidence rather than optimism.** If,
 after the placement partition in §6.2 is honoured, `kicad_build.py` cannot
@@ -518,11 +573,12 @@ as 0.7 mm track. Neither signal layer is poured: on rev B's density the GND
 pour was the largest single consumer of routing space on exactly the two layers
 the boxed-in signals needed.
 
-The isolation barrier's pour keepout is `AllCuMask(4)`, inner planes included —
-a GND plane under the optocouplers would defeat the barrier completely.
-`check_pcb.py` confirms it independently by sampling the band against each
-plane's filled polygons, because a zone fill is not a track and no item-based
-check can see one.
+As specified, the isolation barrier's pour keepout was `AllCuMask(4)`, inner
+planes included, since a GND plane under the optocouplers would have defeated
+the barrier completely, and `check_pcb.py` confirmed it independently by
+sampling the band against each plane's filled polygons. **Both are gone** with
+the optocouplers (§2.4): there are no rule areas on this board and both inner
+planes run whole.
 
 Track widths came all the way back because the router no longer touches a
 fine-pitch pad: each is represented to it by the far end of a pre-drawn escape
@@ -573,9 +629,11 @@ is considered done:
 
 Additional rev-B-specific checks:
 
-- **Isolation barrier**: assert no GND copper, on either layer, inside the opto
-  keepout band; assert `SSR*_RTN` nets connect to nothing but their opto and
-  terminal.
+- ~~**Isolation barrier**~~: `check_isolation.py` asserted no GND copper inside
+  the opto keepout band on any layer, and that the isolated nets touched
+  nothing but their opto and their terminal. **Deleted** with the barrier
+  (§2.4) rather than left to pass vacuously against a rectangle that no longer
+  exists.
 - **Pin-map agreement**: assert `design.py`'s net-to-module-pin table matches
   `main/Kconfig.projbuild` defaults. This has drifted before and is now checked
   rather than remembered.

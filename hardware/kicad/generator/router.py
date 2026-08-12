@@ -150,16 +150,16 @@ class Router:
         self.pads.append(s)
         self._insert(s, cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2)
 
-    def add_keepout(self, x0, y0, x1, y1, allow_nets=()):
-        """Rectangle no track or via may enter, except for `allow_nets`.
+    def add_keepout(self, x0, y0, x1, y1):
+        """Rectangle no track or via may enter, whatever its net.
 
-        The exemption exists for the opto-isolation barrier: the band is a
-        pour keepout in KiCad (see kicad_build.add_zones) and must equally be
-        a *routing* keepout here, or a plane via lands inside it and DRC
-        reports it. But the isolated SSR*_A/B nets have to
-        cross it - the whole point is that their copper is the only copper in
-        there - so they are exempted by name rather than by geometry."""
-        self.keepouts.append((x0, y0, x1, y1, frozenset(allow_nets)))
+        The per-net `allow_nets` exemption this used to carry existed only
+        for the opto-isolation barrier, whose isolated nets had to be the
+        one thing routed through the band. Both the barrier and the optos
+        are gone (see design.py's SSR block), so a keepout is now absolute
+        and the only caller left is the module antenna keepout, which never
+        wanted an exemption."""
+        self.keepouts.append((x0, y0, x1, y1))
 
     def add_seg(self, net, layer, x1, y1, x2, y2, w, record=True, fixed=False):
         s = Seg(net, layer, x1, y1, x2, y2, w, fixed=fixed)
@@ -275,8 +275,6 @@ class Router:
            or (y - self.y0) < self.margin + half or (self.y1 - y) < self.margin + half:
             return True
         for k in self.keepouts:
-            if net in k[4]:
-                continue
             if k[0] - need < x < k[2] + need and k[1] - need < y < k[3] + need:
                 return True
         return not self._clear_of(net, x, y, layer, need)
@@ -294,8 +292,6 @@ class Router:
             r = False
         if r:
             for k in self.keepouts:
-                if net in k[4]:
-                    continue
                 if k[0] - need < x < k[2] + need and k[1] - need < y < k[3] + need:
                     r = False
                     break

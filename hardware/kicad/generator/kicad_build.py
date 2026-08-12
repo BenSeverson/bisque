@@ -27,7 +27,7 @@ from canonicalize import canonicalize_file
 from design import COMPONENTS, netlist, BX0, BY0, BX1, BY1
 import router as R
 from gen_pcb import (all_seeds, route_all, ripup_retry, promoted_order, plane_vias,
-                     SILK, MANUAL_VIAS, PLANE_LAYER, ISO_BARRIER, ISO_NETS)
+                     SILK, MANUAL_VIAS, PLANE_LAYER)
 
 # Copper stack-up. Rev B is 4-layer (spec 6.1): signals on the outside, an
 # unbroken GND plane on In1.Cu and the +3V3 plane on In2.Cu. router.py still
@@ -130,7 +130,6 @@ def build_board():
                         "J4": (22.0, 70.5), "J9": (22.0, 83.0),
                         "J3": (110.0, 33.0), "J8": (110.0, 45.0),
                         "J12": (110.0, 62.5), "J1": (41.0, 22.0),
-                        "U8": (38.5, 73.0), "U9": (38.5, 85.0),
                         "BZ1": (48.0, 61.0), "Y1": (96.0, 88.0),
                         "H1": (30.5, 25.0), "H2": (110.5, 25.0),
                         "H3": (30.5, 115.0), "H4": (110.5, 115.0),
@@ -152,9 +151,6 @@ def build_router_model(board, fps):
             bb = z.GetBoundingBox()
             r.add_keepout(pcbnew.ToMM(bb.GetLeft()), BY0,
                           pcbnew.ToMM(bb.GetRight()), pcbnew.ToMM(bb.GetBottom()))
-    # Opto-isolation barrier - the same rectangle add_zones() carves out of the
-    # pour. Only the isolated nets may route through it.
-    r.add_keepout(*ISO_BARRIER, allow_nets=ISO_NETS)
     pad_pos = {}
     for ref, fp in fps.items():
         c = COMPONENTS[ref]
@@ -246,7 +242,7 @@ def add_outline_and_silk(board):
 
 
 def add_zones(board, nets):
-    """The two inner planes, plus the isolation barrier's pour keepout.
+    """The two inner planes.
 
     There is deliberately no pour on F.Cu or B.Cu. Rev A poured GND on both
     signal layers, which on rev B's density was the single largest consumer of
@@ -270,32 +266,10 @@ def add_zones(board, nets):
         z.SetPadConnection(pcbnew.ZONE_CONNECTION_THERMAL)
         board.Add(z)
 
-    # Opto-isolation barrier: no plane copper across the SSR opto row, or the
-    # pour shorts around the barrier the optos exist to make. This is the one
-    # thing 4 layers could quietly break - a GND plane running under the
-    # optocouplers defeats the barrier completely - so the rule area's layer
-    # set is AllCuMask(COPPER_LAYERS), not the F/B pair it was on 2 layers.
-    ka = pcbnew.ZONE(board)
-    ka.SetIsRuleArea(True)
-    # Forbid the pour and NOTHING else. A rule area's restrictions apply to
-    # every item in the band, including the isolated copper the band exists to
-    # protect - switching vias off here made KiCad flag J4/J9's own pads and
-    # U8/U9 pins 3-4 as "items not allowed". Keeping foreign vias out of the
-    # band is the *router's* job instead (see ISO_BARRIER in
-    # build_router_model), which can exempt the isolated nets by name.
-    ka.SetDoNotAllowZoneFills(True)
-    ka.SetDoNotAllowTracks(False)
-    ka.SetDoNotAllowVias(False)
-    ka.SetDoNotAllowPads(False)
-    ka.SetDoNotAllowFootprints(False)
-    # LSET's python binding takes no list/LSEQ in KiCad 10.
-    ka.SetLayerSet(pcbnew.LSET.AllCuMask(COPPER_LAYERS))
-    ol = ka.Outline()
-    ol.NewOutline()
-    bx0, by0, bx1, by1 = ISO_BARRIER
-    for (x, y) in [(bx0, by0), (bx1, by0), (bx1, by1), (bx0, by1)]:
-        ol.Append(MM(x), MM(y))
-    board.Add(ka)
+    # No rule area. Rev B carved a four-layer pour keepout across the SSR
+    # optocoupler row so the planes could not short around the barrier; the
+    # optos were reverted to direct low-side MOSFET drive (design.py's SSR
+    # block), so nothing needs the pour kept out and both planes run whole.
 
 
 def plane_islands(board):

@@ -1,12 +1,16 @@
 # JLCPCB Fabrication Readiness Review — Rev B
 
-Board: `bisque-controller` — **4-layer**, 100 × 100 mm, 1.6 mm, 143 components
-(109 machine-placed SMD across 41 BOM lines + 13 hand-fitted THT/wafer parts +
-4 mounting holes + 17 non-assembled features: 12 test pads, 4 solder jumpers,
+Board: `bisque-controller` — **4-layer**, 100 × 100 mm, 1.6 mm, 141 components
+(109 machine-placed SMD across 40 BOM lines + 13 hand-fitted THT/wafer parts +
+4 mounting holes + 15 non-assembled features: 12 test pads, 2 solder jumpers,
 1 DNP header)
 Reviewed: 2026-08-11, against KiCad 10.0.5 and the Task 14 board build.
 Re-reviewed: 2026-08-12, after the PR #301 fix wave (schematic sheet size +
 `SJ3`/`SJ4`) — see "PR #301 review round" below.
+Re-reviewed: 2026-08-12, after the **opto-isolation reversal** — see "The
+opto-isolation reversal" below. That round removed `U8`/`U9`, `SJ3`/`SJ4`,
+the four-layer pour keepout, the router keepout and `check_isolation.py`, and
+added `Q4`/`Q5`/`Q6`/`R47`.
 Status: **ready to order, bare or assembled**, subject to the sourcing flag
 in "Open items" below.
 
@@ -21,8 +25,11 @@ item that carries forward unchanged is `CERT-001`, below.
 ## Verdict
 
 **Ready to order.** Every verification gate in
-`docs/superpowers/specs/2026-08-10-pcb-rev-b-hardware-design.md` §7 passes,
-including the two rev-B-specific ones (isolation barrier, pin-map agreement).
+`docs/superpowers/specs/2026-08-10-pcb-rev-b-hardware-design.md` §7 that still
+applies passes, including pin-map agreement. The isolation-barrier gate no
+longer applies — the barrier was removed with the optocouplers, and its
+checker was deleted rather than left to pass against a rectangle that does
+not exist.
 The board needed an unplanned stack-up escalation to get there — see "The
 escalation ladder" below — which is now closed with every 2-layer concession
 given back. The one open item that must be re-checked before placing the
@@ -37,20 +44,20 @@ order, not before this review, is the CT burden resistor's stock level (see
 - **0 DRC errors**
 - **0 unconnected pads**
 - **0 footprint errors**
-- **111 warnings, all silkscreen** (2 `silk_edge_clearance`, 26
-  `silk_over_copper`, 83 `silk_overlap`) — same category and same order of
+- **109 warnings, all silkscreen** (4 `silk_edge_clearance`, 24
+  `silk_over_copper`, 81 `silk_overlap`) — same category and same order of
   magnitude as rev A's silkscreen-only warning set; nothing new in kind. Was
-  102 before `SJ3`/`SJ4` and their four silk labels landed.
+  111 with the optocouplers and their `SJ3`/`SJ4` silk labels, 102 before
+  those landed.
 
 Independent checks beyond KiCad's own DRC, all passing:
 
 | Check | Result |
 |---|---|
 | `check_pinmap.py` (design.py ↔ Kconfig) | 29 GPIO assignments agree |
-| `check_isolation.py` (opto barrier, all 4 copper layers) | 4 isolated nets, barrier intact |
 | `check_sch_bounds.py` (nothing off the declared sheet) | all placed items inside A1 |
-| `check_netlist.py` (schematic round-trip) | 96 nets compared, 0 mismatches |
-| `check_pcb.py` (independent connectivity) | 2346 copper items checked, ALL CHECKS PASS |
+| `check_netlist.py` (schematic round-trip) | 93 nets compared, 0 mismatches |
+| `check_pcb.py` (independent connectivity) | 2271 copper items checked, ALL CHECKS PASS |
 | `check_via_in_pad.py` | PASS |
 | `check_canonical.py` (reproducibility) | PASS — rebuild is byte-identical |
 
@@ -132,8 +139,8 @@ line but are Extended in the parts actually used here, and the CT front-end
 pulled in more Extended parts than originally scoped (the crystal, the
 6.8 Ω burden resistor, and the SRV05-4 TVS array's specific LCSC line, in
 addition to the ADE7953 itself). Three new subsystems — the ULN2003 aux
-bank, the LTV-817S optocouplers, and the SRV05-4 TVS arrays as a *category*
-— landed at zero feeder cost by being Basic parts; the increase over rev A's
+bank, the SRV05-4 TVS arrays as a *category*, and the watchdog's AO3401A —
+landed at zero feeder cost by being Basic parts; the increase over rev A's
 4/$12 is concentrated in the analog/sensing front end and the CT protection
 components, not in the parts the spec anticipated.
 
@@ -152,8 +159,8 @@ not in it. Measured: the old PDF carried 93 designators, the A1 one carries
 142.
 
 **Why nothing caught it.** Every checker in `generator/` validates
-*connectivity* — `check_netlist.py`, `check_pcb.py`, `check_isolation.py`,
-`check_pinmap.py`. Connectivity is complete no matter where a symbol sits on
+*connectivity* — `check_netlist.py`, `check_pcb.py`, `check_pinmap.py` (and,
+at the time, `check_isolation.py`). Connectivity is complete no matter where a symbol sits on
 a page, so all of them stayed green on a schematic that could not be read.
 This is the same shape of blind spot as the 0.078 mm drill web recorded
 below: a whole class of defect that no existing check could express, rather
@@ -183,19 +190,60 @@ deleted before re-export. The minutes-long 3D raytrace moved to its own
 
 **And `SJ3`/`SJ4` now exist.** The spec (§5.1) and this board's README both
 promised a per-channel solder jumper tying the opto collector to board +5 V,
-open by default. It had never been implemented. It is now: two open
-`SolderJumper-2_P1.3mm` parts, non-assembled (populated with solder, absent
-from BOM/CPL/hand-solder list), silkscreened `SSRn 5V` / `OPEN=ISO`. Each is
-placed so its own 0.3 mm gap straddles the `ISO_BARRIER` east edge — pad 2
-(`SSRn_A`) inside the band, pad 1 (`+5V`) outside — so no non-isolated
-copper enters the barrier and no isolated copper leaves it, and the only
-thing bridging the barrier on a shipped board is solder a user deliberately
-adds. `check_isolation.py` lists those two pins as exact permitted endpoints
-and additionally asserts the exemption is not stale; it remains a
-set-equality test, so any *other* stray connection on an isolated net still
-fails. Note for anyone closing one: the isolation distance at a closed
-jumper is that 0.3 mm gap, not the band's 1.12 mm. This is a SELV-to-SELV
-noise barrier, not a mains one.
+open by default. It had never been implemented. It was implemented in that
+round — and then removed again in the next one, along with the optocouplers
+themselves. See below.
+
+## The opto-isolation reversal
+
+**What changed.** `U8`/`U9` (LTV-817S), `SJ3`/`SJ4`, the `ISO_BARRIER`
+four-layer pour keepout, the matching router keepout with its per-net
+`allow_nets` exemption, `check_isolation.py` and `check_pcb.py`'s barrier
+check are all **gone**. Both SSR channels revert to rev A's direct low-side
+MOSFET drive: `SSRn_CTRL` → 100 Ω → gate of an AO3400A (`Q5`/`Q6`), source to
+GND, drain = the switched low side on `J4`/`J9` pin 2, 10 kΩ gate pulldown for
+boot safety, indicator LED across the terminal pair. `J4`/`J9` pin 1 is
+`SSR_EN`, board +5 V gated by the watchdog.
+
+**Why.** An optocoupler isolates only if the SSR control loop is powered from
+a supply that is not this board. Closing the loop with board `+5V` and board
+`GND` — exactly what `SJ3`/`SJ4` existed to permit, and what this
+controller's wiring does in practice — puts both sides of the barrier in one
+SELV domain and leaves the opto as a sacrificial part in series with the SSR
+input. The as-built terminals could not have closed an isolated loop at all:
+neither `J4` nor `J9` carried a `GND` pin. Meanwhile the costs were real on
+every board: two parts, an ~21 × 24 mm pour keepout on all four copper
+layers in the densest corner, a routing keepout on top of it, and a checker.
+The owner's decision is that the loop is board-powered, so the isolation is
+not preserved by the wiring and is not worth its cost. **Do not re-add
+opto-isolation without also specifying an off-board control supply and a
+terminal that carries it.**
+
+**The watchdog survived, and moved to the supply side.** `Q3`, the charge
+pump (`C38`/`D7`/`C39`/`R46`) and `SJ2` all remain, and still gate both SSR
+channels and nothing in the ULN2003 aux bank. `Q3`'s drain is now `SSR_PG`,
+the gate of `Q4` (AO3401A, P-channel) in the +5 V feed; `Q4`'s drain is
+`SSR_EN`, the rail both terminals hang off; `R47` (100 kΩ) is the fail-safe
+pull-up, and `SJ2` now shorts `SSR_PG` to GND. The two-parts-cheaper stacked
+low-side arrangement was rejected on arithmetic: at the ESP32's guaranteed
+`V_OH` (2.64 V) a channel FET whose source rides on `SSR_EN` has 140 mV of
+margin to the AO3400A's lowest guaranteed `R_DS(on)` spec point *before*
+subtracting `Q3`'s own drop, and that drop is unbounded by the datasheet at
+the 2.16 V gate the pump delivers in the worst corner. High-side drops `Q3`'s
+load from ~30 mA to 50 µA — provable from its own `V_GS(th)` test condition —
+and puts both switching FETs at or past a guaranteed spec point. Full working
+in `generator/design.py`'s watchdog block.
+
+**`check_isolation.py` was deleted, not neutered.** With no barrier there is
+nothing left for it to assert; a checker that passes vacuously is worse than
+no checker, because it reads as coverage. `check_pcb.py`'s `ISO_BARRIER`
+equality assertion went with it. `make pcb-check` is one step shorter and
+every remaining step still passes.
+
+**Numbers after the reversal:** 0 DRC errors, 0 unconnected, 0 footprint
+errors, 109 silkscreen-only warnings; 141 components; 93 nets, 0 netlist
+mismatches; 2271 copper items checked; BOM/CPL designator sets equal at 109,
+no line without an LCSC part; gerbers still carry `In1_Cu`/`In2_Cu`.
 
 ## Open items
 
@@ -320,13 +368,17 @@ noise barrier, not a mains one.
 Carried forward from rev A's review, and not newly re-verified for rev B:
 
 - **SPICE simulation skipped** — no `ngspice`/`ltspice`/`xyce` on this
-  machine. Value-computation checks on the new opto LED current-limiting
-  resistors, the watchdog charge-pump RC, and the CT anti-alias filter are
+  machine. Value-computation checks on the SSR gate/indicator resistors, the
+  watchdog charge-pump RC and its high-side gate arithmetic, and the CT
+  anti-alias filter are
   static (datasheet-arithmetic) only, the same limitation rev A's review
   recorded for its own analog values.
 - **Datasheet coverage is not exhaustive.** The parts load-bearing for this
-  respin's safety-relevant claims (MAX31856, ADE7953, LTV-817S, ULN2003,
-  BAT54S) were checked against real datasheets during Task 4 and while
-  writing `design.py`'s inline component comments; parts unchanged from rev A
+  respin's safety-relevant claims (MAX31856, ADE7953, ULN2003, BAT54S) were
+  checked against real datasheets during Task 4 and while writing
+  `design.py`'s inline component comments; the AO3400A/AO3401A gate
+  arithmetic behind the watchdog topology choice is worked in `design.py`'s
+  watchdog block against the published spec points, but no new datasheet
+  extraction was done for it. Parts unchanged from rev A
   (AMS1117, AO3400A, WS2812B, USBLC6-2SC6) were not re-verified here and
   carry whatever confidence rev A's review already assigned them.

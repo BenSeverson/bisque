@@ -59,16 +59,11 @@ SCH_AT = {
     "U5": (250, 135), "C18": (268, 135), "C19": (286, 135), "R16": (304, 135),
     "R17": (322, 135), "C20": (340, 135), "C21": (358, 135), "C22": (376, 135),
     "J8": (394, 135),
-    # ssr rows (right) - two opto-isolated channels, ch2 8mm south of ch1
-    "U8": (210, 155), "R6": (240, 153), "R7": (266, 157), "LED3": (296, 153),
-    "R10": (296, 163), "R18": (326, 157), "J4": (356, 155),
-    # SJ3/SJ4: the per-channel "+5V -> opto collector" solder links. East of
-    # their own terminal, >=20mm clear of every neighbour (the pin-label-stub
-    # merge hazard the SSR/aux rows document above).
-    "SJ3": (386, 155),
-    "U9": (213, 178), "R19": (243, 176), "R20": (269, 180), "LED4": (299, 176),
-    "R21": (299, 186), "R22": (329, 180), "J9": (359, 178),
-    "SJ4": (389, 178),
+    # ssr rows (right) - two low-side MOSFET channels, ch2 south of ch1
+    "Q5": (210, 155), "R6": (240, 153), "R7": (266, 157), "LED3": (296, 153),
+    "R10": (296, 163), "J4": (356, 155),
+    "Q6": (213, 178), "R19": (243, 176), "R20": (269, 180), "LED4": (299, 176),
+    "R21": (299, 186), "J9": (359, 178),
     # aux output bank (vent/purge/spare) - own row, clear of everything else.
     # Device:R symbols need >12.7mm vertical spacing when stacked at the same
     # x: each pin's label stub extends 2.54mm past the pin (at +-3.81mm from
@@ -127,6 +122,9 @@ SCH_AT = {
     # stubs coincide and silently short two nets.
     "C38": (25, 430), "D7": (55, 430), "C39": (85, 430),
     "R46": (115, 430), "Q3": (145, 430), "SJ2": (175, 430),
+    # Q4 (high-side switch) + R47 (its fail-safe gate pull-up) continue the
+    # watchdog row on the same 30mm grid.
+    "Q4": (205, 430), "R47": (235, 430),
     # Test points (Task 13) - fresh area clear of everything else,
     # 30mm grid (>=28mm apart in x or y), the Task 9/10/11/12 hazard margin:
     # Device:R/C symbols stacked closer than that let facing pin-label
@@ -148,7 +146,7 @@ GROUP_TEXT = [
     ("ESP32-S3-WROOM-1  (GPIOs = firmware Kconfig defaults)", 140, 130),
     ("THERMOCOUPLE 1 (control)  MAX31856  (T- floats to J3, biased via BIAS)", 225, 82),
     ("THERMOCOUPLE 2 (load)  MAX31856  (T- floats to J8, biased via BIAS)", 225, 122),
-    ("SSR DRIVE x2  (opto-isolated, LTV-817S; indicator LED parallel branch)",
+    ("SSR DRIVE x2  (low-side AO3400A; indicator LED across each terminal)",
      195, 143),
     ("ALARM BUZZER", 225, 180),
     ("MOUNTING / POWER FLAGS", 290, 238),
@@ -160,19 +158,20 @@ GROUP_TEXT = [
      "bus for the display module's XPT2046 (not on this board); J14 Qwiic +\\n"
      "J7 5-8 (0.1\") share the I2C bus, pulled up by R44/R45",
      25, 340),
-    ("HARDWARE WATCHDOG  (Task 12)  C38/D7/C39/R46 diode charge pump on\\n"
-     "WDT_KICK holds Q3 on; Q3 gates SSR_EN (both opto + both indicator LED\\n"
-     "returns). SJ2 = bring-up defeat, REMOVE for service.",
+    ("HARDWARE WATCHDOG  C38/D7/C39/R46 diode charge pump on WDT_KICK holds\\n"
+     "Q3 on; Q3 pulls SSR_PG down, turning on high-side Q4, which supplies\\n"
+     "SSR_EN - the +5V rail feeding BOTH SSR terminals and both indicators.\\n"
+     "R47 is the fail-safe pull-up. SJ2 = bring-up defeat, REMOVE for service.",
      25, 420),
 ]
 
 NOTES = (
     "Bisque kiln controller  -  ESP32-S3-WROOM-1U-N16R2 (rev B)\\n"
-    "SSR terminals J4/J9: opto-isolated (LTV-817S), boot-safe (R7/R20 pulldown).\\n"
-    "SSR1_A/B, SSR2_A/B float - no GND/+3V3/+5V on the isolated side. SJ3/SJ4\\n"
-    "  are per-channel solder links to +5V, SHIPPED OPEN: closing one sources the\\n"
-    "  SSR1/SSR2 collector from board +5V and gives up that channel's isolation.\\n"
-    "SSR_EN is the shared opto+indicator cathode return, gated by the watchdog.\\n"
+    "SSR terminals J4/J9: pin1 = SSR_EN (board +5V, watchdog-gated), pin2 = the\\n"
+    "  switched low side. Boot-safe: R7/R20 hold each MOSFET gate down while the\\n"
+    "  ESP32 pins are high-impedance. NOT opto-isolated - rev B tried that and\\n"
+    "  reverted it: an opto only isolates if the SSR loop is powered off-board,\\n"
+    "  and this board powers it.\\n"
     "TC1 terminal J3 / TC2 terminal J8: pin1 = K+, pin2 = K- - both float, biased near\\n"
     "AGND only through each MAX31856's internal BIAS network. Ungrounded-junction\\n"
     "probes required: two grounded-junction probes in one kiln would loop through it.\\n"

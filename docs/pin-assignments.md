@@ -48,11 +48,11 @@ is active). "Module pin" is U1's pin number in `design.py`.
 | 14 | 22 | ADC2_3 | `AUX1` | Vent relay, via ULN2003 (U6) → J10.2 | `KILN_PIN_VENT` | **active** (default `14`, matches the PCB) |
 | 15 | 8 | ADC2_4 | `AUX2` | Aux channel 2, via U6 → J10.3 | `KILN_PIN_AUX2` | routed, default `-1`, **no driver** |
 | 16 | 9 | ADC2_5 | `AUX3` | Aux channel 3, via U6 → J10.4 | `KILN_PIN_AUX3` | routed, default `-1`, **no driver** |
-| 17 | 10 | ADC2_6 | `SSR1_CTRL` | SSR zone 1 gate (opto U4) | `KILN_PIN_SSR1` | active |
+| 17 | 10 | ADC2_6 | `SSR1_CTRL` | SSR zone 1 MOSFET gate (Q5) | `KILN_PIN_SSR1` | active |
 | 18 | 11 | ADC2_7 | `I2C_SDA` | I2C data | `KILN_PIN_I2C_SDA` | routed, default `18`, **no driver** |
 | 19 | 13 | ADC2_8 | `USB_DN` | USB-C D− | — | fixed function |
 | 20 | 14 | ADC2_9 | `USB_DP` | USB-C D+ | — | fixed function |
-| 21 | 23 | — | `SSR2_CTRL` | SSR zone 2 gate (opto U5) | `KILN_PIN_SSR2` | routed, default `21`, **no driver** |
+| 21 | 23 | — | `SSR2_CTRL` | SSR zone 2 MOSFET gate (Q6) | `KILN_PIN_SSR2` | routed, default `21`, **no driver** |
 | 35 | 28 | — | `TC2_CS` | Thermocouple 2 (MAX31856) CS | `KILN_PIN_TC2_CS` | routed, default `35`, **no driver** |
 | 36 | 29 | — | `WDT_KICK` | Hardware watchdog kick | `KILN_PIN_WDT_KICK` | routed, default `36`, **no firmware kick task — see [WDT DEFEAT](#the-watchdog-jumper)** |
 | 37 | 30 | — | — | **spare** | — | free (freed by the quad-PSRAM module) |
@@ -139,10 +139,10 @@ mechanical microswitch in series with the element contactor.
 
 <a id="the-watchdog-jumper"></a>
 **`WDT_KICK` (36) has hardware but no firmware yet.** GPIO 36 feeds a diode
-charge pump (`hardware/kicad/README.md` §"Hardware watchdog") gating both
-SSR opto channels' return path. Nothing toggles this pin today, so on a rev B
+charge pump (`hardware/kicad/README.md` §"Hardware watchdog") gating the
++5 V rail (`SSR_EN`) that feeds both SSR channels. Nothing toggles this pin today, so on a rev B
 board **the SSRs will not energize at all** unless either the `WDT DEFEAT`
-solder jumper (`SJ2`) is fitted (shorting the gate MOSFET, restoring
+solder jumper (`SJ2`) is fitted (holding the high-side switch on, restoring
 un-gated behaviour for bring-up) or a firmware kick task is added. This is
 the most likely rev B bring-up surprise — see the README's watchdog section
 before assuming a "kiln won't heat" report is the lid interlock again.
@@ -238,7 +238,7 @@ this doc's job is to record the channel and terminal, not the firmware
 policy.
 
 `SSR2_CTRL` is listed here for cadence contrast only — it is the second SSR
-zone's own opto-isolated gate (§1), not a member of the aux bank, and unlike
+zone's own low-side MOSFET gate (§1), not a member of the aux bank, and unlike
 the aux channels it modulates on the 100 ms window rather than the 1 Hz tick
 because it tracks the main SSR's duty cycle simultaneously by definition.
 

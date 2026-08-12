@@ -16,13 +16,14 @@ the full as-built table with module pin numbers and net names:
     shared SPI2 bus (SPI_SCLK/SPI_MOSI/SPI_MISO) through series resistors.
   I2C: SDA=18 SCL=47 — shared bus, pulled up on-board, broken out on
     both J7 (0.1") and J14 (Qwiic/STEMMA QT).
-  Watchdog: WDT_KICK=36 drives the charge pump gating both SSR opto LEDs;
-    SJ2 ("WDT DEFEAT") shorts the gate MOSFET for bring-up before the
-    firmware kick task exists.
+  Watchdog: WDT_KICK=36 drives the charge pump; Q3 holds SSR_PG down, which
+    turns on the high-side switch Q4 supplying SSR_EN, the +5V rail feeding
+    both SSR terminals. SJ2 ("WDT DEFEAT") shorts SSR_PG to GND for bring-up
+    before the firmware kick task exists.
   J11: IN1(lid)=4 IN2(gas flow)=2 IN3(spare)=1
-  SSR supply links: SJ3 (SSR1_A) and SJ4 (SSR2_A) tie that channel's opto
-    collector to board +5V. SHIPPED OPEN - closing one gives up that
-    channel's isolation. See the SJ3 comment for the barrier geometry.
+  SSR drive: direct low-side MOSFET per channel (Q5/Q6), rev A's topology.
+    Rev B's opto-isolated version (U8/U9 + SJ3/SJ4) was implemented and then
+    REVERTED - see the SSR block below for why.
 
 J7's pins 5-8 carried VENT/(unconnected)/AUX_A/AUX_B through Task 10, all
 either dangling single-pin nets or declared-but-undriven — nothing on this
@@ -52,18 +53,21 @@ BX0, BY0, BX1, BY1 = 20.0, 20.0, 120.0, 120.0   # 100 x 100 mm
 
 # Placement regions (docs/.../2026-08-10-pcb-rev-b-hardware-design.md §6.2).
 # The quiet analog region holds both thermocouple cold junctions and the CT
-# front-end; keep it away from the ULN2003 and the SSR optos.
+# front-end; keep it away from the ULN2003 and the SSR drivers.
 #   digital   x 20..120  y 20..48   module, USB-C, reclaimed antenna band
-#   switching x 20..60   y 50..92   ULN2003, SSR optos, watchdog, buzzer
+#   switching x 20..60   y 50..92   ULN2003, SSR drivers, watchdog, buzzer
 #   analog    x 92..120  y 50..92   MAX31856 x2, ADE7953, CT front-end
 #   headers   x 20..120  y 94..120  LCD / nav / aux / I2C, screw terminals
-#   barrier   x 20..40.8 y 71..95.5 GND pour keepout across the opto row
-#             (load-bearing value is gen_pcb.py's ISO_BARRIER; keep in sync)
+# There is no isolation-barrier region any more: the opto barrier that used
+# to reserve x 20..40.8 / y 71..95.5 as a four-layer pour keepout went with
+# the optocouplers (see the SSR block below), and the band is now ordinary
+# pour and routing area.
 
 # net name -> netclass ("signal" default).
-# AUX_VP is an externally supplied coil rail the board does not generate, and
-# the SSR_* nets are on the isolated side of the opto barrier — neither may
-# join the GND/power pour logic.
+# AUX_VP is an externally supplied coil rail the board does not generate, so
+# it may not join the GND/power pour logic. SSR_EN is board +5V switched by
+# the watchdog's high-side MOSFET - a driven rail, but a gated one, so it is
+# deliberately not a pour net either.
 POWER_NETS = {"GND", "+5V", "+3V3", "VBUS", "VIN", "VLED"}
 
 # ---------------------------------------------------------------------------
@@ -326,127 +330,85 @@ COMPONENTS = {
     "J8": dict(lib="Connector", sym="Screw_Terminal_01x02",
                fp=TBLOCK[0], fpf=TBLOCK[1], value="TC2_K", at=(114.0, 53.0, 90),
                pins={"1": "TC2_P", "2": "TC2_N"}),
-    # --- SSR output: two opto-isolated channels ---------------------------
-    # LTV-817S-TA1-C (REV-B-NOTES.md SS7). Pinout confirmed from the Lite-On
-    # datasheet SS2.3: 1 anode, 2 cathode, 3 emitter, 4 collector - matches
-    # KiCad's unnamed Isolator:LTV-817 pin order.
+    # --- SSR output: two low-side MOSFET channels -------------------------
+    # DESIGN REVERSAL (rev B, post-review). Rev B originally opto-isolated
+    # both channels with an LTV-817S per channel (U8/U9), floating J4/J9 as
+    # dry contacts, plus SJ3/SJ4 to optionally tie each opto collector to
+    # board +5V. That has been REVERTED to rev A's direct low-side MOSFET
+    # drive, and the parts, the pour keepout and check_isolation.py are gone
+    # with it. Do not re-add it without re-deriving the reasoning below.
     #
-    # Footprint: NONE of the brief's four SO-4_4.4x*_P2.54mm candidates fit -
-    # all measure ~6.0-6.3mm pad span; the datasheet's own package drawing
-    # (SS2.3) and LCSC's independently-decoded footprint both call for a
-    # ~10.16/10.00mm gull-wing lead span. REV-B-NOTES.md SS7b: "choosing any
-    # of the four would place each pad roughly 1.85mm per side inboard of the
-    # actual gull-wing feet - the part would not land on copper at all."
-    # Using Package_DIP:SMDIP-4_W9.53mm instead (9.53mm span, the closest
-    # stock KiCad part per the notes: ~0.32mm heel / ~0.69mm toe, 0.235mm/side
-    # inboard of LCSC's geometry - acceptable, not ideal, and the least-bad
-    # stock option short of hand-drawing to LCSC's exact geometry). The
-    # _Clearance8mm variant is NOT used: that extra creepage is a mains-
-    # crossing provision, and this barrier is low-voltage on both sides -
-    # the extra 8mm creepage would only burn density-constrained board area.
+    # WHY: an optocoupler only isolates if the SSR control loop is powered
+    # from a supply that is NOT this board. The moment the loop is closed
+    # with board +5V and board GND - which is what SJ3/SJ4 existed to allow,
+    # and what this controller's wiring actually does - both sides of the
+    # "barrier" are the same SELV domain and the opto is a sacrificial part
+    # in series with the SSR input, buying nothing. It was costing two
+    # Extended-free-but-real parts, an 8 x 24 mm four-layer pour keepout, a
+    # routing keepout across the densest corner of the board, and a checker.
+    # The owner's decision is that the loop is board-powered in practice, so
+    # the isolation is not preserved by the wiring and the cost is not paid
+    # for. J4/J9 revert to rev A's 2-pin "supply + switched low side" pair,
+    # which is now complete rather than half-wired (the opto version had no
+    # GND pin on either terminal, so the isolated loop never closed at all
+    # unless the user supplied both rails externally).
     #
-    # GPIO -> R(series) -> opto LED anode -> cathode -> SSR_EN, with the
-    # indicator LED as a PARALLEL branch off the same GPIO (not in series:
-    # ~2.0V indicator + ~1.2V opto leaves nothing to drop from 3.3V). Both
-    # the opto LED cathode and the indicator LED cathode land on SSR_EN,
-    # never GND directly - Task 12's watchdog MOSFET gates SSR_EN as the
-    # shared return path for both LEDs, so an indicator that stayed lit
-    # while the watchdog had cut the SSR would misreport the board's state.
-    # R7/R20 (10k) pulldown each GPIO so both opto LEDs stay dark through
-    # boot and reset.
+    # Per channel: SSRn_CTRL -> 100R series -> gate of an AO3400A (Q5/Q6),
+    # source hard to GND, drain = SSRn_OUT = the switched low side on the
+    # terminal. R7/R20 (10k) hold each gate down through boot and reset, when
+    # the ESP32's pins are high-impedance - this is what keeps the kiln cold
+    # at power-on and is not optional. The amber indicator (LED3/LED4 +
+    # 680R) sits across the same terminal pair, so it lights only when the
+    # channel is actually driven AND the watchdog rail is up.
     #
-    # 220R series, 3.3V GPIO: I_F = (3.3 - V_F) / 220R. Datasheet SS4.2/Fig.4
-    # (REV-B-NOTES.md SS7c): V_F ~1.09V typ at 5mA, ~1.4V worst-case max
-    # (only specified at 20mA) -> I_F ~8.6-10.1mA. That clears the notes'
-    # "do not drive below 5mA" floor (CTR is only guaranteed at the bin's
-    # 5mA test condition and falls off steeply below it) with margin, and at
-    # I_F >= 5mA the CTR-C bin (200-400% @ 5mA) guarantees I_C >= 10mA min,
-    # comfortably inside the SSR input's few-mA trigger requirement.
-    "U8": dict(lib="Isolator", sym="LTV-817",
-               fp="Package_DIP:SMDIP-4_W9.53mm",
-               fpf="SMDIP-4_W9.53mm.kicad_mod",
-               value="LTV-817S-TA1-C", at=(38.5, 78.0, 180),
-               pins={"1": "SSR1_LED_A", "2": "SSR_EN",
-                     "3": "SSR1_B", "4": "SSR1_A"}),
+    # The terminal's high side is SSR_EN, not raw +5V: SSR_EN is board +5V
+    # switched by the hardware watchdog's high-side MOSFET (Q4, below). Both
+    # channels hang off it, which is how the watchdog still gates both.
+    "Q5": dict(lib="Transistor_FET", sym="AO3400A", fp=SOT23[0], fpf=SOT23[1],
+               value="AO3400A", at=(38.5, 78.0, 0),
+               pins={"1": "SSR1_GATE", "2": "GND", "3": "SSR1_OUT"}),
     "R6": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-               value="220R", at=(49.0, 80.5, 180),
-               pins={"1": "SSR1_CTRL", "2": "SSR1_LED_A"}),
+               value="100R", at=(49.0, 80.5, 180),
+               pins={"1": "SSR1_CTRL", "2": "SSR1_GATE"}),
     "R7": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
                value="10k", at=(54.0, 80.5, 0),
-               pins={"1": "SSR1_CTRL", "2": "GND"}),
+               pins={"1": "SSR1_GATE", "2": "GND"}),
     "LED3": dict(lib="Device", sym="LED", fp=LED0603[0], fpf=LED0603[1],
                  value="amber", at=(57.0, 76.0, 0),
-                 pins={"1": "SSR1_IND_K", "2": "SSR1_IND_A"}),
+                 pins={"1": "SSR1_IND_K", "2": "SSR_EN"}),
     "R10": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
                 value="680R", at=(52.0, 76.4, 0),
-                pins={"1": "SSR1_CTRL", "2": "SSR1_IND_A"}),
-    "R18": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="0R", at=(57.0, 72.0, 0),
-                pins={"1": "SSR1_IND_K", "2": "SSR_EN"}),
+                pins={"1": "SSR1_OUT", "2": "SSR1_IND_K"}),
     "J4": dict(lib="Connector", sym="Screw_Terminal_01x02",
                fp=TBLOCK[0], fpf=TBLOCK[1], value="SSR1", at=(26.0, 75.5, 270),
-               pins={"1": "SSR1_A", "2": "SSR1_B"}),
-    # Per-channel supply link, spec 5.1 / README "SSR drive x2": ties the
-    # opto's collector to board +5V for anyone who wants rev A's
-    # non-isolated convenience (drive an SSR straight off board power, no
-    # separate control supply). SHIPPED OPEN - closing it gives up that
-    # channel's isolation, which is why it is a solder jumper and not a
-    # header, and why gen_pcb.SILK prints "SSR1 5V" beside it.
-    #
-    # Placement is deliberate: pad 2 (SSR1_A) sits INSIDE the ISO_BARRIER
-    # rectangle and pad 1 (+5V) OUTSIDE it, with the jumper's own 0.3 mm
-    # gap straddling x = 40.8, the barrier's east edge (rot 180 puts pad 2
-    # west). So no non-isolated copper enters the band and no isolated
-    # copper leaves it; the *only* thing bridging the barrier here is the
-    # unsoldered gap the user would have to deliberately fill. That gap is
-    # 0.3 mm rather than the band's 1.12 mm, and it is the isolation
-    # distance at this point - acceptable because the whole barrier is a
-    # SELV-to-SELV noise barrier (see ISO_BARRIER in gen_pcb.py), not a
-    # mains one, and because the feature exists precisely to be closed.
-    "SJ3": dict(lib="Jumper", sym="SolderJumper_2_Open",
-                fp="Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",
-                fpf="SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm.kicad_mod",
-                value="SSR1_A=5V", at=(40.8, 84.0, 180),
-                pins={"1": "+5V", "2": "SSR1_A"}),
-    # --- SSR channel 2: exact copy of channel 1, 8mm south -----------------
-    "U9": dict(lib="Isolator", sym="LTV-817",
-               fp="Package_DIP:SMDIP-4_W9.53mm",
-               fpf="SMDIP-4_W9.53mm.kicad_mod",
-               value="LTV-817S-TA1-C", at=(38.5, 90.0, 180),
-               pins={"1": "SSR2_LED_A", "2": "SSR_EN",
-                     "3": "SSR2_B", "4": "SSR2_A"}),
+               pins={"1": "SSR_EN", "2": "SSR1_OUT"}),
+    # --- SSR channel 2: exact copy of channel 1, ~12mm south ---------------
+    "Q6": dict(lib="Transistor_FET", sym="AO3400A", fp=SOT23[0], fpf=SOT23[1],
+               value="AO3400A", at=(38.5, 90.0, 0),
+               pins={"1": "SSR2_GATE", "2": "GND", "3": "SSR2_OUT"}),
     "R19": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="220R", at=(52.0, 92.5, 180),
-                pins={"1": "SSR2_CTRL", "2": "SSR2_LED_A"}),
+                value="100R", at=(52.0, 92.5, 180),
+                pins={"1": "SSR2_CTRL", "2": "SSR2_GATE"}),
     "R20": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
                 value="10k", at=(57.0, 92.5, 0),
-                pins={"1": "SSR2_CTRL", "2": "GND"}),
+                pins={"1": "SSR2_GATE", "2": "GND"}),
     "LED4": dict(lib="Device", sym="LED", fp=LED0603[0], fpf=LED0603[1],
                  value="amber", at=(54.0, 87.5, 0),
-                 pins={"1": "SSR2_IND_K", "2": "SSR2_IND_A"}),
+                 pins={"1": "SSR2_IND_K", "2": "SSR_EN"}),
     "R21": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
                 value="680R", at=(49.0, 87.5, 0),
-                pins={"1": "SSR2_CTRL", "2": "SSR2_IND_A"}),
-    "R22": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="0R", at=(58.3, 87.5, 0),
-                pins={"1": "SSR2_IND_K", "2": "SSR_EN"}),
+                pins={"1": "SSR2_OUT", "2": "SSR2_IND_K"}),
     "J9": dict(lib="Connector", sym="Screw_Terminal_01x02",
                fp=TBLOCK[0], fpf=TBLOCK[1], value="SSR2", at=(26.0, 88.0, 270),
-               pins={"1": "SSR2_A", "2": "SSR2_B"}),
-    # Channel 2's copy of SJ3 - see the comment there for the geometry and
-    # why a jumper is allowed to straddle the isolation barrier at all.
-    "SJ4": dict(lib="Jumper", sym="SolderJumper_2_Open",
-                fp="Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",
-                fpf="SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm.kicad_mod",
-                value="SSR2_A=5V", at=(40.8, 94.3, 180),
-                pins={"1": "+5V", "2": "SSR2_A"}),
+               pins={"1": "SSR_EN", "2": "SSR2_OUT"}),
     # --- Hardware watchdog (Task 12) ---------------------------------------
     # WDT_KICK (U1.29, a firmware square wave) drives a diode charge pump;
-    # the hold node keeps Q3 enhanced, and Q3's drain IS the SSR_EN net - the
-    # shared return path for both opto LED cathodes and both indicator LED
-    # cathodes (U8.2/R18.2/U9.2/R22.2). Stop kicking and the pump decays
-    # below Q3's Vgs(th) in ~1s (R46*C39, see arithmetic below), dropping
-    # both SSRs. This is the only interlock on this board that survives
+    # the hold node keeps Q3 enhanced, Q3 holds SSR_PG (the gate of the
+    # high-side switch Q4) down, and Q4 supplies SSR_EN - the +5V rail that
+    # feeds BOTH SSR terminals (J4.1/J9.1) and both indicator LEDs. Stop
+    # kicking and the pump decays below Q3's Vgs(th) in ~1s (R46*C39, see
+    # arithmetic below), R47 pulls SSR_PG to +5V, Q4 turns off and the whole
+    # SSR rail collapses. This is the only interlock on this board that survives
     # firmware death - lid/over-temp/stale-TC are firmware-owned and die
     # with it. It is still only SUPPLEMENTARY: the real protection is a
     # mechanical over-temperature cutout in series with the element
@@ -462,7 +424,54 @@ COMPONENTS = {
     #
     # Gates ONLY the heat outputs (SSR_EN). AUX1-3 (vent/purge/spare, via
     # U6/ULN2003) and the buzzer are on separate nets entirely - untouched by
-    # Q3 - so a stalled controller can still open its vent.
+    # Q3/Q4 - so a stalled controller can still open its vent.
+    #
+    # --- WHY HIGH-SIDE (Q4), not a stacked low-side gate -------------------
+    # When the optos were reverted (see the SSR block above) the watchdog had
+    # to keep gating both channels. Two topologies were costed:
+    #
+    #   A - stacked low side: each channel MOSFET's SOURCE on SSR_EN, Q3's
+    #       drain on SSR_EN, Q3's source on GND. Two parts fewer.
+    #   B - high side: Q3 pulls the gate of a P-channel switch (Q4) in the
+    #       +5V feed; both channel MOSFETs' sources go hard to GND.
+    #
+    # A was rejected on arithmetic, not preference. SS8d below establishes
+    # that at the ESP32's GUARANTEED V_OH (0.8*VDD = 2.64V) the pump holds
+    # Q3's gate at only 2.16V - below 2.5V, the lowest Vgs at which the
+    # AO3400A datasheet guarantees ANY R_DS(on) (48 mOhm at Vgs=2.5V/Id=3A;
+    # nothing at all is specified below it). Q3's drop at the 20-30 mA two
+    # SSR loops draw therefore has NO datasheet upper bound - only an
+    # extrapolation (square-law off the 2.5V point gives ~70 mOhm, ~2 mV,
+    # but that is an estimate, not a spec). In topology A that unbounded
+    # drop subtracts directly from the channel MOSFET's Vgs, which starts at
+    # the same guaranteed 2.64V - i.e. 2.64 - 2.50 = 0.14V of margin to its
+    # own only guaranteed R_DS(on) point BEFORE subtracting anything. 140 mV
+    # of margin against an unbounded subtrahend is not "comfortably
+    # enhanced", so A fails its own acceptance test.
+    #
+    # B is provable end to end from the datasheets:
+    #   * Q3's only load becomes R47 (100k to +5V) = 50 uA max, not 20-30 mA.
+    #     The AO3400A's Vgs(th) is specified as Id = 250 uA at Vgs = Vds =
+    #     1.45V (max). Our Vgs is 2.16V > 1.45V, so Id at Vds = 1.45V is
+    #     >= 250 uA, while the current actually demanded there is only
+    #     (5 - 1.45)/100k = 35.5 uA - 7x less. Q3 is therefore deep in
+    #     triode; interpolating linearly off that same guaranteed point,
+    #     SSR_PG settles at ~35.5 uA * (1.45V / 250 uA) ~= 0.21V. The
+    #     watchdog gate's worst corner stops mattering because the load went
+    #     down by ~500x, which is strictly better than what rev B shipped.
+    #   * Q4 (AO3401A) then sees Vgs = -(5.0 - 0.21) = -4.79V, past its
+    #     -4.5V spec point, so R_DS(on) <= 60 mOhm is GUARANTEED. Load is
+    #     2 x 15 mA (SSR inputs) + 2 x 4.4 mA (indicators) ~= 39 mA -> drop
+    #     <= 2.4 mV. The SSR sees >= 4.99V.
+    #   * The channel MOSFETs (Q5/Q6) have their sources hard to GND, so
+    #     Vgs = 2.64V worst case >= the 2.5V spec point: R_DS(on) <= 48 mOhm
+    #     guaranteed, ~0.7 mV at 15 mA. Exactly rev A's proven condition.
+    #   * Fail-safe polarity holds: no kick (or no firmware yet at power-on)
+    #     -> Q3 off -> R47 pulls SSR_PG to +5V -> Q4 Vgs = 0 -> rail dead.
+    #     Q4's gate leakage (Igss +-100 nA) across R47 is 10 mV, three
+    #     hundred millivolts clear of the AO3401A's -0.5V min Vgs(th), so
+    #     leakage cannot part-enhance it.
+    # Cost of B over A: two parts (Q4, R47).
     #
     # --- Parts: REV-B-NOTES.md SS8a overrides the brief -------------------
     # The brief specified two discrete SOD-123 singles (D6/D7). REV-B-NOTES
@@ -533,17 +542,31 @@ COMPONENTS = {
                 pins={"1": "WDT_HOLD", "2": "GND"}),
     "Q3": dict(lib="Transistor_FET", sym="AO3400A", fp=SOT23[0], fpf=SOT23[1],
                value="AO3400A", at=(52.0, 57.5, 0),
-               pins={"1": "WDT_HOLD", "2": "GND", "3": "SSR_EN"}),
-    # Bring-up defeat: shorts SSR_EN straight to GND (through Q3's own
-    # source net), bypassing the watchdog gate entirely so the SSRs work
-    # before the firmware kick task exists. Silkscreened "WDT DEFEAT" - see
-    # gen_pcb.py SILK. MUST be removed (left open) in service - this is a
-    # foot-gun by design, not a normal-operation jumper.
+               pins={"1": "WDT_HOLD", "2": "GND", "3": "SSR_PG"}),
+    # High-side switch for the whole SSR rail. AO3401A (P-channel, SOT-23,
+    # LCSC C15127, JLCPCB Basic): source on +5V, gate on SSR_PG, drain IS
+    # SSR_EN. Pin order from KiCad's own Transistor_FET:AO3401A symbol
+    # (extends TP0610T): 1 G, 2 S, 3 D.
+    "Q4": dict(lib="Transistor_FET", sym="AO3401A", fp=SOT23[0], fpf=SOT23[1],
+               value="AO3401A", at=(40.8, 84.0, 0),
+               pins={"1": "SSR_PG", "2": "+5V", "3": "SSR_EN"}),
+    # Q4's gate pull-up: the fail-safe. Nothing holding SSR_PG down means
+    # SSR_PG = +5V means Q4 off means no SSR rail. 100k keeps Q3's load at
+    # 50 uA (see the arithmetic above) while staying stiff enough that Q4's
+    # own gate leakage moves the node by only ~10 mV.
+    "R47": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
+                value="100k", at=(45.5, 84.0, 0),
+                pins={"1": "+5V", "2": "SSR_PG"}),
+    # Bring-up defeat: shorts SSR_PG straight to GND (through Q3's own
+    # source net), holding Q4 on and bypassing the watchdog gate entirely so
+    # the SSRs work before the firmware kick task exists. Silkscreened
+    # "WDT DEFEAT" - see gen_pcb.py SILK. MUST be removed (left open) in
+    # service - this is a foot-gun by design, not a normal-operation jumper.
     "SJ2": dict(lib="Jumper", sym="SolderJumper_2_Open",
                 fp="Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",
                 fpf="SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm.kicad_mod",
                 value="WDT_DEFEAT", at=(57.0, 57.5, 0),
-                pins={"1": "SSR_EN", "2": "GND"}),
+                pins={"1": "SSR_PG", "2": "GND"}),
     # --- Aux output bank (vent / purge / spare) --------------------------
     # ULN2003A: 7 Darlington channels with integrated freewheel diodes to COM,
     # and a JLCPCB *Basic* part - so it replaces ~19 discrete parts at zero

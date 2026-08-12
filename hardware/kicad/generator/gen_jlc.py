@@ -133,12 +133,16 @@ LCSC = {
     "LED4": ("C2296", "KT-0805Y amber LED 0805", True, True),
     "Q2": ("C20917", "AO3400A SOT-23", True, True),
     "Q3": ("C20917", "AO3400A SOT-23", True, True),
+    # Watchdog high-side switch: the one P-channel part on the board.
+    "Q4": ("C15127", "AO3401A P-channel SOT-23", True, True),
+    "Q5": ("C20917", "AO3400A SOT-23", True, True),
+    "Q6": ("C20917", "AO3400A SOT-23", True, True),
     "R1": ("C17414", "10k 0805 1%", True, True),
     "R2": ("C17414", "10k 0805 1%", True, True),
     "R3": ("C17630", "330R 0805 1%", True, True),
     "R4": ("C27834", "5.1k 0805 1%", True, True),
     "R5": ("C27834", "5.1k 0805 1%", True, True),
-    "R6": ("C17557", "220R 0805 1%", True, True),
+    "R6": ("C17408", "100R 0805 1%", True, True),
     "R7": ("C17414", "10k 0805 1%", True, True),
     "R8": ("C17414", "10k 0805 1%", True, True),
     "R9": ("C17513", "1k 0805 1%", True, True),
@@ -150,11 +154,9 @@ LCSC = {
     "R15": ("C17408", "100R 0805 1%", True, True),
     "R16": ("C17408", "100R 0805 1%", True, True),
     "R17": ("C17408", "100R 0805 1%", True, True),
-    "R18": ("C17477", "0R 0805 jumper", True, True),
-    "R19": ("C17557", "220R 0805 1%", True, True),
+    "R19": ("C17408", "100R 0805 1%", True, True),
     "R20": ("C17414", "10k 0805 1%", True, True),
     "R21": ("C17798", "680R 0805 1%", True, True),
-    "R22": ("C17477", "0R 0805 jumper", True, True),
     "R23": ("C17414", "10k 0805 1%", True, True),
     "R24": ("C17414", "10k 0805 1%", True, True),
     "R25": ("C17414", "10k 0805 1%", True, True),
@@ -179,6 +181,7 @@ LCSC = {
     "R44": ("C17673", "4.7k 0805 1%", True, True),
     "R45": ("C17673", "4.7k 0805 1%", True, True),
     "R46": ("C17514", "1M 0805 1%", True, True),
+    "R47": ("C149504", "100k 0805 1%", True, True),
     "SW1": ("C318884", "TS-1187A-B-A-B 5.1x5.1mm SMD tactile switch", True, True),
     "SW2": ("C318884", "TS-1187A-B-A-B 5.1x5.1mm SMD tactile switch", True, True),
     "U1": ("C3013945", "ESP32-S3-WROOM-1U-N16R2 (16MB flash, 2MB quad PSRAM, U.FL)", False, True),
@@ -188,8 +191,6 @@ LCSC = {
     "U5": ("C2653162", "MAX31856MUD+T TSSOP-14", False, True),
     "U6": ("C7512", "ULN2003ADR SOIC-16 Darlington array", True, True),
     "U7": ("C515890", "ADE7953ACPZ-RL LFCSP-28 energy metering", False, True),
-    "U8": ("C109227", "LTV-817S-TA1-C optocoupler SMD-4P", True, True),
-    "U9": ("C109227", "LTV-817S-TA1-C optocoupler SMD-4P", True, True),
     "Y1": ("C7471632", "3.579545MHz crystal HC-49S-SMD", False, True),
 }
 
@@ -202,15 +203,15 @@ LCSC = {
 # are.
 #
 # TP1-TP12: 1 mm bring-up test pads (Task 13) - bare copper, nothing to
-# place or buy. SJ1-SJ4: open solder-jumper footprints (AUX_VP<-+5V link,
-# WDT bring-up defeat, and the two per-channel SSR collector<-+5V links) -
-# populated with solder, not a component. J13: a
+# place or buy. SJ1/SJ2: open solder-jumper footprints (AUX_VP<-+5V link and
+# the WDT bring-up defeat) - populated with solder, not a component. SJ3/SJ4
+# went with the optocouplers (see design.py's SSR block). J13: a
 # fitted-but-DNP 2-pin header for a future SELV AC-sense accessory (Task 10)
 # - "NO MAINS ON THIS BOARD" per design.py, so this build does not stuff it.
 NOT_ASSEMBLED = {
     "TP1", "TP2", "TP3", "TP4", "TP5", "TP6",
     "TP7", "TP8", "TP9", "TP10", "TP11", "TP12",
-    "SJ1", "SJ2", "SJ3", "SJ4",
+    "SJ1", "SJ2",
     "J13",
 }
 

@@ -107,22 +107,16 @@ def pad_geometry(comp):
         yield (str(name), kind, gx, gy, w, h, circle, layers, hole)
 
 
-# Opto-isolation barrier (spec 6.2). The band spans the west edge from just
-# above J4 to just below J9 and stops short of the optocouplers' input pins, so
-# every scrap of isolated copper - J4/J9 and U8/U9 pins 3 and 4 - sits inside
-# it. Measured clearance from the barrier to the nearest copper: 1.12 mm to
-# the nearest fill edge, 1.62 mm to the nearest foreign-net copper - adequate
-# for a SELV-to-SELV noise barrier, not the "~5 mm" this comment used to
-# claim. Placement, the pour keepout and the router keepout all move
-# together; kicad_build.py imports these.
-ISO_BARRIER = (20.0, 71.0, 40.8, 95.5)
-ISO_NETS = ("SSR1_A", "SSR1_B", "SSR2_A", "SSR2_B")
+# There is no opto-isolation barrier. Rev B carved a four-layer pour keepout
+# (x 20..40.8, y 71..95.5) across the optocoupler row and made it a routing
+# keepout too; the optos were reverted to rev A's direct low-side MOSFET
+# drive (see design.py's SSR block), so the band is now ordinary pour and
+# routing area on all four layers.
 
 
 def build_router():
     r = R.Router(BX0, BY0, BX1, BY1)
     # No antenna keepout: rev B's WROOM-1U has no PCB antenna (spec 2.1).
-    r.add_keepout(*ISO_BARRIER, allow_nets=ISO_NETS)
     pad_pos = {}
     for ref, c in COMPONENTS.items():
         for (name, kind, gx, gy, w, h, circle, layers, hole) in pad_geometry(c):
@@ -542,8 +536,9 @@ ROUTE_ORDER = [
     ("SPI_MOSI", SIG_W), ("SPI_SCLK", SIG_W), ("SPI_MISO", SIG_W),
     ("TC1_CS", SIG_W), ("TC2_CS", SIG_W),
     ("I2C_SDA", SIG_W), ("I2C_SCL", SIG_W),
-    # isolated side of the opto barrier - only nets allowed in the keepout
-    ("SSR1_A", 0.4), ("SSR1_B", 0.4), ("SSR2_A", 0.4), ("SSR2_B", 0.4),
+    # the watchdog-gated SSR supply rail and the two switched low sides: the
+    # SSR loop current (~15 mA/channel plus its indicator) all lands here
+    ("SSR_EN", 0.5), ("SSR1_OUT", 0.4), ("SSR2_OUT", 0.4),
     # aux bank outputs carry relay/solenoid coil current
     # AUX*_OUT run outermost-first: U6's output pins and J10's terminal
     # positions are in opposite order, so AUX1 and AUX3 have to swap sides.
@@ -569,10 +564,9 @@ ROUTE_ORDER = [
     # USB (pre-seeded escapes, see USB_SEEDS)
     ("CC1", SIG_W), ("CC2", SIG_W), ("USB_DN", SIG_W), ("USB_DP", SIG_W),
     # SSR driver chains, watchdog gate
-    ("SSR_EN", 0.4),
-    ("SSR1_LED_A", SIG_W), ("SSR1_IND_A", SIG_W), ("SSR1_IND_K", SIG_W),
-    ("SSR2_LED_A", SIG_W), ("SSR2_IND_A", SIG_W), ("SSR2_IND_K", SIG_W),
-    ("WDT_PUMP", SIG_W), ("WDT_HOLD", SIG_W),
+    ("SSR1_GATE", SIG_W), ("SSR1_IND_K", SIG_W),
+    ("SSR2_GATE", SIG_W), ("SSR2_IND_K", SIG_W),
+    ("SSR_PG", SIG_W), ("WDT_PUMP", SIG_W), ("WDT_HOLD", SIG_W),
     # buzzer, status LED
     ("BUZZ_GATE", SIG_W), ("WS_DIN", SIG_W),
     # thermocouple front-ends (short, local, kept matched)
@@ -840,16 +834,12 @@ SILK = [
     ("AUX OUT", 22.0, 47.0, 0, 0.9),
     ("SSR1", 22.0, 70.5, 0, 0.9),
     ("SSR2", 22.0, 83.0, 0, 0.9),
-    # SJ3/SJ4, the per-channel opto-collector-to-+5V links. Silkscreened so
-    # the isolation state of each channel is readable off the bare board:
-    # OPEN (as fabricated) = that channel is isolated; bridged = it is
-    # powered from board +5V and is not. Text sits east of each jumper,
-    # outside the isolation band, so it does not read as isolated-side
-    # marking. gr_text is centre-justified, hence the odd-looking anchors.
-    ("SSR1 5V", 46.4, 83.1, 0, 0.8),
-    ("OPEN=ISO", 46.4, 85.0, 0, 0.8),
-    ("SSR2 5V", 48.0, 92.2, 0, 0.8),
-    ("OPEN=ISO", 48.0, 94.1, 0, 0.8),
+    # Both SSR terminals are "+5V (watchdog-gated), switched low side" - the
+    # board supplies the control loop, so the pin order is worth naming on
+    # the silk. SJ3/SJ4, the old per-channel opto-collector-to-+5V links,
+    # are gone with the optocouplers.
+    ("5V / OUT", 22.0, 72.3, 0, 0.8),
+    ("5V / OUT", 22.0, 84.8, 0, 0.8),
     ("TC1  K+/K-", 104.0, 31.0, 0, 0.9),
     ("TC2  K+/K-", 104.0, 58.5, 0, 0.9),
     ("CT A+/A-/B+/B-", 96.0, 76.0, 0, 0.9),
@@ -959,16 +949,8 @@ def main(dst):
            '\t\t(fill yes (thermal_gap 0.3) (thermal_bridge_width 0.4))\n'
            '\t\t(polygon (pts %s))\n\t)'
            % (netnum[pnet], pnet, player, uid("zone", pnet), poly))
-    # opto-isolation barrier: a rule area barring the pour on EVERY copper
-    # layer, inner planes included (see kicad_build.add_zones)
-    bpoly = " ".join("(xy %s %s)" % (f(x), f(y)) for x, y in
-                     [(ISO_BARRIER[0], ISO_BARRIER[1]), (ISO_BARRIER[2], ISO_BARRIER[1]),
-                      (ISO_BARRIER[2], ISO_BARRIER[3]), (ISO_BARRIER[0], ISO_BARRIER[3])])
-    ap('\t(zone (net 0) (net_name "") (layers "F.Cu" "In1.Cu" "In2.Cu" "B.Cu")\n'
-       '\t\t(uuid "%s") (hatch edge 0.5) (keepout (tracks allowed) (vias allowed)\n'
-       '\t\t(pads allowed) (copperpour not_allowed) (footprints allowed))\n'
-       '\t\t(fill (thermal_gap 0.3) (thermal_bridge_width 0.4))\n'
-       '\t\t(polygon (pts %s))\n\t)' % (uid("zone", "iso"), bpoly))
+    # No rule areas. The opto-isolation barrier's four-layer pour keepout was
+    # removed with the optocouplers (see design.py's SSR block).
     ap(')')
     text = "\n".join(out) + "\n"
     with open(dst, "w") as fh:

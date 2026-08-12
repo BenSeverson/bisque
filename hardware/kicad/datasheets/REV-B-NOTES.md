@@ -618,6 +618,12 @@ candidate assertion for `generator/check_pinmap.py`.
 
 ## 7. LTV-817S-TA1-C — pinout, footprint, CTR
 
+> **Historical.** The optocouplers were removed from the board before fab —
+> opto-isolation only isolates if the SSR control loop is powered off-board,
+> and this board powers it (hardware-design spec §2.4). This section is kept
+> as the datasheet record it always was; nothing on the current board uses it.
+
+
 Source: Lite-On **"Photocoupler Product Data Sheet LTV-817 (M, S, S-TA, S-TA1,
 S-TP) Series"**, Spec No. **DS70-2012-0050, Revision C**, effective 2014-12-20,
 12 pp. Saved locally as

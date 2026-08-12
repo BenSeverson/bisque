@@ -4,9 +4,13 @@ Checks:
   1. copper-to-copper clearance between different nets (segments, vias, pads)
   2. per-net connectivity (tracks/vias/pads touching); the plane nets are
      exempt, being carried by an inner pour rather than by tracks
-  3. no track, via or PLANE FILL inside the opto-isolation barrier
-  4. copper-to-board-edge margin
-  5. courtyard overlaps between footprints
+  3. copper-to-board-edge margin
+  4. courtyard overlaps between footprints
+
+Check 3 used to be "no track, via or PLANE FILL inside the opto-isolation
+barrier". The optocouplers and their pour keepout were reverted (see
+design.py's SSR block), so the rectangle no longer exists and the check went
+with it rather than being left to pass vacuously.
 
 The board is 4-layer (spec 6.1). Tracks only ever sit on F.Cu or B.Cu; the
 inner layers carry the GND and +3V3 plane fills and nothing else. Through
@@ -22,21 +26,6 @@ from sexp import parse, find, find_all, num
 
 MIN_CLEAR = 0.198
 EDGE_CLEAR = 0.4
-
-# Must match gen_pcb.ISO_BARRIER / ISO_NETS. Duplicated rather than imported
-# so this checker's geometry logic stays independent of the generator - but
-# an undetected drift here would silently turn the barrier check into a test
-# of an empty rectangle while still printing ALL CHECKS PASS, so the values
-# are asserted equal to the generator's at import time rather than trusted.
-ISO_BARRIER = (20.0, 71.0, 40.8, 95.5)
-ISO_NETS = ("SSR1_A", "SSR1_B", "SSR2_A", "SSR2_B")
-
-from gen_pcb import ISO_BARRIER as _GEN_ISO_BARRIER, ISO_NETS as _GEN_ISO_NETS
-assert ISO_BARRIER == _GEN_ISO_BARRIER, (
-    f"check_pcb.ISO_BARRIER {ISO_BARRIER} != gen_pcb.ISO_BARRIER {_GEN_ISO_BARRIER} - "
-    "the isolation-barrier check would silently test the wrong rectangle")
-assert ISO_NETS == _GEN_ISO_NETS, (
-    f"check_pcb.ISO_NETS {ISO_NETS} != gen_pcb.ISO_NETS {_GEN_ISO_NETS}")
 
 # Copper stack-up, and the nets poured on the inner layers. Must match
 # gen_pcb.PLANE_LAYER; duplicated so this checker stays independent.
@@ -259,19 +248,6 @@ def load(src):
     return items, netnames, courtyards, edges, doc
 
 
-def point_in_poly(px, py, pts):
-    inside = False
-    n = len(pts)
-    for i in range(n):
-        x1, y1 = pts[i]
-        x2, y2 = pts[(i + 1) % n]
-        if (y1 > py) != (y2 > py):
-            xi = x1 + (py - y1) * (x2 - x1) / (y2 - y1)
-            if px < xi:
-                inside = not inside
-    return inside
-
-
 def zone_fills(doc):
     """(layer, net, [[(x, y), ...], ...]) for every filled zone."""
     out = []
@@ -279,7 +255,7 @@ def zone_fills(doc):
         lay = find(z, "layer")
         net = find(z, "net")
         if lay is None or net is None:
-            continue                      # rule area / multi-layer keepout
+            continue
         polys = []
         for fp in find_all(z, "filled_polygon"):
             pts = find(fp, "pts")
@@ -366,62 +342,12 @@ def main(src):
                             % (netn, len(roots),
                                [g[:10] for g in groups.values()]))
 
-    # 3. opto-isolation barrier (rev B). Rev A checked the WROOM-1's antenna
-    # keep-out here; the WROOM-1U has no PCB antenna and the band is reclaimed
-    # (spec 2.1), so the rectangle that matters now is the pour keepout across
-    # the SSR opto row. Nothing but the four isolated nets - and nothing on the
-    # GND net at all - may have copper inside it.
-    kx0, ky0, kx1, ky1 = ISO_BARRIER
-    for it in items:
-        if it.kind not in ("seg", "via"):
-            continue
-        # Sample along the centreline rather than testing the axis-aligned
-        # bounding box: a long 45-degree track has a bbox tens of millimetres
-        # across and would false-positive on any rectangle it merely spans.
-        n = max(1, int(math.hypot(it.x2 - it.x1, it.y2 - it.y1) / 0.1))
-        r = it.w / 2.0
-        hit = False
-        for k in range(n + 1):
-            t = k / float(n)
-            px = it.x1 + (it.x2 - it.x1) * t
-            py = it.y1 + (it.y2 - it.y1) * t
-            if kx0 - r < px < kx1 + r and ky0 - r < py < ky1 + r:
-                hit = True
-                break
-        if hit and it.net not in ISO_NETS:
-            problems.append("isolation barrier violation: %s carries %s"
-                            % (it, it.net))
-
-    # 3b. ...and no PLANE copper either. A GND plane running under the
-    # optocouplers would defeat the barrier completely and nothing in check 3
-    # would see it: a zone fill is not a track, and none of the item-based
-    # checks above model one. The rule area in kicad_build.add_zones is
-    # supposed to keep the fill out on every copper layer; this is the
-    # independent confirmation that it did.
-    #
-    # Tested by sampling the band rather than by looking at fill vertices: the
-    # fill legitimately *touches* the keepout edge, so a vertex on the
-    # boundary means the rule area worked, not that it failed. What must be
-    # true is that no point in the band's interior is inside any fill.
-    fills = zone_fills(doc)
-    for (zlayer, znet, outlines) in fills:
-        hit = None
-        yy = ky0 + 0.5
-        while yy < ky1 and hit is None:
-            xx = kx0 + 0.5
-            while xx < kx1:
-                if any(point_in_poly(xx, yy, pts) for pts in outlines):
-                    hit = (xx, yy)
-                    break
-                xx += 0.5
-            yy += 0.5
-        if hit:
-            problems.append("isolation barrier violation: %s fill on %s covers "
-                            "(%.2f, %.2f)" % (znet, zlayer, hit[0], hit[1]))
-    if not fills:
+    # The inner planes must actually be filled - an unfilled board would sail
+    # through every item-based check above, since a zone fill is not a track.
+    if not zone_fills(doc):
         problems.append("no filled zones found - was the board filled?")
 
-    # 4. edge clearance
+    # 3. edge clearance
     for it in items:
         x0 = min(it.x1, it.x2) - it.w / 2
         x1 = max(it.x1, it.x2) + it.w / 2
@@ -433,7 +359,7 @@ def main(src):
            or y0 < by0 + EDGE_CLEAR or y1 > by1 - EDGE_CLEAR:
             problems.append("edge clearance: %s" % it)
 
-    # 5. courtyard overlaps
+    # 4. courtyard overlaps
     refs = sorted(courtyards)
     for i in range(len(refs)):
         for j in range(i + 1, len(refs)):
