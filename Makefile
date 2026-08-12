@@ -32,7 +32,8 @@ IDF         := . ./scripts/idf-env.sh &&
         lint lint-c lint-web format \
         clang-tidy cppcheck \
         size size-firmware size-spiffs \
-        ci ci-firmware clean
+        ci ci-firmware clean \
+        pcb pcb-check
 
 help:  ## List available targets
 	@awk 'BEGIN{FS=":.*## "} /^[a-z][a-zA-Z0-9_-]*:.*## / {printf "  \033[1m%-15s\033[0m %s\n",$$1,$$2}' $(MAKEFILE_LIST)
@@ -205,6 +206,28 @@ size-spiffs:  ## Check $(SPIFFS_DIR) fits in the SPIFFS partition
 	./scripts/check-spiffs-size.sh $(SPIFFS_DIR)
 
 size: size-firmware size-spiffs  ## Both partition size checks
+
+## ──────────────────────────────────────────────────────────────────────
+## PCB (hardware/kicad) — see hardware/kicad/README.md for the full regen
+## order and why it matters (zone fill must be current before gerbers
+## export, or a stale pour gets baked into gerbers/).
+## ──────────────────────────────────────────────────────────────────────
+
+KICAD_DIR := hardware/kicad
+KPY       := /Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3
+
+pcb-check:  ## Run every PCB checker (no KiCad rebuild)
+	cd $(KICAD_DIR) && python3 generator/check_pinmap.py \
+	  && python3 generator/check_isolation.py \
+	  && python3 generator/check_netlist.py bisque-controller.kicad_sch \
+	  && python3 generator/check_pcb.py bisque-controller.kicad_pcb \
+	  && python3 generator/check_canonical.py bisque-controller.kicad_pcb
+
+pcb:  ## Regenerate schematic + board + fab outputs from design.py
+	cd $(KICAD_DIR) && python3 generator/gen_sch.py bisque-controller.kicad_sch \
+	  && "$(KPY)" generator/kicad_build.py bisque-controller.kicad_pcb \
+	  && "$(KPY)" generator/check_via_in_pad.py bisque-controller.kicad_pcb
+	$(MAKE) pcb-check
 
 ## ──────────────────────────────────────────────────────────────────────
 ## Aggregates
