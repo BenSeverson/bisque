@@ -24,7 +24,16 @@ DEBUG_NETS = set(filter(None, os.environ.get("ROUTER_DEBUG", "").split(",")))
 # off centre, which puts it inside the neighbouring pin's clearance and makes
 # those pads simply unreachable. At 0.25 mm every 0.5 mm-pitch pad lands
 # exactly on a grid line and the worst 0.65 mm-pitch error falls to 0.125 mm,
-# which a 0.25 mm track clears. The cost is ~2.5x the cells and a slower route.
+# which a 0.25 mm track clears.
+#
+# That is measured, not reasoned. The escape stubs mean the router no longer
+# touches a fine-pitch pad directly, which looks like it should have retired
+# the constraint - but gen_pcb._snap() lands every stub end on GRID, so a
+# coarser grid walks the escape off the pad's centreline just the same. At
+# 0.4 mm 14 nets fail to route and at 0.3 mm five do, in both cases on U7 and
+# the two MAX31856s. Nor is the fine grid what costs the time: 0.3 mm takes
+# 463 s against 0.25 mm's 144, because a net that cannot be routed exhausts
+# the whole grid before it says so, several times a pass.
 GRID = 0.25         # mm per cell
 CLEAR = 0.2         # required copper-to-copper clearance
 VIA_DIA = 0.6
@@ -62,7 +71,7 @@ class Shape:
     which is how a 0.078 mm web to a GND stitching via got past this router.
     """
     __slots__ = ("net", "layers", "cx", "cy", "w", "h", "circle", "drill",
-                 "hx1", "hy1", "hx2", "hy2")
+                 "hx1", "hy1", "hx2", "hy2", "bx0", "by0", "bx1", "by1")
 
     def __init__(self, net, layers, cx, cy, w, h, circle=False, drill=0.0,
                  drill_len=0.0, drill_ang=0.0, hole=None):
@@ -76,6 +85,16 @@ class Shape:
         dx, dy = half * math.cos(a), -half * math.sin(a)
         self.hx1, self.hy1 = hcx - dx, hcy - dy
         self.hx2, self.hy2 = hcx + dx, hcy + dy
+        # Bounding box over copper AND hole, cached because it is the reject
+        # test in the router's hottest loop (see Router._clear_of). It is only
+        # ever used to skip an exact dist()/hole_dist() that could not have
+        # returned a violation, so an over-large box costs speed, never
+        # correctness.
+        hr = drill / 2.0
+        self.bx0 = min(cx - w / 2.0, self.hx1 - hr, self.hx2 - hr)
+        self.bx1 = max(cx + w / 2.0, self.hx1 + hr, self.hx2 + hr)
+        self.by0 = min(cy - h / 2.0, self.hy1 - hr, self.hy2 - hr)
+        self.by1 = max(cy + h / 2.0, self.hy1 + hr, self.hy2 + hr)
 
     def hole_dist(self, x, y):
         """Distance from (x, y) to this pad's drill aperture edge."""
@@ -101,12 +120,20 @@ class Seg:
     # `fixed` marks copper the router did not draw and may not remove: the
     # hand-seeded USB escapes, the fine-pitch fanout stubs and the plane-via
     # stubs. rip_up() deletes only what it can re-create.
-    __slots__ = ("net", "layer", "x1", "y1", "x2", "y2", "w", "fixed")
+    __slots__ = ("net", "layer", "x1", "y1", "x2", "y2", "w", "fixed",
+                 "bx0", "by0", "bx1", "by1")
 
     def __init__(self, net, layer, x1, y1, x2, y2, w, fixed=False):
         self.net, self.layer = net, layer
         self.x1, self.y1, self.x2, self.y2, self.w = x1, y1, x2, y2, w
         self.fixed = fixed
+        # See Shape's box: a cached reject bound, never an answer. miter_corners
+        # shortens a segment in place and deliberately does not refresh this —
+        # the stale box is larger than the copper, which only means the exact
+        # dist() below runs on a few extra candidates.
+        h = w / 2.0
+        self.bx0, self.bx1 = min(x1, x2) - h, max(x1, x2) + h
+        self.by0, self.by1 = min(y1, y2) - h, max(y1, y2) + h
 
     def dist(self, x, y):
         dx, dy = self.x2 - self.x1, self.y2 - self.y1
@@ -124,6 +151,10 @@ class Router:
         self.margin = edge_margin
         self.keepouts = []
         self.buckets = {}   # (bx,by) -> list of Shape/Seg
+        # (bx,by) -> the 9 surrounding buckets flattened into one list. _near()
+        # is entered ~21 M times a build and walks ~40 objects each time; doing
+        # that as a generator over 9 dict lookups cost 833 M frame resumptions.
+        self._near_cache = {}
         self.pads = []            # Shape, never removed
         self.result_tracks = []   # Seg (all routed, incl. seeds)
         self.result_vias = []     # (net, x, y, fixed)
@@ -139,9 +170,14 @@ class Router:
         bx1 = int((x1 + pad) // BUCKET)
         by0 = int((y0 - pad) // BUCKET)
         by1 = int((y1 + pad) // BUCKET)
+        cache = self._near_cache
         for bx in range(bx0, bx1 + 1):
             for by in range(by0, by1 + 1):
                 self.buckets.setdefault((bx, by), []).append(obj)
+                # Every flattened list that reads this bucket is now stale.
+                for dx in (-1, 0, 1):
+                    for dy in (-1, 0, 1):
+                        cache.pop((bx + dx, by + dy), None)
 
     def add_pad(self, net, layers, cx, cy, w, h, circle=False, drill=0.0,
                 drill_len=0.0, drill_ang=0.0, hole=None):
@@ -179,6 +215,7 @@ class Router:
     def reindex(self):
         """Rebuild the spatial index from pads + the current copper lists."""
         self.buckets = {}
+        self._near_cache = {}
         self._memo, self._memo_net = {}, None
         for s in self.pads:
             self._insert(s, s.cx - s.w / 2, s.cy - s.h / 2,
@@ -227,11 +264,22 @@ class Router:
                                         for n, d in best.items())]
 
     def _near(self, x, y):
-        bx, by = int(x // BUCKET), int(y // BUCKET)
-        for dx in (-1, 0, 1):
-            for dy in (-1, 0, 1):
-                for o in self.buckets.get((bx + dx, by + dy), ()):
-                    yield o
+        """Every obstacle in the 3x3 block of buckets around (x, y).
+
+        Returns a real list, not a generator: the callers below are the
+        router's inner loop and a generator paid one frame resumption per
+        object yielded.
+        """
+        key = (int(x // BUCKET), int(y // BUCKET))
+        out = self._near_cache.get(key)
+        if out is None:
+            bx, by = key
+            out = []
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    out += self.buckets.get((bx + dx, by + dy), ())
+            self._near_cache[key] = out
+        return out
 
     def cell_xy(self, i, j):
         return self.x0 + i * GRID, self.y0 + j * GRID
@@ -254,8 +302,18 @@ class Router:
         return r
 
     def _clear_of(self, net, x, y, layer, need, check_layer=True):
+        # The bounding-box test is a pure reject: an obstacle whose box is
+        # more than `need` away in x or in y is more than `need` away, full
+        # stop, so skipping it cannot change the answer. It exists because
+        # this is where the router spends its life — 12.7 M calls walking
+        # ~40 obstacles each — and four float compares are an order of
+        # magnitude cheaper than the dist() they replace for the ~90% of
+        # bucket residents that are merely in the neighbourhood.
         for o in self._near(x, y):
             if o.net == net:
+                continue
+            if x < o.bx0 - need or x > o.bx1 + need or \
+               y < o.by0 - need or y > o.by1 + need:
                 continue
             if check_layer:
                 if isinstance(o, Seg):
@@ -296,20 +354,36 @@ class Router:
                     r = False
                     break
         if r:
-            r = self._clear_of(net, x, y, 0, need, check_layer=False)
-        if r:
-            # no via-in-pad: SMD pads (drill == 0) block regardless of net
+            # Three tests, one walk. Copper clearance (different-net only),
+            # via-in-pad (SMD pads, any net) and hole-to-hole (drilled pads,
+            # any net) used to each scan the neighbourhood separately; the
+            # result is their AND, so interleaving them is the same answer for
+            # a third of the traversal. via_ok is asked at nearly every node
+            # A* pops — 4.3 M times a build — and its memo barely hits,
+            # because a node is popped once.
+            #
+            # `need` (0.5 mm) is the largest of the three reach limits: the
+            # pad gap is VIA_DIA/2 + 0.15 and the hole rule is HOLE_TO_HOLE +
+            # VIA_DRILL/2 = 0.45 measured from the hole edge, which the
+            # bounding box already contains. So one box test at `need`
+            # rejects for all three.
+            pad_need = VIA_DIA / 2.0 + VIA_PAD_GAP
             for o in self._near(x, y):
-                if isinstance(o, Shape) and o.drill == 0.0 and \
-                   o.dist(x, y) < VIA_DIA / 2.0 + VIA_PAD_GAP:
+                if x < o.bx0 - need or x > o.bx1 + need or \
+                   y < o.by0 - need or y > o.by1 + need:
+                    continue
+                if o.net != net and o.dist(x, y) < need - 1e-9:
                     r = False
                     break
-        if r:
-            # hole-to-hole clearance: applies regardless of net, and treats an
-            # oval drill as the capsule it is rather than a circle
-            for o in self._near(x, y):
-                if isinstance(o, Shape) and o.drill > 0:
-                    if o.hole_dist(x, y) - VIA_DRILL / 2.0 < HOLE_TO_HOLE:
+                if isinstance(o, Shape):
+                    if o.drill == 0.0:
+                        # no via-in-pad: SMD pads block regardless of net
+                        if o.dist(x, y) < pad_need:
+                            r = False
+                            break
+                    # hole-to-hole clearance: applies regardless of net, and
+                    # treats an oval drill as the capsule it is, not a circle
+                    elif o.hole_dist(x, y) - VIA_DRILL / 2.0 < HOLE_TO_HOLE:
                         r = False
                         break
         self._memo[key] = r

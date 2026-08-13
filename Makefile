@@ -264,8 +264,8 @@ pcb-build:  ## Regenerate schematic + board only (no fab outputs)
 	  && "$$KPY" generator/kicad_build.py bisque-controller.kicad_pcb \
 	  && "$$KPY" generator/check_via_in_pad.py bisque-controller.kicad_pcb
 
-# The fast path. Routing 93 nets across 141 parts is ~310 s of pcb-build's
-# ~318 s, and silkscreen placement, 3D-model offsets, the title block and
+# The fast path. Routing 93 nets across 141 parts is ~144 s of pcb-build's
+# ~158 s, and silkscreen placement, 3D-model offsets, the title block and
 # reference-designator text metrics cannot move copper at all — so those
 # re-derive off the existing routing in ~8 s. Byte-identical to pcb-build
 # by construction and by test (pcb-cosmetic-verify); kicad_build.py refuses

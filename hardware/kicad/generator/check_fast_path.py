@@ -2,7 +2,7 @@
 """Prove `kicad_build.py --no-route` cannot diverge from a full rebuild.
 
 The fast path exists so that a silkscreen, 3D-model or title-block change
-costs ~8 s instead of ~318 s. That is only worth having if its output is
+costs ~9 s instead of ~158 s. That is only worth having if its output is
 the output a full build would have produced: a fast path that can drift lets
 someone sign off silk against a board the fab will never receive. So the
 invariant is byte-identity, and this script demonstrates it rather than

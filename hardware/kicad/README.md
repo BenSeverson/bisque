@@ -443,7 +443,7 @@ checkers against what's already committed, without touching KiCad:
 
 ```bash
 make pcb          # regenerate schematic + board + fab outputs, then check
-make pcb-build    # schematic + board only (no fab outputs) — the full path, ~318 s
+make pcb-build    # schematic + board only (no fab outputs) — the full path, ~158 s
 make pcb-cosmetic # silk / 3D models / title block only, reusing the routing — ~8 s
 make pcb-fab      # gerbers, drill, BOM/CPL, PDFs, preview SVG — after pcb-build
 make pcb-check    # check only: pinmap, sheet bounds, netlist, connectivity, silkscreen, reproducibility
@@ -472,19 +472,48 @@ everything else with the same code the full build runs.
 | Silkscreen placement (`generator/silk.py`, the `SILK` table, reference text size/thickness) | `make pcb-cosmetic` | **8 s** |
 | 3D model offsets (`MODEL_OFFSET` in `kicad_build.py`) | `make pcb-cosmetic` | **8 s** |
 | Board title block | `make pcb-cosmetic` | **8 s** |
-| **Anything else** — placement, connectivity, footprint choice, net classes, `MANUAL_VIAS`, router parameters (`router.py`, `gen_pcb.py`) | `make pcb-build` | **318 s** |
+| **Anything else** — placement, connectivity, footprint choice, net classes, `MANUAL_VIAS`, router parameters (`router.py`, `gen_pcb.py`) | `make pcb-build` | **158 s** |
 
-Both numbers used to be far worse — 421 s and 104 s — and the second one
-was not dominated by anything the fast path exists to skip. It was the
+Both numbers used to be far worse — 421 s and 104 s — and the fast one was
+not dominated by anything the fast path exists to skip. It was the
 silkscreen placer, which is the *only* substantial work `--no-route` still
 does, running a linear scan over all 492 pads and every other label for each
 of ~200,000 candidate placements, and re-entering SWIG 171 million times to
 re-answer `pcbnew.FromMM(0.05)`. Indexing those obstacles into a bucket grid
 (the one `router.py` already uses for copper) and hoisting the clearance
-constants took the placer from 95.2 s to 3.8 s, which is essentially the
-whole of both savings. The placed silk is byte-identical, which is the only
-acceptable outcome for a lookup optimisation; `make pcb-cosmetic-verify`
-checks it against a full rebuild.
+constants took the placer from 95.2 s to 3.8 s. The placed silk is
+byte-identical, which is the only acceptable outcome for a lookup
+optimisation; `make pcb-cosmetic-verify` checks it against a full rebuild.
+
+The full path was 318 s until the same lesson was applied to `router.py`.
+Profiling it found the cost in the same place and not where the code
+structure suggests: A* node expansion was 20% of the run, and 71% went into
+`_clear_of`, which answered "is this cell clear?" by calling the exact
+point-to-shape `dist()` on every obstacle within 3 mm — 381 million times.
+Three changes, all of them lookup, none of them routing:
+
+- Each `Shape`/`Seg` caches its bounding box, and `_clear_of` rejects on four
+  float compares before calling `dist()`. An obstacle further than `need`
+  from the box in x or y is further than `need`, full stop, so this cannot
+  change an answer. It removes 79% of the `Seg.dist()` calls and 98% of the
+  `Shape.dist()` ones.
+- `_near()` returns a cached flat list of the 3×3 bucket block rather than
+  being a generator over nine dict lookups, which was costing 833 million
+  frame resumptions.
+- `via_ok()` made three separate passes over the neighbourhood — copper
+  clearance, via-in-pad, hole-to-hole — and ANDed them. They are now
+  interleaved into one walk. It is asked at nearly every node A* pops
+  (4.3 million times a build) and its memo barely hits, because a node is
+  popped once.
+
+Routing went 310 s → 144 s and the board is byte-identical, which is again
+the only acceptable outcome. **`GRID` was measured, not left alone on
+faith**: at 0.4 mm 14 nets fail to route and at 0.3 mm five do, in both
+cases on the ADE7953 and the two MAX31856s — the fanout and plane-via stubs
+snap their ends to `GRID`, so a coarser grid walks the escape off the pad
+centreline exactly as the note beside `GRID` says. 0.3 mm is also *slower*
+than 0.25 mm (463 s), because a net that cannot be routed exhausts the whole
+grid before it says so, several times per pass.
 
 When in doubt, use the full path. `--no-route` is not a judgement call it
 leaves to you: before it reuses anything it compares the loaded board
