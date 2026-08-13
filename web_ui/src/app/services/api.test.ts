@@ -415,6 +415,30 @@ describe("api: rollbackOta()", () => {
     await expect(api.rollbackOta()).resolves.toEqual({ acknowledged: true });
   });
 
+  it("refuses to credit a 2xx that did not come from the kiln", async () => {
+    // A captive portal, a proxy, or whatever picked up the kiln's DHCP lease
+    // while the tab sat open all answer 200. Reporting "rolling back" off the
+    // status code alone would credit them with a reboot that never happened.
+    const { api } = await loadApi();
+    fetchMock.mockResolvedValue(
+      new Response("<html>Sign in to the network</html>", { status: 200 }),
+    );
+    await expect(api.rollbackOta()).rejects.toThrow(/did not come from the kiln/);
+  });
+
+  it("refuses a 2xx whose body is JSON but not the kiln's answer", async () => {
+    const { api } = await loadApi();
+    fetchMock.mockResolvedValue(jsonResponse({ status: "captive" }));
+    await expect(api.rollbackOta()).rejects.toThrow(/did not come from the kiln/);
+  });
+
+  it("does not follow a redirect away from the kiln", async () => {
+    const { api } = await loadApi();
+    fetchMock.mockResolvedValue(jsonResponse({ ok: true }));
+    await api.rollbackOta();
+    expect(fetchMock.mock.calls[0][1].redirect).toBe("error");
+  });
+
   it("still reports an outright refusal", async () => {
     // 400 with no image behind the running one, 409 while a firing runs. Both
     // arrive intact — the device is very much still up — and both mean the

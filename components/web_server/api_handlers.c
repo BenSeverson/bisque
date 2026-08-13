@@ -1623,13 +1623,22 @@ static esp_err_t handle_ota_rollback(httpd_req_t *req)
         return ESP_FAIL;
     }
 
-    /* An update in flight is writing the *other* slot — which is precisely the
-       image a rollback boots into. Rebooting now would invalidate the running
-       app and hand control to a partition that is mid-erase, leaving nothing
-       bootable and a kiln that needs a USB cable. The upload and install paths
-       hold the OTA-busy flag for exactly this reason; nothing but per-client UI
-       state stopped a second browser, or the phone, from racing them here. */
-    if (ota_is_busy()) {
+    /* Claim the OTA-busy flag, exactly as the upload handler does, rather than
+       merely reading it.
+
+       Reading it covers the obvious half: an update in flight is writing the
+       *other* slot, which is precisely the image a rollback boots into, and
+       rebooting into a partition that is mid-erase leaves nothing bootable and
+       a kiln that needs a USB cable.
+
+       Claiming it covers the other half, in the other direction. The flag is a
+       compare-and-swap that firing-start and autotune-start also test, so
+       holding it stops a command already sitting in the firing queue from
+       arming the elements in the microseconds between the check below and the
+       reboot — a firing that would be abandoned mid-flight, with its history
+       record left open. ota_blocked_by_firing() above cannot see that command:
+       it reads progress state the firing task has not updated yet. */
+    if (!ota_busy_acquire()) {
         httpd_resp_set_status(req, "409 Conflict");
         httpd_resp_set_type(req, "text/plain");
         httpd_resp_sendstr(req, "An OTA operation is already in progress");
@@ -1637,12 +1646,15 @@ static esp_err_t handle_ota_rollback(httpd_req_t *req)
     }
 
     if (!esp_ota_check_rollback_is_possible()) {
+        ota_busy_release();
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Rollback not available");
         return ESP_FAIL;
     }
 
+    /* Only returns on failure — a successful call reboots inside esp_ota. */
     esp_err_t err = esp_ota_mark_app_invalid_rollback_and_reboot();
     if (err != ESP_OK) {
+        ota_busy_release();
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Rollback failed");
         return ESP_FAIL;
     }

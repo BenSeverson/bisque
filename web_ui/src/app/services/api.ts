@@ -247,12 +247,34 @@ export const api = {
   rollbackOta: async (): Promise<{ acknowledged: boolean }> => {
     let res: Response;
     try {
-      res = await fetch(`${API_BASE}/ota/rollback`, { method: "POST", headers: authHeaders() });
+      res = await fetch(`${API_BASE}/ota/rollback`, {
+        method: "POST",
+        headers: authHeaders(),
+        // A captive portal answers by redirecting somewhere that returns 200.
+        // Following it and reading that as an acknowledgement would credit the
+        // portal with a rollback the kiln never performed.
+        redirect: "error",
+      });
     } catch {
       return { acknowledged: false };
     }
     if (!res.ok) {
       throw new Error(`API error ${res.status}: ${await res.text()}`);
+    }
+    /* A 2xx is not enough on its own. Anything on the network that answers this
+       address — a portal, a proxy, or whatever took the kiln's DHCP lease while
+       the tab sat open — produces one, and "Rolling back" is a claim worth more
+       than a status code. The upload path already refuses a non-JSON 2xx for
+       the same reason (#135); this additionally wants the kiln's own shape. */
+    const body = await res.text();
+    let ok: boolean;
+    try {
+      ok = (JSON.parse(body) as { ok?: unknown }).ok === true;
+    } catch {
+      ok = false;
+    }
+    if (!ok) {
+      throw new Error("Rollback got a reply that did not come from the kiln; nothing was changed");
     }
     return { acknowledged: true };
   },

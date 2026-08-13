@@ -123,11 +123,11 @@ struct OTAUpdateView: View {
                    display — or, after the reload above, nothing — until the
                    user navigated away and back. This is how they pick it up
                    again once the kiln has finished rebooting. */
-                Button("Refresh Partition State") {
+                Button(viewModel.isLoadingOtaStatus ? "Reading..." : "Refresh Partition State") {
                     guard let client = connection.apiClient else { return }
                     Task { await viewModel.loadOtaStatus(using: client) }
                 }
-                .disabled(viewModel.isRollingBack)
+                .disabled(viewModel.isRollingBack || viewModel.isLoadingOtaStatus)
             }
 
             if let message = viewModel.otaMessage {

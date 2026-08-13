@@ -469,6 +469,16 @@ actor KilnAPIClient {
             throw APIError.serverError(statusCode: httpResponse.statusCode, message: message)
         }
 
+        /* A 2xx alone does not identify the responder. A captive portal, a
+           proxy, or whatever took the kiln's DHCP lease since the app last
+           talked to it all answer with one, and "rolling back" is a claim worth
+           more than a status code — so the body has to be the kiln's own. */
+        guard let ack = try? JSONDecoder().decode(OkResponse.self, from: data), ack.ok else {
+            throw APIError.serverError(
+                statusCode: httpResponse.statusCode,
+                message: "Reply did not come from the kiln; nothing was changed")
+        }
+
         return .acknowledged
     }
 

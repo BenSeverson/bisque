@@ -30,8 +30,11 @@ final class SettingsViewModel {
     /// failure of anything the user asked for, and it would otherwise paint the
     /// screen red every time the OTA view opened against an older kiln.
     var otaStatusUnavailable = false
+    var isLoadingOtaStatus = false
     var isConfirmingFirmware = false
     var isRollingBack = false
+    /// Bumped by every `loadOtaStatus()`; only the newest may write the result.
+    @ObservationIgnored private var otaLoadGeneration = 0
 
     @ObservationIgnored private var otaCancellable: AnyCancellable?
 
@@ -210,11 +213,33 @@ final class SettingsViewModel {
         otaStatusUnavailable = true
     }
 
+    /// Reads the partition state, discarding the answer if a newer read started
+    /// while it was in flight.
+    ///
+    /// Three things call this — the view's `.task`, the Refresh button, and the
+    /// reload after a confirm — and around a reboot they overlap by design: the
+    /// user taps Refresh, gets nothing, and taps again. Without the generation
+    /// check, a slow pre-reboot request completing after a fast post-reboot one
+    /// would restore the outgoing image's slot and `rollbackAvailable` on top of
+    /// the new state, or a late failure would erase state that had just loaded.
+    /// Everything here is `@MainActor`, so the counter needs no locking.
     func loadOtaStatus(using client: KilnAPIClient) async {
+        otaLoadGeneration &+= 1
+        let generation = otaLoadGeneration
+        isLoadingOtaStatus = true
+        defer {
+            if generation == otaLoadGeneration {
+                isLoadingOtaStatus = false
+            }
+        }
+
         do {
-            otaStatus = try await client.getOTAStatus()
+            let status = try await client.getOTAStatus()
+            guard generation == otaLoadGeneration else { return }
+            otaStatus = status
             otaStatusUnavailable = false
         } catch {
+            guard generation == otaLoadGeneration else { return }
             otaStatus = nil
             otaStatusUnavailable = true
         }
