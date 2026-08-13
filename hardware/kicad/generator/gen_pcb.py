@@ -822,6 +822,13 @@ def _rot_at(node, frot):
 # Free-standing silk. The large clear band between the switching region
 # (x <= 60) and the analog region (x >= 86) is where the title goes; every
 # other label sits beside the connector or control it names.
+#
+# These coordinates are ANCHORS, not final positions. `silk.py` scores
+# candidate placements around each anchor and moves a label off exposed
+# copper, off the board edge and out of other silk; `kicad_build.py` (the
+# authoritative generator) runs that placer, and `check_silk.py` proves the
+# result. Only the hand-authored *intent* - what the label says and roughly
+# where it belongs - lives here now.
 SILK = [
     ("BISQUE KILN CONTROLLER", 62.5, 62.0, 0, 1.4),
     ("REV B", 62.5, 65.5, 0, 1.1),
@@ -831,15 +838,21 @@ SILK = [
     ("BOOT", 100.0, 20.9, 0, 0.9),
     ("5V IN", 22.0, 34.0, 0, 0.9),
     ("+", 30.0, 39.6, 0, 1.1), ("-", 30.0, 44.7, 0, 1.3),
-    ("AUX OUT", 22.0, 47.0, 0, 0.9),
-    ("SSR1", 22.0, 70.5, 0, 0.9),
-    ("SSR2", 22.0, 83.0, 0, 0.9),
+    ("AUX OUT", 24.5, 48.0, 0, 0.9),
     # Both SSR terminals are "+5V (watchdog-gated), switched low side" - the
     # board supplies the control loop, so the pin order is worth naming on
     # the silk. SJ3/SJ4, the old per-channel opto-collector-to-+5V links,
     # are gone with the optocouplers.
-    ("5V / OUT", 22.0, 72.3, 0, 0.8),
-    ("5V / OUT", 22.0, 84.8, 0, 0.8),
+    #
+    # Function and pin order are ONE label per terminal, in the gap directly
+    # above that terminal's block. They used to be two texts each, anchored
+    # at y=70.5/72.3 and 83.0/84.8 - and 83.0 is inside J4's courtyard
+    # (72.44..83.66), not J9's, so `SSR2` printed against the wrong block.
+    # The four blocks leave gaps of only 1.3-2.1 mm between them; one label
+    # per gap is what actually fits, and a merged label cannot drift away
+    # from the pin order it belongs to.
+    ("SSR1  5V / OUT", 26.0, 71.4, 0, 0.8),
+    ("SSR2  5V / OUT", 26.0, 84.3, 0, 0.8),
     ("TC1  K+/K-", 104.0, 31.0, 0, 0.9),
     ("TC2  K+/K-", 104.0, 58.5, 0, 0.9),
     ("CT A+/A-/B+/B-", 96.0, 76.0, 0, 0.9),
@@ -865,6 +878,48 @@ for hdr, names in (("J5", J5_PINS), ("J6", J6_PINS), ("J7", J7_PINS)):
     hx, hy, _rot = COMPONENTS[hdr]["at"]
     for k, t in enumerate(names):
         SILK.append((t, hx + 2.54 * k, hy - 4.3, 0, 0.8))
+
+# ---------------------------------------------------------------- test points
+# What each TPn probes, printed beside it, so the board documents itself at
+# the bench. The net is read out of design.py - a second hand-typed table is
+# exactly the thing that rotted the rest of this file - and shortened by rule:
+#
+#   +3V3, +5V, GND     printed verbatim; a rail's name IS its label
+#   a bus prefix       dropped   (SPI_MOSI -> MOSI, I2C_SDA -> SDA)
+#   a function suffix  dropped   (SSR1_CTRL -> SSR1, WDT_HOLD -> WDT)
+#
+# TP_LABEL_SPECIAL is the one escape hatch, and it stays here beside the rule
+# so there is a single place to look.
+TP_BUS_PREFIX = ("SPI", "I2C", "UART", "USB")
+TP_FUNC_SUFFIX = ("CTRL", "HOLD", "EN", "SEL")
+TP_LABEL_SPECIAL = {"CTA_P": "CT A+", "CTA_N": "CT A-",
+                    "CTB_P": "CT B+", "CTB_N": "CT B-"}
+
+
+def tp_label(net):
+    """Short bench label for a net name. Pure function of the net."""
+    if net in TP_LABEL_SPECIAL:
+        return TP_LABEL_SPECIAL[net]
+    if net.startswith("+") or net == "GND":
+        return net
+    parts = net.split("_")
+    if len(parts) > 1 and parts[0] in TP_BUS_PREFIX:
+        parts = parts[1:]
+    if len(parts) > 1 and parts[-1] in TP_FUNC_SUFFIX:
+        parts = parts[:-1]
+    return "_".join(parts)
+
+
+def _tp_num(ref):
+    return int(ref[2:])
+
+
+for _tp in sorted((r for r in COMPONENTS
+                   if r.startswith("TP") and r[2:].isdigit()), key=_tp_num):
+    _x, _y, _r = COMPONENTS[_tp]["at"]
+    # Anchored just below the pad: the reference designator sits above it by
+    # library default, so the two share the test point without a fight.
+    SILK.append((tp_label(COMPONENTS[_tp]["pins"]["1"]), _x, _y + 1.7, 0, 0.8))
 
 
 def main(dst):

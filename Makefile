@@ -251,6 +251,7 @@ pcb-check:  ## Run every PCB checker (no KiCad rebuild)
 	  && python3 generator/check_drill_clearance.py bisque-controller.kicad_pcb \
 	  && python3 generator/check_canonical.py bisque-controller.kicad_pcb \
 	  && "$$KPY" generator/check_via_in_pad.py bisque-controller.kicad_pcb \
+	  && "$$KPY" generator/check_silk.py bisque-controller.kicad_pcb \
 	  && "$$KPY" generator/check_placement.py
 
 pcb: pcb-build pcb-fab  ## Regenerate schematic + board + fab outputs from design.py

@@ -44,11 +44,15 @@ order, not before this review, is the CT burden resistor's stock level (see
 - **0 DRC errors**
 - **0 unconnected pads**
 - **0 footprint errors**
-- **109 warnings, all silkscreen** (4 `silk_edge_clearance`, 24
-  `silk_over_copper`, 81 `silk_overlap`) — same category and same order of
-  magnitude as rev A's silkscreen-only warning set; nothing new in kind. Was
-  111 with the optocouplers and their `SJ3`/`SJ4` silk labels, 102 before
-  those landed.
+- **0 warnings.** This line read "109 warnings, all silkscreen" (4
+  `silk_edge_clearance`, 24 `silk_over_copper`, 81 `silk_overlap`) through
+  every earlier review, waved through as "same kind as rev A". It was not
+  cosmetic: `5V / OUT` and `AUX OUT` — labels for screw terminals a user
+  hand-wires — printed half off the board edge, and 24 labels sat on exposed
+  pads. Silk placement is now derived by `generator/silk.py` rather than read
+  from a hand-maintained coordinate table, and `generator/check_silk.py`
+  fails the build on any silk over copper or crossing the outline. See the
+  README's "Silkscreen is placed by a packer".
 
 Independent checks beyond KiCad's own DRC, all passing:
 
@@ -241,7 +245,8 @@ equality assertion went with it. `make pcb-check` is one step shorter and
 every remaining step still passes.
 
 **Numbers after the reversal:** 0 DRC errors, 0 unconnected, 0 footprint
-errors, 109 silkscreen-only warnings; 141 components; 93 nets, 0 netlist
+errors, 0 warnings (109 silkscreen-only warnings until the silk packer
+landed); 141 components; 93 nets, 0 netlist
 mismatches; 2271 copper items checked; BOM/CPL designator sets equal at 109,
 no line without an LCSC part; gerbers still carry `In1_Cu`/`In2_Cu`.
 

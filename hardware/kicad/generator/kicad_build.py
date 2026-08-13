@@ -26,6 +26,7 @@ import pcbnew
 from canonicalize import canonicalize_file
 from design import COMPONENTS, netlist, BX0, BY0, BX1, BY1
 import router as R
+import silk
 from gen_pcb import (all_seeds, route_all, ripup_retry, promoted_order, plane_vias,
                      SILK, MANUAL_VIAS, PLANE_LAYER)
 
@@ -166,24 +167,16 @@ def build_board():
                 fp.Models().push_back(nm)
         board.Add(fp)
         fps[ref] = fp
-    # tidy silk: smaller refs everywhere, relocate the ones that collide
+    # Silk: one size for every reference designator. WHERE each one lands is
+    # not decided here - `silk.py` derives it after the board texts exist (see
+    # add_outline_and_silk). Rev B carried a hand-maintained list of 18 refs
+    # nudged out of collisions at this point; at 141 parts a patch list cannot
+    # keep up, and it didn't - DRC reported 109 silkscreen violations across
+    # 49 designators.
     for ref, fp in fps.items():
         t = fp.Reference()
         t.SetTextSize(pcbnew.VECTOR2I(MM(0.8), MM(0.8)))
         t.SetTextThickness(MM(0.12))
-    # refs whose default (footprint-relative) position collides with a
-    # neighbour's silk or lands on top of another part
-    for ref, (x, y) in {"J5": (22.6, 99.6), "J6": (60.6, 99.6),
-                        "J7": (78.6, 99.6), "J11": (62.6, 107.0),
-                        "J2": (22.0, 34.0), "J10": (22.0, 47.0),
-                        "J4": (22.0, 70.5), "J9": (22.0, 83.0),
-                        "J3": (110.0, 33.0), "J8": (110.0, 45.0),
-                        "J12": (110.0, 62.5), "J1": (41.0, 22.0),
-                        "BZ1": (48.0, 61.0), "Y1": (96.0, 88.0),
-                        "H1": (30.5, 25.0), "H2": (110.5, 25.0),
-                        "H3": (30.5, 115.0), "H4": (110.5, 115.0),
-                        }.items():
-        fps[ref].Reference().SetPosition(V(x, y))
     return board, nets, fps
 
 
@@ -279,6 +272,7 @@ def add_outline_and_silk(board):
         sh.SetLayer(pcbnew.Edge_Cuts)
         sh.SetWidth(MM(0.1))
         board.Add(sh)
+    anchors = []
     for (txt, x, y, rot, size) in SILK:
         t = pcbnew.PCB_TEXT(board)
         t.SetText(txt)
@@ -288,6 +282,8 @@ def add_outline_and_silk(board):
         t.SetTextThickness(MM(max(0.1, size * 0.15)))
         t.SetTextAngleDegrees(rot)
         board.Add(t)
+        anchors.append((t, x, y))
+    return anchors
 
 
 def add_zones(board, nets):
@@ -423,7 +419,11 @@ def main(out):
     if failed:
         print("UNROUTED: %s" % ", ".join(failed))
     add_copper(board, nets, r)
-    add_outline_and_silk(board)
+    anchors = add_outline_and_silk(board)
+    # Silk placement runs last, once every pad, footprint outline and board
+    # text exists: it is a whole-board packing problem, and it cannot be
+    # solved a label at a time as each one is created.
+    silk.place(board, anchors)
     add_zones(board, nets)
     rpt_path = os.path.splitext(out)[0] + "-drc.rpt"
     # standalone python fill/DRC needs a project-attached board; kicad-cli

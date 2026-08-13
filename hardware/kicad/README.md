@@ -19,7 +19,7 @@ kept only as history — do not read it as current).
 Built and validated with **real KiCad** (10.0.5, pcbnew Python API +
 kicad-cli): footprints come from KiCad's installed libraries, ground/power
 plane pours are filled and checked by `kicad-cli pcb drc --refill-zones` —
-**zero errors, zero unconnected, 102 silkscreen-only warnings**
+**zero errors, zero unconnected, zero warnings**
 (`bisque-controller-drc.rpt`) — and the schematic passes a netlist round-trip
 check (KiCad's exported netlist diffed against the design's connectivity
 table — 93 nets, 0 mismatches). The 3D renders in `3d/` are raytraced by
@@ -32,7 +32,7 @@ table — 93 nets, 0 mismatches). The 3D renders in `3d/` are raytraced by
 | `bisque-controller.kicad_pcb` | Board: placed, fully routed, 4 layers (F.Cu/B.Cu signals, In1.Cu GND plane, In2.Cu +3V3 plane) |
 | `preview-board.svg` | Quick visual of placement + routing |
 | `3d/board-3d-*.png` | Raytraced renders, kicad-cli (iso / front / top / underside) |
-| `bisque-controller-drc.rpt` | KiCad DRC report (0 errors, 0 unconnected; 109 warnings are all silkscreen) |
+| `bisque-controller-drc.rpt` | KiCad DRC report (0 errors, 0 unconnected, 0 warnings — the 109 silkscreen warnings went with the silk packer, see "Regenerating the files") |
 | `gerbers/` | Fabrication outputs (kicad-cli: F.Cu, B.Cu, **In1.Cu, In2.Cu**, paste/silk/mask, Edge.Cuts, Excellon drill + job file) |
 | `pdf/` | Schematic and board PDFs (kicad-cli) |
 | `jlcpcb/` | Assembly BOM + CPL for JLCPCB, plus the hand-solder shopping list |
@@ -445,7 +445,7 @@ checkers against what's already committed, without touching KiCad:
 make pcb          # regenerate schematic + board + fab outputs, then check
 make pcb-build    # schematic + board only (fast inner loop, no fab outputs)
 make pcb-fab      # gerbers, drill, BOM/CPL, PDFs, preview SVG — after pcb-build
-make pcb-check    # check only: pinmap, sheet bounds, netlist, connectivity, reproducibility
+make pcb-check    # check only: pinmap, sheet bounds, netlist, connectivity, silkscreen, reproducibility
 make pcb-render   # 3d/board-3d-*.png raytrace — SLOW, deliberately not in `make pcb`
 ```
 
@@ -483,6 +483,10 @@ python3 generator/check_drill_clearance.py bisque-controller.kicad_pcb  # hole-t
                                                                 #    are both GND, and every net-aware check
                                                                 #    we own missed a 0.078 mm web because
                                                                 #    of it — see FAB-READINESS-REVIEW-REVB)
+"$KPY" generator/check_silk.py bisque-controller.kicad_pcb      # silkscreen printable: PASS
+                                                                #   (hard-fails on silk over an exposed pad
+                                                                #    or clipped by Edge.Cuts; silk-on-silk
+                                                                #    is budgeted, and the budget is 0)
 python3 generator/check_canonical.py bisque-controller.kicad_pcb  # reproducibility guard: ALL CHECKS PASS
                                                                 #   (KiCad DRC can't see this - a via and
                                                                 #    the pad it sits in share a net, and
@@ -520,6 +524,69 @@ fill settles too, since KiCad's filler is deterministic once its input
 is. `check_canonical.py` guards this by re-shuffling and re-minting a
 real board and asserting the canonical form doesn't move; it needs
 neither KiCad nor pcbnew.
+
+**Silkscreen is placed by a packer, not by a table.** Where every
+reference designator and board label lands is derived, the same way
+`gen_sch.py`'s column packer replaced the schematic's hand-maintained
+`SCH_AT` table. It had the same history: `gen_pcb.SILK` held 51 absolute
+coordinates authored when the board had 52 parts, and `kicad_build.py`
+carried a list of 18 designators hand-nudged out of collisions. At 141
+parts a patch list cannot keep up, and it didn't — KiCad reported **109
+silkscreen violations across 49 designators**, including `5V / OUT` and
+`AUX OUT` (labels for screw terminals a user hand-wires) printed half off
+the board edge, and 24 labels sitting on exposed pads.
+
+`generator/silk.py` now scores candidate placements for each label —
+north/south/east/west of its own part at several gaps and lateral slides,
+then rings around its anchor — and picks the cheapest, deterministically:
+
+* **hard**: never over an exposed pad (ink on bare copper is a solder
+  defect, not a cosmetic one), never crossing `Edge.Cuts`;
+* **soft**: minimise silk touching other silk, and stay close to the thing
+  being labelled — a designator far from its part is worse than a cramped
+  one.
+
+What survives in `SILK` is *intent only*: what a label says and roughly
+where it belongs. Those coordinates are anchors that the packer is free to
+move — which is also how a stale anchor got caught: `SSR2` was anchored at
+y=83.0, inside **J4's** courtyard rather than J9's, so it printed against
+the wrong terminal. Each SSR terminal now carries one merged
+`SSR1  5V / OUT` / `SSR2  5V / OUT` label in the gap directly above its own
+block; the four left-edge blocks leave gaps of only 1.3–2.1 mm, so one
+label per gap is what fits, and a merged label cannot drift away from the
+pin order it belongs to.
+
+Two things the packer deliberately does **not** do, both tried and reverted
+because they made the board worse: charging a label for printing inside a
+part's courtyard (it evicted `SSR2` from J9's narrow gap up beside J4, and
+pushed J6's reference in between two of J6's own pin names), and rotating
+labels 90° to fit. Collision geometry is KiCad's own effective shapes, not bounding
+boxes — a rectangle model reported *no* collision for text sitting inside
+BZ1's circular outline, which the real glyph strokes do hit. Labels stay
+upright; nothing was shrunk (references are 0.8 mm as before).
+
+One scoring term is not obvious and is load-bearing: a board text pays four
+times as much for sliding **along** its reading direction as across it. The
+28 pin names above J5/J6/J7 identify a pin by sitting over it, so a label
+that drifts sideways doesn't just look ragged — it names the wrong pin.
+
+`generator/check_silk.py` (`make pcb-check`) proves the result, net-
+independently: it hard-fails on any silk item over an exposed pad or
+crossing the board outline, and fails if silk-on-silk exceeds
+`SILK_ON_SILK_MAX`, which is committed at the number the board actually
+achieves. It was calibrated the right way round — run against the *old*
+board it reports exactly the 24 over-copper and 4 edge-clipped items, and
+its silk-on-silk rule counts exactly the 81 `silk_overlap` violations
+kicad-cli reported. The board now scores 0 / 0 / 0.
+
+**Test points name their net.** `TP1`–`TP12` print what they probe
+(`+3V3`, `+5V`, `GND`, `MOSI`, `SCLK`, `MISO`, `SDA`, `SCL`, `SSR1`,
+`SSR2`, `CT A+`, `WDT`) so the board documents itself at the bench. The
+label is derived from `design.py`'s own net for pin 1 — never a second
+hand-typed table — and shortened by rule: rails print verbatim, a bus
+prefix is dropped (`SPI_MOSI` → `MOSI`), a function suffix is dropped
+(`WDT_HOLD` → `WDT`). `gen_pcb.TP_LABEL_SPECIAL` is the single escape
+hatch, next to the rule it excepts.
 
 **Zone fills feed the gerbers.** `kicad_build.py` finishes with a
 `kicad-cli pcb drc --refill-zones` pass that rewrites the board file
