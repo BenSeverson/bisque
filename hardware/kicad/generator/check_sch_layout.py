@@ -169,12 +169,21 @@ def lib_body_box(sym):
                             (num(at[1]) + n * size * CHAR_W / 2.0,
                              num(at[2]) + size * LINE_H / 2.0)])
             elif head == "pin":
+                # A pin's `at` is its free CONNECTION point and its angle aims
+                # from there back INTO the body, so the stem ends at
+                # at + length*(cos a, sin a). Negating that instead - which
+                # this did - grew every symbol one pin-length outward in every
+                # direction that has a pin, straight through the corridor
+                # where that pin's own stub and terminator live. Harmless
+                # while only symbols were checked against symbols; the moment
+                # rails became real power ports it reported 75 collisions
+                # between parts and the ports on their own pins.
                 at, ln = find(x, "at"), find(x, "length")
                 px, py, pa = num(at[1]), num(at[2]), num(at[3])
                 L = num(ln[1]) if ln else 0.0
                 rad = math.radians(pa)
                 _grow(box, [(px, py),
-                            (px - L * math.cos(rad), py - L * math.sin(rad))])
+                            (px + L * math.cos(rad), py + L * math.sin(rad))])
 
     walk(sym)
     if box[0] is math.inf:
@@ -223,36 +232,50 @@ def collect(sch):
             ang = num(at[3]) if len(at) > 3 else 0.0
             lib_id = find(item, "lib_id")
             key = str(lib_id[1]) if lib_id else ""
-            box = list(place(libs.get(key, (-1.27, -1.27, 1.27, 1.27)),
-                             sx, sy, ang))
+            box = place(libs.get(key, (-1.27, -1.27, 1.27, 1.27)), sx, sy, ang)
             ref = key
             for p in find_all(item, "property"):
-                pname = str(p[1])
-                if pname == "Reference":
+                if str(p[1]) == "Reference":
                     ref = str(p[2])
+            # A symbol is its body AND its two visible fields, kept as three
+            # separate parts rather than unioned into one rectangle. Unioning
+            # cost this checker both directions: it could not see a field
+            # printed over its own body (44 of them, "3.579545MHz" straight
+            # through Y1's plates), and once rails became power ports it
+            # reported every port that legitimately sits between a body and
+            # the field lifted above it as a collision.
+            symbols.append((ref, box, ref, "body"))
+            for p in find_all(item, "property"):
+                pname = str(p[1])
                 if pname not in ("Reference", "Value") or is_hidden(p):
                     continue
                 pat = find(p, "at")
                 size, just = effects_of(p)
-                tb = text_box(str(p[2]), num(pat[1]), num(pat[2]), size, just)
-                box = [min(box[0], tb[0]), min(box[1], tb[1]),
-                       max(box[2], tb[2]), max(box[3], tb[3])]
-            symbols.append((ref, tuple(box)))
+                symbols.append(("%s.%s" % (ref, pname),
+                                text_box(str(p[2]), num(pat[1]), num(pat[2]),
+                                         size, just), ref, "field"))
         elif head == "text":
             at = find(item, "at")
             size, just = effects_of(item)
             txt = str(item[1])
             first = unescape(txt).split("\n")[0][:44]
             texts.append(('text "%s"' % first,
-                          text_box(txt, num(at[1]), num(at[2]), size, just)))
+                          text_box(txt, num(at[1]), num(at[2]), size, just),
+                          None, "text"))
     return symbols, texts
 
 
 def pairs(a, b, same):
     out = []
-    for i, (na, ba) in enumerate(a):
-        for j, (nb, bb) in enumerate(b):
+    for i, (na, ba, oa, ka) in enumerate(a):
+        for j, (nb, bb, ob, kb) in enumerate(b):
             if same and j <= i:
+                continue
+            # A part's own Reference and Value are stacked 1.9 mm apart with
+            # ~2.1 mm of estimated line height, so they always "overlap" each
+            # other by a fraction of a millimetre. That pair is the one
+            # same-symbol combination that is never a defect.
+            if oa is not None and oa == ob and ka == "field" and kb == "field":
                 continue
             area = overlap(ba, bb)
             if area:

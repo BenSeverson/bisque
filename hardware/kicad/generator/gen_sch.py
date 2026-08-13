@@ -188,16 +188,190 @@ def text_extent(txt, size):
             len(lines) * size * LINE_H)
 
 
-def field_pos(sym):
+# --- power ports ------------------------------------------------------------
+# A boxed global label reading "GND" and one reading "SPI_MOSI" are the same
+# shape; a ground triangle is not. Rails are 147 of this sheet's 437 pin
+# terminations - GND alone is 91 - and drawing them as real power ports is the
+# largest readability win available without changing the netlist style at all:
+# the port replaces the label at the same end of the same stub, so no part
+# moves.
+#
+# Membership is *derived*, never listed: a net qualifies exactly when KiCad's
+# power library holds a symbol of that name. That is also what makes it safe.
+# KiCad takes a `(power global)` symbol's net name from its Value field, so an
+# exact name match is the guarantee the net name survives - and
+# check_netlist.py round-trips through KiCad to prove it did.
+def _power_syms():
+    nets = {n for c in COMPONENTS.values() for n in c["pins"].values()}
+    nets |= set(PWR_FLAG_NETS)
+    nets.discard(None)                # an explicitly unconnected pin
+    out = {}
+    for net in sorted(nets):
+        try:
+            out[net] = flatten("power", net)
+        except KeyError:
+            pass                      # VIN, VLED, AUX_VP, ... - no such port
+    return out
+
+
+PWR = _power_syms()
+
+
+def sheet_rot(vec, ang):
+    """Rotate a sheet-space direction by a symbol placement angle."""
+    import math
+    ux, uy = vec
+    rad = math.radians(ang)
+    ca, sa = math.cos(rad), math.sin(rad)
+    return (ux * ca + uy * sa, -ux * sa + uy * ca)
+
+
+def pin_outv(pa):
+    """Sheet-space direction a wire leaves a pin at library angle `pa`."""
+    import math
+    rad = math.radians(pa)
+    return (-math.cos(rad), math.sin(rad))
+
+
+def power_angle(sym, outv):
+    """Placement angle that aims a power port's pin back along `outv`.
+
+    A port's pin sits at its own origin, so rotation never moves the
+    connection point - this is purely about which way the triangle or the rail
+    bar faces. 108 of the 147 rail pins already leave in the port's natural
+    direction (GND down, rails up) and rotate by 0.
+    """
+    pv = pin_outv(pins_of(sym)[0][4])
+    want = (-outv[0], -outv[1])
+    for ang in (0, 90, 180, 270):
+        r = sheet_rot(pv, ang)
+        if abs(r[0] - want[0]) < 1e-6 and abs(r[1] - want[1]) < 1e-6:
+            return ang
+    raise AssertionError("no placement angle for a port leaving %s" % (outv,))
+
+
+def power_value_at(sym, outv):
+    """Port's Value text as (dx, dy, w, h) about its origin, sheet mm.
+
+    Straight out along the wire and past the body, rather than at the
+    library's own anchor rotated with the symbol. The glyphs stay upright at
+    every rotation (a sideways "GND" is harder to read than a sideways
+    triangle), so a rotated anchor puts horizontal text across a body that
+    turned vertical - 68 of the ports printed their own name over their own
+    triangle. Deriving the offset reproduces KiCad's 3.81 mm in the natural
+    orientation and clears the body in the other three.
+    """
+    ang = power_angle(sym, outv)
+    bb = check_sch_layout.place(check_sch_layout.lib_body_box(sym),
+                                0.0, 0.0, ang)
+    for p in find_all(sym, "property"):
+        if str(p[1]) != "Value" or check_sch_layout.is_hidden(p):
+            continue
+        size = check_sch_layout.effects_of(p)[0]
+        w, h = len(str(p[2])) * size * CHAR_W, size * LINE_H
+        if abs(outv[1]) > 0.5:
+            reach = (bb[3] if outv[1] > 0 else -bb[1]) + h / 2.0 + 0.2
+        else:
+            reach = (bb[2] if outv[0] > 0 else -bb[0]) + w / 2.0 + 0.2
+        return (reach * outv[0], reach * outv[1], w, h)
+    return None
+
+
+def power_extent(sym, outv):
+    """Sheet box a placed port covers - body plus its Value - about its origin."""
+    box = list(check_sch_layout.place(check_sch_layout.lib_body_box(sym),
+                                      0.0, 0.0, power_angle(sym, outv)))
+    v = power_value_at(sym, outv)
+    if v:
+        dx, dy, w, h = v
+        box = [min(box[0], dx - w / 2.0), min(box[1], dy - h / 2.0),
+               max(box[2], dx + w / 2.0), max(box[3], dy + h / 2.0)]
+    return tuple(box)
+
+
+# --- stubs and what terminates them -----------------------------------------
+# One model, three consumers: the extent reserved by the packer, the field
+# placement, and the geometry main() actually emits. They must agree - a
+# reserved box that isn't the drawn box is how two stubs land on the same
+# point and silently merge two nets - so all three read this.
+LANE = 5.08     # extra stub length per crowded lane; > a port's 4.9 mm reach
+LANE_GAP = 1.27  # clear space demanded between two terminators in one lane
+
+
+def term_extent(net, outv):
+    """Sheet box the thing terminating a stub covers, about the stub's end."""
+    sym = PWR.get(net)
+    if sym is not None:
+        return power_extent(sym, outv)
+    reach = len(net) * FONT_BODY * CHAR_W + 2.5
+    half = FONT_BODY * LINE_H / 2.0 + 0.6
+    padx = 0.0 if abs(outv[0]) > 0.5 else half
+    pady = 0.0 if abs(outv[1]) > 0.5 else half
+    return (min(0.0, reach * outv[0]) - padx, min(0.0, reach * outv[1]) - pady,
+            max(0.0, reach * outv[0]) + padx, max(0.0, reach * outv[1]) + pady)
+
+
+def stub_pins(sym, pinmap):
+    """Deduped pins, each with its net, outward direction and stub length.
+
+    Stacked pins (the module's three GND pads on one point) share one stub,
+    matching what main() draws. Length is 2.54 mm except where neighbours
+    would collide: terminators are wider than the 2.54 mm pin pitch - a GND
+    port is 3.05 mm of text under a 2.54 mm triangle - so two adjacent pins
+    on the same rail print their names into each other. U7 carries three
+    grounds in a row. Pushing every other one further out along its own stub
+    separates them without moving the part, the pin, or the net.
+
+    Returns [(pin tuple, net, outv, length)] in library pin order.
+    """
+    seen, out = set(), []
+    for p in pins_of(sym):
+        if (p[2], p[3]) in seen:
+            continue
+        seen.add((p[2], p[3]))
+        out.append([p, pinmap.get(p[0]), pin_outv(p[4]), STUB])
+
+    lanes = {}
+    for row in out:
+        p, net, outv, _ = row
+        if net is None:
+            continue
+        vert = abs(outv[1]) > 0.5
+        tb = term_extent(net, outv)
+        c = p[2] if vert else p[3]                    # along the pin's own side
+        w = (max(-tb[0], tb[2]) if vert else max(-tb[1], tb[3]))
+        key = (round(outv[0]), round(outv[1]), round(p[3] if vert else p[2], 3))
+        used = lanes.setdefault(key, [])
+        for i, end in enumerate(used):
+            # Not merely "does not overlap": two rail arrows 1 mm apart read
+            # as one token ("+3V3+3V3" over U3's AVDD/DVDD pair), which the
+            # collision test is happy with and a reader is not.
+            if c - w >= end + LANE_GAP - 1e-9:
+                used[i] = c + w
+                row[3] = STUB + i * LANE
+                break
+        else:
+            used.append(c + w)
+            row[3] = STUB + (len(used) - 1) * LANE
+    return out
+
+
+def field_pos(sym, pinmap):
     """Where a symbol's Reference/Value fields go, relative to its origin.
 
     Both KiCad's default (above the body) and this generator's original code
     put the fields directly over the space a vertically-oriented pin's stub
-    and global label occupy - so "R12 / 1k" printed straight through the
+    and its terminator occupy - so "R12 / 1k" printed straight through the
     "IN1_RAW" label rising off pin 1. For a part whose pins are *all*
-    vertical (every two-pin passive here) the flanks are free instead, so
-    the fields go to the right of the body; everything else keeps the
-    classic position above it.
+    vertical (every two-pin passive here) the flanks are free instead, so the
+    fields go to the right of the body.
+
+    Everything else keeps the classic position above the body, but clearing
+    the *whole* upward corridor rather than just the topmost pin. Clearing
+    only the pin is what printed "ESP32-S3-WROOM-1U-N16R2" through U1's +3V3
+    stub and "MAX31856MUD+" through U3's; nine parts did it, and every one of
+    them was invisible to check_sch_layout because it unions a symbol's
+    fields into the symbol's own box instead of testing them against it.
 
     Returns (dx, dy_reference, dy_value) in sheet mm.
     """
@@ -207,47 +381,47 @@ def field_pos(sym):
     if pins and all(abs(p[4] % 180.0 - 90.0) < 1e-6 for p in pins):
         bx1 = check_sch_layout.lib_body_box(sym)[2]
         return (max(bx1, max(xs)) + 0.9, -0.95, 0.95)
-    return (min(xs), -(max(ys) + 3.81), -(max(ys) + 3.81) + 1.9)
+    # The body, not just the topmost pin. A crystal's or a SOIC's outline
+    # reaches above its highest pin, so measuring from pins alone dropped the
+    # fields inside the part - "3.579545MHz" printed through Y1's plates, and
+    # 43 others did the same.
+    top = max(max(ys), check_sch_layout.lib_body_box(sym)[3])
+    for p, net, outv, L in stub_pins(sym, pinmap):
+        if net is None or outv[1] > -0.5:             # not leaving upward
+            continue
+        top = max(top, p[3] + L - term_extent(net, outv)[1])
+    return (min(xs), -(top + 3.81), -(top + 3.81) + 1.9)
 
 
 def sym_extent(ref, value, sym, pinmap):
     """Reach from a symbol's origin as (left, right, up, down), sheet mm.
 
     Covers the library body, the Reference/Value fields placed above it, and
-    every pin's wire stub plus the global label drawn at the end of that
-    stub. Reserving the label - not just the pin - is what makes a
-    stub-on-stub net merge geometrically impossible.
+    every pin's wire stub plus whatever terminates that stub - a global label
+    for a signal, a power port for a rail. Reserving the terminator - not just
+    the pin - is what makes a stub-on-stub net merge geometrically impossible.
     """
     import math
     bx0, by0, bx1, by1 = check_sch_layout.lib_body_box(sym)
     left, right, up, down = -bx0, bx1, by1, -by0
 
-    pins = pins_of(sym)
     # The Reference/Value fields, left-justified at field_pos() - mirroring
     # exactly what main() emits, so the reserved box is the drawn box.
-    fdx, fdy_ref, fdy_val = field_pos(sym)
+    fdx, fdy_ref, fdy_val = field_pos(sym, pinmap)
     fw, fh = text_extent(max(ref, value, key=len), FONT_BODY)
     left = max(left, -fdx)
     right = max(right, fdx + fw)
     up = max(up, -(fdy_ref - fh / 2.0))
     down = max(down, fdy_val + fh / 2.0)
 
-    half = FONT_BODY * LINE_H / 2.0 + 0.6
-    for no, name, px, py, pa, etype, style in pins:
-        net = pinmap.get(no)
-        rad = math.radians(pa)
-        ovx, ovy = -math.cos(rad), math.sin(rad)      # sheet coords, y down
-        reach = STUB
-        if net is not None:
-            reach += len(net) * FONT_BODY * CHAR_W + 2.5
-        gx, gy = px, -py
-        ex, ey = gx + reach * ovx, gy + reach * ovy
-        padx = 0.0 if abs(ovx) > 0.5 else half
-        pady = 0.0 if abs(ovy) > 0.5 else half
-        left = max(left, -min(gx, ex) + padx)
-        right = max(right, max(gx, ex) + padx)
-        up = max(up, -min(gy, ey) + pady)
-        down = max(down, max(gy, ey) + pady)
+    for p, net, outv, L in stub_pins(sym, pinmap):
+        gx, gy = p[2], -p[3]                          # sheet coords, y down
+        ex, ey = gx + L * outv[0], gy + L * outv[1]
+        tb = term_extent(net, outv) if net is not None else (0.0, 0.0, 0.0, 0.0)
+        left = max(left, -min(gx, ex + tb[0]))
+        right = max(right, max(gx, ex + tb[2]))
+        up = max(up, -min(gy, ey + tb[1]))
+        down = max(down, max(gy, ey + tb[3]))
     return (left, right, up, down)
 
 
@@ -416,6 +590,8 @@ def main():
         if key not in symcache:
             symcache[key] = flatten(*key)
     symcache[("power", "PWR_FLAG")] = flatten("power", "PWR_FLAG")
+    for net, sym in PWR.items():
+        symcache[("power", net)] = sym
 
     AT, HEADERS, NOTES_TITLE_AT, NOTES_AT = build_layout(symcache)
 
@@ -423,6 +599,48 @@ def main():
 
     def emit(s):
         body.append(s)
+
+    # Power ports get sequential #PWRnnnn references in emission order, which
+    # is COMPONENTS' insertion order and then pin order - deterministic, so a
+    # rebuild is byte-identical. check_netlist.py skips every "#" reference,
+    # and nothing on the board side reads the schematic, so these exist on
+    # this sheet only.
+    pwr_seq = [0]
+
+    def emit_terminal(net, lx, ly, outv, key):
+        """Terminate a stub: a power port for a rail, a global label else."""
+        sym = PWR.get(net)
+        if sym is None:
+            ang, just = label_angle(outv)
+            emit('\t(global_label "%s" (shape %s) (at %s %s %d)\n'
+                 '\t\t(effects (font (size 1.27 1.27)) (justify %s))\n'
+                 '\t\t(uuid %s)\n'
+                 '\t\t(property "Intersheetrefs" "${INTERSHEET_REFS}" (at %s %s 0)\n'
+                 '\t\t\t(effects (font (size 1.27 1.27)) hide)\n\t\t)\n\t)'
+                 % (esc(net), "passive", f(lx), f(ly), ang,
+                    just, uid("lbl", *key), f(lx), f(ly)))
+            return
+        pwr_seq[0] += 1
+        ref = "#PWR%04d" % pwr_seq[0]
+        ang = power_angle(sym, outv)
+        vx, vy = power_value_at(sym, outv)[:2]
+        emit('\t(symbol (lib_id "power:%s") (at %s %s %d) (unit 1)\n'
+             '\t\t(in_bom yes) (on_board yes) (dnp no)\n'
+             '\t\t(uuid %s)\n'
+             '\t\t(property "Reference" "%s" (at %s %s 0)\n'
+             '\t\t\t(effects (font (size 1.27 1.27)) hide)\n\t\t)\n'
+             '\t\t(property "Value" "%s" (at %s %s 0)\n'
+             '\t\t\t(effects (font (size 1.27 1.27)))\n\t\t)\n'
+             '\t\t(property "Footprint" "" (at %s %s 0)\n'
+             '\t\t\t(effects (font (size 1.27 1.27)) hide)\n\t\t)\n'
+             '\t\t(property "Datasheet" "" (at %s %s 0)\n'
+             '\t\t\t(effects (font (size 1.27 1.27)) hide)\n\t\t)\n'
+             '\t\t(pin "1" (uuid %s))\n'
+             '\t\t(instances (project "%s" (path "/%s" (reference "%s") (unit 1))))\n'
+             '\t)' % (esc(net), f(lx), f(ly), ang, uid("pwr", *key), ref,
+                      f(lx), f(ly), esc(net), f(lx + vx), f(ly + vy),
+                      f(lx), f(ly), f(lx), f(ly), uid("pwrpin", *key),
+                      PROJECT, ROOT, ref))
 
     # place components
     for ref, c in COMPONENTS.items():
@@ -432,7 +650,7 @@ def main():
         sym = symcache[key]
         pins = pins_of(sym)
         pinmap = c["pins"]
-        fdx, fdy_ref, fdy_val = field_pos(sym)
+        fdx, fdy_ref, fdy_val = field_pos(sym, pinmap)
         lib_id = "%s:%s" % key
         libprops = {p[1]: p for p in find_all(sym, "property")}
         ds = libprops.get("Datasheet")
@@ -465,35 +683,22 @@ def main():
              '\t\t(instances (project "%s" (path "/%s" (reference "%s") (unit 1))))\n'
              '\t)' % (lib_id, f(sx), f(sy), u, "\n".join(prop), pin_uuid_lines,
                       PROJECT, ROOT, ref))
-        # stubs + labels / no-connects
-        seen_nopin = set()
-        for no, name, px, py, pa, etype, style in pins:
-            gx, gy = sx + px, sy - py
-            if (gx, gy) in seen_nopin:
-                # stacked pins (e.g. module GND 1/40/41, USB VBUS) share one point
-                continue
-            seen_nopin.add((gx, gy))
-            net = pinmap.get(no, None)
+        # stubs + terminators / no-connects. stub_pins() collapses stacked
+        # pins (module GND 1/40/41, USB VBUS) onto one stub and hands back the
+        # same lengths the packer reserved space for.
+        for p, net, outv, L in stub_pins(sym, pinmap):
+            no = p[0]
+            gx, gy = sx + p[2], sy - p[3]
             if net is None:
                 emit('\t(no_connect (at %s %s) (uuid %s))'
                      % (f(gx), f(gy), uid("nc", ref, no)))
                 continue
-            import math
-            rad = math.radians(pa)
-            outv = (-math.cos(rad), math.sin(rad))  # sheet coords (y down)
-            lx, ly = gx + 2.54 * outv[0], gy + 2.54 * outv[1]
+            lx, ly = gx + L * outv[0], gy + L * outv[1]
             emit('\t(wire (pts (xy %s %s) (xy %s %s))\n'
                  '\t\t(stroke (width 0) (type default))\n'
                  '\t\t(uuid %s)\n\t)'
                  % (f(gx), f(gy), f(lx), f(ly), uid("wire", ref, no)))
-            ang, just = label_angle(outv)
-            emit('\t(global_label "%s" (shape %s) (at %s %s %d)\n'
-                 '\t\t(effects (font (size 1.27 1.27)) (justify %s))\n'
-                 '\t\t(uuid %s)\n'
-                 '\t\t(property "Intersheetrefs" "${INTERSHEET_REFS}" (at %s %s 0)\n'
-                 '\t\t\t(effects (font (size 1.27 1.27)) hide)\n\t\t)\n\t)'
-                 % (esc(net), "passive" if True else "input", f(lx), f(ly), ang,
-                    just, uid("lbl", ref, no), f(lx), f(ly)))
+            emit_terminal(net, lx, ly, outv, (ref, no))
 
     # PWR_FLAG instances
     for ref in FLAG_REFS:
@@ -522,12 +727,7 @@ def main():
         emit('\t(wire (pts (xy %s %s) (xy %s %s))\n'
              '\t\t(stroke (width 0) (type default))\n'
              '\t\t(uuid %s)\n\t)' % (f(sx), f(sy), f(lx), f(ly), uid("wire", ref)))
-        emit('\t(global_label "%s" (shape passive) (at %s %s 270)\n'
-             '\t\t(effects (font (size 1.27 1.27)) (justify right))\n'
-             '\t\t(uuid %s)\n'
-             '\t\t(property "Intersheetrefs" "${INTERSHEET_REFS}" (at %s %s 0)\n'
-             '\t\t\t(effects (font (size 1.27 1.27)) hide)\n\t\t)\n\t)'
-             % (esc(net), f(lx), f(ly), uid("lbl", ref), f(lx), f(ly)))
+        emit_terminal(net, lx, ly, (0.0, 1.0), (ref,))
 
     # group headers, then the reserved notes block
     def emit_text(txt, x, y, size, bold, key):

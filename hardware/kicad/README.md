@@ -28,7 +28,7 @@ table — 93 nets, 0 mismatches). The 3D renders in `3d/` are raytraced by
 | File | What it is |
 |---|---|
 | `bisque-controller.kicad_pro` | Project (net classes: 0.3 mm signal / 0.7–0.8 mm power, 0.25 mm only on the short fine-pitch escape stubs off the QFN/TSSOP pads) |
-| `bisque-controller.kicad_sch` | Schematic (A1, netlist-style: functional groups + global labels). Laid out programmatically by `generator/gen_sch.py` — a `GROUPS` taxonomy plus a deterministic column packer, with a reserved right-hand column for the notes block. A1, not A3: an A3 declaration silently clipped ~40% of the circuit out of the exported PDF while every connectivity checker stayed green (`generator/check_sch_bounds.py` now fails on any off-sheet item), and containment is not readability, so `generator/check_sch_layout.py` additionally fails on any symbol/symbol, text/symbol or text/text overlap |
+| `bisque-controller.kicad_sch` | Schematic (A1, netlist-style: functional groups, global labels for signals, real power ports for rails). Laid out programmatically by `generator/gen_sch.py` — a `GROUPS` taxonomy plus a deterministic column packer, with a reserved right-hand column for the notes block. A1, not A3: an A3 declaration silently clipped ~40% of the circuit out of the exported PDF while every connectivity checker stayed green (`generator/check_sch_bounds.py` now fails on any off-sheet item), and containment is not readability, so `generator/check_sch_layout.py` additionally fails on any symbol/symbol, text/symbol or text/text overlap |
 | `bisque-controller.kicad_pcb` | Board: placed, fully routed, 4 layers (F.Cu/B.Cu signals, In1.Cu GND plane, In2.Cu +3V3 plane) |
 | `preview-board.svg` | Quick visual of placement + routing |
 | `3d/board-3d-*.png` | Raytraced renders, kicad-cli (iso / front / top / underside) |
@@ -591,6 +591,58 @@ collected the reference dangled, so U1's model scale saved as `(1 1 1)`
 or `(0 0 0)` depending on when Python happened to run the collector. A
 model scaled to zero renders nothing. The values are unpacked to plain
 floats now.
+
+**Rails terminate in power ports, signals in global labels.** A boxed
+global label reading `GND` and one reading `SPI_MOSI` are the same shape, so
+telling ground from a signal meant reading 3 mm of 1.27 mm text — 155 times,
+since rails were 38% of every label on the sheet (`GND` alone appeared 86
+times). `gen_sch.py` now ends a rail's stub with the real `power:` symbol
+instead: a ground triangle and a rail arrow are recognised by silhouette.
+140 terminations converted; global labels dropped 406 → 266.
+
+Membership is **derived, never listed**: a net qualifies exactly when KiCad's
+power library holds a symbol of that name, which today means `GND`, `+3V3`,
+`+5V` and `VBUS` (`VIN`, `VLED`, `AUX_VP` and `SSR_EN` have no such symbol
+and keep their labels). That is also what makes it safe — KiCad takes a
+`(power global)` symbol's net name from its Value field, so an exact name
+match is the guarantee the net name survives, and `check_netlist.py`
+round-trips through KiCad to prove it did (93 nets, 0 mismatches, unchanged).
+The ports are schematic-only: `design.py` is untouched, so the board, the
+gerbers, the BOM and the CPL are bit-for-bit what they were.
+
+Three things this forced, each of which had been wrong and invisible:
+
+* **`check_sch_layout.py` grew every symbol one pin-length in the wrong
+  direction.** Its pin handling negated the stem, so a body box reached
+  *outward* past each connection point instead of back toward the body —
+  straight through the corridor where that pin's own stub and terminator
+  live. Harmless while only symbols were compared to symbols; the moment
+  rails became ports it reported 75 collisions between parts and the ports on
+  their own pins.
+* **It compared symbols as one rectangle unioning body and fields**, which
+  cost it both directions: it could not see a field printed over its own body
+  (44 of them — `3.579545MHz` through Y1's plates, `ESP32-S3-WROOM-1U-N16R2`
+  through U1's stub), and it called every port that legitimately sits between
+  a body and the field above it a collision. It now compares body and fields
+  as separate parts — 708 parts rather than 286 boxes — with a part's own
+  Reference/Value pair the one exempt combination, since they are stacked
+  1.9 mm apart under a ~2.1 mm estimated line height and always "overlap".
+* **`field_pos()` measured the field band from the topmost pin only.** A
+  crystal's or a SOIC's outline reaches above its highest pin, so the fields
+  landed inside the part; and clearing the pin is not clearing the pin's
+  *terminator*, which is what printed nine ICs' values through their own
+  power stubs. It now clears the body and the whole upward corridor.
+
+Two ports on adjacent pins would still print into each other — a `GND` port
+is 3.05 mm of text under a 2.54 mm triangle, wider than the 2.54 mm pin
+pitch, and U7 carries three grounds in a row. `stub_pins()` assigns crowded
+neighbours to lanes, pushing every other one 5.08 mm further out along its
+own stub. The rule demands 1.27 mm of clear space rather than merely no
+overlap: `+3V3` twice over U3's AVDD/DVDD pair passed a collision test and
+read as `+3V3+3V3`. One model serves the packer's reserved extent, the field
+placement and the emitted geometry, because a reserved box that is not the
+drawn box is exactly how two stubs land on one point and silently merge two
+nets.
 
 **Silkscreen is placed by a packer, not by a table.** Where every
 reference designator and board label lands is derived, the same way
