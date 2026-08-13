@@ -209,6 +209,14 @@ final class SettingsViewModel {
     /// could sit in pending-verify for its whole confirmation window with the
     /// Confirm button never shown (#177).
     func markOtaStatusStale() {
+        /* Retire any read already in flight. A load started before the update
+           finished is describing the outgoing image, and without advancing the
+           generation it would still pass its own guard and repopulate the
+           screen with that image *after* this marked it stale — the Refresh
+           button stays live during an upload or install, so the overlap is
+           reachable, not theoretical. */
+        otaLoadGeneration &+= 1
+        isLoadingOtaStatus = false
         otaStatus = nil
         otaStatusUnavailable = true
     }

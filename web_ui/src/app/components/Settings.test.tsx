@@ -771,8 +771,21 @@ describe("Settings: firmware partitions and rollback", () => {
     pushFrame({ type: "ota_complete", data: { percent: 100 } });
     await screen.findByText(/The controller is restarting/);
 
-    // The kiln is back, on the new image, still pending verification.
-    apiMock.otaStatus.mockResolvedValue(
+    // The kiln comes back on the new image, still pending verification — but
+    // only once the read settles. While it is in flight the card must go on
+    // saying "restarting": React Query is still holding the pre-reboot data,
+    // and revealing the card early would put the outgoing version on screen
+    // with Roll Back live off its stale rollbackAvailable.
+    let release: (value: OtaStatus) => void = () => {};
+    apiMock.otaStatus.mockImplementation(() => new Promise((r) => (release = r)));
+    await user.click(screen.getByRole("button", { name: "Refresh" }));
+
+    expect(screen.getByText(/The controller is restarting/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Roll Back" })).not.toBeInTheDocument();
+    // The row that would carry the outgoing version is not rendered at all.
+    expect(screen.queryByText("Running Version")).not.toBeInTheDocument();
+
+    release(
       otaStatus({
         running: {
           label: "ota_1",
@@ -785,7 +798,6 @@ describe("Settings: firmware partitions and rollback", () => {
         pendingVerify: true,
       }),
     );
-    await user.click(screen.getByRole("button", { name: "Refresh" }));
 
     expect(await screen.findByText("Pending verification")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Roll Back" })).toBeEnabled();

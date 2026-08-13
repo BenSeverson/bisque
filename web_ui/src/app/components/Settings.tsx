@@ -1332,9 +1332,17 @@ export function Settings() {
                   <Button
                     variant="outline"
                     className="gap-2"
-                    onClick={() => {
+                    /* Lower the guard only once the read has settled. Clearing
+                       it first revealed the card while the request was still in
+                       flight — and React Query still holds the pre-reboot data,
+                       so that meant the outgoing version on screen and Roll
+                       Back live off its stale `rollbackAvailable`, for as long
+                       as a restarting kiln took to answer. Whatever the refetch
+                       returns is honest: fresh partitions, or the "could not
+                       read" branch. */
+                    onClick={async () => {
+                      await refetchOtaStatus();
                       setAwaitingReboot(false);
-                      refetchOtaStatus();
                     }}
                     disabled={otaStatusFetching}
                   >
