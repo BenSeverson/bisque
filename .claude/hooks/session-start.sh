@@ -19,14 +19,27 @@ fi
 cd "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}"
 HOOKS="$(dirname "$0")"
 
-echo "[bisque session-start] installing web UI toolchain (npm install)…"
+echo "[bisque session-start] installing web UI toolchain (npm ci)…"
 if [ -f web_ui/package.json ]; then
-    # npm install (not ci) so the cached container can reuse node_modules across
-    # sessions; idempotent — a warm cache makes this a fast no-op.
-    (cd web_ui && npm install --no-audit --no-fund)
+    # `npm ci`, not `npm install`, for the same reason CI uses it: it installs
+    # exactly what package-lock.json says and never writes the file back.
+    #
+    # `npm install` rewrote the lockfile on every session start. The container
+    # runs Node 22 (npm 10) while CI runs Node 24 (npm 11), and the two disagree
+    # about whether optional platform packages carry a `libc` field — so every
+    # session opened with ~30 lines of unrelated churn staged against it, and
+    # anything that committed the working tree wholesale would have carried that
+    # into a PR.
+    #
+    # The original motive for `npm install` was reusing a warm node_modules
+    # across sessions. `npm ci` does discard it, but that costs ~9s here, which
+    # is not worth a permanently dirty tree. If the lockfile and package.json
+    # have drifted `npm ci` refuses outright, so fall back rather than leaving a
+    # session with no toolchain at all.
+    (cd web_ui && { npm ci --no-audit --no-fund || npm install --no-audit --no-fund; })
     echo "[bisque session-start] web_ui deps ready."
 else
-    echo "[bisque session-start] web_ui/package.json not found — skipping npm install."
+    echo "[bisque session-start] web_ui/package.json not found — skipping npm ci."
 fi
 
 if command -v clang-format >/dev/null 2>&1; then
