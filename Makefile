@@ -33,10 +33,11 @@ IDF         := . ./scripts/idf-env.sh &&
         clang-tidy cppcheck \
         size size-firmware size-spiffs \
         ci ci-firmware clean \
-        pcb pcb-build pcb-fab pcb-render pcb-check
+        pcb pcb-build pcb-cosmetic pcb-cosmetic-verify pcb-fab pcb-render \
+        pcb-check
 
 help:  ## List available targets
-	@awk 'BEGIN{FS=":.*## "} /^[a-z][a-zA-Z0-9_-]*:.*## / {printf "  \033[1m%-15s\033[0m %s\n",$$1,$$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN{FS=":.*## "} /^[a-z][a-zA-Z0-9_-]*:.*## / {printf "  \033[1m%-20s\033[0m %s\n",$$1,$$2}' $(MAKEFILE_LIST)
 
 ## ──────────────────────────────────────────────────────────────────────
 ## Build
@@ -262,6 +263,27 @@ pcb-build:  ## Regenerate schematic + board only (no fab outputs)
 	cd $(KICAD_DIR) && python3 generator/gen_sch.py bisque-controller.kicad_sch \
 	  && "$$KPY" generator/kicad_build.py bisque-controller.kicad_pcb \
 	  && "$$KPY" generator/check_via_in_pad.py bisque-controller.kicad_pcb
+
+# The fast path. Routing 93 nets across 141 parts is ~320 s of pcb-build's
+# ~421 s, and silkscreen placement, 3D-model offsets, the title block and
+# reference-designator text metrics cannot move copper at all — so those
+# re-derive off the existing routing in ~100 s. Byte-identical to pcb-build
+# by construction and by test (pcb-cosmetic-verify); kicad_build.py refuses
+# --no-route outright if design.py's parts, placement or nets have drifted
+# from the board on disk. ANYTHING touching placement, connectivity, net
+# classes or router parameters needs `make pcb-build`.
+pcb-cosmetic:  ## Re-derive silk/3D models/title block only, reusing the existing routing (fast)
+	@$(find_kpy); \
+	cd $(KICAD_DIR) && python3 generator/gen_sch.py bisque-controller.kicad_sch \
+	  && "$$KPY" generator/kicad_build.py --no-route bisque-controller.kicad_pcb \
+	  && "$$KPY" generator/check_via_in_pad.py bisque-controller.kicad_pcb
+
+# Costs a full rebuild, so it is deliberately not in pcb-check. Run it when
+# kicad_build.py, silk.py or design.py's placement machinery changes.
+pcb-cosmetic-verify:  ## Prove --no-route is byte-identical to a full rebuild (slow)
+	@$(find_kpy); \
+	cd $(KICAD_DIR) && "$$KPY" generator/check_fast_path.py \
+	  bisque-controller.kicad_pcb
 
 # Everything a fab order reads. Runs AFTER pcb-build: kicad_build.py ends
 # with a `kicad-cli pcb drc --refill-zones` pass, and exporting before that

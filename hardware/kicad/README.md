@@ -443,10 +443,12 @@ checkers against what's already committed, without touching KiCad:
 
 ```bash
 make pcb          # regenerate schematic + board + fab outputs, then check
-make pcb-build    # schematic + board only (fast inner loop, no fab outputs)
+make pcb-build    # schematic + board only (no fab outputs) — the full path, ~421 s
+make pcb-cosmetic # silk / 3D models / title block only, reusing the routing — ~104 s
 make pcb-fab      # gerbers, drill, BOM/CPL, PDFs, preview SVG — after pcb-build
 make pcb-check    # check only: pinmap, sheet bounds, netlist, connectivity, silkscreen, reproducibility
 make pcb-render   # 3d/board-3d-*.png raytrace — SLOW, deliberately not in `make pcb`
+make pcb-cosmetic-verify   # prove pcb-cosmetic == pcb-build, byte for byte — SLOW
 ```
 
 `make pcb` = `pcb-build` + `pcb-fab` + `pcb-check`, in that order, so a
@@ -457,6 +459,58 @@ It used to be worse than a split — `make pcb` ran *no* export step at all,
 so it could succeed while leaving the committed gerbers, BOM, CPL and PDFs
 describing the previous board.
 
+### Which path does your change need?
+
+Routing 93 nets across 141 parts is essentially all of `pcb-build`'s
+runtime, and several kinds of change cannot move a single track. Those get
+`make pcb-cosmetic`, which is `kicad_build.py --no-route`: it reads the
+tracks, vias and filled zones back off the existing board and re-derives
+everything else with the same code the full build runs.
+
+| Change | Path | Measured |
+|---|---|---|
+| Silkscreen placement (`generator/silk.py`, the `SILK` table, reference text size/thickness) | `make pcb-cosmetic` | **104 s** |
+| 3D model offsets (`MODEL_OFFSET` in `kicad_build.py`) | `make pcb-cosmetic` | **104 s** |
+| Board title block | `make pcb-cosmetic` | **104 s** |
+| **Anything else** — placement, connectivity, footprint choice, net classes, `MANUAL_VIAS`, router parameters (`router.py`, `gen_pcb.py`) | `make pcb-build` | **421 s** |
+
+When in doubt, use the full path. `--no-route` is not a judgement call it
+leaves to you: before it reuses anything it compares the loaded board
+against `design.py` — every reference, footprint, placement, orientation,
+pad→net assignment, the net set, and every `MANUAL_VIAS` entry — and exits
+naming the mismatches rather than emitting a plausible-but-wrong board.
+What it cannot see is a change to the router's own parameters, since those
+leave no trace on the board; that one is on you.
+
+**`--no-route` output is byte-identical to a full rebuild**, and that is
+tested rather than asserted. `make pcb-cosmetic-verify`
+(`generator/check_fast_path.py`) does a full rebuild in a scratch
+directory, then runs `--no-route` twice over copies of it — once as-is, and
+once over a copy whose cosmetics have all been deliberately wrecked (every
+designator moved and resized, every board text moved, the title block
+overwritten, U1's 3D model flung off the board) — and requires all three
+files to match to the byte. The vandalised run is the one that matters: it
+shows the loaded board's cosmetic state cannot leak into the result, which
+is why `--no-route` deletes and re-adds every footprint and board graphic
+instead of editing them back to a default. A silk placer re-run over its
+own previous output is not solving the problem a fresh build hands it.
+
+Two things that path had to get right, both of which bit during
+development and both of which are guarded now:
+
+* **Zones are inherited, not refilled.** `--no-route` runs
+  `kicad-cli pcb drc` *without* `--refill-zones`, which is not merely 0.8 s
+  cheaper — it is required. KiCad's filler is idempotent once a zone is
+  filled, but filling an empty zone and refilling a full one do not agree:
+  refilling this board's +3V3 pour rewrites ~180 lines of its
+  `filled_polygon`. The full path fills from empty, so the fast path has to
+  leave that fill alone or lose byte-identity on the pour.
+* **The board is canonicalised on the way in, not just out.** Tracks and
+  vias keep the uuids the file gave them, and KiCad's writer breaks
+  position ties between items with the uuid — so a board last saved by
+  something that does not canonicalise (the KiCad GUI) would serialise its
+  copper in an order a full build never produces.
+
 Equivalently, by hand:
 
 ```bash
@@ -464,6 +518,9 @@ cd hardware/kicad
 python3 generator/gen_sch.py bisque-controller.kicad_sch        # schematic
 python3 generator/check_netlist.py bisque-controller.kicad_sch  # KiCad netlist round-trip: must PASS
 "$KPY" generator/kicad_build.py bisque-controller.kicad_pcb     # board via pcbnew API:
+                                                                #   (add --no-route to reuse the routing
+                                                                #    already on disk — see "Which path
+                                                                #    does your change need?")
                                                                 #   system-library footprints, octilinear
                                                                 #   45-degree autoroute (2 signal layers),
                                                                 #   In1.Cu/In2.Cu plane fills, GND stubs,
@@ -524,6 +581,16 @@ fill settles too, since KiCad's filler is deterministic once its input
 is. `check_canonical.py` guards this by re-shuffling and re-minting a
 real board and asserting the canonical form doesn't move; it needs
 neither KiCad nor pcbnew.
+
+One other source of run-to-run drift lived in `kicad_build.py` itself
+until the fast path flushed it out. `MODEL_OFFSET` rebuilds a footprint's
+3D-model entry, because `fp.Models()` hands back copies that cannot be
+mutated in place — and it used to carry the old entry's scale and
+rotation as `VECTOR3D` *references into those copies*. Once the copy was
+collected the reference dangled, so U1's model scale saved as `(1 1 1)`
+or `(0 0 0)` depending on when Python happened to run the collector. A
+model scaled to zero renders nothing. The values are unpacked to plain
+floats now.
 
 **Silkscreen is placed by a packer, not by a table.** Where every
 reference designator and board label lands is derived, the same way

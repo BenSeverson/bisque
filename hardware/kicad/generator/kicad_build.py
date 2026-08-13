@@ -7,7 +7,19 @@ KiCad do the rest: `kicad-cli pcb drc --refill-zones` fills the ground
 pours and runs KiCad's real DRC. The saved board is a genuine
 pcbnew-written file. Requires KiCad 10+.
 
-Usage: python3 kicad_build.py <out.kicad_pcb>
+Usage: python3 kicad_build.py [--no-route] <out.kicad_pcb>
+
+`--no-route` is the fast path. Routing 93 nets across 141 parts is ~99%
+of the 421 s a full build costs, and several classes of change cannot
+touch copper at all: silkscreen placement (silk.py), 3D model offsets
+(MODEL_OFFSET), the title block, reference-designator text metrics. With
+`--no-route` the tracks, vias and filled zones are read back off the
+existing board and everything else is re-derived by the same code a full
+build runs, so the result is byte-identical for the same design.py -
+`check_fast_path.py` proves that rather than assuming it. Anything that
+moves a part, changes connectivity, or changes a routing parameter needs
+the full path; `verify_reusable()` below refuses the fast one when
+design.py and the loaded board have drifted apart.
 """
 import math
 import os
@@ -59,14 +71,22 @@ import glob
 FPBASE = _find_fp_base()
 
 
-def load_footprint(lib, name):
-    path = os.path.join(FPBASE, lib + ".pretty")
-    mgr = pcbnew.PCB_IO_MGR
-    return mgr.FindPlugin(mgr.KICAD_SEXP).FootprintLoad(path, name)
 MM = pcbnew.FromMM
 _major = int(pcbnew.Version().split(".")[0])
 if _major < 10:
     sys.exit("kicad_build.py requires KiCad 10+ (found %s)" % pcbnew.Version())
+
+# The footprint reader, resolved once. Belt-and-braces against the swig
+# type-table corruption `strip_derived()` documents: while a live pcbnew
+# session is in that state, PCB_IO_MGR.FindPlugin() is one of the calls that
+# hands back an untyped pointer - here, one with no FootprintLoad on it. A
+# handle taken before any board is loaded keeps working.
+_FP_PLUGIN = pcbnew.PCB_IO_MGR.FindPlugin(pcbnew.PCB_IO_MGR.KICAD_SEXP)
+
+
+def load_footprint(lib, name):
+    path = os.path.join(FPBASE, lib + ".pretty")
+    return _FP_PLUGIN.FootprintLoad(path, name)
 
 
 def V(x, y):
@@ -92,8 +112,17 @@ def V(x, y):
 MODEL_OFFSET = {"U1": (-9.0, -9.6, 0.0)}
 
 
-def build_board():
-    board = pcbnew.BOARD()
+def build_board(existing=None):
+    """Everything about the board except copper.
+
+    `existing` is an already-routed board that `strip_derived()` has just
+    emptied of footprints and board graphics; it keeps its tracks, vias and
+    filled zones and gets the rest rebuilt here. Passing it through the same
+    function as a fresh build - rather than a separate "patch the loaded
+    board" routine - is what makes `--no-route` byte-identical by
+    construction instead of by inspection.
+    """
+    board = pcbnew.BOARD() if existing is None else existing
     board.SetCopperLayerCount(COPPER_LAYERS)
     bds = board.GetDesignSettings()
     bds.m_TrackMinWidth = MM(0.2)
@@ -108,7 +137,11 @@ def build_board():
     # Values mirror gen_sch.py's block so the two documents agree. The date is
     # deliberately FIXED, not today's: check_canonical.py requires rebuilds to
     # be byte-identical, and a live date would break that every midnight.
-    tb = board.GetTitleBlock()
+    # A fresh TITLE_BLOCK rather than board.GetTitleBlock(): on a board that
+    # came off disk the getter hands back an untyped swig pointer with no
+    # methods on it. Building one here also means every field is set from
+    # this table, so `--no-route` cannot inherit a stale one.
+    tb = pcbnew.TITLE_BLOCK()
     tb.SetTitle("Bisque Kiln Controller")
     tb.SetDate("2026-07-20")
     tb.SetRevision("B")
@@ -117,11 +150,16 @@ def build_board():
     tb.SetComment(1, "4-layer, 100 x 100 mm, JLCPCB standard process")
     board.SetTitleBlock(tb)
 
-    # nets
+    # nets. A .kicad_pcb of this vintage carries no net table - tracks, vias
+    # and zones name their net inline - so a reused board already has every
+    # net the copper on it mentions, and re-minting them would orphan that
+    # copper. Net *codes* are internal only and never reach the file.
     nets = {}
     for name in sorted(netlist()):
-        n = pcbnew.NETINFO_ITEM(board, name)
-        board.Add(n)
+        n = board.FindNet(name) if existing is not None else None
+        if n is None:
+            n = pcbnew.NETINFO_ITEM(board, name)
+            board.Add(n)
         nets[name] = n
 
     # footprints
@@ -155,14 +193,27 @@ def build_board():
         if off:
             # fp.Models() hands back COPIES - mutating them writes nothing
             # back to the footprint. Rebuild the entry instead.
-            old = [(m.m_Filename, m.m_Scale, m.m_Rotation) for m in fp.Models()]
+            #
+            # The scale and rotation are unpacked to plain floats HERE rather
+            # than carried as VECTOR3Ds. `m` is a temporary, and `m.m_Scale`
+            # is a reference into it, so holding that reference past the
+            # comprehension leaves it dangling: whether it still reads (1,1,1)
+            # or has become (0,0,0) depends on when Python happens to collect
+            # the temporary. A model scaled to zero renders nothing at all,
+            # and it made the board file differ between two runs of an
+            # unchanged design - a determinism bug that only showed up once
+            # the fast path changed the allocation pattern around it.
+            old = [(m.m_Filename,
+                    (m.m_Scale.x, m.m_Scale.y, m.m_Scale.z),
+                    (m.m_Rotation.x, m.m_Rotation.y, m.m_Rotation.z))
+                   for m in fp.Models()]
             assert old, "%s: MODEL_OFFSET set but footprint has no 3D model" % ref
             fp.Models().clear()
             for fname, scale, rot in old:
                 nm = pcbnew.FP_3DMODEL()
                 nm.m_Filename = fname
-                nm.m_Scale = scale
-                nm.m_Rotation = rot
+                nm.m_Scale = pcbnew.VECTOR3D(*scale)
+                nm.m_Rotation = pcbnew.VECTOR3D(*rot)
                 nm.m_Offset = pcbnew.VECTOR3D(*off)
                 fp.Models().push_back(nm)
         board.Add(fp)
@@ -412,19 +463,158 @@ def route_board(board, fps, passes=6):
     return best
 
 
-def main(out):
+def verify_reusable(board):
+    """Refuse `--no-route` when design.py and the loaded board have drifted.
+
+    The fast path is only sound while the copper it inherits is the copper a
+    full build would produce. Nothing here can prove that outright, but every
+    input the router reads out of design.py *can* be compared against what the
+    board actually has, and a mismatch on any of them means the inherited
+    routing belongs to a different design. A stale fast path that quietly
+    emits a plausible-but-wrong board is worse than no fast path at all, so
+    this exits rather than warns.
+
+    Deliberately not checked: `value` and the SILK text table, both of which
+    the fast path genuinely re-derives, and router.py's own parameters, which
+    are not recorded on the board. Changing those needs the full path and the
+    docs say so.
+    """
+    bad = []
+    seen = {}
+    for fp in board.GetFootprints():
+        seen.setdefault(fp.GetReference(), []).append(fp)
+    for ref in sorted(r for r, v in seen.items() if len(v) > 1):
+        bad.append("%s: %d footprints share this reference" % (ref, len(seen[ref])))
+    for ref in sorted(set(COMPONENTS) - set(seen)):
+        bad.append("%s: in design.py, absent from the board" % ref)
+    for ref in sorted(set(seen) - set(COMPONENTS)):
+        bad.append("%s: on the board, absent from design.py" % ref)
+
+    for ref in sorted(set(COMPONENTS) & set(seen)):
+        c = COMPONENTS[ref]
+        fp = seen[ref][0]
+        # The board's footprints were loaded through the plugin directly, so
+        # they carry the bare footprint name with no library nickname.
+        want_fp = c["fp"].split(":", 1)[1]
+        if fp.GetFPID().GetUniStringLibItemName() != want_fp:
+            bad.append("%s: footprint is %s, design.py says %s"
+                       % (ref, fp.GetFPID().GetUniStringLibItemName(), want_fp))
+        x, y, rot = c["at"]
+        p = fp.GetPosition()
+        if abs(pcbnew.ToMM(p.x) - x) > 1e-4 or abs(pcbnew.ToMM(p.y) - y) > 1e-4:
+            bad.append("%s: at (%.3f, %.3f), design.py says (%.3f, %.3f)"
+                       % (ref, pcbnew.ToMM(p.x), pcbnew.ToMM(p.y), x, y))
+        if abs((fp.GetOrientationDegrees() - rot + 180.0) % 360.0 - 180.0) > 1e-4:
+            bad.append("%s: rotated %.2f deg, design.py says %.2f"
+                       % (ref, fp.GetOrientationDegrees(), rot))
+        for pad in fp.Pads():
+            num = str(pad.GetNumber())
+            want = c["pins"].get(num)
+            have = pad.GetNetname()
+            if want and have != want:
+                bad.append("%s pad %s: net %s, design.py says %s"
+                           % (ref, num, have or "<none>", want))
+
+    have_nets = set(str(k) for k in board.GetNetsByName().keys()) - {""}
+    want_nets = set(netlist())
+    for n in sorted(want_nets - have_nets):
+        bad.append("net %s: in design.py, absent from the board" % n)
+    for n in sorted(have_nets - want_nets):
+        bad.append("net %s: on the board, absent from design.py" % n)
+
+    # MANUAL_VIAS are hand-placed copper, so an edit to that table is a
+    # copper edit even though it lives beside the cosmetic tables.
+    vias = set()
+    for t in board.GetTracks():
+        if t.Type() == pcbnew.PCB_VIA_T:
+            vias.add((t.GetNetname(), round(pcbnew.ToMM(t.GetPosition().x), 3),
+                      round(pcbnew.ToMM(t.GetPosition().y), 3)))
+    for (net, x, y) in MANUAL_VIAS:
+        if (net, round(x, 3), round(y, 3)) not in vias:
+            bad.append("MANUAL_VIAS %s at (%.3f, %.3f): no such via on the board"
+                       % (net, x, y))
+
+    if bad:
+        sys.stderr.write(
+            "--no-route refused: the loaded board is not this design.\n"
+            "%d mismatch(es); the first few:\n" % len(bad))
+        for line in bad[:12]:
+            sys.stderr.write("  %s\n" % line)
+        if len(bad) > 12:
+            sys.stderr.write("  ... and %d more\n" % (len(bad) - 12))
+        sys.exit("Run a full build (make pcb-build) - this change moves copper.")
+
+
+_REMOVED = []
+
+
+def strip_derived(board):
+    """Delete everything `--no-route` re-derives; keep the routing.
+
+    Footprints and board graphics are removed outright rather than edited
+    back to a default state. `silk.place()` has already moved every reference
+    designator and every board text on the loaded board, so re-running the
+    placer over it would be scoring its own previous output instead of the
+    inputs a fresh build gives it. Re-adding the library footprints is the
+    only reset that is exactly the fresh build's starting state, because it
+    *is* it - and it resets the 3D-model list and the reference text metrics
+    for free, which a hand-written reset would have to remember to do.
+
+    Tracks, vias and the two filled zones stay: they are the routing result,
+    and they are the whole point.
+    """
+    # Both lists are taken before anything is removed: the swig wrappers over
+    # BOARD's item containers do not survive a mutation of a sibling
+    # container, and iterating Drawings() after the footprints have gone
+    # raises rather than returning the drawings.
+    doomed = list(board.GetFootprints()) + list(board.GetDrawings())
+    for item in doomed:
+        board.Remove(item)
+    # And the proxies are parked in a module-level list rather than dropped.
+    # A BOARD_ITEM the board no longer owns has no destructor swig can find,
+    # and collecting one does not merely leak it - it corrupts pcbnew's shared
+    # swig type table, after which EVERY later call returns an untyped
+    # SwigPyObject. The first symptom is FootprintLoad() handing back
+    # something with no SetReference() on it, ~150 lines away from the Remove
+    # that caused it. Holding the references costs a few MB for one run.
+    _REMOVED.extend(doomed)
+
+
+def main(out, reuse_routing=False):
     out = os.path.abspath(out)
-    board, nets, fps = build_board()
-    r, failed = route_board(board, fps)
-    if failed:
-        print("UNROUTED: %s" % ", ".join(failed))
-    add_copper(board, nets, r)
+    if reuse_routing:
+        if not os.path.isfile(out):
+            sys.exit("--no-route reuses the routing in %s, and that file does "
+                     "not exist.\nRun a full build first: make pcb-build" % out)
+        # Canonicalise on the way IN as well as out. The tracks and vias are
+        # carried across with the uuids the file gave them, and KiCad's
+        # s-expression writer breaks position ties between items with the
+        # uuid - so a board last written by something that does not
+        # canonicalise (the KiCad GUI, say) would serialise its copper in an
+        # order a full build never produces. Content-derived uuids make that
+        # tie deterministic again. No-op on a board this pipeline wrote.
+        canonicalize_file(out)
+        loaded = pcbnew.LoadBoard(out)
+        verify_reusable(loaded)
+        n_via = sum(1 for t in loaded.GetTracks() if t.Type() == pcbnew.PCB_VIA_T)
+        print("reusing routing from %s: %d tracks, %d vias, %d filled zones"
+              % (os.path.basename(out), len(list(loaded.GetTracks())) - n_via,
+                 n_via, len(list(loaded.Zones()))))
+        strip_derived(loaded)
+        board, nets, fps = build_board(loaded)
+    else:
+        board, nets, fps = build_board()
+        r, failed = route_board(board, fps)
+        if failed:
+            print("UNROUTED: %s" % ", ".join(failed))
+        add_copper(board, nets, r)
     anchors = add_outline_and_silk(board)
     # Silk placement runs last, once every pad, footprint outline and board
     # text exists: it is a whole-board packing problem, and it cannot be
     # solved a label at a time as each one is created.
     silk.place(board, anchors)
-    add_zones(board, nets)
+    if not reuse_routing:
+        add_zones(board, nets)
     rpt_path = os.path.splitext(out)[0] + "-drc.rpt"
     # standalone python fill/DRC needs a project-attached board; kicad-cli
     # fills, saves and checks in one authentic pass.
@@ -437,11 +627,21 @@ def main(out):
     # after *each* write - not just at the end - matters, because the zone
     # fill is only reproducible if kicad-cli is handed a reproducible board.
     canonicalize_file(out)
-    print("saved %s (unfilled); fill+DRC via kicad-cli..." % out)
-    subprocess.run(["kicad-cli", "pcb", "drc", "--refill-zones",
-                    "--save-board", "--severity-all",
-                    "--all-track-errors", "-o", rpt_path, out],
-                   check=True, capture_output=True)
+    # --refill-zones is not merely unnecessary on the fast path, it is WRONG.
+    # KiCad's filler is idempotent once a zone is filled, but filling an
+    # unfilled zone and refilling an already-filled one do not agree: refilling
+    # this board's +3V3 pour rewrites ~180 lines of its filled_polygon. The
+    # full path fills from empty; the fast path inherits that fill and must
+    # leave it exactly alone, or byte-identity is lost on the pour rather than
+    # on anything to do with silk. Skipping it is also ~0.8 s cheaper.
+    drc = ["kicad-cli", "pcb", "drc"]
+    if not reuse_routing:
+        drc.append("--refill-zones")
+    drc += ["--save-board", "--severity-all", "--all-track-errors",
+            "-o", rpt_path, out]
+    print("saved %s (%s); DRC via kicad-cli..."
+          % (out, "fill inherited" if reuse_routing else "unfilled"))
+    subprocess.run(drc, check=True, capture_output=True)
     canonicalize_file(out)
     for (lname, area, cx, cy) in plane_islands(pcbnew.LoadBoard(out)):
         print("  !! %s plane island of %.1f mm2 stranded at (%.1f, %.1f)"
@@ -451,4 +651,16 @@ def main(out):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "bisque-controller.kicad_pcb")
+    argv = sys.argv[1:]
+    reuse = False
+    paths = []
+    for a in argv:
+        if a == "--no-route":
+            reuse = True
+        elif a.startswith("-"):
+            sys.exit("unknown option %s (usage: kicad_build.py [--no-route] "
+                     "<out.kicad_pcb>)" % a)
+        else:
+            paths.append(a)
+    main(paths[0] if paths else "bisque-controller.kicad_pcb",
+         reuse_routing=reuse)
