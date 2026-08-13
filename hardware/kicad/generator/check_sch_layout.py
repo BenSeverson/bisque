@@ -225,17 +225,45 @@ def wires_of(doc):
 
 
 def seg_touch(s, t):
-    """Two axis-aligned segments sharing a point that is not a shared end."""
+    """Two axis-aligned segments that meet in a way a reader can misread.
+
+    Not every shared point is a defect. A schematic crosses wires constantly
+    and KiCad connects nothing where two wires merely cross, so a plain
+    transversal crossing is fine - and check_netlist.py proves it stayed
+    fine. What is not fine, and is what this reports:
+
+      * an endpoint landing inside the other segment - a T that looks
+        soldered and is not (or, if something names the point, silently is);
+      * a collinear overlap - the same ink drawn twice.
+
+    Two segments meeting end to end is a corner, and is how every elbow in
+    here is drawn.
+    """
     (ax, ay), (bx, by) = s
     (cx, cy), (dx, dy) = t
-    if {(ax, ay), (bx, by)} & {(cx, cy), (dx, dy)}:
+    ends_s, ends_t = {(ax, ay), (bx, by)}, {(cx, cy), (dx, dy)}
+    s_h, t_h = abs(ay - by) < EPS, abs(cy - dy) < EPS
+    if s_h == t_h:                                    # parallel
+        if s_h:
+            if abs(ay - cy) > EPS:
+                return False
+            lo1, hi1 = sorted((ax, bx))
+            lo2, hi2 = sorted((cx, dx))
+        else:
+            if abs(ax - cx) > EPS:
+                return False
+            lo1, hi1 = sorted((ay, by))
+            lo2, hi2 = sorted((cy, dy))
+        return min(hi1, hi2) - max(lo1, lo2) > EPS    # overlap, not a touch
+    px, py = (cx, ay) if s_h else (ax, cy)            # where they cross
+    for rng, v in ((sorted((ax, bx)), px), (sorted((ay, by)), py),
+                   (sorted((cx, dx)), px), (sorted((cy, dy)), py)):
+        if not (rng[0] - EPS <= v <= rng[1] + EPS):
+            return False
+    if ends_s & ends_t:                               # a corner
         return False
-    x1, x2 = sorted((ax, bx))
-    y1, y2 = sorted((ay, by))
-    x3, x4 = sorted((cx, dx))
-    y3, y4 = sorted((cy, dy))
-    return (x1 - EPS <= x4 and x3 - EPS <= x2
-            and y1 - EPS <= y4 and y3 - EPS <= y2)
+    return any(abs(px - e[0]) < EPS and abs(py - e[1]) < EPS
+               for e in ends_s | ends_t)
 
 
 def wire_hits(wires):

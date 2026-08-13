@@ -227,76 +227,85 @@ def _power_syms():
 PWR = _power_syms()
 
 
-def sheet_rot(vec, ang):
-    """Rotate a sheet-space direction by a symbol placement angle."""
-    import math
-    ux, uy = vec
-    rad = math.radians(ang)
-    ca, sa = math.cos(rad), math.sin(rad)
-    return (ux * ca + uy * sa, -ux * sa + uy * ca)
-
-
 def pin_outv(pa):
     """Sheet-space direction a wire leaves a pin at library angle `pa`."""
-    import math
     rad = math.radians(pa)
     return (-math.cos(rad), math.sin(rad))
 
 
-def power_angle(sym, outv):
-    """Placement angle that aims a power port's pin back along `outv`.
+def power_value_at(sym):
+    """An upright port's Value text as (dx, dy, w, h) about its origin.
 
-    A port's pin sits at its own origin, so rotation never moves the
-    connection point - this is purely about which way the triangle or the rail
-    bar faces. 108 of the 147 rail pins already leave in the port's natural
-    direction (GND down, rails up) and rotate by 0.
+    Derived - out along the port's own axis, past the body - rather than read
+    from the library, whose 3.556 mm for a rail leaves the glyphs 0.06 mm
+    inside the bar once you measure them at this generator's (deliberately
+    generous) stroke metrics. It lands within 0.01 mm of the library's own
+    3.81 mm for GND, so the drawing is unchanged where it was already right.
     """
-    pv = pin_outv(pins_of(sym)[0][4])
-    want = (-outv[0], -outv[1])
-    for ang in (0, 90, 180, 270):
-        r = sheet_rot(pv, ang)
-        if abs(r[0] - want[0]) < 1e-6 and abs(r[1] - want[1]) < 1e-6:
-            return ang
-    raise AssertionError("no placement angle for a port leaving %s" % (outv,))
-
-
-def power_value_at(sym, outv):
-    """Port's Value text as (dx, dy, w, h) about its origin, sheet mm.
-
-    Straight out along the wire and past the body, rather than at the
-    library's own anchor rotated with the symbol. The glyphs stay upright at
-    every rotation (a sideways "GND" is harder to read than a sideways
-    triangle), so a rotated anchor puts horizontal text across a body that
-    turned vertical - 68 of the ports printed their own name over their own
-    triangle. Deriving the offset reproduces KiCad's 3.81 mm in the natural
-    orientation and clears the body in the other three.
-    """
-    ang = power_angle(sym, outv)
     bb = check_sch_layout.place(check_sch_layout.lib_body_box(sym),
-                                0.0, 0.0, ang)
+                                0.0, 0.0, 0.0)
+    pv = pin_outv(pins_of(sym)[0][4])       # way the wire leaves the port...
+    away = (-pv[0], -pv[1])                 # ...so body and name lie this way
     for p in find_all(sym, "property"):
         if str(p[1]) != "Value" or check_sch_layout.is_hidden(p):
             continue
         size = check_sch_layout.effects_of(p)[0]
         w, h = len(str(p[2])) * size * CHAR_W, size * LINE_H
-        if abs(outv[1]) > 0.5:
-            reach = (bb[3] if outv[1] > 0 else -bb[1]) + h / 2.0 + 0.2
-        else:
-            reach = (bb[2] if outv[0] > 0 else -bb[0]) + w / 2.0 + 0.2
-        return (reach * outv[0], reach * outv[1], w, h)
+        reach = (bb[3] if away[1] > 0 else -bb[1]) + h / 2.0 + 0.2
+        return (reach * away[0], reach * away[1], w, h)
     return None
 
 
-def power_extent(sym, outv):
-    """Sheet box a placed port covers - body plus its Value - about its origin."""
+def power_extent(sym):
+    """Sheet box an upright port covers - body plus Value - about its origin."""
     box = list(check_sch_layout.place(check_sch_layout.lib_body_box(sym),
-                                      0.0, 0.0, power_angle(sym, outv)))
-    v = power_value_at(sym, outv)
+                                      0.0, 0.0, 0.0))
+    v = power_value_at(sym)
     if v:
         dx, dy, w, h = v
         box = [min(box[0], dx - w / 2.0), min(box[1], dy - h / 2.0),
                max(box[2], dx + w / 2.0), max(box[3], dy + h / 2.0)]
     return tuple(box)
+
+
+def power_path(net, outv, L):
+    """Polyline from a pin to its power port, keeping the port upright.
+
+    A ground triangle hangs below its wire and a rail bar sits above it, and
+    the *wire* is what bends to meet them. Rotating the port to meet the pin
+    instead - which this used to do - drew 35 of 141 ports sideways or upside
+    down, and a rail arrow pointing downward reads as a ground.
+
+    The turn is ELBOW, not STUB: a turn of exactly one pin pitch puts the
+    port down on the *next pin's own wire*, which is a short waiting to
+    happen and reads as one either way. A pitch and a half lands it in the
+    clear space between two rows.
+
+    Three cases, by how the pin's own direction relates to the direction the
+    wire must be travelling when it arrives:
+
+      already right   straight out, unchanged - and this is the common case,
+                      a GND pin facing down or a rail pin facing up
+      perpendicular   one elbow: out along the pin, then down (or up) into
+                      the port
+      exactly wrong   out, across, and back past the pin - a rail hanging off
+                      a downward-facing pin has nowhere else to go
+
+    Returns points relative to the pin, ending at the port's origin.
+    """
+    pv = pin_outv(pins_of(PWR[net])[0][4])   # way the wire leaves the port...
+    need = (-pv[0], -pv[1])                  # ...so it must arrive like this
+    p1 = (L * outv[0], L * outv[1])
+    dot = outv[0] * need[0] + outv[1] * need[1]
+    if dot > 0.5:
+        return [(0.0, 0.0), p1]
+    if abs(dot) < 0.5:
+        return [(0.0, 0.0), p1,
+                (p1[0] + ELBOW * need[0], p1[1] + ELBOW * need[1])]
+    side = (1.0, 0.0) if abs(outv[0]) < 0.5 else (0.0, 1.0)
+    p2 = (p1[0] + ELBOW * side[0], p1[1] + ELBOW * side[1])
+    return [(0.0, 0.0), p1, p2,
+            (p2[0] + (L + ELBOW) * need[0], p2[1] + (L + ELBOW) * need[1])]
 
 
 # --- stubs and what terminates them -----------------------------------------
@@ -305,15 +314,25 @@ def power_extent(sym, outv):
 # reserved box that isn't the drawn box is how two stubs land on the same
 # point and silently merge two nets - so all three read this.
 LANE = 5.08     # extra stub length per crowded lane; > a port's 4.9 mm reach
+ELBOW = 3.81    # an elbow's turn: 1.5 pin pitches, so it lands BETWEEN rows
 LANE_GAP = 1.27  # clear space demanded between two terminators in one lane
 
 
-def term_extent(net, outv):
-    """Sheet box the thing terminating a stub covers, about the stub's end."""
+def term_extent(net, outv, L=STUB):
+    """Sheet box everything past a pin covers, measured from the PIN itself.
+
+    From the pin, not from the stub end: a power port is now reached by a
+    wire that may bend twice on the way, so there is no single stub end left
+    to measure from.
+    """
     sym = PWR.get(net)
     if sym is not None:
-        return power_extent(sym, outv)
-    reach = len(net) * FONT_BODY * CHAR_W + 2.5
+        pts = power_path(net, outv, L)
+        pb = power_extent(sym)
+        xs = [q[0] for q in pts] + [pts[-1][0] + pb[0], pts[-1][0] + pb[2]]
+        ys = [q[1] for q in pts] + [pts[-1][1] + pb[1], pts[-1][1] + pb[3]]
+        return (min(xs), min(ys), max(xs), max(ys))
+    reach = L + len(net) * FONT_BODY * CHAR_W + 2.5
     half = FONT_BODY * LINE_H / 2.0 + 0.6
     padx = 0.0 if abs(outv[0]) > 0.5 else half
     pady = 0.0 if abs(outv[1]) > 0.5 else half
@@ -341,7 +360,7 @@ def stub_pins(sym, pinmap, fused=()):
         seen.add((p[2], p[3]))
         out.append([p, pinmap.get(p[0]), pin_outv(p[4]), STUB])
 
-    lanes = {}
+    lanes, groups = {}, {}
     for row in out:
         p, net, outv, _ = row
         if net is None or p[0] in fused:
@@ -351,7 +370,7 @@ def stub_pins(sym, pinmap, fused=()):
                               # far enough to cross the new TC1_P wire - and
                               # KiCad merged the two nets where the label sat.
         vert = abs(outv[1]) > 0.5
-        tb = term_extent(net, outv)
+        tb = term_extent(net, outv, row[3])
         c = p[2] if vert else p[3]                    # along the pin's own side
         w = (max(-tb[0], tb[2]) if vert else max(-tb[1], tb[3]))
         key = (round(outv[0]), round(outv[1]), round(p[3] if vert else p[2], 3))
@@ -367,6 +386,23 @@ def stub_pins(sym, pinmap, fused=()):
         else:
             used.append(c + w)
             row[3] = STUB + (len(used) - 1) * LANE
+        groups.setdefault(key, []).append(row)
+
+    # Elbows on one side still must not turn inside each other's legs, so
+    # rank them: each starts a lane beyond the longest straight stub, and a
+    # lane beyond the previous elbow. Ordering by position keeps it stable.
+    # (Two elbows on adjacent rows dropping *towards* each other cannot both
+    # turn outside the other - that constraint set has no solution - but with
+    # the turn landing between rows the worst case is an ordinary crossing,
+    # which a schematic may have and check_netlist.py proves is not a short.)
+    for key, rows in groups.items():
+        bent = [r for r in rows
+                if r[1] in PWR and len(power_path(r[1], r[2], r[3])) >= 3]
+        if not bent:
+            continue
+        base = max([r[3] for r in rows if r not in bent], default=0.0)
+        for k, r in enumerate(sorted(bent, key=lambda r: (r[0][3], r[0][2]))):
+            r[3] = base + (k + 1) * LANE
     return out
 
 
@@ -719,7 +755,7 @@ def field_pos(sym, pinmap, fused=()):
     for p, net, outv, L in stub_pins(sym, pinmap, fused):
         if net is None or outv[1] > -0.5 or p[0] in fused:
             continue                                  # not leaving upward
-        top = max(top, p[3] + L - term_extent(net, outv)[1])
+        top = max(top, p[3] - term_extent(net, outv, L)[1])
     return (min(xs), -(top + 3.81), -(top + 3.81) + 1.9)
 
 
@@ -757,12 +793,12 @@ def sym_extent(ref, value, sym, pinmap, fused=()):
         if p[0] in fused:
             continue
         gx, gy = p[2], -p[3]                          # sheet coords, y down
-        ex, ey = gx + L * outv[0], gy + L * outv[1]
-        tb = term_extent(net, outv) if net is not None else (0.0, 0.0, 0.0, 0.0)
-        left = max(left, -min(gx, ex + tb[0]))
-        right = max(right, max(gx, ex + tb[2]))
-        up = max(up, -min(gy, ey + tb[1]))
-        down = max(down, max(gy, ey + tb[3]))
+        tb = (term_extent(net, outv, L) if net is not None
+              else (0.0, 0.0, 0.0, 0.0))
+        left = max(left, -(gx + tb[0]))
+        right = max(right, gx + tb[2])
+        up = max(up, -(gy + tb[1]))
+        down = max(down, gy + tb[3])
     return (left, right, up, down)
 
 
@@ -775,7 +811,10 @@ def member_stubs(ref, fused):
         if net is None or p[0] in fused:
             continue
         gx, gy = p[2], -p[3]
-        out.append(((gx, gy), (gx + L * outv[0], gy + L * outv[1])))
+        pts = (power_path(net, outv, L) if net in PWR
+               else [(0.0, 0.0), (L * outv[0], L * outv[1])])
+        out += [((gx + a[0], gy + a[1]), (gx + b[0], gy + b[1]))
+                for a, b in zip(pts, pts[1:])]
     return out
 
 
@@ -836,9 +875,9 @@ def member_boxes(ref, fused):
     for p, net, outv, L in stub_pins(sym, c["pins"], fused):
         if net is None or p[0] in fused:
             continue
-        ex, ey = p[2] + L * outv[0], -p[3] + L * outv[1]
-        tb = term_extent(net, outv)
-        out.append((ex + tb[0], ey + tb[1], ex + tb[2], ey + tb[3]))
+        gx, gy = p[2], -p[3]
+        tb = term_extent(net, outv, L)
+        out.append((gx + tb[0], gy + tb[1], gx + tb[2], gy + tb[3]))
     return out
 
 
@@ -1096,8 +1135,8 @@ def main():
             return
         pwr_seq[0] += 1
         ref = "#PWR%04d" % pwr_seq[0]
-        ang = power_angle(sym, outv)
-        vx, vy = power_value_at(sym, outv)[:2]
+        ang = 0                     # never rotated - see power_path()
+        vx, vy = power_value_at(sym)[:2]
         emit('\t(symbol (lib_id "power:%s") (at %s %s %d) (unit 1)\n'
              '\t\t(in_bom yes) (on_board yes) (dnp no)\n'
              '\t\t(uuid %s)\n'
@@ -1172,12 +1211,16 @@ def main():
                 emit('\t(no_connect (at %s %s) (uuid %s))'
                      % (f(gx), f(gy), uid("nc", ref, no)))
                 continue
-            lx, ly = gx + L * outv[0], gy + L * outv[1]
-            emit('\t(wire (pts (xy %s %s) (xy %s %s))\n'
-                 '\t\t(stroke (width 0) (type default))\n'
-                 '\t\t(uuid %s)\n\t)'
-                 % (f(gx), f(gy), f(lx), f(ly), uid("wire", ref, no)))
-            emit_terminal(net, lx, ly, outv, (ref, no))
+            pts = (power_path(net, outv, L) if net in PWR
+                   else [(0.0, 0.0), (L * outv[0], L * outv[1])])
+            pts = [(gx + a, gy + b) for a, b in pts]
+            for i, (q0, q1) in enumerate(zip(pts, pts[1:])):
+                emit('\t(wire (pts (xy %s %s) (xy %s %s))\n'
+                     '\t\t(stroke (width 0) (type default))\n'
+                     '\t\t(uuid %s)\n\t)'
+                     % (f(q0[0]), f(q0[1]), f(q1[0]), f(q1[1]),
+                        uid("wire", ref, no, i)))
+            emit_terminal(net, pts[-1][0], pts[-1][1], outv, (ref, no))
 
     # Fused connections. Geometry is re-derived from where the two parts
     # actually landed, not from the cell's planned offsets, so a placement
@@ -1230,12 +1273,21 @@ def main():
              '\t)' % (f(sx), f(sy), u, ref, f(sx), f(sy - 4), f(sx), f(sy - 6),
                       f(sx), f(sy), f(sx), f(sy), uid("pin", ref, "1"),
                       PROJECT, ROOT, ref))
-        # flag pin is at symbol origin; stub down to a label
-        lx, ly = sx, sy + 2.54
-        emit('\t(wire (pts (xy %s %s) (xy %s %s))\n'
-             '\t\t(stroke (width 0) (type default))\n'
-             '\t\t(uuid %s)\n\t)' % (f(sx), f(sy), f(lx), f(ly), uid("wire", ref)))
-        emit_terminal(net, lx, ly, (0.0, 1.0), (ref,))
+        # The flag's pin is at its own origin and points down, so a rail
+        # flag - +5V, VBUS - is the "exactly wrong" case and its wire has to
+        # come back up past the flag. This has to walk power_path() like any
+        # other pin; hard-coding a 2.54 mm stub put #FLG02's and #FLG03's
+        # ports on top of the flags themselves.
+        outv = (0.0, 1.0)
+        pts = (power_path(net, outv, STUB) if net in PWR
+               else [(0.0, 0.0), (0.0, STUB)])
+        pts = [(sx + a, sy + b) for a, b in pts]
+        for i, (q0, q1) in enumerate(zip(pts, pts[1:])):
+            emit('\t(wire (pts (xy %s %s) (xy %s %s))\n'
+                 '\t\t(stroke (width 0) (type default))\n'
+                 '\t\t(uuid %s)\n\t)'
+                 % (f(q0[0]), f(q0[1]), f(q1[0]), f(q1[1]), uid("wire", ref, i)))
+        emit_terminal(net, pts[-1][0], pts[-1][1], outv, (ref,))
 
     # group headers, then the reserved notes block
     def emit_text(txt, x, y, size, bold, key):

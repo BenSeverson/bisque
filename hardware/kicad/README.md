@@ -28,7 +28,7 @@ table — 93 nets, 0 mismatches). The 3D renders in `3d/` are raytraced by
 | File | What it is |
 |---|---|
 | `bisque-controller.kicad_pro` | Project (net classes: 0.3 mm signal / 0.7–0.8 mm power, 0.25 mm only on the short fine-pitch escape stubs off the QFN/TSSOP pads) |
-| `bisque-controller.kicad_sch` | Schematic (A1, netlist-style: functional groups, global labels for signals, real power ports for rails, and real wires for two-pin nets local to one block). Laid out programmatically by `generator/gen_sch.py` — a `GROUPS` taxonomy plus a deterministic column packer, with a reserved right-hand column for the notes block. A1, not A3: an A3 declaration silently clipped ~40% of the circuit out of the exported PDF while every connectivity checker stayed green (`generator/check_sch_bounds.py` now fails on any off-sheet item), and containment is not readability, so `generator/check_sch_layout.py` additionally fails on any symbol/symbol, text/symbol, text/text or wire/wire collision |
+| `bisque-controller.kicad_sch` | Schematic (A1, netlist-style: functional groups, global labels for signals, real power ports for rails, and real wires for two-pin nets local to one block). Laid out programmatically by `generator/gen_sch.py` — a `GROUPS` taxonomy plus a deterministic column packer, with a reserved right-hand column for the notes block. A1, not A3: an A3 declaration silently clipped ~40% of the circuit out of the exported PDF while every connectivity checker stayed green (`generator/check_sch_bounds.py` now fails on any off-sheet item), and containment is not readability, so `generator/check_sch_layout.py` additionally fails on any symbol/symbol, text/symbol, text/text or wire/wire collision (wires: a T or a collinear overlap — a plain crossing is allowed) |
 | `bisque-controller.kicad_pcb` | Board: placed, fully routed, 4 layers (F.Cu/B.Cu signals, In1.Cu GND plane, In2.Cu +3V3 plane), on JLCPCB's `JLC04161H-7628` 1.6 mm stack-up — see "The physical stack-up" |
 | `preview-board.svg` | Quick visual of placement + routing |
 | `3d/board-3d-*.png` | Raytraced renders, kicad-cli — straight orthographic **top** and **bottom** only. The angled iso/front views were dropped: they look better than they read, and these images get used to check placement and silk, not to advertise |
@@ -697,7 +697,36 @@ round-trips through KiCad to prove it did (93 nets, 0 mismatches, unchanged).
 The ports are schematic-only: `design.py` is untouched, so the board, the
 gerbers, the BOM and the CPL are bit-for-bit what they were.
 
-Three things this forced, each of which had been wrong and invisible:
+**Ports are never rotated; the wire bends to meet them.** A ground triangle
+hangs below its wire and a rail bar sits above it — that is the whole reason
+the shapes are recognisable — so a port that met a sideways pin by rotating
+*itself* threw the recognisability away. 35 of the 141 ports were drawn
+sideways or upside down, and a rail arrow pointing downward reads as a
+ground. `power_path()` now keeps every port upright and bends the wire
+instead: straight out for the common cases (a GND pin facing down, a rail pin
+facing up), one elbow for a perpendicular pin, and out-across-and-back for a
+rail hanging off a downward-facing pin, which has nowhere else to go.
+
+The elbow turns **1.5 pin pitches**, not one. A turn of exactly one pitch
+lands the port on the *next pin's own wire* — a short waiting to happen, and
+one that reads as a connection either way; a pitch and a half lands it in the
+clear space between two rows. Elbows on one side are then ranked, each
+starting a lane beyond the longest straight stub and a lane beyond the
+previous elbow, so they turn in clear space rather than inside each other's
+legs. Two elbows on adjacent rows dropping *towards* each other cannot both
+turn outside the other — that constraint set has no solution — so the worst
+case is left as an ordinary crossing, which is what a schematic is allowed to
+have.
+
+That is also why `check_sch_layout.py`'s wire rule is not "no shared points".
+Schematics cross wires constantly and KiCad connects nothing where two wires
+merely cross. What it reports is what a reader can misread: an **endpoint
+landing inside another segment** — a T that looks soldered and is not, or, if
+something names the point, silently is — and a **collinear overlap**, the
+same ink drawn twice. Wires meeting end to end are a corner, which is how
+every elbow here is drawn.
+
+Three further things this forced, each of which had been wrong and invisible:
 
 * **`check_sch_layout.py` grew every symbol one pin-length in the wrong
   direction.** Its pin handling negated the stem, so a body box reached
