@@ -377,7 +377,7 @@ COMPONENTS = {
                  value="amber", at=(57.0, 76.0, 0),
                  pins={"1": "SSR1_IND_K", "2": "SSR_EN"}),
     "R10": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="680R", at=(52.0, 76.4, 0),
+                value="680R", at=(52.0, 76.65, 0),
                 pins={"1": "SSR1_OUT", "2": "SSR1_IND_K"}),
     "J4": dict(lib="Connector", sym="Screw_Terminal_01x02",
                fp=TBLOCK[0], fpf=TBLOCK[1], value="SSR1", at=(26.0, 75.5, 270),
@@ -600,7 +600,7 @@ COMPONENTS = {
                      "10": None, "11": None, "12": None, "13": None,
                      "14": "AUX3_OUT", "15": "AUX2_OUT", "16": "AUX1_OUT"}),
     "R23": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="10k", at=(46.0, 60.75, 0),
+                value="10k", at=(46.0, 61.2, 0),
                 pins={"1": "AUX1", "2": "GND"}),
     "R24": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
                 value="10k", at=(46.0, 58.0, 0),
@@ -625,7 +625,7 @@ COMPONENTS = {
     "BZ1": dict(lib="Device", sym="Buzzer",
                 fp="Buzzer_Beeper:Buzzer_12x9.5RM7.6",
                 fpf="Buzzer_12x9.5RM7.6.kicad_mod",
-                value="active 5V", at=(41.0, 68.45, 0),
+                value="active 5V", at=(41.0, 68.95, 0),
                 pins={"1": "+5V", "2": "BUZZ_K"}),
     "D4": dict(lib="Device", sym="D", fp="Diode_SMD:D_SOD-123",
                fpf="D_SOD-123.kicad_mod", value="1N4148W", at=(65.0, 66.0, 0),
@@ -643,16 +643,16 @@ COMPONENTS = {
     "LED1": dict(lib="LED", sym="WS2812B",
                  fp="LED_SMD:LED_WS2812B_PLCC4_5.0x5.0mm_P3.2mm",
                  fpf="LED_WS2812B_PLCC4_5.0x5.0mm_P3.2mm.kicad_mod",
-                 value="WS2812B", at=(92.75, 97.45, 0),
+                 value="WS2812B", at=(92.25, 97.45, 0),
                  pins={"1": "VLED", "2": None, "3": "GND", "4": "WS_DIN"}),
     "R3": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-               value="330R", at=(87.1, 96.8, 0),
+               value="330R", at=(86.65, 96.8, 0),
                pins={"1": "LED_DATA", "2": "WS_DIN"}),
     "D3": dict(lib="Device", sym="D_Schottky", fp=SMA[0], fpf=SMA[1],
-               value="SS14", at=(100.2, 96.85, 0),
+               value="SS14", at=(99.7, 96.85, 0),
                pins={"1": "VLED", "2": "+5V"}),
     "C10": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="100nF", at=(105.9, 96.5, 0),
+                value="100nF", at=(105.4, 96.5, 0),
                 pins={"1": "VLED", "2": "GND"}),
     # --- Protected dry-contact inputs (lid / gas flow / spare) -----------
     # Generalises rev A's single lid-switch filter (below) to three
@@ -796,7 +796,7 @@ COMPONENTS = {
     "Y1": dict(lib="Device", sym="Crystal",
                fp="Crystal:Crystal_SMD_HC49-SD_HandSoldering",
                fpf="Crystal_SMD_HC49-SD_HandSoldering.kicad_mod",
-               value="3.579545MHz", at=(96.95, 91.45, 0),
+               value="3.579545MHz", at=(96.5, 91.45, 0),
                pins={"1": "ADE_CLKIN", "2": "ADE_CLKOUT"}),
     # Crystal load caps - ASSUMED VALUE, NOT A VERIFIED DATASHEET NUMBER.
     # REV-B-NOTES.md SS4/SS10#1: the specified crystal (LCSC C7471632, YXC
@@ -964,14 +964,14 @@ COMPONENTS = {
                      "11": "T_CS_R", "12": "T_DIN_R", "13": "T_DO_R",
                      "14": "T_IRQ_R"}),
     "C11": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="10uF", at=(42.7, 96.8, 0),
+                value="10uF", at=(42.7, 96.75, 0),
                 pins={"1": "+5V", "2": "GND"}),
     # --- Touch series damping (Task 11) -----------------------------------
     # T_CLK/T_DIN/T_DO are the shared SPI2 bus; T_CS/T_IRQ are dedicated
     # GPIOs (Task 3). All five get 33R series damping since the bus now
     # multi-drops four devices at 40 MHz.
     "R39": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="33", at=(46.6, 96.75, 0),
+                value="33", at=(46.6, 96.6, 0),
                 pins={"1": "SPI_SCLK", "2": "T_CLK_R"}),
     "R40": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
                 value="33", at=(50.45, 96.5, 0),
@@ -1005,16 +1005,23 @@ COMPONENTS = {
                pins={"1": "+3V3", "2": "GND", "3": "TXD0", "4": "RXD0",
                      "5": "I2C_SDA", "6": "I2C_SCL", "7": "+3V3", "8": "GND"}),
     # --- I2C expansion (Task 11) ------------------------------------------
-    "J14": dict(lib="Connector_Generic", sym="Conn_01x04",
+    # The `_MountingPin` symbol earns its place: the footprint's two metal
+    # ears are one pad named MP, and the plain Conn_01x04 has no pin to
+    # attach a net to, so they shipped as dead copper. They are the cable's
+    # retention - a Qwiic lead is pulled on by hand - and soldering them to
+    # the GND pour is what makes them hold. `pins` is keyed on pad NAME, so
+    # "MP" reaches both ears.
+    "J14": dict(lib="Connector_Generic_MountingPin", sym="Conn_01x04_MountingPin",
                 fp="Connector_JST:JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal",
                 fpf="JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal.kicad_mod",
-                value="QWIIC", at=(81.0, 96.8, 0),
-                pins={"1": "GND", "2": "+3V3", "3": "I2C_SDA", "4": "I2C_SCL"}),
+                value="QWIIC", at=(88.0, 115.8, 0),
+                pins={"1": "GND", "2": "+3V3", "3": "I2C_SDA", "4": "I2C_SCL",
+                      "MP": "GND"}),
     "R44": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="4.7k", at=(71.1, 96.5, 0),
+                value="4.7k", at=(73.8, 96.5, 0),
                 pins={"1": "+3V3", "2": "I2C_SDA"}),
     "R45": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="4.7k", at=(74.95, 96.5, 0),
+                value="4.7k", at=(77.7, 96.5, 0),
                 pins={"1": "+3V3", "2": "I2C_SCL"}),
     # --- Mounting holes (grounded) --------------------------------------
     "H1": dict(lib="Mechanical", sym="MountingHole_Pad",
@@ -1083,7 +1090,7 @@ COMPONENTS = {
     "TP10": dict(lib="Connector", sym="TestPoint",
                  fp="TestPoint:TestPoint_Pad_D1.0mm",
                  fpf="TestPoint_Pad_D1.0mm.kicad_mod",
-                 value="TP", at=(44.5, 94.3, 0),
+                 value="TP", at=(44.5, 94.15, 0),
                  pins={"1": "SSR2_CTRL"}),
     "TP11": dict(lib="Connector", sym="TestPoint",
                  fp="TestPoint:TestPoint_Pad_D1.0mm",
@@ -1093,7 +1100,7 @@ COMPONENTS = {
     "TP12": dict(lib="Connector", sym="TestPoint",
                  fp="TestPoint:TestPoint_Pad_D1.0mm",
                  fpf="TestPoint_Pad_D1.0mm.kicad_mod",
-                 value="TP", at=(52.0, 60.7, 0),
+                 value="TP", at=(52.0, 61.2, 0),
                  pins={"1": "WDT_HOLD"}),
 }
 

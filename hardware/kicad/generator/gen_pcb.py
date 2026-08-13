@@ -858,7 +858,24 @@ SILK = [
     ("CT A+/A-/B+/B-", 96.0, 76.0, 0, 0.9),
     ("AC SENSE - DNP", 100.0, 76.0, 0, 0.8),
     ("STATUS", 84.0, 93.6, 0, 0.9),
-    ("I2C", 66.0, 93.6, 0, 0.9),
+    # Over R44/R45, the pull-ups, and nothing else: x=66 was chosen when the
+    # I2C parts ran east from there as one cluster - pull-ups then the Qwiic
+    # connector - and both ends of that assumption have since moved. J14 went
+    # to the bottom edge (it is side-entry; it needs an edge), the pull-ups
+    # slid east into the space it left, and the label stayed put, 2.2 mm from
+    # R43 and 6.1 mm from the parts it names. A zone label closer to a part it
+    # does not describe than to the ones it does is worse than no label.
+    ("I2C", 75.75, 93.6, 0, 0.9),
+    # J14's own label. Every other user-facing connector on an edge says what
+    # it is - `5V IN`, `SSR1  5V / OUT`, `TC1  K+/K-`, `INPUTS ...` - and the
+    # Qwiic port arrived at the bottom edge next to the input terminal with
+    # nothing but a designator, which is the one place a wrong guess costs a
+    # 3.3 V part.
+    # 109.4, not 110.6: J14's own designator wants the gap directly above the
+    # connector, and this label has the whole 5 mm band between J7 and J14 to
+    # sit in, so it gives way rather than crowding the reference out of the
+    # one spot that is not the connector body.
+    ("QWIIC  I2C", 88.0, 109.4, 0, 0.9),
     ("INPUTS  1 / 2 / 3 / GND", 62.6, 108.8, 0, 0.9),
     ("AUX_VP=5V", 34.0, 66.0, 0, 0.9),
     # SJ2 must be FITTED on this rev — nothing kicks the watchdog GPIO yet

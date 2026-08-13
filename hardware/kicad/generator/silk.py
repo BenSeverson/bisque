@@ -59,6 +59,17 @@ _C_COPPER = MM(CLEAR_COPPER)
 _C_EDGE = MM(CLEAR_EDGE)
 _C_SILK = MM(CLEAR_SILK)
 _ONE_MM = MM(1.0)
+# How much nearer another part's body must be before a reference counts as
+# naming it rather than its own. This is a margin, not a tie-break, and the
+# two populations it separates are far apart: the mislabelling this rule
+# exists to stop ran 1.3-3.4 mm nearer the wrong part (LED1 0.18 mm off Y1's
+# can against 1.49 mm to its own LED), while a designator in a dense 0805 row
+# sits in a gap that is nearly equidistant by construction - R33 and R36 are
+# 2.3 mm apart, so their labels land within ~0.1 mm of both bodies and are
+# not ambiguous to a reader, who has the row's order to go on. At 0.05 mm
+# every such row label was refused, and the fallback then put them somewhere
+# genuinely worse.
+_C_NEAREST = MM(1.0)
 
 # Bucket size for the obstacle index below, mm. Same as `router.py`'s, but
 # measured rather than assumed: silk labels are wider and flatter than the
@@ -99,6 +110,48 @@ W_LATERAL = 4.0
 # screw terminal is worse than partly hiding its label under the block that
 # it is unambiguously attached to. See the report; the nit is known, and the
 # fix is placement, not silk.
+#
+# A REFERENCE DESIGNATOR is a different case, and gets a rule rather than a
+# penalty. The placer only ever sees a bare board, where the middle of a
+# large footprint is the perfect spot - nothing to collide with, distance
+# zero - so J14's designator landed under a 6 x 4 mm connector body, U1's
+# under the module's can, and LED2's on J1's shell: 13 of them, each either
+# invisible once the part is fitted or naming the wrong part.
+#
+# So it is two terms, and the ORDER between them and a collision is the whole
+# design:
+#
+#   W_COLLISION  40   touching other silk
+#   W_ON_PART     5   sitting on a part body
+#   W_DISTANCE    1   per mm, measured from the part's own body
+#
+# 5 is above the ~2 mm every part on this board needs to step off its own
+# body (that distance is scale-free because a reference's distance is
+# measured from its body, not its centre - see `_cost`), so a reference
+# always leaves a body it can leave, and it bounds the drift at 5 mm so it
+# cannot leave for somewhere useless. It is far below W_COLLISION, so it
+# never buys that escape with an overlap - a designator hidden under the
+# right part beats one printed through a neighbour's outline, which a first
+# version of this rule got wrong by making "off the body" a hard constraint
+# and taking two silk-on-silk collisions to satisfy it.
+#
+# `nearer_part` IS hard (with a fallback pass), because it is not a matter of
+# degree: a designator closer to a neighbour than to its own part names the
+# neighbour, and no amount of distance saved is worth that.
+W_ON_PART = 5.0
+
+# A reference must not slot INTO a row of board texts. Not touching them is
+# not enough: the 28 pin names above J5/J6/J7 are positional, so `J6` landing
+# in the 1 mm gap between `LT` and `RT` - legal, collision-free, and where
+# the rule above first sent it - prints `UP DN LT J6 RT OK G` and invents a
+# seventh pin on a header the user hand-wires. Charged above W_ON_PART and
+# well below W_COLLISION, which orders the three outcomes correctly: beside
+# the part if there is room, hidden under its own housing if there is not,
+# and never printed through something else. Only board texts crowd; two
+# designators side by side read fine.
+W_CROWD = 10.0
+CLEAR_CROWD = 0.5
+_C_CROWD = MM(CLEAR_CROWD)
 
 PASSES = 4
 
@@ -123,6 +176,29 @@ def _bbt(box):
 def _hit(a, b, slack=0):
     return not (a[2] + slack < b[0] or b[2] + slack < a[0]
                 or a[3] + slack < b[1] or b[3] + slack < a[1])
+
+
+def _box_dist(box, x, y):
+    """Distance from a point to a box; 0 inside it."""
+    dx = max(box[0] - x, 0, x - box[2])
+    dy = max(box[1] - y, 0, y - box[3])
+    return math.hypot(dx, dy)
+
+
+def _covers(box, bb):
+    """Could a part with this body hide a label this size?
+
+    A 2 x 1.25 mm 0805 cannot swallow a 3.4 x 1.4 mm designator: the label
+    overhangs it on every side and stays perfectly readable, and a reader has
+    the row's order to go on besides. So the dense passive rows - where a
+    label in a 1.3 mm gap is near two bodies by construction - are not what
+    the reference rules are about, and including them was actively harmful:
+    R33 and R36 were refused every spot in their own row and pushed onto
+    J13's and Y1's outlines, trading a non-problem for two DRC violations.
+    A connector, module, crystal or IC body is what hides a label.
+    """
+    return (box[2] - box[0] >= bb[2] - bb[0]
+            and box[3] - box[1] >= bb[3] - bb[1])
 
 
 class _Grid:
@@ -228,6 +304,29 @@ class _Obstacles:
                 if it.GetLayer() == pcbnew.F_SilkS and not hasattr(it, "GetText"):
                     gbb = _bbt(it.GetBoundingBox())
                     self.graphics.add((ref, gbb, it.GetEffectiveShape()), gbb)
+        # Part bodies, for the reference rule above. F.Fab is the outline of
+        # the component itself, which is the question being asked - "will the
+        # fitted part sit on this label" - and it is not the courtyard: Y1's
+        # courtyard spans 20 mm of hand-solder pads with open board between
+        # them, and C32's designator lives in that gap perfectly legibly.
+        # The footprints that ship no F.Fab (test points, mounting holes,
+        # solder jumpers) are flat anyway; they fall back to the same box the
+        # side candidates are generated from.
+        self.bodies = _Grid(0)
+        self.body_of = {}
+        for fp in board.GetFootprints():
+            box = None
+            for it in fp.GraphicalItems():
+                if it.GetLayer() == pcbnew.F_Fab and not hasattr(it, "GetText"):
+                    b = _bbt(it.GetBoundingBox())
+                    box = b if box is None else (
+                        min(box[0], b[0]), min(box[1], b[1]),
+                        max(box[2], b[2]), max(box[3], b[3]))
+            if box is None:
+                box = _body_box(fp)
+            ref = fp.GetReference()
+            self.body_of[ref] = box
+            self.bodies.add((ref, box), box)
 
     def on_copper(self, bb, sh):
         for pbb, psh in self.pads.near(bb):
@@ -244,6 +343,64 @@ class _Obstacles:
                 and bb[2] <= self.box[2] - m and bb[3] <= self.box[3] - m):
             return True
         return any(sh.Collide(e, m) for e in self.edges)
+
+    def on_part(self, bb):
+        """Would a fitted component sit on a label centred in `bb`?
+
+        The centre, not the box: a designator beside a part legitimately
+        overhangs its body a little, and asking for no overlap at all would
+        reject the very spots the side candidates exist to offer.
+        """
+        cx, cy = (bb[0] + bb[2]) / 2.0, (bb[1] + bb[3]) / 2.0
+        for _ref, box in self.bodies.near((cx, cy, cx, cy)):
+            if box[0] <= cx <= box[2] and box[1] <= cy <= box[3] \
+                    and _covers(box, bb):
+                return True
+        return False
+
+    def nearer_part(self, owner, bb):
+        """Is some OTHER part's body closer to this label than its own?
+
+        Getting a designator off its own part is only half the job. Evicting
+        it is what the courtyard penalty above did to the board texts, and
+        the first version of the reference rule reproduced the same failure
+        one part class down: LED1's designator cleared the WS2812 and landed
+        0.18 mm off Y1's can, 1.49 mm from the LED it names, and R36's ended
+        up 5 mm from R36 and 1.5 mm from R31. A label reading as the wrong
+        part is worse than one hidden under the right part, so a candidate
+        whose nearest body is not the owner's is refused and the fallback
+        takes the hidden spot instead.
+
+        Only bodies big enough to hide the label count, the same test
+        `on_part` uses, and that restriction is a KNOWN COMPROMISE rather
+        than a principle: naming is about proximity, not coverage, so by
+        rights every body should count. Applying it to every body was tried
+        twice and is infeasible on this board - R33 and R36 sit in a 2.3 mm
+        pitch grid inside the ADE7953's routing, where the only spots that
+        are not over copper are the ones near a neighbour, and the placer
+        answered by printing both designators through J13's and Y1's
+        outlines: two DRC violations against a committed budget of zero, to
+        fix an ambiguity a reader resolves from the row's order anyway.
+
+        The residue is visible and measured: R33's designator sits 6.5 mm
+        from R33 and 1.6 mm from C34. That cluster is over-constrained, and
+        as with the terminal blocks above, the fix is placement, not silk.
+
+        Ties pass: they are common between equal neighbours and a coin-flip
+        either way, so only a body nearer by more than the margin disqualifies.
+        """
+        own = self.body_of.get(owner)
+        if own is None:
+            return False
+        cx, cy = (bb[0] + bb[2]) / 2.0, (bb[1] + bb[3]) / 2.0
+        d = _box_dist(own, cx, cy) - _C_NEAREST
+        if d <= 0:
+            return False
+        for ref, box in self.bodies.near((cx - d, cy - d, cx + d, cy + d)):
+            if ref != owner and _covers(box, bb) \
+                    and _box_dist(box, cx, cy) < d:
+                return True
+        return False
 
     def graphic_hits(self, owner, bb, sh):
         """Collisions with immovable footprint outlines.
@@ -339,12 +496,17 @@ class _Label:
         return out
 
 
-def _cost(lab, cx, cy, obs, others):
+def _cost(lab, cx, cy, obs, others, on_part_ok=False):
     """None if the placement is illegal, else its score.
 
     `others` is the label index, not a list: it holds every label at its
     current position, `lab` included, and `lab` is skipped here exactly as it
     was when this scanned the whole list.
+
+    `on_part_ok` relaxes the nearest-part rule; it is the fallback pass, and
+    the caller must score a label's CURRENT spot with the same value it
+    searched under or the two are not comparable. Sitting on a part body is
+    a weight, not a rule, and is charged in both passes.
     """
     bb = lab.box(cx, cy)
     sh = lab.shape(cx, cy)
@@ -352,27 +514,49 @@ def _cost(lab, cx, cy, obs, others):
         return None
     if obs.off_board(bb, sh):
         return None
+    if not on_part_ok and lab.kind == "ref" and obs.nearer_part(lab.owner, bb):
+        return None
     n = obs.graphic_hits(lab.owner, bb, sh)
-    for o in others.near(bb):
+    crowd = 0
+    # A reference reads its neighbourhood out to _C_CROWD, so it must probe
+    # that far. The index files at _C_SILK, so the QUERY carries the extra
+    # reach - `near()` returns a superset either way, and the tests below
+    # still decide.
+    ref = lab.kind == "ref"
+    for o in others.near((bb[0] - _C_CROWD, bb[1] - _C_CROWD,
+                          bb[2] + _C_CROWD, bb[3] + _C_CROWD) if ref else bb):
         if o is lab or o.at is None:
             continue
-        if not _hit(bb, o.bb, _C_SILK):
-            continue
-        if sh.Collide(o.shape(*o.at), _C_SILK):
+        if _hit(bb, o.bb, _C_SILK) and sh.Collide(o.shape(*o.at), _C_SILK):
             n += 1
-    ddx = abs(cx - lab.anchor[0]) / _ONE_MM
-    ddy = abs(cy - lab.anchor[1]) / _ONE_MM
+        elif (ref and o.kind == "text" and _hit(bb, o.bb, _C_CROWD)
+                and sh.Collide(o.shape(*o.at), _C_CROWD)):
+            crowd += 1
     if lab.kind == "text":
+        ddx = abs(cx - lab.anchor[0]) / _ONE_MM
+        ddy = abs(cy - lab.anchor[1]) / _ONE_MM
         dist = math.hypot(W_LATERAL * ddx, ddy)
     else:
-        dist = math.hypot(ddx, ddy)
-    return W_COLLISION * n + W_DISTANCE * dist, n
+        # A reference's distance is measured from its part's BODY, not from
+        # the part's centre, and that is what makes W_ON_PART a single number
+        # for a 20 mm module and an 0805 alike. Measured from the centre, the
+        # weight has to out-price a big part's half-width before its own
+        # designator will step off it - 11.6 mm for U1 - and every small
+        # part's designator is then free to wander just as far to escape a
+        # body it merely touches. R33's went 6.5 mm, ending up 1.6 mm from
+        # C34. From the body edge, every part's escape is the same ~2 mm.
+        own = obs.body_of.get(lab.owner)
+        dist = (_box_dist(own, cx, cy) / _ONE_MM if own is not None
+                else math.hypot(cx - lab.anchor[0], cy - lab.anchor[1])
+                / _ONE_MM)
+    hid = W_ON_PART if ref and obs.on_part(bb) else 0.0
+    return W_COLLISION * n + W_CROWD * crowd + hid + W_DISTANCE * dist, n
 
 
-def _best(lab, obs, others):
+def _best(lab, obs, others, on_part_ok=False):
     best = None
     for i, (cx, cy) in enumerate(lab.candidates()):
-        c = _cost(lab, cx, cy, obs, others)
+        c = _cost(lab, cx, cy, obs, others, on_part_ok)
         if c is None:
             continue
         score = c[0] + W_ORDER * i
@@ -464,8 +648,15 @@ def place(board, text_anchors, verbose=True):
     for p in range(PASSES):
         moved = 0
         for lab in labels:
-            cur = _cost(lab, lab.at[0], lab.at[1], obs, live)
-            best = _best(lab, obs, live)
+            # Strict first, relaxed only if nothing off a part body is legal.
+            # Both the search and the incumbent are scored under the same
+            # rule, so a reference already sitting on a part scores None and
+            # any legal alternative beats it.
+            for on_part_ok in (False, True):
+                cur = _cost(lab, lab.at[0], lab.at[1], obs, live, on_part_ok)
+                best = _best(lab, obs, live, on_part_ok)
+                if best is not None:
+                    break
             if best is None:
                 continue
             score, cx, cy, _n = best
@@ -479,17 +670,25 @@ def place(board, text_anchors, verbose=True):
         if not moved:
             break
 
+    # Relaxed: this reports what DRC would, and a reference left on a part
+    # body because nothing else was legal is a nit, not a violation. The
+    # count of those is reported separately so the fallback cannot go quiet.
     bad = 0
     for lab in labels:
-        c = _cost(lab, lab.at[0], lab.at[1], obs, live)
+        c = _cost(lab, lab.at[0], lab.at[1], obs, live, True)
         if c is None:
             bad += 1
             if verbose:
                 print("  !! %s has no legal silk placement" % lab.item.GetText())
     if verbose:
         n = _collisions(labels, obs)
-        print("  silk: %d label(s) placed, %d touching other silk, %d illegal"
-              % (len(labels), n, bad))
+        hidden = sum(1 for lab in labels if lab.kind == "ref"
+                     and obs.on_part(lab.bb))
+        astray = sum(1 for lab in labels if lab.kind == "ref"
+                     and obs.nearer_part(lab.owner, lab.bb))
+        print("  silk: %d label(s) placed, %d touching other silk, %d illegal,"
+              " %d reference(s) on a part body, %d nearer another part"
+              % (len(labels), n, bad, hidden, astray))
     return labels
 
 

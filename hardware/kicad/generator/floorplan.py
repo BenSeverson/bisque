@@ -94,6 +94,15 @@ FIXED = {
     "J6": (62.0, 104.0, 0),
     "J7": (80.0, 104.0, 0),
     "J11": (64.0, 114.0, 0),
+    # J14 is a SIDE-ENTRY connector (JST SM04B-SRSS-TB: tails out the north
+    # wall, cavity and both mounting ears on the south wall), so its opening
+    # has to look off-board like every other connector's. Seeded into the
+    # BOT1 passive row instead, it landed at (81, 96.8) with the cavity
+    # aimed at J7's housing 0.5 mm away - legal to every checker here
+    # (courtyards do not overlap) and impossible to plug a Qwiic cable into.
+    # Nothing checks mating direction, so it stays pinned: rot 0 already
+    # faces +Y, and the bottom edge is free between J11 and H4.
+    "J14": (88.0, 115.8, 0),
     # TSSOP/QFN anchors: their escape corridors are designed around these.
     # U3 is rot 270 and U5 rot 90 so both SPI rows face the 6 mm channel
     # between them (y 41..46.6) and both analog rows face away from it,
@@ -184,7 +193,7 @@ SEED = {
     "R41": (54.0, 96.5, 0, "BOT1"), "R42": (57.5, 96.5, 0, "BOT1"),
     "R43": (61.0, 96.5, 0, "BOT1"),
     "R44": (74.0, 96.5, 0, "BOT1"), "R45": (77.5, 96.5, 0, "BOT1"),
-    "J14": (82.0, 96.8, 0, "BOT1"), "R3": (87.0, 96.8, 0, "BOT1"),
+    "R3": (87.0, 96.8, 0, "BOT1"),
     "LED1": (93.0, 96.8, 0, "BOT1"), "D3": (99.5, 96.8, 0, "BOT1"),
     "C10": (104.5, 96.5, 0, "BOT1"),
     # --- BOT2: the three protected dry-contact input filters + TVS --------

@@ -297,7 +297,7 @@ lines covering 109 machine-placed parts) plus `jlcpcb/hand-solder-parts.csv`
 | J6 | Molex KK-254 friction-lock header 1×6 | 2.54 mm THT |
 | J7 | Molex KK-254 friction-lock header 1×8 | 2.54 mm THT |
 | J13 | 2-pin header, **DNP** (AC-sense SELV, not fitted) | 2.54 mm THT |
-| J14 | JST SH SM04B-SRSS-TB | Qwiic/STEMMA-QT, 1 mm SMD |
+| J14 | JST SH SM04B-SRSS-TB | Qwiic/STEMMA-QT, 1 mm SMD, **side entry** — pinned to the bottom edge so the cavity faces off-board |
 | BZ1 | active buzzer 5 V | 12 mm THT, 7.6 mm pitch |
 | SW1, SW2 | XKB TS-1187A tactile switch | 5.1 × 5.1 mm SMD |
 | H1–H4 | M3 mounting hole, grounded, 90 × 90 mm grid | — |
@@ -419,7 +419,8 @@ not reproduced here for rev B.** Rev A's README carried a line-item
 Economic-PCBA cost table and a table of exact clearances from J1/board edge
 that no longer apply now that the board is 100 × 100 mm at 4 layers with a
 different part census and placement. J1 (USB-C) is still at the board edge
-by necessity, so JLCPCB's SMT process-edge requirement likely still applies
+by necessity, and J14 (Qwiic) now sits on the bottom edge for the same
+reason, so JLCPCB's SMT process-edge requirement likely still applies
 in some form — get an exact quote (and re-check whether process rails are
 needed) from JLCPCB's own order preview rather than trusting stale numbers
 here.
