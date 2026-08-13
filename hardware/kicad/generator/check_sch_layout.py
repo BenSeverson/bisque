@@ -213,6 +213,51 @@ def overlap(a, b):
     return 0.0
 
 
+def wires_of(doc):
+    out = []
+    for item in doc:
+        if isinstance(item, list) and item and str(item[0]) == "wire":
+            pts = find_all(find(item, "pts"), "xy")
+            if len(pts) == 2:
+                out.append(((num(pts[0][1]), num(pts[0][2])),
+                            (num(pts[1][1]), num(pts[1][2]))))
+    return out
+
+
+def seg_touch(s, t):
+    """Two axis-aligned segments sharing a point that is not a shared end."""
+    (ax, ay), (bx, by) = s
+    (cx, cy), (dx, dy) = t
+    if {(ax, ay), (bx, by)} & {(cx, cy), (dx, dy)}:
+        return False
+    x1, x2 = sorted((ax, bx))
+    y1, y2 = sorted((ay, by))
+    x3, x4 = sorted((cx, dx))
+    y3, y4 = sorted((cy, dy))
+    return (x1 - EPS <= x4 and x3 - EPS <= x2
+            and y1 - EPS <= y4 and y3 - EPS <= y2)
+
+
+def wire_hits(wires):
+    """Wire pairs sharing a point that is not a shared endpoint.
+
+    Every wire here is axis-aligned, so this is a box overlap on degenerate
+    boxes. Two wires meeting end to end is how a corner is drawn and is fine;
+    anything else is a crossing, and a crossing is either a silent short or a
+    drawing that looks like one. Fusing a two-pin net into a real wire made
+    this reachable for the first time: the TC1_P wire crossed J3's TC1_N stub
+    and KiCad merged the nets where the label sat. check_netlist.py caught
+    that one because it happened to short; a crossing that does not short is
+    invisible to every other check we own.
+    """
+    hits = []
+    for i, s in enumerate(wires):
+        for t in wires[i + 1:]:
+            if seg_touch(s, t):
+                hits.append((s, t))
+    return hits
+
+
 def collect(sch):
     doc = parse(open(sch).read())[0]
     libs = {}
@@ -300,12 +345,19 @@ def report(kind, hits, limit=25):
 
 def main(sch):
     symbols, texts = collect(sch)
-    print("check_sch_layout: %d symbols, %d free-text blocks in %s"
-          % (len(symbols), len(texts), os.path.basename(sch)))
+    wires = wires_of(parse(open(sch).read())[0])
+    print("check_sch_layout: %d symbols, %d free-text blocks, %d wires in %s"
+          % (len(symbols), len(texts), len(wires), os.path.basename(sch)))
     n = 0
     n += report("SYMBOL/SYMBOL", pairs(symbols, symbols, True))
     n += report("TEXT/SYMBOL", pairs(texts, symbols, False))
     n += report("TEXT/TEXT", pairs(texts, texts, True))
+    hits = wire_hits(wires)
+    if hits:
+        print("\nWIRE/WIRE: %d crossing(s)" % len(hits))
+        for a, b in hits[:25]:
+            print("  %-34s x %s" % (a, b))
+        n += len(hits)
     if n:
         print("\n%d overlapping pair(s) - the exported PDF is unreviewable" % n)
         return 1

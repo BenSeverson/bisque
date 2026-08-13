@@ -28,7 +28,7 @@ table — 93 nets, 0 mismatches). The 3D renders in `3d/` are raytraced by
 | File | What it is |
 |---|---|
 | `bisque-controller.kicad_pro` | Project (net classes: 0.3 mm signal / 0.7–0.8 mm power, 0.25 mm only on the short fine-pitch escape stubs off the QFN/TSSOP pads) |
-| `bisque-controller.kicad_sch` | Schematic (A1, netlist-style: functional groups, global labels for signals, real power ports for rails). Laid out programmatically by `generator/gen_sch.py` — a `GROUPS` taxonomy plus a deterministic column packer, with a reserved right-hand column for the notes block. A1, not A3: an A3 declaration silently clipped ~40% of the circuit out of the exported PDF while every connectivity checker stayed green (`generator/check_sch_bounds.py` now fails on any off-sheet item), and containment is not readability, so `generator/check_sch_layout.py` additionally fails on any symbol/symbol, text/symbol or text/text overlap |
+| `bisque-controller.kicad_sch` | Schematic (A1, netlist-style: functional groups, global labels for signals, real power ports for rails, and real wires for two-pin nets local to one block). Laid out programmatically by `generator/gen_sch.py` — a `GROUPS` taxonomy plus a deterministic column packer, with a reserved right-hand column for the notes block. A1, not A3: an A3 declaration silently clipped ~40% of the circuit out of the exported PDF while every connectivity checker stayed green (`generator/check_sch_bounds.py` now fails on any off-sheet item), and containment is not readability, so `generator/check_sch_layout.py` additionally fails on any symbol/symbol, text/symbol, text/text or wire/wire collision |
 | `bisque-controller.kicad_pcb` | Board: placed, fully routed, 4 layers (F.Cu/B.Cu signals, In1.Cu GND plane, In2.Cu +3V3 plane), on JLCPCB's `JLC04161H-7628` 1.6 mm stack-up — see "The physical stack-up" |
 | `preview-board.svg` | Quick visual of placement + routing |
 | `3d/board-3d-*.png` | Raytraced renders, kicad-cli — straight orthographic **top** and **bottom** only. The angled iso/front views were dropped: they look better than they read, and these images get used to check placement and silk, not to advertise |
@@ -730,6 +730,70 @@ read as `+3V3+3V3`. One model serves the packer's reserved extent, the field
 placement and the emitted geometry, because a reserved box that is not the
 drawn box is exactly how two stubs land on one point and silently merge two
 nets.
+
+**Two-pin local nets are fused into real wires.** A net with exactly two
+pins, both on parts in the same functional block, is a local connection, and
+drawing it as two boxed global labels 199 mm apart — which is how LED2 and
+its own series resistor R9 were drawn — says nothing a wire would not say
+better. 37 of the 46 block-local nets were more than 60 mm apart, median
+102 mm, because `shelf()` packed a group in `GROUPS`' written order and cut
+a chain wherever the row happened to end.
+
+Fusing does two things at once: it emits one wire instead of two labels, and
+it *forces* the two parts adjacent, because they stop being two things the
+packer may separate and become one **cell** it places whole. 14 nets fuse
+across 10 cells; the median block-local span fell to 82 mm and global labels
+to 238. The rest are nets with three or more pins, and pairs whose two pins
+point the same way — those need a U-turn around a body, and a wire read
+around two corners is not an improvement.
+
+The wire still carries its name, as a plain local label rather than a boxed
+global one. That is not decoration: `check_netlist.py` diffs KiCad's
+exported net names against `design.py`, so an unnamed wire comes back as
+`Net-(LED2-Pad1)` and fails. One light text replaces two heavy boxes.
+
+Geometry is derived, never tabulated. A pair is placed one leg out along A's
+pin direction and one leg back along B's own, so an opposed pair is a
+straight run and a perpendicular pair turns exactly one corner; every offset
+is a whole number of 1.27 mm steps, which is what lets `main()` snap each
+part independently without the two drifting apart. `fuse_leg()` sizes each
+leg to the *name* it carries, so a label can never outrun its own wire —
+`LEDP_K` is 6.1 mm and printed straight over LED2 when the leg was a fixed
+5.08 mm.
+
+Four things a cell has to get right, each of which was wrong first and is
+now a rejection rather than a hope. A candidate placement is refused, and
+the leg lengthened, unless:
+
+* the new part's **extents** clear every part already in the cell — body
+  boxes alone are not enough, since two resistors can clear each other while
+  one's `+3V3` port lands inside the other, which is what R37 did to R38;
+* its **wires** do not run along or through any wire already drawn —
+  lengthening a leg to dodge a body can drop the wire straight down a
+  neighbour's, which R5's did;
+* its wires do not cross any **part or printed field** — wire-versus-wire is
+  not enough, and R4's `CC1` wire cleared every other wire and ran straight
+  down `R5 / 5.1k`;
+* the net **name** lands on the emptiest end of its own wire — `AUX1_OUT`
+  fitted its wire perfectly and still printed into J10's `AUX_VP`.
+
+Both legs stretch independently, in whole 2.54 mm steps, least total
+lengthening first. One knob is not enough: it slides B along a single line,
+and R5 had to move across it. Which member a cell is grown from is not
+neutral either — the first pair to reach a part commits it, and seeded at J1
+the CC resistor R4 lands where R5 cannot follow, though seeding at R5 seats
+both — so every member is tried as a seed and the one seating the most wires
+wins, ties to the earliest. A pair that still cannot be seated is **demoted
+back to a pair of global labels and named on stdout**, never dropped
+silently.
+
+One consequence worth knowing: `stub_pins()` must exclude fused pins from
+its lane assignment. Leaving them in stretched J3's `TC1_N` stub to 7.62 mm,
+far enough to cross the new `TC1_P` wire, and KiCad merged the two nets
+where the label sat. `check_netlist.py` caught that one because it happened
+to short; a crossing that does *not* short is invisible to every other check
+here, which is why `check_sch_layout.py` grew a **WIRE/WIRE** class that
+fails on any two wires sharing a point that is not a shared endpoint.
 
 **Silkscreen is placed by a packer, not by a table.** Where every
 reference designator and board label lands is derived, the same way
