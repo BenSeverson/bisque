@@ -22,6 +22,13 @@ import {
   RELAY_TEST_DEFAULT_SECONDS,
 } from "../utils/relayTest";
 import { describeFiringError, emergencyStopExplanation } from "../utils/firingError";
+import {
+  buildDiagnosticsBundle,
+  diagnosticsFilename,
+  hasAnySection,
+  serializeDiagnosticsBundle,
+} from "../utils/diagnostics";
+import { downloadBlob } from "../utils/download";
 import { ASSUMED_DUTY_CYCLE, costPerHourAtFullPower, formatCost } from "../utils/cost";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Label } from "./ui/label";
@@ -48,6 +55,7 @@ import {
   AlertTriangle,
   RefreshCw,
   Download,
+  FileText,
   Power,
   HardDrive,
   Undo2,
@@ -163,6 +171,7 @@ export function Settings() {
 
   // TC diagnostics
   const [tcDiag, setTcDiag] = useState<DiagThermocouple | null>(null);
+  const [diagnosticsBusy, setDiagnosticsBusy] = useState(false);
 
   // OTA state
   const [otaFile, setOtaFile] = useState<File | null>(null);
@@ -390,6 +399,49 @@ export function Settings() {
       setTcDiag(diag);
     } catch {
       toast.error("Failed to read thermocouple");
+    }
+  }, []);
+
+  /**
+   * Download a diagnostics bundle: the controller log, /system and /settings in
+   * one JSON file to attach to a bug report (#189).
+   *
+   * allSettled, not all: a kiln on firmware without GET /log answers 404, and
+   * the other two sections are still worth having. buildDiagnosticsBundle
+   * records each failure in the file rather than dropping it silently.
+   */
+  const handleDownloadDiagnostics = useCallback(async () => {
+    setDiagnosticsBusy(true);
+    try {
+      const [system, settingsResult, log] = await Promise.allSettled([
+        api.getSystemInfo(),
+        api.getSettings(),
+        api.getLog(),
+      ]);
+      const now = new Date();
+      const bundle = buildDiagnosticsBundle(
+        { system, settings: settingsResult, log },
+        {
+          generatedAt: now,
+          userAgent: navigator.userAgent,
+          href: window.location.href,
+        },
+      );
+      if (!hasAnySection(bundle)) {
+        toast.error("Failed to collect diagnostics — the controller answered nothing");
+        return;
+      }
+      downloadBlob(
+        new Blob([serializeDiagnosticsBundle(bundle)], { type: "application/json" }),
+        diagnosticsFilename(now),
+      );
+      if (bundle.errors) {
+        toast.warning(`Diagnostics saved without: ${Object.keys(bundle.errors).join(", ")}`);
+      } else {
+        toast.success("Diagnostics downloaded");
+      }
+    } finally {
+      setDiagnosticsBusy(false);
     }
   }, []);
 
@@ -1018,6 +1070,18 @@ export function Settings() {
             <Button variant="outline" className="gap-2" onClick={handleReadTC}>
               <Thermometer className="h-4 w-4" />
               Read Thermocouple
+            </Button>
+            {/* Not hardware-gated: the demo has a mock log and a mock /system,
+                and the bundle is the thing a user is asked for when they report
+                a problem — including one seen in the demo (#189). */}
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={handleDownloadDiagnostics}
+              disabled={diagnosticsBusy}
+            >
+              <FileText className="h-4 w-4" />
+              {diagnosticsBusy ? "Collecting…" : "Download Diagnostics"}
             </Button>
             {/* The mirror image of Test Relay: hardware-only there, simulator-only
                 here. A demo kiln never fails on its own, so without this the

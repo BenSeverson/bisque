@@ -1,5 +1,6 @@
 import type {
   AutotuneStatus,
+  DeviceLog,
   DiagThermocouple,
   OtaCheckResponse,
   OtaConfirmResponse,
@@ -23,6 +24,7 @@ import { kilnWS } from "./websocket";
 export type {
   AutotuneState,
   AutotuneStatus,
+  DeviceLog,
   DiagThermocouple,
   OtaCheckResponse,
   OtaConfirmResponse,
@@ -163,6 +165,9 @@ export const api = {
 
   // System
   getSystemInfo: () => request<SystemInfo>("/system"),
+
+  /** Recent controller log lines, for the diagnostics bundle (#189). */
+  getLog: () => request<DeviceLog>("/log"),
 
   // Auto-tune
   startAutotune: (setpoint: number, hysteresis = 5) =>

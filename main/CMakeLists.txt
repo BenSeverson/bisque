@@ -2,6 +2,7 @@ idf_component_register(
     SRCS "main.c"
     REQUIRES
         app_config
+        device_log
         thermocouple
         pid_control
         firing_engine

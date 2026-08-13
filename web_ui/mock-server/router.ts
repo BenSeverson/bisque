@@ -15,7 +15,7 @@ import type {
   HistoryRecord,
   KilnSettings,
 } from "../src/app/types/kiln";
-import { state, FIRING_ERR } from "./state";
+import { state, MOCK_LOG_CAPACITY_BYTES, FIRING_ERR } from "./state";
 import {
   startFiring,
   stopFiring,
@@ -444,6 +444,24 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
         spiffsTotal: 917504,
         spiffsUsed: 204800 + Math.round(Math.random() * 50000),
         boardTempC: 35 + Math.random() * 10,
+      },
+    };
+  }
+
+  // GET /log — the device log the diagnostics bundle downloads (#189).
+  if (method === "GET" && apiPath === "/log") {
+    const lines = [...state.log];
+    return {
+      status: 200,
+      json: {
+        lines,
+        lineCount: lines.length,
+        droppedLines: state.logDropped,
+        totalLines: state.logTotal,
+        // The device counts the NUL terminator it stores each line with, so
+        // the mock does too — this number is compared against capacityBytes.
+        usedBytes: lines.reduce((n, line) => n + line.length + 1, 0),
+        capacityBytes: MOCK_LOG_CAPACITY_BYTES,
       },
     };
   }

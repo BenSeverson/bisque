@@ -10,6 +10,7 @@
 #include "firing_history.h"
 #include "wifi_manager.h"
 #include "app_config.h"
+#include "device_log.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "esp_spiffs.h"
@@ -830,6 +831,69 @@ static esp_err_t handle_get_system(httpd_req_t *req)
         .spiffs_used = spiffs_used,
     };
     return send_json(req, build_system_json(&info));
+}
+
+/* ── GET /api/v1/log ───────────────────────────────── */
+
+/*
+ * Recent ESP_LOGx output, captured in RAM by components/device_log (#189).
+ * Authenticated like every other endpoint: log lines carry SSIDs, IP addresses
+ * and OTA URLs, so this is not public just because it is read-only.
+ *
+ * The snapshot is copied out under the log's own lock and split here rather
+ * than serialized in place: cJSON allocates freely, and holding the log mutex
+ * across that would stall every task that logs.
+ */
+static esp_err_t handle_get_log(httpd_req_t *req)
+{
+    if (!require_auth(req)) {
+        return ESP_FAIL;
+    }
+
+    size_t cap = device_log_capacity();
+    device_log_json_t info = {0};
+
+    if (cap == 0) {
+        /* Log never initialized (allocation failed at boot). An empty log with
+           zeroed counters is a truer answer than a 500 — the rest of the
+           diagnostics bundle is still worth having. */
+        return send_json(req, build_log_json(&info));
+    }
+
+    char *snap = malloc(cap);
+    if (!snap) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Out of memory");
+        return ESP_FAIL;
+    }
+
+    device_log_stats_t stats;
+    size_t bytes = device_log_snapshot(snap, cap, &stats);
+
+    const char **lines = NULL;
+    if (stats.line_count > 0) {
+        lines = (const char **)calloc(stats.line_count, sizeof(*lines));
+        if (!lines) {
+            free(snap);
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Out of memory");
+            return ESP_FAIL;
+        }
+        size_t n = 0;
+        for (size_t off = 0; off < bytes && n < stats.line_count; off += strlen(snap + off) + 1) {
+            lines[n++] = snap + off;
+        }
+        info.lines = lines;
+        info.count = n;
+    }
+
+    info.dropped_lines = stats.dropped_lines;
+    info.total_lines = stats.total_lines;
+    info.used_bytes = stats.used_bytes;
+    info.capacity_bytes = stats.capacity_bytes;
+
+    esp_err_t rc = send_json(req, build_log_json(&info));
+    free((void *)lines);
+    free(snap);
+    return rc;
 }
 
 /* ── POST /api/v1/firing/skip-segment ─────────────── */
@@ -1772,6 +1836,7 @@ esp_err_t api_handlers_register(httpd_handle_t server)
     REGISTER_API("/api/v1/settings", HTTP_GET, handle_get_settings);
     REGISTER_API("/api/v1/settings", HTTP_POST, handle_post_settings);
     REGISTER_API("/api/v1/system", HTTP_GET, handle_get_system);
+    REGISTER_API("/api/v1/log", HTTP_GET, handle_get_log);
 
     /* Auto-tune */
     REGISTER_API("/api/v1/autotune/start", HTTP_POST, handle_autotune_start);

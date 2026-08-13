@@ -349,6 +349,22 @@ cJSON *build_system_json(const system_info_json_t *info)
     return root;
 }
 
+cJSON *build_log_json(const device_log_json_t *info)
+{
+    cJSON *root = cJSON_CreateObject();
+    cJSON *lines = cJSON_AddArrayToObject(root, "lines");
+    for (size_t i = 0; i < info->count; i++) {
+        const char *line = info->lines ? info->lines[i] : NULL;
+        cJSON_AddItemToArray(lines, cJSON_CreateString(line ? line : ""));
+    }
+    cJSON_AddNumberToObject(root, "lineCount", (double)info->count);
+    cJSON_AddNumberToObject(root, "droppedLines", (double)info->dropped_lines);
+    cJSON_AddNumberToObject(root, "totalLines", (double)info->total_lines);
+    cJSON_AddNumberToObject(root, "usedBytes", (double)info->used_bytes);
+    cJSON_AddNumberToObject(root, "capacityBytes", (double)info->capacity_bytes);
+    return root;
+}
+
 cJSON *build_wifi_status_json(bool connected, bool ap_mode, const char *ip, const char *saved_ssid)
 {
     bool has_saved = saved_ssid && saved_ssid[0];

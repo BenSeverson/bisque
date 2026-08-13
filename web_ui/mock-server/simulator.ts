@@ -1,4 +1,4 @@
-import { state, FIRING_ERR, HISTORY_MAX_RECORDS } from "./state";
+import { state, mockLog, FIRING_ERR, HISTORY_MAX_RECORDS } from "./state";
 import { AMBIENT, updateTemperature, coolingTemperature, elementDuty } from "./physics";
 import { HOLD_UNTIL_SKIP } from "../src/app/types/kiln";
 import type { HistoryRecord } from "../src/app/types/kiln";
@@ -107,6 +107,7 @@ function beginFiring(profileId: string): boolean {
   f.profileName = profile.name;
   f.startedAtS = Math.floor(Date.now() / 1000);
 
+  mockLog("I", "firing", `starting profile ${profile.name} (${profileId})`);
   ensureTicking();
   return true;
 }
@@ -114,6 +115,7 @@ function beginFiring(profileId: string): boolean {
 export function stopFiring(): void {
   const f = state.firing;
   const wasScheduled = f.scheduled;
+  mockLog("W", "firing", `firing stopped by operator at ${f.currentTemp.toFixed(1)}C`);
   recordHistoryEnd("aborted", FIRING_ERR.NONE);
   f.scheduled = false;
   f.delayRemainingS = 0;
@@ -357,6 +359,7 @@ export function tripFault(code: number): void {
   const wasFiring = f.running;
 
   state.emergencyStop = true;
+  mockLog("E", "safety", `emergency stop, error=${code}`);
   f.scheduled = false;
   f.delayRemainingS = 0;
 

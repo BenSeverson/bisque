@@ -90,6 +90,8 @@ final class FirmwareContractTests: XCTestCase {
         "pid": "GET /pid — gains are edited from the web UI and the LCD only.",
         "wifi": "GET /wifi — provisioning is a web-UI/on-device flow.",
         "wifi_ap_mode": "GET /wifi in AP mode; same reason.",
+        "log": "GET /log — the diagnostics bundle is a web-UI download (#189).",
+        "log_empty": "GET /log on a kiln with an empty ring; same reason.",
     ]
 
     /// Keys the firmware emits that the Swift models deliberately drop.

@@ -905,6 +905,65 @@ static void test_system_shape(void)
     cJSON_Delete(root);
 }
 
+/* ── build_log_json ──────────────────────────────────────────────────────── */
+
+/* GET /log — the device log the diagnostics bundle downloads (#189). */
+static void test_log_shape(void)
+{
+    static const char *const lines[] = {
+        "I (312) main: === Bisque v1.4.2 ===",
+        "I (1180) wifi: connected, ip=192.168.1.42",
+        "W (940318) safety: thermocouple fault (open circuit)",
+        "E (940512) firing: aborting firing, error=3",
+    };
+    device_log_json_t info = {
+        .lines = lines,
+        .count = sizeof(lines) / sizeof(lines[0]),
+        .dropped_lines = 128,
+        .total_lines = 1204,
+        .used_bytes = 5891,
+        .capacity_bytes = 6144,
+    };
+    cJSON *root = build_log_json(&info);
+
+    cJSON *arr = cJSON_GetObjectItem(root, "lines");
+    TEST_ASSERT_NOT_NULL(arr);
+    TEST_ASSERT_TRUE(cJSON_IsArray(arr));
+    TEST_ASSERT_EQUAL_INT(4, cJSON_GetArraySize(arr));
+    TEST_ASSERT_EQUAL_STRING(lines[0], cJSON_GetArrayItem(arr, 0)->valuestring);
+    TEST_ASSERT_EQUAL_STRING(lines[3], cJSON_GetArrayItem(arr, 3)->valuestring);
+
+    assert_number_field(root, "lineCount");
+    assert_number_field(root, "droppedLines");
+    assert_number_field(root, "totalLines");
+    assert_number_field(root, "usedBytes");
+    assert_number_field(root, "capacityBytes");
+    /* The counter that tells a bundle's reader the log is a window onto the
+       firing rather than all of it. */
+    TEST_ASSERT_EQUAL_INT(128, cJSON_GetObjectItem(root, "droppedLines")->valueint);
+
+    dump_fixture("log", root);
+    cJSON_Delete(root);
+}
+
+/* Boot-time allocation failure, and a freshly-booted kiln, land on the same
+   payload: `lines` is an empty array, never absent, so a client can render it
+   without a null check. */
+static void test_log_empty_still_carries_every_key(void)
+{
+    device_log_json_t info = {0};
+    cJSON *root = build_log_json(&info);
+
+    cJSON *arr = cJSON_GetObjectItem(root, "lines");
+    TEST_ASSERT_TRUE(cJSON_IsArray(arr));
+    TEST_ASSERT_EQUAL_INT(0, cJSON_GetArraySize(arr));
+    assert_number_field(root, "lineCount");
+    assert_number_field(root, "capacityBytes");
+
+    dump_fixture("log_empty", root);
+    cJSON_Delete(root);
+}
+
 /* The emergency-stop banner and the error badge are driven straight off these
    two, so the faulted state has to serialize as distinctly as the healthy one. */
 static void test_system_emergency_state(void)
@@ -1159,6 +1218,8 @@ int main(void)
     RUN_TEST(test_ws_ota_idle_has_no_frame);
     RUN_TEST(test_system_shape);
     RUN_TEST(test_system_emergency_state);
+    RUN_TEST(test_log_shape);
+    RUN_TEST(test_log_empty_still_carries_every_key);
     RUN_TEST(test_wifi_connected_shape);
     RUN_TEST(test_wifi_ap_mode_omits_saved_ssid);
     RUN_TEST(test_wifi_never_exposes_password);
