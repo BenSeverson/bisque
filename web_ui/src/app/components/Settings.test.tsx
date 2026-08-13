@@ -659,6 +659,35 @@ describe("Settings: firmware partitions and rollback", () => {
     expect(screen.queryByRole("button", { name: "Roll Back" })).not.toBeInTheDocument();
   });
 
+  it("drops the update-check verdict a rollback made obsolete", async () => {
+    // "You're on the latest version" was a claim about the firmware being left
+    // behind, and Controller Information reads its version from /system — so
+    // both have to go, or the page describes two different firmwares at once.
+    apiMock.checkOta.mockResolvedValue({
+      updateAvailable: false,
+      current: "1.4.0",
+      latest: "1.4.0",
+    });
+    apiMock.rollbackOta.mockResolvedValue({ acknowledged: true });
+    const user = userEvent.setup();
+    await renderSettled();
+
+    await user.click(screen.getByRole("button", { name: /Check for Updates/ }));
+    await waitFor(() => expect(toastFns.success).toHaveBeenCalled());
+    expect(screen.getByText(/You're running the latest version/)).toBeInTheDocument();
+
+    await user.click(await screen.findByRole("button", { name: "Roll Back" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Roll Back" }));
+
+    await waitFor(() =>
+      expect(screen.queryByText(/You're running the latest version/)).not.toBeInTheDocument(),
+    );
+    // The /system query is refetched, so the version card follows the kiln
+    // rather than the build it just abandoned.
+    await waitFor(() => expect(apiMock.getSystemInfo.mock.calls.length).toBeGreaterThan(1));
+  });
+
   it("keeps the partition state when the rollback was refused", async () => {
     // 400 or 409 means the firmware did not change, so what is on screen is
     // still true — clearing it would report a reboot that never started.

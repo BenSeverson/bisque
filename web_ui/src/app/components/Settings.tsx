@@ -86,6 +86,7 @@ import {
   useCheckOta,
   useInstallOta,
   useOtaStatus,
+  useInvalidateSystemInfo,
   useConfirmOta,
   useRollbackOta,
 } from "../hooks/queries";
@@ -165,6 +166,7 @@ export function Settings() {
      no sign they are stale. There is no reliable client-side signal for "the
      kiln has finished rebooting", so this stops claiming and asks. */
   const [awaitingReboot, setAwaitingReboot] = useState(false);
+  const invalidateSystemInfo = useInvalidateSystemInfo();
   const confirmOta = useConfirmOta();
   const rollbackOta = useRollbackOta();
   const [rollbackConfirmOpen, setRollbackConfirmOpen] = useState(false);
@@ -560,10 +562,18 @@ export function Settings() {
          the mutation settled. Not on the error path below: a 400 or 409 means
          the firmware did not change, so what is on screen is still correct. */
       setAwaitingReboot(true);
+      /* Everything else on the page derived from the outgoing version goes
+         with it. The update-check verdict was about the firmware being left
+         behind — "you're on the latest version" is a claim about a build that
+         is no longer running — and Controller Information reads its version
+         from the /system query. Leaving both would have the partition card and
+         the rest of the page describing different firmware. */
+      setOtaCheck(null);
+      invalidateSystemInfo();
     } catch (e) {
       toast.error(`Rollback refused: ${toErrorMessage(e)}`);
     }
-  }, [rollbackOta]);
+  }, [rollbackOta, invalidateSystemInfo]);
 
   // Stream OTA install progress from the WebSocket while an install runs.
   useEffect(() => {

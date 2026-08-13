@@ -159,6 +159,25 @@ describe("dispatch() firmware partitions", () => {
     expect(second.text).toBe("Rollback not available");
   });
 
+  it("POST /ota moves the running slot the way a flashed controller does", () => {
+    // The route used to answer 200 and change nothing, so a client that
+    // uploaded, dropped its partition state and refreshed saw the same slot and
+    // version — validating a recovery flow the device does not have.
+    const before = dispatch("GET", "/ota/status", {}).json as OtaStatus;
+
+    expect(dispatch("POST", "/ota", {}).status).toBe(200);
+
+    const after = dispatch("GET", "/ota/status", {}).json as OtaStatus;
+    expect(after.running?.label).toBe(before.nextUpdate?.label);
+    expect(after.running?.version).not.toBe(before.running?.version);
+    // A freshly written image boots pending verification, which is what puts
+    // the Confirm control on screen.
+    expect(after.pendingVerify).toBe(true);
+    // ...and the slot just left is what a rollback would return to.
+    expect(after.nextUpdate?.label).toBe(before.running?.label);
+    expect(after.rollbackAvailable).toBe(true);
+  });
+
   it("POST /ota/confirm clears pendingVerify and reports which case it was", () => {
     state.ota.pendingVerify = true;
     const first = dispatch("POST", "/ota/confirm", {}).json as { message: string };

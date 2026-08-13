@@ -30,6 +30,13 @@ final class SettingsViewModel {
     /// failure of anything the user asked for, and it would otherwise paint the
     /// screen red every time the OTA view opened against an older kiln.
     var otaStatusUnavailable = false
+    /* True from the moment an update or a rollback is accepted until the
+       partition state is read back. The per-operation flags all clear when
+       their request finishes, which is *before* the controller has finished
+       restarting — so without this the screen handed back Check for Updates,
+       Install and the file picker while the kiln was disconnecting, earning a
+       409 or a dropped connection. The web client carries the same state. */
+    var awaitingReboot = false
     var isLoadingOtaStatus = false
     var isConfirmingFirmware = false
     var isRollingBack = false
@@ -209,6 +216,7 @@ final class SettingsViewModel {
     /// could sit in pending-verify for its whole confirmation window with the
     /// Confirm button never shown (#177).
     func markOtaStatusStale() {
+        awaitingReboot = true
         /* Retire any read already in flight. A load started before the update
            finished is describing the outgoing image, and without advancing the
            generation it would still pass its own guard and repopulate the
@@ -246,6 +254,9 @@ final class SettingsViewModel {
             guard generation == otaLoadGeneration else { return }
             otaStatus = status
             otaStatusUnavailable = false
+            // The kiln answered, so it is back: the reboot this was waiting on
+            // is over and the OTA controls are safe to offer again.
+            awaitingReboot = false
         } catch {
             guard generation == otaLoadGeneration else { return }
             otaStatus = nil

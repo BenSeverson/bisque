@@ -17,13 +17,15 @@ struct OTAUpdateView: View {
                         guard let client = connection.apiClient else { return }
                         Task { await viewModel.installUpdate(using: client, ws: connection.webSocket) }
                     }
-                    .disabled(viewModel.isInstalling)
+                    .disabled(viewModel.isInstalling || viewModel.awaitingReboot)
                 } else {
                     Button("Check for Updates") {
                         guard let client = connection.apiClient else { return }
                         Task { await viewModel.checkForUpdate(using: client) }
                     }
-                    .disabled(viewModel.isCheckingUpdate || viewModel.isInstalling)
+                    .disabled(
+                        viewModel.isCheckingUpdate || viewModel.isInstalling
+                            || viewModel.awaitingReboot)
                 }
                 Text("Updates are blocked while a firing is active.")
                     .font(.caption)
@@ -43,7 +45,10 @@ struct OTAUpdateView: View {
                 Button("Select Firmware File (.bin)") {
                     showFilePicker = true
                 }
-                .disabled(viewModel.isUploading)
+                // Also while the kiln is restarting after an update or a
+                // rollback: sending it another image then earns a 409 or a
+                // dropped connection.
+                .disabled(viewModel.isUploading || viewModel.awaitingReboot)
             }
 
             if viewModel.isUploading {
@@ -97,7 +102,8 @@ struct OTAUpdateView: View {
                         // handle_ota_rollback() answers 409 during a firing,
                         // and rebooting mid-firing would abandon the load.
                         .disabled(viewModel.isRollingBack || store.progress.isActive
-                                  || viewModel.isInstalling || viewModel.isUploading)
+                                  || viewModel.isInstalling || viewModel.isUploading
+                                  || viewModel.awaitingReboot)
                     } else {
                         Text("""
                             No previous firmware to roll back to — the other slot is empty or was \

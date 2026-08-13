@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type PidGains } from "../services/api";
 import { FiringProfile, KilnSettings } from "../types/kiln";
@@ -338,6 +339,23 @@ export function useOtaStatus(enabled = true) {
     enabled,
     retry: false,
   });
+}
+
+/**
+ * Refetch the controller's own description of itself.
+ *
+ * For after a rollback: `SystemInfo.firmware` is what Controller Information
+ * and the update card's "Current Version" render, and both describe the image
+ * the kiln is in the middle of abandoning (#177). Invalidated rather than
+ * reset — unlike the partition state, a stale version is merely old, and
+ * blanking the whole card while the kiln reboots would be worse than showing
+ * the last known one.
+ */
+export function useInvalidateSystemInfo() {
+  const queryClient = useQueryClient();
+  return useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.systemInfo });
+  }, [queryClient]);
 }
 
 export function useConfirmOta() {

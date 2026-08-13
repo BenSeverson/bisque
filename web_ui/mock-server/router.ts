@@ -518,6 +518,19 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
 
   // POST /ota
   if (method === "POST" && apiPath === "/ota") {
+    /* A real controller writes the image to the inactive slot, sets it as the
+       boot partition and reboots into it pending verification. The mock used
+       to answer 200 and change nothing, so a client that uploaded, dropped its
+       partition state and refreshed was shown the same slot and version as
+       before — exercising a recovery flow that does not match the device.
+       The slot left behind becomes the rollback target. */
+    const previous = state.ota.running;
+    state.ota.running = state.ota.nextUpdate;
+    state.ota.bootPartition = state.ota.nextUpdate;
+    state.ota.nextUpdate = previous;
+    state.ota.runningVersion = OTA_UPLOADED_VERSION;
+    state.ota.pendingVerify = true;
+    state.ota.rollbackAvailable = true;
     return { status: 200, json: { ok: true } };
   }
 
@@ -827,6 +840,9 @@ export const OTA_SLOT_SIZE = 0x400000;
 
 /** The version the mock reports after a rollback, so the swap is visible. */
 export const OTA_ROLLED_BACK_VERSION = "1.9.0-mock";
+
+/** …and after a manual upload, for the same reason. */
+export const OTA_UPLOADED_VERSION = "2.1.0-mock";
 
 export const OTA_CONFIRMED_MSG = "Firmware confirmed as valid";
 export const OTA_ALREADY_CONFIRMED_MSG = "Firmware already confirmed";
