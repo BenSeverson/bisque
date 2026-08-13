@@ -710,13 +710,26 @@ rail hanging off a downward-facing pin, which has nowhere else to go.
 The elbow turns **1.5 pin pitches**, not one. A turn of exactly one pitch
 lands the port on the *next pin's own wire* — a short waiting to happen, and
 one that reads as a connection either way; a pitch and a half lands it in the
-clear space between two rows. Elbows on one side are then ranked, each
-starting a lane beyond the longest straight stub and a lane beyond the
-previous elbow, so they turn in clear space rather than inside each other's
-legs. Two elbows on adjacent rows dropping *towards* each other cannot both
-turn outside the other — that constraint set has no solution — so the worst
-case is left as an ordinary crossing, which is what a schematic is allowed to
-have.
+clear space between two rows. Two elbows on adjacent rows dropping *towards*
+each other cannot both turn outside the other — that constraint set has no
+solution — so the worst case is left as an ordinary crossing, which is what a
+schematic is allowed to have.
+
+**Stub lanes pack along the pin row, and only where they must.** Terminators
+that would print into each other get pushed a lane further out, and three
+things about that were wrong. It walked the pins in *library order*, so a
+descending pin column was packed as though it ascended and no lane could ever
+be reused — U1 came out as a 12-deep staircase reaching 58 mm, which is not
+how anyone draws a module. It demanded the same 1.27 mm gap between every
+pair, when that gap exists for one case only: two rail names side by side
+reading as one token (`+3V3+3V3` over U3's AVDD/DVDD pair), which is ports on
+*vertical* pins and nothing else — a column of global labels beside a module
+only has to not touch. And it packed elbows alongside the straight
+terminators, where their tall turn-and-drop boxes evicted J5's own pin labels
+two lanes out for no reason; elbows now pack after the straight ones and
+beyond them, past the longest *label* rather than the longest *stub*, since a
+lane past the longest stub still turns inside the longest name. U1 is one
+lane again, and no two labels on the sheet overlap.
 
 That is also why `check_sch_layout.py`'s wire rule is not "no shared points".
 Schematics cross wires constantly and KiCad connects nothing where two wires

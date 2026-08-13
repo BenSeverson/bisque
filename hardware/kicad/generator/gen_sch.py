@@ -315,7 +315,8 @@ def power_path(net, outv, L):
 # point and silently merge two nets - so all three read this.
 LANE = 5.08     # extra stub length per crowded lane; > a port's 4.9 mm reach
 ELBOW = 3.81    # an elbow's turn: 1.5 pin pitches, so it lands BETWEEN rows
-LANE_GAP = 1.27  # clear space demanded between two terminators in one lane
+LANE_GAP = 1.27  # gap when two terminators' text runs ALONG the pin row
+LANE_CLEAR = 0.25  # ...and when it runs across it, where touching is the risk
 
 
 def term_extent(net, outv, L=STUB):
@@ -333,7 +334,7 @@ def term_extent(net, outv, L=STUB):
         ys = [q[1] for q in pts] + [pts[-1][1] + pb[1], pts[-1][1] + pb[3]]
         return (min(xs), min(ys), max(xs), max(ys))
     reach = L + len(net) * FONT_BODY * CHAR_W + 2.5
-    half = FONT_BODY * LINE_H / 2.0 + 0.6
+    half = FONT_BODY * LINE_H / 2.0
     padx = 0.0 if abs(outv[0]) > 0.5 else half
     pady = 0.0 if abs(outv[1]) > 0.5 else half
     return (min(0.0, reach * outv[0]) - padx, min(0.0, reach * outv[1]) - pady,
@@ -360,7 +361,7 @@ def stub_pins(sym, pinmap, fused=()):
         seen.add((p[2], p[3]))
         out.append([p, pinmap.get(p[0]), pin_outv(p[4]), STUB])
 
-    lanes, groups = {}, {}
+    groups = {}
     for row in out:
         p, net, outv, _ = row
         if net is None or p[0] in fused:
@@ -370,39 +371,65 @@ def stub_pins(sym, pinmap, fused=()):
                               # far enough to cross the new TC1_P wire - and
                               # KiCad merged the two nets where the label sat.
         vert = abs(outv[1]) > 0.5
-        tb = term_extent(net, outv, row[3])
-        c = p[2] if vert else p[3]                    # along the pin's own side
-        w = (max(-tb[0], tb[2]) if vert else max(-tb[1], tb[3]))
         key = (round(outv[0]), round(outv[1]), round(p[3] if vert else p[2], 3))
-        used = lanes.setdefault(key, [])
-        for i, end in enumerate(used):
-            # Not merely "does not overlap": two rail arrows 1 mm apart read
-            # as one token ("+3V3+3V3" over U3's AVDD/DVDD pair), which the
-            # collision test is happy with and a reader is not.
-            if c - w >= end + LANE_GAP - 1e-9:
-                used[i] = c + w
-                row[3] = STUB + i * LANE
-                break
-        else:
-            used.append(c + w)
-            row[3] = STUB + (len(used) - 1) * LANE
         groups.setdefault(key, []).append(row)
 
-    # Elbows on one side still must not turn inside each other's legs, so
-    # rank them: each starts a lane beyond the longest straight stub, and a
-    # lane beyond the previous elbow. Ordering by position keeps it stable.
-    # (Two elbows on adjacent rows dropping *towards* each other cannot both
-    # turn outside the other - that constraint set has no solution - but with
-    # the turn landing between rows the worst case is an ordinary crossing,
-    # which a schematic may have and check_netlist.py proves is not a short.)
     for key, rows in groups.items():
-        bent = [r for r in rows
-                if r[1] in PWR and len(power_path(r[1], r[2], r[3])) >= 3]
-        if not bent:
-            continue
-        base = max([r[3] for r in rows if r not in bent], default=0.0)
-        for k, r in enumerate(sorted(bent, key=lambda r: (r[0][3], r[0][2]))):
-            r[3] = base + (k + 1) * LANE
+        vert = abs(key[1]) > 0.5
+
+        def _order(r):
+            return r[0][2] if vert else -r[0][3]
+
+        def _bent(r):
+            return r[1] in PWR and len(power_path(r[1], r[2], STUB)) >= 3
+
+        def pack(rows, base):
+            """Greedy interval packing along the pin row, in order along it.
+
+            Walking the rows in library order instead - which is what this
+            did - packs a descending pin column as though it ascended, so the
+            "is this lane free again" test can never pass and every pin takes
+            a fresh lane. U1 came out as a 12-deep staircase reaching 58 mm,
+            which is not how anyone draws a module.
+            """
+            used, reach = [], base - LANE
+            for row in sorted(rows, key=_order):
+                p, net, outv, _ = row
+                tb = term_extent(net, outv, STUB)
+                c = _order(row)
+                w = max(-tb[0], tb[2]) if vert else max(-tb[1], tb[3])
+                # A gap is only wanted where the two terminators' *text* runs
+                # along the row and could read as one token - "+3V3+3V3" over
+                # U3's AVDD/DVDD pair. That is ports on vertical pins and only
+                # those; a column of global labels beside a module just has to
+                # not touch, which is what puts them back in one tidy column.
+                gap = LANE_GAP if (net in PWR and vert) else LANE_CLEAR
+                for i, end in enumerate(used):
+                    if c - w >= end + gap - 1e-9:
+                        used[i] = c + w
+                        row[3] = base + i * LANE
+                        break
+                else:
+                    used.append(c + w)
+                    row[3] = base + (len(used) - 1) * LANE
+                # How far this terminator actually reaches, text and all -
+                # not how long its stub is. An elbow placed a lane past the
+                # longest *stub* still turns inside the longest *label*,
+                # which is how seven ports came down on top of U7's and
+                # J14's net names.
+                fb = term_extent(net, outv, row[3])
+                reach = max(reach, max(-fb[1], fb[3]) if vert
+                            else max(-fb[0], fb[2]))
+            return reach
+
+        # Elbows are packed *after* the straight terminators and beyond them,
+        # not alongside: an elbow's box is tall (it turns and drops), so
+        # letting it take a lane in the first pass evicted J5's own pin
+        # labels two lanes out for no reason. They still pack by interval
+        # rather than one-per-lane, so two grounds far enough apart down the
+        # same side share a depth.
+        top = pack([r for r in rows if not _bent(r)], STUB)
+        pack([r for r in rows if _bent(r)], top + LANE)
     return out
 
 
