@@ -5,7 +5,7 @@
       "Application": "Pcbnew",
       "Version": "10.0.5"
     },
-    "CreationDate": "2026-08-13T12:54:04-07:00"
+    "CreationDate": "2026-08-13T13:19:06-07:00"
   },
   "GeneralSpecs": {
     "ProjectId": {
@@ -19,7 +19,8 @@
     },
     "LayerNumber": 4,
     "BoardThickness": 1.6,
-    "Finish": "None"
+    "Finish": "None",
+    "ImpedanceControlled": true
   },
   "DesignRules": [
     {
@@ -106,7 +107,9 @@
     },
     {
       "Type": "SolderMask",
-      "Thickness": 0.01,
+      "Thickness": 0.0152,
+      "Material": "JLCPCB Soldermask",
+      "DielectricConstant": "3.8",
       "Name": "Top Solder Mask"
     },
     {
@@ -116,32 +119,41 @@
     },
     {
       "Type": "Dielectric",
-      "Thickness": 0.48,
-      "Material": "FR4",
+      "Color": "R109G116B75",
+      "Thickness": 0.2104,
+      "Material": "Nan Ya Plastics NP-155F 7628",
+      "DielectricConstant": "4.4",
+      "LossTangent": "0.02",
       "Name": "F.Cu/In1.Cu",
       "Notes": "Type: dielectric layer 1 (from F.Cu to In1.Cu)"
     },
     {
       "Type": "Copper",
-      "Thickness": 0.035,
+      "Thickness": 0.0152,
       "Name": "In1.Cu"
     },
     {
       "Type": "Dielectric",
-      "Thickness": 0.48,
-      "Material": "FR4",
+      "Color": "R109G116B75",
+      "Thickness": 1.065,
+      "Material": "Nan Ya Plastics NP-155F Core",
+      "DielectricConstant": "4.43",
+      "LossTangent": "0.02",
       "Name": "In1.Cu/In2.Cu",
       "Notes": "Type: dielectric layer 2 (from In1.Cu to In2.Cu)"
     },
     {
       "Type": "Copper",
-      "Thickness": 0.035,
+      "Thickness": 0.0152,
       "Name": "In2.Cu"
     },
     {
       "Type": "Dielectric",
-      "Thickness": 0.48,
-      "Material": "FR4",
+      "Color": "R109G116B75",
+      "Thickness": 0.2104,
+      "Material": "Nan Ya Plastics NP-155F 7628",
+      "DielectricConstant": "4.4",
+      "LossTangent": "0.02",
       "Name": "In2.Cu/B.Cu",
       "Notes": "Type: dielectric layer 3 (from In2.Cu to B.Cu)"
     },
@@ -152,7 +164,9 @@
     },
     {
       "Type": "SolderMask",
-      "Thickness": 0.01,
+      "Thickness": 0.0152,
+      "Material": "JLCPCB Soldermask",
+      "DielectricConstant": "3.8",
       "Name": "Bottom Solder Mask"
     },
     {

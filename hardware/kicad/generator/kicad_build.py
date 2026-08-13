@@ -40,7 +40,7 @@ from design import COMPONENTS, netlist, BX0, BY0, BX1, BY1
 import router as R
 import silk
 from gen_pcb import (all_seeds, route_all, ripup_retry, promoted_order, plane_vias,
-                     SILK, MANUAL_VIAS, PLANE_LAYER)
+                     apply_stackup, SILK, MANUAL_VIAS, PLANE_LAYER)
 
 # Copper stack-up. Rev B is 4-layer (spec 6.1): signals on the outside, an
 # unbroken GND plane on In1.Cu and the +3V3 plane on In2.Cu. router.py still
@@ -621,6 +621,15 @@ def main(out, reuse_routing=False):
     import subprocess
     board.SetFileName(out)
     pcbnew.SaveBoard(out, board)
+    # The physical stack-up, which pcbnew cannot be asked to set: KiCad 10's
+    # SWIG bindings do not wrap BOARD_STACKUP, so gen_pcb.STACKUP is written
+    # into the saved file instead. Here rather than after the DRC pass, so
+    # that on the full path kicad-cli parses the block and writes it back out
+    # itself - a stack-up KiCad rejected fails the build rather than reaching
+    # the fab. The fast path has nothing dirty to save, so it keeps these
+    # bytes verbatim; that is why gen_pcb.stackup_sexp() emits KiCad's own
+    # formatting rather than leaving it to the round trip.
+    apply_stackup(out)
     # Every write goes through canonicalize_file: pcbnew hands each item a
     # random uuid and then orders the file by it, so without this an
     # unchanged design lands on disk differently every run (#234). Doing it

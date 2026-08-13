@@ -29,7 +29,7 @@ table — 93 nets, 0 mismatches). The 3D renders in `3d/` are raytraced by
 |---|---|
 | `bisque-controller.kicad_pro` | Project (net classes: 0.3 mm signal / 0.7–0.8 mm power, 0.25 mm only on the short fine-pitch escape stubs off the QFN/TSSOP pads) |
 | `bisque-controller.kicad_sch` | Schematic (A1, netlist-style: functional groups, global labels for signals, real power ports for rails). Laid out programmatically by `generator/gen_sch.py` — a `GROUPS` taxonomy plus a deterministic column packer, with a reserved right-hand column for the notes block. A1, not A3: an A3 declaration silently clipped ~40% of the circuit out of the exported PDF while every connectivity checker stayed green (`generator/check_sch_bounds.py` now fails on any off-sheet item), and containment is not readability, so `generator/check_sch_layout.py` additionally fails on any symbol/symbol, text/symbol or text/text overlap |
-| `bisque-controller.kicad_pcb` | Board: placed, fully routed, 4 layers (F.Cu/B.Cu signals, In1.Cu GND plane, In2.Cu +3V3 plane) |
+| `bisque-controller.kicad_pcb` | Board: placed, fully routed, 4 layers (F.Cu/B.Cu signals, In1.Cu GND plane, In2.Cu +3V3 plane), on JLCPCB's `JLC04161H-7628` 1.6 mm stack-up — see "The physical stack-up" |
 | `preview-board.svg` | Quick visual of placement + routing |
 | `3d/board-3d-*.png` | Raytraced renders, kicad-cli — straight orthographic **top** and **bottom** only. The angled iso/front views were dropped: they look better than they read, and these images get used to check placement and silk, not to advertise |
 | `bisque-controller-drc.rpt` | KiCad DRC report (0 errors, 0 unconnected, 0 warnings — the 109 silkscreen warnings went with the silk packer, see "Regenerating the files") |
@@ -254,6 +254,51 @@ carved a four-layer pour keepout across the SSR optocoupler row and had
 `generator/check_isolation.py` confirm nothing landed in it; both went with
 the optocouplers (see "SSR drive ×2" above), returning ~21 × 24 mm of pour
 and routing area on every layer.
+
+### The physical stack-up, and the one impedance target
+
+The board declares **JLCPCB's default 4-layer 1.6 mm press,
+`JLC04161H-7628`** — the table is `generator/gen_pcb.py`'s `STACKUP`, written
+into the file by `apply_stackup()`.
+
+| Layer | Type | Material | Thickness | ε_r |
+|---|---|---|---|---|
+| F.Cu | copper, 1 oz | | 0.035 mm | |
+| dielectric 1 | prepreg | NP-155F 7628 | 0.2104 mm | 4.4 |
+| In1.Cu — GND | copper, ½ oz | | 0.0152 mm | |
+| dielectric 2 | core | NP-155F Core | 1.065 mm | 4.43 |
+| In2.Cu — +3V3 | copper, ½ oz | | 0.0152 mm | |
+| dielectric 3 | prepreg | NP-155F 7628 | 0.2104 mm | 4.4 |
+| B.Cu | copper, 1 oz | | 0.035 mm | |
+
+It carried no stack-up at all until this was added, and that is worse than
+it sounds. A `.kicad_pcb` with no `(stackup ...)` is perfectly valid and
+passes every checker here, but it declares no dielectric heights and no ε_r,
+so anything computing impedance off the file computes it against a KiCad
+placeholder — and the placeholder is not close. The exported **gerber job
+file was the visible casualty**: `bisque-controller-job.gbrjob` shipped
+`"Thickness": 0.48, "Material": "FR4"` for every dielectric, i.e. it told the
+fab a stack-up that does not exist. It now carries the real materials and
+`"ImpedanceControlled": true`.
+
+The board has exactly **one** impedance target: USB 2.0 Full Speed, 90 Ω
+differential (`USB_DP`/`USB_DN`, J1 → U6 → U1; there is no RF trace, the
+WROOM-1U keeps its radio and U.FL on-module). On this press the pair as
+already routed — 0.3 mm wide, 0.2 mm gap, microstrip over the In1.Cu GND
+plane through 0.2104 mm of 7628 prepreg — computes to **93.1 Ω differential
+(+3.5 %)**, inside JLCPCB's ±10 % window, which is why declaring the
+stack-up needed no re-route. That is a property of *this* press: JLCPCB's
+thinner-prepreg 1.6 mm options put the same copper at 75 Ω (2116), 70 Ω
+(3313) or 61 Ω (1080). `generator/check_pcb.py`'s check 5 fails on any of
+them rather than letting the swap pass silently.
+
+Two things would also move it, neither of which is on the board today: a GND
+pour on F.Cu or B.Cu (coplanar coupling drops the pair to 79 Ω at the default
+0.2 mm clearance — hold any such pour ≥ 0.5 mm off the pair), and re-routing
+the pair itself. Note also that `USB_DP` and `USB_DN` are not routed as a
+tightly coupled pair — 40.1 mm and 37.0 mm respectively, over 5 and 6 vias —
+so 93.1 Ω describes the stretches where they run together. Full Speed's ~4 ns
+edges tolerate that comfortably; a High Speed interface would not.
 
 ### GPIO map (mirrors `main/Kconfig.projbuild` defaults)
 

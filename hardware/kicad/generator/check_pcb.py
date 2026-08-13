@@ -6,6 +6,8 @@ Checks:
      exempt, being carried by an inner pour rather than by tracks
   3. copper-to-board-edge margin
   4. courtyard overlaps between footprints
+  5. the physical stack-up is declared, and is the one the USB pair's
+     differential impedance was solved on
 
 Check 3 used to be "no track, via or PLANE FILL inside the opto-isolation
 barrier". The optocouplers and their pour keepout were reverted (see
@@ -267,6 +269,74 @@ def zone_fills(doc):
     return out
 
 
+def check_stackup(doc):
+    """The physical stack-up is declared, and is the one the board was solved on.
+
+    A .kicad_pcb is perfectly valid with no (stackup ...) block, and every
+    other check here passes without one — which is exactly the problem. The
+    board has an impedance target (USB 2.0 FS, 90 ohm differential) and the
+    0.3 mm / 0.2 mm geometry that meets it only meets it on JLC04161H-7628's
+    0.2104 mm 7628 prepreg. Swap the press for one of JLCPCB's thinner-prepreg
+    1.6 mm options and the same copper reads 75, 70 or 61 ohm with nothing on
+    the board changing to say so.
+
+    Expected values are spelled out here rather than imported, so this stays a
+    checker of the file and not of gen_pcb.STACKUP's agreement with itself.
+    """
+    problems = []
+    setup = find(doc, "setup")
+    su = find(setup, "stackup") if setup else None
+    if su is None:
+        return ["no (stackup ...) — the board declares no dielectric heights "
+                "or epsilon_r, so every impedance figure taken off this file "
+                "is computed against a KiCad placeholder (see gen_pcb.STACKUP)"]
+
+    got = []
+    for lay in find_all(su, "layer"):
+        thick = find(lay, "thickness")
+        er = find(lay, "epsilon_r")
+        got.append((str(lay[1]), str(find(lay, "type")[1]),
+                    num(thick[1]) if thick else None,
+                    num(er[1]) if er else None))
+
+    # (name, type, thickness, epsilon_r) for everything that carries a field.
+    want = [("F.Cu", "copper", 0.035, None),
+            ("dielectric 1", "prepreg", 0.2104, 4.4),
+            ("In1.Cu", "copper", 0.0152, None),
+            ("dielectric 2", "core", 1.065, 4.43),
+            ("In2.Cu", "copper", 0.0152, None),
+            ("dielectric 3", "prepreg", 0.2104, 4.4),
+            ("B.Cu", "copper", 0.035, None)]
+    core = [g for g in got if g[1] in ("copper", "core", "prepreg")]
+    if [g[:2] for g in core] != [w[:2] for w in want]:
+        problems.append("stackup layer order is %s, expected %s"
+                        % ([g[0] for g in core], [w[0] for w in want]))
+    else:
+        for g, w in zip(core, want):
+            for field, gv, wv in (("thickness", g[2], w[2]),
+                                  ("epsilon_r", g[3], w[3])):
+                if wv is None:
+                    continue
+                if gv is None or abs(gv - wv) > 1e-6:
+                    problems.append(
+                        "stackup %s %s is %s, expected %s — the USB pair's "
+                        "90 ohm was solved on the expected value" %
+                        (g[0], field, gv, wv))
+
+    # The declared board thickness has to be the stack-up's, or the fab and
+    # the file disagree about what is being pressed.
+    total = sum(g[2] for g in got if g[2] is not None)
+    gen = find(doc, "general")
+    decl = num(find(gen, "thickness")[1]) if gen else None
+    if decl is None or abs(total - decl) > 0.05:
+        problems.append("stackup sums to %.4f mm, (general (thickness %s))"
+                        % (total, decl))
+    if find(su, "dielectric_constraints") is None:
+        problems.append("stackup has no (dielectric_constraints yes) — the fab "
+                        "is free to substitute a different press")
+    return problems
+
+
 def main(src):
     items, netnames, courtyards, edges, doc = load(src)
     xs = [e for ed in edges for e in (ed[0], ed[2])]
@@ -369,6 +439,9 @@ def main(src):
             if ox > 0.05 and oy > 0.05:
                 problems.append("courtyard overlap: %s vs %s (%.1fx%.1f mm)"
                                 % (refs[i], refs[j], ox, oy))
+
+    # 5. physical stack-up
+    problems.extend(check_stackup(doc))
 
     print("checked %d copper items" % len(items))
     if problems:

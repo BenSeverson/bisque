@@ -6,6 +6,7 @@ planes (unfilled — press 'B' in pcbnew), edge cuts and silkscreen labels.
 """
 import math
 import os
+import re
 import sys
 import uuid
 
@@ -213,6 +214,152 @@ FANOUT_WIDTH = 0.25   # fine-pitch escapes only; see the ROUTE_ORDER comment
 PLANE_LAYER = {"GND": "In1.Cu", "+3V3": "In2.Cu"}
 PLANE_NETS = tuple(PLANE_LAYER)
 PLANE_STUB_W = 0.25
+
+# ---------------------------------------------------------------------------
+# Physical stack-up
+# ---------------------------------------------------------------------------
+# JLCPCB's default 4-layer 1.6 mm process, JLC04161H-7628 — the stack-up this
+# board is quoted and fabricated on, declared in the file rather than left
+# out. Leaving it out is not a cosmetic omission: a .kicad_pcb with no
+# (stackup ...) block carries no dielectric heights and no epsilon_r at all,
+# so every impedance figure anyone derives from this file — KiCad's own
+# calculator, the fab's coupon, an --impedance width solver — is computed
+# against a placeholder that is not this board. The tools do not all fail
+# loudly either; one of them answers "layer F.Cu not found in stackup" and
+# then routes a 0.1 mm fallback width.
+#
+# The board has exactly one impedance target: USB 2.0 Full Speed, 90 ohm
+# differential (USB_DP/USB_DN, J1 -> U6 -> U1). On these numbers the pair as
+# routed — 0.3 mm wide, 0.2 mm gap, microstrip over the In1.Cu GND plane
+# through 0.2104 mm of 7628 prepreg — comes out at 93.1 ohm differential,
+# inside JLCPCB's +-10% window. That is why declaring the stack-up needed no
+# re-route, and it is a property of THIS stack-up: the thinner-prepreg options
+# JLCPCB also offers at 1.6 mm (2116 / 3313 / 1080) put the same geometry at
+# 75 / 70 / 61 ohm. Do not switch stack-up without re-solving the USB widths.
+#
+# A GND pour on F.Cu or B.Cu would move it too, in the same direction — a
+# flood at the default 0.2 mm clearance turns the pair into coplanar waveguide
+# and lands it at 79 ohm, outside the window. If one is ever added, hold the
+# pour >= 0.5 mm off the USB pair.
+#
+# Ordered top to bottom; KiCad reads it positionally, so the order is
+# structural, not stylistic. Copper and dielectric thicknesses sum to
+# 1.586 mm, which is the 1.6 mm nominal in (general (thickness ...)).
+# (layer, type, thickness, material, epsilon_r, loss_tangent)
+STACKUP = (
+    ("F.SilkS", "Top Silk Screen", None, None, None, None),
+    ("F.Paste", "Top Solder Paste", None, None, None, None),
+    ("F.Mask", "Top Solder Mask", 0.01524, "JLCPCB Soldermask", 3.8, 0),
+    ("F.Cu", "copper", 0.035, None, None, None),          # 1 oz
+    ("dielectric 1", "prepreg", 0.2104, "Nan Ya Plastics NP-155F 7628", 4.4, 0.02),
+    ("In1.Cu", "copper", 0.0152, None, None, None),       # 0.5 oz, GND plane
+    ("dielectric 2", "core", 1.065, "Nan Ya Plastics NP-155F Core", 4.43, 0.02),
+    ("In2.Cu", "copper", 0.0152, None, None, None),       # 0.5 oz, +3V3 plane
+    ("dielectric 3", "prepreg", 0.2104, "Nan Ya Plastics NP-155F 7628", 4.4, 0.02),
+    ("B.Cu", "copper", 0.035, None, None, None),          # 1 oz
+    ("B.Mask", "Bottom Solder Mask", 0.01524, "JLCPCB Soldermask", 3.8, 0),
+    ("B.Paste", "Bottom Solder Paste", None, None, None, None),
+    ("B.SilkS", "Bottom Silk Screen", None, None, None, None),
+)
+
+
+def stackup_sexp(indent="\t\t"):
+    """STACKUP as a (stackup ...) block.
+
+    Formatted the way KiCad's own s-expression writer formats it — one field
+    per line, tab-indented — and that is a requirement, not a courtesy. Only
+    the FULL build's `kicad-cli pcb drc --refill-zones --save-board` pass
+    rewrites the board through KiCad; on the fast path nothing is dirty, so
+    kicad-cli leaves the file exactly as apply_stackup wrote it. Emit a
+    compact block here and the two paths differ by ~66 lines of whitespace
+    while agreeing on every value, which is precisely the byte-identity
+    check_fast_path.py exists to catch.
+    """
+    def n(v):
+        # Not f(): that rounds to 4 places, and the soldermask is 0.01524 mm.
+        # These are quoted fab numbers, so they go in as quoted.
+        return ("%.5f" % v).rstrip("0").rstrip(".") or "0"
+
+    out = ["%s(stackup" % indent]
+    for name, kind, thick, material, er, tand in STACKUP:
+        out.append('%s\t(layer "%s"' % (indent, name))
+        fields = ['(type "%s")' % kind]
+        if kind in ("core", "prepreg"):
+            fields.append('(color "FR4 natural")')
+        if thick is not None:
+            fields.append("(thickness %s)" % n(thick))
+        if material is not None:
+            fields.append('(material "%s")' % material)
+        if er is not None:
+            fields.append("(epsilon_r %s)" % n(er))
+        if tand is not None:
+            fields.append("(loss_tangent %s)" % n(tand))
+        out.extend("%s\t\t%s" % (indent, fl) for fl in fields)
+        out.append("%s\t)" % indent)
+    out.append('%s\t(copper_finish "None")' % indent)
+    # Tells the fab the epsilon_r values above are a constraint on the
+    # substitution they are allowed to make, not a note. Without it JLCPCB may
+    # ship any 1.6 mm four-layer press that fits, which is exactly the freedom
+    # the USB pair's 93 ohm does not have.
+    out.append("%s\t(dielectric_constraints yes)" % indent)
+    out.append("%s)" % indent)
+    return "\n".join(out) + "\n"
+
+
+def _sexp_span(text, start):
+    """(start, end) of the s-expression whose '(' is at index `start`."""
+    depth = 0
+    in_str = esc = False
+    for i in range(start, len(text)):
+        ch = text[i]
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+        elif ch == '"':
+            in_str = True
+        elif ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+            if depth == 0:
+                return start, i + 1
+    raise ValueError("unbalanced s-expression at %d" % start)
+
+
+def apply_stackup(path):
+    """Force STACKUP into a saved .kicad_pcb, replacing whatever is there.
+
+    pcbnew's Python bindings expose no way to set the stack-up — KiCad 10 does
+    not wrap BOARD_STACKUP at all — so this is applied to the saved file, the
+    same escape hatch canonicalize.py uses for the uuids it also cannot reach.
+    It runs BEFORE the kicad-cli DRC pass, so on a full build the block is
+    parsed and written back out by KiCad itself and a stack-up KiCad rejected
+    would fail the build rather than reach the fab. The fast path saves
+    nothing, which is why stackup_sexp() has to emit KiCad's formatting rather
+    than rely on that pass to impose it.
+
+    Any existing block is REPLACED rather than left alone. That is what makes
+    the table above the single source of truth: a stack-up edited in the GUI,
+    or inherited through --no-route's load/save round trip, does not survive a
+    regeneration.
+    """
+    with open(path) as fh:
+        text = fh.read()
+    k = text.find("(stackup")
+    if k >= 0:
+        a, b = _sexp_span(text, k)
+        a = text.rfind("\n", 0, a) + 1                    # eat the indent
+        text = text[:a] + text[b + 1 if text[b:b + 1] == "\n" else b:]
+    m = re.search(r"^(\t*)\(setup\b[^\n]*\n", text, re.M)
+    if not m:
+        raise SystemExit("%s: no (setup ...) block to put the stackup in" % path)
+    text = text[:m.end()] + stackup_sexp(m.group(1) + "\t") + text[m.end():]
+    with open(path, "w") as fh:
+        fh.write(text)
 
 
 def plane_vias(r, pad_pos, seed_list=(), max_r=6.0):
@@ -980,6 +1127,7 @@ def main(dst):
             ap('\t\t(%d "%s" %s)' % (lid, lname, ltype))
     ap('\t)')
     ap('\t(setup (pad_to_mask_clearance 0) (allow_soldermask_bridges_in_footprints no)')
+    ap(stackup_sexp("\t\t").rstrip("\n"))
     ap('\t\t(pcbplotparams (layerselection 0x00000000_00000000_55555555_5755f5ff) (plot_on_all_layers_selection 0x00000000_00000000_00000000_00000000) (disableapertmacros no) (usegerberextensions no) (usegerberattributes yes) (usegerberadvancedattributes yes) (creategerberjobfile yes) (dashed_line_dash_ratio 12.000000) (dashed_line_gap_ratio 3.000000) (svgprecision 4) (plotframeref no) (mode 1) (useauxorigin no) (hpglpennumber 1) (hpglpenspeed 20) (hpglpendiameter 15.000000) (pdf_front_fp_property_popups yes) (pdf_back_fp_property_popups yes) (pdf_metadata yes) (pdf_single_document no) (dxfpolygonmode yes) (dxfimperialunits yes) (dxfusepcbnewfont yes) (plotinvisibletext no) (sketchpadsonfab no) (plot_black_and_white no) (subtractmaskfromsilk no) (outputformat 1) (mirror no) (drillshape 1) (scaleselection 1) (outputdirectory ""))')
     ap('\t)')
     ap('\t(net 0 "")')
