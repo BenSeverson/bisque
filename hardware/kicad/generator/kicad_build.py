@@ -9,8 +9,8 @@ pcbnew-written file. Requires KiCad 10+.
 
 Usage: python3 kicad_build.py [--no-route] <out.kicad_pcb>
 
-`--no-route` is the fast path. Routing 93 nets across 141 parts is ~99%
-of the 421 s a full build costs, and several classes of change cannot
+`--no-route` is the fast path. Routing 93 nets across 141 parts is ~97%
+of the 318 s a full build costs, and several classes of change cannot
 touch copper at all: silkscreen placement (silk.py), 3D model offsets
 (MODEL_OFFSET), the title block, reference-designator text metrics. With
 `--no-route` the tracks, vias and filled zones are read back off the

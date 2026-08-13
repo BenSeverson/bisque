@@ -29,6 +29,12 @@ only ever accept a strict improvement, so the loop cannot oscillate.
 All labels stay upright. Rotating a designator 90 degrees buys space but costs
 the assembler a head-tilt on a board where the parts are already dense; the
 lateral slides along each side turned out to be enough.
+
+Obstacles are looked up through a uniform bucket grid (`_Grid`), the same
+index `router.py` uses for copper. That is a lookup optimisation and nothing
+more: it narrows which obstacles get TESTED, never which candidate wins, and
+the placement it produces is byte-identical to the linear scan it replaced.
+Anything that changes the answer is a dropped collision, not a speedup.
 """
 import math
 
@@ -42,6 +48,30 @@ MM = pcbnew.FromMM
 CLEAR_COPPER = 0.15
 CLEAR_EDGE = 0.25
 CLEAR_SILK = 0.05
+
+# The same clearances in internal units, resolved once. `MM` is
+# `pcbnew.FromMM`, a SWIG call, and these used to be evaluated per obstacle
+# inside the scan loops: 171 million calls, 63 s of the placer's 115 s under
+# cProfile - more than every collision test and every bounding-box test in
+# this module put together, and the single largest line in the profile. They
+# are constants, so hoisting them cannot change a verdict.
+_C_COPPER = MM(CLEAR_COPPER)
+_C_EDGE = MM(CLEAR_EDGE)
+_C_SILK = MM(CLEAR_SILK)
+_ONE_MM = MM(1.0)
+
+# Bucket size for the obstacle index below, mm. Same as `router.py`'s, but
+# measured rather than assumed: silk labels are wider and flatter than the
+# track/pad geometry that number was chosen for, so the sweep was rerun here.
+# It is flat. Placer wall time over three reps was 3.82-3.88 s anywhere in
+# 1.5-4.0 mm - indistinguishable from noise - and only degrades outside that
+# band (4.08 s at 1.0, 4.07 s at 6.0, 4.10 s at 8.0), because a cell much
+# smaller than a label multiplies the per-cell filing and a cell much larger
+# than one refills the bucket with objects the probe must reject one at a
+# time. With no measurable reason to differ from the neighbouring module,
+# don't.
+BUCKET = 2.0
+_BUCKET = MM(BUCKET)
 
 # Scoring. A collision costs more than any displacement the candidate sets can
 # produce, so a clean-but-distant spot always beats a cramped-but-adjacent one
@@ -95,17 +125,83 @@ def _hit(a, b, slack=0):
                 or a[3] + slack < b[1] or b[3] + slack < a[1])
 
 
+class _Grid:
+    """Uniform bucket index over bounding boxes - `router.py`'s `buckets`.
+
+    Each object is filed into every cell its box overlaps *grown by `pad`*,
+    where `pad` is the clearance the probes will ask about; a probe then reads
+    only the cells its own box touches. That is exact, not approximate: two
+    overlapping boxes share at least one point, every point lies in exactly
+    one cell, so a padded obstacle within `pad` of the probe always sits in a
+    cell the probe reads. `near()` therefore returns a superset of the linear
+    scan's hits and the caller's `_hit`/`Collide` tests still decide.
+
+    Getting `pad` wrong is the one way this silently drops a collision - an
+    obstacle within clearance but in the next cell - so it is a constructor
+    argument rather than an assumption, exactly as `router.py:_insert()`'s own
+    `pad` is. It carries one extra internal unit of slop so that no float
+    boundary case can fall between the two floors.
+    """
+
+    __slots__ = ("pad", "cells")
+
+    def __init__(self, pad):
+        self.pad = pad + 1
+        self.cells = {}
+
+    def _span(self, bb, pad):
+        return (int((bb[0] - pad) // _BUCKET), int((bb[1] - pad) // _BUCKET),
+                int((bb[2] + pad) // _BUCKET), int((bb[3] + pad) // _BUCKET))
+
+    def add(self, obj, bb):
+        bx0, by0, bx1, by1 = self._span(bb, self.pad)
+        for bx in range(bx0, bx1 + 1):
+            for by in range(by0, by1 + 1):
+                self.cells.setdefault((bx, by), []).append(obj)
+
+    def discard(self, obj, bb):
+        """Unfile `obj`, which must have been added at exactly this box."""
+        bx0, by0, bx1, by1 = self._span(bb, self.pad)
+        for bx in range(bx0, bx1 + 1):
+            for by in range(by0, by1 + 1):
+                self.cells[(bx, by)].remove(obj)
+
+    def near(self, bb):
+        """Every filed object that could touch `bb`, each yielded once.
+
+        Once each matters: `graphic_hits()` and the silk-on-silk term COUNT
+        their hits, so an object read out of two cells would score as two
+        collisions and change the placement.
+        """
+        bx0, by0, bx1, by1 = self._span(bb, 0)
+        if bx0 == bx1 and by0 == by1:
+            return self.cells.get((bx0, by0), ())
+        out, seen = [], set()
+        for bx in range(bx0, bx1 + 1):
+            for by in range(by0, by1 + 1):
+                for o in self.cells.get((bx, by), ()):
+                    if id(o) not in seen:
+                        seen.add(id(o))
+                        out.append(o)
+        return out
+
+
 class _Obstacles:
-    """Everything a label must not touch, with a bounding-box prefilter."""
+    """Everything a label must not touch, indexed by position.
+
+    Both sets here are immovable for the life of a placement run, so they are
+    filed once in the constructor and never touched again. The movable set -
+    the other labels - is indexed separately, in `place()`.
+    """
 
     def __init__(self, board):
-        self.pads = []
+        self.pads = _Grid(_C_COPPER)
         for fp in board.GetFootprints():
             for pad in fp.Pads():
                 ls = pad.GetLayerSet()
                 if ls.Contains(pcbnew.F_Mask) and ls.Contains(pcbnew.F_Cu):
-                    self.pads.append((_bbt(pad.GetBoundingBox()),
-                                      pad.GetEffectiveShape(pcbnew.F_Cu)))
+                    bb = _bbt(pad.GetBoundingBox())
+                    self.pads.add((bb, pad.GetEffectiveShape(pcbnew.F_Cu)), bb)
         self.edges = [d.GetEffectiveShape() for d in board.GetDrawings()
                       if d.GetLayer() == pcbnew.Edge_Cuts]
         # "Does not cross the edge" is NOT "is on the board". A label placed
@@ -125,22 +221,24 @@ class _Obstacles:
         # A footprint's silk TEXT (the pin-1 "1" several libraries carry) is
         # movable - it landed on R3's pad here - so it is a label, not an
         # obstacle. Only the drawn outlines are immovable.
-        self.graphics = []
+        self.graphics = _Grid(_C_SILK)
         for fp in board.GetFootprints():
             ref = fp.GetReference()
             for it in fp.GraphicalItems():
                 if it.GetLayer() == pcbnew.F_SilkS and not hasattr(it, "GetText"):
-                    self.graphics.append((ref, _bbt(it.GetBoundingBox()),
-                                          it.GetEffectiveShape()))
+                    gbb = _bbt(it.GetBoundingBox())
+                    self.graphics.add((ref, gbb, it.GetEffectiveShape()), gbb)
 
     def on_copper(self, bb, sh):
-        for pbb, psh in self.pads:
-            if _hit(bb, pbb, MM(CLEAR_COPPER)) and sh.Collide(psh, MM(CLEAR_COPPER)):
+        for pbb, psh in self.pads.near(bb):
+            if _hit(bb, pbb, _C_COPPER) and sh.Collide(psh, _C_COPPER):
                 return True
         return False
 
     def off_board(self, bb, sh):
-        m = MM(CLEAR_EDGE)
+        # The board edges are five drawings, not five hundred, so they stay a
+        # flat list: an index would cost more to consult than to skip.
+        m = _C_EDGE
         if self.box is not None and not (
                 bb[0] >= self.box[0] + m and bb[1] >= self.box[1] + m
                 and bb[2] <= self.box[2] - m and bb[3] <= self.box[3] - m):
@@ -156,10 +254,10 @@ class _Obstacles:
         after the first version of this placer exempted it.
         """
         n = 0
-        for gref, gbb, gsh in self.graphics:
-            if not _hit(bb, gbb, MM(CLEAR_SILK)):
+        for gref, gbb, gsh in self.graphics.near(bb):
+            if not _hit(bb, gbb, _C_SILK):
                 continue
-            if sh.Collide(gsh, MM(CLEAR_SILK)):
+            if sh.Collide(gsh, _C_SILK):
                 n += 1
         return n
 
@@ -192,11 +290,20 @@ class _Label:
                      (bb.GetTop() + bb.GetBottom()) / 2.0)
         self.base_shape = item.GetEffectiveShape()
         self.at = None            # chosen box centre
+        # The box at `at`, cached. The label index is keyed on it, and `_cost`
+        # reads every neighbour's box once per candidate - 24 million calls to
+        # `box()` before this held the answer.
+        self.bb = None
+
+    def seat(self, cx, cy):
+        """Record where this label now is. `at` and `bb` move together."""
+        self.at = (cx, cy)
+        self.bb = self.box(cx, cy)
 
     def move_to(self, cx, cy):
         self.item.SetPosition(pcbnew.VECTOR2I(int(round(cx - self.dx)),
                                               int(round(cy - self.dy))))
-        self.at = (cx, cy)
+        self.seat(cx, cy)
 
     def box(self, cx, cy):
         return (cx - self.hw, cy - self.hh, cx + self.hw, cy + self.hh)
@@ -233,7 +340,12 @@ class _Label:
 
 
 def _cost(lab, cx, cy, obs, others):
-    """None if the placement is illegal, else its score."""
+    """None if the placement is illegal, else its score.
+
+    `others` is the label index, not a list: it holds every label at its
+    current position, `lab` included, and `lab` is skipped here exactly as it
+    was when this scanned the whole list.
+    """
     bb = lab.box(cx, cy)
     sh = lab.shape(cx, cy)
     if obs.on_copper(bb, sh):
@@ -241,15 +353,15 @@ def _cost(lab, cx, cy, obs, others):
     if obs.off_board(bb, sh):
         return None
     n = obs.graphic_hits(lab.owner, bb, sh)
-    for o in others:
+    for o in others.near(bb):
         if o is lab or o.at is None:
             continue
-        if not _hit(bb, o.box(*o.at), MM(CLEAR_SILK)):
+        if not _hit(bb, o.bb, _C_SILK):
             continue
-        if sh.Collide(o.shape(*o.at), MM(CLEAR_SILK)):
+        if sh.Collide(o.shape(*o.at), _C_SILK):
             n += 1
-    ddx = abs(cx - lab.anchor[0]) / MM(1.0)
-    ddy = abs(cy - lab.anchor[1]) / MM(1.0)
+    ddx = abs(cx - lab.anchor[0]) / _ONE_MM
+    ddy = abs(cy - lab.anchor[1]) / _ONE_MM
     if lab.kind == "text":
         dist = math.hypot(W_LATERAL * ddx, ddy)
     else:
@@ -328,22 +440,40 @@ def place(board, text_anchors, verbose=True):
     # a complete board rather than an empty one.
     for lab in labels:
         b = lab.item.GetBoundingBox()
-        lab.at = ((b.GetLeft() + b.GetRight()) / 2.0,
-                  (b.GetTop() + b.GetBottom()) / 2.0)
+        lab.seat((b.GetLeft() + b.GetRight()) / 2.0,
+                 (b.GetTop() + b.GetBottom()) / 2.0)
+
+    # The labels are the one obstacle set that MOVES while the placer runs -
+    # this is a greedy sequential pass, so every label must see its
+    # neighbours where they are right now, not where they started. Rather
+    # than rebuild the index (stale between rebuilds) or defer it (stale
+    # within a pass), it is repaired in the same breath as the move: unfile
+    # at the old box, move, refile at the new one, and nothing else in this
+    # module is allowed to reposition a label. A `seat()` that did not go
+    # through here is the only way this could drift, which is why the two
+    # call sites below are the only two that exist.
+    live = _Grid(_C_SILK)
+    for lab in labels:
+        live.add(lab, lab.bb)
+
+    def reseat(lab, cx, cy):
+        live.discard(lab, lab.bb)
+        lab.move_to(cx, cy)
+        live.add(lab, lab.bb)
 
     for p in range(PASSES):
         moved = 0
         for lab in labels:
-            cur = _cost(lab, lab.at[0], lab.at[1], obs, labels)
-            best = _best(lab, obs, labels)
+            cur = _cost(lab, lab.at[0], lab.at[1], obs, live)
+            best = _best(lab, obs, live)
             if best is None:
                 continue
             score, cx, cy, _n = best
             if cur is None or score < cur[0] - 1e-9:
-                lab.move_to(cx, cy)
+                reseat(lab, cx, cy)
                 moved += 1
             elif lab.at is not None:
-                lab.move_to(lab.at[0], lab.at[1])
+                reseat(lab, lab.at[0], lab.at[1])
         if verbose:
             print("  silk pass %d: %d label(s) moved" % (p + 1, moved))
         if not moved:
@@ -351,7 +481,7 @@ def place(board, text_anchors, verbose=True):
 
     bad = 0
     for lab in labels:
-        c = _cost(lab, lab.at[0], lab.at[1], obs, labels)
+        c = _cost(lab, lab.at[0], lab.at[1], obs, live)
         if c is None:
             bad += 1
             if verbose:

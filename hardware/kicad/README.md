@@ -443,8 +443,8 @@ checkers against what's already committed, without touching KiCad:
 
 ```bash
 make pcb          # regenerate schematic + board + fab outputs, then check
-make pcb-build    # schematic + board only (no fab outputs) — the full path, ~421 s
-make pcb-cosmetic # silk / 3D models / title block only, reusing the routing — ~104 s
+make pcb-build    # schematic + board only (no fab outputs) — the full path, ~318 s
+make pcb-cosmetic # silk / 3D models / title block only, reusing the routing — ~8 s
 make pcb-fab      # gerbers, drill, BOM/CPL, PDFs, preview SVG — after pcb-build
 make pcb-check    # check only: pinmap, sheet bounds, netlist, connectivity, silkscreen, reproducibility
 make pcb-render   # 3d/board-3d-*.png raytrace — SLOW, deliberately not in `make pcb`
@@ -469,10 +469,22 @@ everything else with the same code the full build runs.
 
 | Change | Path | Measured |
 |---|---|---|
-| Silkscreen placement (`generator/silk.py`, the `SILK` table, reference text size/thickness) | `make pcb-cosmetic` | **104 s** |
-| 3D model offsets (`MODEL_OFFSET` in `kicad_build.py`) | `make pcb-cosmetic` | **104 s** |
-| Board title block | `make pcb-cosmetic` | **104 s** |
-| **Anything else** — placement, connectivity, footprint choice, net classes, `MANUAL_VIAS`, router parameters (`router.py`, `gen_pcb.py`) | `make pcb-build` | **421 s** |
+| Silkscreen placement (`generator/silk.py`, the `SILK` table, reference text size/thickness) | `make pcb-cosmetic` | **8 s** |
+| 3D model offsets (`MODEL_OFFSET` in `kicad_build.py`) | `make pcb-cosmetic` | **8 s** |
+| Board title block | `make pcb-cosmetic` | **8 s** |
+| **Anything else** — placement, connectivity, footprint choice, net classes, `MANUAL_VIAS`, router parameters (`router.py`, `gen_pcb.py`) | `make pcb-build` | **318 s** |
+
+Both numbers used to be far worse — 421 s and 104 s — and the second one
+was not dominated by anything the fast path exists to skip. It was the
+silkscreen placer, which is the *only* substantial work `--no-route` still
+does, running a linear scan over all 492 pads and every other label for each
+of ~200,000 candidate placements, and re-entering SWIG 171 million times to
+re-answer `pcbnew.FromMM(0.05)`. Indexing those obstacles into a bucket grid
+(the one `router.py` already uses for copper) and hoisting the clearance
+constants took the placer from 95.2 s to 3.8 s, which is essentially the
+whole of both savings. The placed silk is byte-identical, which is the only
+acceptable outcome for a lookup optimisation; `make pcb-cosmetic-verify`
+checks it against a full rebuild.
 
 When in doubt, use the full path. `--no-route` is not a judgement call it
 leaves to you: before it reuses anything it compares the loaded board

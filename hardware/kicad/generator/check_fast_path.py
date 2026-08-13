@@ -2,7 +2,7 @@
 """Prove `kicad_build.py --no-route` cannot diverge from a full rebuild.
 
 The fast path exists so that a silkscreen, 3D-model or title-block change
-costs ~100 s instead of ~421 s. That is only worth having if its output is
+costs ~8 s instead of ~318 s. That is only worth having if its output is
 the output a full build would have produced: a fast path that can drift lets
 someone sign off silk against a board the fab will never receive. So the
 invariant is byte-identity, and this script demonstrates it rather than
@@ -29,7 +29,7 @@ fresh build gives it.
 The committed board is compared too, so a stale checkout is reported as
 such instead of being silently used as the reference.
 
-Costs one full build (~7 minutes). Not part of `make pcb-check`; run it via
+Costs one full build (~5.5 minutes). Not part of `make pcb-check`; run it via
 `make pcb-cosmetic-verify` when the build pipeline changes.
 
 Usage: <kicad-python> check_fast_path.py [reference.kicad_pcb]
