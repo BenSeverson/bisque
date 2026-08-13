@@ -250,13 +250,25 @@ export const api = {
       res = await fetch(`${API_BASE}/ota/rollback`, {
         method: "POST",
         headers: authHeaders(),
-        // A captive portal answers by redirecting somewhere that returns 200.
-        // Following it and reading that as an acknowledgement would credit the
-        // portal with a rollback the kiln never performed.
-        redirect: "error",
+        /* A captive portal answers by redirecting somewhere that returns 200.
+           Following it and reading that as an acknowledgement would credit the
+           portal with a rollback the kiln never performed.
+
+           "manual" rather than "error": an error would reject, landing in the
+           catch below and reporting the redirect as "the kiln stopped
+           answering, expected while it reboots" — a sentence about a kiln that
+           was never even reached. Resolving to an opaque response instead lets
+           it fall through to the not-from-the-kiln error, which is what
+           actually happened. */
+        redirect: "manual",
       });
     } catch {
       return { acknowledged: false };
+    }
+    /* An opaque redirect: status 0, headers stripped, body unreadable. Not the
+       kiln — its handler never redirects. */
+    if (res.type === "opaqueredirect" || res.status === 0) {
+      throw new Error("Rollback was answered by a redirect, not the kiln; nothing was changed");
     }
     if (!res.ok) {
       throw new Error(`API error ${res.status}: ${await res.text()}`);

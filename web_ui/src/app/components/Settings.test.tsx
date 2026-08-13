@@ -755,6 +755,7 @@ describe("Settings: firmware partitions and rollback", () => {
     // in-flight flag on completion — it gates every OTA control, Roll Back
     // included, so the recovery action stayed dead until a page reload — and
     // the refresh has to be the user's call rather than a race with the reboot.
+    // The reboot window itself still gates them; see the test below.
     apiMock.checkOta.mockResolvedValue({
       updateAvailable: true,
       current: "1.4.0",
@@ -801,6 +802,35 @@ describe("Settings: firmware partitions and rollback", () => {
 
     expect(await screen.findByText("Pending verification")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Roll Back" })).toBeEnabled();
+  });
+
+  it("offers no OTA action while the controller is restarting", async () => {
+    // Clearing the install flag on completion must not hand back Install,
+    // Check for Updates or Restart mid-reboot — a worse moment to offer them
+    // than during the install itself. awaitingReboot carries that, and it ends
+    // when the partition state is read back, which is when the kiln is known
+    // to be answering again.
+    apiMock.checkOta.mockResolvedValue({
+      updateAvailable: true,
+      current: "1.4.0",
+      latest: "1.5.0",
+    });
+    apiMock.installOta.mockResolvedValue({ ok: true, version: "1.5.0", message: "started" });
+    const user = userEvent.setup();
+    await renderSettled();
+
+    await user.click(screen.getByRole("button", { name: /Check for Updates/ }));
+    await user.click(await screen.findByRole("button", { name: /Install 1\.5\.0/ }));
+    await waitFor(() => expect(wsSubscribers.length).toBeGreaterThan(0));
+    pushFrame({ type: "ota_complete", data: { percent: 100 } });
+    await screen.findByText(/The controller is restarting/);
+
+    expect(screen.getByRole("button", { name: "Restart" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Install 1\.5\.0/ })).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "Refresh" }));
+    await screen.findByText("Running Slot");
+    expect(screen.getByRole("button", { name: "Restart" })).toBeEnabled();
   });
 
   it("offers no rollback when the device says there is nothing behind it", async () => {

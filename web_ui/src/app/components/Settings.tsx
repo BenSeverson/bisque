@@ -180,8 +180,18 @@ export function Settings() {
   const [otaCheck, setOtaCheck] = useState<OtaCheckResponse | null>(null);
   const [otaInstalling, setOtaInstalling] = useState(false);
   const [otaInstallPct, setOtaInstallPct] = useState<number | null>(null);
-  // Either OTA path in flight: a manifest install, or a manual binary upload.
-  const otaBusy = otaInstalling || otaProgress !== null;
+  /* Anything that makes the controller a bad target for another OTA command:
+     a manifest install, a manual binary upload, or the reboot that follows one
+     of those (or a rollback).
+
+     The reboot belongs here rather than in `otaInstalling`. Holding the install
+     flag past OTA_PHASE_COMPLETE was wrong — the install really is over, and it
+     left every OTA control dead until a page reload — but clearing it alone
+     re-enabled Install, Check for Updates and Restart Controller while the kiln
+     was mid-restart, which is a worse moment to offer them. `awaitingReboot`
+     ends when the user reads the partition state back, which is exactly when
+     the kiln is known to be answering again. */
+  const otaBusy = otaInstalling || otaProgress !== null || awaitingReboot;
 
   // API token local state
   const [newToken, setNewToken] = useState("");
@@ -1217,7 +1227,7 @@ export function Settings() {
                 <Button
                   variant="outline"
                   onClick={handleCheckOta}
-                  disabled={checkOta.isPending || otaInstalling}
+                  disabled={checkOta.isPending || otaBusy}
                   className="gap-2"
                 >
                   <RefreshCw className="h-4 w-4" />
@@ -1227,7 +1237,7 @@ export function Settings() {
                 {otaCheck?.updateAvailable && (
                   <Button
                     onClick={handleInstallOta}
-                    disabled={otaInstalling}
+                    disabled={otaBusy}
                     variant="default"
                     className="gap-2"
                   >

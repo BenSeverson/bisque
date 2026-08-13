@@ -436,7 +436,19 @@ describe("api: rollbackOta()", () => {
     const { api } = await loadApi();
     fetchMock.mockResolvedValue(jsonResponse({ ok: true }));
     await api.rollbackOta();
-    expect(fetchMock.mock.calls[0][1].redirect).toBe("error");
+    expect(fetchMock.mock.calls[0][1].redirect).toBe("manual");
+  });
+
+  it("names a redirect for what it is instead of blaming the reboot", async () => {
+    // `redirect: "error"` would reject here, and a rejection means "the kiln
+    // stopped answering, expected while it reboots" — a sentence about a kiln
+    // that was never reached. An opaque response falls through to the error
+    // that describes what actually happened.
+    const { api } = await loadApi();
+    const opaque = new Response(null, { status: 200 });
+    Object.defineProperty(opaque, "type", { value: "opaqueredirect" });
+    fetchMock.mockResolvedValue(opaque);
+    await expect(api.rollbackOta()).rejects.toThrow(/answered by a redirect/);
   });
 
   it("still reports an outright refusal", async () => {

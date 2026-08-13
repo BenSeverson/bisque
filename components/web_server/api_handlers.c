@@ -1675,7 +1675,17 @@ static esp_err_t handle_ota_confirm(httpd_req_t *req)
     esp_ota_img_states_t state;
     bool was_pending = (esp_ota_get_state_partition(running, &state) == ESP_OK && state == ESP_OTA_IMG_PENDING_VERIFY);
     if (was_pending) {
-        esp_ota_mark_app_valid_cancel_rollback();
+        /* This writes the otadata partition, and the write can fail. Reporting
+           "confirmed as valid" regardless is the worst answer available: the
+           image is still PENDING_VERIFY, so the *next* reboot silently reverts
+           to the previous firmware, and the user was told the opposite. */
+        esp_err_t err = esp_ota_mark_app_valid_cancel_rollback();
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to mark app valid: %s", esp_err_to_name(err));
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR,
+                                "Could not mark the firmware valid; it will revert on the next reboot");
+            return ESP_FAIL;
+        }
     }
 
     return send_json(req, build_ota_confirm_json(was_pending));

@@ -487,15 +487,21 @@ actor KilnAPIClient {
     /// no route, no radio, connection refused — and proves the controller never
     /// received the POST.
     ///
-    /// `timedOut` is admitted only with `requestWasSent`, because the same code
-    /// is reported for a connection that never opened: a deadline that expired
-    /// during connection setup says nothing about the kiln's firmware.
+    /// The first group can only arise while reading a reply, so delivery is
+    /// implied by the error itself.
+    ///
+    /// The second group is ambiguous and is admitted only with proof of
+    /// delivery. `timedOut` covers a deadline that expired during connection
+    /// setup as well as one that expired waiting for an answer.
+    /// `networkConnectionLost` looks like the reboot signature but is also what
+    /// a reused pooled connection reports when the peer closed it before the
+    /// request was written — and URLSession does not silently retry a POST, so
+    /// that failure surfaces here having sent nothing.
     private static func mayFollowDelivery(_ code: URLError.Code, requestWasSent: Bool) -> Bool {
         switch code {
-        case .networkConnectionLost, .cannotParseResponse, .zeroByteResource,
-             .badServerResponse, .dataLengthExceedsMaximum:
+        case .cannotParseResponse, .zeroByteResource, .badServerResponse, .dataLengthExceedsMaximum:
             return true
-        case .timedOut:
+        case .timedOut, .networkConnectionLost:
             return requestWasSent
         default:
             return false
