@@ -193,6 +193,8 @@ export const state = {
    */
   ota: {
     running: "ota_0",
+    /** Version of the image in the running slot; changes when a rollback swaps it. */
+    runningVersion: "2.0.0-mock",
     bootPartition: "ota_0",
     nextUpdate: "ota_1",
     pendingVerify: false,

@@ -529,13 +529,13 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
       json: {
         running: {
           label: o.running,
-          address: o.running === "ota_0" ? 0x110000 : 0x610000,
-          size: 0x500000,
+          address: OTA_SLOT_OFFSET[o.running],
+          size: OTA_SLOT_SIZE,
           // The firmware only emits `state` (and `pendingVerify` beside it)
           // when esp_ota_get_state_partition() succeeded, and the two always
           // agree — see build_ota_status_json().
           state: o.pendingVerify ? "pending_verify" : "valid",
-          version: "2.0.0-mock",
+          version: o.runningVersion,
           date: "Jan 1 2026",
           time: "12:00:00",
           // Deliberately not the real pinned ESP-IDF version: every literal
@@ -543,7 +543,7 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
           // one PR, and this is mock data like the "2.0.0-mock" above.
           idfVersion: "v6.x-mock",
         },
-        nextUpdate: { label: o.nextUpdate, size: 0x500000 },
+        nextUpdate: { label: o.nextUpdate, size: OTA_SLOT_SIZE },
         bootPartition: o.bootPartition,
         pendingVerify: o.pendingVerify,
         rollbackAvailable: o.rollbackAvailable,
@@ -565,10 +565,20 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
     if (!state.ota.rollbackAvailable) {
       return apiError(400, "Rollback not available");
     }
-    // The real device reboots here and comes back on the other slot. Nothing
-    // restarts in the mock, so move the boot pointer and drop the offer: a
-    // second rollback with no image behind it is exactly the 400 above.
+    /* The real device reboots here and comes back on the other slot, so the
+       mock performs that swap rather than only moving the boot pointer:
+       otherwise the client that followed the recovery prompt refreshes and is
+       still shown the firmware it just rolled back from — the opposite of what
+       the flow it is demonstrating does. The slot it leaves becomes the next
+       update target, and the version changes so the transition is visible.
+       Rollback is then no longer on offer: a second one with no image behind
+       it is exactly the 400 above. */
+    const previous = state.ota.running;
+    state.ota.running = state.ota.nextUpdate;
     state.ota.bootPartition = state.ota.nextUpdate;
+    state.ota.nextUpdate = previous;
+    state.ota.runningVersion = OTA_ROLLED_BACK_VERSION;
+    state.ota.pendingVerify = false;
     state.ota.rollbackAvailable = false;
     return { status: 200, json: { ok: true } };
   }
@@ -808,6 +818,16 @@ function stopAutotune(): void {
    `mock-server confirm messages match the firmware fixtures` in
    test/contracts/firmwareContract.test.ts compares them against the emitted
    JSON (#177). */
+/* Slot geometry, copied from partitions.csv — the 16MB OTA layout every
+   controller ships with. The mock previously invented offsets and sizes, so
+   anything reading the address/size fields saw a partition table no device
+   has. */
+export const OTA_SLOT_OFFSET: Record<string, number> = { ota_0: 0x20000, ota_1: 0x420000 };
+export const OTA_SLOT_SIZE = 0x400000;
+
+/** The version the mock reports after a rollback, so the swap is visible. */
+export const OTA_ROLLED_BACK_VERSION = "1.9.0-mock";
+
 export const OTA_CONFIRMED_MSG = "Firmware confirmed as valid";
 export const OTA_ALREADY_CONFIRMED_MSG = "Firmware already confirmed";
 

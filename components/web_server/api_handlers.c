@@ -1671,9 +1671,30 @@ static esp_err_t handle_ota_confirm(httpd_req_t *req)
         return ESP_FAIL;
     }
 
+    /* Confirm writes otadata, and so does rollback — and an install rewrites
+       the boot partition beside it. Without the flag, two clients could have
+       one told "confirmed as valid" while the other's rollback invalidated that
+       very image. */
+    if (!ota_busy_acquire()) {
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_set_type(req, "text/plain");
+        httpd_resp_sendstr(req, "An OTA operation is already in progress");
+        return ESP_FAIL;
+    }
+
     const esp_partition_t *running = esp_ota_get_running_partition();
     esp_ota_img_states_t state;
-    bool was_pending = (esp_ota_get_state_partition(running, &state) == ESP_OK && state == ESP_OTA_IMG_PENDING_VERIFY);
+    /* Folding the lookup's failure into `was_pending` reported "already
+       confirmed" for a state that could not be read at all — and if the image
+       really was pending, that told the user it was permanent while the next
+       reboot would revert it. */
+    if (esp_ota_get_state_partition(running, &state) != ESP_OK) {
+        ota_busy_release();
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Could not read the firmware image state");
+        return ESP_FAIL;
+    }
+
+    bool was_pending = (state == ESP_OTA_IMG_PENDING_VERIFY);
     if (was_pending) {
         /* This writes the otadata partition, and the write can fail. Reporting
            "confirmed as valid" regardless is the worst answer available: the
@@ -1681,6 +1702,7 @@ static esp_err_t handle_ota_confirm(httpd_req_t *req)
            to the previous firmware, and the user was told the opposite. */
         esp_err_t err = esp_ota_mark_app_valid_cancel_rollback();
         if (err != ESP_OK) {
+            ota_busy_release();
             ESP_LOGE(TAG, "Failed to mark app valid: %s", esp_err_to_name(err));
             httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR,
                                 "Could not mark the firmware valid; it will revert on the next reboot");
@@ -1688,6 +1710,7 @@ static esp_err_t handle_ota_confirm(httpd_req_t *req)
         }
     }
 
+    ota_busy_release();
     return send_json(req, build_ota_confirm_json(was_pending));
 }
 

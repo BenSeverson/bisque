@@ -1296,7 +1296,12 @@ export function Settings() {
 
               <Button
                 onClick={handleOtaUpload}
-                disabled={!otaFile || otaProgress !== null}
+                /* otaBusy, not just this card's own progress: after an install,
+                   upload or rollback the page is waiting on a reboot, and
+                   sending another image to a controller that is disconnecting
+                   earns a 409 or a dropped connection. Every other OTA control
+                   is already gated on it. */
+                disabled={!otaFile || otaBusy}
                 variant="default"
                 className="gap-2"
               >

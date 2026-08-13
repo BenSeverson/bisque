@@ -122,14 +122,34 @@ describe("dispatch() firmware partitions", () => {
     expect(otaStatusSchema.strict().parse(r.json)).toBeDefined();
   });
 
-  it("POST /ota/rollback moves the boot slot and then refuses a second one", () => {
+  it("reports the slot geometry the partition table actually defines", () => {
+    // The mock used to invent offsets and sizes, so anything reading the
+    // address/size fields saw a layout no controller has. These are
+    // partitions.csv's ota_0/ota_1 rows.
+    const status = dispatch("GET", "/ota/status", {}).json as OtaStatus;
+    expect(status.running?.address).toBe(0x20000);
+    expect(status.running?.size).toBe(0x400000);
+    expect(status.nextUpdate?.size).toBe(0x400000);
+
+    dispatch("POST", "/ota/rollback", {});
+    const after = dispatch("GET", "/ota/status", {}).json as OtaStatus;
+    expect(after.running?.address).toBe(0x420000);
+  });
+
+  it("POST /ota/rollback swaps the running slot and then refuses a second one", () => {
     const before = dispatch("GET", "/ota/status", {}).json as OtaStatus;
     expect(before.rollbackAvailable).toBe(true);
 
     expect(dispatch("POST", "/ota/rollback", {}).status).toBe(200);
 
+    // The device reboots into the other slot, so the mock has to move
+    // `running` too — reporting the rolled-back image as still running is the
+    // opposite of what the flow being demonstrated does.
     const after = dispatch("GET", "/ota/status", {}).json as OtaStatus;
-    expect(after.bootPartition).not.toBe(before.bootPartition);
+    expect(after.running?.label).toBe(before.nextUpdate?.label);
+    expect(after.bootPartition).toBe(before.nextUpdate?.label);
+    expect(after.nextUpdate?.label).toBe(before.running?.label);
+    expect(after.running?.version).not.toBe(before.running?.version);
     expect(after.rollbackAvailable).toBe(false);
 
     // esp_ota_check_rollback_is_possible() is false with no image behind the
