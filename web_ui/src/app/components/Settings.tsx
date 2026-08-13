@@ -78,7 +78,6 @@ import {
   useCheckOta,
   useInstallOta,
   useOtaStatus,
-  useResetOtaStatus,
   useConfirmOta,
   useRollbackOta,
 } from "../hooks/queries";
@@ -150,7 +149,14 @@ export function Settings() {
      old running version on screen, and go on offering Roll Back from a
      `rollbackAvailable` nothing can still vouch for. */
   const partitions = otaStatusFailed ? undefined : otaStatus;
-  const resetOtaStatus = useResetOtaStatus();
+  /* Set the moment an update or a rollback is accepted, cleared only when the
+     user asks for a fresh read. The controller does not go down immediately —
+     install_task reports OTA_PHASE_COMPLETE and only reboots 1.5 s later
+     (ota_manager.c) — so a refetch fired on completion races the restart and
+     usually wins, repopulating the card with the *pre-update* partitions and
+     no sign they are stale. There is no reliable client-side signal for "the
+     kiln has finished rebooting", so this stops claiming and asks. */
+  const [awaitingReboot, setAwaitingReboot] = useState(false);
   const confirmOta = useConfirmOta();
   const rollbackOta = useRollbackOta();
   const [rollbackConfirmOpen, setRollbackConfirmOpen] = useState(false);
@@ -424,14 +430,15 @@ export function Settings() {
       toast.success("Firmware uploaded — controller is rebooting");
       // The slot, version and image state on screen belong to the firmware
       // just replaced, and the new image may be pending verification.
-      resetOtaStatus();
+      setAwaitingReboot(true);
+
       setOtaFile(null);
       setOtaProgress(null);
     } catch (e) {
       toast.error(`OTA failed: ${toErrorMessage(e)}`);
       setOtaProgress(null);
     }
-  }, [otaFile, uploadOta, resetOtaStatus]);
+  }, [otaFile, uploadOta]);
 
   const handleCheckOta = useCallback(async () => {
     setOtaCheck(null);
@@ -486,18 +493,15 @@ export function Settings() {
         );
       }
       /* Both outcomes leave the cached slot, version and rollbackAvailable
-         describing an image the controller is in the middle of abandoning.
-         Kept, they would re-enable Roll Back off a stale `true` the moment the
-         mutation settled, and — because the card only offers Retry when it has
-         no data — hide the very control the warning above tells the user to
-         reach for. This is what the install and upload paths do; a rollback is
-         the same reboot. Not on the error path below: a 400 or 409 means the
-         firmware did not change, so the state on screen is still correct. */
-      resetOtaStatus();
+         describing an image the controller is in the middle of abandoning —
+         and, kept, they would re-enable Roll Back off a stale `true` the moment
+         the mutation settled. Not on the error path below: a 400 or 409 means
+         the firmware did not change, so what is on screen is still correct. */
+      setAwaitingReboot(true);
     } catch (e) {
       toast.error(`Rollback refused: ${toErrorMessage(e)}`);
     }
-  }, [rollbackOta, resetOtaStatus]);
+  }, [rollbackOta]);
 
   // Stream OTA install progress from the WebSocket while an install runs.
   useEffect(() => {
@@ -508,14 +512,19 @@ export function Settings() {
       } else if (msg.type === "ota_complete") {
         setOtaInstallPct(100);
         toast.success("Update installed — controller is rebooting");
-        resetOtaStatus();
+        /* The install is over; only the reboot is left. Leaving this true kept
+           every OTA control disabled — including Roll Back, the one thing a
+           user reaching for recovery needs — until the page was reloaded. The
+           progress bar stays at 100% because otaInstallPct is what draws it. */
+        setOtaInstalling(false);
+        setAwaitingReboot(true);
       } else if (msg.type === "ota_error") {
         toast.error(`Update failed: ${msg.data.message}`);
         setOtaInstalling(false);
         setOtaInstallPct(null);
       }
     });
-  }, [otaInstalling, resetOtaStatus]);
+  }, [otaInstalling]);
 
   const formatBytes = (bytes: number) => {
     if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -1250,7 +1259,28 @@ export function Settings() {
                   failed request asserted the same sentence as a successful
                   `rollbackAvailable: false`, and printed it directly beneath
                   "Could not read the partition state". */}
-              {otaStatusFailed && (
+              {awaitingReboot && (
+                <div className="flex items-end justify-between gap-4 flex-wrap">
+                  <p className="text-sm text-muted-foreground">
+                    The controller is restarting. Read the partition state again once it is back to
+                    see which image it came up on.
+                  </p>
+                  <Button
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => {
+                      setAwaitingReboot(false);
+                      refetchOtaStatus();
+                    }}
+                    disabled={otaStatusFetching}
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    {otaStatusFetching ? "Checking..." : "Refresh"}
+                  </Button>
+                </div>
+              )}
+
+              {!awaitingReboot && otaStatusFailed && (
                 <div className="flex items-end justify-between gap-4 flex-wrap">
                   <p className="text-sm text-muted-foreground">
                     Could not read the partition state from the controller. It may be restarting
@@ -1268,11 +1298,11 @@ export function Settings() {
                 </div>
               )}
 
-              {!partitions && !otaStatusFailed && (
+              {!awaitingReboot && !partitions && !otaStatusFailed && (
                 <p className="text-sm text-muted-foreground">Reading the partition state...</p>
               )}
 
-              {partitions && (
+              {!awaitingReboot && partitions && (
                 <div className="space-y-0">
                   <div className="flex justify-between py-2 border-b">
                     <span className="text-sm font-medium">Running Slot</span>
@@ -1314,7 +1344,7 @@ export function Settings() {
                   window — or when the automatic pass did not run. Offering it
                   manually means a user watching a fresh update land does not
                   have to wait out the timer to make it permanent. */}
-              {partitions?.pendingVerify && (
+              {!awaitingReboot && partitions?.pendingVerify && (
                 <div className="border-t pt-4 flex items-end justify-between gap-4 flex-wrap">
                   <div className="space-y-1">
                     <p className="text-sm font-medium">Confirm This Firmware</p>
@@ -1335,7 +1365,7 @@ export function Settings() {
                 </div>
               )}
 
-              {partitions && (
+              {!awaitingReboot && partitions && (
                 <div className="border-t pt-4 flex items-end justify-between gap-4 flex-wrap">
                   <div className="space-y-1">
                     <p className="text-sm font-medium">Roll Back Firmware</p>

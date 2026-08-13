@@ -633,12 +633,10 @@ describe("Settings: firmware partitions and rollback", () => {
 
     await user.click(await screen.findByRole("button", { name: "Roll Back" }));
     const dialog = await screen.findByRole("dialog");
-    // The refetch it triggers hits the rebooting controller.
-    apiMock.otaStatus.mockRejectedValue(new Error("API error 503: rebooting"));
     await user.click(within(dialog).getByRole("button", { name: "Roll Back" }));
 
-    expect(await screen.findByText(/Could not read the partition state/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+    expect(await screen.findByText(/The controller is restarting/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Refresh" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Roll Back" })).not.toBeInTheDocument();
   });
 
@@ -655,7 +653,7 @@ describe("Settings: firmware partitions and rollback", () => {
 
     await waitFor(() => expect(toastFns.error).toHaveBeenCalled());
     expect(screen.getByRole("button", { name: "Roll Back" })).toBeInTheDocument();
-    expect(screen.queryByText(/Could not read the partition state/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/The controller is restarting/)).not.toBeInTheDocument();
   });
 
   it("reports a refused rollback", async () => {
@@ -703,11 +701,13 @@ describe("Settings: firmware partitions and rollback", () => {
     expect(await screen.findByRole("button", { name: "Roll Back" })).toBeInTheDocument();
   });
 
-  it("drops the stale partition state when an update finishes installing", async () => {
+  it("stops describing the partitions once an update has installed", async () => {
     // The slot, version and image state on screen belong to the firmware that
     // was just replaced, and the new image may be sitting in pending-verify
-    // with a Confirm button nobody is being shown. A controller reboot does not
-    // take the browser offline, so nothing else invalidates this.
+    // with a Confirm button nobody is being shown. Refetching on the spot does
+    // not help: install_task reports completion and only reboots 1.5s later
+    // (ota_manager.c), so the request wins that race and returns the *old*
+    // partitions as though they were current.
     apiMock.checkOta.mockResolvedValue({
       updateAvailable: true,
       current: "1.4.0",
@@ -722,11 +722,54 @@ describe("Settings: firmware partitions and rollback", () => {
     await user.click(await screen.findByRole("button", { name: /Install 1\.5\.0/ }));
     await waitFor(() => expect(wsSubscribers.length).toBeGreaterThan(0));
 
-    // The refetch it triggers hits a rebooting kiln, which is the honest state.
-    apiMock.otaStatus.mockRejectedValue(new Error("API error 503: rebooting"));
+    const callsBefore = apiMock.otaStatus.mock.calls.length;
     pushFrame({ type: "ota_complete", data: { percent: 100 } });
 
-    expect(await screen.findByText(/Could not read the partition state/)).toBeInTheDocument();
+    expect(await screen.findByText(/The controller is restarting/)).toBeInTheDocument();
+    expect(screen.queryByText("Running Slot")).not.toBeInTheDocument();
+    // Nothing is asked of a controller that is about to reboot.
+    expect(apiMock.otaStatus.mock.calls.length).toBe(callsBefore);
+  });
+
+  it("re-reads the partitions on request after an update, Roll Back usable again", async () => {
+    // Two things have to hold for this to work: the install must clear its
+    // in-flight flag on completion — it gates every OTA control, Roll Back
+    // included, so the recovery action stayed dead until a page reload — and
+    // the refresh has to be the user's call rather than a race with the reboot.
+    apiMock.checkOta.mockResolvedValue({
+      updateAvailable: true,
+      current: "1.4.0",
+      latest: "1.5.0",
+    });
+    apiMock.installOta.mockResolvedValue({ ok: true, version: "1.5.0", message: "started" });
+    const user = userEvent.setup();
+    await renderSettled();
+    await screen.findByRole("button", { name: "Roll Back" });
+
+    await user.click(screen.getByRole("button", { name: /Check for Updates/ }));
+    await user.click(await screen.findByRole("button", { name: /Install 1\.5\.0/ }));
+    await waitFor(() => expect(wsSubscribers.length).toBeGreaterThan(0));
+    pushFrame({ type: "ota_complete", data: { percent: 100 } });
+    await screen.findByText(/The controller is restarting/);
+
+    // The kiln is back, on the new image, still pending verification.
+    apiMock.otaStatus.mockResolvedValue(
+      otaStatus({
+        running: {
+          label: "ota_1",
+          address: 0x610000,
+          size: 0x500000,
+          state: "pending_verify",
+          version: "1.5.0",
+        },
+        bootPartition: "ota_1",
+        pendingVerify: true,
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: "Refresh" }));
+
+    expect(await screen.findByText("Pending verification")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Roll Back" })).toBeEnabled();
   });
 
   it("offers no rollback when the device says there is nothing behind it", async () => {
