@@ -6,7 +6,9 @@ OUT="${2:-3d}"
 mkdir -p "$OUT"
 R() { kicad-cli pcb render -o "$OUT/$1" --width 1600 --height 1200 \
        --quality high --floor "${@:2}" "$BOARD"; }
-R board-3d-iso.png   --perspective --rotate '-40,0,30' --zoom 0.9
-R board-3d-front.png --perspective --rotate '-75,0,0'  --zoom 0.95
-R board-3d-top.png   --rotate '0,0,0' --zoom 0.85
-R board-3d-back.png  --side bottom --rotate '30,0,-20' --perspective --zoom 0.9
+# Straight orthographic top and bottom only - no --perspective, no rotation.
+# The angled iso/front views were dropped: they flatter the board but you
+# cannot read a designator or check a footprint off them, which is what these
+# renders actually get used for. Two views also halves the raytrace.
+R board-3d-top.png    --rotate '0,0,0' --zoom 0.85
+R board-3d-bottom.png --side bottom --rotate '0,0,0' --zoom 0.85

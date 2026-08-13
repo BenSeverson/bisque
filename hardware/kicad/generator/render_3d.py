@@ -370,11 +370,12 @@ renderer.render(scene, cam);
 document.title = 'RENDER_DONE';
 </script></body></html>"""
 
+# Straight top and bottom only, matching render-3d.sh. The angled iso/front
+# views were dropped from both renderers: they look better than they read, and
+# these images are used to check placement and silk, not to advertise.
 VIEWS = {
-    "iso":    dict(az=-32, el=38, dist=175, fov=30),
-    "front":  dict(az=8, el=16, dist=185, fov=30),
-    "top":    dict(az=0, el=82, dist=170, fov=30),
-    "back":   dict(az=150, el=-42, dist=175, fov=30),
+    "top":    dict(az=0, el=90, dist=170, fov=30),
+    "bottom": dict(az=0, el=-90, dist=170, fov=30),
 }
 
 
