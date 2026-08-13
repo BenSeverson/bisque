@@ -90,7 +90,7 @@ import {
   useConfirmOta,
   useRollbackOta,
 } from "../hooks/queries";
-import { api, DiagThermocouple, OtaCheckResponse } from "../services/api";
+import { api, ApiHttpError, DiagThermocouple, OtaCheckResponse } from "../services/api";
 import { kilnWS } from "../services/websocket";
 import { useKilnStore } from "../stores/kilnStore";
 import { WifiCard } from "./WifiCard";
@@ -1366,8 +1366,23 @@ export function Settings() {
                        returns is honest: fresh partitions, or the "could not
                        read" branch. */
                     onClick={async () => {
-                      await refetchOtaStatus();
-                      setAwaitingReboot(false);
+                      const result = await refetchOtaStatus();
+                      /* Lower the guard only once the controller has proved it
+                         is back. refetch resolves with an error result rather
+                         than throwing, so clearing unconditionally handed back
+                         Install, upload and Restart the moment someone pressed
+                         Refresh too early — against a kiln still restarting.
+                         An HTTP status counts as proof even when it is a 404:
+                         firmware too old to serve /ota/status is up and
+                         answering, and staying "restarting" forever would
+                         strand every OTA control on that kiln. */
+                      /* `result.data` is no use here — a failed refetch still
+                         carries the last good value, the same retention that
+                         made the card need `partitions`. The verdict is the
+                         error, or its absence. */
+                      if (!result.isError || result.error instanceof ApiHttpError) {
+                        setAwaitingReboot(false);
+                      }
                     }}
                     disabled={otaStatusFetching}
                   >

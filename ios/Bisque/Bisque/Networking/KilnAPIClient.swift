@@ -529,7 +529,8 @@ actor KilnAPIClient {
 
 // MARK: - Request Delivery Probe
 
-/// Records whether a request was actually written to the connection (#177).
+/// Refuses redirects, and records whether the request was actually written to
+/// the connection (#177).
 ///
 /// `URLSessionTaskMetrics` carries a `requestEndDate` per transaction, set when
 /// the last byte of the request went out — so a non-nil one is proof the kiln
@@ -545,6 +546,20 @@ actor KilnAPIClient {
 final class RequestDeliveryProbe: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
     private let lock = NSLock()
     private var sent = false
+
+    /// Refuse to follow a redirect.
+    ///
+    /// URLSession follows them by default, so a captive portal or a proxy could
+    /// answer 302 and have its landing page — anything containing `{"ok":true}`
+    /// — credited with the rollback. `handle_ota_rollback` never redirects, so
+    /// a redirect is proof this is not the kiln answering. Passing nil leaves
+    /// the task holding the 3xx itself, which fails the 2xx check upstream.
+    /// The web client sets `redirect: "manual"` for the same reason.
+    func urlSession(_ session: URLSession, task: URLSessionTask,
+                    willPerformHTTPRedirection response: HTTPURLResponse,
+                    newRequest request: URLRequest) async -> URLRequest? {
+        nil
+    }
 
     var requestWasSent: Bool {
         lock.lock()

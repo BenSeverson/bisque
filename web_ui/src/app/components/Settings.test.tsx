@@ -50,11 +50,18 @@ const apiMock = {
   saveWifi: vi.fn(),
   clearWifi: vi.fn(),
 };
-vi.mock("../services/api", () => ({
-  api: apiMock,
-  setApiToken,
-  getApiToken: () => null,
-}));
+vi.mock("../services/api", async () => {
+  // ApiHttpError comes from the real module: Settings distinguishes "the kiln
+  // answered with a status" from "nothing came back" with an instanceof check,
+  // and a stubbed class would make that test itself against a different type.
+  const actual = await vi.importActual<typeof import("../services/api")>("../services/api");
+  return {
+    api: apiMock,
+    setApiToken,
+    getApiToken: () => null,
+    ApiHttpError: actual.ApiHttpError,
+  };
+});
 
 const downloadBlob = vi.fn();
 vi.mock("../utils/download", () => ({
@@ -79,6 +86,9 @@ vi.mock("../services/websocket", () => ({
   },
 }));
 
+// Imported after the mocks, like everything else here: a top-level import
+// would run the vi.mock factory before `apiMock` exists.
+const { ApiHttpError } = await import("../services/api");
 const { Settings } = await import("./Settings");
 const { DEFAULT_SETTINGS } = await import("../hooks/queries");
 const { useKilnStore } = await import("../stores/kilnStore");
@@ -859,6 +869,54 @@ describe("Settings: firmware partitions and rollback", () => {
 
     await user.click(screen.getByRole("button", { name: "Refresh" }));
     await screen.findByText("Running Slot");
+    expect(screen.getByRole("button", { name: "Restart" })).toBeEnabled();
+  });
+
+  it("stays in the reboot state when Refresh is pressed too early", async () => {
+    // refetch resolves with an error result rather than throwing, so clearing
+    // the guard unconditionally handed Install, upload and Restart back the
+    // moment someone pressed Refresh — against a kiln still restarting.
+    apiMock.checkOta.mockResolvedValue({
+      updateAvailable: true,
+      current: "1.4.0",
+      latest: "1.5.0",
+    });
+    apiMock.installOta.mockResolvedValue({ ok: true, version: "1.5.0", message: "started" });
+    const user = userEvent.setup();
+    await renderSettled();
+    await screen.findByRole("button", { name: "Roll Back" });
+
+    await user.click(screen.getByRole("button", { name: /Check for Updates/ }));
+    await user.click(await screen.findByRole("button", { name: /Install 1\.5\.0/ }));
+    await waitFor(() => expect(apiMock.installOta).toHaveBeenCalled());
+    pushFrame({ type: "ota_complete", data: { percent: 100 } });
+    await screen.findByText(/The controller is restarting/);
+
+    // Still on its way back: nothing answers.
+    apiMock.otaStatus.mockRejectedValue(new TypeError("Failed to fetch"));
+    await user.click(screen.getByRole("button", { name: "Refresh" }));
+
+    await waitFor(() => expect(apiMock.otaStatus).toHaveBeenCalled());
+    expect(screen.getByText(/The controller is restarting/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Restart" })).toBeDisabled();
+  });
+
+  it("leaves the reboot state on a kiln too old to serve the endpoint", async () => {
+    // A 404 is still the controller answering: it is up, and staying
+    // "restarting" forever would strand every OTA control on that kiln.
+    apiMock.rollbackOta.mockResolvedValue({ acknowledged: true });
+    const user = userEvent.setup();
+    await renderSettled();
+
+    await user.click(await screen.findByRole("button", { name: "Roll Back" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Roll Back" }));
+    await screen.findByText(/The controller is restarting/);
+
+    apiMock.otaStatus.mockRejectedValue(new ApiHttpError(404, "Not found"));
+    await user.click(screen.getByRole("button", { name: "Refresh" }));
+
+    expect(await screen.findByText(/Could not read the partition state/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Restart" })).toBeEnabled();
   });
 

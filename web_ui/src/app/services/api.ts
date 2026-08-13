@@ -63,6 +63,29 @@ function authHeaders(): Record<string, string> {
   return _apiToken ? { Authorization: `Bearer ${_apiToken}` } : {};
 }
 
+/**
+ * A reply the kiln actually sent, with a status the caller can reason about.
+ *
+ * The distinction that matters is not which status it was, but that there *was*
+ * one: a thrown ApiHttpError proves the controller answered, where a bare Error
+ * from a rejected fetch means nothing reached it. The Firmware Partitions card
+ * turns on exactly that — a 404 from firmware too old to serve /ota/status says
+ * the kiln is up and finished rebooting, while a transport failure says it is
+ * still on its way back (#177).
+ *
+ * The message is unchanged, so anything reading `toErrorMessage(e)` — every
+ * toast in the UI — reads what it always did.
+ */
+export class ApiHttpError extends Error {
+  constructor(
+    readonly status: number,
+    body: string,
+  ) {
+    super(`API error ${status}: ${body}`);
+    this.name = "ApiHttpError";
+  }
+}
+
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -74,8 +97,7 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
     headers: { ...headers, ...(options?.headers as Record<string, string> | undefined) },
   });
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`API error ${res.status}: ${text}`);
+    throw new ApiHttpError(res.status, await res.text());
   }
   return res.json();
 }
@@ -84,8 +106,7 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 async function fetchBlob(url: string): Promise<Blob> {
   const res = await fetch(`${API_BASE}${url}`, { headers: authHeaders() });
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`API error ${res.status}: ${text}`);
+    throw new ApiHttpError(res.status, await res.text());
   }
   return res.blob();
 }
@@ -94,8 +115,7 @@ async function fetchBlob(url: string): Promise<Blob> {
 async function fetchText(url: string): Promise<string> {
   const res = await fetch(`${API_BASE}${url}`, { headers: authHeaders() });
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`API error ${res.status}: ${text}`);
+    throw new ApiHttpError(res.status, await res.text());
   }
   return res.text();
 }
@@ -271,7 +291,7 @@ export const api = {
       throw new Error("Rollback was answered by a redirect, not the kiln; nothing was changed");
     }
     if (!res.ok) {
-      throw new Error(`API error ${res.status}: ${await res.text()}`);
+      throw new ApiHttpError(res.status, await res.text());
     }
     /* A 2xx is not enough on its own. Anything on the network that answers this
        address — a portal, a proxy, or whatever took the kiln's DHCP lease while
