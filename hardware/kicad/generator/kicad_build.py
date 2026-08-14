@@ -40,7 +40,8 @@ from design import COMPONENTS, netlist, BX0, BY0, BX1, BY1
 import router as R
 import silk
 from gen_pcb import (all_seeds, route_all, ripup_retry, promoted_order, plane_vias,
-                     apply_stackup, SILK, MANUAL_VIAS, PLANE_LAYER)
+                     apply_stackup, SILK, SILK_GRAPHICS, MANUAL_VIAS,
+                     PLANE_LAYER)
 
 # Copper stack-up. Rev B is 4-layer (spec 6.1): signals on the outside, an
 # unbroken GND plane on In1.Cu and the +3V3 plane on In2.Cu. router.py still
@@ -334,6 +335,19 @@ def add_outline_and_silk(board):
         t.SetTextAngleDegrees(rot)
         board.Add(t)
         anchors.append((t, x, y))
+    # Silk graphics are placed, not anchored, so none of these go into
+    # `anchors`: `silk.place()` has nothing to move them to. It does have to
+    # SEE them - board-level F.SilkS drawings are in its obstacle set for
+    # exactly this reason, or the nameplate's flame would be the one thing on
+    # the board a reference designator could legally print through.
+    for pts, width in SILK_GRAPHICS:
+        sh = pcbnew.PCB_SHAPE(board)
+        sh.SetShape(pcbnew.SHAPE_T_POLY)
+        sh.SetLayer(pcbnew.F_SilkS)
+        sh.SetPolyPoints([V(x, y) for x, y in pts])
+        sh.SetFilled(False)
+        sh.SetWidth(MM(width))
+        board.Add(sh)
     return anchors
 
 

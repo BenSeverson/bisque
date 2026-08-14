@@ -13,6 +13,7 @@ import uuid
 sys.path.insert(0, os.path.dirname(__file__))
 from sexp import parse, find, find_all, Sym, num, dump
 from design import COMPONENTS, netlist, BX0, BY0, BX1, BY1
+import logo
 import router as R
 
 NS = uuid.UUID("8d0c2f6e-5b5c-4e2b-8d44-234567890abc")
@@ -966,9 +967,67 @@ def _rot_at(node, frot):
     return out
 
 
-# Free-standing silk. The large clear band between the switching region
-# (x <= 60) and the analog region (x >= 86) is where the title goes; every
-# other label sits beside the connector or control it names.
+# ----------------------------------------------------------- the nameplate
+# The board's own title block: the flame, the wordmark, the revision and the
+# copyright, as one centred stack.
+#
+# It used to be two texts at (62.5, 62.0) and (62.5, 65.5), in what the
+# comment here called "the large clear band between the switching region and
+# the analog region". That band stopped being clear somewhere on the way to
+# 141 parts: the anchor now sits between SJ2 and the J5 fanout, the placer
+# moved the title every build, and a title that lands wherever there is a gap
+# reads as a caption on whatever it landed beside.
+#
+# TITLE_POCKET is the board's largest genuinely empty rectangle, measured off
+# the pad and courtyard geometry rather than eyeballed - 18 x 32 mm with no
+# exposed pad, no courtyard and no board edge inside it, the lane between the
+# SSR/aux side and the ADE7953 cluster. The next-largest is 28 x 10.5 mm at
+# (59.5, 45), which the four-row stack does not fit in.
+#
+# Rows are DERIVED rather than typed. KiCad's text bounding box is exactly
+# 1.7x the glyph size at every size used here, so a stack laid out from the
+# sizes and the gaps stays tight when a size changes - four typed
+# y-coordinates do not, and a nameplate drifting apart one row at a time is
+# how the old two-line one ended up with its subtitle 3.5 mm below it.
+TITLE_POCKET = (68.0, 63.0, 86.0, 95.0)     # x0, y0, x1, y1
+TITLE_LOGO_H = 11.0                          # flame height, mm
+TITLE_LOGO_GAP = 2.0                         # flame to wordmark, mm
+TEXT_BOX_RATIO = 1.7                         # KiCad text bbox height / size
+# (text, glyph size, gap below)
+TITLE_ROWS = [("BISQUE", 2.6, 0.7),
+              ("KILN CONTROLLER", 1.2, 1.3),
+              ("REV B", 1.0, 0.7),
+              ("© 2026 Ben Severson", 0.9, 0.0)]
+
+
+def _title_block():
+    """([(text, x, y, rot, size)], (logo_cx, logo_cy)) for the nameplate."""
+    x0, y0, x1, y1 = TITLE_POCKET
+    cx = (x0 + x1) / 2.0
+    stack = (TITLE_LOGO_H + TITLE_LOGO_GAP
+             + sum(s * TEXT_BOX_RATIO + g for _t, s, g in TITLE_ROWS))
+    y = y0 + ((y1 - y0) - stack) / 2.0
+    logo_at = (cx, y + TITLE_LOGO_H / 2.0)
+    y += TITLE_LOGO_H + TITLE_LOGO_GAP
+    rows = []
+    for txt, size, gap in TITLE_ROWS:
+        h = size * TEXT_BOX_RATIO
+        rows.append((txt, cx, y + h / 2.0, 0, size))
+        y += h + gap
+    return rows, logo_at
+
+
+_TITLE_TEXTS, TITLE_LOGO_AT = _title_block()
+
+# Free-standing silk GRAPHICS, as [(closed polyline in mm, stroke width mm)].
+# Unlike the texts below these are not anchors: `silk.py` does not move a
+# graphic, it routes labels around one, so what is written here is where it
+# prints. The flame is the project's own mark, carried as an SVG path in
+# `logo.py` rather than traced into a point table here.
+SILK_GRAPHICS = [logo.flame(TITLE_LOGO_AT[0], TITLE_LOGO_AT[1], TITLE_LOGO_H)]
+
+# Free-standing silk: the nameplate above, then every label that sits beside
+# the connector or control it names.
 #
 # These coordinates are ANCHORS, not final positions. `silk.py` scores
 # candidate placements around each anchor and moves a label off exposed
@@ -976,9 +1035,7 @@ def _rot_at(node, frot):
 # authoritative generator) runs that placer, and `check_silk.py` proves the
 # result. Only the hand-authored *intent* - what the label says and roughly
 # where it belongs - lives here now.
-SILK = [
-    ("BISQUE KILN CONTROLLER", 62.5, 62.0, 0, 1.4),
-    ("REV B", 62.5, 65.5, 0, 1.1),
+SILK = _TITLE_TEXTS + [
     ("U.FL ANT ->", 62.0, 22.3, 0, 0.9),
     ("USB", 40.5, 22.0, 0, 0.9),
     ("RESET", 36.5, 20.9, 0, 0.9),
@@ -1149,6 +1206,12 @@ def main(dst):
            '\t\t(effects (font (size %s %s) (thickness %s)))\n\t)'
            % (txt.replace('"', ''), f(x), f(y), f(rot), uid("silk", k),
               f(size), f(size), f(max(0.1, size * 0.15))))
+    for k, (pts, width) in enumerate(SILK_GRAPHICS):
+        poly = " ".join("(xy %s %s)" % (f(x), f(y)) for x, y in pts)
+        ap('\t(gr_poly (pts %s)\n'
+           '\t\t(stroke (width %s) (type solid)) (fill no)\n'
+           '\t\t(layer "F.SilkS") (uuid "%s")\n\t)'
+           % (poly, f(width), uid("silkgfx", k)))
     # tracks
     for i, s in enumerate(r.result_tracks):
         lname = "F.Cu" if s.layer == 0 else "B.Cu"

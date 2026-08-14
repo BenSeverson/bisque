@@ -29,7 +29,10 @@ Needs KiCad's python (`import pcbnew`); the Makefile resolves it as $KPY.
 Usage: python3 check_silk.py [board.kicad_pcb]
 """
 import os
+import re
 import sys
+
+import logo
 
 try:
     import wx
@@ -45,8 +48,44 @@ import pcbnew
 SILK_ON_SILK_MAX = 0
 
 
+# The one asset this board shares with another tree. `logo.FLAME_PATH` is a
+# copy of the favicon's path, and a copy is only safe while something proves
+# it is still a copy.
+FAVICON = os.path.normpath(os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    os.pardir, os.pardir, os.pardir, "web_ui", "public", "favicon.svg"))
+
+
 def _mm(v):
     return pcbnew.ToMM(v)
+
+
+def check_logo():
+    """The flame on the board must still be the flame in the browser tab.
+
+    Missing favicon is a warning, not a failure: this checker's subject is
+    the board, and hardware/ has to stay buildable from a checkout that does
+    not carry the web UI. A favicon that is present and DIFFERENT is a
+    failure, because that is the drift the copy exists to be caught by.
+    """
+    if not os.path.exists(FAVICON):
+        print("check_silk: %s absent, logo path not cross-checked"
+              % os.path.relpath(FAVICON))
+        return 0
+    m = re.search(r'<path\s+d="([^"]*)"', open(FAVICON).read())
+    if m is None:
+        print("FAIL: no <path d=...> in %s" % FAVICON)
+        return 1
+    want = " ".join(m.group(1).split())
+    have = " ".join(logo.FLAME_PATH.split())
+    if want != have:
+        print("FAIL: logo.FLAME_PATH has drifted from %s"
+              % os.path.relpath(FAVICON))
+        print("  favicon: %s" % want)
+        print("  logo.py: %s" % have)
+        return 1
+    print("check_silk: logo path matches %s" % os.path.relpath(FAVICON))
+    return 0
 
 
 def _name(owner, item):
@@ -182,7 +221,7 @@ def main(pcb):
     show("SILK OFF BOARD", off)
     show("SILK ON SILK", onsilk)
 
-    bad = 0
+    bad = check_logo()
     if over:
         print("\nFAIL: %d silk item(s) printed on exposed copper" % len(over))
         bad = 1

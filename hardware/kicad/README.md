@@ -537,6 +537,7 @@ everything else with the same code the full build runs.
 | Change | Path | Measured |
 |---|---|---|
 | Silkscreen placement (`generator/silk.py`, the `SILK` table, reference text size/thickness) | `make pcb-cosmetic` | **8 s** |
+| The nameplate — `TITLE_*` / `TITLE_ROWS`, `SILK_GRAPHICS`, `generator/logo.py` | `make pcb-cosmetic` | **8 s** |
 | 3D model offsets (`MODEL_OFFSET` in `kicad_build.py`) | `make pcb-cosmetic` | **8 s** |
 | Board title block | `make pcb-cosmetic` | **8 s** |
 | **Anything else** — placement, connectivity, footprint choice, net classes, `MANUAL_VIAS`, router parameters (`router.py`, `gen_pcb.py`) | `make pcb-build` | **158 s** |
@@ -909,6 +910,44 @@ One scoring term is not obvious and is load-bearing: a board text pays four
 times as much for sliding **along** its reading direction as across it. The
 28 pin names above J5/J6/J7 identify a pin by sitting over it, so a label
 that drifts sideways doesn't just look ragged — it names the wrong pin.
+
+**The nameplate is the one silk item that is placed rather than anchored.**
+`BISQUE / KILN CONTROLLER / REV B / © 2026 Ben Severson`, under the project's
+flame, sits in `gen_pcb.TITLE_POCKET` — the board's largest genuinely empty
+rectangle, 18 × 32 mm at x 68–86, y 63–95, with no exposed pad, no courtyard
+and no board edge inside it. That rectangle was *measured* off the pad and
+courtyard geometry, not eyeballed; the next-largest is 28 × 10.5 mm at
+(59.5, 45), which a four-row stack does not fit in. The title used to be two
+texts at (62.5, 62.0), in what the comment there called the clear band
+between the switching and analog regions — a band that stopped being clear
+somewhere on the way to 141 parts, after which the packer moved the title
+every build and it read as a caption on whatever it landed beside.
+
+Two properties of that block are worth knowing before editing it:
+
+* **Rows are derived, not typed.** KiCad's text bounding box is exactly
+  1.7× the glyph size at every size used here, so `_title_block()` lays the
+  stack out from the sizes and the gaps in `TITLE_ROWS`. Four typed
+  y-coordinates do not stay tight when a size changes, and a nameplate
+  drifting apart one row at a time is how the old two-line one ended up with
+  its subtitle 3.5 mm below it.
+* **The flame is a `gr_poly`, and it is the first board-level silk graphic.**
+  `generator/logo.py` carries the mark as **the SVG path string from
+  `web_ui/public/favicon.svg`**, flattened at build time — not a traced point
+  table — and `check_silk.py` fails if the two have drifted apart. Silkscreen
+  is one colour and a KiCad polygon has no holes, so the gradient tile the
+  web mark sits on cannot come along; what ports is Lucide's outline, stroked
+  at its own 2-units-in-24 proportion (1.16 mm at an 11 mm glyph), which is
+  `(fill no)` plus a scaled stroke width. Filling it instead closes the inner
+  curl up and stops being the brand mark.
+
+That last point needed one change in the packer. `silk.py` collected only
+*footprint* silk graphics as obstacles, and `collect_labels()` only ever
+collects text — so a board-level drawing was both unmovable and unavoided,
+making the one graphic on the board that is not a part outline the one thing
+a designator could legally print straight through. Board drawings are now in
+the same obstacle grid. `check_silk.py`'s silk-on-silk budget is zero, so
+that would have been a build failure rather than a nit.
 
 `generator/check_silk.py` (`make pcb-check`) proves the result, net-
 independently: it hard-fails on any silk item over an exposed pad or

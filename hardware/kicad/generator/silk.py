@@ -297,6 +297,16 @@ class _Obstacles:
         # A footprint's silk TEXT (the pin-1 "1" several libraries carry) is
         # movable - it landed on R3's pad here - so it is a label, not an
         # obstacle. Only the drawn outlines are immovable.
+        #
+        # BOARD-LEVEL silk graphics are immovable for a different reason and
+        # belong in the same set: `gen_pcb.SILK_GRAPHICS` (the nameplate's
+        # flame) is authored at a position rather than an anchor, and
+        # `collect_labels` below only ever collects TEXT. So nothing here
+        # would move it and - until it was filed as an obstacle - nothing
+        # would avoid it either, which made the one drawing on the board that
+        # is not a part outline the one thing a designator could legally
+        # print straight through. `check_silk.py` counts that collision
+        # against a budget of zero, so it is a build failure, not a nit.
         self.graphics = _Grid(_C_SILK)
         for fp in board.GetFootprints():
             ref = fp.GetReference()
@@ -304,6 +314,10 @@ class _Obstacles:
                 if it.GetLayer() == pcbnew.F_SilkS and not hasattr(it, "GetText"):
                     gbb = _bbt(it.GetBoundingBox())
                     self.graphics.add((ref, gbb, it.GetEffectiveShape()), gbb)
+        for it in board.GetDrawings():
+            if it.GetLayer() == pcbnew.F_SilkS and not hasattr(it, "GetText"):
+                gbb = _bbt(it.GetBoundingBox())
+                self.graphics.add((None, gbb, it.GetEffectiveShape()), gbb)
         # Part bodies, for the reference rule above. F.Fab is the outline of
         # the component itself, which is the question being asked - "will the
         # fitted part sit on this label" - and it is not the courtyard: Y1's
