@@ -843,6 +843,34 @@ describe("Settings: firmware partitions and rollback", () => {
     expect(screen.getByRole("button", { name: "Roll Back" })).toBeEnabled();
   });
 
+  it("withdraws the install offer once that update has landed", async () => {
+    // Kept, it renders an enabled Install for the version now running as soon
+    // as the reboot guard lifts, and pressing it earns the firmware's "Already
+    // on the latest version". iOS has cleared it since #145.
+    apiMock.checkOta.mockResolvedValue({
+      updateAvailable: true,
+      current: "1.4.0",
+      latest: "1.5.0",
+    });
+    apiMock.installOta.mockResolvedValue({ ok: true, version: "1.5.0", message: "started" });
+    const user = userEvent.setup();
+    await renderSettled();
+    await screen.findByRole("button", { name: "Roll Back" });
+
+    await user.click(screen.getByRole("button", { name: /Check for Updates/ }));
+    await user.click(await screen.findByRole("button", { name: /Install 1\.5\.0/ }));
+    await waitFor(() => expect(apiMock.installOta).toHaveBeenCalled());
+    pushFrame({ type: "ota_complete", data: { percent: 100 } });
+    await screen.findByText(/The controller is restarting/);
+
+    // Back on the new image; the guard lifts and the card returns.
+    await user.click(screen.getByRole("button", { name: "Refresh" }));
+    await screen.findByText("Running Slot");
+
+    expect(screen.queryByRole("button", { name: /^Install/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Check for Updates/ })).toBeEnabled();
+  });
+
   it("offers no OTA action while the controller is restarting", async () => {
     // Clearing the install flag on completion must not hand back Install,
     // Check for Updates or Restart mid-reboot — a worse moment to offer them
@@ -865,7 +893,10 @@ describe("Settings: firmware partitions and rollback", () => {
     await screen.findByText(/The controller is restarting/);
 
     expect(screen.getByRole("button", { name: "Restart" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /Install 1\.5\.0/ })).toBeDisabled();
+    // Install is gone rather than merely disabled: the offer it represented was
+    // taken up by the install that just finished.
+    expect(screen.queryByRole("button", { name: /^Install/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Check for Updates/ })).toBeDisabled();
 
     await user.click(screen.getByRole("button", { name: "Refresh" }));
     await screen.findByText("Running Slot");

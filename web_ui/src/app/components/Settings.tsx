@@ -590,6 +590,12 @@ export function Settings() {
            progress bar stays at 100% because otaInstallPct is what draws it. */
         setOtaInstalling(false);
         setAwaitingReboot(true);
+        /* Drop the offer that was just taken up. Kept, it re-renders an enabled
+           Install for the version now running as soon as the reboot guard
+           lifts, and pressing it earns the firmware's "Already on the latest
+           version". Clearing it restores Check for Updates, which is the honest
+           next action — the iOS install path has done this since #145. */
+        setOtaCheck(null);
       } else if (msg.type === "ota_error") {
         toast.error(`Update failed: ${msg.data.message}`);
         setOtaInstalling(false);

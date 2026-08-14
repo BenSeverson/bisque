@@ -261,6 +261,29 @@ final class SettingsViewModel {
             guard generation == otaLoadGeneration else { return }
             otaStatus = nil
             otaStatusUnavailable = true
+            /* A failure that came *from* the kiln still proves it is back. A
+               rollback onto firmware that predates /ota/status answers 404, and
+               leaving the guard set there strands Check, Install and the file
+               picker until this view model is recreated — the OTA screen would
+               be dead for the rest of the app's life. */
+            if Self.kilnAnswered(error) {
+                awaitingReboot = false
+            }
+        }
+    }
+
+    /// Whether a failure came from the kiln rather than from not reaching it.
+    ///
+    /// Exhaustive on purpose: a new APIError case has to be classified rather
+    /// than defaulting into "the controller answered", which would release the
+    /// reboot guard on evidence that does not support it.
+    private static func kilnAnswered(_ error: Error) -> Bool {
+        guard let apiError = error as? APIError else { return false }
+        switch apiError {
+        case .serverError, .unauthorized, .decodingError:
+            return true
+        case .connectionFailed, .invalidURL:
+            return false
         }
     }
 
