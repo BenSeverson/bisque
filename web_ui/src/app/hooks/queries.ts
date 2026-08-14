@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type PidGains } from "../services/api";
 import { FiringProfile, KilnSettings } from "../types/kiln";
@@ -28,6 +29,7 @@ export const queryKeys = {
   coneTable: ["coneTable"] as const,
   thermocoupleDiag: ["thermocoupleDiag"] as const,
   wifi: ["wifi"] as const,
+  otaStatus: ["otaStatus"] as const,
 };
 
 // --- Queries ---
@@ -319,5 +321,57 @@ export function useCheckOta() {
 export function useInstallOta() {
   return useMutation({
     mutationFn: () => api.installOta(),
+  });
+}
+
+/**
+ * Which image is running, and whether the previous one can be booted again
+ * (#177). Disabled in the demo, where there are no partitions to report.
+ *
+ * `retry: false` for the same reason useSystemInfo() sets it: on a controller
+ * old enough to lack the endpoint this 404s, and the card should say so once
+ * rather than after three rounds of backoff.
+ */
+export function useOtaStatus(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.otaStatus,
+    queryFn: () => api.otaStatus(),
+    enabled,
+    retry: false,
+  });
+}
+
+/**
+ * Refetch the controller's own description of itself.
+ *
+ * For after a rollback: `SystemInfo.firmware` is what Controller Information
+ * and the update card's "Current Version" render, and both describe the image
+ * the kiln is in the middle of abandoning (#177). Invalidated rather than
+ * reset — unlike the partition state, a stale version is merely old, and
+ * blanking the whole card while the kiln reboots would be worse than showing
+ * the last known one.
+ */
+export function useInvalidateSystemInfo() {
+  const queryClient = useQueryClient();
+  return useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.systemInfo });
+  }, [queryClient]);
+}
+
+export function useConfirmOta() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.confirmOta(),
+    // pendingVerify flips as a result, and it is what gates the button that
+    // was just pressed.
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.otaStatus });
+    },
+  });
+}
+
+export function useRollbackOta() {
+  return useMutation({
+    mutationFn: () => api.rollbackOta(),
   });
 }

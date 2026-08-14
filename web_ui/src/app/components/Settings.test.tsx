@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { KilnSettings } from "../types/kiln";
+import type { OtaStatus } from "../schemas/api";
 import type { WSMessage } from "../schemas/ws";
 import { withQueryClient } from "../test/queryWrapper";
 
@@ -42,15 +43,25 @@ const apiMock = {
   uploadOta: vi.fn(),
   checkOta: vi.fn(),
   installOta: vi.fn(),
+  otaStatus: vi.fn(),
+  rollbackOta: vi.fn(),
+  confirmOta: vi.fn(),
   getWifi: vi.fn(),
   saveWifi: vi.fn(),
   clearWifi: vi.fn(),
 };
-vi.mock("../services/api", () => ({
-  api: apiMock,
-  setApiToken,
-  getApiToken: () => null,
-}));
+vi.mock("../services/api", async () => {
+  // ApiHttpError comes from the real module: Settings distinguishes "the kiln
+  // answered with a status" from "nothing came back" with an instanceof check,
+  // and a stubbed class would make that test itself against a different type.
+  const actual = await vi.importActual<typeof import("../services/api")>("../services/api");
+  return {
+    api: apiMock,
+    setApiToken,
+    getApiToken: () => null,
+    ApiHttpError: actual.ApiHttpError,
+  };
+});
 
 const downloadBlob = vi.fn();
 vi.mock("../utils/download", () => ({
@@ -75,6 +86,9 @@ vi.mock("../services/websocket", () => ({
   },
 }));
 
+// Imported after the mocks, like everything else here: a top-level import
+// would run the vi.mock factory before `apiMock` exists.
+const { ApiHttpError } = await import("../services/api");
 const { Settings } = await import("./Settings");
 const { DEFAULT_SETTINGS } = await import("../hooks/queries");
 const { useKilnStore } = await import("../stores/kilnStore");
@@ -100,6 +114,23 @@ const systemInfo = {
   emergencyStop: false,
   boardTempC: 30,
 };
+
+function otaStatus(overrides: Partial<OtaStatus> = {}): OtaStatus {
+  return {
+    running: {
+      label: "ota_0",
+      address: 0x110000,
+      size: 0x500000,
+      state: "valid",
+      version: "1.4.0",
+    },
+    nextUpdate: { label: "ota_1", size: 0x500000 },
+    bootPartition: "ota_0",
+    pendingVerify: false,
+    rollbackAvailable: true,
+    ...overrides,
+  };
+}
 
 const deviceLog = {
   lines: ["I (312) main: === Bisque v1.4.0 ===", "E (940512) firing: aborting, error=3"],
@@ -153,6 +184,7 @@ beforeEach(() => {
     limits: { min: 0, max: 100 },
   });
   apiMock.getWifi.mockResolvedValue(wifiInfo);
+  apiMock.otaStatus.mockResolvedValue(otaStatus());
   apiMock.getLog.mockResolvedValue(deviceLog);
 });
 
@@ -554,6 +586,446 @@ describe("Settings: firmware update over the air", () => {
     await user.click(await screen.findByRole("button", { name: /Install 1\.5\.0/ }));
 
     await waitFor(() => expect(screen.getByRole("button", { name: "Restart" })).toBeDisabled());
+  });
+});
+
+/**
+ * The recovery half of the OTA story (#177). Everything here is about not
+ * stranding a user on a bad image: the firmware keeps the previous one in the
+ * other slot, and until this card existed the only way back was a USB cable.
+ */
+describe("Settings: firmware partitions and rollback", () => {
+  it("shows which image is running and which one boots next", async () => {
+    await renderSettled();
+
+    expect(await screen.findByText("Firmware Partitions")).toBeInTheDocument();
+    // Both slot rows read "ota_0" until a rollback is pending, which is the
+    // whole point of showing them side by side.
+    expect(screen.getAllByText("ota_0")).toHaveLength(2);
+    const versionRow = screen.getByText("Running Version").closest("div")!;
+    expect(within(versionRow).getByText("1.4.0")).toBeInTheDocument();
+    expect(screen.getByText("valid")).toBeInTheDocument();
+  });
+
+  it("asks before rolling back", async () => {
+    // A rollback reboots the kiln onto different firmware. One stray click is
+    // not consent for that.
+    const user = userEvent.setup();
+    await renderSettled();
+
+    await user.click(await screen.findByRole("button", { name: "Roll Back" }));
+    expect(apiMock.rollbackOta).not.toHaveBeenCalled();
+
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(apiMock.rollbackOta).not.toHaveBeenCalled();
+  });
+
+  it("rolls back once confirmed", async () => {
+    apiMock.rollbackOta.mockResolvedValue({ acknowledged: true });
+    const user = userEvent.setup();
+    await renderSettled();
+
+    await user.click(await screen.findByRole("button", { name: "Roll Back" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Roll Back" }));
+
+    await waitFor(() => expect(apiMock.rollbackOta).toHaveBeenCalled());
+    expect(toastFns.success).toHaveBeenCalledWith(expect.stringContaining("Rolling back"));
+  });
+
+  it("does not claim success for a rollback the controller never acknowledged", async () => {
+    // The reboot eats the reply in the normal case — but a kiln that had
+    // already dropped off the network produces the identical failure, and the
+    // browser cannot tell them apart. Reporting a flat success there would be
+    // a guess dressed as a fact.
+    apiMock.rollbackOta.mockResolvedValue({ acknowledged: false });
+    const user = userEvent.setup();
+    await renderSettled();
+
+    await user.click(await screen.findByRole("button", { name: "Roll Back" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Roll Back" }));
+
+    await waitFor(() => expect(toastFns.warning).toHaveBeenCalled());
+    expect(toastFns.success).not.toHaveBeenCalled();
+    expect(toastFns.warning.mock.calls[0][0]).toContain("stopped answering");
+  });
+
+  it("drops the stale partition state once a rollback is under way", async () => {
+    // Kept, the cached `rollbackAvailable: true` re-enables Roll Back against a
+    // kiln that is mid-reboot, and the card never shows the Retry control the
+    // warning toast tells the user to reach for.
+    apiMock.rollbackOta.mockResolvedValue({ acknowledged: false });
+    const user = userEvent.setup();
+    await renderSettled();
+
+    await user.click(await screen.findByRole("button", { name: "Roll Back" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Roll Back" }));
+
+    expect(await screen.findByText(/The controller is restarting/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Refresh" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Roll Back" })).not.toBeInTheDocument();
+  });
+
+  it("drops the update-check verdict a rollback made obsolete", async () => {
+    // "You're on the latest version" was a claim about the firmware being left
+    // behind, and Controller Information reads its version from /system — so
+    // both have to go, or the page describes two different firmwares at once.
+    apiMock.checkOta.mockResolvedValue({
+      updateAvailable: false,
+      current: "1.4.0",
+      latest: "1.4.0",
+    });
+    apiMock.rollbackOta.mockResolvedValue({ acknowledged: true });
+    const user = userEvent.setup();
+    await renderSettled();
+
+    await user.click(screen.getByRole("button", { name: /Check for Updates/ }));
+    await waitFor(() => expect(toastFns.success).toHaveBeenCalled());
+    expect(screen.getByText(/You're running the latest version/)).toBeInTheDocument();
+
+    await user.click(await screen.findByRole("button", { name: "Roll Back" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Roll Back" }));
+
+    await waitFor(() =>
+      expect(screen.queryByText(/You're running the latest version/)).not.toBeInTheDocument(),
+    );
+
+    /* /system is re-read at the far end of the reboot, not here: firing it at a
+       controller that is already restarting just fails, and `retry: false`
+       means that failure keeps the old version on screen. */
+    const duringReboot = apiMock.getSystemInfo.mock.calls.length;
+    await user.click(screen.getByRole("button", { name: "Refresh" }));
+    await screen.findByText("Running Slot");
+    await waitFor(() =>
+      expect(apiMock.getSystemInfo.mock.calls.length).toBeGreaterThan(duringReboot),
+    );
+  });
+
+  it("keeps the partition state when the rollback was refused", async () => {
+    // 400 or 409 means the firmware did not change, so what is on screen is
+    // still true — clearing it would report a reboot that never started.
+    apiMock.rollbackOta.mockRejectedValue(new Error("API error 409: Cannot update firmware"));
+    const user = userEvent.setup();
+    await renderSettled();
+
+    await user.click(await screen.findByRole("button", { name: "Roll Back" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Roll Back" }));
+
+    await waitFor(() => expect(toastFns.error).toHaveBeenCalled());
+    expect(screen.getByRole("button", { name: "Roll Back" })).toBeInTheDocument();
+    expect(screen.queryByText(/The controller is restarting/)).not.toBeInTheDocument();
+  });
+
+  it("reports a refused rollback", async () => {
+    // 409 while a firing runs, 400 when there is no image to go back to.
+    apiMock.rollbackOta.mockRejectedValue(new Error("API error 400: Rollback not available"));
+    const user = userEvent.setup();
+    await renderSettled();
+
+    await user.click(await screen.findByRole("button", { name: "Roll Back" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Roll Back" }));
+
+    await waitFor(() => expect(toastFns.error).toHaveBeenCalled());
+    expect(toastFns.error.mock.calls[0][0]).toContain("Rollback refused");
+  });
+
+  it("makes no claim about rollback while the status is still loading", async () => {
+    // "No previous firmware to roll back to" is a statement about the device.
+    // Rendering it from an unresolved query asserts something nothing has said
+    // yet — and it used to print directly under "could not read the state".
+    let release: (value: unknown) => void = () => {};
+    apiMock.otaStatus.mockImplementation(() => new Promise((r) => (release = r)));
+    await renderSettled();
+
+    expect(await screen.findByText(/Reading the partition state/)).toBeInTheDocument();
+    expect(screen.queryByText(/No previous firmware to roll back to/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Roll Back" })).not.toBeInTheDocument();
+
+    release(otaStatus());
+    expect(await screen.findByRole("button", { name: "Roll Back" })).toBeInTheDocument();
+  });
+
+  it("offers a retry when the status could not be read, and no rollback verdict", async () => {
+    apiMock.otaStatus.mockRejectedValueOnce(new Error("API error 404: Not found"));
+    const user = userEvent.setup();
+    await renderSettled();
+
+    expect(await screen.findByText(/Could not read the partition state/)).toBeInTheDocument();
+    expect(screen.queryByText(/No previous firmware to roll back to/)).not.toBeInTheDocument();
+
+    // The card is otherwise a dead end: nothing else on the page refetches it,
+    // so a kiln that has finished rebooting stays "unreadable" until reload.
+    apiMock.otaStatus.mockResolvedValue(otaStatus());
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+    expect(await screen.findByRole("button", { name: "Roll Back" })).toBeInTheDocument();
+  });
+
+  it("stops describing the partitions once an update has installed", async () => {
+    // The slot, version and image state on screen belong to the firmware that
+    // was just replaced, and the new image may be sitting in pending-verify
+    // with a Confirm button nobody is being shown. Refetching on the spot does
+    // not help: install_task reports completion and only reboots 1.5s later
+    // (ota_manager.c), so the request wins that race and returns the *old*
+    // partitions as though they were current.
+    apiMock.checkOta.mockResolvedValue({
+      updateAvailable: true,
+      current: "1.4.0",
+      latest: "1.5.0",
+    });
+    apiMock.installOta.mockResolvedValue({ ok: true, version: "1.5.0", message: "started" });
+    const user = userEvent.setup();
+    await renderSettled();
+    expect(await screen.findByRole("button", { name: "Roll Back" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Check for Updates/ }));
+    await user.click(await screen.findByRole("button", { name: /Install 1\.5\.0/ }));
+    await waitFor(() => expect(wsSubscribers.length).toBeGreaterThan(0));
+
+    const callsBefore = apiMock.otaStatus.mock.calls.length;
+    pushFrame({ type: "ota_complete", data: { percent: 100 } });
+
+    expect(await screen.findByText(/The controller is restarting/)).toBeInTheDocument();
+    expect(screen.queryByText("Running Slot")).not.toBeInTheDocument();
+    // Nothing is asked of a controller that is about to reboot.
+    expect(apiMock.otaStatus.mock.calls.length).toBe(callsBefore);
+  });
+
+  it("re-reads the partitions on request after an update, Roll Back usable again", async () => {
+    // Two things have to hold for this to work: the install must clear its
+    // in-flight flag on completion — it gates every OTA control, Roll Back
+    // included, so the recovery action stayed dead until a page reload — and
+    // the refresh has to be the user's call rather than a race with the reboot.
+    // The reboot window itself still gates them; see the test below.
+    apiMock.checkOta.mockResolvedValue({
+      updateAvailable: true,
+      current: "1.4.0",
+      latest: "1.5.0",
+    });
+    apiMock.installOta.mockResolvedValue({ ok: true, version: "1.5.0", message: "started" });
+    const user = userEvent.setup();
+    await renderSettled();
+    await screen.findByRole("button", { name: "Roll Back" });
+
+    await user.click(screen.getByRole("button", { name: /Check for Updates/ }));
+    await user.click(await screen.findByRole("button", { name: /Install 1\.5\.0/ }));
+    await waitFor(() => expect(wsSubscribers.length).toBeGreaterThan(0));
+    pushFrame({ type: "ota_complete", data: { percent: 100 } });
+    await screen.findByText(/The controller is restarting/);
+
+    // The kiln comes back on the new image, still pending verification — but
+    // only once the read settles. While it is in flight the card must go on
+    // saying "restarting": React Query is still holding the pre-reboot data,
+    // and revealing the card early would put the outgoing version on screen
+    // with Roll Back live off its stale rollbackAvailable.
+    let release: (value: OtaStatus) => void = () => {};
+    apiMock.otaStatus.mockImplementation(() => new Promise((r) => (release = r)));
+    await user.click(screen.getByRole("button", { name: "Refresh" }));
+
+    expect(screen.getByText(/The controller is restarting/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Roll Back" })).not.toBeInTheDocument();
+    // The row that would carry the outgoing version is not rendered at all.
+    expect(screen.queryByText("Running Version")).not.toBeInTheDocument();
+
+    release(
+      otaStatus({
+        running: {
+          label: "ota_1",
+          address: 0x610000,
+          size: 0x500000,
+          state: "pending_verify",
+          version: "1.5.0",
+        },
+        bootPartition: "ota_1",
+        pendingVerify: true,
+      }),
+    );
+
+    expect(await screen.findByText("Pending verification")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Roll Back" })).toBeEnabled();
+  });
+
+  it("withdraws the install offer once that update has landed", async () => {
+    // Kept, it renders an enabled Install for the version now running as soon
+    // as the reboot guard lifts, and pressing it earns the firmware's "Already
+    // on the latest version". iOS has cleared it since #145.
+    apiMock.checkOta.mockResolvedValue({
+      updateAvailable: true,
+      current: "1.4.0",
+      latest: "1.5.0",
+    });
+    apiMock.installOta.mockResolvedValue({ ok: true, version: "1.5.0", message: "started" });
+    const user = userEvent.setup();
+    await renderSettled();
+    await screen.findByRole("button", { name: "Roll Back" });
+
+    await user.click(screen.getByRole("button", { name: /Check for Updates/ }));
+    await user.click(await screen.findByRole("button", { name: /Install 1\.5\.0/ }));
+    await waitFor(() => expect(apiMock.installOta).toHaveBeenCalled());
+    pushFrame({ type: "ota_complete", data: { percent: 100 } });
+    await screen.findByText(/The controller is restarting/);
+
+    // Back on the new image; the guard lifts and the card returns.
+    await user.click(screen.getByRole("button", { name: "Refresh" }));
+    await screen.findByText("Running Slot");
+
+    expect(screen.queryByRole("button", { name: /^Install/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Check for Updates/ })).toBeEnabled();
+  });
+
+  it("offers no OTA action while the controller is restarting", async () => {
+    // Clearing the install flag on completion must not hand back Install,
+    // Check for Updates or Restart mid-reboot — a worse moment to offer them
+    // than during the install itself. awaitingReboot carries that, and it ends
+    // when the partition state is read back, which is when the kiln is known
+    // to be answering again.
+    apiMock.checkOta.mockResolvedValue({
+      updateAvailable: true,
+      current: "1.4.0",
+      latest: "1.5.0",
+    });
+    apiMock.installOta.mockResolvedValue({ ok: true, version: "1.5.0", message: "started" });
+    const user = userEvent.setup();
+    await renderSettled();
+
+    await user.click(screen.getByRole("button", { name: /Check for Updates/ }));
+    await user.click(await screen.findByRole("button", { name: /Install 1\.5\.0/ }));
+    await waitFor(() => expect(wsSubscribers.length).toBeGreaterThan(0));
+    pushFrame({ type: "ota_complete", data: { percent: 100 } });
+    await screen.findByText(/The controller is restarting/);
+
+    expect(screen.getByRole("button", { name: "Restart" })).toBeDisabled();
+    // Install is gone rather than merely disabled: the offer it represented was
+    // taken up by the install that just finished.
+    expect(screen.queryByRole("button", { name: /^Install/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Check for Updates/ })).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "Refresh" }));
+    await screen.findByText("Running Slot");
+    expect(screen.getByRole("button", { name: "Restart" })).toBeEnabled();
+  });
+
+  it("stays in the reboot state when Refresh is pressed too early", async () => {
+    // refetch resolves with an error result rather than throwing, so clearing
+    // the guard unconditionally handed Install, upload and Restart back the
+    // moment someone pressed Refresh — against a kiln still restarting.
+    apiMock.checkOta.mockResolvedValue({
+      updateAvailable: true,
+      current: "1.4.0",
+      latest: "1.5.0",
+    });
+    apiMock.installOta.mockResolvedValue({ ok: true, version: "1.5.0", message: "started" });
+    const user = userEvent.setup();
+    await renderSettled();
+    await screen.findByRole("button", { name: "Roll Back" });
+
+    await user.click(screen.getByRole("button", { name: /Check for Updates/ }));
+    await user.click(await screen.findByRole("button", { name: /Install 1\.5\.0/ }));
+    await waitFor(() => expect(apiMock.installOta).toHaveBeenCalled());
+    pushFrame({ type: "ota_complete", data: { percent: 100 } });
+    await screen.findByText(/The controller is restarting/);
+
+    // Still on its way back: nothing answers.
+    apiMock.otaStatus.mockRejectedValue(new TypeError("Failed to fetch"));
+    await user.click(screen.getByRole("button", { name: "Refresh" }));
+
+    await waitFor(() => expect(apiMock.otaStatus).toHaveBeenCalled());
+    expect(screen.getByText(/The controller is restarting/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Restart" })).toBeDisabled();
+  });
+
+  it("leaves the reboot state on a kiln too old to serve the endpoint", async () => {
+    // A 404 is still the controller answering: it is up, and staying
+    // "restarting" forever would strand every OTA control on that kiln.
+    apiMock.rollbackOta.mockResolvedValue({ acknowledged: true });
+    const user = userEvent.setup();
+    await renderSettled();
+
+    await user.click(await screen.findByRole("button", { name: "Roll Back" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Roll Back" }));
+    await screen.findByText(/The controller is restarting/);
+
+    apiMock.otaStatus.mockRejectedValue(new ApiHttpError(404, "Not found"));
+    await user.click(screen.getByRole("button", { name: "Refresh" }));
+
+    expect(await screen.findByText(/Could not read the partition state/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Restart" })).toBeEnabled();
+  });
+
+  it("offers no rollback when the device says there is nothing behind it", async () => {
+    // Pressing it would take a 400; saying why beats a dead button.
+    apiMock.otaStatus.mockResolvedValue(otaStatus({ rollbackAvailable: false }));
+    await renderSettled();
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Roll Back" })).toBeDisabled());
+    expect(screen.getByText(/No previous firmware to roll back to/)).toBeInTheDocument();
+  });
+
+  it("does not offer a rollback mid-firing", async () => {
+    // handle_ota_rollback() answers 409, and rebooting would abandon the load.
+    useKilnStore.setState({
+      firingProgress: { ...useKilnStore.getState().firingProgress, isActive: true },
+    });
+    await renderSettled();
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Roll Back" })).toBeDisabled());
+  });
+
+  it("offers to confirm an image that is still pending verification", async () => {
+    apiMock.otaStatus.mockResolvedValue(otaStatus({ pendingVerify: true }));
+    apiMock.confirmOta.mockResolvedValue({ ok: true, message: "Firmware confirmed as valid" });
+    const user = userEvent.setup();
+    await renderSettled();
+
+    expect(await screen.findByText("Pending verification")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Confirm" }));
+
+    await waitFor(() => expect(apiMock.confirmOta).toHaveBeenCalled());
+    // The firmware's own wording — it distinguishes a confirmation from a
+    // no-op on an already-valid image, and the user should see which happened.
+    expect(toastFns.success).toHaveBeenCalledWith("Firmware confirmed as valid");
+  });
+
+  it("stops trusting the cached state when a later refetch fails", async () => {
+    // React Query keeps the last good `data` when a refetch fails, so the card
+    // could show a stale running version and an enabled Roll Back — off a
+    // `rollbackAvailable` nothing can still vouch for — with no sign anything
+    // was wrong. Reached here the way it happens in practice: confirming
+    // invalidates the query, and the refetch lands on an unreachable kiln.
+    apiMock.otaStatus.mockResolvedValue(otaStatus({ pendingVerify: true }));
+    apiMock.confirmOta.mockResolvedValue({ ok: true, message: "Firmware confirmed as valid" });
+    const user = userEvent.setup();
+    await renderSettled();
+
+    await screen.findByText("Pending verification");
+    apiMock.otaStatus.mockRejectedValue(new Error("API error 503: unreachable"));
+    await user.click(screen.getByRole("button", { name: "Confirm" }));
+
+    expect(await screen.findByText(/Could not read the partition state/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Roll Back" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Running Slot")).not.toBeInTheDocument();
+  });
+
+  it("hides the confirm control once the image is valid", async () => {
+    await renderSettled();
+
+    await waitFor(() => expect(apiMock.otaStatus).toHaveBeenCalled());
+    expect(screen.queryByRole("button", { name: "Confirm" })).not.toBeInTheDocument();
+  });
+
+  it("says so when the partition state cannot be read", async () => {
+    // A controller too old to serve /ota/status 404s it. Rendering an empty
+    // card would read as "no previous firmware", which is a different claim.
+    apiMock.otaStatus.mockRejectedValue(new Error("API error 404: Not found"));
+    await renderSettled();
+
+    expect(await screen.findByText(/Could not read the partition state/)).toBeInTheDocument();
   });
 });
 

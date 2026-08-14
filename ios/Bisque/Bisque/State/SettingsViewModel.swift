@@ -22,6 +22,27 @@ final class SettingsViewModel {
     var isInstalling = false
     var installProgress: Double?
 
+    // OTA — partitions, confirm and rollback (#177)
+    var otaStatus: OtaStatus?
+    /// Set when a status fetch failed — a controller too old to serve the
+    /// endpoint 404s it. Deliberately not routed through `error`, which drives
+    /// the red banner: being unable to *describe* the partitions is not a
+    /// failure of anything the user asked for, and it would otherwise paint the
+    /// screen red every time the OTA view opened against an older kiln.
+    var otaStatusUnavailable = false
+    /* True from the moment an update or a rollback is accepted until the
+       partition state is read back. The per-operation flags all clear when
+       their request finishes, which is *before* the controller has finished
+       restarting — so without this the screen handed back Check for Updates,
+       Install and the file picker while the kiln was disconnecting, earning a
+       409 or a dropped connection. The web client carries the same state. */
+    var awaitingReboot = false
+    var isLoadingOtaStatus = false
+    var isConfirmingFirmware = false
+    var isRollingBack = false
+    /// Bumped by every `loadOtaStatus()`; only the newest may write the result.
+    @ObservationIgnored private var otaLoadGeneration = 0
+
     @ObservationIgnored private var otaCancellable: AnyCancellable?
 
     // Diagnostics
@@ -107,6 +128,7 @@ final class SettingsViewModel {
                 }
             }
             otaMessage = "Update complete. Kiln is rebooting..."
+            markOtaStatusStale()
             isUploading = false
         } catch {
             self.error = error.localizedDescription
@@ -148,6 +170,9 @@ final class SettingsViewModel {
                 case .complete:
                     self.installProgress = 100
                     self.otaMessage = "Update installed. Kiln is rebooting..."
+                    // The partitions on screen belong to the image just
+                    // replaced; the new one may be pending verification.
+                    self.markOtaStatusStale()
                     // Without this the flag stays true after a successful
                     // install, leaving Check for Updates / Install disabled
                     // until the view is recreated (#145). Matches the .failed
@@ -177,6 +202,138 @@ final class SettingsViewModel {
             installProgress = nil
             otaCancellable = nil
         }
+    }
+
+    // MARK: - OTA (partitions and rollback)
+
+    /// Drop the partition state after an update or a rollback.
+    ///
+    /// The slot, version and image state on screen describe the firmware that
+    /// was just replaced, and the kiln is rebooting, so a refetch would fail
+    /// anyway. Marking it unreadable rather than leaving the old values up is
+    /// the honest state, and the Refresh button in the section is how the user
+    /// picks it back up once the kiln answers again — otherwise a new image
+    /// could sit in pending-verify for its whole confirmation window with the
+    /// Confirm button never shown (#177).
+    func markOtaStatusStale() {
+        awaitingReboot = true
+        /* Retire any read already in flight. A load started before the update
+           finished is describing the outgoing image, and without advancing the
+           generation it would still pass its own guard and repopulate the
+           screen with that image *after* this marked it stale — the Refresh
+           button stays live during an upload or install, so the overlap is
+           reachable, not theoretical. */
+        otaLoadGeneration &+= 1
+        isLoadingOtaStatus = false
+        otaStatus = nil
+        otaStatusUnavailable = true
+    }
+
+    /// Reads the partition state, discarding the answer if a newer read started
+    /// while it was in flight.
+    ///
+    /// Three things call this — the view's `.task`, the Refresh button, and the
+    /// reload after a confirm — and around a reboot they overlap by design: the
+    /// user taps Refresh, gets nothing, and taps again. Without the generation
+    /// check, a slow pre-reboot request completing after a fast post-reboot one
+    /// would restore the outgoing image's slot and `rollbackAvailable` on top of
+    /// the new state, or a late failure would erase state that had just loaded.
+    /// Everything here is `@MainActor`, so the counter needs no locking.
+    func loadOtaStatus(using client: KilnAPIClient) async {
+        otaLoadGeneration &+= 1
+        let generation = otaLoadGeneration
+        isLoadingOtaStatus = true
+        defer {
+            if generation == otaLoadGeneration {
+                isLoadingOtaStatus = false
+            }
+        }
+
+        do {
+            let status = try await client.getOTAStatus()
+            guard generation == otaLoadGeneration else { return }
+            otaStatus = status
+            otaStatusUnavailable = false
+            // The kiln answered, so it is back: the reboot this was waiting on
+            // is over and the OTA controls are safe to offer again.
+            awaitingReboot = false
+        } catch {
+            guard generation == otaLoadGeneration else { return }
+            otaStatus = nil
+            otaStatusUnavailable = true
+            /* A failure that came *from* the kiln still proves it is back. A
+               rollback onto firmware that predates /ota/status answers 404, and
+               leaving the guard set there strands Check, Install and the file
+               picker until this view model is recreated — the OTA screen would
+               be dead for the rest of the app's life. */
+            if Self.kilnAnswered(error) {
+                awaitingReboot = false
+            }
+        }
+    }
+
+    /// Whether a failure came from the kiln rather than from not reaching it.
+    ///
+    /// Exhaustive on purpose: a new APIError case has to be classified rather
+    /// than defaulting into "the controller answered", which would release the
+    /// reboot guard on evidence that does not support it.
+    private static func kilnAnswered(_ error: Error) -> Bool {
+        guard let apiError = error as? APIError else { return false }
+        switch apiError {
+        case .serverError, .unauthorized, .decodingError:
+            return true
+        case .connectionFailed, .invalidURL:
+            return false
+        }
+    }
+
+    func confirmFirmware(using client: KilnAPIClient) async {
+        isConfirmingFirmware = true
+        error = nil
+        do {
+            // The firmware's own wording: it distinguishes a confirmation from
+            // a no-op on an image that was already valid, and which of the two
+            // happened is the whole answer to the question the tap asked.
+            otaMessage = try await client.confirmOTA().message
+            // pendingVerify is what put the button on screen, so the state it
+            // was read from is stale the moment this succeeds.
+            await loadOtaStatus(using: client)
+        } catch {
+            self.error = error.localizedDescription
+        }
+        isConfirmingFirmware = false
+    }
+
+    func rollbackFirmware(using client: KilnAPIClient) async {
+        isRollingBack = true
+        error = nil
+        otaMessage = nil
+        do {
+            switch try await client.rollbackOTA() {
+            case .acknowledged:
+                otaMessage = "Rolling back. Kiln is rebooting..."
+            case .unacknowledged:
+                /* The request went out and nothing came back, which is what the
+                   reboot looks like from here — but it is not proof, so this
+                   says what is known and names the check that settles it. */
+                otaMessage = """
+                    Rollback sent, but the kiln stopped answering before it replied. \
+                    That is expected while it reboots — reopen this screen shortly and \
+                    check the running version.
+                    """
+            }
+            // The partitions on screen describe the image on its way out.
+            markOtaStatusStale()
+            // The offer to install whatever was newest belongs to the firmware
+            // being left behind; the version list is worth rechecking after the
+            // reboot rather than acting on now.
+            availableUpdate = nil
+        } catch {
+            // 400 with nothing to roll back to, 409 during a firing. Both mean
+            // the firmware did not change.
+            self.error = error.localizedDescription
+        }
+        isRollingBack = false
     }
 
     // MARK: - Diagnostics

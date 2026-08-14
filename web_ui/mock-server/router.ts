@@ -518,7 +518,98 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
 
   // POST /ota
   if (method === "POST" && apiPath === "/ota") {
+    // handle_ota_upload() runs ota_blocked_by_firing() before accepting a byte,
+    // exactly as the rollback route does — so a mock that took the image
+    // mid-firing would let a client exercise a transition the device refuses.
+    if (state.firing.running || state.firing.scheduled || state.autotune.running) {
+      return apiError(409, "Cannot update firmware during a firing");
+    }
+    /* A real controller writes the image to the inactive slot, sets it as the
+       boot partition and reboots into it pending verification. The mock used
+       to answer 200 and change nothing, so a client that uploaded, dropped its
+       partition state and refreshed was shown the same slot and version as
+       before — exercising a recovery flow that does not match the device.
+       The slot left behind becomes the rollback target. */
+    const previous = state.ota.running;
+    state.ota.running = state.ota.nextUpdate;
+    state.ota.bootPartition = state.ota.nextUpdate;
+    state.ota.nextUpdate = previous;
+    state.ota.runningVersion = OTA_UPLOADED_VERSION;
+    state.ota.pendingVerify = true;
+    state.ota.rollbackAvailable = true;
     return { status: 200, json: { ok: true } };
+  }
+
+  // GET /ota/status
+  if (method === "GET" && apiPath === "/ota/status") {
+    const o = state.ota;
+    return {
+      status: 200,
+      json: {
+        running: {
+          label: o.running,
+          address: OTA_SLOT_OFFSET[o.running],
+          size: OTA_SLOT_SIZE,
+          // The firmware only emits `state` (and `pendingVerify` beside it)
+          // when esp_ota_get_state_partition() succeeded, and the two always
+          // agree — see build_ota_status_json().
+          state: o.pendingVerify ? "pending_verify" : "valid",
+          version: o.runningVersion,
+          date: "Jan 1 2026",
+          time: "12:00:00",
+          // Deliberately not the real pinned ESP-IDF version: every literal
+          // copy of it has to be tracked in renovate.json so one bump lands as
+          // one PR, and this is mock data like the "2.0.0-mock" above.
+          idfVersion: "v6.x-mock",
+        },
+        nextUpdate: { label: o.nextUpdate, size: OTA_SLOT_SIZE },
+        bootPartition: o.bootPartition,
+        pendingVerify: o.pendingVerify,
+        rollbackAvailable: o.rollbackAvailable,
+      },
+    };
+  }
+
+  // POST /ota/rollback
+  if (method === "POST" && apiPath === "/ota/rollback") {
+    /* ota_blocked_by_firing() runs first in the handler, so a busy kiln with
+       nothing to roll back to answers 409 rather than 400.
+       `is_active` — what that guard reads — covers a running firing, an armed
+       delayed start *and* an auto-tune (firing_engine.c sets it when the tune
+       arms). Testing only the firing flags let the mock accept a rollback
+       mid-tune that a real controller refuses. */
+    if (state.firing.running || state.firing.scheduled || state.autotune.running) {
+      return apiError(409, "Cannot update firmware during a firing");
+    }
+    if (!state.ota.rollbackAvailable) {
+      return apiError(400, "Rollback not available");
+    }
+    /* The real device reboots here and comes back on the other slot, so the
+       mock performs that swap rather than only moving the boot pointer:
+       otherwise the client that followed the recovery prompt refreshes and is
+       still shown the firmware it just rolled back from — the opposite of what
+       the flow it is demonstrating does. The slot it leaves becomes the next
+       update target, and the version changes so the transition is visible.
+       Rollback is then no longer on offer: a second one with no image behind
+       it is exactly the 400 above. */
+    const previous = state.ota.running;
+    state.ota.running = state.ota.nextUpdate;
+    state.ota.bootPartition = state.ota.nextUpdate;
+    state.ota.nextUpdate = previous;
+    state.ota.runningVersion = OTA_ROLLED_BACK_VERSION;
+    state.ota.pendingVerify = false;
+    state.ota.rollbackAvailable = false;
+    return { status: 200, json: { ok: true } };
+  }
+
+  // POST /ota/confirm
+  if (method === "POST" && apiPath === "/ota/confirm") {
+    const wasPending = state.ota.pendingVerify;
+    state.ota.pendingVerify = false;
+    return {
+      status: 200,
+      json: { ok: true, message: wasPending ? OTA_CONFIRMED_MSG : OTA_ALREADY_CONFIRMED_MSG },
+    };
   }
 
   // GET /wifi
@@ -739,6 +830,29 @@ function stopAutotune(): void {
  * serializer emits, the same way the cone table is guarded. Without that, a
  * firmware change to either would leave the public demo validating against a
  * range the device rejects, or restoring gains it never shipped. */
+/* The two answers POST /ota/confirm can give, from build_ota_confirm_json in
+   api_json.c. Exported for the same reason the PID constants below are: both
+   clients show this text verbatim, so a mock that words it differently from the
+   firmware would have the demo teaching a sentence the kiln never sends.
+   `mock-server confirm messages match the firmware fixtures` in
+   test/contracts/firmwareContract.test.ts compares them against the emitted
+   JSON (#177). */
+/* Slot geometry, copied from partitions.csv — the 16MB OTA layout every
+   controller ships with. The mock previously invented offsets and sizes, so
+   anything reading the address/size fields saw a partition table no device
+   has. */
+export const OTA_SLOT_OFFSET: Record<string, number> = { ota_0: 0x20000, ota_1: 0x420000 };
+export const OTA_SLOT_SIZE = 0x400000;
+
+/** The version the mock reports after a rollback, so the swap is visible. */
+export const OTA_ROLLED_BACK_VERSION = "1.9.0-mock";
+
+/** …and after a manual upload, for the same reason. */
+export const OTA_UPLOADED_VERSION = "2.1.0-mock";
+
+export const OTA_CONFIRMED_MSG = "Firmware confirmed as valid";
+export const OTA_ALREADY_CONFIRMED_MSG = "Firmware already confirmed";
+
 export const PID_GAIN_MIN = 0;
 export const PID_GAIN_MAX = 10000;
 export const PID_DEFAULT_GAINS = { kp: 2.0, ki: 0.01, kd: 5.0 };

@@ -392,3 +392,79 @@ describe("api: uploadOta()", () => {
     await expect(promise).rejects.toThrow("OTA error 302: ");
   });
 });
+
+describe("api: rollbackOta()", () => {
+  it("reports a dropped connection as unacknowledged rather than failed", async () => {
+    // handle_ota_rollback() calls
+    // esp_ota_mark_app_invalid_rollback_and_reboot(), so the socket usually
+    // dies before the reply lands. Rejecting would tell the user the rollback
+    // failed while the kiln was busy performing it — but the same TypeError
+    // arrives when the kiln was already unreachable and never got the POST,
+    // and the Fetch spec gives no way to tell those apart. So it resolves
+    // without claiming the request landed, and the caller words it honestly.
+    const { api } = await loadApi();
+    fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
+    await expect(api.rollbackOta()).resolves.toEqual({ acknowledged: false });
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/v1/ota/rollback");
+    expect(fetchMock.mock.calls[0][1].method).toBe("POST");
+  });
+
+  it("acknowledges a rollback the controller answered before rebooting", async () => {
+    const { api } = await loadApi();
+    fetchMock.mockResolvedValue(jsonResponse({ ok: true }));
+    await expect(api.rollbackOta()).resolves.toEqual({ acknowledged: true });
+  });
+
+  it("refuses to credit a 2xx that did not come from the kiln", async () => {
+    // A captive portal, a proxy, or whatever picked up the kiln's DHCP lease
+    // while the tab sat open all answer 200. Reporting "rolling back" off the
+    // status code alone would credit them with a reboot that never happened.
+    const { api } = await loadApi();
+    fetchMock.mockResolvedValue(
+      new Response("<html>Sign in to the network</html>", { status: 200 }),
+    );
+    await expect(api.rollbackOta()).rejects.toThrow(/did not come from the kiln/);
+  });
+
+  it("refuses a 2xx whose body is JSON but not the kiln's answer", async () => {
+    const { api } = await loadApi();
+    fetchMock.mockResolvedValue(jsonResponse({ status: "captive" }));
+    await expect(api.rollbackOta()).rejects.toThrow(/did not come from the kiln/);
+  });
+
+  it("does not follow a redirect away from the kiln", async () => {
+    const { api } = await loadApi();
+    fetchMock.mockResolvedValue(jsonResponse({ ok: true }));
+    await api.rollbackOta();
+    expect(fetchMock.mock.calls[0][1].redirect).toBe("manual");
+  });
+
+  it("names a redirect for what it is instead of blaming the reboot", async () => {
+    // `redirect: "error"` would reject here, and a rejection means "the kiln
+    // stopped answering, expected while it reboots" — a sentence about a kiln
+    // that was never reached. An opaque response falls through to the error
+    // that describes what actually happened.
+    const { api } = await loadApi();
+    const opaque = new Response(null, { status: 200 });
+    Object.defineProperty(opaque, "type", { value: "opaqueredirect" });
+    fetchMock.mockResolvedValue(opaque);
+    await expect(api.rollbackOta()).rejects.toThrow(/answered by a redirect/);
+  });
+
+  it("still reports an outright refusal", async () => {
+    // 400 with no image behind the running one, 409 while a firing runs. Both
+    // arrive intact — the device is very much still up — and both mean the
+    // firmware did not change.
+    const { api } = await loadApi();
+    fetchMock.mockResolvedValue(errorResponse(400, "Rollback not available"));
+    await expect(api.rollbackOta()).rejects.toThrow("API error 400: Rollback not available");
+  });
+
+  it("bearers the token, since the endpoint is authenticated", async () => {
+    const { api, setApiToken } = await loadApi();
+    setApiToken("secret");
+    fetchMock.mockResolvedValue(jsonResponse({ ok: true }));
+    await api.rollbackOta();
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe("Bearer secret");
+  });
+});

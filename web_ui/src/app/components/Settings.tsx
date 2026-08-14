@@ -57,6 +57,9 @@ import {
   Download,
   FileText,
   Power,
+  HardDrive,
+  Undo2,
+  ShieldCheck,
 } from "lucide-react";
 import { settingsSchema, SettingsFormValues } from "../schemas/kiln";
 import { TemperatureField } from "./TemperatureField";
@@ -82,8 +85,12 @@ import {
   useUploadOta,
   useCheckOta,
   useInstallOta,
+  useOtaStatus,
+  useInvalidateSystemInfo,
+  useConfirmOta,
+  useRollbackOta,
 } from "../hooks/queries";
-import { api, DiagThermocouple, OtaCheckResponse } from "../services/api";
+import { api, ApiHttpError, DiagThermocouple, OtaCheckResponse } from "../services/api";
 import { kilnWS } from "../services/websocket";
 import { useKilnStore } from "../stores/kilnStore";
 import { WifiCard } from "./WifiCard";
@@ -135,6 +142,34 @@ export function Settings() {
   const uploadOta = useUploadOta();
   const checkOta = useCheckOta();
   const installOta = useInstallOta();
+  // Firmware partitions (#177). Not fetched in the demo: the card that reads it
+  // is hardware-only, and the mock kiln has no partition table to describe.
+  const {
+    data: otaStatus,
+    isError: otaStatusFailed,
+    isFetching: otaStatusFetching,
+    refetch: refetchOtaStatus,
+  } = useOtaStatus(!__DEMO__);
+  /* The partition state only counts while the newest fetch succeeded. React
+     Query keeps the last good `data` when a later refetch fails — a
+     window-focus refetch against a kiln that has since gone off the network,
+     say — so `otaStatus` and `otaStatusFailed` can both be set at once.
+     Rendering the card off the data alone would then hide the error, keep the
+     old running version on screen, and go on offering Roll Back from a
+     `rollbackAvailable` nothing can still vouch for. */
+  const partitions = otaStatusFailed ? undefined : otaStatus;
+  /* Set the moment an update or a rollback is accepted, cleared only when the
+     user asks for a fresh read. The controller does not go down immediately —
+     install_task reports OTA_PHASE_COMPLETE and only reboots 1.5 s later
+     (ota_manager.c) — so a refetch fired on completion races the restart and
+     usually wins, repopulating the card with the *pre-update* partitions and
+     no sign they are stale. There is no reliable client-side signal for "the
+     kiln has finished rebooting", so this stops claiming and asks. */
+  const [awaitingReboot, setAwaitingReboot] = useState(false);
+  const invalidateSystemInfo = useInvalidateSystemInfo();
+  const confirmOta = useConfirmOta();
+  const rollbackOta = useRollbackOta();
+  const [rollbackConfirmOpen, setRollbackConfirmOpen] = useState(false);
 
   // TC diagnostics
   const [tcDiag, setTcDiag] = useState<DiagThermocouple | null>(null);
@@ -147,8 +182,18 @@ export function Settings() {
   const [otaCheck, setOtaCheck] = useState<OtaCheckResponse | null>(null);
   const [otaInstalling, setOtaInstalling] = useState(false);
   const [otaInstallPct, setOtaInstallPct] = useState<number | null>(null);
-  // Either OTA path in flight: a manifest install, or a manual binary upload.
-  const otaBusy = otaInstalling || otaProgress !== null;
+  /* Anything that makes the controller a bad target for another OTA command:
+     a manifest install, a manual binary upload, or the reboot that follows one
+     of those (or a rollback).
+
+     The reboot belongs here rather than in `otaInstalling`. Holding the install
+     flag past OTA_PHASE_COMPLETE was wrong — the install really is over, and it
+     left every OTA control dead until a page reload — but clearing it alone
+     re-enabled Install, Check for Updates and Restart Controller while the kiln
+     was mid-restart, which is a worse moment to offer them. `awaitingReboot`
+     ends when the user reads the partition state back, which is exactly when
+     the kiln is known to be answering again. */
+  const otaBusy = otaInstalling || otaProgress !== null || awaitingReboot;
 
   // API token local state
   const [newToken, setNewToken] = useState("");
@@ -447,6 +492,10 @@ export function Settings() {
     try {
       await uploadOta.mutateAsync({ file: otaFile, onProgress: (pct) => setOtaProgress(pct) });
       toast.success("Firmware uploaded — controller is rebooting");
+      // The slot, version and image state on screen belong to the firmware
+      // just replaced, and the new image may be pending verification.
+      setAwaitingReboot(true);
+
       setOtaFile(null);
       setOtaProgress(null);
     } catch (e) {
@@ -480,6 +529,51 @@ export function Settings() {
     }
   }, [installOta]);
 
+  const handleConfirmFirmware = useCallback(async () => {
+    try {
+      const resp = await confirmOta.mutateAsync();
+      toast.success(resp.message);
+    } catch (e) {
+      toast.error(`Could not confirm the firmware: ${toErrorMessage(e)}`);
+    }
+  }, [confirmOta]);
+
+  const handleRollback = useCallback(async () => {
+    setRollbackConfirmOpen(false);
+    try {
+      const { acknowledged } = await rollbackOta.mutateAsync();
+      if (acknowledged) {
+        toast.success("Rolling back — reload this page once the controller is back.");
+      } else {
+        /* The request never got an answer. Usually that is the controller
+           rebooting mid-reply, which is the rollback working — but a kiln that
+           had already dropped off the network produces exactly the same
+           TypeError, and claiming success there would be a guess presented as
+           a fact. Say what is known and point at the check that settles it. */
+        toast.warning(
+          "Rollback sent, but the controller stopped answering before it replied. " +
+            "That is expected while it reboots — retry the partition state in a moment " +
+            "and check the running version.",
+        );
+      }
+      /* Both outcomes leave the cached slot, version and rollbackAvailable
+         describing an image the controller is in the middle of abandoning —
+         and, kept, they would re-enable Roll Back off a stale `true` the moment
+         the mutation settled. Not on the error path below: a 400 or 409 means
+         the firmware did not change, so what is on screen is still correct. */
+      setAwaitingReboot(true);
+      /* The update-check verdict was about the firmware being left behind —
+         "you're on the latest version" is a claim about a build that is no
+         longer running. /system is refreshed at the other end of the reboot
+         instead, by the Refresh handler: invalidating it here would fire a
+         request at a controller that is already restarting, and with
+         `retry: false` that failure just keeps the old version on screen. */
+      setOtaCheck(null);
+    } catch (e) {
+      toast.error(`Rollback refused: ${toErrorMessage(e)}`);
+    }
+  }, [rollbackOta]);
+
   // Stream OTA install progress from the WebSocket while an install runs.
   useEffect(() => {
     if (!otaInstalling) return;
@@ -489,6 +583,18 @@ export function Settings() {
       } else if (msg.type === "ota_complete") {
         setOtaInstallPct(100);
         toast.success("Update installed — controller is rebooting");
+        /* The install is over; only the reboot is left. Leaving this true kept
+           every OTA control disabled — including Roll Back, the one thing a
+           user reaching for recovery needs — until the page was reloaded. The
+           progress bar stays at 100% because otaInstallPct is what draws it. */
+        setOtaInstalling(false);
+        setAwaitingReboot(true);
+        /* Drop the offer that was just taken up. Kept, it re-renders an enabled
+           Install for the version now running as soon as the reboot guard
+           lifts, and pressing it earns the firmware's "Already on the latest
+           version". Clearing it restores Check for Updates, which is the honest
+           next action — the iOS install path has done this since #145. */
+        setOtaCheck(null);
       } else if (msg.type === "ota_error") {
         toast.error(`Update failed: ${msg.data.message}`);
         setOtaInstalling(false);
@@ -1136,7 +1242,7 @@ export function Settings() {
                 <Button
                   variant="outline"
                   onClick={handleCheckOta}
-                  disabled={checkOta.isPending || otaInstalling}
+                  disabled={checkOta.isPending || otaBusy}
                   className="gap-2"
                 >
                   <RefreshCw className="h-4 w-4" />
@@ -1146,7 +1252,7 @@ export function Settings() {
                 {otaCheck?.updateAvailable && (
                   <Button
                     onClick={handleInstallOta}
-                    disabled={otaInstalling}
+                    disabled={otaBusy}
                     variant="default"
                     className="gap-2"
                   >
@@ -1205,7 +1311,12 @@ export function Settings() {
 
               <Button
                 onClick={handleOtaUpload}
-                disabled={!otaFile || otaProgress !== null}
+                /* otaBusy, not just this card's own progress: after an install,
+                   upload or rollback the page is waiting on a reboot, and
+                   sending another image to a controller that is disconnecting
+                   earns a 409 or a dropped connection. Every other OTA control
+                   is already gated on it. */
+                disabled={!otaFile || otaBusy}
                 variant="default"
                 className="gap-2"
               >
@@ -1217,6 +1328,193 @@ export function Settings() {
                 The controller will restart automatically after a successful upload. Do not power
                 off during the update.
               </p>
+            </CardContent>
+          </Card>
+
+          {/* Firmware partitions — the other half of the OTA story (#177).
+              Every update writes to the inactive slot, so the image it replaced
+              is still on the device; without this card the only way back from a
+              bad update was a USB cable. */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <HardDrive className="h-5 w-5" />
+                Firmware Partitions
+              </CardTitle>
+              <CardDescription>
+                Which image the controller booted, and how to return to the previous one
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Three states, and the difference matters: everything below —
+                  above all "no previous firmware to roll back to" — is a claim
+                  about the device that is only true once a fetch has actually
+                  landed. Rendered off `otaStatus?.` alone, a still-loading or
+                  failed request asserted the same sentence as a successful
+                  `rollbackAvailable: false`, and printed it directly beneath
+                  "Could not read the partition state". */}
+              {awaitingReboot && (
+                <div className="flex items-end justify-between gap-4 flex-wrap">
+                  <p className="text-sm text-muted-foreground">
+                    The controller is restarting. Read the partition state again once it is back to
+                    see which image it came up on.
+                  </p>
+                  <Button
+                    variant="outline"
+                    className="gap-2"
+                    /* Lower the guard only once the read has settled. Clearing
+                       it first revealed the card while the request was still in
+                       flight — and React Query still holds the pre-reboot data,
+                       so that meant the outgoing version on screen and Roll
+                       Back live off its stale `rollbackAvailable`, for as long
+                       as a restarting kiln took to answer. Whatever the refetch
+                       returns is honest: fresh partitions, or the "could not
+                       read" branch. */
+                    onClick={async () => {
+                      const result = await refetchOtaStatus();
+                      /* Lower the guard only once the controller has proved it
+                         is back. refetch resolves with an error result rather
+                         than throwing, so clearing unconditionally handed back
+                         Install, upload and Restart the moment someone pressed
+                         Refresh too early — against a kiln still restarting.
+                         An HTTP status counts as proof even when it is a 404:
+                         firmware too old to serve /ota/status is up and
+                         answering, and staying "restarting" forever would
+                         strand every OTA control on that kiln. */
+                      /* `result.data` is no use here — a failed refetch still
+                         carries the last good value, the same retention that
+                         made the card need `partitions`. The verdict is the
+                         error, or its absence. */
+                      if (!result.isError || result.error instanceof ApiHttpError) {
+                        setAwaitingReboot(false);
+                        /* The kiln has answered, so this is the moment its own
+                           description of itself is worth re-reading: the
+                           partition card would otherwise name the new image
+                           while Controller Information and Current Version
+                           still showed the firmware it replaced. This is the
+                           only path out of the reboot state, so every OTA flow
+                           — upload, install and rollback — arrives here. */
+                        invalidateSystemInfo();
+                      }
+                    }}
+                    disabled={otaStatusFetching}
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    {otaStatusFetching ? "Checking..." : "Refresh"}
+                  </Button>
+                </div>
+              )}
+
+              {!awaitingReboot && otaStatusFailed && (
+                <div className="flex items-end justify-between gap-4 flex-wrap">
+                  <p className="text-sm text-muted-foreground">
+                    Could not read the partition state from the controller. It may be restarting
+                    after an update, or running firmware older than this page.
+                  </p>
+                  <Button
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => refetchOtaStatus()}
+                    disabled={otaStatusFetching}
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    {otaStatusFetching ? "Checking..." : "Retry"}
+                  </Button>
+                </div>
+              )}
+
+              {!awaitingReboot && !partitions && !otaStatusFailed && (
+                <p className="text-sm text-muted-foreground">Reading the partition state...</p>
+              )}
+
+              {!awaitingReboot && partitions && (
+                <div className="space-y-0">
+                  <div className="flex justify-between py-2 border-b">
+                    <span className="text-sm font-medium">Running Slot</span>
+                    <span className="text-sm text-muted-foreground font-mono">
+                      {partitions.running?.label ?? "--"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b">
+                    <span className="text-sm font-medium">Running Version</span>
+                    <span className="text-sm text-muted-foreground">
+                      {partitions.running?.version || "--"}
+                    </span>
+                  </div>
+                  {/* The boot slot is what the *next* reboot will run. It only
+                      differs from the running slot between a rollback request
+                      and the reboot that carries it out, which is exactly when
+                      a user needs to see it. */}
+                  <div className="flex justify-between py-2 border-b">
+                    <span className="text-sm font-medium">Boots Next From</span>
+                    <span className="text-sm text-muted-foreground font-mono">
+                      {partitions.bootPartition ?? "--"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-2 items-center">
+                    <span className="text-sm font-medium">Image State</span>
+                    <span className="text-sm">
+                      {partitions.pendingVerify ? (
+                        <Badge variant="destructive">Pending verification</Badge>
+                      ) : (
+                        <Badge variant="secondary">{partitions.running?.state ?? "unknown"}</Badge>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* ota_confirm.c normally confirms an image on its own after a
+                  healthy-uptime window, so this only shows up inside that
+                  window — or when the automatic pass did not run. Offering it
+                  manually means a user watching a fresh update land does not
+                  have to wait out the timer to make it permanent. */}
+              {!awaitingReboot && partitions?.pendingVerify && (
+                <div className="border-t pt-4 flex items-end justify-between gap-4 flex-wrap">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Confirm This Firmware</p>
+                    <p className="text-sm text-muted-foreground">
+                      This image has not been marked valid yet. Until it is, the controller reverts
+                      to the previous firmware if it reboots.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="gap-2"
+                    onClick={handleConfirmFirmware}
+                    disabled={confirmOta.isPending}
+                  >
+                    <ShieldCheck className="h-4 w-4" />
+                    {confirmOta.isPending ? "Confirming..." : "Confirm"}
+                  </Button>
+                </div>
+              )}
+
+              {!awaitingReboot && partitions && (
+                <div className="border-t pt-4 flex items-end justify-between gap-4 flex-wrap">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Roll Back Firmware</p>
+                    <p className="text-sm text-muted-foreground">
+                      {partitions.rollbackAvailable
+                        ? "Reboots into the firmware that was running before the last update. Settings, profiles and firing history are kept."
+                        : "No previous firmware to roll back to — the other slot is empty or was never booted successfully."}
+                    </p>
+                  </div>
+                  {/* handle_ota_rollback() refuses with 409 while a firing runs,
+                      and rebooting mid-firing would abandon the load anyway. */}
+                  <Button
+                    variant="destructive"
+                    className="gap-2"
+                    onClick={() => setRollbackConfirmOpen(true)}
+                    disabled={
+                      !partitions.rollbackAvailable || rollbackOta.isPending || kilnBusy || otaBusy
+                    }
+                  >
+                    <Undo2 className="h-4 w-4" />
+                    {rollbackOta.isPending ? "Rolling back..." : "Roll Back"}
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </>
@@ -1332,6 +1630,27 @@ export function Settings() {
             </Button>
             <Button variant="destructive" onClick={handleRestart}>
               Restart
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={rollbackConfirmOpen} onOpenChange={setRollbackConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Roll back to the previous firmware?</DialogTitle>
+            <DialogDescription>
+              {`The controller reboots immediately into the firmware it ran before ${
+                partitions?.running?.version ?? "the last update"
+              }. Settings, profiles and history are kept. To come back to this version afterwards, install it again from the update card above.`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRollbackConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleRollback}>
+              Roll Back
             </Button>
           </DialogFooter>
         </DialogContent>

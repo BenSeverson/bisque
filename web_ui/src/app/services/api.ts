@@ -3,6 +3,7 @@ import type {
   DeviceLog,
   DiagThermocouple,
   OtaCheckResponse,
+  OtaConfirmResponse,
   OtaStatus,
   PidGains,
   PidResponse,
@@ -26,6 +27,7 @@ export type {
   DeviceLog,
   DiagThermocouple,
   OtaCheckResponse,
+  OtaConfirmResponse,
   OtaStatus,
   PidGains,
   PidResponse,
@@ -61,6 +63,29 @@ function authHeaders(): Record<string, string> {
   return _apiToken ? { Authorization: `Bearer ${_apiToken}` } : {};
 }
 
+/**
+ * A reply the kiln actually sent, with a status the caller can reason about.
+ *
+ * The distinction that matters is not which status it was, but that there *was*
+ * one: a thrown ApiHttpError proves the controller answered, where a bare Error
+ * from a rejected fetch means nothing reached it. The Firmware Partitions card
+ * turns on exactly that — a 404 from firmware too old to serve /ota/status says
+ * the kiln is up and finished rebooting, while a transport failure says it is
+ * still on its way back (#177).
+ *
+ * The message is unchanged, so anything reading `toErrorMessage(e)` — every
+ * toast in the UI — reads what it always did.
+ */
+export class ApiHttpError extends Error {
+  constructor(
+    readonly status: number,
+    body: string,
+  ) {
+    super(`API error ${status}: ${body}`);
+    this.name = "ApiHttpError";
+  }
+}
+
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -72,8 +97,7 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
     headers: { ...headers, ...(options?.headers as Record<string, string> | undefined) },
   });
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`API error ${res.status}: ${text}`);
+    throw new ApiHttpError(res.status, await res.text());
   }
   return res.json();
 }
@@ -82,8 +106,7 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 async function fetchBlob(url: string): Promise<Blob> {
   const res = await fetch(`${API_BASE}${url}`, { headers: authHeaders() });
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`API error ${res.status}: ${text}`);
+    throw new ApiHttpError(res.status, await res.text());
   }
   return res.blob();
 }
@@ -92,8 +115,7 @@ async function fetchBlob(url: string): Promise<Blob> {
 async function fetchText(url: string): Promise<string> {
   const res = await fetch(`${API_BASE}${url}`, { headers: authHeaders() });
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`API error ${res.status}: ${text}`);
+    throw new ApiHttpError(res.status, await res.text());
   }
   return res.text();
 }
@@ -225,6 +247,70 @@ export const api = {
   installOta: () =>
     request<{ ok: boolean; version: string; message: string }>("/ota/install", { method: "POST" }),
   otaStatus: () => request<OtaStatus>("/ota/status"),
+  /**
+   * Reverts to the previously-booted image (#177).
+   *
+   * handle_ota_rollback() calls esp_ota_mark_app_invalid_rollback_and_reboot(),
+   * so the controller is gone before it can answer: the fetch rejects on a
+   * dropped connection far more often than it resolves. Only a real HTTP status
+   * — 400 "Rollback not available", 409 while a firing is running, 401 — is a
+   * refusal, and those still throw.
+   *
+   * `acknowledged` is what the browser can honestly say about the rest. A
+   * rejected fetch is a `TypeError` whether the kiln died mid-reply (the
+   * expected case) or was already unreachable and never received the POST
+   * (DNS, refused, no route) — the Fetch spec gives no way to tell those apart,
+   * deliberately. So the caller is told which of the two stories it is in
+   * rather than being handed a "success" that might be a lie: `true` only when
+   * the controller answered.
+   */
+  rollbackOta: async (): Promise<{ acknowledged: boolean }> => {
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}/ota/rollback`, {
+        method: "POST",
+        headers: authHeaders(),
+        /* A captive portal answers by redirecting somewhere that returns 200.
+           Following it and reading that as an acknowledgement would credit the
+           portal with a rollback the kiln never performed.
+
+           "manual" rather than "error": an error would reject, landing in the
+           catch below and reporting the redirect as "the kiln stopped
+           answering, expected while it reboots" — a sentence about a kiln that
+           was never even reached. Resolving to an opaque response instead lets
+           it fall through to the not-from-the-kiln error, which is what
+           actually happened. */
+        redirect: "manual",
+      });
+    } catch {
+      return { acknowledged: false };
+    }
+    /* An opaque redirect: status 0, headers stripped, body unreadable. Not the
+       kiln — its handler never redirects. */
+    if (res.type === "opaqueredirect" || res.status === 0) {
+      throw new Error("Rollback was answered by a redirect, not the kiln; nothing was changed");
+    }
+    if (!res.ok) {
+      throw new ApiHttpError(res.status, await res.text());
+    }
+    /* A 2xx is not enough on its own. Anything on the network that answers this
+       address — a portal, a proxy, or whatever took the kiln's DHCP lease while
+       the tab sat open — produces one, and "Rolling back" is a claim worth more
+       than a status code. The upload path already refuses a non-JSON 2xx for
+       the same reason (#135); this additionally wants the kiln's own shape. */
+    const body = await res.text();
+    let ok: boolean;
+    try {
+      ok = (JSON.parse(body) as { ok?: unknown }).ok === true;
+    } catch {
+      ok = false;
+    }
+    if (!ok) {
+      throw new Error("Rollback got a reply that did not come from the kiln; nothing was changed");
+    }
+    return { acknowledged: true };
+  },
+  confirmOta: () => request<OtaConfirmResponse>("/ota/confirm", { method: "POST" }),
 
   // Wi-Fi provisioning
   getWifi: () => request<WifiInfo>("/wifi"),

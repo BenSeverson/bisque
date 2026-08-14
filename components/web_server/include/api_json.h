@@ -214,6 +214,17 @@ typedef struct {
 /** GET /api/v1/ota/status — partition layout and rollback availability. */
 cJSON *build_ota_status_json(const ota_status_json_t *info);
 
+/**
+ * POST /api/v1/ota/confirm — the running image marked valid.
+ *
+ * `was_pending` distinguishes a confirmation that just happened from a no-op on
+ * an image that was already valid. Both are successes, and both clients show
+ * the `message` verbatim, so the wording is contract surface rather than a log
+ * line — which is why this is a serializer with a fixture and not the two
+ * inline cJSON_Add* calls it used to be (#177).
+ */
+cJSON *build_ota_confirm_json(bool was_pending);
+
 #ifdef __cplusplus
 }
 #endif

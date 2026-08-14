@@ -1145,6 +1145,30 @@ static void test_ota_status_omits_unavailable_parts(void)
     cJSON_Delete(p);
 }
 
+/* ── build_ota_confirm_json ──────────────────────────────────────────────── */
+
+/* Both clients put `message` straight in front of the user, so which of the two
+   sentences comes back is the whole answer to "did my tap do anything?" (#177).
+   That makes the wording contract surface, not a log line. */
+static void test_ota_confirm_distinguishes_a_confirmation_from_a_no_op(void)
+{
+    cJSON *confirmed = build_ota_confirm_json(true);
+    assert_bool_field(confirmed, "ok");
+    assert_string_field(confirmed, "message");
+    TEST_ASSERT_TRUE(cJSON_IsTrue(cJSON_GetObjectItem(confirmed, "ok")));
+    TEST_ASSERT_EQUAL_STRING("Firmware confirmed as valid", cJSON_GetObjectItem(confirmed, "message")->valuestring);
+    dump_fixture("ota_confirm", confirmed);
+    cJSON_Delete(confirmed);
+
+    /* Confirming an already-valid image is a no-op the firmware still answers
+       200 to — the client must not report it as a fresh confirmation. */
+    cJSON *already = build_ota_confirm_json(false);
+    TEST_ASSERT_TRUE(cJSON_IsTrue(cJSON_GetObjectItem(already, "ok")));
+    TEST_ASSERT_EQUAL_STRING("Firmware already confirmed", cJSON_GetObjectItem(already, "message")->valuestring);
+    dump_fixture("ota_confirm_already", already);
+    cJSON_Delete(already);
+}
+
 /* ── firing_status_to_string ─────────────────────────────────────────────── */
 
 static void test_firing_status_strings(void)
@@ -1203,6 +1227,7 @@ int main(void)
     RUN_TEST(test_ota_check_up_to_date);
     RUN_TEST(test_ota_status_shape);
     RUN_TEST(test_ota_status_omits_unavailable_parts);
+    RUN_TEST(test_ota_confirm_distinguishes_a_confirmation_from_a_no_op);
     RUN_TEST(test_firing_status_strings);
     return UNITY_END();
 }

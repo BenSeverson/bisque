@@ -183,6 +183,24 @@ export const state = {
     relayOn: false,
   } as AutotuneState,
 
+  /**
+   * The two app slots, as GET /ota/status reports them (#177).
+   *
+   * `pendingVerify` starts false because ota_confirm.c has, by the time any
+   * client asks, normally already marked the running image valid; POST
+   * /ota/rollback flips the boot slot rather than pretending to reboot, so the
+   * Firmware Partitions card shows a real state change in the dev server.
+   */
+  ota: {
+    running: "ota_0",
+    /** Version of the image in the running slot; changes when a rollback swaps it. */
+    runningVersion: "2.0.0-mock",
+    bootPartition: "ota_0",
+    nextUpdate: "ota_1",
+    pendingVerify: false,
+    rollbackAvailable: true,
+  },
+
   wifi: {
     connected: true,
     apMode: false,

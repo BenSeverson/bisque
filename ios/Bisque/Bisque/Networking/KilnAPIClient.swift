@@ -57,6 +57,49 @@ struct OtaInstallResponse: Codable {
     let message: String
 }
 
+struct OtaConfirmResponse: Codable, Sendable {
+    let ok: Bool
+    let message: String
+}
+
+/// GET /api/v1/ota/status — mirrors `build_ota_status_json` in api_json.c.
+///
+/// Almost every field is optional because each part comes from a separate
+/// esp_ota lookup in the handler, and a failed lookup drops its key rather than
+/// emitting a placeholder — `ota_status_minimal.json` is the whole response
+/// reduced to `rollbackAvailable`, which is the one field always present.
+struct OtaStatus: Codable, Sendable {
+    /// The slot the controller booted from, with the build stamp of the image
+    /// in it.
+    struct RunningPartition: Codable, Sendable {
+        let label: String
+        let address: Int
+        let size: Int
+        /// Absent when `esp_ota_get_state_partition()` failed; `pendingVerify`
+        /// on the parent is emitted with it and always agrees.
+        let state: String?
+        let version: String?
+        let date: String?
+        let time: String?
+        let idfVersion: String?
+    }
+
+    /// The slot the *next* update would be written to — labelled and sized, but
+    /// carrying no build stamp, since the firmware does not read one from it.
+    struct UpdatePartition: Codable, Sendable {
+        let label: String
+        let size: Int
+    }
+
+    let running: RunningPartition?
+    let nextUpdate: UpdatePartition?
+    /// What the next reboot will run. Differs from `running?.label` only
+    /// between a rollback request and the reboot that carries it out.
+    let bootPartition: String?
+    let pendingVerify: Bool?
+    let rollbackAvailable: Bool
+}
+
 actor KilnAPIClient {
     private let baseURL: URL
     private let session: URLSession
@@ -343,6 +386,135 @@ actor KilnAPIClient {
         try await request(method: "POST", path: "/ota/install", session: otaSession)
     }
 
+    /// Which image is running and whether the previous one can be booted again
+    /// (#177). On the short-deadline session: it is a handful of partition
+    /// lookups, with nothing to fetch from GitHub.
+    func getOTAStatus() async throws -> OtaStatus {
+        try await request(path: "/ota/status")
+    }
+
+    /// What a rollback request could be established about the controller.
+    ///
+    /// `acknowledged` is a reply that arrived; `unacknowledged` is a request
+    /// that went out and got nothing back, which is what a reboot mid-reply
+    /// looks like. The caller words its outcome from this instead of being
+    /// handed a "success" the app cannot actually vouch for.
+    enum RollbackOutcome: Sendable {
+        case acknowledged
+        case unacknowledged
+    }
+
+    /// Reverts to the previously-booted image (#177).
+    ///
+    /// Written out rather than going through `request()` because it returns
+    /// nothing to decode and because the interesting case is a request that is
+    /// never answered: `handle_ota_rollback` calls
+    /// `esp_ota_mark_app_invalid_rollback_and_reboot()`, so the controller is
+    /// gone before it can reply. Treating that as a failure would tell the user
+    /// the rollback failed while the kiln was busy performing it.
+    ///
+    /// Not every transport error means that, though, and the two are worth
+    /// separating: `cannotConnectToHost`, `cannotFindHost`, `dnsLookupFailed`,
+    /// `notConnectedToInternet` and friends all fail *before* delivery — the
+    /// kiln never saw the request and its firmware did not change — so they
+    /// surface as errors.
+    ///
+    /// `timedOut` is the ambiguous one, and it cannot be settled by its code:
+    /// it covers both a connection that never came up and a request that went
+    /// out to a peer which then went silent — the latter being exactly how a
+    /// rebooting ESP32 looks, since it tears the socket down without an RST.
+    /// So delivery is *observed* rather than inferred: `RequestDeliveryProbe`
+    /// reads `requestEndDate` off the task metrics, which is set only once the
+    /// request has actually been written to the connection. No evidence of
+    /// delivery, no claim that the rollback started.
+    ///
+    /// A real HTTP status means the device is very much still up and did not
+    /// change its firmware — 400 with no image behind the running one, 409
+    /// during a firing or an update, 401 unauthenticated — so those still throw.
+    func rollbackOTA() async throws -> RollbackOutcome {
+        guard let url = URL(string: baseURL.absoluteString + "/ota/rollback") else {
+            throw APIError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        if let token = apiToken, !token.isEmpty {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        let probe = RequestDeliveryProbe()
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await session.data(for: request, delegate: probe)
+        } catch let error as URLError {
+            guard Self.mayFollowDelivery(error.code, requestWasSent: probe.requestWasSent) else {
+                throw APIError.connectionFailed
+            }
+            return .unacknowledged
+        }
+
+        /* An answer that is not an HTTP response is not one this can read a
+           status from, but it did come back from somewhere — treat it like the
+           truncated-reply case rather than inventing a server error. */
+        guard let httpResponse = response as? HTTPURLResponse else {
+            return .unacknowledged
+        }
+
+        if httpResponse.statusCode == 401 {
+            throw APIError.unauthorized
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let message = String(data: data, encoding: .utf8) ?? "Unknown error"
+            throw APIError.serverError(statusCode: httpResponse.statusCode, message: message)
+        }
+
+        /* A 2xx alone does not identify the responder. A captive portal, a
+           proxy, or whatever took the kiln's DHCP lease since the app last
+           talked to it all answer with one, and "rolling back" is a claim worth
+           more than a status code — so the body has to be the kiln's own. */
+        guard let ack = try? JSONDecoder().decode(OkResponse.self, from: data), ack.ok else {
+            throw APIError.serverError(
+                statusCode: httpResponse.statusCode,
+                message: "Reply did not come from the kiln; nothing was changed")
+        }
+
+        return .acknowledged
+    }
+
+    /// Whether a `URLError` could have happened *after* the request reached the
+    /// kiln. Anything not listed here failed on the way out — name resolution,
+    /// no route, no radio, connection refused — and proves the controller never
+    /// received the POST.
+    ///
+    /// The first group can only arise while reading a reply, so delivery is
+    /// implied by the error itself.
+    ///
+    /// The second group is ambiguous and is admitted only with proof of
+    /// delivery. `timedOut` covers a deadline that expired during connection
+    /// setup as well as one that expired waiting for an answer.
+    /// `networkConnectionLost` looks like the reboot signature but is also what
+    /// a reused pooled connection reports when the peer closed it before the
+    /// request was written — and URLSession does not silently retry a POST, so
+    /// that failure surfaces here having sent nothing.
+    private static func mayFollowDelivery(_ code: URLError.Code, requestWasSent: Bool) -> Bool {
+        switch code {
+        case .cannotParseResponse, .zeroByteResource, .badServerResponse, .dataLengthExceedsMaximum:
+            return true
+        case .timedOut, .networkConnectionLost:
+            return requestWasSent
+        default:
+            return false
+        }
+    }
+
+    /// Marks the running image valid, cancelling the pending rollback (#177).
+    /// `ota_confirm.c` normally does this on its own after a healthy-uptime
+    /// window; this is the manual path for someone watching an update land.
+    func confirmOTA() async throws -> OtaConfirmResponse {
+        try await request(method: "POST", path: "/ota/confirm")
+    }
+
     // MARK: - Diagnostics
 
     func testRelay(durationSeconds: Int = 2) async throws -> RelayTestResponse {
@@ -352,6 +524,55 @@ actor KilnAPIClient {
 
     func getThermocoupleDiag() async throws -> DiagThermocouple {
         try await request(path: "/diagnostics/thermocouple")
+    }
+}
+
+// MARK: - Request Delivery Probe
+
+/// Refuses redirects, and records whether the request was actually written to
+/// the connection (#177).
+///
+/// `URLSessionTaskMetrics` carries a `requestEndDate` per transaction, set when
+/// the last byte of the request went out — so a non-nil one is proof the kiln
+/// received the POST, which no `URLError.Code` can establish on its own. Used
+/// by `rollbackOTA()` to tell "the kiln rebooted before replying" apart from
+/// "the connection never came up", which URLSession reports identically as
+/// `.timedOut`.
+///
+/// Metrics are delivered before the task's completion resumes the awaiting
+/// call, so the flag is set by the time it is read. If they never arrive, this
+/// stays false and the caller reports a failure rather than claiming a rollback
+/// it cannot evidence — the safe direction for a destructive operation.
+final class RequestDeliveryProbe: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+    private let lock = NSLock()
+    private var sent = false
+
+    /// Refuse to follow a redirect.
+    ///
+    /// URLSession follows them by default, so a captive portal or a proxy could
+    /// answer 302 and have its landing page — anything containing `{"ok":true}`
+    /// — credited with the rollback. `handle_ota_rollback` never redirects, so
+    /// a redirect is proof this is not the kiln answering. Passing nil leaves
+    /// the task holding the 3xx itself, which fails the 2xx check upstream.
+    /// The web client sets `redirect: "manual"` for the same reason.
+    func urlSession(_ session: URLSession, task: URLSessionTask,
+                    willPerformHTTPRedirection response: HTTPURLResponse,
+                    newRequest request: URLRequest) async -> URLRequest? {
+        nil
+    }
+
+    var requestWasSent: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return sent
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask,
+                    didFinishCollecting metrics: URLSessionTaskMetrics) {
+        let delivered = metrics.transactionMetrics.contains { $0.requestEndDate != nil }
+        lock.lock()
+        defer { lock.unlock() }
+        sent = sent || delivered
     }
 }
 

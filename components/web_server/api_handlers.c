@@ -1623,13 +1623,38 @@ static esp_err_t handle_ota_rollback(httpd_req_t *req)
         return ESP_FAIL;
     }
 
+    /* Claim the OTA-busy flag, exactly as the upload handler does, rather than
+       merely reading it.
+
+       Reading it covers the obvious half: an update in flight is writing the
+       *other* slot, which is precisely the image a rollback boots into, and
+       rebooting into a partition that is mid-erase leaves nothing bootable and
+       a kiln that needs a USB cable.
+
+       Claiming it covers the other half, in the other direction. The flag is a
+       compare-and-swap that firing-start and autotune-start also test, so
+       holding it stops a command already sitting in the firing queue from
+       arming the elements in the microseconds between the check below and the
+       reboot — a firing that would be abandoned mid-flight, with its history
+       record left open. ota_blocked_by_firing() above cannot see that command:
+       it reads progress state the firing task has not updated yet. */
+    if (!ota_busy_acquire()) {
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_set_type(req, "text/plain");
+        httpd_resp_sendstr(req, "An OTA operation is already in progress");
+        return ESP_FAIL;
+    }
+
     if (!esp_ota_check_rollback_is_possible()) {
+        ota_busy_release();
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Rollback not available");
         return ESP_FAIL;
     }
 
+    /* Only returns on failure — a successful call reboots inside esp_ota. */
     esp_err_t err = esp_ota_mark_app_invalid_rollback_and_reboot();
     if (err != ESP_OK) {
+        ota_busy_release();
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Rollback failed");
         return ESP_FAIL;
     }
@@ -1646,20 +1671,47 @@ static esp_err_t handle_ota_confirm(httpd_req_t *req)
         return ESP_FAIL;
     }
 
-    const esp_partition_t *running = esp_ota_get_running_partition();
-    esp_ota_img_states_t state;
-    if (esp_ota_get_state_partition(running, &state) == ESP_OK && state == ESP_OTA_IMG_PENDING_VERIFY) {
-        esp_ota_mark_app_valid_cancel_rollback();
-        cJSON *resp = cJSON_CreateObject();
-        cJSON_AddBoolToObject(resp, "ok", true);
-        cJSON_AddStringToObject(resp, "message", "Firmware confirmed as valid");
-        return send_json(req, resp);
+    /* Confirm writes otadata, and so does rollback — and an install rewrites
+       the boot partition beside it. Without the flag, two clients could have
+       one told "confirmed as valid" while the other's rollback invalidated that
+       very image. */
+    if (!ota_busy_acquire()) {
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_set_type(req, "text/plain");
+        httpd_resp_sendstr(req, "An OTA operation is already in progress");
+        return ESP_FAIL;
     }
 
-    cJSON *resp = cJSON_CreateObject();
-    cJSON_AddBoolToObject(resp, "ok", true);
-    cJSON_AddStringToObject(resp, "message", "Firmware already confirmed");
-    return send_json(req, resp);
+    const esp_partition_t *running = esp_ota_get_running_partition();
+    esp_ota_img_states_t state;
+    /* Folding the lookup's failure into `was_pending` reported "already
+       confirmed" for a state that could not be read at all — and if the image
+       really was pending, that told the user it was permanent while the next
+       reboot would revert it. */
+    if (esp_ota_get_state_partition(running, &state) != ESP_OK) {
+        ota_busy_release();
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Could not read the firmware image state");
+        return ESP_FAIL;
+    }
+
+    bool was_pending = (state == ESP_OTA_IMG_PENDING_VERIFY);
+    if (was_pending) {
+        /* This writes the otadata partition, and the write can fail. Reporting
+           "confirmed as valid" regardless is the worst answer available: the
+           image is still PENDING_VERIFY, so the *next* reboot silently reverts
+           to the previous firmware, and the user was told the opposite. */
+        esp_err_t err = esp_ota_mark_app_valid_cancel_rollback();
+        if (err != ESP_OK) {
+            ota_busy_release();
+            ESP_LOGE(TAG, "Failed to mark app valid: %s", esp_err_to_name(err));
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR,
+                                "Could not mark the firmware valid; it will revert on the next reboot");
+            return ESP_FAIL;
+        }
+    }
+
+    ota_busy_release();
+    return send_json(req, build_ota_confirm_json(was_pending));
 }
 
 /* ── GET /api/v1/wifi ─────────────────────────────── */
