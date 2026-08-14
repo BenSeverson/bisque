@@ -252,6 +252,7 @@ pcb-check:  ## Run every PCB checker (no KiCad rebuild)
 	  && python3 generator/check_drill_clearance.py bisque-controller.kicad_pcb \
 	  && python3 generator/check_canonical.py bisque-controller.kicad_pcb \
 	  && python3 generator/check_jlc_placement.py \
+	  && python3 generator/gen_gerber_zip.py --check \
 	  && "$$KPY" generator/check_via_in_pad.py bisque-controller.kicad_pcb \
 	  && "$$KPY" generator/check_silk.py bisque-controller.kicad_pcb \
 	  && "$$KPY" generator/check_placement.py
@@ -290,8 +291,10 @@ pcb-cosmetic-verify:  ## Prove --no-route is byte-identical to a full rebuild (s
 # with a `kicad-cli pcb drc --refill-zones` pass, and exporting before that
 # bakes a stale pour into gerbers/. Stale gerbers are deleted rather than
 # overwritten so a layer that stops being exported cannot linger in the zip.
+# gen_gerber_zip.py runs after both exports and before gen_jlc.py, so
+# jlcpcb/ ends up holding the complete upload: gerbers.zip + BOM + CPL.
 # The 3D raytrace is deliberately NOT here — see pcb-render.
-pcb-fab:  ## Regenerate gerbers, drill, BOM/CPL, PDFs and the board SVG
+pcb-fab:  ## Regenerate gerbers, drill, gerbers.zip, BOM/CPL, PDFs and the board SVG
 	cd $(KICAD_DIR) \
 	  && rm -f gerbers/*.gbr gerbers/*.drl gerbers/*.gbrjob \
 	  && kicad-cli pcb export gerbers -o gerbers/ --layers "$(GERBER_LAYERS)" \
@@ -299,6 +302,7 @@ pcb-fab:  ## Regenerate gerbers, drill, BOM/CPL, PDFs and the board SVG
 	  && kicad-cli pcb export drill -o gerbers/ --format excellon \
 	       --excellon-units mm --excellon-zeros-format decimal --generate-map \
 	       --map-format gerberx2 --gerber-precision 5 bisque-controller.kicad_pcb \
+	  && python3 generator/gen_gerber_zip.py \
 	  && python3 generator/gen_jlc.py jlcpcb \
 	  && kicad-cli sch export pdf -o pdf/bisque-controller-schematic.pdf \
 	       bisque-controller.kicad_sch \

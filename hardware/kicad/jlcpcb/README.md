@@ -1,8 +1,16 @@
-# JLCPCB assembly package — rev B
+# JLCPCB order package — rev B
 
-`BOM.csv` + `CPL.csv` go to JLCPCB's SMT assembly upload. `hand-solder-parts.csv`
-is the shopping list for the through-hole parts you solder yourself after the
-board comes back. Both are generated from `generator/gen_jlc.py`; don't hand-edit.
+Everything an order uploads is in this directory. `gerbers.zip` goes to the PCB
+order form; `BOM.csv` + `CPL.csv` go to the SMT assembly step.
+`hand-solder-parts.csv` is the shopping list for the through-hole parts you
+solder yourself after the board comes back.
+
+All four are generated — don't hand-edit. `make pcb-fab` writes them:
+`generator/gen_gerber_zip.py` packs `../gerbers/` (including the `.gbrjob`,
+which is what tells the fab the stack-up), and `generator/gen_jlc.py` writes
+the three CSVs. `make pcb-check` fails if `gerbers.zip` has gone stale against
+`../gerbers/`, so the zip in a clone is always the one that matches the board
+beside it.
 
 ## Bring-up: fit SJ2 or the kiln will not heat
 

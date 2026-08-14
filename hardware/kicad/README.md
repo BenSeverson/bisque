@@ -35,7 +35,7 @@ table — 93 nets, 0 mismatches). The 3D renders in `3d/` are raytraced by
 | `bisque-controller-drc.rpt` | KiCad DRC report (0 errors, 0 unconnected, 0 warnings — the 109 silkscreen warnings went with the silk packer, see "Regenerating the files") |
 | `gerbers/` | Fabrication outputs (kicad-cli: F.Cu, B.Cu, **In1.Cu, In2.Cu**, paste/silk/mask, Edge.Cuts, Excellon drill + job file) |
 | `pdf/` | Schematic and board PDFs (kicad-cli) |
-| `jlcpcb/` | Assembly BOM + CPL for JLCPCB, plus the hand-solder shopping list |
+| `jlcpcb/` | The complete JLCPCB upload: `gerbers.zip` for fabrication, BOM + CPL for assembly, plus the hand-solder shopping list |
 | `generator/` | Scripts that build everything from one connectivity table |
 
 ## Opening it
