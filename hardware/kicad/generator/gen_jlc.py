@@ -4,10 +4,11 @@ Every LCSC part number below was verified live against the LCSC catalog
 (package, value and stock) — see VERIFIED_ON. Re-verify before a production
 run, since stock and part status drift.
 
-CPL coordinates follow KiCad's footprint-position convention (Y negated).
-Rotations are KiCad angles plus a per-package correction, because JLCPCB's
-pick-and-place uses a different zero-rotation reference for some package
-families; see JLC_ROTATION.
+CPL coordinates follow KiCad's footprint-position convention (Y negated), plus
+a per-part correction to both the angle and the origin: JLCPCB places LCSC's
+footprint for the part, not ours, and the two libraries do not always agree on
+where zero rotation points or where the origin sits. See JLC_PLACEMENT, which
+check_jlc_placement.py derives from LCSC's own land patterns and verifies.
 
 Parts in HAND_SOLDER are deliberately left off *both* files and written to
 hand-solder-parts.csv instead — see that table for why. JLCPCB's PCBA upload
@@ -20,8 +21,8 @@ have no manufactured part at all, so they must not appear in the shopping
 list either.
 """
 import csv
+import math
 import os
-import re
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
@@ -29,42 +30,93 @@ from design import COMPONENTS
 
 VERIFIED_ON = "2026-08-11"
 
-# JLCPCB's pick-and-place zero-rotation reference differs from KiCad's for
-# several package families. These corrections come from the community-
-# maintained table in bennymeg/Fabrication-Toolkit
-# (plugins/transformations.csv), which is derived from real JLCPCB order
-# feedback rather than guesswork.
+# JLCPCB does not place our footprint. It places LCSC's footprint for that
+# part number, anchoring *its* origin at Mid X / Mid Y and turning *its* pin 1
+# by Rotation. Two things therefore have to be corrected per part: the angle
+# between LCSC's zero-rotation reference and KiCad's, and any offset between
+# the two footprints' origins.
 #
-# Families absent from that table need no correction. That notably includes
-# chip passives (R/C/LED 0805, 1206), SMA and SOD-123 diodes, the WS2812B
-# PLCC-4, the ESP32-S3-WROOM-1 module, USB-C, terminal blocks, 2.54 mm
-# headers and 6 mm tactile switches — for all of these KiCad's orientation
-# already matches JLCPCB's.
+# Both are measured, not guessed: check_jlc_placement.py fits LCSC's real land
+# pattern (generator/lcsc_pads.json, fetched from EasyEDA's component API —
+# the library the JLCPCB assembly preview renders) onto the KiCad footprint
+# this board uses, and `--derive` prints this table. Every entry below is that
+# fit; re-run the checker after changing a part number or a footprint.
 #
-# Matched against the bare footprint name (the part after "Library:"),
-# first match wins.
-JLC_ROTATION = (
-    (r"^SOT-223", 180),
-    (r"^SOT-23", 180),
-    (r"^SOIC-8_", 270),
-    (r"^SOIC-", 270),
-    (r"^D_SOT-23", 180),
-    (r"^QFN-", 90),
-    (r"^DFN-", 270),
-    (r"^TSSOP-", 270),
-    (r"^SSOP-", 270),
-    (r"^MSOP-", 270),
-    (r"^LQFP-", 270),
-    (r"^TQFP-", 270),
-)
+# This replaced a package-family regex table taken from the community list in
+# bennymeg/Fabrication-Toolkit. That list is right about the families it was
+# built from and wrong here in two ways that reached the assembly preview:
+# `^SOT-23 -> 180` also matches SOT-23-**6**, whose LCSC land is drawn across
+# the pins rather than along them (270, not 180), and `^QFN- -> 90` is 180 out
+# for the ADE7953's LFCSP-28. A per-part fit cannot make that class of mistake.
+#
+# dx/dy are millimetres in the CPL's frame (x right, y up), applied after the
+# part's own board rotation. They are zero for all but two parts: KiCad anchors
+# the ESP32-S3 module and the USB-C receptacle at their body centres, LCSC
+# anchors them on the pad pattern.
+JLC_PLACEMENT = {
+    "C107114":  (  0,  0.000,  0.000),   # C25   C_0805_2012Metric                    resid 0.050 (2 pin#)
+    "C12891":   (  0,  0.000,  0.000),   # C1    C_1206_3216Metric                    resid 0.118 (2 pin#)
+    "C149504":  (  0,  0.000,  0.000),   # R47   R_0805_2012Metric                    resid 0.088 (2 pin#)
+    "C15127":   (180,  0.000,  0.000),   # Q4    SOT-23                               resid 0.283 (3 pin#)
+    "C15850":   (  0,  0.000,  0.000),   # C7    C_0805_2012Metric                    resid 0.050 (2 pin#)
+    "C160404":  (  0,  0.000,  0.000),   # J14   JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00m resid 0.000 (4 pin#)
+    "C165948":  (  0,  0.000,  1.571),   # J1    USB_C_Receptacle_HRO_TYPE-C-31-M-12  resid 0.000 (8 pin#)
+    "C1710":    (  0,  0.000,  0.000),   # C16   C_0805_2012Metric                    resid 0.050 (2 pin#)
+    "C1739":    (  0,  0.000,  0.000),   # C31   C_0805_2012Metric                    resid 0.050 (2 pin#)
+    "C17408":   (  0,  0.000,  0.000),   # R14   R_0805_2012Metric                    resid 0.088 (2 pin#)
+    "C17414":   (  0,  0.000,  0.000),   # R1    R_0805_2012Metric                    resid 0.088 (2 pin#)
+    "C17513":   (  0,  0.000,  0.000),   # R9    R_0805_2012Metric                    resid 0.088 (2 pin#)
+    "C17514":   (  0,  0.000,  0.000),   # R46   R_0805_2012Metric                    resid 0.088 (2 pin#)
+    "C17630":   (  0,  0.000,  0.000),   # R3    R_0805_2012Metric                    resid 0.088 (2 pin#)
+    "C17634":   (  0,  0.000,  0.000),   # R39   R_0805_2012Metric                    resid 0.088 (2 pin#)
+    "C17673":   (  0,  0.000,  0.000),   # R44   R_0805_2012Metric                    resid 0.088 (2 pin#)
+    "C17774":   (  0,  0.000,  0.000),   # R31   R_0805_2012Metric                    resid 0.088 (2 pin#)
+    "C1779":    (  0,  0.000,  0.000),   # C27   C_0805_2012Metric                    resid 0.050 (2 pin#)
+    "C17798":   (  0,  0.000,  0.000),   # R10   R_0805_2012Metric                    resid 0.088 (2 pin#)
+    "C20917":   (180,  0.000,  0.000),   # Q5    SOT-23                               resid 0.083 (3 pin#)
+    "C2296":    (  0,  0.000,  0.000),   # LED3  LED_0805_2012Metric                  resid 0.113 (2 pin#)
+    "C2297":    (  0,  0.000,  0.000),   # LED2  LED_0805_2012Metric                  resid 0.113 (2 pin#)
+    "C2480":    (  0,  0.000,  0.000),   # D3    D_SMA                                resid 0.035 (2 pin#)
+    "C2653162": (270,  0.000,  0.000),   # U3    TSSOP-14_4.4x5mm_P0.65mm             resid 0.062 (14 pin#)
+    "C27834":   (  0,  0.000,  0.000),   # R4    R_0805_2012Metric                    resid 0.088 (2 pin#)
+    "C28323":   (  0,  0.000,  0.000),   # C5    C_0805_2012Metric                    resid 0.050 (2 pin#)
+    "C3013945": (  0,  0.000, -0.477),   # U1    ESP32-S3-WROOM-1U                    resid 0.022 (40 pin#)
+    "C318884":  (  0,  0.000,  0.000),   # SW1   SW_Push_1P1T_XKB_TS-1187A            resid 0.025 (4 shape)
+    "C49678":   (  0,  0.000,  0.000),   # C2    C_0805_2012Metric                    resid 0.050 (2 pin#)
+    "C515890":  (270,  0.000,  0.000),   # U7    QFN-28-1EP_5x5mm_P0.5mm_EP3.1x3.1mm  resid 0.075 (29 pin#)
+    "C558418":  (270,  0.000,  0.000),   # D5    SOT-23-6                             resid 0.012 (6 pin#)
+    "C6186":    (180,  0.000,  0.000),   # U2    SOT-223-3_TabPin2                    resid 0.000 (2 pin#)
+    "C7420333": (180,  0.000,  0.000),   # D7    SOT-23                               resid 0.083 (3 pin#)
+    "C7471632": (  0,  0.000,  0.000),   # Y1    Crystal_SMD_HC49-SD_HandSoldering    resid 1.385 (2 pin#)
+    "C7512":    (270,  0.000,  0.000),   # U6    SOIC-16_3.9x9.9mm_P1.27mm            resid 0.261 (16 pin#)
+    "C7519":    (270,  0.000,  0.000),   # U4    SOT-23-6                             resid 0.012 (6 pin#)
+    "C81598":   (  0,  0.000,  0.000),   # D4    D_SOD-123                            resid 0.085 (2 pin#)
+    "C8678":    (  0,  0.000,  0.000),   # D1    D_SMA                                resid 0.200 (2 pin#)
+}
 
 
-def jlc_rotation(fp_name, kicad_rot):
-    """KiCad angle -> JLCPCB CPL angle. Returns (angle, offset_applied)."""
-    for pattern, offset in JLC_ROTATION:
-        if re.match(pattern, fp_name):
-            return (kicad_rot + offset) % 360, offset
-    return kicad_rot % 360, 0
+def jlc_placement(lcsc, kicad_rot):
+    """KiCad angle -> (CPL angle, CPL dx, CPL dy, correction applied).
+
+    dx/dy are already turned into board coordinates, so a caller adds them
+    straight to Mid X / Mid Y.
+
+    A part with no LCSC number is not being assembled, so there is nothing to
+    correct against; anything else must be in the table, since silently
+    shipping an uncorrected placement is how the SOT-23-6s went out 90 degrees
+    off in the first place.
+    """
+    if not lcsc:
+        return kicad_rot % 360, 0.0, 0.0, (0, 0.0, 0.0)
+    if lcsc not in JLC_PLACEMENT:
+        sys.exit("gen_jlc: %s has no JLC_PLACEMENT entry. Add the part to "
+                 "lcsc_pads.json (generator/lcsc_pads.py --refresh) and paste "
+                 "the row from check_jlc_placement.py --derive." % lcsc)
+    rot, dx, dy = JLC_PLACEMENT[lcsc]
+    a = math.radians(kicad_rot)
+    c, s = math.cos(a), math.sin(a)
+    return ((kicad_rot + rot) % 360, dx * c - dy * s, dx * s + dy * c,
+            (rot, dx, dy))
 
 
 # ref -> (LCSC part, description, basic_part, verified)
@@ -345,10 +397,13 @@ def main(outdir):
             c = COMPONENTS[ref]
             x, y, rot = c["at"]
             fp_name = c["fp"].split(":", 1)[1]
-            jrot, offset = jlc_rotation(fp_name, rot)
-            if offset:
-                corrections.append((ref, fp_name, rot, jrot, offset))
-            w.writerow([ref, "%.3fmm" % x, "%.3fmm" % (-y), "Top", "%.1f" % jrot])
+            jrot, dx, dy, applied = jlc_placement((LCSC.get(ref) or ("",))[0], rot)
+            if any(applied):
+                corrections.append((ref, fp_name, rot, jrot, applied[0], dx, dy))
+            # Mid X / Mid Y is where LCSC's footprint origin goes, which is
+            # not always where ours sits - see JLC_PLACEMENT.
+            w.writerow([ref, "%.3fmm" % (x + dx), "%.3fmm" % (-y + dy),
+                        "Top", "%.1f" % jrot])
 
     # Shopping list for the parts JLCPCB is *not* fitting. Same LCSC part
     # numbers, so it can be pasted straight into an LCSC cart alongside the
@@ -380,9 +435,13 @@ def main(outdir):
     if no_alt:
         print("  no Mouser second source for: %s" % ", ".join(no_alt))
     if corrections:
-        print("JLCPCB rotation corrections applied (%d):" % len(corrections))
-        for ref, fp_name, rot, jrot, offset in corrections:
-            print("  %-5s %-28s %3.0f -> %3.0f (+%d)" % (ref, fp_name, rot, jrot, offset))
+        print("JLCPCB placement corrections applied (%d):" % len(corrections))
+        for ref, fp_name, rot, jrot, crot, dx, dy in corrections:
+            # dx/dy as written to the CPL, i.e. already turned by the part's
+            # own board angle - not the table's unrotated pair.
+            shift = "" if not (dx or dy) else "  origin %+.3f,%+.3f mm" % (dx, dy)
+            print("  %-5s %-35s %3.0f -> %3.0f (+%d)%s"
+                  % (ref, fp_name[:35], rot, jrot, crot, shift))
     if tht:
         print("WARNING: through-hole parts still in the assembly BOM (forces "
               "Standard assembly): %s" % ", ".join(tht))

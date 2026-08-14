@@ -445,19 +445,40 @@ BOM (`gen_jlc.py`'s own output confirms this every run), the whole
 machine-placed set qualifies for Economic (SMD, top-side only) rather than
 Standard, same as rev A.
 
-The CPL applies JLCPCB's per-package rotation corrections (see
-`JLC_ROTATION` in `gen_jlc.py`) rather than leaving them to be caught in the
-order preview — currently U2, U3, U4, U5, U6, U7, D5, D6, D7, Q2, Q3 (eleven
-corrections, up from rev A's five, driven by the new TSSOP/QFN/SOIC parts).
-**The WROOM-1U's CPL rotation and origin were re-checked against JLCPCB's
-placement preview rather than assumed to carry over from the WROOM-1** — the
-two footprints share pad geometry but the 1U's origin sits 3.15 mm off the
-WROOM-1's relative to the same pads, since the 1U body is 6.3 mm shorter and
-KiCad footprint origins are body-centered. A module placed 3.15 mm off is a
-dead board, so this is worth re-verifying in JLCPCB's own preview at order
-time regardless of what's committed here. Still worth a glance at the
-preview for the polarized two-terminal parts too, since a flip there is
-cheap to spot and expensive to miss.
+**The CPL corrects both the angle and the origin, per part, from LCSC's own
+land patterns.** JLCPCB does not place our footprint: it places LCSC's
+footprint for that part number, anchoring *its* origin at Mid X / Mid Y and
+turning *its* pin 1 by Rotation. `JLC_PLACEMENT` in `gen_jlc.py` therefore
+carries a `(rotation, dx, dy)` per LCSC part, and
+`generator/check_jlc_placement.py` — run by `make pcb-check` — derives that
+triple by fitting LCSC's pad centres (`generator/lcsc_pads.json`, from
+EasyEDA's component API) onto the KiCad footprint's, and fails if the table
+disagrees. Sixteen parts need a correction; `gen_jlc.py` names them every run.
+
+This replaced a package-family regex table copied from
+bennymeg/Fabrication-Toolkit, which was wrong for six parts on this board and
+put four of them visibly askew in JLCPCB's assembly preview. `^SOT-23 -> 180`
+also matches SOT-23-**6** (U4, D5, D6), whose LCSC land runs across the pins
+rather than along them — 270, not 180. `^QFN- -> 90` was 180 out for the
+ADE7953's LFCSP-28 (U7), which a preview cannot show you, because a square
+QFN's pads overlap at every quarter turn. And no family rule can express an
+*origin* difference at all: U1 and J1 sit 0.477 mm and 1.571 mm off, because
+KiCad anchors the WROOM-1U and the USB-C receptacle at their body centres
+while LCSC anchors them on the pad pattern.
+
+Two traps the fit is written to avoid, both of which produced a wrong answer
+first. Pad numbering is a library convention, not a physical fact: LCSC
+numbers an LED's anode 1 where KiCad numbers its cathode 1, so fitting pin
+numbers alone "corrects" all three LEDs by 180° and mounts them backwards —
+`PIN_REMAP` states the difference, read off LCSC's own symbol pin names. And a
+pad number that appears twice can mean different things on each side (KiCad's
+`SOT-223_TabPin2` numbers the tab 2, LCSC numbers it 4), so a number whose
+instances are not clustered is dropped rather than averaged into a meaningless
+centroid.
+
+Still worth a glance at the order preview: it is free, and it is what caught
+this. Polarized two-terminal parts especially — a flip there is cheap to spot
+and expensive to miss.
 
 **Detailed per-unit cost breakdown and process-edge clearance analysis are
 not reproduced here for rev B.** Rev A's README carried a line-item
@@ -635,6 +656,12 @@ python3 generator/check_canonical.py bisque-controller.kicad_pcb  # reproducibil
                                                                 #   (KiCad DRC can't see this - a via and
                                                                 #    the pad it sits in share a net, and
                                                                 #    clearance rules skip same-net copper)
+python3 generator/check_jlc_placement.py                        # CPL placement: OK
+                                                                #   (fits LCSC's own land pattern onto each
+                                                                #    footprint; the package-family rotation
+                                                                #    table it replaced was wrong for six
+                                                                #    parts, four of them visibly so in
+                                                                #    JLCPCB's assembly preview)
 python3 generator/render_pcb.py bisque-controller.kicad_pcb preview-board.svg
 
 # Fab outputs — regenerate these together, after the board file is final.
@@ -647,7 +674,8 @@ kicad-cli pcb export gerbers -o gerbers/ \
 kicad-cli pcb export drill -o gerbers/ --format excellon --excellon-units mm \
   --excellon-zeros-format decimal --generate-map --map-format gerberx2 \
   --gerber-precision 5 bisque-controller.kicad_pcb
-python3 generator/gen_jlc.py jlcpcb          # BOM.csv + CPL.csv (prints rotation fixes + feeder-fee count)
+python3 generator/gen_jlc.py jlcpcb          # BOM.csv + CPL.csv (prints placement fixes + feeder-fee count)
+python3 generator/lcsc_pads.py --refresh     # only when a part number changes: re-fetch LCSC's land patterns
 kicad-cli sch export pdf -o pdf/bisque-controller-schematic.pdf bisque-controller.kicad_sch
 kicad-cli pcb export pdf --mode-single -l "F.Cu,In1.Cu,In2.Cu,B.Cu,F.Silkscreen,Edge.Cuts" \
   -o pdf/bisque-controller-board.pdf bisque-controller.kicad_pcb

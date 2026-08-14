@@ -121,9 +121,9 @@ after a via unchecked at its start point — invisible at 0.25 mm, and
 `generator/gen_jlc.py jlcpcb` output, current as of this review:
 
 ```
-109 parts to JLCPCB (41 BOM lines), 13 hand-soldered, LCSC verified 2026-08-11
+109 parts to JLCPCB (40 BOM lines), 13 hand-soldered, LCSC verified 2026-08-11
 11 unique Extended part(s) -> $33 in feeder fees
-JLCPCB rotation corrections applied (11)
+JLCPCB placement corrections applied (16)
 no through-hole parts in the assembly BOM -> Economic (SMD, top-side) assembly is sufficient
 ```
 
@@ -278,15 +278,60 @@ no line without an LCSC part; gerbers still carry `In1_Cu`/`In2_Cu`.
   is correct as designed — but it belongs in bring-up notes for anyone
   assembling a board ahead of the kick task, since it presents as a dead
   board rather than an obviously-missing feature.
-- **Eyeball U7's rotation in JLCPCB's order preview before paying.** The
-  ADE7953 is an LFCSP-28 placed on a `QFN-28-1EP_5x5mm_P0.5mm_EP3.1x3.1mm`
-  land pattern and carries a **+90° CPL correction** from `JLC_ROTATION`'s
-  `^QFN-` rule. That table is community-maintained from real order feedback,
-  **not vendor-published**, and this correction was never re-derived from the
-  ADI package drawing. It is the highest-consequence rotation on the board:
-  most placement errors are reworkable, a mis-rotated 0.5 mm-pitch 28-pin QFN
-  is not. The order preview is free to look at and this is the one part worth
-  looking at.
+- **U7's rotation was wrong — RESOLVED, and this entry called it.** The ADE7953
+  carried a **+90° CPL correction** from the old `JLC_ROTATION` table's `^QFN-`
+  rule, which this review flagged as community-maintained, not vendor-published,
+  and never re-derived. It was **180° out**: fitting LCSC's own LFCSP-28 land
+  pattern onto our footprint puts their pin 1 on ours only at **+270°** (worst
+  pad 0.075 mm; every other quarter-turn misses by 4 mm or more). A square QFN
+  looks placed either way in a preview — the pads overlap — so the error is
+  invisible at exactly the part where it is unreworkable. Five other parts were
+  wrong the same way; see the note below. The corrections are now derived
+  per-part from LCSC's library by `generator/check_jlc_placement.py`, which
+  `make pcb-check` runs, and the family table is gone.
+- **Six CPL placements were corrected after the assembly preview showed them.**
+  U4/D5/D6 (SOT-23-**6**) inherited the 3-pin `^SOT-23 -> 180` rule, but LCSC
+  draws that land across the pins rather than along them: **+270°**, a 90° error
+  that was visible in the preview. U7 as above. U1 and J1 needed no rotation but
+  are the two parts on the board where the two libraries disagree about the
+  footprint *origin* — KiCad anchors the WROOM-1U and the USB-C receptacle on
+  the body centre, LCSC on the pad pattern — so their CPL coordinates now carry
+  **-0.477 mm** and **-1.571 mm** in Y. All six were the parts flagged by eye in
+  JLCPCB's preview; the fit reproduced exactly that set and nothing else, which
+  is the strongest evidence available that the model is right.
+- **Verified against JLCPCB's own SMT DFM, before and after.** Two runs of
+  dfm.jlcdfm.com with SMT DFM enabled, on the old and new CPL:
+
+  | SMT DFM check | old CPL | new CPL |
+  |---|---|---|
+  | Pin without pad | **14** (pictured: D5) | **0** |
+  | Lead area overlapping pad (insufficient overlap) | **50** (pictured: U7) | **1** |
+  | Lead to hole distance | **16** | **0** |
+  | Missing hole for component pin | **2** | **0** |
+  | Component through-hole misalignment | **2**, at **1.42 mm** (pictured: J1) | **0** |
+  | Component clipped by board outline | 1 warning | 0 |
+  | Pin edge past pad edge (4 checks) | 42 | 48 |
+
+  Every "the part is not where its pads are" finding went to zero. J1's measured
+  **1.42 mm** through-hole misalignment is the independent confirmation of the
+  1.571 mm origin correction — the two differ by the 0.15 mm the two libraries
+  disagree on for the shell legs, which is the one part of that footprint no
+  placement can fix. The edge findings *rose* because they are only measurable
+  once a pin is on its pad at all: findings moved out of the catastrophic
+  bucket into the cosmetic one, 85 serious to 1.
+- **The one remaining placement finding is U7's exposed pad, and it is correct
+  as drawn.** Our land is `EP3.1x3.1`; LCSC models the part's EP as 3.30 SQ, so
+  JLC measures 88% overlap and flags it. ADI's own package drawing for the
+  ADE7953 (CP-28-10, 5 x 5 mm LFCSP) specifies the EP as **3.14 SQ**
+  (3.04-3.24) — our land matches the real package and LCSC's 3.30 model is the
+  outlier, 0.06 mm above the package's own maximum. Likewise the 48 pin-edge
+  findings are library land-width differences, not misplacement: KiCad draws
+  0.5 mm-pitch QFN lands 0.25 mm wide (the package's *nominal* lead width, per
+  the same drawing: b = 0.20/0.25/0.30), LCSC draws them 0.28 mm. Widening ours
+  to clear the flag would cut the gap between adjacent lands from 0.25 mm to
+  0.20 mm, at or below the solder-mask dam JLCPCB can print at this pitch —
+  trading a 25 um overhang for a real bridging risk on a 28-pin part. Left as
+  drawn deliberately.
 - **Measure the watchdog's decay on board 1 — it is a safety-path assumption.**
   `C38` (100 nF), `C39` (1 µF) and `R46` (1 MΩ) are engineering estimates, not
   datasheet-derived, and are labelled `ASSUMPTION` in `design.py`. The
