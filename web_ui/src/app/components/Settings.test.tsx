@@ -693,9 +693,16 @@ describe("Settings: firmware partitions and rollback", () => {
     await waitFor(() =>
       expect(screen.queryByText(/You're running the latest version/)).not.toBeInTheDocument(),
     );
-    // The /system query is refetched, so the version card follows the kiln
-    // rather than the build it just abandoned.
-    await waitFor(() => expect(apiMock.getSystemInfo.mock.calls.length).toBeGreaterThan(1));
+
+    /* /system is re-read at the far end of the reboot, not here: firing it at a
+       controller that is already restarting just fails, and `retry: false`
+       means that failure keeps the old version on screen. */
+    const duringReboot = apiMock.getSystemInfo.mock.calls.length;
+    await user.click(screen.getByRole("button", { name: "Refresh" }));
+    await screen.findByText("Running Slot");
+    await waitFor(() =>
+      expect(apiMock.getSystemInfo.mock.calls.length).toBeGreaterThan(duringReboot),
+    );
   });
 
   it("keeps the partition state when the rollback was refused", async () => {

@@ -562,18 +562,17 @@ export function Settings() {
          the mutation settled. Not on the error path below: a 400 or 409 means
          the firmware did not change, so what is on screen is still correct. */
       setAwaitingReboot(true);
-      /* Everything else on the page derived from the outgoing version goes
-         with it. The update-check verdict was about the firmware being left
-         behind — "you're on the latest version" is a claim about a build that
-         is no longer running — and Controller Information reads its version
-         from the /system query. Leaving both would have the partition card and
-         the rest of the page describing different firmware. */
+      /* The update-check verdict was about the firmware being left behind —
+         "you're on the latest version" is a claim about a build that is no
+         longer running. /system is refreshed at the other end of the reboot
+         instead, by the Refresh handler: invalidating it here would fire a
+         request at a controller that is already restarting, and with
+         `retry: false` that failure just keeps the old version on screen. */
       setOtaCheck(null);
-      invalidateSystemInfo();
     } catch (e) {
       toast.error(`Rollback refused: ${toErrorMessage(e)}`);
     }
-  }, [rollbackOta, invalidateSystemInfo]);
+  }, [rollbackOta]);
 
   // Stream OTA install progress from the WebSocket while an install runs.
   useEffect(() => {
@@ -1388,6 +1387,14 @@ export function Settings() {
                          error, or its absence. */
                       if (!result.isError || result.error instanceof ApiHttpError) {
                         setAwaitingReboot(false);
+                        /* The kiln has answered, so this is the moment its own
+                           description of itself is worth re-reading: the
+                           partition card would otherwise name the new image
+                           while Controller Information and Current Version
+                           still showed the firmware it replaced. This is the
+                           only path out of the reboot state, so every OTA flow
+                           — upload, install and rollback — arrives here. */
+                        invalidateSystemInfo();
                       }
                     }}
                     disabled={otaStatusFetching}

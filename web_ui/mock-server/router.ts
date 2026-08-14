@@ -518,6 +518,12 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
 
   // POST /ota
   if (method === "POST" && apiPath === "/ota") {
+    // handle_ota_upload() runs ota_blocked_by_firing() before accepting a byte,
+    // exactly as the rollback route does — so a mock that took the image
+    // mid-firing would let a client exercise a transition the device refuses.
+    if (state.firing.running || state.firing.scheduled || state.autotune.running) {
+      return apiError(409, "Cannot update firmware during a firing");
+    }
     /* A real controller writes the image to the inactive slot, sets it as the
        boot partition and reboots into it pending verification. The mock used
        to answer 200 and change nothing, so a client that uploaded, dropped its
