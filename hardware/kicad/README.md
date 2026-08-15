@@ -649,10 +649,19 @@ python3 generator/check_drill_clearance.py bisque-controller.kicad_pcb  # hole-t
                                                                 #    are both GND, and every net-aware check
                                                                 #    we own missed a 0.078 mm web because
                                                                 #    of it — see FAB-READINESS-REVIEW-REVB)
-"$KPY" generator/check_silk.py bisque-controller.kicad_pcb      # silkscreen printable: PASS
+"$KPY" generator/check_silk.py bisque-controller.kicad_pcb      # silkscreen printable AND associated: PASS
                                                                 #   (hard-fails on silk over an exposed pad
                                                                 #    or clipped by Edge.Cuts; silk-on-silk
-                                                                #    is budgeted, and the budget is 0)
+                                                                #    is budgeted, and the budget is 0;
+                                                                #    a board text under a part big enough
+                                                                #    to hide it is budgeted BY NAME in
+                                                                #    ON_PART_OK — a new burial fails, and
+                                                                #    so does a stale entry. The other half
+                                                                #    of that check, "did the label end up
+                                                                #    near what it names", is in
+                                                                #    kicad_build.py: it needs each anchor,
+                                                                #    and the board file does not record
+                                                                #    one)
 python3 generator/check_canonical.py bisque-controller.kicad_pcb  # reproducibility guard: ALL CHECKS PASS
                                                                 #   (KiCad DRC can't see this - a via and
                                                                 #    the pad it sits in share a net, and

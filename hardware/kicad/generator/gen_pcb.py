@@ -1041,7 +1041,22 @@ SILK = _TITLE_TEXTS + [
     ("RESET", 36.5, 20.9, 0, 0.9),
     ("BOOT", 100.0, 20.9, 0, 0.9),
     ("5V IN", 22.0, 34.0, 0, 0.9),
-    ("+", 30.0, 39.6, 0, 1.1), ("-", 30.0, 44.7, 0, 1.3),
+    # The only per-terminal marks on the board, and they were the only two
+    # labels whose anchor was INSIDE the part it names: x=30.0 is 1.25 mm
+    # inside J2's body (21.35..31.25), so both printed under the block and
+    # vanished the moment it was soldered. East of J2 there is a 3.45 mm gap
+    # before U2, which is where they go now.
+    #
+    # The y values are the pad centres (39.00 / 44.08), not the 39.6 / 44.7
+    # they used to be: on a block this size 0.6 mm of drift is most of the
+    # way to the next screw, and a polarity mark that points between two
+    # terminals says nothing. That also makes these the two labels where the
+    # placer's own bias is backwards - `W_LATERAL` charges four times as much
+    # for sliding along the reading direction, but for a mark beside a
+    # vertically stacked terminal it is the PERPENDICULAR slide that renames
+    # the screw. Anchoring them somewhere they need not move is the fix;
+    # silk.py has no way to know which axis carries the meaning.
+    ("+", 32.8, 39.0, 0, 1.1), ("-", 32.8, 44.08, 0, 1.3),
     ("AUX OUT", 24.5, 48.0, 0, 0.9),
     # Both SSR terminals are "+5V (watchdog-gated), switched low side" - the
     # board supplies the control loop, so the pin order is worth naming on
@@ -1059,7 +1074,14 @@ SILK = _TITLE_TEXTS + [
     ("SSR2  5V / OUT", 26.0, 84.3, 0, 0.8),
     ("TC1  K+/K-", 104.0, 31.0, 0, 0.9),
     ("TC2  K+/K-", 104.0, 58.5, 0, 0.9),
-    ("CT A+/A-/B+/B-", 96.0, 76.0, 0, 0.9),
+    # In the free band above J12, centred on the block, NOT at (96, 76).
+    # That anchor was 6.5 mm west of J12 with `AC SENSE - DNP` already in the
+    # same 1 mm of board, so the placer took the far end of its ring - all
+    # 14 mm of it - and printed the CT legend directly under `TC2  K+/K-`:
+    # 12.98 mm from the block it names, 8.38 mm from the one it does not.
+    # J8's bottom is 55.59 and J12's top is 74.17, so there is an 18 mm strip
+    # here and nothing else wants it.
+    ("CT A+/A-/B+/B-", 112.8, 72.0, 0, 0.9),
     ("AC SENSE - DNP", 100.0, 76.0, 0, 0.8),
     ("STATUS", 84.0, 93.6, 0, 0.9),
     # Over R44/R45, the pull-ups, and nothing else: x=66 was chosen when the
@@ -1087,7 +1109,14 @@ SILK = _TITLE_TEXTS + [
     # lie on every board built from this revision, so the silk just names
     # the jumper; jlcpcb/README.md and the hand-solder BOM carry the
     # fit-it-or-it-won't-heat instruction where a builder will see it.
-    ("WDT DEFEAT", 50.0, 61.5, 0, 0.9),
+    # Directly below SJ2 (55.30..58.70, 56.20..58.80), in the gap before
+    # BZ1's outline starts at y=62.90. The old anchor at (50, 61.5) was
+    # already 7 mm from the jumper and hard against that outline, so the
+    # placer slid it 10 mm - the whole label ended up centred inside the
+    # buzzer, which is both invisible once BZ1 is fitted and, before it is,
+    # reads as the buzzer's own name. x=58.0 rather than SJ2's own 57.0
+    # keeps the left end clear of TP12 at 53.04.
+    ("WDT DEFEAT", 58.0, 60.8, 0, 0.9),
 ]
 J5_PINS = ["5V", "GND", "CS", "RST", "DC", "SDI", "SCK", "BL",
            "SDO", "TCK", "TCS", "TDI", "TDO", "IRQ"]
@@ -1135,12 +1164,23 @@ def _tp_num(ref):
     return int(ref[2:])
 
 
+# Below the pad is the rule; TP10 is the exception, and it is the crowding
+# that makes it one. C11's and R39's designators sit at y 94.3..95.8 either
+# side of it and their 0805 silk marks leave a 3.29 mm window at y~97 for a
+# 3.28 mm label, so the only clear spot below the pad is y~98.5 - which is
+# 1.2 mm above J5's pin-name row and in line with its `SDO`/`TCK` pins, where
+# `SSR2` reads as a fifteenth pin on the display header rather than as a test
+# point 4.4 mm away. Above TP10's own designator is empty, so it goes there:
+# SSR2 / TP10 / pad, reading down.
+TP_LABEL_AT = {"TP10": (44.5, 91.0)}
+
 for _tp in sorted((r for r in COMPONENTS
                    if r.startswith("TP") and r[2:].isdigit()), key=_tp_num):
     _x, _y, _r = COMPONENTS[_tp]["at"]
     # Anchored just below the pad: the reference designator sits above it by
     # library default, so the two share the test point without a fight.
-    SILK.append((tp_label(COMPONENTS[_tp]["pins"]["1"]), _x, _y + 1.7, 0, 0.8))
+    _at = TP_LABEL_AT.get(_tp, (_x, _y + 1.7))
+    SILK.append((tp_label(COMPONENTS[_tp]["pins"]["1"]), _at[0], _at[1], 0, 0.8))
 
 
 def main(dst):

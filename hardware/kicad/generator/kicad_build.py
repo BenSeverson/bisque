@@ -626,7 +626,7 @@ def main(out, reuse_routing=False):
     # Silk placement runs last, once every pad, footprint outline and board
     # text exists: it is a whole-board packing problem, and it cannot be
     # solved a label at a time as each one is created.
-    silk.place(board, anchors)
+    strayed = silk.adrift(silk.place(board, anchors))
     if not reuse_routing:
         add_zones(board, nets)
     rpt_path = os.path.splitext(out)[0] + "-drc.rpt"
@@ -671,6 +671,19 @@ def main(out, reuse_routing=False):
               % (lname, area, cx, cy))
     print("KiCad DRC report -> %s" % rpt_path)
     summarize(rpt_path)
+    # Last, and after the board is on disk: a label that had to travel is not
+    # a reason to withhold the artefact you need in order to see why. It is a
+    # reason not to ship it. `silk.RING_MAX` is a bound on how far a legend
+    # may be moved from where it was authored before it stops describing what
+    # it was pointed at - `CT A+/A-/B+/B-` once slid 14 mm onto a different
+    # terminal block - and no amount of placer cleverness fixes an anchor
+    # aimed at occupied board. That is a human's call, so it stops the build.
+    if strayed:
+        for txt, d in strayed:
+            print("FAIL: board text %r moved %.2f mm from its anchor "
+                  "(silk.RING_MAX = %.1f) - move the anchor in gen_pcb.SILK, "
+                  "or the parts crowding it" % (txt, d, silk.RING_MAX))
+        sys.exit(1)
 
 
 if __name__ == "__main__":

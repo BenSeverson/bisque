@@ -21,9 +21,26 @@ DRC collides), so a finding here is a finding pcbnew's DRC would also raise:
                      100 x 100 mm board the reference designators cannot all
                      be placed with zero touching, and the placer in
                      `silk.py` minimises rather than eliminates it.
+  SILK UNDER A PART  a board text inside the F.Fab body of a part big enough
+                     to hide it. Printable, DRC-clean, and gone the moment
+                     the board is assembled - which is the whole point of a
+                     legend. This one is invisible to every other check here
+                     by construction, and it is what let `RESET` and `BOOT`
+                     print across the two buttons they name and `+`/`-`, the
+                     board's only per-terminal polarity marks, print inside
+                     the block they belong to.
 
-The first two are HARD failures. The third fails only above SILK_ON_SILK_MAX,
-which records what the board actually achieves so a regression fails.
+The first two are HARD failures. SILK ON SILK fails above SILK_ON_SILK_MAX,
+which records what the board actually achieves so a regression fails. SILK
+UNDER A PART is budgeted by NAME rather than by count, in ON_PART_OK: a new
+burial fails, and so does a stale entry, so the list cannot rot into a
+rubber stamp.
+
+The fourth kind of association defect - a label placed far from the thing it
+names - cannot be checked here and is checked in `kicad_build.py` instead.
+It needs each label's authored anchor, and the board file does not record
+one: by the time a `gr_text` is on disk it is just a coordinate. `silk.py`
+has the anchors while it places, so that is where the test lives.
 
 Needs KiCad's python (`import pcbnew`); the Makefile resolves it as $KPY.
 Usage: python3 check_silk.py [board.kicad_pcb]
@@ -46,6 +63,30 @@ import pcbnew
 # What the current generator achieves. Lower it whenever the placer improves;
 # never raise it without saying why in the commit message.
 SILK_ON_SILK_MAX = 0
+
+
+# Board texts that are allowed to print under a part, as (text, part). Each
+# one is a placement problem the silk placer cannot solve, and each is here
+# with the reason it cannot:
+#
+#   RESET/BOOT  There is no room. The board edge is 19.95 and SW1's and SW2's
+#               own silk outlines start at 21.60, leaving a 1.40 mm strip for
+#               a 1.53 mm text box; H1 and the USB receptacle take the sides,
+#               and the +3V3/+5V/GND test points take the space below. The
+#               legend fits nowhere but on the button.
+#   SDA/SCL/3V3 LED1 is a 5 x 5 mm WS2812B sitting in J7's pin-name band, on
+#               top of the labels for pins 5, 6 and 7. Nothing below the row
+#               is free either - J11's block starts 1.8 mm down - so these
+#               three cannot be named until LED1 or the header moves.
+#
+# Both need a part moved, which is `design.py`'s business and costs a full
+# re-route. Until then the burial is deliberate and recorded; what must not
+# happen is a SIXTH one appearing without anyone noticing, which is what this
+# list is for. Remove an entry when its part moves - a stale one fails too.
+ON_PART_OK = {
+    ("RESET", "SW1"), ("BOOT", "SW2"),
+    ("SDA", "J7"), ("SCL", "LED1"), ("3V3", "J7"),
+}
 
 
 # The one asset this board shares with another tree. `logo.FLAME_PATH` is a
@@ -137,6 +178,65 @@ def exposed_pads(board):
     return out
 
 
+def part_bodies(board):
+    """[(ref, box)] over F.Fab - the outline of the fitted component.
+
+    F.Fab, not the courtyard, and the same choice `silk.py` makes for the
+    same reason: a courtyard is keep-out, not part. Y1's spans 20 mm of
+    hand-solder pads with open board between them, and a designator in that
+    gap is perfectly readable. Footprints with no F.Fab (test points,
+    mounting holes, solder jumpers) are flat - nothing to hide a label
+    under - so they are skipped rather than approximated.
+    """
+    out = []
+    for fp in board.GetFootprints():
+        box = None
+        for it in fp.GraphicalItems():
+            if it.GetLayer() == pcbnew.F_Fab and not hasattr(it, "GetText"):
+                b = it.GetBoundingBox()
+                e = (b.GetLeft(), b.GetTop(), b.GetRight(), b.GetBottom())
+                box = e if box is None else (
+                    min(box[0], e[0]), min(box[1], e[1]),
+                    max(box[2], e[2]), max(box[3], e[3]))
+        if box is not None:
+            out.append((fp.GetReference(), box))
+    out.sort()
+    return out
+
+
+def under_part(silk, bodies):
+    """Board texts whose centre sits on a part big enough to hide them.
+
+    Two restrictions, both matching `silk.py` so the placer and this checker
+    cannot disagree about what counts:
+
+    - the CENTRE, not the box. A label beside a part legitimately overhangs
+      its body a little; asking for no overlap at all would condemn the very
+      placements the placer is trying to find.
+    - the body must be able to COVER the label. A 2 x 1.25 mm 0805 cannot
+      hide a 3.4 x 1.4 mm designator - it overhangs on every side and stays
+      readable - so the dense passive rows are not what this is about.
+
+    Reference designators are excluded because the placer already refuses
+    them (`W_ON_PART`, and `place()` reports any that had to settle); so are
+    footprint texts, because a pin-1 `1` or a polarity `+` marks its part BY
+    sitting on it. What is left is exactly the free-standing board texts.
+    """
+    hits = []
+    for label, owner, _sh, bb, is_text in silk:
+        if owner is not None or not is_text:
+            continue
+        cx, cy = (bb[0] + bb[2]) / 2.0, (bb[1] + bb[3]) / 2.0
+        for ref, box in bodies:
+            if not (box[0] <= cx <= box[2] and box[1] <= cy <= box[3]):
+                continue
+            if (box[2] - box[0] >= bb[2] - bb[0]
+                    and box[3] - box[1] >= bb[3] - bb[1]):
+                hits.append((label, ref, bb))
+                break
+    return hits
+
+
 def edges(board):
     out = []
     for d in board.GetDrawings():
@@ -217,11 +317,26 @@ def main(pcb):
         if len(hits) > limit:
             print("  ... and %d more" % (len(hits) - limit))
 
+    buried = under_part(silk, part_bodies(board))
     show("SILK OVER COPPER", over)
     show("SILK OFF BOARD", off)
     show("SILK ON SILK", onsilk)
+    show("SILK UNDER A PART", buried)
 
     bad = check_logo()
+    # Compared as a SET, both ways. A new burial is the regression this
+    # exists to catch; an entry that no longer happens is a comment that has
+    # stopped being true, and leaving those in is how a budget turns into a
+    # rubber stamp.
+    seen = set((lbl, ref) for lbl, ref, _bb in buried)
+    for lbl, ref in sorted(seen - ON_PART_OK):
+        print("\nFAIL: board text %r prints under %s and is not in ON_PART_OK"
+              % (lbl, ref))
+        bad = 1
+    for lbl, ref in sorted(ON_PART_OK - seen):
+        print("\nFAIL: ON_PART_OK lists %r under %s, which no longer happens "
+              "- remove it" % (lbl, ref))
+        bad = 1
     if over:
         print("\nFAIL: %d silk item(s) printed on exposed copper" % len(over))
         bad = 1

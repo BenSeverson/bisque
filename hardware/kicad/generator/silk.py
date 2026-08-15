@@ -101,22 +101,29 @@ W_ORDER = 0.02
 # way, so that direction stays cheap.
 W_LATERAL = 4.0
 
-# A terminal label printed inside its terminal block's body is legal (no
-# copper, no edge, no other silk) and half-hidden once the block is fitted -
-# visible in the 3D render, invisible to DRC. A courtyard penalty was tried
-# to push those labels clear and REVERTED: the free gaps between the four
-# left-edge blocks are 1.3-2.1 mm, so evicting `SSR2` from J9 sent it up
-# beside J4, where it reads as J4's label. Mislabelling a mains-adjacent
-# screw terminal is worse than partly hiding its label under the block that
-# it is unambiguously attached to. See the report; the nit is known, and the
-# fix is placement, not silk.
+# A REFERENCE DESIGNATOR gets a rule rather than a penalty. The placer only
+# ever sees a bare board, where the middle of a large footprint is the perfect
+# spot - nothing to collide with, distance zero - so J14's designator landed
+# under a 6 x 4 mm connector body, U1's under the module's can, and LED2's on
+# J1's shell: 13 of them, each either invisible once the part is fitted or
+# naming the wrong part.
 #
-# A REFERENCE DESIGNATOR is a different case, and gets a rule rather than a
-# penalty. The placer only ever sees a bare board, where the middle of a
-# large footprint is the perfect spot - nothing to collide with, distance
-# zero - so J14's designator landed under a 6 x 4 mm connector body, U1's
-# under the module's can, and LED2's on J1's shell: 13 of them, each either
-# invisible once the part is fitted or naming the wrong part.
+# A BOARD TEXT is charged the same weight, and for a while it was not. The
+# earlier note here said a terminal label printed inside its block's body was
+# a known, tolerable nit - a courtyard penalty had been tried to push those
+# labels clear and reverted, because evicting `SSR2` from J9 sent it up
+# beside J4 where it read as J4's label. That reasoning was sound and the
+# conclusion was too broad: it exempted board texts from the body test
+# ENTIRELY, and the population it then let through was not terminal labels
+# in 1.3 mm gaps. It was `RESET` and `BOOT` printed across the two buttons
+# they name, `+` and `-` - the only per-terminal polarity marks on the board
+# - inside J2's block, and three of J7's eight pin names under the connector
+# and under LED1. A courtyard penalty is what was wrong (a courtyard is not
+# a part); F.Fab plus `_covers` is the same test the references already use,
+# and it says nothing about the 1.3 mm gaps that motivated the revert.
+#
+# `RING_MAX` below is what keeps the eviction bounded, which is the half the
+# reverted attempt was missing.
 #
 # So it is two terms, and the ORDER between them and a collision is the whole
 # design:
@@ -139,6 +146,26 @@ W_LATERAL = 4.0
 # degree: a designator closer to a neighbour than to its own part names the
 # neighbour, and no amount of distance saved is worth that.
 W_ON_PART = 5.0
+
+# How far a board text may be moved from the coordinate it was authored at,
+# mm. A reference's drift is bounded by the geometry it is generated from -
+# the side offsets reach ~5.4 mm from the part and no further - but a board
+# text is placed on a ring around its anchor, and that ring ran to 14 mm with
+# nothing but W_DISTANCE arguing against the far end. Two labels took it:
+# `CT A+/A-/B+/B-` slid exactly 14.00 mm, landing 12.98 mm from the CT block
+# it names and 8.38 mm from the thermocouple block it does not, directly
+# under that block's own legend; `WDT DEFEAT` slid exactly 10.00 mm into the
+# middle of the buzzer, 12 mm from the jumper it names. Both distances are
+# ring radii, which is the tell: the ring, not the board, chose them.
+#
+# 3.0 is above every drift the board legitimately uses (the largest is
+# 2.60 mm, a pin name stepping clear of a connector) and below the smallest
+# that has ever produced a wrong answer. Exceeding it is not silently
+# allowed: `place()` retries uncapped so the board still builds, and reports
+# every label that needed it by name, because a legend that has to travel
+# 14 mm to find room is telling you about the anchor or the placement, and
+# neither is silk.py's to fix. `check_silk.py` fails the build on it.
+RING_MAX = 3.0
 
 # A reference must not slot INTO a row of board texts. Not touching them is
 # not enough: the 28 pin names above J5/J6/J7 are positional, so `J6` landing
@@ -436,13 +463,20 @@ class _Obstacles:
 class _Label:
     """One movable silk text: the pcbnew item plus where it wants to be."""
 
-    def __init__(self, key, owner, item, anchor, body, kind):
+    def __init__(self, key, owner, item, anchor, body, kind, board=False):
         self.key = key            # sort key, also the tie-break
         self.owner = owner        # footprint ref, for same-footprint exemption
         self.item = item
         self.anchor = anchor      # (x, y) internal units it wants to be near
         self.body = body          # part body box to sit beside, or None
         self.kind = kind          # "ref" | "text"
+        # A free-standing `gen_pcb.SILK` entry, as opposed to a footprint's
+        # own silk text. The two are both `kind == "text"` and are scored the
+        # same way but for the body weight, which only a board text pays: the
+        # footprint texts here are LED1's pin-1 `1` and BZ1's `+`, polarity
+        # and orientation marks that belong ON the part they mark. Evicting
+        # those to make them visible would destroy the only thing they say.
+        self.board = board
         bb = item.GetBoundingBox()
         pos = item.GetPosition()
         self.hw = bb.GetWidth() / 2.0
@@ -485,8 +519,14 @@ class _Label:
                                int(round(cy - self.base[1]))))
         return s
 
-    def candidates(self):
-        """Deterministic candidate box centres, best-intent first."""
+    def candidates(self, cap=None):
+        """Deterministic candidate box centres, best-intent first.
+
+        `cap` drops every ring radius beyond it, in mm. It bounds a text's
+        drift from its anchor (see `RING_MAX`); it does NOT bound a
+        reference, whose ring is centred on its own part and whose real
+        candidate set is the side offsets above.
+        """
         ax, ay = self.anchor
         out = []
         if self.body is not None:
@@ -501,6 +541,8 @@ class _Label:
                     out.append((x1 + g + self.hw, my + s))   # east
                     out.append((x0 - g - self.hw, my + s))   # west
         for r in _RING_R:
+            if cap is not None and r > cap:
+                break
             for a in _RING_A:
                 rad = math.radians(a)
                 out.append((ax + MM(r) * math.cos(rad),
@@ -546,7 +588,7 @@ def _cost(lab, cx, cy, obs, others, on_part_ok=False):
         elif (ref and o.kind == "text" and _hit(bb, o.bb, _C_CROWD)
                 and sh.Collide(o.shape(*o.at), _C_CROWD)):
             crowd += 1
-    if lab.kind == "text":
+    if lab.kind != "ref":
         ddx = abs(cx - lab.anchor[0]) / _ONE_MM
         ddy = abs(cy - lab.anchor[1]) / _ONE_MM
         dist = math.hypot(W_LATERAL * ddx, ddy)
@@ -563,13 +605,25 @@ def _cost(lab, cx, cy, obs, others, on_part_ok=False):
         dist = (_box_dist(own, cx, cy) / _ONE_MM if own is not None
                 else math.hypot(cx - lab.anchor[0], cy - lab.anchor[1])
                 / _ONE_MM)
-    hid = W_ON_PART if ref and obs.on_part(bb) else 0.0
+    hid = W_ON_PART if (ref or lab.board) and obs.on_part(bb) else 0.0
     return W_COLLISION * n + W_CROWD * crowd + hid + W_DISTANCE * dist, n
 
 
-def _best(lab, obs, others, on_part_ok=False):
+def _ladder(lab):
+    """(on_part_ok, cap) attempts for `lab`, strictest first.
+
+    A reference is bounded by its side offsets, so it needs no cap and the
+    thing it may have to give up is `nearer_part`. A text has no hard rule to
+    give up and is bounded by nothing, so it is the other way round.
+    """
+    if lab.kind == "ref":
+        return ((False, None), (True, None))
+    return ((False, RING_MAX), (False, None))
+
+
+def _best(lab, obs, others, on_part_ok=False, cap=None):
     best = None
-    for i, (cx, cy) in enumerate(lab.candidates()):
+    for i, (cx, cy) in enumerate(lab.candidates(cap)):
         c = _cost(lab, cx, cy, obs, others, on_part_ok)
         if c is None:
             continue
@@ -617,7 +671,7 @@ def collect_labels(board, text_anchors):
                                      ref, it, (ip.x, ip.y), None, "text"))
     for i, (item, ax, ay) in enumerate(text_anchors):
         labels.append(_Label(("1text", i), None, item, (MM(ax), MM(ay)),
-                             None, "text"))
+                             None, "text", board=True))
     labels.sort(key=lambda l: l.key)
     return labels
 
@@ -662,13 +716,18 @@ def place(board, text_anchors, verbose=True):
     for p in range(PASSES):
         moved = 0
         for lab in labels:
-            # Strict first, relaxed only if nothing off a part body is legal.
-            # Both the search and the incumbent are scored under the same
-            # rule, so a reference already sitting on a part scores None and
-            # any legal alternative beats it.
-            for on_part_ok in (False, True):
+            # Strict first, relaxed only if nothing legal was found. Both the
+            # search and the incumbent are scored under the same rule, so a
+            # reference already sitting on a part scores None and any legal
+            # alternative beats it.
+            #
+            # The two relaxations are disjoint by label kind. A reference
+            # gives up `nearer_part`; a text gives up `RING_MAX`. Neither
+            # ever gives up the other's, so a relaxed reference still cannot
+            # travel and a relaxed text still cannot claim a neighbour.
+            for on_part_ok, cap in _ladder(lab):
                 cur = _cost(lab, lab.at[0], lab.at[1], obs, live, on_part_ok)
-                best = _best(lab, obs, live, on_part_ok)
+                best = _best(lab, obs, live, on_part_ok, cap)
                 if best is not None:
                     break
             if best is None:
@@ -694,16 +753,49 @@ def place(board, text_anchors, verbose=True):
             bad += 1
             if verbose:
                 print("  !! %s has no legal silk placement" % lab.item.GetText())
+    # Neither of these is a failure the placer can fix - a text with nowhere
+    # legal within RING_MAX is telling you its anchor is wrong or the parts
+    # around it are too tight - so both are named, not just counted. Silence
+    # here is what let `CT A+/A-/B+/B-` ship 13 mm from the CT block.
+    strayed = [lab for lab in labels if lab.board and drift(lab) > RING_MAX]
+    buried = [lab for lab in labels if lab.board and obs.on_part(lab.bb)]
     if verbose:
+        for lab in strayed:
+            print("  !! board text %r moved %.2f mm from its anchor (max %.1f)"
+                  % (lab.item.GetText(), drift(lab), RING_MAX))
+        for lab in buried:
+            print("  !! board text %r sits on a part body"
+                  % lab.item.GetText())
         n = _collisions(labels, obs)
         hidden = sum(1 for lab in labels if lab.kind == "ref"
                      and obs.on_part(lab.bb))
         astray = sum(1 for lab in labels if lab.kind == "ref"
                      and obs.nearer_part(lab.owner, lab.bb))
         print("  silk: %d label(s) placed, %d touching other silk, %d illegal,"
-              " %d reference(s) on a part body, %d nearer another part"
-              % (len(labels), n, bad, hidden, astray))
+              " %d reference(s) on a part body, %d nearer another part,"
+              " %d board text(s) adrift, %d on a part body"
+              % (len(labels), n, bad, hidden, astray, len(strayed),
+                 len(buried)))
     return labels
+
+
+def drift(lab):
+    """How far a label ended up from the coordinate it was authored at, mm."""
+    return math.hypot(lab.at[0] - lab.anchor[0],
+                      lab.at[1] - lab.anchor[1]) / _ONE_MM
+
+
+def adrift(labels):
+    """[(text, mm)] for every board text that outran RING_MAX.
+
+    The caller is expected to fail the build on a non-empty result. This is
+    the half of the association check that `check_silk.py` cannot do: it
+    reads the finished board, where a `gr_text` is a coordinate and nothing
+    records what coordinate it was asked for. Here the anchor is still in
+    hand.
+    """
+    return sorted((lab.item.GetText(), drift(lab)) for lab in labels
+                  if lab.board and drift(lab) > RING_MAX)
 
 
 def _collisions(labels, obs):
