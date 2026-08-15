@@ -14,10 +14,7 @@ added `Q4`/`Q5`/`Q6`/`R47`.
 Status: **ready to order, bare or assembled**, subject to the sourcing flag
 in "Open items" below.
 
-This review supersedes `FAB-READINESS-REVIEW.md` **for this board only**.
-That file documents rev A — a 2-layer, 100 × 80 mm, 52-footprint board — and
-is kept as history, not edited into a claim about a board it never
-described. Rev B is a respin, not a variant: the thermocouple front-end,
+Rev B is a respin, not a variant: the thermocouple front-end,
 module variant, output bank, and layer count all changed, and no attempt was
 made to keep rev A hardware compatible with rev B firmware defaults. The one
 item that carries forward unchanged is `CERT-001`, below.

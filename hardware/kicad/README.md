@@ -1,10 +1,9 @@
 # Bisque Kiln Controller — KiCad PCB
 
-A single-board replacement for the perfboard build documented in
-`docs/perfboard-layout.svg` / `docs/wiring-diagram.svg`. This is **rev B**, a
-respin of the original prototype rather than a variant — it replaces the
-thermocouple front-end with an incompatible part, adds a second SSR zone and
-a digital current-sense chip, moves most GPIOs, and swaps the module variant.
+The controller board. This is **rev B**, a respin of the original prototype
+rather than a variant — it replaced the thermocouple front-end with an
+incompatible part, added a second SSR zone and a digital current-sense chip,
+moved most GPIOs, and swapped the module variant.
 4-layer, 100 × 100 mm, built for **JLCPCB assembly**: 0805 passives,
 QFN/TSSOP/SOIC/SOT ICs, SMD tact switches and the ESP32-S3-WROOM-1U module's
 castellated pads all go down the SMT line, plus thirteen through-hole parts
@@ -12,9 +11,7 @@ castellated pads all go down the SMT line, plus thirteen through-hole parts
 below for why that split is much cheaper than it looks. The design record for
 this respin, including the routing escalation that forced the layer count,
 is `docs/superpowers/specs/2026-08-10-pcb-rev-b-hardware-design.md`; the
-fab-readiness sign-off is `FAB-READINESS-REVIEW-REVB.md` (rev A's review,
-`FAB-READINESS-REVIEW.md`, documents a board that no longer exists and is
-kept only as history — do not read it as current).
+fab-readiness sign-off is `FAB-READINESS-REVIEW-REVB.md`.
 
 Built and validated with **real KiCad** (10.0.5, pcbnew Python API +
 kicad-cli): footprints come from KiCad's installed libraries, ground/power

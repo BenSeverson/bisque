@@ -82,81 +82,9 @@
   <img src="docs/screenshots/ios-app.png" width="280" alt="iOS app" />
 </p>
 
-## Bill of Materials (rev A perfboard — historical)
+## Hardware
 
-> The perfboard build is frozen at firmware `v1.1.0` (branch `v1`). Current
-> hardware is the rev B PCB in [`hardware/kicad/`](hardware/kicad/); its pin map
-> is [`docs/pin-assignments.md`](docs/pin-assignments.md).
-
-<details>
-<summary>Expand</summary>
-
-| Component | Description | Approx. Cost |
-|-----------|-------------|:------------:|
-| ESP32-S3-DevKitC-1 (N16R8) | Main controller, 16MB flash, 8MB PSRAM (44-pin, USB-C) | ~$10 |
-| MAX31855 breakout | K-type thermocouple amplifier (SPI) | ~$15 |
-| K-type thermocouple | High-temp probe, kiln rated | ~$15-30 |
-| ST7796S 4.0" TFT LCD | 480x320 SPI display | ~$15 |
-| SSR (e.g. SSR-40DA) | Solid state relay for kiln element | ~$10 |
-| 3x tactile buttons | Up / Down / Select navigation | ~$1 |
-| Piezo buzzer (optional) | Alarm output | ~$1 |
-| Relay module (optional) | Vent fan control | ~$3 |
-
-> **Safety warning:** Kilns operate at dangerous temperatures and voltages. Ensure all high-voltage wiring is performed by a qualified electrician. Use appropriate safety equipment and never leave a firing kiln unattended.
-
-</details>
-
-## Wiring (rev A perfboard — historical)
-
-<details>
-<summary>Expand</summary>
-
-### SPI Bus (shared by thermocouple and display)
-
-| Signal | ESP32-S3 GPIO |
-|--------|:-------------:|
-| MOSI   | 11            |
-| MISO   | 13            |
-| SCLK   | 12            |
-
-### MAX31855 Thermocouple
-
-| Signal | ESP32-S3 GPIO |
-|--------|:-------------:|
-| CS     | 10            |
-
-### ST7796S LCD Display
-
-| LCD Pin | ESP32-S3 GPIO | Notes |
-|---------|:-------------:|-------|
-| SDA     | 11            | SPI MOSI (data to display) |
-| SCL     | 12            | SPI clock |
-| CS      | 9             | Chip select |
-| DC      | 46            | Data/Command |
-| RST     | 3             | Reset |
-| BL      | 8             | Backlight (active-high) |
-
-### SSR Output
-
-| Signal | ESP32-S3 GPIO |
-|--------|:-------------:|
-| SSR    | 17            |
-
-### Navigation Buttons
-
-| Button | ESP32-S3 GPIO | Notes |
-|--------|:-------------:|-------|
-| Up     | 4             | Active-low, internal pull-up |
-| Down   | 5             | Active-low, internal pull-up |
-| Select | 6             | Active-low, internal pull-up |
-
-See also: [Wiring Diagram](docs/wiring-diagram.svg) | [Perfboard Layout](docs/perfboard-layout.svg) | [Custom PCB](hardware/kicad/)
-
-</details>
-
-## Custom PCB
-
-A single-board version of the controller lives in [`hardware/kicad/`](hardware/kicad/) — a full KiCad project (schematic + routed **4-layer** board, 100 × 100 mm) that replaces the DevKit-plus-breakouts perfboard build.
+The controller is a single board in [`hardware/kicad/`](hardware/kicad/) — a full KiCad project (schematic + routed **4-layer** board, 100 × 100 mm). Its GPIO map is [`docs/pin-assignments.md`](docs/pin-assignments.md).
 
 <p align="center">
   <img src="hardware/kicad/3d/board-3d-top.png" width="600" alt="Raytraced top-down render of the Bisque controller PCB" />
@@ -165,6 +93,8 @@ A single-board version of the controller lives in [`hardware/kicad/`](hardware/k
 It integrates the ESP32-S3-WROOM-1U module (external U.FL antenna), two MAX31856 thermocouple front-ends, two SSR drive channels behind a hardware watchdog, an ADE7953 current-sense front-end, a ULN2003 auxiliary output bank, three protected dry-contact inputs, USB-C flashing, status LED, and alarm buzzer — with screw terminals for the field wiring and keyed connectors for the display and nav-switch looms. Gerbers, drill files, and an assembly BOM/CPL are committed and ready to upload to a board house.
 
 See [`hardware/kicad/README.md`](hardware/kicad/README.md) for the full BOM, fabrication notes, and the regeneration workflow. GPIO assignments mirror the firmware's `Kconfig` defaults, so stock firmware runs unmodified.
+
+> **Safety warning:** Kilns operate at dangerous temperatures and voltages. Ensure all high-voltage wiring is performed by a qualified electrician. Use appropriate safety equipment and never leave a firing kiln unattended.
 
 ## Getting Started
 

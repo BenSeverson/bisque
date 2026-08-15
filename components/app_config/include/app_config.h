@@ -30,8 +30,10 @@
 
 #define APP_LCD_H_RES 480
 #define APP_LCD_V_RES 320
-/* ST7796S datasheet rates the write cycle at 66 MHz (Tcycw=15ns); 40 MHz stays
- * within spec for the hand-soldered perfboard wiring in a noisy kiln environment. */
+/* ST7796S datasheet rates the write cycle at 66 MHz (Tcycw=15ns); 40 MHz keeps
+ * margin for a keyed display loom in a noisy kiln environment. The margin was
+ * originally sized for hand-soldered wiring; nothing has re-measured it on the
+ * routed board, so treat 40 MHz as inherited rather than as the ceiling. */
 #define APP_LCD_SPI_FREQ_HZ (40 * 1000 * 1000)
 
 /* --- PID Defaults --- */

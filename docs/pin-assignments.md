@@ -109,8 +109,8 @@ a dry contact from J11.1 to GND, and the R12/R13 divider puts the pin at
 shut**. Nothing connected means HIGH, which is **lid open**. A jumper to GND
 is electrically identical to a permanently shut lid.
 
-On a perfboard build with nothing wired to GPIO 4, the internal pull-up alone
-produces the same HIGH, so a perfboard build must set `-1`.
+On a board with the J11 terminal left empty, the pull-ups alone produce the
+same HIGH, so a build with no lid switch must set `-1` or fit the jumper.
 
 With the lid reading open, and the default `lid_mode` of `pause`,
 `lid_blocks_output()` holds the SSR low in `ssr_window_apply()` and
