@@ -82,7 +82,11 @@
   <img src="docs/screenshots/ios-app.png" width="280" alt="iOS app" />
 </p>
 
-## Bill of Materials
+## Bill of Materials (rev A perfboard — historical)
+
+> The perfboard build is frozen at firmware `v1.1.0` (branch `v1`). Current
+> hardware is the rev B PCB in [`hardware/kicad/`](hardware/kicad/); its pin map
+> is [`docs/pin-assignments.md`](docs/pin-assignments.md).
 
 <details>
 <summary>Expand</summary>
@@ -102,7 +106,7 @@
 
 </details>
 
-## Wiring
+## Wiring (rev A perfboard — historical)
 
 <details>
 <summary>Expand</summary>
@@ -280,7 +284,7 @@ Requires SDL2 (`brew install sdl2` on macOS).
 main/                 App entry point, FreeRTOS task creation
 components/
   app_config/         Pin definitions, hardware constants
-  thermocouple/       MAX31855 SPI driver
+  thermocouple/       MAX31856 SPI driver (2 channels)
   pid_control/        PID controller + Ziegler-Nichols auto-tune
   firing_engine/      Multi-segment firing state machine
   safety/             Watchdog, over-temp, fault detection
