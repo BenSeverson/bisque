@@ -537,7 +537,7 @@ everything else with the same code the full build runs.
 |---|---|---|
 | Silkscreen placement (`generator/silk.py`, the `SILK` table, reference text size/thickness) | `make pcb-cosmetic` | **8 s** |
 | The nameplate — `TITLE_*` / `TITLE_ROWS`, `SILK_GRAPHICS`, `generator/logo.py` | `make pcb-cosmetic` | **8 s** |
-| 3D model offsets (`MODEL_OFFSET` in `kicad_build.py`) | `make pcb-cosmetic` | **8 s** |
+| 3D models (`MODEL_FIXUP` in `kicad_build.py`, files in `3dmodels/`) | `make pcb-cosmetic` | **8 s** |
 | Board title block | `make pcb-cosmetic` | **8 s** |
 | **Anything else** — placement, connectivity, footprint choice, net classes, `MANUAL_VIAS`, router parameters (`router.py`, `gen_pcb.py`) | `make pcb-build` | **158 s** |
 
@@ -706,7 +706,7 @@ real board and asserting the canonical form doesn't move; it needs
 neither KiCad nor pcbnew.
 
 One other source of run-to-run drift lived in `kicad_build.py` itself
-until the fast path flushed it out. `MODEL_OFFSET` rebuilds a footprint's
+until the fast path flushed it out. `MODEL_FIXUP` rebuilds a footprint's
 3D-model entry, because `fp.Models()` hands back copies that cannot be
 mutated in place — and it used to carry the old entry's scale and
 rotation as `VECTOR3D` *references into those copies*. Once the copy was
@@ -987,44 +987,59 @@ board file textually; `kicad_build.py` is the authoritative path.)
 (raytraced, official component models). `render_3d.py` remains as a
 KiCad-free fallback (stylized three.js renders via headless chromium).
 
-**One 3D model must be installed by hand, or U1 renders as bare pads.**
-KiCad 10 ships `ESP32-S3-WROOM-1.step` and `-WROOM-2.step` but **not**
-`ESP32-S3-WROOM-1U.step`, which is the variant this board uses. The
-footprint references it, `kicad-cli` cannot find it, and — this is the part
-that wastes an afternoon — **it fails silently**: the render exits 0, prints
-"Loading 3D models…", and simply omits the module. Nothing warns you. Fetch
-it from Espressif's own library and drop it where the footprint already
-points:
+**Five models are vendored in `3dmodels/`, and nothing needs installing by
+hand.** KiCad 10 ships no model at all for four of this board's footprints —
+`ESP32-S3-WROOM-1U` (U1; the library has `-WROOM-1` and `-WROOM-2`, not the
+1U variant this board uses), `SW_Push_1P1T_XKB_TS-1187A` (SW1/SW2),
+`USB_C_Receptacle_HRO_TYPE-C-31-M-12` (J1) and
+`QFN-28-1EP_5x5mm_P0.5mm_EP3.1x3.1mm` (U7). That is normal upstream coverage,
+not a broken install: KiCad ships 12 models for 75 `Connector_USB` footprints.
 
-```bash
-curl -sSL -o "$(dirname "$(which kicad-cli)")/../share/kicad/3dmodels/RF_Module.3dshapes/ESP32-S3-WROOM-1U.step" \
-  https://raw.githubusercontent.com/espressif/kicad-libraries/main/3dmodels/espressif.3dshapes/ESP32-S3-WROOM-1U.STEP
-# macOS app-bundle install:
-#   /Applications/KiCad/KiCad.app/Contents/SharedSupport/3dmodels/RF_Module.3dshapes/
-```
+What makes it worth solving properly is the failure mode — **it fails
+silently**. The render exits 0, prints "Loading 3D models…", and omits the
+part. Nothing warns you, and the output still looks like a render; a missing
+body reads as a footprint with no part fitted, which is also a thing that
+happens on purpose. So `MODEL_FIXUP` in `kicad_build.py` points all five
+footprints at `${KIPRJMOD}/3dmodels/<stem>.step` instead of
+`${KICAD10_3DMODEL_DIR}`, and `make pcb-render` reproduces the committed
+images on a clean clone with an empty KiCad model library. See
+[`3dmodels/README.md`](3dmodels/README.md) for provenance and for how to
+refresh an LCSC model.
 
-It is 8.4 MB, which is why it is not vendored into this repo — the renders
-are cosmetic, are already a manual step, and nothing in the fab package
-(gerbers, drill, BOM, CPL, DRC) touches 3D models at all. The consequence to
-accept knowingly: the committed renders are **not** reproducible on a clean
-machine until that file is fetched, and a KiCad upgrade wipes an app-bundle
-install. Do **not** work around it by pointing the footprint at the
-`ESP32-S3-WROOM-1` model — the 1U body is 6.3 mm shorter precisely because
-it has no PCB antenna, so that substitution draws the module straight
-through the reclaimed antenna band where USB-C, the reset switch and three
-test points now live, depicting a collision that does not exist.
+The directory is ~15.9 MB on disk but ~2.8 MB of git objects, since STEP is
+text and compresses about 6:1. That cost buys back a setup step that was
+previously documented, manual, wiped by every KiCad upgrade, and — being
+optional — silently skipped.
 
-**The origin mismatch is already handled** — you only need to drop the file
-in. Espressif's STEP is authored with its origin at a body *corner* (body
-spans X 0…18, Y 0…19.2 mm), while KiCad's footprint origin is the body
+Do **not** work around a missing module model by pointing the footprint at
+`ESP32-S3-WROOM-1` — the 1U body is 6.3 mm shorter precisely because it has
+no PCB antenna, so that substitution draws the module straight through the
+reclaimed antenna band where USB-C, the reset switch and three test points
+now live, depicting a collision that does not exist.
+
+**Two origin corrections are carried in `MODEL_FIXUP`, and both were
+measured.** Espressif's STEP is authored with its origin at a body *corner*
+(body spans X 0…18, Y 0…19.2 mm), while KiCad's footprint origin is the body
 *centre*, so the raw model renders the module ~9.6 mm off its own pads and
-hanging over the board edge. `MODEL_OFFSET` in `kicad_build.py` corrects it
+hanging over the board edge. `MODEL_FIXUP`'s `offset` corrects it
 with `(-9, -9.6, 0)`, cross-checked two ways: the body centre measured
 directly off the STEP, and Espressif's own footprint value (`-9, -9.75, 0`)
 adjusted by the 0.15 mm difference between their footprint origin and
 KiCad's — a difference confirmed across all 40 signal pads (`dX` 0.0,
 `dY` −0.15). After the offset, the body clears every castellated pad centre
 by a symmetric 0.25 mm on three sides.
+
+J1 is the second, and it is **a rotation, not an offset** — which matters,
+because it presents as one. Unrotated, the USB-C shell sits ~8.9 mm north of
+its own pad row, and no translation fixes it for the right reason. EasyEDA
+stores a per-model display rotation beside the geometry (the package's
+`SVGNODE` `c_rotation`, `0,0,180` for C165948) and authors the STEP in the
+*unrotated* frame; applying that 180° puts all 12 pins on the 12 signal pads
+with the mouth facing the board edge. Read `c_rotation` before adding any
+LCSC model. C515890's is `0,0,90` and is deliberately **not** applied — a
+square QFN is invariant under it, so honouring it would put an untestable
+claim in the table, exactly the trap `JLC_PLACEMENT`'s ADE7953 entry
+documents from the other direction.
 
 **Why KiCad's footprint rather than Espressif's**, since the model is
 theirs: the two are the same 41-pad array offset by that 0.15 mm, but

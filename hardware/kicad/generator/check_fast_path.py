@@ -110,15 +110,18 @@ def vandalise(path):
                 q = it.GetPosition()
                 it.SetPosition(pcbnew.VECTOR2I(q.x - dx, q.y - dy))
         # Models() hands back copies, so the list is rebuilt to change one -
-        # the same dance MODEL_OFFSET does in kicad_build.py.
-        old = [(m.m_Filename, m.m_Scale, m.m_Rotation) for m in fp.Models()]
+        # the same dance MODEL_FIXUP does in kicad_build.py. Filename, offset
+        # AND rotation are all wrecked because the fast path derives all three:
+        # wrecking only the offset would let a filename that is merely carried
+        # over pass as one that is re-derived.
+        old = [(m.m_Scale,) for m in fp.Models()]
         if old:
             fp.Models().clear()
-            for fname, scale, rot in old:
+            for (scale,) in old:
                 nm = pcbnew.FP_3DMODEL()
-                nm.m_Filename = fname
+                nm.m_Filename = "${KIPRJMOD}/3dmodels/WRONG_MODEL.step"
                 nm.m_Scale = scale
-                nm.m_Rotation = rot
+                nm.m_Rotation = pcbnew.VECTOR3D(11.0, 22.0, 33.0)
                 nm.m_Offset = pcbnew.VECTOR3D(42.0, -42.0, 13.0)
                 fp.Models().push_back(nm)
 

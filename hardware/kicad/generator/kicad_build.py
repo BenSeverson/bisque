@@ -12,7 +12,7 @@ Usage: python3 kicad_build.py [--no-route] <out.kicad_pcb>
 `--no-route` is the fast path. Routing 93 nets across 141 parts is ~91%
 of the 158 s a full build costs, and several classes of change cannot
 touch copper at all: silkscreen placement (silk.py), 3D model offsets
-(MODEL_OFFSET), the title block, reference-designator text metrics. With
+(MODEL_FIXUP), the title block, reference-designator text metrics. With
 `--no-route` the tracks, vias and filled zones are read back off the
 existing board and everything else is re-derived by the same code a full
 build runs, so the result is byte-identical for the same design.py -
@@ -94,23 +94,46 @@ def V(x, y):
     return pcbnew.VECTOR2I(MM(x), MM(y))
 
 
-# 3D-model offsets, in mm, for models whose own origin does not sit where the
-# footprint expects. Cosmetic only - models are never part of a fab output -
-# but a model at the wrong origin renders the part floating off the board,
-# which reads as a layout error rather than a missing file.
+# 3D models. Cosmetic only - no fab output (gerbers, drill, BOM, CPL, DRC)
+# touches a model at all - but the renders in 3d/ are how placement and silk
+# get eyeballed without a board in hand, so a part that renders as bare pads
+# or floats off its footprint costs real time to diagnose.
 #
-# U1: KiCad 10 ships ESP32-S3-WROOM-1.step and -WROOM-2.step but NOT
-# -WROOM-1U.step, so this board uses Espressif's official model
-# (github.com/espressif/kicad-libraries). Its origin is a body CORNER - the
-# body spans X 0..18, Y 0..19.2 mm, measured off the STEP directly - while
-# KiCad's footprint origin is the body CENTRE.
+# Five footprints need help. KiCad 10 ships NO model for four of them, and its
+# failure mode is silence: `kicad-cli pcb render` exits 0, prints "Loading 3D
+# models...", and omits the part. That is why every model this board depends on
+# is vendored into 3dmodels/ and referenced through ${KIPRJMOD} rather than
+# ${KICAD10_3DMODEL_DIR} - the system path is not reproducible (a KiCad upgrade
+# wipes a hand-installed file, and a fresh clone never had one), and the whole
+# point of a committed render is that a clean machine can reproduce it.
 #
-# Two independent derivations agree on -9.6:
+# `file` is a stem in 3dmodels/; see that directory's README for provenance.
+# `offset` is mm in the footprint frame, `rotate` degrees about X/Y/Z.
+#
+# U1 - Espressif's own STEP is authored with its origin at a body CORNER (body
+# spans X 0..18, Y 0..19.2 mm, measured off the STEP) while KiCad's footprint
+# origin is the body CENTRE. Two independent derivations agree on -9.6:
 #   * body centre from the STEP bounding box = (9.0, 9.6) -> offset (-9, -9.6)
 #   * Espressif's own footprint uses (offset -9 -9.75 0), and their footprint
 #     origin differs from KiCad's by exactly dY -0.15 mm (verified across all
 #     40 signal pads, dX 0.0) -> -9.75 + 0.15 = -9.60
-MODEL_OFFSET = {"U1": (-9.0, -9.6, 0.0)}
+#
+# J1 - the only one of the four LCSC models needing a correction. Unrotated,
+# the shell sits ~8.9 mm north of its pads, which reads as a translation but is
+# not one: EasyEDA stores a per-model display rotation next to the geometry
+# (the SVGNODE's c_rotation, "0,0,180" for this part) and the STEP is authored
+# in the unrotated frame. Applying it puts all 12 pins on the 12 signal pads
+# with the mouth facing the board edge. C515890's c_rotation is "0,0,90" and is
+# deliberately NOT applied - a square QFN is invariant under it, so it would be
+# an untestable claim; C318884's is "0,0,0".
+MODEL_FIXUP = {
+    "U1": dict(file="ESP32-S3-WROOM-1U", offset=(-9.0, -9.6, 0.0)),
+    "J1": dict(file="USB_C_Receptacle_HRO_TYPE-C-31-M-12", rotate=(0, 0, 180)),
+    "U7": dict(file="QFN-28-1EP_5x5mm_P0.5mm_EP3.1x3.1mm"),
+    "SW1": dict(file="SW_Push_1P1T_XKB_TS-1187A"),
+    "SW2": dict(file="SW_Push_1P1T_XKB_TS-1187A"),
+}
+MODEL_DIR = "${KIPRJMOD}/3dmodels/%s.step"
 
 
 def build_board(existing=None):
@@ -190,8 +213,8 @@ def build_board(existing=None):
             if (ref == "U1" and num in ("1", "40", "41")) or \
                (ref == "J1" and num in ("A1", "B1", "A12", "B12", "S1")):
                 pad.SetLocalZoneConnection(pcbnew.ZONE_CONNECTION_FULL)
-        off = MODEL_OFFSET.get(ref)
-        if off:
+        fix = MODEL_FIXUP.get(ref)
+        if fix:
             # fp.Models() hands back COPIES - mutating them writes nothing
             # back to the footprint. Rebuild the entry instead.
             #
@@ -204,18 +227,21 @@ def build_board(existing=None):
             # and it made the board file differ between two runs of an
             # unchanged design - a determinism bug that only showed up once
             # the fast path changed the allocation pattern around it.
-            old = [(m.m_Filename,
-                    (m.m_Scale.x, m.m_Scale.y, m.m_Scale.z),
+            old = [((m.m_Scale.x, m.m_Scale.y, m.m_Scale.z),
                     (m.m_Rotation.x, m.m_Rotation.y, m.m_Rotation.z))
                    for m in fp.Models()]
-            assert old, "%s: MODEL_OFFSET set but footprint has no 3D model" % ref
+            # Every ref here names a footprint the library ships a <model>
+            # entry for, even when it ships no file to back it. Rebuilding a
+            # missing entry from nothing would work, but losing one is a
+            # library change worth hearing about rather than papering over.
+            assert old, "%s: MODEL_FIXUP set but footprint has no 3D model" % ref
             fp.Models().clear()
-            for fname, scale, rot in old:
+            for scale, rot in old:
                 nm = pcbnew.FP_3DMODEL()
-                nm.m_Filename = fname
+                nm.m_Filename = MODEL_DIR % fix["file"]
                 nm.m_Scale = pcbnew.VECTOR3D(*scale)
-                nm.m_Rotation = pcbnew.VECTOR3D(*rot)
-                nm.m_Offset = pcbnew.VECTOR3D(*off)
+                nm.m_Rotation = pcbnew.VECTOR3D(*fix.get("rotate", rot))
+                nm.m_Offset = pcbnew.VECTOR3D(*fix.get("offset", (0.0, 0.0, 0.0)))
                 fp.Models().push_back(nm)
         board.Add(fp)
         fps[ref] = fp
