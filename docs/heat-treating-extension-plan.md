@@ -298,10 +298,11 @@ temperature gradients). Pass the active profile's `process_type` through (or a
   ([roadmap §3.2](application-roadmap-and-pcb-provisions.md)) fits **MAX31856**
   front-ends, which are *not* drop-in MAX31855s: they need register configuration and
   MOSI write transactions, where the current driver only does read-only 32-bit frames.
-  This phase therefore adds a **second driver backend, never a replacement**: a
-  MAX31856 backend in `components/thermocouple/` (config registers on init,
-  fault-register decode) alongside the existing MAX31855 one, both generalized to N
-  channels.
+  This phase therefore **replaces** the driver: a MAX31856 backend in
+  `components/thermocouple/` (config registers on init, fault-register decode)
+  takes over from the MAX31855 one, generalized to N channels. It is a
+  replacement rather than an addition because rev A is frozen — see the
+  installed-base note below.
 
   **The component's public API has to grow channel awareness — it cannot stay as it
   is.** Today it is single-sensor from top to bottom: `thermocouple_init(host,
@@ -315,22 +316,24 @@ temperature gradients). Pass the active profile's `process_type` through (or a
   inside one tick. Keep a single-channel convenience wrapper so existing call sites
   and the host harness stay unchanged.
 
-  **The installed base makes "replace the driver" a device-bricking change.** Every
-  controller in the field today — the perfboard build and the generated PCB
-  (`hardware/kicad/`, BOM part MAX31855KASA+) — carries a MAX31855, and
-  `.github/workflows/release.yml` publishes a **single** `bisque.bin` plus one
-  `manifest.json` that all devices fetch from
-  `/releases/latest/download/manifest.json`. There is no hardware-revision axis in
-  the release, so a MAX31856-only image would OTA itself onto MAX31855 hardware and
-  leave it unable to read temperature — i.e. unable to fire. A build-time Kconfig
-  choice alone does not fix this either, for the same reason: one published image.
-  So the backend must be **selectable at runtime** — probe at init (the MAX31856 has
-  readable/writable config registers; the MAX31855 is a read-only frame, so a
-  write-then-read-back of a known register value distinguishes them), with a
-  settings override for anything ambiguous, and both backends compiled into the
-  shipped image. Publishing hardware-specific images is the alternative, but it
-  means a release-workflow matrix and an OTA manifest keyed by hardware revision —
-  strictly more work than carrying two small drivers.
+  **The installed-base argument is void as of `v1.1.0` — rev A is frozen.** It
+  used to make "replace the driver" a device-bricking change, and the mechanism
+  is worth keeping on record because it still holds for any *future* hardware
+  split: `.github/workflows/release.yml` publishes a **single** `bisque.bin` plus
+  one `manifest.json` that all devices fetch from
+  `/releases/latest/download/manifest.json`, with no hardware-revision axis, so a
+  MAX31856-only image would OTA itself onto MAX31855 hardware and leave it unable
+  to read temperature — i.e. unable to fire. A build-time Kconfig choice does not
+  fix that either, for the same reason: one published image. That is why this
+  section once required a runtime probe with both backends in the shipped image.
+
+  What changed is the installed base, not the release mechanism. The only
+  MAX31855 hardware that exists is the rev A perfboard, frozen at `v1.1.0` on
+  the `v1` branch and never OTA'd — `main` is rev B only and carries no `v*` tag
+  until the boards arrive. Rev B fits 2× MAX31856. So there is no mixed
+  population to straddle: the MAX31856 backend simply replaces its predecessor.
+  No probe, no dual backend, no release matrix. See
+  [`superpowers/specs/2026-08-15-rev-a-freeze-and-rev-b-firmware-design.md`](superpowers/specs/2026-08-15-rev-a-freeze-and-rev-b-firmware-design.md).
 
   Add per-profile `control_source` (air TC controls PID; load TC gates
   guaranteed-soak). This is the single biggest correctness upgrade for thick
@@ -416,7 +419,7 @@ version bump needed for existing clients.
 |---|---|---|---|
 | **1 — Domain packaging** | `process_type` + `schema_version` fields end-to-end, load-path zero-fill, `heat_treat_table` component + presets, mode-aware vent, web UI type badge/filter/wizard | Low (append-only data, no control-loop changes) | ~3–5 days |
 | **2 — Engine precision** | Segment-padding migration (§3.1), guaranteed soak, natural-cool + alert segment flags, `FIRING_EVENT_SEGMENT_ALERT`, gain scheduling + banded autotune, segment-relative not-rising check, ProfileBuilder fields, simulator lag model | Medium (touches `firing_tick`; fully coverable by host tests) | ~1–2 weeks |
-| **3 — Hardware options** | Second (load) TC: MAX31856 backend *added alongside* MAX31855 with runtime selection, N channels, control-source selection, gating-sensor fault routing; purge relay; quench transfer-window policy (gate stays armed); two-point TC cal | Medium (needs bench; OTA reaches mixed hardware) | as-needed |
+| **3 — Hardware options** | Second (load) TC: MAX31856 backend *replacing* MAX31855 (rev A frozen), N channels, control-source selection, gating-sensor fault routing; purge relay; quench transfer-window policy (gate stays armed); two-point TC cal | Medium (needs bench; rev B hardware only) | as-needed |
 
 **Testing:** every Phase 2 behavior gets host-harness coverage via `firing_tick()` with a
 virtual clock (soak clock freezes out-of-band; natural-cool completes on threshold;
