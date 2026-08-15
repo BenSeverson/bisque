@@ -41,7 +41,7 @@ import router as R
 import silk
 from gen_pcb import (all_seeds, route_all, ripup_retry, promoted_order, plane_vias,
                      apply_stackup, SILK, SILK_GRAPHICS, MANUAL_VIAS,
-                     PLANE_LAYER)
+                     PLANE_LAYER, HIDE_REFS)
 
 # Copper stack-up. Rev B is 4-layer (spec 6.1): signals on the outside, an
 # unbroken GND plane on In1.Cu and the +3V3 plane on In2.Cu. router.py still
@@ -229,6 +229,13 @@ def build_board(existing=None):
         t = fp.Reference()
         t.SetTextSize(pcbnew.VECTOR2I(MM(0.8), MM(0.8)))
         t.SetTextThickness(MM(0.12))
+        # Hidden, not deleted: the field still exists, so the netlist, the
+        # BOM and the CPL are untouched and DRC still knows what it is - it
+        # simply is not printed. `silk.py` and `check_silk.py` both skip an
+        # invisible reference already, so this also hands the placer back the
+        # four corners those labels were competing for.
+        if ref in HIDE_REFS:
+            t.SetVisible(False)
     return board, nets, fps
 
 

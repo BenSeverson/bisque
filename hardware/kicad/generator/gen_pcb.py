@@ -1036,10 +1036,36 @@ SILK_GRAPHICS = [logo.flame(TITLE_LOGO_AT[0], TITLE_LOGO_AT[1], TITLE_LOGO_H)]
 # result. Only the hand-authored *intent* - what the label says and roughly
 # where it belongs - lives here now.
 SILK = _TITLE_TEXTS + [
-    ("U.FL ANT ->", 62.0, 22.3, 0, 0.9),
     ("USB", 40.5, 22.0, 0, 0.9),
-    ("RESET", 36.5, 20.9, 0, 0.9),
-    ("BOOT", 100.0, 20.9, 0, 0.9),
+    # Both button legends used to be anchored in the 1.2-2.0 mm strip between
+    # the board edge and the switch, and both were pushed under their button
+    # instead - the one place a legend is guaranteed to be unreadable on a
+    # finished board. The strips are not the same size, so the fixes are not
+    # either. SW2's silk starts at 22.19, leaving 1.99 mm above it, which
+    # takes a 0.9 text box (1.53) with room to spare - `BOOT` just needed an
+    # anchor that was actually in the strip rather than 0.3 mm below it.
+    # SW1's silk starts at 21.39: 1.19 mm, which takes nothing legible, so
+    # `RESET` goes to its west instead, in the 4.20 mm between H1's pad ring
+    # and SW1's own pads, at 0.8 because 0.9 does not fit there. It displaces
+    # `SW1`, which is the right trade - a designator is recoverable from the
+    # board, a button legend is not.
+    ("RESET", 31.0, 24.2, 0, 0.8),
+    # South of SW2, not north, even though north is where the room is. North
+    # is also where `SW2` was already sitting, and a board text cannot evict
+    # a seated reference: the placer runs greedily over a live index, so the
+    # designator is an obstacle from pass 1 and only moves if something makes
+    # IT move. `RESET` got its spot because `SW1` independently preferred
+    # another side; `SW2` did not, so `BOOT` spent two rebuilds pinned to the
+    # button. The 2.43 mm between SW2's silk and `TC1  K+/K-` needs no
+    # argument with anybody.
+    ("BOOT", 100.0, 28.9, 0, 0.9),
+    # LED2 is the +3V3 power-on indicator (green, LEDP_K through R9 to GND).
+    # It went unlabelled through rev B, which on a board with three other
+    # LEDs is a guess. East rather than north: LED2's own silk starts 1.08 mm
+    # below the edge clearance line and nothing legible fits there, but
+    # removing `U.FL ANT ->` (an arrow pointing at a connector that is
+    # already the only thing it could point at) freed the strip beside it.
+    ("PWR", 58.0, 20.9, 0, 0.8),
     ("5V IN", 22.0, 34.0, 0, 0.9),
     # The only per-terminal marks on the board, and they were the only two
     # labels whose anchor was INSIDE the part it names: x=30.0 is 1.25 mm
@@ -1072,6 +1098,15 @@ SILK = _TITLE_TEXTS + [
     # from the pin order it belongs to.
     ("SSR1  5V / OUT", 26.0, 71.4, 0, 0.8),
     ("SSR2  5V / OUT", 26.0, 84.3, 0, 0.8),
+    # The two amber channel indicators. Each sits across its own terminal
+    # pair through a 680R, so it lights only when that channel is driven AND
+    # the watchdog rail is up - which is exactly the thing a person standing
+    # at the kiln wants to read off the board, and it had no legend at all.
+    # `ON` rather than a bare `SSR1`: the SSR1 test point is 5 mm away and
+    # already says that, and two identical words on one part of the board
+    # would be worse than none.
+    ("SSR1 ON", 57.0, 74.3, 0, 0.8),
+    ("SSR2 ON", 54.0, 85.2, 0, 0.8),
     ("TC1  K+/K-", 104.0, 31.0, 0, 0.9),
     ("TC2  K+/K-", 104.0, 58.5, 0, 0.9),
     # In the free band above J12, centred on the block, NOT at (96, 76).
@@ -1082,16 +1117,24 @@ SILK = _TITLE_TEXTS + [
     # J8's bottom is 55.59 and J12's top is 74.17, so there is an 18 mm strip
     # here and nothing else wants it.
     ("CT A+/A-/B+/B-", 112.8, 72.0, 0, 0.9),
-    ("AC SENSE - DNP", 100.0, 76.0, 0, 0.8),
+    # J13's legend, and it has to be centred ON J13 to say so. At (100, 76)
+    # it printed 1.30 mm from J13 but 0.37 mm from C35 and 0.77 mm from the
+    # ADE7953, straight across that chip's own value text, so the one part it
+    # was not obviously describing was the header. DNP = do not populate:
+    # this is the ADE7953's voltage channel (VP/VN), deliberately unfitted
+    # because no mains touches this board, and the header exists so a future
+    # isolated AC accessory is a firmware change rather than a respin. The
+    # dash is dropped to buy the 1.6 mm that keeps it clear of C31's
+    # designator.
+    ("AC SENSE DNP", 98.5, 76.9, 0, 0.8),
     ("STATUS", 84.0, 93.6, 0, 0.9),
-    # Over R44/R45, the pull-ups, and nothing else: x=66 was chosen when the
-    # I2C parts ran east from there as one cluster - pull-ups then the Qwiic
-    # connector - and both ends of that assumption have since moved. J14 went
-    # to the bottom edge (it is side-entry; it needs an edge), the pull-ups
-    # slid east into the space it left, and the label stayed put, 2.2 mm from
-    # R43 and 6.1 mm from the parts it names. A zone label closer to a part it
-    # does not describe than to the ones it does is worse than no label.
-    ("I2C", 75.75, 93.6, 0, 0.9),
+    # There is deliberately no `I2C` zone label. One used to sit over R44/R45
+    # - correctly, after a move; it started life 6.1 mm from the parts it
+    # named - and it was still the wrong label, because naming two pull-up
+    # resistors tells a reader nothing they can act on. What it looked like
+    # instead was a caption on the nameplate 3 mm above it. The bus is named
+    # where a person actually meets it: `SDA`/`SCL` on J7's pin row and
+    # `QWIIC  I2C` on J14.
     # J14's own label. Every other user-facing connector on an edge says what
     # it is - `5V IN`, `SSR1  5V / OUT`, `TC1  K+/K-`, `INPUTS ...` - and the
     # Qwiic port arrived at the bottom edge next to the input terminal with
@@ -1103,7 +1146,20 @@ SILK = _TITLE_TEXTS + [
     # one spot that is not the connector body.
     ("QWIIC  I2C", 88.0, 109.4, 0, 0.9),
     ("INPUTS  1 / 2 / 3 / GND", 62.6, 108.8, 0, 0.9),
-    ("AUX_VP=5V", 34.0, 66.0, 0, 0.9),
+    # SJ1's legend, and now it is actually at SJ1 (44.30..47.70, 48.20..50.80)
+    # rather than 17 mm away beside J10, where it read as a note about the AUX
+    # terminal and left the jumper itself with nothing but a designator. SJ1
+    # links +5V to AUX_VP, the ULN2003's COM rail, for plain 5 V relay coils;
+    # it is open by default because AUX_VP is an externally supplied rail
+    # (J10 pin 1) and a 12/24 V solenoid supply meeting +5V would be a short.
+    # It is NOT the watchdog jumper - that is SJ2, `WDT DEFEAT`, 8 mm south.
+    # North of SJ1 rather than south: R25's designator leaves 1.37 mm below
+    # it for a 1.36 mm text box, and a 0.01 mm margin is not a placement.
+    # `AUX=5V` rather than the net's own `AUX_VP=5V`, which is 7.01 mm wide
+    # in a 7.14 mm window and was landing 0.52 mm off C2 - close enough to
+    # read as C2's label. The shorter form leaves ~1 mm either side, and the
+    # rail it names is already spelled out on J10 as `AUX OUT`.
+    ("AUX=5V", 47.3, 46.3, 0, 0.8),
     # SJ2 must be FITTED on this rev — nothing kicks the watchdog GPIO yet
     # (see main/Kconfig.projbuild KILN_PIN_WDT_KICK). "REMOVE" would be a
     # lie on every board built from this revision, so the silk just names
@@ -1118,6 +1174,18 @@ SILK = _TITLE_TEXTS + [
     # keeps the left end clear of TP12 at 53.04.
     ("WDT DEFEAT", 58.0, 60.8, 0, 0.9),
 ]
+# Parts whose reference designator is not printed. A designator earns its ink
+# by answering a question, and "which screw hole is this" is not one anybody
+# asks: H1-H4 are M3 mounting holes, interchangeable, and identified by being
+# the four holes in the corners. Four labels in the four most crowded corners
+# of the board is a cost with no reader.
+#
+# This is deliberately a short list and should stay one. Everything else on
+# the board is a part somebody has to identify against a BOM, a schematic or
+# a fault, and an unlabelled one of those is the defect this whole placer
+# exists to avoid.
+HIDE_REFS = {"H1", "H2", "H3", "H4"}
+
 J5_PINS = ["5V", "GND", "CS", "RST", "DC", "SDI", "SCK", "BL",
            "SDO", "TCK", "TCS", "TDI", "TDO", "IRQ"]
 J6_PINS = ["UP", "DN", "LT", "RT", "OK", "G"]

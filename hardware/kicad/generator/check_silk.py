@@ -69,22 +69,21 @@ SILK_ON_SILK_MAX = 0
 # one is a placement problem the silk placer cannot solve, and each is here
 # with the reason it cannot:
 #
-#   RESET/BOOT  There is no room. The board edge is 19.95 and SW1's and SW2's
-#               own silk outlines start at 21.60, leaving a 1.40 mm strip for
-#               a 1.53 mm text box; H1 and the USB receptacle take the sides,
-#               and the +3V3/+5V/GND test points take the space below. The
-#               legend fits nowhere but on the button.
 #   SDA/SCL/3V3 LED1 is a 5 x 5 mm WS2812B sitting in J7's pin-name band, on
 #               top of the labels for pins 5, 6 and 7. Nothing below the row
 #               is free either - J11's block starts 1.8 mm down - so these
 #               three cannot be named until LED1 or the header moves.
 #
-# Both need a part moved, which is `design.py`'s business and costs a full
+# That needs a part moved, which is `design.py`'s business and costs a full
 # re-route. Until then the burial is deliberate and recorded; what must not
-# happen is a SIXTH one appearing without anyone noticing, which is what this
-# list is for. Remove an entry when its part moves - a stale one fails too.
+# happen is a FOURTH one appearing without anyone noticing, which is what
+# this list is for. Remove an entry when its part moves - a stale one fails
+# too, and two entries have already been removed that way: `RESET` and `BOOT`
+# were here on the reasoning that no room existed beside their buttons, and
+# both were wrong. There was 4.20 mm west of SW1 and 2.43 mm south of SW2;
+# what the earlier anchors had run into was the switch's own designator, not
+# the absence of board.
 ON_PART_OK = {
-    ("RESET", "SW1"), ("BOOT", "SW2"),
     ("SDA", "J7"), ("SCL", "LED1"), ("3V3", "J7"),
 }
 
