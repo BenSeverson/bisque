@@ -38,10 +38,15 @@
 #define APP_PID_KP_DEFAULT 2.0f
 #define APP_PID_KI_DEFAULT 0.01f
 /* Pre-autotune starting derivative gain. Kept modest because the MAX31855's
- * 0.25°C quantization step, at the 1 Hz tick, turns a large Kd into a
- * noise-driven bang-bang term (see pid_compute's filtered derivative). Autotune
- * overrides this; the value is a safe default, not a tuned one — confirm on
- * hardware if changing. */
+ * 0.25°C quantization step, at the 1 Hz tick, turned a large Kd into a
+ * noise-driven bang-bang term (see pid_compute's filtered derivative).
+ *
+ * THAT RATIONALE IS REV A's. Rev B reads 2x MAX31856 at 19-bit resolution
+ * (0.0078125°C), roughly 32x finer, so the quantization noise this value was
+ * chosen to survive is gone. The value is carried forward unchanged because
+ * nothing has measured the replacement — revisit it on the bench at rev B
+ * bring-up rather than inheriting it silently. Autotune overrides it either
+ * way; it is a safe default, not a tuned one. */
 #define APP_PID_KD_DEFAULT 5.0f
 #define APP_PID_OUTPUT_MIN 0.0f
 #define APP_PID_OUTPUT_MAX 1.0f

@@ -74,9 +74,12 @@ float pid_compute(pid_controller_t *pid, float setpoint, float measured, float d
     /* Derivative on measurement, low-pass filtered (skip first iteration).
        Taking the derivative of the measurement rather than the error avoids a
        kick when the setpoint steps (segment/skip transitions); the first-order
-       filter attenuates the MAX31855's 0.25°C quantization noise, which with an
-       unfiltered derivative and a large Kd swamped the P/I terms and drove the
-       output bang-bang. alpha = dt / (tau + dt). */
+       filter attenuates thermocouple quantization noise, which on rev A's
+       MAX31855 (0.25°C steps) with an unfiltered derivative and a large Kd
+       swamped the P/I terms and drove the output bang-bang. Rev B's MAX31856
+       quantizes ~32x finer, so the filter is cheap insurance there rather than
+       load-bearing — keep it, but see APP_PID_KD_DEFAULT before retuning Kd.
+       alpha = dt / (tau + dt). */
     float d_term = 0.0f;
     if (!pid->first_run) {
         float d_meas = (measured - pid->prev_measured) / dt_s;
