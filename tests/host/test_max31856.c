@@ -133,21 +133,41 @@ static void test_faults_open_and_ovuv_combine(void)
     TEST_ASSERT_BITS_HIGH(TC_FAULT_SHORT_GND, f);
 }
 
-/* SR bits 7..2 are range and threshold flags, not wiring faults. The four
-   threshold bits cannot even assert at the factory limits this driver leaves
-   in place, and the two range bits arrive with a temperature clamped at the
-   type limit, which safety's over-temp cutoff already catches. Decoding them
-   would mean a new TC_FAULT_* bit across api_json.c and both schemas.
-   Assert the deliberate silence, so mapping one later is a decision rather
-   than an accident. */
-static void test_faults_range_and_threshold_bits_are_not_wiring_faults(void)
+/* An out-of-range hot junction MUST fault. The reported temperature is clamped
+   at the type limit (1372 C for K), which is below APP_HARDWARE_MAX_TEMP_C and
+   below any max_safe_temp a user can configure up to it — so safety.c's
+   over-temp comparison can never trip on it and the kiln would heat forever at
+   a steady, plausible-looking 1372 C. This is the assertion that keeps the only
+   remaining stop path (fault -> PID duty 0 -> emergency stop) wired up. */
+static void test_faults_tc_out_of_range_is_a_fault(void)
+{
+    TEST_ASSERT_EQUAL_UINT8(TC_FAULT_OUT_OF_RANGE, max31856_decode_faults(MAX31856_SR_TC_RANGE));
+    TEST_ASSERT_NOT_EQUAL(0, max31856_decode_faults(MAX31856_SR_TC_RANGE));
+}
+
+/* The four threshold bits cannot assert while the fault thresholds keep the
+   factory values this driver never rewrites, and CJ_RANGE clamps the cold
+   junction — a bounded bias on the reading, not the unbounded runaway a
+   clamped hot junction produces. Assert the deliberate silence, so mapping one
+   later is a decision rather than an accident. */
+static void test_faults_threshold_and_cj_range_bits_are_not_faults(void)
 {
     TEST_ASSERT_EQUAL_UINT8(0, max31856_decode_faults(MAX31856_SR_TCLOW));
     TEST_ASSERT_EQUAL_UINT8(0, max31856_decode_faults(MAX31856_SR_TCHIGH));
     TEST_ASSERT_EQUAL_UINT8(0, max31856_decode_faults(MAX31856_SR_CJLOW));
     TEST_ASSERT_EQUAL_UINT8(0, max31856_decode_faults(MAX31856_SR_CJHIGH));
-    TEST_ASSERT_EQUAL_UINT8(0, max31856_decode_faults(MAX31856_SR_TC_RANGE));
     TEST_ASSERT_EQUAL_UINT8(0, max31856_decode_faults(MAX31856_SR_CJ_RANGE));
+}
+
+/* Every mapped fault bit must be distinct — reusing a value would make an
+   over-range kiln report as a wiring fault in the UI during the one event
+   where the operator most needs to know which it is. */
+static void test_fault_bits_are_distinct(void)
+{
+    TEST_ASSERT_EQUAL_UINT8(0, TC_FAULT_OPEN_CIRCUIT & TC_FAULT_SHORT_GND);
+    TEST_ASSERT_EQUAL_UINT8(0, TC_FAULT_OPEN_CIRCUIT & TC_FAULT_OUT_OF_RANGE);
+    TEST_ASSERT_EQUAL_UINT8(0, TC_FAULT_SHORT_GND & TC_FAULT_OUT_OF_RANGE);
+    TEST_ASSERT_EQUAL_UINT8(0, TC_FAULT_SHORT_VCC & TC_FAULT_OUT_OF_RANGE);
 }
 
 /* ── Config-register encoding ───────────────────────────────────────────── */
@@ -223,7 +243,9 @@ int main(void)
     RUN_TEST(test_faults_ovuv_maps_to_a_reported_fault);
     RUN_TEST(test_faults_none);
     RUN_TEST(test_faults_open_and_ovuv_combine);
-    RUN_TEST(test_faults_range_and_threshold_bits_are_not_wiring_faults);
+    RUN_TEST(test_faults_tc_out_of_range_is_a_fault);
+    RUN_TEST(test_faults_threshold_and_cj_range_bits_are_not_faults);
+    RUN_TEST(test_fault_bits_are_distinct);
     RUN_TEST(test_write_bit_is_the_msb);
     RUN_TEST(test_cr0_init_bits);
     RUN_TEST(test_ocfault_selects_the_low_impedance_mode);

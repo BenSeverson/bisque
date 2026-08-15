@@ -18,6 +18,12 @@ extern "C" {
 #define TC_FAULT_OPEN_CIRCUIT (1 << 0)
 #define TC_FAULT_SHORT_GND    (1 << 1)
 #define TC_FAULT_SHORT_VCC    (1 << 2)
+/* The hot junction is outside the thermocouple type's measurable range, so the
+ * reported temperature is a clamp, not a measurement. This is a fault because
+ * the clamp sits *below* APP_HARDWARE_MAX_TEMP_C: without it, a kiln past
+ * 1372 °C on a K-type probe reads a steady 1372 °C forever and no over-temp
+ * comparison can ever trip. See max31856_decode_faults(). */
+#define TC_FAULT_OUT_OF_RANGE (1 << 3)
 
 typedef struct {
     float temperature_c;   /* Thermocouple temperature in Celsius */

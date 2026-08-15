@@ -121,14 +121,29 @@ static inline float max31856_decode_cj(const uint8_t raw[2])
    bit. Adding a bit would mean a contract change in api_json.c and both
    schemas for no diagnostic gain.
 
-   SR's other six bits are deliberately not wiring faults. The four threshold
-   bits (CJHIGH/CJLOW/TCHIGH/TCLOW) cannot assert at all while the fault
-   thresholds keep their factory values, which this driver never rewrites
-   (Table 6, p. 18: +127/-64 C for the cold junction, the full 19-bit range for
-   the thermocouple). The two range bits arrive with the reported temperature
-   already clamped at the type limit (p. 15), so an out-of-range hot junction
-   reaches safety's over-temp cutoff as a 1372 C reading — which is the
-   behaviour wanted, without a new fault bit to carry it. */
+   TC_RANGE is a fault, and the reason is specific to this part. When the hot
+   junction leaves the type's range the reported temperature is *clamped* at
+   the limit (p. 15) — 1372 C for K type. That clamp is below
+   APP_HARDWARE_MAX_TEMP_C (1400 C) and below any max_safe_temp a user may set
+   up to it, so safety.c's `corrected > max_temp` can never become true: the
+   kiln reads a steady 1372 C and heats indefinitely. The MAX31855 had no such
+   ceiling — its field runs to +1800 C — so this hazard arrives with the part,
+   not with the configuration. Note that merely lowering the hardware maximum
+   to 1372 would *not* fix it either, since the comparison is strict and the
+   clamp would equal the limit exactly.
+
+   The four threshold bits (CJHIGH/CJLOW/TCHIGH/TCLOW) stay unmapped, and that
+   is safe rather than an omission: they cannot assert at all while the fault
+   thresholds keep the factory values this driver never rewrites (Table 6,
+   p. 18 — +127/-64 C for the cold junction, the full 19-bit span for the
+   thermocouple).
+
+   CJ_RANGE stays unmapped too, on a narrower argument than TC_RANGE's. A
+   cold junction outside -55..+125 C is clamped at +128/-64 (p. 24), which
+   biases the linearized reading by the clamp error — bounded, single-digit
+   degrees against a kiln at temperature, not the unbounded runaway a clamped
+   hot junction produces. Faulting on it would also stop a firing for an
+   ambient the board may legitimately see next to a kiln. */
 static inline uint8_t max31856_decode_faults(uint8_t sr)
 {
     uint8_t f = 0;
@@ -137,6 +152,9 @@ static inline uint8_t max31856_decode_faults(uint8_t sr)
     }
     if (sr & MAX31856_SR_OVUV) {
         f |= TC_FAULT_SHORT_GND;
+    }
+    if (sr & MAX31856_SR_TC_RANGE) {
+        f |= TC_FAULT_OUT_OF_RANGE;
     }
     return f;
 }

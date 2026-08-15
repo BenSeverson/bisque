@@ -34,6 +34,10 @@ struct DiagnosticsView: View {
                                 Label("Short to VCC", systemImage: "exclamationmark.triangle")
                                     .foregroundStyle(.red)
                             }
+                            if tc.outOfRange == true {
+                                Label("Temperature Out of Range", systemImage: "exclamationmark.triangle")
+                                    .foregroundStyle(.red)
+                            }
                         }
                     }
                 }
