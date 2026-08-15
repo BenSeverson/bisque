@@ -13,7 +13,7 @@ Two parts:
 - **Part 2 — Roadmap.** Application features. Most Tier B items are gated on a
   Part 1 task, and the dependency column says which.
 
-Nothing here is scheduled. Ordering within Part 1 is by what blocks bring-up.
+Every item is tracked as a GitHub issue ([#306–#338](https://github.com/BenSeverson/bisque/issues?q=is%3Aissue+is%3Aopen+label%3Arev-b%2Croadmap)), linked from its ID below. Nothing here is scheduled. Ordering within Part 1 is by what blocks bring-up.
 
 ---
 
@@ -23,8 +23,8 @@ Nothing here is scheduled. Ordering within Part 1 is by what blocks bring-up.
 
 | ID | Task | GPIO | Why it blocks |
 |---|---|---|---|
-| **RB-1** | **MAX31856 driver**, replacing the MAX31855 one | TC1_CS 10 | The board reads **no temperature at all**. The MAX31855 driver does one read-only 32-bit frame; the MAX31856 needs config-register writes on init and a fault-register decode. |
-| **RB-2** | **Watchdog kick task** | WDT_KICK 36 | A charge pump gates **both** SSR channels. Until something toggles it, every board needs the SJ2 "WDT DEFEAT" jumper fitted or **it will not heat**. |
+| **[RB-1](https://github.com/BenSeverson/bisque/issues/306)** | **MAX31856 driver**, replacing the MAX31855 one | TC1_CS 10 | The board reads **no temperature at all**. The MAX31855 driver does one read-only 32-bit frame; the MAX31856 needs config-register writes on init and a fault-register decode. |
+| **[RB-2](https://github.com/BenSeverson/bisque/issues/307)** | **Watchdog kick task** | WDT_KICK 36 | A charge pump gates **both** SSR channels. Until something toggles it, every board needs the SJ2 "WDT DEFEAT" jumper fitted or **it will not heat**. |
 
 **RB-1 notes.** A straight replacement, not a second backend — the runtime-probe
 requirement died with the rev A freeze. Host tests stub the driver
@@ -43,9 +43,9 @@ Decide explicitly where the kick lives relative to `safety_task`.
 
 | ID | Task | GPIO | Depends on |
 |---|---|---|---|
-| **RB-3** | **Multi-channel thermocouple API** — indexed accessor or (better) an atomic multi-channel snapshot, keeping a single-channel wrapper so existing call sites and the host harness are unchanged | — | RB-1 |
-| **RB-4** | **Second thermocouple** wired through RB-3 | TC2_CS 35 | RB-3 |
-| **RB-5** | **SSR zone 2** — second PID instance or master/slave offset | SSR2 21 | RB-1 |
+| **[RB-3](https://github.com/BenSeverson/bisque/issues/308)** | **Multi-channel thermocouple API** — indexed accessor or (better) an atomic multi-channel snapshot, keeping a single-channel wrapper so existing call sites and the host harness are unchanged | — | RB-1 |
+| **[RB-4](https://github.com/BenSeverson/bisque/issues/309)** | **Second thermocouple** wired through RB-3 | TC2_CS 35 | RB-3 |
+| **[RB-5](https://github.com/BenSeverson/bisque/issues/310)** | **SSR zone 2** — second PID instance or master/slave offset | SSR2 21 | RB-1 |
 
 **RB-3 is the API break.** Today the component is single-sensor top to bottom:
 `thermocouple_init(host, cs_pin)` takes one CS and `thermocouple_get_latest()`
@@ -61,9 +61,9 @@ firing tick, because it tracks the main SSR's duty simultaneously by definition.
 
 | ID | Task | GPIO | Notes |
 |---|---|---|---|
-| **RB-6** | **Aux output bank** — AUX2/AUX3 through the ULN2003 (U6), driven by *role* rather than hardcoded | 15, 16 | Vent (AUX1) is the only one implemented, in `safety.c`. Electrically the three channels are identical, so role assignment is firmware policy. |
-| **RB-7** | **Gas-flow interlock input** | IN2 2 | Same conditioning and fail-safe polarity as the lid switch: open contact reads HIGH, so a broken wire reads "no flow". Prerequisite for the purge relay (RM-B2). |
-| **RB-8** | **Spare protected input** | IN3 1 | Unassigned. Do last, or drop it — there is no consumer. |
+| **[RB-6](https://github.com/BenSeverson/bisque/issues/311)** | **Aux output bank** — AUX2/AUX3 through the ULN2003 (U6), driven by *role* rather than hardcoded | 15, 16 | Vent (AUX1) is the only one implemented, in `safety.c`. Electrically the three channels are identical, so role assignment is firmware policy. |
+| **[RB-7](https://github.com/BenSeverson/bisque/issues/312)** | **Gas-flow interlock input** | IN2 2 | Same conditioning and fail-safe polarity as the lid switch: open contact reads HIGH, so a broken wire reads "no flow". Prerequisite for the purge relay (RM-B2). |
+| **[RB-8](https://github.com/BenSeverson/bisque/issues/313)** | **Spare protected input** | IN3 1 | Unassigned. Do last, or drop it — there is no consumer. |
 
 **RB-6 is a contract change, not just a driver.** `ventActive` is currently a
 hardcoded field in `build_status_json()`, omitted when no vent is fitted. Report
@@ -75,16 +75,16 @@ and `make fixtures`.
 
 | ID | Task | GPIO | Notes |
 |---|---|---|---|
-| **RB-9** | **I2C bus driver** | SDA 18, SCL 47 | Nothing exists yet. Carries the on-board ADE7953 *and* the Qwiic/STEMMA-QT expansion header, so this unlocks RB-10, RM-B5 and RM-B6 together. |
-| **RB-10** | **ADE7953 current metering** | (I2C) | RB-9. Unlocks element-health monitoring and verifies `element_watts` for cost estimates. |
-| **RB-11** | **XPT2046 touch driver** + LVGL input device | T_CS 5, T_IRQ 6 | The controller is on the LCD module, not the Bisque PCB; clock/data are the shared SPI bus. IRQ lets you skip polling. **Interaction risk:** the display UI is built entirely around the 5-way encoder model (focus/activate, Cancel buttons rather than a back gesture). Touch is not a drop-in — decide whether it supplements or replaces that model before writing the driver. |
+| **[RB-9](https://github.com/BenSeverson/bisque/issues/314)** | **I2C bus driver** | SDA 18, SCL 47 | Nothing exists yet. Carries the on-board ADE7953 *and* the Qwiic/STEMMA-QT expansion header, so this unlocks RB-10, RM-B5 and RM-B6 together. |
+| **[RB-10](https://github.com/BenSeverson/bisque/issues/315)** | **ADE7953 current metering** | (I2C) | RB-9. Unlocks element-health monitoring and verifies `element_watts` for cost estimates. |
+| **[RB-11](https://github.com/BenSeverson/bisque/issues/316)** | **XPT2046 touch driver** + LVGL input device | T_CS 5, T_IRQ 6 | The controller is on the LCD module, not the Bisque PCB; clock/data are the shared SPI bus. IRQ lets you skip polling. **Interaction risk:** the display UI is built entirely around the 5-way encoder model (focus/activate, Cancel buttons rather than a back gesture). Touch is not a drop-in — decide whether it supplements or replaces that model before writing the driver. |
 
 ### Housekeeping
 
 | ID | Task | Notes |
 |---|---|---|
-| **RB-12** | Update the LCD SPI frequency rationale, or re-measure it | `APP_LCD_SPI_FREQ_HZ` is 40 MHz against a 66 MHz datasheet limit; the margin was sized for hand-soldered perfboard wiring and has never been measured on the routed board with a keyed loom. |
-| **RB-13** | Wire the third `.gbrjob`/stack-up consumer checks into `make pcb-check`'s CI subset if KiCad ever lands in CI | Today CI runs 7 of 12 checkers. Netlist round-trip, CPL placement, silk, via-in-pad and courtyard overlap are local-only. |
+| **[RB-12](https://github.com/BenSeverson/bisque/issues/317)** | Update the LCD SPI frequency rationale, or re-measure it | `APP_LCD_SPI_FREQ_HZ` is 40 MHz against a 66 MHz datasheet limit; the margin was sized for hand-soldered perfboard wiring and has never been measured on the routed board with a keyed loom. |
+| **[RB-13](https://github.com/BenSeverson/bisque/issues/318)** | Wire the third `.gbrjob`/stack-up consumer checks into `make pcb-check`'s CI subset if KiCad ever lands in CI | Today CI runs 7 of 12 checkers. Netlist round-trip, CPL placement, silk, via-in-pad and courtyard overlap are local-only. |
 
 ---
 
@@ -94,23 +94,23 @@ and `make fixtures`.
 
 | ID | Task | Depends on |
 |---|---|---|
-| **RM-1** | `process_type` + `schema_version` on `firing_profile_t`, end-to-end, with load-path zero-fill | — |
-| **RM-2** | `heat_treat_table` component + presets | RM-1 |
-| **RM-3** | Mode-aware vent — `PROCESS_HEAT_TREAT` keeps the vent closed by default instead of the ceramic 700 °C rule | RM-1 |
-| **RM-4** | Web UI: process-type badge, filter, wizard | RM-1 |
+| **[RM-1](https://github.com/BenSeverson/bisque/issues/319)** | `process_type` + `schema_version` on `firing_profile_t`, end-to-end, with load-path zero-fill | — |
+| **[RM-2](https://github.com/BenSeverson/bisque/issues/320)** | `heat_treat_table` component + presets | RM-1 |
+| **[RM-3](https://github.com/BenSeverson/bisque/issues/321)** | Mode-aware vent — `PROCESS_HEAT_TREAT` keeps the vent closed by default instead of the ceramic 700 °C rule | RM-1 |
+| **[RM-4](https://github.com/BenSeverson/bisque/issues/322)** | Web UI: process-type badge, filter, wizard | RM-1 |
 
 ### Phase 2 — Engine precision (medium risk; touches `firing_tick`, fully host-testable)
 
 | ID | Task | Notes |
 |---|---|---|
-| **RM-5** | Segment-padding migration | Data-model change; do before the rest of Phase 2 |
-| **RM-6** | **Guaranteed soak** | The key metallurgy feature — soak clock freezes when out of band |
-| **RM-7** | Natural-cool segments | Completes on threshold rather than on a ramp |
-| **RM-8** | Operator-action alerts + `FIRING_EVENT_SEGMENT_ALERT` | "Flask ready, cast now" |
-| **RM-9** | Gain scheduling + banded autotune | Control quality at tempering temperatures |
-| **RM-10** | Segment-relative not-rising check | Current check is absolute |
-| **RM-11** | ProfileBuilder fields for all of the above | Web UI |
-| **RM-12** | Simulator lag model | Makes the host firing scenarios represent thermal mass honestly |
+| **[RM-5](https://github.com/BenSeverson/bisque/issues/323)** | Segment-padding migration | Data-model change; do before the rest of Phase 2 |
+| **[RM-6](https://github.com/BenSeverson/bisque/issues/324)** | **Guaranteed soak** | The key metallurgy feature — soak clock freezes when out of band |
+| **[RM-7](https://github.com/BenSeverson/bisque/issues/325)** | Natural-cool segments | Completes on threshold rather than on a ramp |
+| **[RM-8](https://github.com/BenSeverson/bisque/issues/326)** | Operator-action alerts + `FIRING_EVENT_SEGMENT_ALERT` | "Flask ready, cast now" |
+| **[RM-9](https://github.com/BenSeverson/bisque/issues/327)** | Gain scheduling + banded autotune | Control quality at tempering temperatures |
+| **[RM-10](https://github.com/BenSeverson/bisque/issues/328)** | Segment-relative not-rising check | Current check is absolute |
+| **[RM-11](https://github.com/BenSeverson/bisque/issues/329)** | ProfileBuilder fields for all of the above | Web UI |
+| **[RM-12](https://github.com/BenSeverson/bisque/issues/330)** | Simulator lag model | Makes the host firing scenarios represent thermal mass honestly |
 
 ### Phase 3 — Hardware-dependent applications (Tier B)
 
@@ -118,14 +118,14 @@ Each of these is a real application unlocked by a Part 1 task.
 
 | ID | Application | Needs | Firmware work |
 |---|---|---|---|
-| **RM-B1** | **Load-temperature-gated processes** (thick-section heat treat, powder coat cure) | RB-3, RB-4 | Per-profile `control_source`: air TC drives PID, load TC gates soak. Plus gating-sensor fault routing. |
-| **RM-B2** | **Controlled-atmosphere heat treat** (reduce scale/decarb) | RB-6, RB-7 | Purge solenoid on AUX2, gas-flow interlock, aux policy per process type |
-| **RM-B3** | **Two-zone kilns / larger chambers** | RB-4, RB-5 | Second PID instance or master/slave offset control |
-| **RM-B4** | **Forced-cool / crash-cool assist** (glass fuse-to-anneal) | RB-6 | "Cool output" active on negative error during designated segments |
-| **RM-B5** | **Element health monitoring** | RB-9, RB-10 | Compare expected vs. actual current at known duty. Makes `FIRING_ERR_NOT_RISING` *diagnosable* — distinguishes a failed element from a thermal stall. |
-| **RM-B6** | **Offline-accurate audit timestamps** | RB-9 | I2C RTC (DS3231) + coin cell on the Qwiic header; history timestamps valid without NTP |
-| **RM-B7** | **Quench transfer-window policy** | RM-6 | Gate stays armed across the transfer |
-| **RM-B8** | **Two-point TC calibration** | RB-1 | Current calibration is a single offset |
+| **[RM-B1](https://github.com/BenSeverson/bisque/issues/331)** | **Load-temperature-gated processes** (thick-section heat treat, powder coat cure) | RB-3, RB-4 | Per-profile `control_source`: air TC drives PID, load TC gates soak. Plus gating-sensor fault routing. |
+| **[RM-B2](https://github.com/BenSeverson/bisque/issues/332)** | **Controlled-atmosphere heat treat** (reduce scale/decarb) | RB-6, RB-7 | Purge solenoid on AUX2, gas-flow interlock, aux policy per process type |
+| **[RM-B3](https://github.com/BenSeverson/bisque/issues/333)** | **Two-zone kilns / larger chambers** | RB-4, RB-5 | Second PID instance or master/slave offset control |
+| **[RM-B4](https://github.com/BenSeverson/bisque/issues/334)** | **Forced-cool / crash-cool assist** (glass fuse-to-anneal) | RB-6 | "Cool output" active on negative error during designated segments |
+| **[RM-B5](https://github.com/BenSeverson/bisque/issues/335)** | **Element health monitoring** | RB-9, RB-10 | Compare expected vs. actual current at known duty. Makes `FIRING_ERR_NOT_RISING` *diagnosable* — distinguishes a failed element from a thermal stall. |
+| **[RM-B6](https://github.com/BenSeverson/bisque/issues/336)** | **Offline-accurate audit timestamps** | RB-9 | I2C RTC (DS3231) + coin cell on the Qwiic header; history timestamps valid without NTP |
+| **[RM-B7](https://github.com/BenSeverson/bisque/issues/337)** | **Quench transfer-window policy** | RM-6 | Gate stays armed across the transfer |
+| **[RM-B8](https://github.com/BenSeverson/bisque/issues/338)** | **Two-point TC calibration** | RB-1 | Current calibration is a single offset |
 
 ### Tier A — presets only, no new hardware or engine work
 
@@ -155,7 +155,7 @@ underneath).
    bring-up; budget bench time.
 2. **RM-1 → RM-4** — Phase 1 is low-risk, append-only, and needs no hardware, so
    it can proceed in parallel with the wait for boards.
-3. **RB-3** — the API break. Doing it before more callers accumulate is cheaper
+3. **[RB-3](https://github.com/BenSeverson/bisque/issues/308)** — the API break. Doing it before more callers accumulate is cheaper
    than after.
 4. **RM-5 → RM-12** — Phase 2 is fully covered by host tests and `plant.c`, so it
    also does not need hardware.
