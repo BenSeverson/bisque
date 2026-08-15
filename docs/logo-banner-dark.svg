@@ -1,15 +1,10 @@
-<!-- README hero banner, light-theme variant. The dark-theme twin is
-     logo-banner-dark.svg; README.md picks between them with a <picture>
-     element and prefers-color-scheme.
+<!-- README hero banner, dark-theme variant of logo-banner.svg. Same geometry;
+     only the ground, the type colours and the curve treatment differ — on dark
+     the profile line carries a Gaussian glow so it reads as hot rather than as
+     a plain stroke, which is also why the peak marker is the lighter #ffb057.
 
-     The brand tile is the same mark the app draws everywhere else — the
-     orange-500 -> red-600 gradient and the white Lucide flame from App.tsx's
-     header, web_ui/public/favicon.svg and web_ui/icons/app-icon.svg — at the
-     same 60% glyph-to-tile proportion. Keep the three in agreement; a banner
-     with its own mark is what this file used to be.
-
-     Behind the lockup is a real firing profile: ramp, hold, ramp, hold, cool,
-     with the soak endpoint marked. It is decorative, not plotted from data.
+     Keep this file's layout in step with logo-banner.svg. See that file's
+     header for where the brand tile comes from and why it has to match.
 
      Flame path from Lucide (ISC) — see web_ui/ATTRIBUTIONS.md. -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 260" width="880" height="260"
@@ -20,21 +15,25 @@
       <stop offset="1" stop-color="#e7000b"/>
     </linearGradient>
     <linearGradient id="curve" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#ff8a3d"/>
+      <stop offset="0" stop-color="#ffb057"/>
       <stop offset="0.45" stop-color="#ff6900"/>
       <stop offset="1" stop-color="#e7000b"/>
     </linearGradient>
     <linearGradient id="under" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ff6900" stop-opacity="0.18"/>
+      <stop offset="0" stop-color="#ff6900" stop-opacity="0.28"/>
       <stop offset="1" stop-color="#ff6900" stop-opacity="0"/>
     </linearGradient>
+    <filter id="glow" x="-20%" y="-40%" width="140%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
     <clipPath id="card"><rect width="880" height="260" rx="16"/></clipPath>
   </defs>
 
   <g clip-path="url(#card)">
-    <rect width="880" height="260" fill="#ffffff"/>
+    <rect width="880" height="260" fill="#0d1117"/>
 
-    <g stroke="#0d1117" stroke-opacity="0.07">
+    <g stroke="#ffffff" stroke-opacity="0.06">
       <line x1="0" y1="150" x2="880" y2="150"/>
       <line x1="0" y1="190" x2="880" y2="190"/>
       <line x1="0" y1="230" x2="880" y2="230"/>
@@ -44,8 +43,8 @@
           fill="url(#under)"/>
     <path d="M48 232 L240 192 L320 192 L560 144 L690 144 L840 208"
           fill="none" stroke="url(#curve)" stroke-width="5"
-          stroke-linecap="round" stroke-linejoin="round"/>
-    <circle cx="690" cy="144" r="6" fill="#ff6900"/>
+          stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/>
+    <circle cx="690" cy="144" r="6" fill="#ffb057" filter="url(#glow)"/>
   </g>
 
   <g transform="translate(48 34)">
@@ -57,9 +56,9 @@
   </g>
 
   <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Helvetica, Arial, sans-serif">
-    <text x="140" y="76" font-size="46" font-weight="700" fill="#0d1117" letter-spacing="-1.2">Bisque</text>
-    <text x="142" y="102" font-size="17" font-weight="500" fill="#59636e">Open-source ESP32-S3 ceramic kiln controller</text>
+    <text x="140" y="76" font-size="46" font-weight="700" fill="#f0f6fc" letter-spacing="-1.2">Bisque</text>
+    <text x="142" y="102" font-size="17" font-weight="500" fill="#9198a1">Open-source ESP32-S3 ceramic kiln controller</text>
   </g>
 
-  <rect x="0.5" y="0.5" width="879" height="259" rx="16" fill="none" stroke="#d1d9e0"/>
+  <rect x="0.5" y="0.5" width="879" height="259" rx="16" fill="none" stroke="#3d444d"/>
 </svg>

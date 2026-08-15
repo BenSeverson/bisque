@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="docs/logo-banner.svg" alt="Bisque — Open-source ESP32-S3 ceramic kiln controller" width="700" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/logo-banner-dark.svg" />
+    <img src="docs/logo-banner.svg" alt="Bisque — Open-source ESP32-S3 ceramic kiln controller" width="760" />
+  </picture>
 </p>
 
 <p align="center">
