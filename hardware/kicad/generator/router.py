@@ -1,14 +1,40 @@
-"""Two-layer grid autorouter (A*) for the bisque controller board.
+"""Grid autorouter (A*) for the bisque controller board.
+
+Two ROUTING layers - 0 is F.Cu, 1 is B.Cu - on a board that is physically
+4-layer: In1.Cu and In2.Cu carry the GND and +3V3 plane fills and never a
+track, so the router has no reason to model them. Vias are through-hole,
+which is exactly what lets a pad reach either plane with one hole; KiCad's
+zone fill puts the antipads in.
 
 Board mm coordinates. Obstacles are exact copper shapes (pads, routed
-tracks/vias, antenna keepout, board margin) checked with true clearance
-(edge distance >= CLEAR). Multi-terminal nets route incrementally: each
-terminal connects to the growing net copper via A*.
+tracks/vias, keepouts, board margin) checked with true clearance (edge
+distance >= CLEAR). Multi-terminal nets route incrementally: each terminal
+connects to the growing net copper via A*.
 """
 import heapq
 import math
+import os
 
-GRID = 0.4          # mm per cell
+# Comma-separated net names; each committed route prints its layer runs.
+DEBUG_NETS = set(filter(None, os.environ.get("ROUTER_DEBUG", "").split(",")))
+
+# 0.25 mm, not rev A's 0.4. Rev B adds a 0.5 mm-pitch QFN-28 (ADE7953) and two
+# 0.65 mm-pitch TSSOP-14s (MAX31856), and a track can only leave pads that fine
+# along the pad's own centreline - a 0.4 mm grid snaps the escape up to 0.2 mm
+# off centre, which puts it inside the neighbouring pin's clearance and makes
+# those pads simply unreachable. At 0.25 mm every 0.5 mm-pitch pad lands
+# exactly on a grid line and the worst 0.65 mm-pitch error falls to 0.125 mm,
+# which a 0.25 mm track clears.
+#
+# That is measured, not reasoned. The escape stubs mean the router no longer
+# touches a fine-pitch pad directly, which looks like it should have retired
+# the constraint - but gen_pcb._snap() lands every stub end on GRID, so a
+# coarser grid walks the escape off the pad's centreline just the same. At
+# 0.4 mm 14 nets fail to route and at 0.3 mm five do, in both cases on U7 and
+# the two MAX31856s. Nor is the fine grid what costs the time: 0.3 mm takes
+# 463 s against 0.25 mm's 144, because a net that cannot be routed exhausts
+# the whole grid before it says so, several times a pass.
+GRID = 0.25         # mm per cell
 CLEAR = 0.2         # required copper-to-copper clearance
 VIA_DIA = 0.6
 VIA_DRILL = 0.3
@@ -23,16 +49,61 @@ BUCKET = 2.0
 # opening exposes the barrel anyway.
 VIA_PAD_GAP = 0.15
 
+# Minimum web of laminate between two drilled apertures — via-to-via and
+# via-to-pad-hole alike. This is a *mechanical* rule at the drill, so it
+# applies regardless of net: same-net holes break out into each other exactly
+# as readily as different-net ones, and no clearance rule (KiCad's included,
+# in practice) will say a word about it. JLCPCB's published floor is 0.20 mm;
+# 0.30 buys margin on a constraint whose failure mode is a broken-out hole
+# found at the fab. See check_drill_clearance.py, which enforces the same
+# number on the finished board.
+HOLE_TO_HOLE = 0.30
+
 
 class Shape:
-    """Axis-aligned rect or circle, on layer set. net None = blocks all."""
-    __slots__ = ("net", "layers", "cx", "cy", "w", "h", "circle", "drill")
+    """Axis-aligned rect or circle, on layer set. net None = blocks all.
 
-    def __init__(self, net, layers, cx, cy, w, h, circle=False, drill=0.0):
+    A drilled pad also carries its *hole* geometry, which is not the same
+    thing as its copper: `drill` is the hole diameter and (hx1,hy1)-(hx2,hy2)
+    is the hole's centre segment, degenerate for a round hole and 1.1 mm long
+    for the USB-C shield's `(drill oval 0.6 1.7)` slot. Modelling a slot as a
+    circle of diameter 0.6 understates its reach by (1.7-0.6)/2 = 0.55 mm,
+    which is how a 0.078 mm web to a GND stitching via got past this router.
+    """
+    __slots__ = ("net", "layers", "cx", "cy", "w", "h", "circle", "drill",
+                 "hx1", "hy1", "hx2", "hy2", "bx0", "by0", "bx1", "by1")
+
+    def __init__(self, net, layers, cx, cy, w, h, circle=False, drill=0.0,
+                 drill_len=0.0, drill_ang=0.0, hole=None):
         self.net, self.layers = net, set(layers)
         self.cx, self.cy, self.w, self.h = cx, cy, w, h
         self.circle = circle
         self.drill = drill
+        hcx, hcy = hole if hole is not None else (cx, cy)
+        half = max(0.0, (drill_len - drill) / 2.0)
+        a = math.radians(drill_ang)
+        dx, dy = half * math.cos(a), -half * math.sin(a)
+        self.hx1, self.hy1 = hcx - dx, hcy - dy
+        self.hx2, self.hy2 = hcx + dx, hcy + dy
+        # Bounding box over copper AND hole, cached because it is the reject
+        # test in the router's hottest loop (see Router._clear_of). It is only
+        # ever used to skip an exact dist()/hole_dist() that could not have
+        # returned a violation, so an over-large box costs speed, never
+        # correctness.
+        hr = drill / 2.0
+        self.bx0 = min(cx - w / 2.0, self.hx1 - hr, self.hx2 - hr)
+        self.bx1 = max(cx + w / 2.0, self.hx1 + hr, self.hx2 + hr)
+        self.by0 = min(cy - h / 2.0, self.hy1 - hr, self.hy2 - hr)
+        self.by1 = max(cy + h / 2.0, self.hy1 + hr, self.hy2 + hr)
+
+    def hole_dist(self, x, y):
+        """Distance from (x, y) to this pad's drill aperture edge."""
+        dx, dy = self.hx2 - self.hx1, self.hy2 - self.hy1
+        L2 = dx * dx + dy * dy
+        t = 0.0 if L2 < 1e-15 else max(
+            0.0, min(1.0, ((x - self.hx1) * dx + (y - self.hy1) * dy) / L2))
+        px, py = self.hx1 + t * dx, self.hy1 + t * dy
+        return math.hypot(x - px, y - py) - self.drill / 2.0
 
     def dist(self, x, y):
         if self.circle:
@@ -46,11 +117,23 @@ class Shape:
 
 
 class Seg:
-    __slots__ = ("net", "layer", "x1", "y1", "x2", "y2", "w")
+    # `fixed` marks copper the router did not draw and may not remove: the
+    # hand-seeded USB escapes, the fine-pitch fanout stubs and the plane-via
+    # stubs. rip_up() deletes only what it can re-create.
+    __slots__ = ("net", "layer", "x1", "y1", "x2", "y2", "w", "fixed",
+                 "bx0", "by0", "bx1", "by1")
 
-    def __init__(self, net, layer, x1, y1, x2, y2, w):
+    def __init__(self, net, layer, x1, y1, x2, y2, w, fixed=False):
         self.net, self.layer = net, layer
         self.x1, self.y1, self.x2, self.y2, self.w = x1, y1, x2, y2, w
+        self.fixed = fixed
+        # See Shape's box: a cached reject bound, never an answer. miter_corners
+        # shortens a segment in place and deliberately does not refresh this —
+        # the stale box is larger than the copper, which only means the exact
+        # dist() below runs on a few extra candidates.
+        h = w / 2.0
+        self.bx0, self.bx1 = min(x1, x2) - h, max(x1, x2) + h
+        self.by0, self.by1 = min(y1, y2) - h, max(y1, y2) + h
 
     def dist(self, x, y):
         dx, dy = self.x2 - self.x1, self.y2 - self.y1
@@ -68,10 +151,17 @@ class Router:
         self.margin = edge_margin
         self.keepouts = []
         self.buckets = {}   # (bx,by) -> list of Shape/Seg
+        # (bx,by) -> the 9 surrounding buckets flattened into one list. _near()
+        # is entered ~21 M times a build and walks ~40 objects each time; doing
+        # that as a generator over 9 dict lookups cost 833 M frame resumptions.
+        self._near_cache = {}
+        self.pads = []            # Shape, never removed
         self.result_tracks = []   # Seg (all routed, incl. seeds)
-        self.result_vias = []     # (net, x, y)
+        self.result_vias = []     # (net, x, y, fixed)
         self._memo = {}
         self._memo_net = None
+        self.fail_at = None
+        self.fail_pos = {}   # net -> terminal that could not be reached
 
     # --- model ---
     def _insert(self, obj, x0, y0, x1, y1):
@@ -80,37 +170,116 @@ class Router:
         bx1 = int((x1 + pad) // BUCKET)
         by0 = int((y0 - pad) // BUCKET)
         by1 = int((y1 + pad) // BUCKET)
+        cache = self._near_cache
         for bx in range(bx0, bx1 + 1):
             for by in range(by0, by1 + 1):
                 self.buckets.setdefault((bx, by), []).append(obj)
+                # Every flattened list that reads this bucket is now stale.
+                for dx in (-1, 0, 1):
+                    for dy in (-1, 0, 1):
+                        cache.pop((bx + dx, by + dy), None)
 
-    def add_pad(self, net, layers, cx, cy, w, h, circle=False, drill=0.0):
-        s = Shape(net, layers, cx, cy, w, h, circle, drill=drill)
+    def add_pad(self, net, layers, cx, cy, w, h, circle=False, drill=0.0,
+                drill_len=0.0, drill_ang=0.0, hole=None):
+        s = Shape(net, layers, cx, cy, w, h, circle, drill=drill,
+                  drill_len=drill_len, drill_ang=drill_ang, hole=hole)
+        self.pads.append(s)
         self._insert(s, cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2)
 
     def add_keepout(self, x0, y0, x1, y1):
+        """Rectangle no track or via may enter, whatever its net.
+
+        The per-net `allow_nets` exemption this used to carry existed only
+        for the opto-isolation barrier, whose isolated nets had to be the
+        one thing routed through the band. Both the barrier and the optos
+        are gone (see design.py's SSR block), so a keepout is now absolute
+        and the only caller left is the module antenna keepout, which never
+        wanted an exemption."""
         self.keepouts.append((x0, y0, x1, y1))
 
-    def add_seg(self, net, layer, x1, y1, x2, y2, w, record=True):
-        s = Seg(net, layer, x1, y1, x2, y2, w)
+    def add_seg(self, net, layer, x1, y1, x2, y2, w, record=True, fixed=False):
+        s = Seg(net, layer, x1, y1, x2, y2, w, fixed=fixed)
         self._insert(s, min(x1, x2) - w / 2, min(y1, y2) - w / 2,
                      max(x1, x2) + w / 2, max(y1, y2) + w / 2)
         if record:
             self.result_tracks.append(s)
 
-    def add_via(self, net, x, y, record=True):
+    def add_via(self, net, x, y, record=True, fixed=False):
         s = Shape(net, (0, 1), x, y, VIA_DIA, VIA_DIA, circle=True,
                   drill=VIA_DRILL)
         self._insert(s, x - VIA_DIA / 2, y - VIA_DIA / 2, x + VIA_DIA / 2, y + VIA_DIA / 2)
         if record:
-            self.result_vias.append((net, x, y))
+            self.result_vias.append((net, x, y, fixed))
+
+    # --- rip-up support -----------------------------------------------------
+    def reindex(self):
+        """Rebuild the spatial index from pads + the current copper lists."""
+        self.buckets = {}
+        self._near_cache = {}
+        self._memo, self._memo_net = {}, None
+        for s in self.pads:
+            self._insert(s, s.cx - s.w / 2, s.cy - s.h / 2,
+                         s.cx + s.w / 2, s.cy + s.h / 2)
+        for s in self.result_tracks:
+            self._insert(s, min(s.x1, s.x2) - s.w / 2, min(s.y1, s.y2) - s.w / 2,
+                         max(s.x1, s.x2) + s.w / 2, max(s.y1, s.y2) + s.w / 2)
+        for (net, x, y, _fx) in self.result_vias:
+            v = Shape(net, (0, 1), x, y, VIA_DIA, VIA_DIA, circle=True,
+                      drill=VIA_DRILL)
+            self._insert(v, x - VIA_DIA / 2, y - VIA_DIA / 2,
+                         x + VIA_DIA / 2, y + VIA_DIA / 2)
+
+    def snapshot(self):
+        return (list(self.result_tracks), list(self.result_vias))
+
+    def restore(self, snap):
+        self.result_tracks, self.result_vias = list(snap[0]), list(snap[1])
+        self.reindex()
+
+    def rip_up(self, net):
+        """Delete every piece of router-drawn copper on `net`."""
+        self.result_tracks = [s for s in self.result_tracks
+                              if s.net != net or s.fixed]
+        self.result_vias = [v for v in self.result_vias
+                            if v[0] != net or v[3]]
+        self.reindex()
+
+    def nets_near(self, x, y, radius):
+        """Nets with removable copper within `radius` of (x, y), nearest
+        first. Deterministic: ties break on the net name."""
+        best = {}
+        for s in self.result_tracks:
+            if s.fixed:
+                continue
+            d = s.dist(x, y)
+            if d < radius and (s.net not in best or d < best[s.net]):
+                best[s.net] = d
+        for (net, vx, vy, fx) in self.result_vias:
+            if fx:
+                continue
+            d = math.hypot(vx - x, vy - y) - VIA_DIA / 2
+            if d < radius and (net not in best or d < best[net]):
+                best[net] = d
+        return [n for (_d, n) in sorted((round(d, 4), n)
+                                        for n, d in best.items())]
 
     def _near(self, x, y):
-        bx, by = int(x // BUCKET), int(y // BUCKET)
-        for dx in (-1, 0, 1):
-            for dy in (-1, 0, 1):
-                for o in self.buckets.get((bx + dx, by + dy), ()):
-                    yield o
+        """Every obstacle in the 3x3 block of buckets around (x, y).
+
+        Returns a real list, not a generator: the callers below are the
+        router's inner loop and a generator paid one frame resumption per
+        object yielded.
+        """
+        key = (int(x // BUCKET), int(y // BUCKET))
+        out = self._near_cache.get(key)
+        if out is None:
+            bx, by = key
+            out = []
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    out += self.buckets.get((bx + dx, by + dy), ())
+            self._near_cache[key] = out
+        return out
 
     def cell_xy(self, i, j):
         return self.x0 + i * GRID, self.y0 + j * GRID
@@ -133,8 +302,18 @@ class Router:
         return r
 
     def _clear_of(self, net, x, y, layer, need, check_layer=True):
+        # The bounding-box test is a pure reject: an obstacle whose box is
+        # more than `need` away in x or in y is more than `need` away, full
+        # stop, so skipping it cannot change the answer. It exists because
+        # this is where the router spends its life — 12.7 M calls walking
+        # ~40 obstacles each — and four float compares are an order of
+        # magnitude cheaper than the dist() they replace for the ~90% of
+        # bucket residents that are merely in the neighbourhood.
         for o in self._near(x, y):
             if o.net == net:
+                continue
+            if x < o.bx0 - need or x > o.bx1 + need or \
+               y < o.by0 - need or y > o.by1 + need:
                 continue
             if check_layer:
                 if isinstance(o, Seg):
@@ -175,27 +354,100 @@ class Router:
                     r = False
                     break
         if r:
-            r = self._clear_of(net, x, y, 0, need, check_layer=False)
-        if r:
-            # no via-in-pad: SMD pads (drill == 0) block regardless of net
+            # Three tests, one walk. Copper clearance (different-net only),
+            # via-in-pad (SMD pads, any net) and hole-to-hole (drilled pads,
+            # any net) used to each scan the neighbourhood separately; the
+            # result is their AND, so interleaving them is the same answer for
+            # a third of the traversal. via_ok is asked at nearly every node
+            # A* pops — 4.3 M times a build — and its memo barely hits,
+            # because a node is popped once.
+            #
+            # `need` (0.5 mm) is the largest of the three reach limits: the
+            # pad gap is VIA_DIA/2 + 0.15 and the hole rule is HOLE_TO_HOLE +
+            # VIA_DRILL/2 = 0.45 measured from the hole edge, which the
+            # bounding box already contains. So one box test at `need`
+            # rejects for all three.
+            pad_need = VIA_DIA / 2.0 + VIA_PAD_GAP
             for o in self._near(x, y):
-                if isinstance(o, Shape) and o.drill == 0.0 and \
-                   o.dist(x, y) < VIA_DIA / 2.0 + VIA_PAD_GAP:
+                if x < o.bx0 - need or x > o.bx1 + need or \
+                   y < o.by0 - need or y > o.by1 + need:
+                    continue
+                if o.net != net and o.dist(x, y) < need - 1e-9:
                     r = False
                     break
-        if r:
-            # hole-to-hole clearance: applies regardless of net
-            for o in self._near(x, y):
-                if isinstance(o, Shape) and o.drill > 0:
-                    if math.hypot(x - o.cx, y - o.cy) - o.drill / 2                        - VIA_DRILL / 2 < 0.3:
+                if isinstance(o, Shape):
+                    if o.drill == 0.0:
+                        # no via-in-pad: SMD pads block regardless of net
+                        if o.dist(x, y) < pad_need:
+                            r = False
+                            break
+                    # hole-to-hole clearance: applies regardless of net, and
+                    # treats an oval drill as the capsule it is, not a circle
+                    elif o.hole_dist(x, y) - VIA_DRILL / 2.0 < HOLE_TO_HOLE:
                         r = False
                         break
         self._memo[key] = r
         return r
 
     # --- routing ---
-    def route(self, net, terminals, width, layer_pref=0, via_cost=14.0,
-              wrong_layer_cost=0.4, allow_via=True, extra_srcs=()):
+    def hop_clear(self, net, width, i, j, tx, ty, layer):
+        """Is the final exact hop from grid node (i,j) to (tx, ty) legal?
+
+        A* works on grid nodes, but a pad centre rarely lands on one, so
+        _commit() finishes every route with a short free-hand segment from
+        the last node to the true terminal. That segment used to be emitted
+        unconditionally and was the *only* piece of copper on the board that
+        no clearance check ever saw - it is what put `EN` 0.195 mm from U1
+        pad 4 on the rung-2 board. Sampling it here, and only accepting a
+        goal node whose hop passes, closes that hole.
+        """
+        x0, y0 = self.cell_xy(i, j)
+        need = width / 2.0 + CLEAR
+        d = math.hypot(tx - x0, ty - y0)
+        n = max(1, int(d / 0.05))
+        for k in range(n + 1):
+            t = k / float(n)
+            if not self._clear_of(net, x0 + (tx - x0) * t, y0 + (ty - y0) * t,
+                                  layer, need):
+                return False
+        return True
+
+    def _goal_nodes(self, net, width, tgt):
+        """Grid nodes whose exact hop to `tgt` is clearance-legal.
+
+        The snapped node itself stays exempt from `blocked` (it normally sits
+        inside the target pad, which is own-net copper anyway); its eight
+        neighbours are ordinary cells and must be free. Offering all nine
+        rather than only the snapped one means a terminal whose own snap node
+        cannot be reached legally is re-approached from a neighbour instead of
+        silently emitting an illegal hop.
+        """
+        gi, gj = self.snap(tgt[0], tgt[1])
+        out = []
+        for di in (0, -1, 1):
+            for dj in (0, -1, 1):
+                i, j = gi + di, gj + dj
+                if not (0 <= i < self.nx and 0 <= j < self.ny):
+                    continue
+                for l in tgt[2]:
+                    if (di or dj) and self.blocked(net, width, i, j, l):
+                        continue
+                    if self.hop_clear(net, width, i, j, tgt[0], tgt[1], l):
+                        out.append((i, j, l))
+        return out
+
+    # wrong_layer_cost was 0.4 in rev A - a 40% surcharge on every B.Cu step,
+    # which kept the back layer as an escape hatch of last resort. That made
+    # sense when B.Cu was mostly GND pour. On the 4-layer board the pour is
+    # gone from both signal layers and B.Cu is genuinely empty, so at 0.10 the
+    # router still prefers F.Cu but will run a whole net on the back rather
+    # than fail.
+    # via_cost was 14 in rev A, when a via had to punch through two GND pours.
+    # It now punches two plane antipads instead, which the fill draws for free,
+    # and the layer it reaches is empty. 4 grid steps (1 mm of detour at GRID
+    # 0.25) is what a hop is actually worth here.
+    def route(self, net, terminals, width, layer_pref=0, via_cost=4.0,
+              wrong_layer_cost=0.10, allow_via=True, extra_srcs=()):
         """terminals: [(x, y, layers-tuple), ...]. First is the seed."""
         if len(terminals) < 2:
             return
@@ -217,11 +469,25 @@ class Router:
             rest.sort(key=key)
             tgt = rest.pop(0)
             gx, gy = self.snap(tgt[0], tgt[1])
-            path = self._astar(net, width, srcs, (gx, gy), set(tgt[2]),
-                               via_cost, wrong_layer_cost, layer_pref, allow_via)
+            goals = self._goal_nodes(net, width, tgt)
+            path = None
+            if goals:
+                path = self._astar(net, width, srcs, (gx, gy), set(goals),
+                                   via_cost, wrong_layer_cost, layer_pref,
+                                   allow_via)
             if path is None:
-                raise RuntimeError("route failed: net %s to (%.2f,%.2f)"
-                                   % (net, tgt[0], tgt[1]))
+                self.fail_at = (tgt[0], tgt[1])
+                self.fail_pos[net] = self.fail_at
+                gi, gj = self.snap(tgt[0], tgt[1])
+                raise RuntimeError(
+                    "route failed: net %s to (%.2f,%.2f) [%d goal node(s), "
+                    "via_ok=%s, free neighbours F/B=%d/%d]"
+                    % (net, tgt[0], tgt[1], len(goals),
+                       self.via_ok(net, gi, gj),
+                       sum(not self.blocked(net, width, gi + di, gj + dj, 0)
+                           for di in (-1, 0, 1) for dj in (-1, 0, 1)),
+                       sum(not self.blocked(net, width, gi + di, gj + dj, 1)
+                           for di in (-1, 0, 1) for dj in (-1, 0, 1))))
             self._commit(net, width, path, tgt, srcs)
 
     DIRS = ((1, 0, 1.0), (-1, 0, 1.0), (0, 1, 1.0), (0, -1, 1.0),
@@ -232,7 +498,7 @@ class Router:
         dx, dy = abs(dx), abs(dy)
         return max(dx, dy) + 0.41421 * min(dx, dy)
 
-    def _astar(self, net, width, srcs, goal, goal_layers, via_cost,
+    def _astar(self, net, width, srcs, goal, goals, via_cost,
                wrong_layer_cost, layer_pref, allow_via):
         """Octilinear (45-degree) A*. Diagonal steps additionally require both
         adjacent orthogonal cells to be free so the trace body never clips an
@@ -252,7 +518,7 @@ class Router:
                 continue
             visited.add(node)
             i, j, l = node
-            if (i, j) == (gx, gy) and l in goal_layers:
+            if node in goals:
                 path = [node]
                 cur = node
                 while best[cur][1] is not None:
@@ -268,7 +534,7 @@ class Router:
                 nnode = (ni, nj, l)
                 if nnode in visited:
                     continue
-                is_goal = (ni, nj) == (gx, gy) and l in goal_layers
+                is_goal = nnode in goals
                 if not is_goal and self.blocked(net, width, ni, nj, l):
                     continue
                 if di and dj:
@@ -294,7 +560,15 @@ class Router:
                                            ng, nnode))
             if allow_via:
                 nnode = (i, j, 1 - l)
-                if nnode not in visited and self.via_ok(net, i, j):
+                # The track resumes at this node on the far layer, so that
+                # node has to clear the track's own width - via_ok() only
+                # answers for the 0.6 mm via barrel. Without this the first
+                # segment after a via was never clearance-checked at its
+                # start point, which at 0.25 mm tracks stayed inside the
+                # via's own envelope and hid, and at rev A's 0.7 mm power
+                # width put AUX_VP 0.172 mm from SJ1 pad 1.
+                if nnode not in visited and self.via_ok(net, i, j) and \
+                   not self.blocked(net, width, i, j, 1 - l):
                     ng = g + via_cost
                     old = best.get(nnode)
                     if old is None or ng < old[0] - 1e-9:
@@ -317,6 +591,10 @@ class Router:
             else:
                 cur_pts.append(xy)
         runs.append((cur_layer, cur_pts))
+        if net in DEBUG_NETS:
+            print("    DBG %s tgt=(%.3f,%.3f,%s) runs=%s" %
+                  (net, tgt[0], tgt[1], tgt[2],
+                   [(l, len(c), c[0], c[-1]) for l, c in runs]))
         for layer, coords in runs:
             if len(coords) < 2:
                 continue
@@ -350,6 +628,14 @@ class Router:
         net, so validation is conservative); applied chamfers are inserted
         into the model so later chamfers see them."""
         from collections import defaultdict
+        # A chamfer pulls BOTH segment ends away from the corner, so anything
+        # that was joined to the copper *at* the corner is left behind. The
+        # "exactly two segments" test below covers a third track, but not a
+        # via or a pad, and a via sitting on a mitred corner is silently
+        # orphaned: its track keeps its net, so nothing but KiCad's own
+        # connectivity pass notices (it was two of the dangling vias and the
+        # 7.4 mm stranded SSR_EN track on the first 4-layer build).
+        via_pts = {(round(v[1], 3), round(v[2], 3)) for v in self.result_vias}
         byend = defaultdict(list)
         for s in self.result_tracks:
             byend[(round(s.x1, 3), round(s.y1, 3), s.layer)].append((s, 1))
@@ -362,6 +648,11 @@ class Router:
             (sa, ea), (sb, eb) = ends
             if sa is sb or sa.net != sb.net or abs(sa.w - sb.w) > 1e-6:
                 continue
+            if (px, py) in via_pts:
+                continue
+            if any(isinstance(o, Shape) and o.net == sa.net and o.drill == 0.0
+                   and o.dist(px, py) <= 0.0 for o in self._near(px, py)):
+                continue        # corner lands on its own pad
 
             def other(s, e):
                 return (s.x1, s.y1) if e == 2 else (s.x2, s.y2)

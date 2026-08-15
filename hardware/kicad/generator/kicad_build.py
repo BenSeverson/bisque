@@ -7,7 +7,19 @@ KiCad do the rest: `kicad-cli pcb drc --refill-zones` fills the ground
 pours and runs KiCad's real DRC. The saved board is a genuine
 pcbnew-written file. Requires KiCad 10+.
 
-Usage: python3 kicad_build.py <out.kicad_pcb>
+Usage: python3 kicad_build.py [--no-route] <out.kicad_pcb>
+
+`--no-route` is the fast path. Routing 93 nets across 141 parts is ~91%
+of the 158 s a full build costs, and several classes of change cannot
+touch copper at all: silkscreen placement (silk.py), 3D model offsets
+(MODEL_FIXUP), the title block, reference-designator text metrics. With
+`--no-route` the tracks, vias and filled zones are read back off the
+existing board and everything else is re-derived by the same code a full
+build runs, so the result is byte-identical for the same design.py -
+`check_fast_path.py` proves that rather than assuming it. Anything that
+moves a part, changes connectivity, or changes a routing parameter needs
+the full path; `verify_reusable()` below refuses the fast one when
+design.py and the loaded board have drifted apart.
 """
 import math
 import os
@@ -26,8 +38,21 @@ import pcbnew
 from canonicalize import canonicalize_file
 from design import COMPONENTS, netlist, BX0, BY0, BX1, BY1
 import router as R
-from gen_pcb import (USB_SEEDS, USB_STUB_TERMS, ROUTE_ORDER, route_all,
-                     stitch_vias, SILK, MANUAL_VIAS)
+import silk
+from gen_pcb import (all_seeds, route_all, ripup_retry, promoted_order, plane_vias,
+                     apply_stackup, SILK, SILK_GRAPHICS, MANUAL_VIAS,
+                     PLANE_LAYER, HIDE_REFS)
+
+# Copper stack-up. Rev B is 4-layer (spec 6.1): signals on the outside, an
+# unbroken GND plane on In1.Cu and the +3V3 plane on In2.Cu. router.py still
+# knows only two routing layers - 0 and 1 - and they map to F.Cu and B.Cu; the
+# inner layers carry no tracks at all, only the plane fills, so the router
+# never needs to model them. Vias stay through-hole, which is what lets a pad
+# reach either plane with a single hole.
+COPPER_LAYERS = 4
+LAYER = {0: pcbnew.F_Cu, 1: pcbnew.B_Cu}
+PLANE_CU = {"In1.Cu": pcbnew.In1_Cu, "In2.Cu": pcbnew.In2_Cu}
+
 
 def _find_fp_base():
     cand = [os.environ.get("KICAD_FOOTPRINT_DIR", "")]
@@ -47,33 +72,118 @@ import glob
 FPBASE = _find_fp_base()
 
 
-def load_footprint(lib, name):
-    path = os.path.join(FPBASE, lib + ".pretty")
-    mgr = pcbnew.PCB_IO_MGR
-    return mgr.FindPlugin(mgr.KICAD_SEXP).FootprintLoad(path, name)
 MM = pcbnew.FromMM
 _major = int(pcbnew.Version().split(".")[0])
 if _major < 10:
     sys.exit("kicad_build.py requires KiCad 10+ (found %s)" % pcbnew.Version())
+
+# The footprint reader, resolved once. Belt-and-braces against the swig
+# type-table corruption `strip_derived()` documents: while a live pcbnew
+# session is in that state, PCB_IO_MGR.FindPlugin() is one of the calls that
+# hands back an untyped pointer - here, one with no FootprintLoad on it. A
+# handle taken before any board is loaded keeps working.
+_FP_PLUGIN = pcbnew.PCB_IO_MGR.FindPlugin(pcbnew.PCB_IO_MGR.KICAD_SEXP)
+
+
+def load_footprint(lib, name):
+    path = os.path.join(FPBASE, lib + ".pretty")
+    return _FP_PLUGIN.FootprintLoad(path, name)
 
 
 def V(x, y):
     return pcbnew.VECTOR2I(MM(x), MM(y))
 
 
-def build_board():
-    board = pcbnew.BOARD()
+# 3D models. Cosmetic only - no fab output (gerbers, drill, BOM, CPL, DRC)
+# touches a model at all - but the renders in 3d/ are how placement and silk
+# get eyeballed without a board in hand, so a part that renders as bare pads
+# or floats off its footprint costs real time to diagnose.
+#
+# Five footprints need help. KiCad 10 ships NO model for four of them, and its
+# failure mode is silence: `kicad-cli pcb render` exits 0, prints "Loading 3D
+# models...", and omits the part. That is why every model this board depends on
+# is vendored into 3dmodels/ and referenced through ${KIPRJMOD} rather than
+# ${KICAD10_3DMODEL_DIR} - the system path is not reproducible (a KiCad upgrade
+# wipes a hand-installed file, and a fresh clone never had one), and the whole
+# point of a committed render is that a clean machine can reproduce it.
+#
+# `file` is a stem in 3dmodels/; see that directory's README for provenance.
+# `offset` is mm in the footprint frame, `rotate` degrees about X/Y/Z.
+#
+# U1 - Espressif's own STEP is authored with its origin at a body CORNER (body
+# spans X 0..18, Y 0..19.2 mm, measured off the STEP) while KiCad's footprint
+# origin is the body CENTRE. Two independent derivations agree on -9.6:
+#   * body centre from the STEP bounding box = (9.0, 9.6) -> offset (-9, -9.6)
+#   * Espressif's own footprint uses (offset -9 -9.75 0), and their footprint
+#     origin differs from KiCad's by exactly dY -0.15 mm (verified across all
+#     40 signal pads, dX 0.0) -> -9.75 + 0.15 = -9.60
+#
+# J1 - the only one of the four LCSC models needing a correction. Unrotated,
+# the shell sits ~8.9 mm north of its pads, which reads as a translation but is
+# not one: EasyEDA stores a per-model display rotation next to the geometry
+# (the SVGNODE's c_rotation, "0,0,180" for this part) and the STEP is authored
+# in the unrotated frame. Applying it puts all 12 pins on the 12 signal pads
+# with the mouth facing the board edge. C515890's c_rotation is "0,0,90" and is
+# deliberately NOT applied - a square QFN is invariant under it, so it would be
+# an untestable claim; C318884's is "0,0,0".
+MODEL_FIXUP = {
+    "U1": dict(file="ESP32-S3-WROOM-1U", offset=(-9.0, -9.6, 0.0)),
+    "J1": dict(file="USB_C_Receptacle_HRO_TYPE-C-31-M-12", rotate=(0, 0, 180)),
+    "U7": dict(file="QFN-28-1EP_5x5mm_P0.5mm_EP3.1x3.1mm"),
+    "SW1": dict(file="SW_Push_1P1T_XKB_TS-1187A"),
+    "SW2": dict(file="SW_Push_1P1T_XKB_TS-1187A"),
+}
+MODEL_DIR = "${KIPRJMOD}/3dmodels/%s.step"
+
+
+def build_board(existing=None):
+    """Everything about the board except copper.
+
+    `existing` is an already-routed board that `strip_derived()` has just
+    emptied of footprints and board graphics; it keeps its tracks, vias and
+    filled zones and gets the rest rebuilt here. Passing it through the same
+    function as a fresh build - rather than a separate "patch the loaded
+    board" routine - is what makes `--no-route` byte-identical by
+    construction instead of by inspection.
+    """
+    board = pcbnew.BOARD() if existing is None else existing
+    board.SetCopperLayerCount(COPPER_LAYERS)
     bds = board.GetDesignSettings()
     bds.m_TrackMinWidth = MM(0.2)
     bds.m_ViasMinSize = MM(0.5)
     bds.m_MinThroughDrill = MM(0.3)
     bds.m_CopperEdgeClearance = MM(0.3)
 
-    # nets
+    # Title block. The schematic has carried one since rev A; the board did
+    # not, so every page of the exported board PDF showed a blank Title and
+    # Rev - on six pages that otherwise look nearly identical, since four
+    # copper layers of the same outline are hard to tell apart at a glance.
+    # Values mirror gen_sch.py's block so the two documents agree. The date is
+    # deliberately FIXED, not today's: check_canonical.py requires rebuilds to
+    # be byte-identical, and a live date would break that every midnight.
+    # A fresh TITLE_BLOCK rather than board.GetTitleBlock(): on a board that
+    # came off disk the getter hands back an untyped swig pointer with no
+    # methods on it. Building one here also means every field is set from
+    # this table, so `--no-route` cannot inherit a stale one.
+    tb = pcbnew.TITLE_BLOCK()
+    tb.SetTitle("Bisque Kiln Controller")
+    tb.SetDate("2026-07-20")
+    tb.SetRevision("B")
+    tb.SetCompany("Bisque project")
+    tb.SetComment(0, "ESP32-S3-WROOM-1U-N16R2 + 2x MAX31856 + dual SSR + ADE7953")
+    tb.SetComment(1, "4-layer, 100 x 100 mm, JLCPCB standard process")
+    board.SetTitleBlock(tb)
+
+    # nets. A .kicad_pcb of this vintage carries no net table - tracks, vias
+    # and zones name their net inline - so a reused board already has every
+    # net the copper on it mentions, and re-minting them would orphan that
+    # copper. Net *codes* are internal only and never reach the file.
     nets = {}
     for name in sorted(netlist()):
-        n = pcbnew.NETINFO_ITEM(board, name)
-        board.Add(n)
+        n = board.FindNet(name) if existing is not None else None
+        if n is None:
+            n = pcbnew.NETINFO_ITEM(board, name)
+            board.Add(n)
         nets[name] = n
 
     # footprints
@@ -103,38 +213,71 @@ def build_board():
             if (ref == "U1" and num in ("1", "40", "41")) or \
                (ref == "J1" and num in ("A1", "B1", "A12", "B12", "S1")):
                 pad.SetLocalZoneConnection(pcbnew.ZONE_CONNECTION_FULL)
+        fix = MODEL_FIXUP.get(ref)
+        if fix:
+            # fp.Models() hands back COPIES - mutating them writes nothing
+            # back to the footprint. Rebuild the entry instead.
+            #
+            # The scale and rotation are unpacked to plain floats HERE rather
+            # than carried as VECTOR3Ds. `m` is a temporary, and `m.m_Scale`
+            # is a reference into it, so holding that reference past the
+            # comprehension leaves it dangling: whether it still reads (1,1,1)
+            # or has become (0,0,0) depends on when Python happens to collect
+            # the temporary. A model scaled to zero renders nothing at all,
+            # and it made the board file differ between two runs of an
+            # unchanged design - a determinism bug that only showed up once
+            # the fast path changed the allocation pattern around it.
+            old = [((m.m_Scale.x, m.m_Scale.y, m.m_Scale.z),
+                    (m.m_Rotation.x, m.m_Rotation.y, m.m_Rotation.z))
+                   for m in fp.Models()]
+            # Every ref here names a footprint the library ships a <model>
+            # entry for, even when it ships no file to back it. Rebuilding a
+            # missing entry from nothing would work, but losing one is a
+            # library change worth hearing about rather than papering over.
+            assert old, "%s: MODEL_FIXUP set but footprint has no 3D model" % ref
+            fp.Models().clear()
+            for scale, rot in old:
+                nm = pcbnew.FP_3DMODEL()
+                nm.m_Filename = MODEL_DIR % fix["file"]
+                nm.m_Scale = pcbnew.VECTOR3D(*scale)
+                nm.m_Rotation = pcbnew.VECTOR3D(*fix.get("rotate", rot))
+                nm.m_Offset = pcbnew.VECTOR3D(*fix.get("offset", (0.0, 0.0, 0.0)))
+                fp.Models().push_back(nm)
         board.Add(fp)
         fps[ref] = fp
-    # tidy silk: smaller refs everywhere, relocate the ones that collide
+    # Silk: one size for every reference designator. WHERE each one lands is
+    # not decided here - `silk.py` derives it after the board texts exist (see
+    # add_outline_and_silk). Rev B carried a hand-maintained list of 18 refs
+    # nudged out of collisions at this point; at 141 parts a patch list cannot
+    # keep up, and it didn't - DRC reported 109 silkscreen violations across
+    # 49 designators.
     for ref, fp in fps.items():
         t = fp.Reference()
         t.SetTextSize(pcbnew.VECTOR2I(MM(0.8), MM(0.8)))
         t.SetTextThickness(MM(0.12))
-    for ref, (x, y) in {"J5": (33.0, 90.6), "J6": (54.8, 90.6),
-                        "J7": (72.0, 90.6), "LED1": (69.8, 89.3),
-                        # default position lands beside R3's, reading "R3C12"
-                        "C12": (82.4, 89.4),
-                        "U3": (104.5, 57.4), "C9": (105.3, 69.5),
-                        "J3": (110.6, 71.6), "SW1": (49.4, 23.2), "SW2": (105.8, 50.2),
-                        "H1": (30.5, 25.0)}.items():
-        fps[ref].Reference().SetPosition(V(x, y))
+        # Hidden, not deleted: the field still exists, so the netlist, the
+        # BOM and the CPL are untouched and DRC still knows what it is - it
+        # simply is not printed. `silk.py` and `check_silk.py` both skip an
+        # invisible reference already, so this also hands the placer back the
+        # four corners those labels were competing for.
+        if ref in HIDE_REFS:
+            t.SetVisible(False)
     return board, nets, fps
 
 
 def build_router_model(board, fps):
     r = R.Router(BX0, BY0, BX1, BY1)
-    # antenna keepout: from U1's embedded rule areas (fall back to computed)
-    u1 = fps["U1"]
-    got_keepout = False
-    for z in u1.Zones():
+    # Antenna keepout, if the module footprint carries one. The WROOM-1U does
+    # NOT - that is the point of the swap (spec 2.1): the 48 x 7 mm band the
+    # WROOM-1's PCB antenna reserved is reclaimed for parts and pour, and rev
+    # B places USB-C, the reset switch and three test points in it. There is
+    # deliberately no computed fallback: inventing a keepout for a module that
+    # has none would bar tracks from a third of the digital band.
+    for z in fps["U1"].Zones():
         if z.GetIsRuleArea():
             bb = z.GetBoundingBox()
             r.add_keepout(pcbnew.ToMM(bb.GetLeft()), BY0,
                           pcbnew.ToMM(bb.GetRight()), pcbnew.ToMM(bb.GetBottom()))
-            got_keepout = True
-    if not got_keepout:
-        fx, fy, _ = COMPONENTS["U1"]["at"]
-        r.add_keepout(fx - 24, BY0, fx + 24, fy - 6.8)
     pad_pos = {}
     for ref, fp in fps.items():
         c = COMPONENTS[ref]
@@ -157,19 +300,33 @@ def build_router_model(board, fps):
                 net = c["pins"].get(num)
                 if net is None:
                     net = "__nc_%s_%s" % (ref, num)
-            drill = pcbnew.ToMM(pad.GetDrillSize().x) \
-                if pad.GetAttribute() in (pcbnew.PAD_ATTRIB_PTH,
-                                          pcbnew.PAD_ATTRIB_NPTH) else 0.0
+            # Hole geometry is not pad geometry. A slot drill (the USB-C
+            # shield's `(drill oval 0.6 1.7)`) has a diameter AND a length,
+            # and its centre is the pad's position, not the copper bounding
+            # box centre — those differ whenever the pad has an offset. Both
+            # distinctions matter to hole-to-hole clearance and neither
+            # survives collapsing the drill to GetDrillSize().x.
+            drill = drill_len = 0.0
+            drill_ang = 0.0
+            hole = None
+            if pad.GetAttribute() in (pcbnew.PAD_ATTRIB_PTH,
+                                      pcbnew.PAD_ATTRIB_NPTH):
+                ds = pad.GetDrillSize()
+                dw, dh = pcbnew.ToMM(ds.x), pcbnew.ToMM(ds.y)
+                drill, drill_len = min(dw, dh), max(dw, dh)
+                drill_ang = pad.GetOrientationDegrees() + (0.0 if dw >= dh else 90.0)
+                hole = (pcbnew.ToMM(pad.GetPosition().x),
+                        pcbnew.ToMM(pad.GetPosition().y))
             r.add_pad(net, layers, cx, cy, w, h,
                       circle=pad.GetShape() == pcbnew.PAD_SHAPE_CIRCLE,
-                      drill=drill)
+                      drill=drill, drill_len=drill_len, drill_ang=drill_ang,
+                      hole=hole)
             if num:
                 pad_pos.setdefault((ref, num), []).append((cx, cy, layers, w * h))
     return r, pad_pos
 
 
 def add_copper(board, nets, r):
-    LAYER = {0: pcbnew.F_Cu, 1: pcbnew.B_Cu}
     for s in r.result_tracks:
         t = pcbnew.PCB_TRACK(board)
         t.SetStart(V(s.x1, s.y1))
@@ -178,7 +335,7 @@ def add_copper(board, nets, r):
         t.SetLayer(LAYER[s.layer])
         t.SetNet(nets[s.net])
         board.Add(t)
-    for (net, x, y) in r.result_vias:
+    for (net, x, y, _fixed) in r.result_vias:
         v = pcbnew.PCB_VIA(board)
         v.SetPosition(V(x, y))
         v.SetViaType(pcbnew.VIATYPE_THROUGH)
@@ -186,54 +343,6 @@ def add_copper(board, nets, r):
         v.SetWidth(MM(R.VIA_DIA))
         v.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
         v.SetNet(nets[net])
-        board.Add(v)
-
-
-def route_gnd_stubs(r, pad_pos, stitches):
-    """Give every SMD-only GND pad a real track to the nearest GND anchor
-    (stitch via or plated GND hole), so no pad depends on a pour sliver."""
-    anchors = list(stitches)
-    tht = []
-    for (ref, pin), plist in pad_pos.items():
-        if COMPONENTS[ref]["pins"].get(pin) != "GND":
-            continue
-        for (x, y, layers, area) in plist:
-            if len(layers) == 2:
-                tht.append((x, y))
-    anchors += tht
-    extra = [(x, y, l) for (x, y) in anchors for l in (0, 1)]
-    fails = 0
-    for (ref, pin), plist in sorted(pad_pos.items()):
-        if COMPONENTS[ref]["pins"].get(pin) != "GND":
-            continue
-        for (x, y, layers, area) in plist:
-            if len(layers) == 2:
-                continue  # THT already an anchor
-            if any(s.net == "GND" and
-                   min(abs(s.x1 - x) + abs(s.y1 - y),
-                       abs(s.x2 - x) + abs(s.y2 - y)) < 0.3
-                   for s in r.result_tracks):
-                continue  # a seed already lands on this pad
-            try:
-                r.route("GND", [(anchors[0][0], anchors[0][1], (0, 1)),
-                                (x, y, layers)], 0.3, extra_srcs=extra)
-                extra.append((x, y, layers[0]))
-            except RuntimeError:
-                fails += 1
-                print("  !! GND stub failed for %s.%s" % (ref, pin))
-    return fails
-
-
-def add_stitching(board, nets, stitches):
-    for (x, y) in stitches:
-        v = pcbnew.PCB_VIA(board)
-        v.SetPosition(V(x, y))
-        v.SetViaType(pcbnew.VIATYPE_THROUGH)
-        v.SetDrill(MM(R.VIA_DRILL))
-        v.SetWidth(MM(R.VIA_DIA))
-        v.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
-        v.SetNet(nets["GND"])
-        v.SetIsFree(True)
         board.Add(v)
 
 
@@ -248,6 +357,7 @@ def add_outline_and_silk(board):
         sh.SetLayer(pcbnew.Edge_Cuts)
         sh.SetWidth(MM(0.1))
         board.Add(sh)
+    anchors = []
     for (txt, x, y, rot, size) in SILK:
         t = pcbnew.PCB_TEXT(board)
         t.SetText(txt)
@@ -257,14 +367,36 @@ def add_outline_and_silk(board):
         t.SetTextThickness(MM(max(0.1, size * 0.15)))
         t.SetTextAngleDegrees(rot)
         board.Add(t)
+        anchors.append((t, x, y))
+    # Silk graphics are placed, not anchored, so none of these go into
+    # `anchors`: `silk.place()` has nothing to move them to. It does have to
+    # SEE them - board-level F.SilkS drawings are in its obstacle set for
+    # exactly this reason, or the nameplate's flame would be the one thing on
+    # the board a reference designator could legally print through.
+    for pts, width in SILK_GRAPHICS:
+        sh = pcbnew.PCB_SHAPE(board)
+        sh.SetShape(pcbnew.SHAPE_T_POLY)
+        sh.SetLayer(pcbnew.F_SilkS)
+        sh.SetPolyPoints([V(x, y) for x, y in pts])
+        sh.SetFilled(False)
+        sh.SetWidth(MM(width))
+        board.Add(sh)
+    return anchors
 
 
 def add_zones(board, nets):
+    """The two inner planes.
+
+    There is deliberately no pour on F.Cu or B.Cu. Rev A poured GND on both
+    signal layers, which on rev B's density was the single largest consumer of
+    routing space on exactly the two layers the boxed-in signals needed; with
+    GND on In1 and +3V3 on In2 the outer layers are signals only.
+    """
     m = 0.5
-    for layer in (pcbnew.F_Cu, pcbnew.B_Cu):
+    for netname, layername in sorted(PLANE_LAYER.items()):
         z = pcbnew.ZONE(board)
-        z.SetLayer(layer)
-        z.SetNet(nets["GND"])
+        z.SetLayer(PLANE_CU[layername])
+        z.SetNet(nets[netname])
         ol = z.Outline()
         ol.NewOutline()
         for (x, y) in [(BX0 + m, BY0 + m), (BX1 - m, BY0 + m),
@@ -276,188 +408,40 @@ def add_zones(board, nets):
         z.SetThermalReliefSpokeWidth(MM(0.4))
         z.SetPadConnection(pcbnew.ZONE_CONNECTION_THERMAL)
         board.Add(z)
-    return
+
+    # No rule area. Rev B carved a four-layer pour keepout across the SSR
+    # optocoupler row so the planes could not short around the barrier; the
+    # optos were reverted to direct low-side MOSFET drive (design.py's SSR
+    # block), so nothing needs the pour kept out and both planes run whole.
 
 
-def _gnd_islands(board):
-    """{(layer, index): filled outline} for every GND pour island."""
-    isl = {}
+def plane_islands(board):
+    """[(layer, area_mm2, x, y), ...] for every plane island beyond the
+    largest one on its layer.
+
+    A plane is one sheet of copper only until enough antipads line up to cut
+    it. Nothing can bridge a severed island back - there is no second copper
+    layer carrying the same net to via across to - so this is a report, not a
+    repair: it names the layer and the spot so the fix goes into placement.
+    KiCad's own DRC reports the same thing as an unconnected zone, but only
+    when a pad happens to sit on the stranded piece.
+    """
+    out = []
     for z in board.Zones():
-        if z.GetIsRuleArea() or z.GetNetname() != "GND":
+        if z.GetIsRuleArea():
             continue
         layer = z.GetLayer()
         polys = z.GetFilledPolysList(layer)
+        areas = []
         for i in range(polys.OutlineCount()):
-            isl[(layer, i)] = polys.Outline(i)
-    return isl
-
-
-def _gnd_bridges(board):
-    """Points where GND crosses between layers: vias and plated GND pads."""
-    pts = [(pcbnew.ToMM(t.GetPosition().x), pcbnew.ToMM(t.GetPosition().y))
-           for t in board.Tracks()
-           if t.Type() == pcbnew.PCB_VIA_T and t.GetNetname() == "GND"]
-    for fp in board.Footprints():
-        for pad in fp.Pads():
-            if pad.GetAttribute() == pcbnew.PAD_ATTRIB_PTH and \
-               pad.GetNetname() == "GND":
-                pts.append((pcbnew.ToMM(pad.GetPosition().x),
-                            pcbnew.ToMM(pad.GetPosition().y)))
-    return pts
-
-
-def _island_components(isl, bridges):
-    """Union-find over islands linked by a layer-bridging GND point.
-    Returns [[key, ...], ...], largest total copper area first."""
-    def at(layer, x, y):
-        p = pcbnew.VECTOR2I(MM(x), MM(y))
-        for key, ol in isl.items():
-            if key[0] == layer and ol.PointInside(p):
-                return key
-        return None
-
-    parent = {k: k for k in isl}
-
-    def find(a):
-        while parent[a] != a:
-            parent[a] = parent[parent[a]]
-            a = parent[a]
-        return a
-
-    for (x, y) in bridges:
-        f, b = at(pcbnew.F_Cu, x, y), at(pcbnew.B_Cu, x, y)
-        if f and b:
-            ra, rb = find(f), find(b)
-            if ra != rb:
-                parent[ra] = rb
-
-    groups = {}
-    for k in isl:
-        groups.setdefault(find(k), []).append(k)
-    return sorted(groups.values(),
-                  key=lambda g: -sum(abs(isl[k].Area()) for k in g))
-
-
-def heal_islands(board, nets, r, rounds=1):
-    """Tie stranded GND pour copper back to the main pour with a via.
-
-    Two distinct failure modes, both healed here:
-
-      1. An island with no layer-bridging anchor at all.
-      2. A *group* of islands that bridge to each other but never reach the
-         main pour — e.g. F.Cu island -> via -> B.Cu island -> via -> back to
-         the same F.Cu island. Every island in such a group has a via, so the
-         original "does this island contain any anchor?" test declared them
-         all healthy while KiCad reported "Missing connection between
-         Zone [GND] and Zone [GND]" and heal_islands printed "healed 0".
-
-    Modelling it as connectivity components covers both: anything outside the
-    largest component needs a via placed where it overlaps the main component
-    on the opposite layer. The caller refills the zones (kicad-cli
-    --refill-zones) and calls again until DRC reports no unconnected items.
-    """
-    total = 0
-    for _ in range(rounds):
-        isl = _gnd_islands(board)
-        comps = _island_components(isl, _gnd_bridges(board))
-        if len(comps) < 2:
-            break
-        main = set(comps[0])
-        added = 0
-        for group in comps[1:]:
-            placed = False
-            for key in sorted(group, key=lambda k: -abs(isl[k].Area())):
-                layer, _idx = key
-                other = pcbnew.B_Cu if layer == pcbnew.F_Cu else pcbnew.F_Cu
-                targets = [isl[k] for k in main if k[0] == other]
-                ol = isl[key]
-                bb = ol.BBox()
-                x0, y0 = pcbnew.ToMM(bb.GetLeft()), pcbnew.ToMM(bb.GetTop())
-                x1, y1 = pcbnew.ToMM(bb.GetRight()), pcbnew.ToMM(bb.GetBottom())
-                yy = y0 + 0.4
-                while yy < y1 and not placed:
-                    xx = x0 + 0.4
-                    while xx < x1 and not placed:
-                        p = pcbnew.VECTOR2I(MM(xx), MM(yy))
-                        # must land in this island *and* in main-component
-                        # copper on the other layer, or the via bridges
-                        # nothing useful
-                        if ol.PointInside(p) and \
-                           any(t.PointInside(p) for t in targets):
-                            i2, j2 = r.snap(xx, yy)
-                            r._begin("GND-heal%d" % total)
-                            if r.via_ok("GND", i2, j2):
-                                cx, cy = r.cell_xy(i2, j2)
-                                r.add_via("GND", cx, cy, record=False)
-                                v = pcbnew.PCB_VIA(board)
-                                v.SetPosition(V(cx, cy))
-                                v.SetViaType(pcbnew.VIATYPE_THROUGH)
-                                v.SetDrill(MM(R.VIA_DRILL))
-                                v.SetWidth(MM(R.VIA_DIA))
-                                v.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
-                                v.SetNet(board.FindNet("GND"))
-                                v.SetIsFree(True)
-                                board.Add(v)
-                                print("  bridged stranded GND island to the "
-                                      "main pour at (%.1f, %.1f)" % (cx, cy))
-                                placed = True
-                                added += 1
-                                total += 1
-                        xx += 0.4
-                    yy += 0.4
-                if placed:
-                    break
-            if not placed:
-                area = sum(abs(isl[k].Area()) for k in group) / 1e12
-                print("  !! %.1f mm2 of GND pour (%d island(s)) is stranded "
-                      "and no legal via spot bridges it" % (area, len(group)))
-        if not added:
-            break
-    return total
-
-
-def drop_disconnected_stitch_vias(board, rpt_path):
-    """Remove any free GND via that KiCad's post-fill DRC reports as not
-    actually touching copper on one of its layers.
-
-    stitch_vias()/heal_islands() place vias on a coarse grid, checked
-    against the router's own (approximate) obstacle model rather than
-    KiCad's real zone-fill polygons; a via can land just inside a
-    clearance gap the real fill carves out around a nearby track,
-    leaving it isolated on one layer. heal_islands() doesn't catch this
-    - it only bridges pour islands that have *no* via touching them at
-    all, which is a different failure mode.
-
-    This is only ever safe because GND is never point-to-point routed
-    (see the "missing = ... - {'GND'}" assert in route_all): every GND
-    via is a decorative stitching via added by this build script, not a
-    connection some component depends on. Dropping one just means one
-    fewer plane-tying via at that spot; the surrounding pour and its
-    other stitching vias still carry the net. A real signal via being
-    unconnected would be a genuine routing bug and must not be silently
-    dropped - this only ever touches free vias on the GND net.
-    """
-    import re
-    rpt = open(rpt_path).read()
-    coords = set()
-    for m in re.finditer(
-            r"\[unconnected_items\].*?(?=\n\[|\n\*\*|\Z)", rpt, re.S):
-        block = m.group(0)
-        for vm in re.finditer(
-                r"@\(([\d.]+) mm, ([\d.]+) mm\): Via \[(\S+)\] on", block):
-            x, y, net = vm.groups()
-            if net == "GND":
-                coords.add((round(float(x), 3), round(float(y), 3)))
-    removed = 0
-    for via in [t for t in board.Tracks() if t.Type() == pcbnew.PCB_VIA_T]:
-        if not via.GetIsFree() or via.GetNetname() != "GND":
-            continue
-        vx, vy = pcbnew.ToMM(via.GetPosition().x), pcbnew.ToMM(via.GetPosition().y)
-        if (round(vx, 3), round(vy, 3)) in coords:
-            board.Remove(via)
-            removed += 1
-            print("  dropped disconnected GND stitch via at (%.1f, %.1f)" % (vx, vy))
-    return removed
+            ol = polys.Outline(i)
+            bb = ol.BBox()
+            areas.append((abs(ol.Area()) / 1e12,
+                          pcbnew.ToMM(bb.GetCenter().x),
+                          pcbnew.ToMM(bb.GetCenter().y)))
+        for (area, cx, cy) in sorted(areas, reverse=True)[1:]:
+            out.append((board.GetLayerName(layer), area, cx, cy))
+    return out
 
 
 def summarize(rpt_path):
@@ -469,66 +453,283 @@ def summarize(rpt_path):
     return counts
 
 
-def main(out):
-    out = os.path.abspath(out)
-    board, nets, fps = build_board()
+def build_copper(board, fps, order):
+    """One complete routing attempt. Returns (router, failed-net list)."""
     r, pad_pos = build_router_model(board, fps)
-    for (net, layer, pts, w) in USB_SEEDS:
+    seed_list, stub_terms = all_seeds(pad_pos)
+    for (net, layer, pts, w) in seed_list:
         for a, b in zip(pts, pts[1:]):
-            r.add_seg(net, layer, a[0], a[1], b[0], b[1], w)
+            r.add_seg(net, layer, a[0], a[1], b[0], b[1], w, fixed=True)
     for (net, x, y) in MANUAL_VIAS:
-        r.add_via(net, x, y)
-    print("routing (obstacles from pcbnew pad geometry)...")
-    route_all(r, pad_pos)
-    stitches = stitch_vias(r)
-    print("stitch vias: %d" % len(stitches))
-    route_gnd_stubs(r, pad_pos, stitches)
+        r.add_via(net, x, y, fixed=True)
+    # Plane vias first: they are not optional (a missing one is an unconnected
+    # pad) and they are short, so they claim their spots while the board is
+    # empty and the signal router threads what is left.
+    pv, pv_fail = plane_vias(r, pad_pos, seed_list)
+    print("  plane vias: %d (%d unplaceable)" % (len(pv), len(pv_fail)))
+    failed = route_all(r, pad_pos, seed_list, stub_terms, order=order,
+                       verbose=False)
+    if failed:
+        failed = ripup_retry(r, failed, pad_pos, stub_terms)
+    failed = failed + pv_fail
     r._memo = {}
     r._memo_net = None
-    print("mitred %d right-angle corners" % r.miter_corners())
-    add_copper(board, nets, r)
-    add_stitching(board, nets, stitches)
-    add_outline_and_silk(board)
-    add_zones(board, nets)
+    print("  mitred %d right-angle corners" % r.miter_corners())
+    return r, failed
+
+
+def route_board(board, fps, passes=6):
+    """Route, promoting whatever failed and trying again.
+
+    router.py is greedy and never rips up, so a failed net failed because
+    something routed earlier took the one lane out of its pocket. Re-running
+    with the failures at the head of the order is the cheapest rip-up
+    available: the blocking net gets re-routed around them, and being the
+    longer of the two it usually has somewhere else to go. Iterate until
+    nothing fails or the failure set stops shrinking, and keep the best
+    attempt - promotion can trade one failure for another, and the loop must
+    not end on a worse board than it has already seen.
+    """
+    promoted = []
+    best = None
+    for attempt in range(passes):
+        order = promoted_order(promoted) if promoted else None
+        print("routing pass %d (%d promoted)..." % (attempt + 1, len(promoted)))
+        r, failed = build_copper(board, fps, order)
+        print("  pass %d: %d net(s) unrouted%s"
+              % (attempt + 1, len(failed),
+                 (": " + ", ".join(failed)) if failed else ""))
+        if best is None or len(failed) < len(best[1]):
+            best = (r, failed)
+        if not failed:
+            break
+        new = [n for n in failed if n not in promoted]
+        if not new:
+            break                      # promoting these has stopped helping
+        promoted = promoted + new
+    return best
+
+
+def verify_reusable(board):
+    """Refuse `--no-route` when design.py and the loaded board have drifted.
+
+    The fast path is only sound while the copper it inherits is the copper a
+    full build would produce. Nothing here can prove that outright, but every
+    input the router reads out of design.py *can* be compared against what the
+    board actually has, and a mismatch on any of them means the inherited
+    routing belongs to a different design. A stale fast path that quietly
+    emits a plausible-but-wrong board is worse than no fast path at all, so
+    this exits rather than warns.
+
+    Deliberately not checked: `value` and the SILK text table, both of which
+    the fast path genuinely re-derives, and router.py's own parameters, which
+    are not recorded on the board. Changing those needs the full path and the
+    docs say so.
+    """
+    bad = []
+    seen = {}
+    for fp in board.GetFootprints():
+        seen.setdefault(fp.GetReference(), []).append(fp)
+    for ref in sorted(r for r, v in seen.items() if len(v) > 1):
+        bad.append("%s: %d footprints share this reference" % (ref, len(seen[ref])))
+    for ref in sorted(set(COMPONENTS) - set(seen)):
+        bad.append("%s: in design.py, absent from the board" % ref)
+    for ref in sorted(set(seen) - set(COMPONENTS)):
+        bad.append("%s: on the board, absent from design.py" % ref)
+
+    for ref in sorted(set(COMPONENTS) & set(seen)):
+        c = COMPONENTS[ref]
+        fp = seen[ref][0]
+        # The board's footprints were loaded through the plugin directly, so
+        # they carry the bare footprint name with no library nickname.
+        want_fp = c["fp"].split(":", 1)[1]
+        if fp.GetFPID().GetUniStringLibItemName() != want_fp:
+            bad.append("%s: footprint is %s, design.py says %s"
+                       % (ref, fp.GetFPID().GetUniStringLibItemName(), want_fp))
+        x, y, rot = c["at"]
+        p = fp.GetPosition()
+        if abs(pcbnew.ToMM(p.x) - x) > 1e-4 or abs(pcbnew.ToMM(p.y) - y) > 1e-4:
+            bad.append("%s: at (%.3f, %.3f), design.py says (%.3f, %.3f)"
+                       % (ref, pcbnew.ToMM(p.x), pcbnew.ToMM(p.y), x, y))
+        if abs((fp.GetOrientationDegrees() - rot + 180.0) % 360.0 - 180.0) > 1e-4:
+            bad.append("%s: rotated %.2f deg, design.py says %.2f"
+                       % (ref, fp.GetOrientationDegrees(), rot))
+        for pad in fp.Pads():
+            num = str(pad.GetNumber())
+            want = c["pins"].get(num)
+            have = pad.GetNetname()
+            if want and have != want:
+                bad.append("%s pad %s: net %s, design.py says %s"
+                           % (ref, num, have or "<none>", want))
+
+    have_nets = set(str(k) for k in board.GetNetsByName().keys()) - {""}
+    want_nets = set(netlist())
+    for n in sorted(want_nets - have_nets):
+        bad.append("net %s: in design.py, absent from the board" % n)
+    for n in sorted(have_nets - want_nets):
+        bad.append("net %s: on the board, absent from design.py" % n)
+
+    # MANUAL_VIAS are hand-placed copper, so an edit to that table is a
+    # copper edit even though it lives beside the cosmetic tables.
+    vias = set()
+    for t in board.GetTracks():
+        if t.Type() == pcbnew.PCB_VIA_T:
+            vias.add((t.GetNetname(), round(pcbnew.ToMM(t.GetPosition().x), 3),
+                      round(pcbnew.ToMM(t.GetPosition().y), 3)))
+    for (net, x, y) in MANUAL_VIAS:
+        if (net, round(x, 3), round(y, 3)) not in vias:
+            bad.append("MANUAL_VIAS %s at (%.3f, %.3f): no such via on the board"
+                       % (net, x, y))
+
+    if bad:
+        sys.stderr.write(
+            "--no-route refused: the loaded board is not this design.\n"
+            "%d mismatch(es); the first few:\n" % len(bad))
+        for line in bad[:12]:
+            sys.stderr.write("  %s\n" % line)
+        if len(bad) > 12:
+            sys.stderr.write("  ... and %d more\n" % (len(bad) - 12))
+        sys.exit("Run a full build (make pcb-build) - this change moves copper.")
+
+
+_REMOVED = []
+
+
+def strip_derived(board):
+    """Delete everything `--no-route` re-derives; keep the routing.
+
+    Footprints and board graphics are removed outright rather than edited
+    back to a default state. `silk.place()` has already moved every reference
+    designator and every board text on the loaded board, so re-running the
+    placer over it would be scoring its own previous output instead of the
+    inputs a fresh build gives it. Re-adding the library footprints is the
+    only reset that is exactly the fresh build's starting state, because it
+    *is* it - and it resets the 3D-model list and the reference text metrics
+    for free, which a hand-written reset would have to remember to do.
+
+    Tracks, vias and the two filled zones stay: they are the routing result,
+    and they are the whole point.
+    """
+    # Both lists are taken before anything is removed: the swig wrappers over
+    # BOARD's item containers do not survive a mutation of a sibling
+    # container, and iterating Drawings() after the footprints have gone
+    # raises rather than returning the drawings.
+    doomed = list(board.GetFootprints()) + list(board.GetDrawings())
+    for item in doomed:
+        board.Remove(item)
+    # And the proxies are parked in a module-level list rather than dropped.
+    # A BOARD_ITEM the board no longer owns has no destructor swig can find,
+    # and collecting one does not merely leak it - it corrupts pcbnew's shared
+    # swig type table, after which EVERY later call returns an untyped
+    # SwigPyObject. The first symptom is FootprintLoad() handing back
+    # something with no SetReference() on it, ~150 lines away from the Remove
+    # that caused it. Holding the references costs a few MB for one run.
+    _REMOVED.extend(doomed)
+
+
+def main(out, reuse_routing=False):
+    out = os.path.abspath(out)
+    if reuse_routing:
+        if not os.path.isfile(out):
+            sys.exit("--no-route reuses the routing in %s, and that file does "
+                     "not exist.\nRun a full build first: make pcb-build" % out)
+        # Canonicalise on the way IN as well as out. The tracks and vias are
+        # carried across with the uuids the file gave them, and KiCad's
+        # s-expression writer breaks position ties between items with the
+        # uuid - so a board last written by something that does not
+        # canonicalise (the KiCad GUI, say) would serialise its copper in an
+        # order a full build never produces. Content-derived uuids make that
+        # tie deterministic again. No-op on a board this pipeline wrote.
+        canonicalize_file(out)
+        loaded = pcbnew.LoadBoard(out)
+        verify_reusable(loaded)
+        n_via = sum(1 for t in loaded.GetTracks() if t.Type() == pcbnew.PCB_VIA_T)
+        print("reusing routing from %s: %d tracks, %d vias, %d filled zones"
+              % (os.path.basename(out), len(list(loaded.GetTracks())) - n_via,
+                 n_via, len(list(loaded.Zones()))))
+        strip_derived(loaded)
+        board, nets, fps = build_board(loaded)
+    else:
+        board, nets, fps = build_board()
+        r, failed = route_board(board, fps)
+        if failed:
+            print("UNROUTED: %s" % ", ".join(failed))
+        add_copper(board, nets, r)
+    anchors = add_outline_and_silk(board)
+    # Silk placement runs last, once every pad, footprint outline and board
+    # text exists: it is a whole-board packing problem, and it cannot be
+    # solved a label at a time as each one is created.
+    strayed = silk.adrift(silk.place(board, anchors))
+    if not reuse_routing:
+        add_zones(board, nets)
     rpt_path = os.path.splitext(out)[0] + "-drc.rpt"
     # standalone python fill/DRC needs a project-attached board; kicad-cli
     # fills, saves and checks in one authentic pass.
     import subprocess
     board.SetFileName(out)
     pcbnew.SaveBoard(out, board)
+    # The physical stack-up, which pcbnew cannot be asked to set: KiCad 10's
+    # SWIG bindings do not wrap BOARD_STACKUP, so gen_pcb.STACKUP is written
+    # into the saved file instead. Here rather than after the DRC pass, so
+    # that on the full path kicad-cli parses the block and writes it back out
+    # itself - a stack-up KiCad rejected fails the build rather than reaching
+    # the fab. The fast path has nothing dirty to save, so it keeps these
+    # bytes verbatim; that is why gen_pcb.stackup_sexp() emits KiCad's own
+    # formatting rather than leaving it to the round trip.
+    apply_stackup(out)
     # Every write goes through canonicalize_file: pcbnew hands each item a
     # random uuid and then orders the file by it, so without this an
     # unchanged design lands on disk differently every run (#234). Doing it
     # after *each* write - not just at the end - matters, because the zone
     # fill is only reproducible if kicad-cli is handed a reproducible board.
     canonicalize_file(out)
-    print("saved %s (unfilled); fill+DRC via kicad-cli..." % out)
-    for round_no in range(4):
-        subprocess.run(["kicad-cli", "pcb", "drc", "--refill-zones",
-                        "--save-board", "--severity-all",
-                        "--all-track-errors", "-o", rpt_path, out],
-                       check=True, capture_output=True)
-        canonicalize_file(out)
-        rpt = open(rpt_path).read()
-        import re
-        m = re.search(r"\*\* Found (\d+) unconnected", rpt)
-        unconnected = int(m.group(1)) if m else 0
-        if unconnected == 0:
-            break
-        print("  %d unconnected after fill; healing islands..." % unconnected)
-        b2 = pcbnew.LoadBoard(out)
-        healed = heal_islands(b2, None, r)
-        print("  healed %d islands" % healed)
-        dropped = drop_disconnected_stitch_vias(b2, rpt_path)
-        if dropped:
-            print("  dropped %d disconnected stitch via(s)" % dropped)
-        pcbnew.SaveBoard(out, b2)
-        canonicalize_file(out)
-        if healed == 0 and dropped == 0:
-            break
+    # --refill-zones is not merely unnecessary on the fast path, it is WRONG.
+    # KiCad's filler is idempotent once a zone is filled, but filling an
+    # unfilled zone and refilling an already-filled one do not agree: refilling
+    # this board's +3V3 pour rewrites ~180 lines of its filled_polygon. The
+    # full path fills from empty; the fast path inherits that fill and must
+    # leave it exactly alone, or byte-identity is lost on the pour rather than
+    # on anything to do with silk. Skipping it is also ~0.8 s cheaper.
+    drc = ["kicad-cli", "pcb", "drc"]
+    if not reuse_routing:
+        drc.append("--refill-zones")
+    drc += ["--save-board", "--severity-all", "--all-track-errors",
+            "-o", rpt_path, out]
+    print("saved %s (%s); DRC via kicad-cli..."
+          % (out, "fill inherited" if reuse_routing else "unfilled"))
+    subprocess.run(drc, check=True, capture_output=True)
+    canonicalize_file(out)
+    for (lname, area, cx, cy) in plane_islands(pcbnew.LoadBoard(out)):
+        print("  !! %s plane island of %.1f mm2 stranded at (%.1f, %.1f)"
+              % (lname, area, cx, cy))
     print("KiCad DRC report -> %s" % rpt_path)
     summarize(rpt_path)
+    # Last, and after the board is on disk: a label that had to travel is not
+    # a reason to withhold the artefact you need in order to see why. It is a
+    # reason not to ship it. `silk.RING_MAX` is a bound on how far a legend
+    # may be moved from where it was authored before it stops describing what
+    # it was pointed at - `CT A+/A-/B+/B-` once slid 14 mm onto a different
+    # terminal block - and no amount of placer cleverness fixes an anchor
+    # aimed at occupied board. That is a human's call, so it stops the build.
+    if strayed:
+        for txt, d in strayed:
+            print("FAIL: board text %r moved %.2f mm from its anchor "
+                  "(silk.RING_MAX = %.1f) - move the anchor in gen_pcb.SILK, "
+                  "or the parts crowding it" % (txt, d, silk.RING_MAX))
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "bisque-controller.kicad_pcb")
+    argv = sys.argv[1:]
+    reuse = False
+    paths = []
+    for a in argv:
+        if a == "--no-route":
+            reuse = True
+        elif a.startswith("-"):
+            sys.exit("unknown option %s (usage: kicad_build.py [--no-route] "
+                     "<out.kicad_pcb>)" % a)
+        else:
+            paths.append(a)
+    main(paths[0] if paths else "bisque-controller.kicad_pcb",
+         reuse_routing=reuse)

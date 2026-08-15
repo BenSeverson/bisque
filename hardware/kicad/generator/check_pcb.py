@@ -2,11 +2,22 @@
 
 Checks:
   1. copper-to-copper clearance between different nets (segments, vias, pads)
-  2. per-net connectivity (tracks/vias/pads touching), GND allowed via zone
-  3. no copper inside the antenna keepout (except the module's own courtyard
-     region is copper-free anyway)
-  4. copper-to-board-edge margin
-  5. courtyard overlaps between footprints
+  2. per-net connectivity (tracks/vias/pads touching); the plane nets are
+     exempt, being carried by an inner pour rather than by tracks
+  3. copper-to-board-edge margin
+  4. courtyard overlaps between footprints
+  5. the physical stack-up is declared, and is the one the USB pair's
+     differential impedance was solved on
+
+Check 3 used to be "no track, via or PLANE FILL inside the opto-isolation
+barrier". The optocouplers and their pour keepout were reverted (see
+design.py's SSR block), so the rectangle no longer exists and the check went
+with it rather than being left to pass vacuously.
+
+The board is 4-layer (spec 6.1). Tracks only ever sit on F.Cu or B.Cu; the
+inner layers carry the GND and +3V3 plane fills and nothing else. Through
+vias and plated pads are modelled as present on every copper layer, which is
+what they are.
 """
 import math
 import os
@@ -17,6 +28,12 @@ from sexp import parse, find, find_all, num
 
 MIN_CLEAR = 0.198
 EDGE_CLEAR = 0.4
+
+# Copper stack-up, and the nets poured on the inner layers. Must match
+# gen_pcb.PLANE_LAYER; duplicated so this checker stays independent.
+CU_LAYERS = {"F.Cu": 0, "B.Cu": 1, "In1.Cu": 2, "In2.Cu": 3}
+ALL_CU = set(CU_LAYERS.values())
+PLANE_NETS = ("GND", "+3V3")
 
 
 class Item:
@@ -128,7 +145,7 @@ def load(src):
         it.w = num(find(s, "width")[1])
         it.h = it.w
         it.circle = False
-        it.layers = {0 if str(find(s, "layer")[1]) == "F.Cu" else 1}
+        it.layers = {CU_LAYERS[str(find(s, "layer")[1])]}
         it.net = find(s, "net")[1]
         it.ref = "seg"
         items.append(it)
@@ -141,7 +158,7 @@ def load(src):
         it.w = num(find(v, "size")[1])
         it.h = it.w
         it.circle = True
-        it.layers = {0, 1}
+        it.layers = set(ALL_CU)          # through via: every copper layer
         it.net = find(v, "net")[1]
         it.ref = "via"
         items.append(it)
@@ -199,7 +216,8 @@ def load(src):
             it.w, it.h = w, h
             it.circle = str(p[3]) == "circle"
             kind = str(p[2])
-            it.layers = {0, 1} if kind in ("thru_hole", "np_thru_hole") else {0}
+            it.layers = set(ALL_CU) if kind in ("thru_hole", "np_thru_hole") \
+                else {0}
             netn = find(p, "net")
             if kind == "np_thru_hole":
                 it.net = -2  # blocks everything
@@ -230,6 +248,93 @@ def load(src):
         elif it.net in netnames and it.net >= 0:
             it.net = netnames[it.net]  # normalize numbered nets to names
     return items, netnames, courtyards, edges, doc
+
+
+def zone_fills(doc):
+    """(layer, net, [[(x, y), ...], ...]) for every filled zone."""
+    out = []
+    for z in find_all(doc, "zone"):
+        lay = find(z, "layer")
+        net = find(z, "net")
+        if lay is None or net is None:
+            continue
+        polys = []
+        for fp in find_all(z, "filled_polygon"):
+            pts = find(fp, "pts")
+            if pts:
+                polys.append([(num(p[1]), num(p[2]))
+                              for p in find_all(pts, "xy")])
+        if polys:
+            out.append((str(lay[1]), str(net[1]), polys))
+    return out
+
+
+def check_stackup(doc):
+    """The physical stack-up is declared, and is the one the board was solved on.
+
+    A .kicad_pcb is perfectly valid with no (stackup ...) block, and every
+    other check here passes without one — which is exactly the problem. The
+    board has an impedance target (USB 2.0 FS, 90 ohm differential) and the
+    0.3 mm / 0.2 mm geometry that meets it only meets it on JLC04161H-7628's
+    0.2104 mm 7628 prepreg. Swap the press for one of JLCPCB's thinner-prepreg
+    1.6 mm options and the same copper reads 75, 70 or 61 ohm with nothing on
+    the board changing to say so.
+
+    Expected values are spelled out here rather than imported, so this stays a
+    checker of the file and not of gen_pcb.STACKUP's agreement with itself.
+    """
+    problems = []
+    setup = find(doc, "setup")
+    su = find(setup, "stackup") if setup else None
+    if su is None:
+        return ["no (stackup ...) — the board declares no dielectric heights "
+                "or epsilon_r, so every impedance figure taken off this file "
+                "is computed against a KiCad placeholder (see gen_pcb.STACKUP)"]
+
+    got = []
+    for lay in find_all(su, "layer"):
+        thick = find(lay, "thickness")
+        er = find(lay, "epsilon_r")
+        got.append((str(lay[1]), str(find(lay, "type")[1]),
+                    num(thick[1]) if thick else None,
+                    num(er[1]) if er else None))
+
+    # (name, type, thickness, epsilon_r) for everything that carries a field.
+    want = [("F.Cu", "copper", 0.035, None),
+            ("dielectric 1", "prepreg", 0.2104, 4.4),
+            ("In1.Cu", "copper", 0.0152, None),
+            ("dielectric 2", "core", 1.065, 4.43),
+            ("In2.Cu", "copper", 0.0152, None),
+            ("dielectric 3", "prepreg", 0.2104, 4.4),
+            ("B.Cu", "copper", 0.035, None)]
+    core = [g for g in got if g[1] in ("copper", "core", "prepreg")]
+    if [g[:2] for g in core] != [w[:2] for w in want]:
+        problems.append("stackup layer order is %s, expected %s"
+                        % ([g[0] for g in core], [w[0] for w in want]))
+    else:
+        for g, w in zip(core, want):
+            for field, gv, wv in (("thickness", g[2], w[2]),
+                                  ("epsilon_r", g[3], w[3])):
+                if wv is None:
+                    continue
+                if gv is None or abs(gv - wv) > 1e-6:
+                    problems.append(
+                        "stackup %s %s is %s, expected %s — the USB pair's "
+                        "90 ohm was solved on the expected value" %
+                        (g[0], field, gv, wv))
+
+    # The declared board thickness has to be the stack-up's, or the fab and
+    # the file disagree about what is being pressed.
+    total = sum(g[2] for g in got if g[2] is not None)
+    gen = find(doc, "general")
+    decl = num(find(gen, "thickness")[1]) if gen else None
+    if decl is None or abs(total - decl) > 0.05:
+        problems.append("stackup sums to %.4f mm, (general (thickness %s))"
+                        % (total, decl))
+    if find(su, "dielectric_constraints") is None:
+        problems.append("stackup has no (dielectric_constraints yes) — the fab "
+                        "is free to substitute a different press")
+    return problems
 
 
 def main(src):
@@ -279,7 +384,7 @@ def main(src):
         if isinstance(it.net, str) and it.net:
             bynet[it.net].append(idx)
     for netn, idxs in sorted(bynet.items()):
-        if netn == "GND":
+        if netn in PLANE_NETS:
             continue
         parent = list(range(len(idxs)))
 
@@ -307,29 +412,12 @@ def main(src):
                             % (netn, len(roots),
                                [g[:10] for g in groups.values()]))
 
-    # 3. keepout (from U1)
-    k = None
-    for fp in find_all(doc, "footprint"):
-        pr = {p[1]: p[2] for p in find_all(fp, "property")}
-        for ft in find_all(fp, "fp_text"):
-            if str(ft[1]) == "reference":
-                pr["Reference"] = str(ft[2])
-        if pr.get("Reference") == "U1":
-            at = find(fp, "at")
-            fx, fy = num(at[1]), num(at[2])
-            k = (fx - 24, by0, fx + 24, fy - 6.8)
-    for it in items:
-        if k is None or it.net in (0, ""):
-            continue
-        x0 = min(it.x1, it.x2) - it.w / 2
-        x1 = max(it.x1, it.x2) + it.w / 2
-        y0 = min(it.y1, it.y2) - it.h / 2
-        y1 = max(it.y1, it.y2) + it.h / 2
-        if it.kind in ("seg", "via"):
-            if x1 > k[0] and x0 < k[2] and y1 > k[1] and y0 < k[3]:
-                problems.append("keepout violation: %s %s" % (it, netnames.get(it.net)))
+    # The inner planes must actually be filled - an unfilled board would sail
+    # through every item-based check above, since a zone fill is not a track.
+    if not zone_fills(doc):
+        problems.append("no filled zones found - was the board filled?")
 
-    # 4. edge clearance
+    # 3. edge clearance
     for it in items:
         x0 = min(it.x1, it.x2) - it.w / 2
         x1 = max(it.x1, it.x2) + it.w / 2
@@ -341,7 +429,7 @@ def main(src):
            or y0 < by0 + EDGE_CLEAR or y1 > by1 - EDGE_CLEAR:
             problems.append("edge clearance: %s" % it)
 
-    # 5. courtyard overlaps
+    # 4. courtyard overlaps
     refs = sorted(courtyards)
     for i in range(len(refs)):
         for j in range(i + 1, len(refs)):
@@ -351,6 +439,9 @@ def main(src):
             if ox > 0.05 and oy > 0.05:
                 problems.append("courtyard overlap: %s vs %s (%.1fx%.1f mm)"
                                 % (refs[i], refs[j], ox, oy))
+
+    # 5. physical stack-up
+    problems.extend(check_stackup(doc))
 
     print("checked %d copper items" % len(items))
     if problems:

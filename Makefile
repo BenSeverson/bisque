@@ -32,10 +32,12 @@ IDF         := . ./scripts/idf-env.sh &&
         lint lint-c lint-web format \
         clang-tidy cppcheck \
         size size-firmware size-spiffs \
-        ci ci-firmware clean
+        ci ci-firmware clean \
+        pcb pcb-build pcb-cosmetic pcb-cosmetic-verify pcb-fab pcb-render \
+        pcb-check pcb-check-portable
 
 help:  ## List available targets
-	@awk 'BEGIN{FS=":.*## "} /^[a-z][a-zA-Z0-9_-]*:.*## / {printf "  \033[1m%-15s\033[0m %s\n",$$1,$$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN{FS=":.*## "} /^[a-z][a-zA-Z0-9_-]*:.*## / {printf "  \033[1m%-20s\033[0m %s\n",$$1,$$2}' $(MAKEFILE_LIST)
 
 ## ──────────────────────────────────────────────────────────────────────
 ## Build
@@ -205,6 +207,154 @@ size-spiffs:  ## Check $(SPIFFS_DIR) fits in the SPIFFS partition
 	./scripts/check-spiffs-size.sh $(SPIFFS_DIR)
 
 size: size-firmware size-spiffs  ## Both partition size checks
+
+## ──────────────────────────────────────────────────────────────────────
+## PCB (hardware/kicad) — see hardware/kicad/README.md for the full regen
+## order and why it matters (zone fill must be current before gerbers
+## export, or a stale pour gets baked into gerbers/).
+## ──────────────────────────────────────────────────────────────────────
+
+KICAD_DIR := hardware/kicad
+
+# KiCad's Python — the one that can `import pcbnew`. Resolved inside the
+# recipe, not baked in at parse time, because the answer differs per host:
+# the Linux devcontainer (docs/devcontainer.md) has pcbnew on the *system*
+# python3, macOS has it only inside the KiCad.app bundle. Hardcoding the
+# bundle path made `make pcb` / `make pcb-check` fail in the container even
+# though pcbnew was installed and importable. `KPY=... make pcb` still wins.
+KPY_CANDIDATES = python3 \
+  /Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3 \
+  /usr/bin/python3 /usr/local/bin/python3
+define find_kpy
+KPY="$${KPY:-$$(for p in $(KPY_CANDIDATES); do \
+	  "$$p" -c 'import pcbnew' >/dev/null 2>&1 && { echo "$$p"; break; }; \
+	done)}"; \
+if [ -z "$$KPY" ]; then \
+	echo "error: no Python with 'import pcbnew' found. Install KiCad 10+, or" >&2; \
+	echo "       run in the devcontainer (docs/devcontainer.md), or set KPY=..." >&2; \
+	echo "       tried: $(KPY_CANDIDATES)" >&2; \
+	exit 1; \
+fi
+endef
+
+# The gerber layer set JLCPCB needs. In1.Cu/In2.Cu are NOT optional: this is
+# a 4-layer board and a package without them fabricates as 2-layer, with
+# every ground and power connection missing.
+GERBER_LAYERS := F.Cu,In1.Cu,In2.Cu,B.Cu,F.Paste,B.Paste,F.Silkscreen,B.Silkscreen,F.Mask,B.Mask,Edge.Cuts
+
+# The seven checkers that read the board and schematic as text with nothing
+# but the standard library. Split out so CI can run them on a bare ubuntu
+# runner: installing KiCad 10 from the PPA (see .devcontainer/Dockerfile)
+# costs minutes and ~1 GB, which is not worth paying to learn that a pin
+# default drifted.
+#
+# check_pinmap is the reason this target exists. `design.py` and
+# `main/Kconfig.projbuild` must agree on every GPIO and have drifted apart
+# before; until this ran in CI, the only thing standing between a drift and
+# `main` was someone remembering to type `make pcb-check`.
+#
+# ADDING A CHECKER HERE: a script "needs KiCad" in THREE independent ways,
+# and this list was wrong twice because each fix only considered the one
+# that had just failed:
+#   1. `import pcbnew`          - via_in_pad, silk, placement
+#   2. a `kicad-cli` subprocess - netlist (exports the netlist to diff it)
+#   3. KiCad's footprint libs   - jlc_placement (fits LCSC's land pattern
+#                                 onto the real .kicad_mod; see
+#                                 find_footprint_dir())
+# Every dev machine satisfies all three, so a green local run proves
+# nothing about this list. Check all three, and let CI be the arbiter.
+pcb-check-portable:  ## PCB checkers that need no KiCad install (the CI subset)
+	@cd $(KICAD_DIR) && python3 generator/check_pinmap.py \
+	  && python3 generator/check_sch_bounds.py bisque-controller.kicad_sch \
+	  && python3 generator/check_sch_layout.py bisque-controller.kicad_sch \
+	  && python3 generator/check_pcb.py bisque-controller.kicad_pcb \
+	  && python3 generator/check_drill_clearance.py bisque-controller.kicad_pcb \
+	  && python3 generator/check_canonical.py bisque-controller.kicad_pcb \
+	  && python3 generator/gen_gerber_zip.py --check
+
+# The remaining five need a KiCad install, for the three reasons above. Run
+# the portable set first — same twelve checks as before the split, and a
+# cheap failure beats an expensive one.
+pcb-check: pcb-check-portable  ## Run every PCB checker (no KiCad rebuild)
+	@$(find_kpy); \
+	cd $(KICAD_DIR) && python3 generator/check_netlist.py bisque-controller.kicad_sch \
+	  && python3 generator/check_jlc_placement.py \
+	  && "$$KPY" generator/check_via_in_pad.py bisque-controller.kicad_pcb \
+	  && "$$KPY" generator/check_silk.py bisque-controller.kicad_pcb \
+	  && "$$KPY" generator/check_placement.py
+
+# pcb-check runs BEFORE pcb-render on purpose: the raytrace is the most
+# expensive step here and the least informative one to look at if a checker
+# has already said the board is wrong. Fail first, then spend the minutes.
+pcb: pcb-build pcb-fab  ## Regenerate schematic + board + fab outputs + 3D renders
+	$(MAKE) pcb-check
+	$(MAKE) pcb-render
+
+pcb-build:  ## Regenerate schematic + board only (no fab outputs)
+	@$(find_kpy); \
+	cd $(KICAD_DIR) && python3 generator/gen_sch.py bisque-controller.kicad_sch \
+	  && "$$KPY" generator/kicad_build.py bisque-controller.kicad_pcb \
+	  && "$$KPY" generator/check_via_in_pad.py bisque-controller.kicad_pcb
+
+# The fast path. Routing 93 nets across 141 parts is ~144 s of pcb-build's
+# ~158 s, and silkscreen placement, 3D-model offsets, the title block and
+# reference-designator text metrics cannot move copper at all — so those
+# re-derive off the existing routing in ~8 s. Byte-identical to pcb-build
+# by construction and by test (pcb-cosmetic-verify); kicad_build.py refuses
+# --no-route outright if design.py's parts, placement or nets have drifted
+# from the board on disk. ANYTHING touching placement, connectivity, net
+# classes or router parameters needs `make pcb-build`.
+pcb-cosmetic:  ## Re-derive silk/3D models/title block only, reusing the existing routing (fast)
+	@$(find_kpy); \
+	cd $(KICAD_DIR) && python3 generator/gen_sch.py bisque-controller.kicad_sch \
+	  && "$$KPY" generator/kicad_build.py --no-route bisque-controller.kicad_pcb \
+	  && "$$KPY" generator/check_via_in_pad.py bisque-controller.kicad_pcb
+
+# Costs a full rebuild, so it is deliberately not in pcb-check. Run it when
+# kicad_build.py, silk.py or design.py's placement machinery changes.
+pcb-cosmetic-verify:  ## Prove --no-route is byte-identical to a full rebuild (slow)
+	@$(find_kpy); \
+	cd $(KICAD_DIR) && "$$KPY" generator/check_fast_path.py \
+	  bisque-controller.kicad_pcb
+
+# Everything a fab order reads. Runs AFTER pcb-build: kicad_build.py ends
+# with a `kicad-cli pcb drc --refill-zones` pass, and exporting before that
+# bakes a stale pour into gerbers/. Stale gerbers are deleted rather than
+# overwritten so a layer that stops being exported cannot linger in the zip.
+# gen_gerber_zip.py runs after both exports and before gen_jlc.py, so
+# jlcpcb/ ends up holding the complete upload: gerbers.zip + BOM + CPL.
+# The 3D raytrace is not here — no fab output reads a model — but `make pcb`
+# still runs it as its own step; see pcb-render.
+pcb-fab:  ## Regenerate gerbers, drill, gerbers.zip, BOM/CPL and the PDFs
+	cd $(KICAD_DIR) \
+	  && rm -f gerbers/*.gbr gerbers/*.drl gerbers/*.gbrjob \
+	  && kicad-cli pcb export gerbers -o gerbers/ --layers "$(GERBER_LAYERS)" \
+	       bisque-controller.kicad_pcb \
+	  && kicad-cli pcb export drill -o gerbers/ --format excellon \
+	       --excellon-units mm --excellon-zeros-format decimal --generate-map \
+	       --map-format gerberx2 --gerber-precision 5 bisque-controller.kicad_pcb \
+	  && python3 generator/gen_gerber_zip.py \
+	  && python3 generator/gen_jlc.py jlcpcb \
+	  && kicad-cli sch export pdf -o pdf/bisque-controller-schematic.pdf \
+	       bisque-controller.kicad_sch \
+	  && kicad-cli pcb export pdf --mode-multipage --include-border-title \
+	       -l "F.Cu,In1.Cu,In2.Cu,B.Cu,F.Silkscreen,B.Silkscreen" \
+	       --common-layers "Edge.Cuts" \
+	       -o pdf/bisque-controller-board.pdf bisque-controller.kicad_pcb
+
+# Nothing in a fab order reads a 3D model, so this used to be a hand-run
+# target outside `make pcb`. That made 3d/ the one derived artifact that
+# could silently go stale against the board, and stale is worse here than
+# slow: these renders are how placement and silk get eyeballed without a
+# board in hand, so a reader cannot tell a fixed layout from an old picture
+# of a broken one. It is now the last step of `make pcb`.
+#
+# It stays a separate target, and a content-addressed one, because the
+# raytracer is not reproducible — see the stamp comment in render-3d.sh.
+# An unchanged board therefore costs ~0.2 s here, not 13 s and a 900 KB
+# binary diff. FORCE=1 re-renders regardless.
+pcb-render:  ## Re-raytrace hardware/kicad/3d/ (skipped when nothing affects a pixel; FORCE=1 overrides)
+	cd $(KICAD_DIR) && ./generator/render-3d.sh $(if $(FORCE),--force,)
 
 ## ──────────────────────────────────────────────────────────────────────
 ## Aggregates

@@ -5,12 +5,16 @@ CONFIG_IDF_TARGET="esp32s3"
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 
-# Flash size (ESP32-S3-N16R8: 16MB flash)
+# Flash size (ESP32-S3-WROOM-1U-N16R2: 16MB flash)
 CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
 
-# PSRAM (ESP32-S3-N16R8: 8MB octal PSRAM)
+# PSRAM (ESP32-S3-WROOM-1U-N16R2: 2MB quad PSRAM)
+# Quad, not octal: octal PSRAM consumes GPIO 35/36/37 inside the module, and
+# docs/superpowers/specs/2026-08-10-pcb-rev-b-hardware-design.md needs them.
+# The only consumer of PSRAM is CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC below, which
+# needs tens of KB for OTA TLS, not megabytes.
 CONFIG_SPIRAM=y
-CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_MODE_QUAD=y
 CONFIG_SPIRAM_SPEED_80M=y
 
 # CPU frequency (ESP32-S3 max: 240 MHz)
