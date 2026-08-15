@@ -27,7 +27,7 @@ table — 93 nets, 0 mismatches). The 3D renders in `3d/` are raytraced by
 
 | File | What it is |
 |---|---|
-| `bisque-controller.kicad_pro` | Project (net classes: 0.3 mm signal / 0.7–0.8 mm power, 0.25 mm only on the short fine-pitch escape stubs off the QFN/TSSOP pads) |
+| `bisque-controller.kicad_pro` | Project (net classes: 0.3 mm signal / 0.7–0.8 mm power, 0.25 mm only on the short fine-pitch escape stubs off the QFN/TSSOP pads). Hand-maintained **except** `schematic.top_level_sheets`, which `gen_sch.py::sync_project()` derives — see below |
 | `bisque-controller.kicad_sch` | Schematic (A1, netlist-style: functional groups, global labels for signals, real power ports for rails, and real wires for two-pin nets local to one block). Laid out programmatically by `generator/gen_sch.py` — a `GROUPS` taxonomy plus a deterministic column packer, with a reserved right-hand column for the notes block. A1, not A3: an A3 declaration silently clipped ~40% of the circuit out of the exported PDF while every connectivity checker stayed green (`generator/check_sch_bounds.py` now fails on any off-sheet item), and containment is not readability, so `generator/check_sch_layout.py` additionally fails on any symbol/symbol, text/symbol, text/text or wire/wire collision (wires: a T or a collinear overlap — a plain crossing is allowed) |
 | `bisque-controller.kicad_pcb` | Board: placed, fully routed, 4 layers (F.Cu/B.Cu signals, In1.Cu GND plane, In2.Cu +3V3 plane), on JLCPCB's `JLC04161H-7628` 1.6 mm stack-up — see "The physical stack-up" |
 | `3d/board-3d-*.png` | Raytraced renders, kicad-cli — straight orthographic **top** and **bottom** only. The angled iso/front views were dropped: they look better than they read, and these images get used to check placement and silk, not to advertise |
@@ -44,7 +44,24 @@ format and pcbnew API this generator uses require it — see "Regenerating the
 files"). Zones ship **filled** (KiCad's own filler) and the board already
 passes KiCad DRC; re-run it after any edit. The schematic embeds its
 symbols; the board references the standard KiCad footprint libraries (and
-was generated from them).
+was generated from them), plus the four vendored models in `3dmodels/`.
+
+**Opening the project used to dirty it.** KiCad records the root sheet under
+`schematic.top_level_sheets` in the `.kicad_pro` and writes that block itself
+the first time anything touches the project — and what it writes depends on
+who wrote it. The GUI knows the schematic's real root uuid; `kicad-cli pcb`
+fills all-zeros, because the PCB tooling never loads a schematic and has no
+uuid to record. So the file grew an unexplained diff after a regen and could
+flip between two values depending on which tool ran last.
+
+`gen_sch.py::sync_project()` now derives the entry from the same `ROOT`
+constant the schematic's own `(uuid ...)` comes from, and runs on every
+`pcb-build` / `pcb-cosmetic`. Whoever opens the project next finds it already
+correct and leaves it alone — kicad-cli only ever *adds* the block when it is
+missing and preserves a populated one, which is what makes deriving it
+sufficient rather than a tug-of-war. The rewrite is a whole-file json
+round-trip, safe because KiCad emits plain 2-space-indented JSON that
+re-dumps byte for byte; do not replace it with a hand-rolled text patch.
 
 ## What's on the board
 

@@ -13,6 +13,7 @@ what the net is:
 
 Unused pins get explicit no-connect markers.
 """
+import json
 import math
 import os
 import sys
@@ -48,6 +49,43 @@ PROJECT = "bisque-controller"
 
 def uid(*key):
     return str(uuid.uuid5(NS, "/".join(str(k) for k in key)))
+
+
+def sync_project(sch_path):
+    """Point the .kicad_pro's root-sheet entry at the schematic we just wrote.
+
+    KiCad records the root sheet under `schematic.top_level_sheets`, and it
+    writes that block itself the first time anything touches the project -
+    which means the working tree grows an unexplained diff after a regen that
+    nobody asked for. Worse, *what* it writes depends on who wrote it: the GUI
+    knows the schematic's real root uuid, while `kicad-cli pcb` fills
+    all-zeros because the PCB tooling never loads a schematic and has no uuid
+    to record. Two tools, two answers, and the file flips between them.
+
+    So it is derived here instead, from the same ROOT constant the schematic's
+    own `(uuid ...)` comes from. Whoever opens the project next finds the
+    entry already correct and leaves it alone - verified: kicad-cli only ever
+    *adds* the block when it is missing, and preserves a populated one.
+
+    The rewrite is a whole-file json round-trip, which is safe because KiCad's
+    own writer emits plain 2-space-indented JSON: reading and re-dumping the
+    untouched file reproduces it byte for byte, so this cannot churn
+    formatting the way a hand-rolled patch would.
+    """
+    pro = os.path.splitext(sch_path)[0] + ".kicad_pro"
+    if not os.path.exists(pro):
+        return None                      # nothing to keep in step with
+    with open(pro) as fh:
+        doc = json.load(fh)
+    want = [{"filename": os.path.basename(sch_path),
+             "name": os.path.splitext(os.path.basename(sch_path))[0],
+             "uuid": ROOT}]
+    if doc.get("schematic", {}).get("top_level_sheets") == want:
+        return False
+    doc.setdefault("schematic", {})["top_level_sheets"] = want
+    with open(pro, "w") as fh:
+        fh.write(json.dumps(doc, indent=2) + "\n")
+    return True
 
 
 def snap(v):
@@ -1370,3 +1408,7 @@ if __name__ == "__main__":
     with open(dst, "w") as fh:
         fh.write(text)
     print("wrote %s (%d bytes)" % (dst, len(text)))
+    changed = sync_project(dst)
+    if changed is not None:
+        print("  root sheet in .kicad_pro: %s"
+              % ("updated" if changed else "already in step"))
