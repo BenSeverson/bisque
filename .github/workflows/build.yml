@@ -64,6 +64,27 @@ jobs:
       - name: Host unit tests
         run: make test-host
 
+  # `hardware/kicad/generator/design.py` and `main/Kconfig.projbuild` must
+  # agree on every GPIO. check_pinmap.py is what proves it and those two files
+  # have drifted apart before — but until this job existed nothing in CI ran
+  # it, so the only guard was someone remembering `make pcb-check` locally.
+  #
+  # Deliberately NOT path-filtered. The subset costs ~3 s, less than the
+  # checkout that feeds it, and the drift a filter on `hardware/kicad/**`
+  # would miss is exactly the likely one: a firmware-only PR that edits a
+  # Kconfig pin default and never touches the board.
+  #
+  # Runs the KiCad-free subset only. The three checkers that `import pcbnew`
+  # (via-in-pad, silk, placement) need a KiCad 10 install from the PPA —
+  # minutes and ~1 GB per run, see .devcontainer/Dockerfile — so they stay
+  # local via `make pcb-check`. This job is a floor, not full coverage.
+  pcb-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: PCB checkers (KiCad-free subset)
+        run: make pcb-check-portable
+
   ui-screenshots:
     runs-on: ubuntu-latest
     steps:
