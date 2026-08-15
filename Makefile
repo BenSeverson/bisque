@@ -257,8 +257,12 @@ pcb-check:  ## Run every PCB checker (no KiCad rebuild)
 	  && "$$KPY" generator/check_silk.py bisque-controller.kicad_pcb \
 	  && "$$KPY" generator/check_placement.py
 
-pcb: pcb-build pcb-fab  ## Regenerate schematic + board + fab outputs from design.py
+# pcb-check runs BEFORE pcb-render on purpose: the raytrace is the most
+# expensive step here and the least informative one to look at if a checker
+# has already said the board is wrong. Fail first, then spend the minutes.
+pcb: pcb-build pcb-fab  ## Regenerate schematic + board + fab outputs + 3D renders
 	$(MAKE) pcb-check
+	$(MAKE) pcb-render
 
 pcb-build:  ## Regenerate schematic + board only (no fab outputs)
 	@$(find_kpy); \
@@ -293,7 +297,8 @@ pcb-cosmetic-verify:  ## Prove --no-route is byte-identical to a full rebuild (s
 # overwritten so a layer that stops being exported cannot linger in the zip.
 # gen_gerber_zip.py runs after both exports and before gen_jlc.py, so
 # jlcpcb/ ends up holding the complete upload: gerbers.zip + BOM + CPL.
-# The 3D raytrace is deliberately NOT here — see pcb-render.
+# The 3D raytrace is not here — no fab output reads a model — but `make pcb`
+# still runs it as its own step; see pcb-render.
 pcb-fab:  ## Regenerate gerbers, drill, gerbers.zip, BOM/CPL and the PDFs
 	cd $(KICAD_DIR) \
 	  && rm -f gerbers/*.gbr gerbers/*.drl gerbers/*.gbrjob \
@@ -311,11 +316,19 @@ pcb-fab:  ## Regenerate gerbers, drill, gerbers.zip, BOM/CPL and the PDFs
 	       --common-layers "Edge.Cuts" \
 	       -o pdf/bisque-controller-board.pdf bisque-controller.kicad_pcb
 
-# Split out of `pcb` because it is a minutes-long raytrace and nothing in a
-# fab order depends on it — 3d/ is documentation. Regenerate it by hand when
-# the board's appearance changes.
-pcb-render:  ## Re-raytrace hardware/kicad/3d/ (slow; not part of `make pcb`)
-	cd $(KICAD_DIR) && ./generator/render-3d.sh
+# Nothing in a fab order reads a 3D model, so this used to be a hand-run
+# target outside `make pcb`. That made 3d/ the one derived artifact that
+# could silently go stale against the board, and stale is worse here than
+# slow: these renders are how placement and silk get eyeballed without a
+# board in hand, so a reader cannot tell a fixed layout from an old picture
+# of a broken one. It is now the last step of `make pcb`.
+#
+# It stays a separate target, and a content-addressed one, because the
+# raytracer is not reproducible — see the stamp comment in render-3d.sh.
+# An unchanged board therefore costs ~0.2 s here, not 13 s and a 900 KB
+# binary diff. FORCE=1 re-renders regardless.
+pcb-render:  ## Re-raytrace hardware/kicad/3d/ (skipped when nothing affects a pixel; FORCE=1 overrides)
+	cd $(KICAD_DIR) && ./generator/render-3d.sh $(if $(FORCE),--force,)
 
 ## ──────────────────────────────────────────────────────────────────────
 ## Aggregates
