@@ -294,7 +294,7 @@ pcb-cosmetic-verify:  ## Prove --no-route is byte-identical to a full rebuild (s
 # gen_gerber_zip.py runs after both exports and before gen_jlc.py, so
 # jlcpcb/ ends up holding the complete upload: gerbers.zip + BOM + CPL.
 # The 3D raytrace is deliberately NOT here — see pcb-render.
-pcb-fab:  ## Regenerate gerbers, drill, gerbers.zip, BOM/CPL, PDFs and the board SVG
+pcb-fab:  ## Regenerate gerbers, drill, gerbers.zip, BOM/CPL and the PDFs
 	cd $(KICAD_DIR) \
 	  && rm -f gerbers/*.gbr gerbers/*.drl gerbers/*.gbrjob \
 	  && kicad-cli pcb export gerbers -o gerbers/ --layers "$(GERBER_LAYERS)" \
@@ -309,8 +309,7 @@ pcb-fab:  ## Regenerate gerbers, drill, gerbers.zip, BOM/CPL, PDFs and the board
 	  && kicad-cli pcb export pdf --mode-multipage --include-border-title \
 	       -l "F.Cu,In1.Cu,In2.Cu,B.Cu,F.Silkscreen,B.Silkscreen" \
 	       --common-layers "Edge.Cuts" \
-	       -o pdf/bisque-controller-board.pdf bisque-controller.kicad_pcb \
-	  && python3 generator/render_pcb.py bisque-controller.kicad_pcb preview-board.svg
+	       -o pdf/bisque-controller-board.pdf bisque-controller.kicad_pcb
 
 # Split out of `pcb` because it is a minutes-long raytrace and nothing in a
 # fab order depends on it — 3d/ is documentation. Regenerate it by hand when
