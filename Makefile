@@ -242,32 +242,40 @@ endef
 # every ground and power connection missing.
 GERBER_LAYERS := F.Cu,In1.Cu,In2.Cu,B.Cu,F.Paste,B.Paste,F.Silkscreen,B.Silkscreen,F.Mask,B.Mask,Edge.Cuts
 
-# The checkers that parse the board and schematic as text and need no KiCad
-# install. Split out so CI can run them on a bare ubuntu runner: installing
-# KiCad 10 from the PPA (see .devcontainer/Dockerfile) costs minutes and
-# ~1 GB, which is not worth paying to learn that a pin default drifted.
+# The eight checkers that parse the board and schematic as text with nothing
+# but the standard library. Split out so CI can run them on a bare ubuntu
+# runner: installing KiCad 10 from the PPA (see .devcontainer/Dockerfile)
+# costs minutes and ~1 GB, which is not worth paying to learn that a pin
+# default drifted.
 #
 # check_pinmap is the reason this target exists. `design.py` and
 # `main/Kconfig.projbuild` must agree on every GPIO and have drifted apart
 # before; until this ran in CI, the only thing standing between a drift and
 # `main` was someone remembering to type `make pcb-check`.
+#
+# ADDING A CHECKER HERE: "needs no KiCad" means neither `import pcbnew` NOR
+# a `kicad-cli` subprocess. Grepping for the import alone is not enough and
+# put check_netlist.py in this list for one commit — it exports a netlist by
+# shelling out to kicad-cli, which every dev machine has on PATH and no CI
+# runner does. The tell was a green local run and a red CI one.
 pcb-check-portable:  ## PCB checkers that need no KiCad install (the CI subset)
 	@cd $(KICAD_DIR) && python3 generator/check_pinmap.py \
 	  && python3 generator/check_sch_bounds.py bisque-controller.kicad_sch \
 	  && python3 generator/check_sch_layout.py bisque-controller.kicad_sch \
-	  && python3 generator/check_netlist.py bisque-controller.kicad_sch \
 	  && python3 generator/check_pcb.py bisque-controller.kicad_pcb \
 	  && python3 generator/check_drill_clearance.py bisque-controller.kicad_pcb \
 	  && python3 generator/check_canonical.py bisque-controller.kicad_pcb \
 	  && python3 generator/check_jlc_placement.py \
 	  && python3 generator/gen_gerber_zip.py --check
 
-# The remaining three `import pcbnew`, so they need KiCad's Python. Run the
-# portable set first — same order as before the split, and a cheap failure
-# beats an expensive one.
+# The remaining four need a KiCad install: check_netlist shells out to
+# `kicad-cli`, and the other three `import pcbnew`. Run the portable set
+# first — same twelve checks as before the split, and a cheap failure beats
+# an expensive one.
 pcb-check: pcb-check-portable  ## Run every PCB checker (no KiCad rebuild)
 	@$(find_kpy); \
-	cd $(KICAD_DIR) && "$$KPY" generator/check_via_in_pad.py bisque-controller.kicad_pcb \
+	cd $(KICAD_DIR) && python3 generator/check_netlist.py bisque-controller.kicad_sch \
+	  && "$$KPY" generator/check_via_in_pad.py bisque-controller.kicad_pcb \
 	  && "$$KPY" generator/check_silk.py bisque-controller.kicad_pcb \
 	  && "$$KPY" generator/check_placement.py
 

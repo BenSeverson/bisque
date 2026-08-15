@@ -74,10 +74,11 @@ jobs:
   # would miss is exactly the likely one: a firmware-only PR that edits a
   # Kconfig pin default and never touches the board.
   #
-  # Runs the KiCad-free subset only. The three checkers that `import pcbnew`
-  # (via-in-pad, silk, placement) need a KiCad 10 install from the PPA —
-  # minutes and ~1 GB per run, see .devcontainer/Dockerfile — so they stay
-  # local via `make pcb-check`. This job is a floor, not full coverage.
+  # Runs the KiCad-free subset only. The other four need a KiCad 10 install
+  # from the PPA — minutes and ~1 GB per run, see .devcontainer/Dockerfile —
+  # so they stay local via `make pcb-check`: via-in-pad, silk and placement
+  # `import pcbnew`, and check_netlist shells out to `kicad-cli`. This job is
+  # a floor, not full coverage.
   pcb-check:
     runs-on: ubuntu-latest
     steps:
