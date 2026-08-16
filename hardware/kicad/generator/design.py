@@ -47,17 +47,45 @@ docs/pin-assignments.md — keep that table in sync with this one.
 # shortage. Going 4-layer (rung 3: GND plane on In1.Cu, +3V3 plane on In2.Cu)
 # closed it at 0 unrouted/0 DRC errors, and then gave back every rung-1/rung-2
 # concession: the board walked back to 100 x 100 mm, 0805 passives, and rev
-# A's 0.3/0.7 mm net classes, staying inside JLCPCB's <=100x100 promo tier.
+# A's 0.3 mm signal / 0.7-0.8 mm rail widths, staying inside JLCPCB's
+# <=100x100 promo tier. Those widths live in gen_pcb.ROUTE_ORDER, and
+# gen_pcb.netclass_table() derives the .kicad_pro net classes from that same
+# table - for a long time this comment said "net classes" while the project
+# file held one Default class at 0.2 mm and no patterns at all.
 # See the task 14 report for the DRC counts at each rung.
 BX0, BY0, BX1, BY1 = 20.0, 20.0, 120.0, 120.0   # 100 x 100 mm
 
-# Placement regions (docs/.../2026-08-10-pcb-rev-b-hardware-design.md §6.2).
-# The quiet analog region holds both thermocouple cold junctions and the CT
-# front-end; keep it away from the ULN2003 and the SSR drivers.
-#   digital   x 20..120  y 20..48   module, USB-C, reclaimed antenna band
-#   switching x 20..60   y 50..92   ULN2003, SSR drivers, watchdog, buzzer
-#   analog    x 92..120  y 50..92   MAX31856 x2, ADE7953, CT front-end
-#   headers   x 20..120  y 94..120  LCD / nav / aux / I2C, screw terminals
+# Placement regions. DESCRIPTIVE, not enforced - nothing checks a part against
+# a band, so this block is only worth what its accuracy is worth. Measured off
+# the placement below rather than copied forward from spec §6.2, because the
+# spec's version had stopped being true:
+#
+#   digital    x 20..120  y 20..48   module, USB-C, power in, RESET/BOOT
+#   switching  x 20..60   y 48..95   ULN2003, SSR drivers, watchdog, buzzer
+#   analog     x 88..120  y 33..92   MAX31856 x2 (north), ADE7953 + CT (south)
+#   headers    x 20..120  y 94..120  LCD / nav / aux / I2C, input terminal
+#   (unzoned)  x 60..92   y 48..94   buzzer driver, TP4-TP8, the nameplate
+#
+# Two corrections against §6.2, both found by measuring:
+#
+# The analog region is a COLUMN spanning y 33..92, not the y 50..92 box the
+# spec drew, and it does not "hold both thermocouple cold junctions" in the
+# quiet band - U3 sits at y 37.8 and U5 at y 49.8, i.e. the TC front-ends are
+# level with the digital band and always were. That is tolerable rather than
+# intended: the east end of the digital band holds only R2 and SW2, so it is
+# quiet in practice, and every low-level terminal (J3, J8, J12) still lands on
+# the east edge while every mains-side one (J2, J4, J9, J10) lands on the west.
+# That west/east split is the property this floorplan is actually built on and
+# it does hold - ~30 mm separates the SSR/ULN2003 cluster from the front-ends.
+#
+# The 32 x 46 mm band between the switching column and the analog column
+# belongs to no region at all. 21 parts fall outside every band above, most
+# of them there. It is the lowest-density area on the board (~1.1 parts/cm2
+# against 2.30 in the analog column), which is why gen_pcb.TITLE_POCKET found
+# the board's largest empty rectangle inside it - and also why the ADE7953
+# block, boxed in at 2.30, had to push its crystal 19.5 mm south. If that ever
+# needs fixing, this band is where the room is.
+#
 # There is no isolation-barrier region any more: the opto barrier that used
 # to reserve x 20..40.8 / y 71..95.5 as a four-layer pour keepout went with
 # the optocouplers (see the SSR block below), and the band is now ordinary

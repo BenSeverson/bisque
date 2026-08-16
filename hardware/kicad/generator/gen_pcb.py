@@ -4,6 +4,7 @@ Embeds the official library footprints, assigns nets from design.py,
 autoroutes signal/power nets with router.py, adds the inner GND/+3V3
 planes (unfilled — press 'B' in pcbnew), edge cuts and silkscreen labels.
 """
+import json
 import math
 import os
 import re
@@ -665,7 +666,10 @@ ROUTE_ORDER = [
     # than the 0.7 mm track rev A could afford.
     #
     # Signals are SIG_W = 0.3 mm and the remaining rails 0.7-0.8 mm, which is
-    # rev A's net classes. The 2-layer attempt had to drop every signal AND
+    # rev A's width scheme - and, since netclass_table() below derives the
+    # .kicad_pro classes from this very table, now rev A's net classes in the
+    # project file too rather than only in the router's head.
+    # The 2-layer attempt had to drop every signal AND
     # +3V3 to 0.25 mm, because on this board a signal ends on either a 0.65
     # mm-pitch TSSOP-14 (MAX31856 pins 5/8/9-12) or a 0.5 mm-pitch QFN-28
     # (ADE7953), and a track can only leave pads that fine along the pad's own
@@ -733,6 +737,118 @@ ROUTE_ORDER = [
     ("T_CLK_R", SIG_W), ("T_CS_R", SIG_W), ("T_DIN_R", SIG_W), ("T_DO_R", SIG_W),
     ("T_IRQ_R", SIG_W),
 ]
+
+# ---------------------------------------------------------------------------
+# .kicad_pro net classes
+# ---------------------------------------------------------------------------
+# DERIVED from ROUTE_ORDER above, never typed, and that is the whole point.
+# The project file used to carry exactly one class - `Default`, 0.2 mm track,
+# no netclass_patterns - while this file's comments and hardware/kicad/README
+# both described a board with "0.3 mm signal / 0.7-0.8 mm power" classes. Both
+# descriptions were true of what the ROUTER does and false of what the FILE
+# said, because the widths only ever existed as the second element of the
+# tuples above. Nothing enforced the agreement, so there was nothing to notice
+# when it was never established in the first place.
+#
+# That gap is only invisible while the board is generated. Open this project
+# in KiCad to chase one DRC marker or nudge one track, and every net hands you
+# 0.2 mm - narrower than the 0.25 mm minimum this board actually uses, on a
+# rail the router drew at 0.8 mm. Emitting the classes makes the interactive
+# router lay down what the batch router would have.
+#
+# Classes are grouped by WIDTH rather than by role, and named that way, because
+# width is the only thing they actually share: 0.4 mm covers the two SSR
+# switched low sides AND the four CT sense nets, which have nothing else in
+# common. A name like "Power" would be a lie for half its members.
+NETCLASS_CLEARANCE = 0.2      # as routed; JLCPCB's 4-layer floor is 0.09
+# The one impedance-controlled pair on the board. Values are the geometry the
+# 93.1 ohm figure in STACKUP's comment is computed from - if you retune one,
+# retune the other, and re-solve against the stack-up rather than guessing.
+USB_DIFF_PAIR = ("USB_DP", "USB_DN")
+USB_DIFF_WIDTH, USB_DIFF_GAP = 0.3, 0.2
+
+
+def netclass_table():
+    """[(name, {field: value}, [net, ...])] for the .kicad_pro net_settings.
+
+    `Default` is absent on purpose: it stays whatever the project already says
+    apart from the widths patched in by sync_netclasses(), so every net not
+    named here inherits SIG_W without needing a pattern of its own.
+    """
+    by_width = {}
+    for net, w in ROUTE_ORDER:
+        if w != SIG_W:
+            by_width.setdefault(w, []).append(net)
+    out = []
+    # Widest first, so the emitted order reads like the rail hierarchy.
+    for w in sorted(by_width, reverse=True):
+        out.append(("Track_%.2fmm" % w, {"track_width": w}, sorted(by_width[w])))
+    # The plane nets reach their layer by via; the only copper they own on a
+    # routing layer is the PLANE_STUB_W stub from pad to via, so that is the
+    # width a hand-drawn GND or +3V3 track should default to as well.
+    out.append(("Plane", {"track_width": PLANE_STUB_W}, sorted(PLANE_LAYER)))
+    out.append(("USB", {"track_width": USB_DIFF_WIDTH,
+                        "diff_pair_width": USB_DIFF_WIDTH,
+                        "diff_pair_gap": USB_DIFF_GAP},
+                sorted(USB_DIFF_PAIR)))
+    return out
+
+
+def sync_netclasses(pro_path):
+    """Write the derived net classes into `pro_path`. True if it changed.
+
+    Idempotent, and it has to be: `pcbnew.SaveBoard()` on the full path blanks
+    `net_settings` exactly the way it blanks `schematic.top_level_sheets` (a
+    BOARD carries a PROJECT and the full path's board is a bare, project-less
+    `pcbnew.BOARD()`), so this runs AFTER the board is written, not before.
+    Measured: a fresh BOARD saved beside a populated .kicad_pro drops every
+    class but Default and empties netclass_patterns.
+
+    Each class is cloned from the project's own `Default` rather than authored
+    field-by-field here. KiCad's netclass schema carries a dozen keys this
+    board does not care about (bus_width, microvia_*, pcb_color, wire_width,
+    tuning_profile...), and a literal would silently freeze whatever set was
+    current the day it was written; cloning tracks the schema for free and
+    keeps the diff to the fields actually being set.
+
+    Both lists are emitted SORTED BY NAME, which is not cosmetic. KiCad
+    rewrites `classes` in alphabetical order whenever it touches the project,
+    so emitting them in width order (the order netclass_table() builds them
+    in, widest rail first) meant every build read back a differently-ordered
+    list, compared unequal against an identical set, and rewrote the file -
+    reporting a change on a run where nothing had changed. Sorting to KiCad's
+    own order makes the comparison meaningful and the file stable no matter
+    which of the two wrote it last. `priority` still carries the width
+    ordering, which is the part KiCad actually resolves against.
+    """
+    if not os.path.exists(pro_path):
+        return False              # scratch builds (check_fast_path) have none
+    with open(pro_path) as fh:
+        doc = json.load(fh)
+    ns = doc.setdefault("net_settings", {})
+    classes = ns.setdefault("classes", [])
+    base = next((c for c in classes if c.get("name") == "Default"), None)
+    if base is None:
+        return False              # no template to clone; leave the file alone
+    want = [dict(base, name="Default", track_width=SIG_W,
+                 clearance=NETCLASS_CLEARANCE)]
+    patterns = []
+    # priority: lower binds tighter, and Default sits at INT_MAX so anything
+    # numbered here outranks it. Assigned in netclass_table() order (widest
+    # rail first) even though the emitted list is then sorted by name.
+    for pri, (name, fields, nets) in enumerate(netclass_table()):
+        want.append(dict(base, name=name, clearance=NETCLASS_CLEARANCE,
+                         priority=pri, **fields))
+        patterns += [{"netclass": name, "pattern": n} for n in nets]
+    want.sort(key=lambda c: c["name"])
+    patterns.sort(key=lambda p: (p["netclass"], p["pattern"]))
+    if classes == want and ns.get("netclass_patterns") == patterns:
+        return False
+    ns["classes"] = want
+    ns["netclass_patterns"] = patterns
+    with open(pro_path, "w") as fh:
+        fh.write(json.dumps(doc, indent=2) + "\n")
+    return True
 
 
 def net_terminals(net, pad_pos, stub_terms):

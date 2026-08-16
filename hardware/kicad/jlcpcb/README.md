@@ -21,8 +21,10 @@ assembly (see `NOT_ASSEMBLED` in `gen_jlc.py`).
 
 Nothing on this firmware revision toggles `GPIO 36` yet (`KILN_PIN_WDT_KICK`
 in `main/Kconfig.projbuild`). The hardware watchdog on this board gates both
-SSR opto channels off unless that pin is kept alive by a kick task that
-doesn't exist yet. Until it lands:
+SSR channels off unless that pin is kept alive by a kick task that doesn't
+exist yet. (There are no opto channels — see "SJ3 and SJ4 no longer exist"
+below; this line said "SSR opto channels" for a while after the optocouplers
+were reverted out.) Until it lands:
 
 **Bridge `SJ2` with solder (or a 0 Ω jumper) after assembly, before first
 power-on. An unfitted `SJ2` means both SSR outputs stay de-energized — the

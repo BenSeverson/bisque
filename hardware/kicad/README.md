@@ -24,7 +24,7 @@ table — 93 nets, 0 mismatches). The 3D renders in `3d/` are raytraced by
 
 | File | What it is |
 |---|---|
-| `bisque-controller.kicad_pro` | Project (net classes: 0.3 mm signal / 0.7–0.8 mm power, 0.25 mm only on the short fine-pitch escape stubs off the QFN/TSSOP pads). Hand-maintained **except** `schematic.top_level_sheets`, which `gen_sch.py::sync_project()` derives — see below |
+| `bisque-controller.kicad_pro` | Project. Hand-maintained **except** two blocks, both derived and both written *after* the board is saved because `pcbnew.SaveBoard()` blanks them: `schematic.top_level_sheets` (`gen_sch.py::sync_project()`) and `net_settings` (`gen_pcb.py::sync_netclasses()`, from `ROUTE_ORDER`) — see below |
 | `bisque-controller.kicad_sch` | Schematic (A1, netlist-style: functional groups, global labels for signals, real power ports for rails, and real wires for two-pin nets local to one block). Laid out programmatically by `generator/gen_sch.py` — a `GROUPS` taxonomy plus a deterministic column packer, with a reserved right-hand column for the notes block. A1, not A3: an A3 declaration silently clipped ~40% of the circuit out of the exported PDF while every connectivity checker stayed green (`generator/check_sch_bounds.py` now fails on any off-sheet item), and containment is not readability, so `generator/check_sch_layout.py` additionally fails on any symbol/symbol, text/symbol, text/text or wire/wire collision (wires: a T or a collinear overlap — a plain crossing is allowed) |
 | `bisque-controller.kicad_pcb` | Board: placed, fully routed, 4 layers (F.Cu/B.Cu signals, In1.Cu GND plane, In2.Cu +3V3 plane), on JLCPCB's `JLC04161H-7628` 1.6 mm stack-up — see "The physical stack-up" |
 | `3d/board-3d-*.png` | Raytraced renders, kicad-cli — straight orthographic **top** and **bottom** only. The angled iso/front views were dropped: they look better than they read, and these images get used to check placement and silk, not to advertise |
@@ -252,7 +252,12 @@ carries +3V3 alone rather than splitting with +5V, since +5V's own consumers
 don't fall into a separable region) closed the board at 0 unrouted nets and
 0 DRC errors, and then gave back **every** concession the 2-layer attempts
 had made: the board walked back to 100 × 100 mm, 0805 passives, and rev A's
-0.3 mm signal / 0.7 mm power net classes. Neither outer layer is poured —
+0.3 mm signal / 0.7 mm power track widths — which the project file now really
+does carry as net classes, derived from `ROUTE_ORDER` by
+`gen_pcb.netclass_table()`; until that landed the widths existed only inside
+the router and `.kicad_pro` held a single 0.2 mm `Default`, so opening the
+board in KiCad to nudge one track handed you a width the board never uses.
+Neither outer layer is poured —
 on this density, the GND pour was the largest single consumer of routing
 space on exactly the two layers the boxed-in nets needed to escape through.
 Track widths came back too, because the router no longer touches fine-pitch

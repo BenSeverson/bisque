@@ -42,7 +42,7 @@ import router as R
 import silk
 from gen_pcb import (all_seeds, route_all, ripup_retry, promoted_order, plane_vias,
                      apply_stackup, SILK, SILK_GRAPHICS, MANUAL_VIAS,
-                     PLANE_LAYER, HIDE_REFS)
+                     PLANE_LAYER, HIDE_REFS, sync_netclasses, netclass_table)
 
 # Copper stack-up. Rev B is 4-layer (spec 6.1): signals on the outside, an
 # unbroken GND plane on In1.Cu and the +3V3 plane on In2.Cu. router.py still
@@ -790,6 +790,12 @@ def main(out, reuse_routing=False):
     if sync_project(os.path.splitext(out)[0] + ".kicad_sch"):
         print("  root sheet in .kicad_pro: restored after the board save "
               "blanked it")
+    # Same story, same remedy: the board save drops every net class but
+    # Default and empties netclass_patterns, so the derived table is written
+    # back here rather than anywhere earlier in the run.
+    if sync_netclasses(os.path.splitext(out)[0] + ".kicad_pro"):
+        print("  net classes in .kicad_pro: %d class(es) written"
+              % (len(netclass_table()) + 1))
     for (lname, area, cx, cy) in plane_islands(pcbnew.LoadBoard(out)):
         print("  !! %s plane island of %.1f mm2 stranded at (%.1f, %.1f)"
               % (lname, area, cx, cy))
