@@ -74,6 +74,25 @@ FPBASE = _find_fp_base()
 
 
 MM = pcbnew.FromMM
+
+# Minimum silkscreen stroke, mm. JLCPCB quotes 0.153 mm as the floor below
+# which a legend line may print blurred or drop out entirely. 0.16 rather than
+# KiCad's 0.15 house value on purpose: 0.15 is 2.4 um UNDER the quoted number,
+# which is finer than a screen resolves and would almost certainly print, but
+# "under the published figure by less than anyone can measure" is a sentence
+# nobody should have to reconstruct while reading a DFM report. 0.16 is over
+# it, and it was free - the placer seats all 204 labels with 0 silk-on-silk at
+# either value, so there was no trade to make.
+#
+# Both silk TEXT sites clamp here; see the two uses. Footprint OUTLINES are a
+# separate population and are deliberately NOT clamped: they arrive at 0.12 mm
+# from KiCad's own stock libraries (all 37 of ours), which is what every KiCad
+# board ships and what JLCPCB prints daily. Raising them would mean rewriting
+# the vendored .kicad_mod files and would grow every obstacle box the placer
+# works against, to thicken a part outline nobody reads during assembly. The
+# text is what gets read, so the text is what is held to the floor.
+SILK_MIN_STROKE = 0.16
+
 _major = int(pcbnew.Version().split(".")[0])
 if _major < 10:
     sys.exit("kicad_build.py requires KiCad 10+ (found %s)" % pcbnew.Version())
@@ -252,10 +271,42 @@ def build_board(existing=None):
     # nudged out of collisions at this point; at 141 parts a patch list cannot
     # keep up, and it didn't - DRC reported 109 silkscreen violations across
     # 49 designators.
+    #
+    # SILK_MIN_STROKE is a fab floor, not a taste setting. JLCPCB's published
+    # legend capability is 0.153 mm minimum stroke and 0.8 mm minimum height;
+    # below either, the line is documented as possibly blurred or dropped
+    # outright. These labels are load-bearing rather than decorative - the 13
+    # through-hole parts on `jlcpcb/hand-solder-parts.csv` are fitted by hand
+    # against them after the board comes back - so an illegible designator is
+    # a functional defect. The stroke used to be 0.12 mm, 0.033 mm UNDER the
+    # floor.
+    #
+    # The HEIGHT stays at 0.8 mm, which meets the minimum exactly, and the
+    # 0.1875 stroke ratio that gives is bolder than KiCad's 0.15 convention.
+    # That is deliberate, and taking it to 0.9 mm for a prettier 1:6 ratio was
+    # tried and reverted: `silk.py` is a greedy placer over a live index, so
+    # making all 141 designators 12.5% taller does not just cost those labels
+    # room - it reorders who wins which gap board-wide. The one casualty was
+    # the `INPUTS 1 / 2 / 3 / GND` legend, which lost its 1.82 mm slot between
+    # the J6/J7 header row (F.Fab bottom y=106.93) and J11 (F.Fab top
+    # y=108.75) and printed across the terminal block it names. Nothing was
+    # wrong with the anchor; a neighbour simply got there first. Stroke width
+    # was the actual fab defect, so stroke width is all that changed.
     for ref, fp in fps.items():
         t = fp.Reference()
         t.SetTextSize(pcbnew.VECTOR2I(MM(0.8), MM(0.8)))
-        t.SetTextThickness(MM(0.12))
+        t.SetTextThickness(MM(SILK_MIN_STROKE))
+        # The designator is not the only text a footprint can put on silk.
+        # Two here arrive from the stock libraries at 1.0/0.15 - under the
+        # floor by the same 2.4 um the constant above declines to ship - and
+        # neither this loop nor the SILK table would otherwise reach them,
+        # which would leave "every silk text clears the floor" true only of
+        # the text we author. Clamp, never shrink: LED1's pin-1 mark and BZ1's
+        # `+` are deliberately bolder than the floor in their own libraries.
+        for it in list(fp.GraphicalItems()) + [fp.Value()]:
+            if it.GetLayer() == pcbnew.F_SilkS and hasattr(it, "GetText"):
+                if it.GetTextThickness() < MM(SILK_MIN_STROKE):
+                    it.SetTextThickness(MM(SILK_MIN_STROKE))
         # Hidden, not deleted: the field still exists, so the netlist, the
         # BOM and the CPL are untouched and DRC still knows what it is - it
         # simply is not printed. `silk.py` and `check_silk.py` both skip an
@@ -365,7 +416,15 @@ def add_outline_and_silk(board):
         t.SetPosition(V(x, y))
         t.SetLayer(pcbnew.F_SilkS)
         t.SetTextSize(pcbnew.VECTOR2I(MM(size), MM(size)))
-        t.SetTextThickness(MM(max(0.1, size * 0.15)))
+        # The 0.15 ratio is KiCad's own stroke-to-height convention and the
+        # nameplate rows depend on it, but the floor underneath it has to be
+        # the fab's, not a round number: at the 0.8 mm size most of the SILK
+        # table uses, size * 0.15 is 0.12 mm - well under JLCPCB's 0.153 mm
+        # legend minimum, and the old 0.1 mm floor was lower still, so it
+        # never bit. Clamping at SILK_MIN_STROKE leaves every row above
+        # 1.0 mm untouched (they already derive more than the floor) and
+        # lifts only the small legends that were under it.
+        t.SetTextThickness(MM(max(SILK_MIN_STROKE, size * 0.15)))
         t.SetTextAngleDegrees(rot)
         board.Add(t)
         anchors.append((t, x, y))
