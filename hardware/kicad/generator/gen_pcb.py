@@ -217,6 +217,14 @@ PLANE_LAYER = {"GND": "In1.Cu", "+3V3": "In2.Cu"}
 PLANE_NETS = tuple(PLANE_LAYER)
 PLANE_STUB_W = 0.25
 
+# Copper-free box on the OUTER layers around the USB pair, (x0, y0, x1, y1).
+# The measured bounding box of every USB_DP/USB_DN segment on F.Cu and B.Cu is
+# x 46.86..64.00 / y 27.20..44.25; this is that plus 1 mm on each side. See
+# add_zones() in kicad_build.py for why the outer GND pours are held off by
+# geometry instead of by a clearance setting, and STACKUP below for the
+# 93.1 ohm figure that depends on it. Re-measure this if the pair ever moves.
+USB_KEEPOUT = (45.86, 26.20, 65.00, 45.25)
+
 # ---------------------------------------------------------------------------
 # Physical stack-up
 # ---------------------------------------------------------------------------

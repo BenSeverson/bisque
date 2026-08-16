@@ -42,7 +42,8 @@ import router as R
 import silk
 from gen_pcb import (all_seeds, route_all, ripup_retry, promoted_order, plane_vias,
                      apply_stackup, SILK, SILK_GRAPHICS, MANUAL_VIAS,
-                     PLANE_LAYER, HIDE_REFS, sync_netclasses, netclass_table)
+                     PLANE_LAYER, HIDE_REFS, sync_netclasses, netclass_table,
+                     USB_KEEPOUT)
 
 # Copper stack-up. Rev B is 4-layer (spec 6.1): signals on the outside, an
 # unbroken GND plane on In1.Cu and the +3V3 plane on In2.Cu. router.py still
@@ -445,22 +446,65 @@ def add_outline_and_silk(board):
 
 
 def add_zones(board, nets):
-    """The two inner planes.
+    """The two inner planes, plus a GND pour on each outer layer.
 
-    There is deliberately no pour on F.Cu or B.Cu. Rev A poured GND on both
-    signal layers, which on rev B's density was the single largest consumer of
-    routing space on exactly the two layers the boxed-in signals needed; with
-    GND on In1 and +3V3 on In2 the outer layers are signals only.
+    The outer pours are a late addition and the reasoning that kept them off
+    is worth keeping, because it was right at the time. Rev A poured GND on
+    both signal layers; on rev B's density that was the single largest
+    consumer of routing space on exactly the two layers the boxed-in signals
+    needed to escape through, so the 4-layer respin dropped them and gave the
+    outer layers to signals alone.
+
+    What changed is that the routing is now DONE. These zones are added after
+    every track and via exists, so they flood what is left rather than
+    competing for it - the objection was about the router's freedom, and the
+    router has already had it. What they buy back is everything a pour buys
+    that a buried plane does not:
+
+      * U7's exposed pad is now embedded in F.Cu ground rather than sitting
+        on bare laminate with one 0.25 mm stub to one via. Measured: the pour
+        merges with the pad.
+      * The 3.58 MHz crystal gets local ground - 1.30 and 2.35 mm from its
+        two pins. The ADE7953's layout section (Rev C p.67) asks for "a
+        ground plane surrounding as much as possible the through hole crystal
+        pins", and a board with bare laminate on both outer layers had none
+        at all. It does not shorten the 40 mm oscillator loop, which is a
+        placement problem and stays open.
+      * Copper balance, which is the big one. F.Cu carried ~2% coverage
+        against ~90% on both inner layers; it is now 50.9% and B.Cu 73.8%.
+        That asymmetry is what warps a 1.6 mm press.
+
+    It does NOT help U2, and the tempting claim that it would is wrong: the
+    SOT-223 tab is +3V3 and this is a GND pour, so the nearest poured copper
+    stops 1.47 mm away across a clearance gap and conducts nothing. U2's
+    thermal path was fixed by giving its tab four plane vias instead of one
+    (_extra_plane_vias in gen_pcb.py); pouring +3V3 locally around the tab
+    would add to that, and is a separate change.
+
+    USB is held off by geometry, not by a clearance number. gen_pcb.STACKUP's
+    comment is explicit that a flood at the default clearance turns the pair
+    into coplanar waveguide and drags it from 93.1 to ~79 ohm, outside
+    JLCPCB's +-10% window, and that any pour must stay >= 0.5 mm clear. A
+    clearance setting would satisfy that letter while leaving the coupling
+    question live - at 0.5 mm against a 0.2104 mm dielectric the gap is only
+    2.4 dielectric heights, which is not obviously far enough to ignore. So
+    instead a rule area keeps copper out of the pair's neighbourhood
+    altogether: the 93.1 ohm figure is a microstrip-over-In1.Cu calculation,
+    and it stays valid because there is no outer copper near the pair to
+    invalidate it. USB_KEEPOUT is the measured track bounding box (both outer
+    layers, x 46.86..64.00 / y 27.20..44.25) plus 1 mm.
     """
     m = 0.5
-    for netname, layername in sorted(PLANE_LAYER.items()):
+    corners = [(BX0 + m, BY0 + m), (BX1 - m, BY0 + m),
+               (BX1 - m, BY1 - m), (BX0 + m, BY1 - m)]
+
+    def _pour(layer, netname):
         z = pcbnew.ZONE(board)
-        z.SetLayer(PLANE_CU[layername])
+        z.SetLayer(layer)
         z.SetNet(nets[netname])
         ol = z.Outline()
         ol.NewOutline()
-        for (x, y) in [(BX0 + m, BY0 + m), (BX1 - m, BY0 + m),
-                       (BX1 - m, BY1 - m), (BX0 + m, BY1 - m)]:
+        for (x, y) in corners:
             ol.Append(MM(x), MM(y))
         z.SetLocalClearance(MM(0.3))
         z.SetMinThickness(MM(0.2))
@@ -468,11 +512,47 @@ def add_zones(board, nets):
         z.SetThermalReliefSpokeWidth(MM(0.4))
         z.SetPadConnection(pcbnew.ZONE_CONNECTION_THERMAL)
         board.Add(z)
+        return z
 
-    # No rule area. Rev B carved a four-layer pour keepout across the SSR
-    # optocoupler row so the planes could not short around the barrier; the
-    # optos were reverted to direct low-side MOSFET drive (design.py's SSR
-    # block), so nothing needs the pour kept out and both planes run whole.
+    for netname, layername in sorted(PLANE_LAYER.items()):
+        _pour(PLANE_CU[layername], netname)
+
+    for layer in (pcbnew.F_Cu, pcbnew.B_Cu):
+        z = _pour(layer, "GND")
+        # An inner plane is one sheet and any island is a defect worth
+        # reporting (plane_islands does). An outer pour is the opposite: it
+        # is *expected* to leave puddles trapped between traces, and a puddle
+        # touching no pad is unconnected copper - an antenna, and a DRC
+        # island. Drop them rather than ship them.
+        z.SetIslandRemovalMode(pcbnew.ISLAND_REMOVAL_MODE_ALWAYS)
+
+    # Copper-free box around the USB pair; see the docstring for why this is
+    # geometry rather than a clearance. Outer layers only - the pair is a
+    # microstrip referenced to the In1.Cu GND plane, so that plane must stay
+    # whole underneath it. Cutting In1 here would remove the very reference
+    # the 93.1 ohm figure is computed against.
+    ka = pcbnew.ZONE(board)
+    ls = pcbnew.LSET()
+    ls.addLayer(pcbnew.F_Cu)
+    ls.addLayer(pcbnew.B_Cu)
+    ka.SetLayerSet(ls)
+    ka.SetIsRuleArea(True)
+    ka.SetDoNotAllowZoneFills(True)
+    ka.SetDoNotAllowTracks(False)
+    ka.SetDoNotAllowVias(False)
+    ka.SetDoNotAllowPads(False)
+    ka.SetDoNotAllowFootprints(False)
+    ol = ka.Outline()
+    ol.NewOutline()
+    x0, y0, x1, y1 = USB_KEEPOUT
+    for (x, y) in [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]:
+        ol.Append(MM(x), MM(y))
+    board.Add(ka)
+
+    # Rev B also carved a four-layer pour keepout across the SSR optocoupler
+    # row so the planes could not short around the barrier; the optos were
+    # reverted to direct low-side MOSFET drive (design.py's SSR block), so
+    # that one is gone and both inner planes run whole.
 
 
 def plane_islands(board):
@@ -485,12 +565,23 @@ def plane_islands(board):
     repair: it names the layer and the spot so the fix goes into placement.
     KiCad's own DRC reports the same thing as an unconnected zone, but only
     when a pad happens to sit on the stranded piece.
+
+    INNER layers only. That restriction is the whole meaning of the check: on
+    In1/In2 an island is a severed plane and a real defect, while on an outer
+    pour it is just a puddle of copper trapped between traces, which is what
+    a pour on a routed layer always produces. Reporting those would bury the
+    signal it exists to raise - the outer pours generated two B.Cu puddles of
+    87 and 75 mm2 on their first build, both perfectly ordinary. Anything the
+    outer pours strand with no pad on it is deleted rather than reported, by
+    ISLAND_REMOVAL_MODE_ALWAYS in add_zones().
     """
     out = []
     for z in board.Zones():
         if z.GetIsRuleArea():
             continue
         layer = z.GetLayer()
+        if layer not in PLANE_CU.values():
+            continue
         polys = z.GetFilledPolysList(layer)
         areas = []
         for i in range(polys.OutlineCount()):
