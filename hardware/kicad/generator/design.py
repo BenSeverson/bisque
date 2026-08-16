@@ -1068,6 +1068,47 @@ COMPONENTS = {
                fp="MountingHole:MountingHole_3.2mm_M3_Pad_Via",
                fpf="MountingHole_3.2mm_M3_Pad_Via.kicad_mod",
                value="M3", at=(114.5, 115.0, 0), pins={"1": "GND"}),
+    # --- Fiducials --------------------------------------------------------
+    # Optical alignment targets for the pick-and-place: 1 mm of bare copper in
+    # a 2 mm mask opening, on no net, doing nothing electrically. The machine
+    # knows where all 109 parts go in BOARD coordinates, but the board in the
+    # fixture is never exactly at nominal - a fraction of a degree of rotation,
+    # a couple hundred microns of offset, and some lamination/route scaling. It
+    # finds these three, solves the transform, and applies it to every
+    # placement.
+    #
+    # JLCPCB panelises this board themselves and puts fiducials on the panel
+    # frame, so an order without these is accepted and usually fine; what board
+    # fiducials add is correction for THIS board's position within the panel.
+    # Worth having at 0.5 mm pitch: U7 is a QFN-28 whose lands are 0.25 mm
+    # wide, where 100 um of placement error is a real fraction of the pad.
+    #
+    # Positions are measured, not eyeballed - each is the roomiest point in its
+    # corner region, scored on distance to the nearest pad, track, via and
+    # board edge (5.24 / 4.22 / 8.36 mm of clearance respectively, against the
+    # ~1.0 mm the mask opening needs). Three of the four corners, which is the
+    # conventional arrangement and the reason no fourth is fitted: the set must
+    # not map onto itself under a 180 deg rotation or a flipped board would
+    # align cleanly and every part would go on backwards. These three are also
+    # comfortably non-collinear (3292 mm2 triangle, shortest leg 79 mm), which
+    # is what lets the fit resolve rotation and scale rather than just offset.
+    #
+    # The pad carries no pin number in the library footprint, and transform_fp
+    # only assigns a net to a NAMED pad, so `pins={}` leaves it netless by
+    # construction. Keep it netless: it is a camera target, and tying it to a
+    # rail would only invite a pour to reach it and kill the contrast.
+    "FID1": dict(lib="Mechanical", sym="Fiducial",
+                 fp="Fiducial:Fiducial_1mm_Mask2mm",
+                 fpf="Fiducial_1mm_Mask2mm.kicad_mod",
+                 value="FIDUCIAL", at=(28.6, 33.0, 0), pins={}),
+    "FID2": dict(lib="Mechanical", sym="Fiducial",
+                 fp="Fiducial:Fiducial_1mm_Mask2mm",
+                 fpf="Fiducial_1mm_Mask2mm.kicad_mod",
+                 value="FIDUCIAL", at=(107.8, 28.2, 0), pins={}),
+    "FID3": dict(lib="Mechanical", sym="Fiducial",
+                 fp="Fiducial:Fiducial_1mm_Mask2mm",
+                 fpf="Fiducial_1mm_Mask2mm.kicad_mod",
+                 value="FIDUCIAL", at=(103.4, 111.6, 0), pins={}),
     # --- Test points (bring-up) ------------------------------------------
     # 1 mm pads, no BOM cost, no assembly cost.
     "TP1": dict(lib="Connector", sym="TestPoint",

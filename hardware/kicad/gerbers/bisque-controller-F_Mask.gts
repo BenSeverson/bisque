@@ -1,12 +1,12 @@
 %TF.GenerationSoftware,KiCad,Pcbnew,10.0.5*%
-%TF.CreationDate,2026-08-16T12:01:51-07:00*%
+%TF.CreationDate,2026-08-16T13:15:06-07:00*%
 %TF.ProjectId,bisque-controller,62697371-7565-42d6-936f-6e74726f6c6c,B*%
 %TF.SameCoordinates,Original*%
 %TF.FileFunction,Soldermask,Top*%
 %TF.FilePolarity,Negative*%
 %FSLAX46Y46*%
 G04 Gerber Fmt 4.6, Leading zero omitted, Abs format (unit mm)*
-G04 Created by KiCad (PCBNEW 10.0.5) date 2026-08-16 12:01:51*
+G04 Created by KiCad (PCBNEW 10.0.5) date 2026-08-16 13:15:06*
 %MOMM*%
 %LPD*%
 G01*
@@ -343,6 +343,16 @@ X69200000Y-33310000D03*
 X69200000Y-34710000D03*
 X69900000Y-32610000D03*
 X69900000Y-34010000D03*
+%TD*%
+D11*
+%TO.C,FID3*%
+X103400000Y-111600000D03*
+%TD*%
+%TO.C,FID2*%
+X107800000Y-28200000D03*
+%TD*%
+%TO.C,FID1*%
+X28600000Y-33000000D03*
 %TD*%
 D22*
 %TO.C,J14*%

@@ -167,8 +167,10 @@ GROUPS = [
     ("TEST POINTS",
      ["TP1", "TP2", "TP3", "TP4", "TP5", "TP6",
       "TP7", "TP8", "TP9", "TP10", "TP11", "TP12"]),
-    ("MOUNTING / POWER FLAGS",
+    ("MOUNTING / FIDUCIALS / POWER FLAGS\n"
+     "FID1-3 are bare-copper pick-and-place targets, on no net",
      ["H1", "H2", "H3", "H4",
+      "FID1", "FID2", "FID3",
       "#FLG01", "#FLG02", "#FLG03", "#FLG04", "#FLG05"]),
 ]
 

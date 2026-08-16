@@ -1296,11 +1296,19 @@ SILK = _TITLE_TEXTS + [
 # the four holes in the corners. Four labels in the four most crowded corners
 # of the board is a cost with no reader.
 #
+# FID1-3 join them for the same reason and one more. Nobody identifies a
+# fiducial by name - the machine finds them by shape, and a human never refers
+# to one - so the label answers nothing. The extra reason is that silk near a
+# fiducial is not merely useless but actively unhelpful: the target works by
+# contrast between bare copper and bare laminate, and white ink inside the
+# camera's window is the one thing in the neighbourhood that could confuse it.
+# The placer already keeps silk off copper, so this is belt and braces.
+#
 # This is deliberately a short list and should stay one. Everything else on
 # the board is a part somebody has to identify against a BOM, a schematic or
 # a fault, and an unlabelled one of those is the defect this whole placer
 # exists to avoid.
-HIDE_REFS = {"H1", "H2", "H3", "H4"}
+HIDE_REFS = {"H1", "H2", "H3", "H4", "FID1", "FID2", "FID3"}
 
 J5_PINS = ["5V", "GND", "CS", "RST", "DC", "SDI", "SCK", "BL",
            "SDO", "TCK", "TCS", "TDI", "TDO", "IRQ"]

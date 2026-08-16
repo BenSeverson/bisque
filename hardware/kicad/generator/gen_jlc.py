@@ -260,11 +260,17 @@ LCSC = {
 # went with the optocouplers (see design.py's SSR block). J13: a
 # fitted-but-DNP 2-pin header for a future SELV AC-sense accessory (Task 10)
 # - "NO MAINS ON THIS BOARD" per design.py, so this build does not stuff it.
+# FID1-3: optical alignment targets, bare copper on no net. They must be
+# listed HERE and not left to the H-prefix rule assembly_refs() uses for the
+# mounting holes - a designator that is neither H-prefixed nor in this set
+# reaches the BOM as a blank-LCSC row, i.e. a part to "buy" that is not a
+# part, and JLCPCB's PCBA upload rejects the pair.
 NOT_ASSEMBLED = {
     "TP1", "TP2", "TP3", "TP4", "TP5", "TP6",
     "TP7", "TP8", "TP9", "TP10", "TP11", "TP12",
     "SJ1", "SJ2",
     "J13",
+    "FID1", "FID2", "FID3",
 }
 
 # Parts fitted by hand rather than by JLCPCB.
