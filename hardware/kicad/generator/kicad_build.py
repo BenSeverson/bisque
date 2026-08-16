@@ -37,6 +37,7 @@ except ImportError:
 import pcbnew
 from canonicalize import canonicalize_file
 from design import COMPONENTS, netlist, BX0, BY0, BX1, BY1
+from gen_sch import sync_project
 import router as R
 import silk
 from gen_pcb import (all_seeds, route_all, ripup_retry, promoted_order, plane_vias,
@@ -699,6 +700,37 @@ def main(out, reuse_routing=False):
           % (out, "fill inherited" if reuse_routing else "unfilled"))
     subprocess.run(drc, check=True, capture_output=True)
     canonicalize_file(out)
+    # Put `schematic.top_level_sheets` back. Saving this board blanked it, and
+    # the culprit is `pcbnew.SaveBoard()` above, NOT kicad-cli: a BOARD has a
+    # PROJECT attached, saving the board writes that project alongside it, and
+    # on the FULL path build_board() hands us a bare `pcbnew.BOARD()` whose
+    # project is empty - so the root-sheet block is written out as []. The
+    # fast path escapes it because `build_board(loaded)` starts from
+    # LoadBoard(), which attaches the real project and carries the block
+    # through. Measured both ways on a scratch copy: a fresh BOARD saved next
+    # to a populated .kicad_pro empties it; `kicad-cli pcb drc --refill-zones
+    # --save-board` over the same file leaves it exactly alone.
+    #
+    # That last point is worth recording, because 9bcb0bf blamed kicad-cli
+    # ("the PCB tooling never loads a schematic") and concluded it "only ever
+    # adds the block when missing and preserves a populated one". The
+    # conclusion is right and still holds - kicad-cli is innocent here. What
+    # the fix missed is that pcbnew's own writer does the damage, and it runs
+    # AFTER gen_sch.sync_project(), so on `make pcb` the derived entry was
+    # being reverted minutes later and a tracked file ended every full regen
+    # silently changed.
+    #
+    # Re-syncing here, after the last write of the run, is ordering-
+    # independent rather than another lap of the tug-of-war. sync_project is
+    # idempotent: it returns False and touches nothing when already correct,
+    # which is what the fast path reports.
+    # Pass the SCHEMATIC path: sync_project derives both the .kicad_pro to
+    # edit and the `filename` field it records from what it is handed, so
+    # giving it `out` would record "bisque-controller.kicad_pcb" as the root
+    # sheet - in step with nothing, and worse than the empty list.
+    if sync_project(os.path.splitext(out)[0] + ".kicad_sch"):
+        print("  root sheet in .kicad_pro: restored after the board save "
+              "blanked it")
     for (lname, area, cx, cy) in plane_islands(pcbnew.LoadBoard(out)):
         print("  !! %s plane island of %.1f mm2 stranded at (%.1f, %.1f)"
               % (lname, area, cx, cy))
