@@ -299,6 +299,30 @@ COMPONENTS = {
                      "8": "+3V3", "9": "TC1_CS", "10": "SPI_SCLK",
                      "11": "SPI_MISO", "12": "SPI_MOSI", "13": None,
                      "14": "GND"}),
+    # AVDD/DVDD decoupling. The datasheet requirement is "independent 100nF
+    # per pin", which this satisfies; the DISTANCES are loose and deliberately
+    # left that way. Measured pad-to-supply-pin: C13 6.4 mm from U3 AVDD, C14
+    # 5.1 from U3 DVDD, C18 9.0 from U5 DVDD, C19 7.7 from U5 AVDD. U5 is the
+    # worse pair because it is rotated 90 where U3 is 270 - a 180 deg flip -
+    # so its AVDD/DVDD sit on the opposite rows, and this shared x=90 column
+    # was never re-derived for it.
+    #
+    # Tightening this was tried and REVERTED; do not repeat it without reading
+    # what happened. Parking each cap on its own supply pin's centreline at
+    # 1.74 mm left four nets unroutable (TC1_CS, TC2_CS, TC1_P_F, TC2_P_F),
+    # because two things already own those centrelines out to ~2.75 mm: the
+    # pre-seeded fanout escapes (FANOUT["U3"] = 1.5 mm plus the alternating
+    # 0.75 mm, whose far ends ARE the router's terminals) and the +3V3 pins'
+    # own plane vias, which land at FANOUT + 1.25 on the same ray. A 0.65 mm
+    # pitch TSSOP has no lane to spare either side.
+    #
+    # Placing them level with each pad row instead, beyond the row's x-extent
+    # where no escape runs, does work for three of the four - but not for C18,
+    # whose east side is R16/R17/C20/C21, so the WORST channel is the one that
+    # cannot be improved. Trading a routing perturbation in the densest region
+    # of the board (2.30 parts/cm2) for a partial fix to a good-practice
+    # distance, on a ~100 SPS sigma-delta with no fast edges, is not a trade
+    # worth making. Revisit only if these move for another reason.
     "C13": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
                 value="100nF", at=(90.0, 35.0, 0),
                 pins={"1": "+3V3", "2": "GND"}),

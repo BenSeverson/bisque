@@ -405,7 +405,7 @@ def plane_vias(r, pad_pos, seed_list=(), max_r=6.0):
         # Every via changes what the next one may do, so the blocked/via_ok
         # memo has to be dropped between groups rather than only between nets.
         r._memo, r._memo_net = {}, net
-        spot = None
+        spot, chosen = None, None
         for m in members:
             (x, y, layers, area, _net) = pads[m]
             if len(layers) == 2:
@@ -413,7 +413,7 @@ def plane_vias(r, pad_pos, seed_list=(), max_r=6.0):
                 break
             cand = _via_spot_for_pad(r, net, m[0], x, y, max_r)
             if cand is not None:
-                spot = (layers[0], x, y, cand[0], cand[1])
+                spot, chosen = (layers[0], x, y, cand[0], cand[1]), m
                 break
         if spot is None:
             fails.append("%s (%s)"
@@ -426,9 +426,76 @@ def plane_vias(r, pad_pos, seed_list=(), max_r=6.0):
         if abs(cx - x) > 1e-6 or abs(cy - y) > 1e-6:
             r.add_seg(net, layer, x, y, cx, cy, PLANE_STUB_W, fixed=True)
         out.append((net, cx, cy))
+        out += _extra_plane_vias(r, net, layer, chosen, pads, max_r)
     for f in fails:
         print("  !! no plane via spot for %s" % f)
     return out, fails
+
+
+# A plane pad this big is a heat path or a ground reference, not a connection,
+# and one via is not enough for either. Only three SMD plane pads on the board
+# clear it: U1's 3.9 x 3.9 module ground (15.21 mm2), U7's 3.1 x 3.1 exposed
+# pad (9.61) and U2's 2.0 x 3.8 SOT-223 tab (7.60). The next largest is 3.00,
+# so the threshold is not near anything it might catch by accident.
+BIG_PAD_AREA = 4.0        # mm^2
+BIG_PAD_VIAS = 4          # total, including the group's first via
+
+
+def _extra_plane_vias(r, net, layer, member, pads, max_r):
+    """Additional vias for a large plane pad. [] for an ordinary one.
+
+    WHY: `plane_vias` gives each copper-joined group exactly one via, for a
+    good reason documented there - five separate ground vias on the ADE7953
+    once plugged the 0.5 mm escape annulus and cost more nets than the plane
+    saved. That rule is right for a pin. It is wrong for a pad whose job is
+    conducting heat or anchoring a reference:
+
+      * U2 is an AMS1117 dissipating 0.726 W measured. Its SOT-223 tab is the
+        entire thermal path, and the datasheet is explicit that theta-JA runs
+        from 90 down to 46 C/W purely on "the mounting technique and the size
+        of the copper area". One 0.3 mm via into a 0.5 oz inner plane is the
+        90 end of that range.
+      * U1's module ground is the return for a radio that pulls 355 mA in
+        transmit bursts.
+
+    NOT applied to parts in FANOUT (U7, U3, U5). On a 0.5 mm-pitch part every
+    node outside the pad is in the escape annulus, so extra vias there re-run
+    the exact failure the one-via rule exists to prevent. U7's exposed pad
+    therefore keeps its single via - it is connected and it is what ADI's own
+    layout section draws, just not generously. Fixing that one needs vias
+    constrained to the QFN's pinless corners, which is a bigger change than
+    this and belongs with the outer-pour work.
+
+    Spots come from repeated `_nearest_via_spot` calls, and the memo MUST be
+    dropped between them. `router.via_ok` caches its answer per (net, i, j),
+    and adding a via does not invalidate that cache - so without the reset
+    every call re-answers "yes" for the same node and all four vias land on
+    one hole. That is not a subtle failure: KiCad reports it as 12
+    `holes_co_located` violations, which is how it was found. `plane_vias`
+    already resets the memo between groups for the same reason; this is the
+    same hazard one level down.
+
+    Stops early and silently when no further node is legal - a crowded pad
+    simply keeps the vias it could get.
+    """
+    (x, y, layers, area, _net) = pads[member]
+    if area < BIG_PAD_AREA or member[0] in FANOUT or len(layers) == 2:
+        return []
+    out = []
+    for _ in range(BIG_PAD_VIAS - 1):
+        r._memo, r._memo_net = {}, net
+        cand = _nearest_via_spot(r, net, x, y, max_r)
+        if cand is None:
+            break
+        cx, cy = cand
+        r.add_via(net, cx, cy, fixed=True)
+        if abs(cx - x) > 1e-6 or abs(cy - y) > 1e-6:
+            r.add_seg(net, layer, x, y, cx, cy, PLANE_STUB_W, fixed=True)
+        out.append((net, cx, cy))
+    if out:
+        print("  %s.%s (%.2f mm2): %d plane vias"
+              % (member[0], member[1], area, len(out) + 1))
+    return out
 
 
 def _plane_groups(r, pad_pos, seed_list):
