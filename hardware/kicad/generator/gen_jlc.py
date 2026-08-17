@@ -54,7 +54,6 @@ VERIFIED_ON = "2026-08-11"
 # the ESP32-S3 module and the USB-C receptacle at their body centres, LCSC
 # anchors them on the pad pattern.
 JLC_PLACEMENT = {
-    "C107114":  (  0,  0.000,  0.000),   # C25   C_0805_2012Metric                    resid 0.050 (2 pin#)
     "C12891":   (  0,  0.000,  0.000),   # C1    C_1206_3216Metric                    resid 0.118 (2 pin#)
     "C149504":  (  0,  0.000,  0.000),   # R47   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C15127":   (180,  0.000,  0.000),   # Q4    SOT-23                               resid 0.283 (3 pin#)
@@ -77,6 +76,7 @@ JLC_PLACEMENT = {
     "C2296":    (  0,  0.000,  0.000),   # LED3  LED_0805_2012Metric                  resid 0.113 (2 pin#)
     "C2297":    (  0,  0.000,  0.000),   # LED2  LED_0805_2012Metric                  resid 0.113 (2 pin#)
     "C2480":    (  0,  0.000,  0.000),   # D3    D_SMA                                resid 0.035 (2 pin#)
+    "C2838127": (  0,  0.000,  0.000),   # Y1    Oscillator_SMD_Abracon_ASE-4Pin_3.2x resid 0.071 (4 pin#)
     "C2653162": (270,  0.000,  0.000),   # U3    TSSOP-14_4.4x5mm_P0.65mm             resid 0.062 (14 pin#)
     "C27834":   (  0,  0.000,  0.000),   # R4    R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C28323":   (  0,  0.000,  0.000),   # C5    C_0805_2012Metric                    resid 0.050 (2 pin#)
@@ -87,7 +87,6 @@ JLC_PLACEMENT = {
     "C6186":    (180,  0.000,  0.000),   # U2    SOT-223-3_TabPin2                    resid 0.000 (2 pin#)
     "C7420333": (180,  0.000,  0.000),   # D7    SOT-23                               resid 0.083 (3 pin#)
     "C7420376": (270,  0.000,  0.000),   # U4    SOT-23-6                             resid 0.062 (6 pin#)
-    "C7471632": (  0,  0.000,  0.000),   # Y1    Crystal_SMD_HC49-SD_HandSoldering    resid 1.385 (2 pin#)
     "C7512":    (270,  0.000,  0.000),   # U6    SOIC-16_3.9x9.9mm_P1.27mm            resid 0.261 (16 pin#)
     "C81598":   (  0,  0.000,  0.000),   # D4    D_SOD-123                            resid 0.085 (2 pin#)
     "C8678":    (  0,  0.000,  0.000),   # D1    D_SMA                                resid 0.200 (2 pin#)
@@ -155,8 +154,7 @@ LCSC = {
     "C22": ("C1710", "CL21B103KBANNNC 10nF 50V X7R 0805", True, True),
     "C23": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
     "C24": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
-    "C25": ("C107114", "CC0805JRNPO9BN300 30pF 50V NP0 0805", True, True),
-    "C26": ("C107114", "CC0805JRNPO9BN300 30pF 50V NP0 0805", True, True),
+    "C25": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
     "C27": ("C1779", "CL21A475KAQNNNE 4.7uF 25V X5R 0805", True, True),
     "C28": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
     "C29": ("C1779", "CL21A475KAQNNNE 4.7uF 25V X5R 0805", True, True),
@@ -254,7 +252,7 @@ LCSC = {
     "U5": ("C2653162", "MAX31856MUD+T TSSOP-14", False, True),
     "U6": ("C7512", "ULN2003ADR SOIC-16 Darlington array", True, True),
     "U7": ("C515890", "ADE7953ACPZ-RL LFCSP-28 energy metering", False, True),
-    "Y1": ("C7471632", "3.579545MHz crystal HC-49S-SMD", False, True),
+    "Y1": ("C2838127", "TFOM3.579545M4RHKCNT2T 3.579545MHz XO SMD3225-4P", False, True),
 }
 
 # Board features with no manufactured part: excluded from the BOM, the CPL,

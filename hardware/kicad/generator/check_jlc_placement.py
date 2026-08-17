@@ -56,10 +56,14 @@ PIN_REMAP = {
 # so pads cannot coincide however the part is placed. Placement is still
 # correct as long as the fitted translation is zero. An entry here that is no
 # longer needed is an error, not a harmless leftover.
-SHAPE_DIFFERS = {
-    "C7471632": "we use the HandSoldering HC49-SD land, whose pads reach "
-                "1.4 mm further out than LCSC's reflow-size ones",
-}
+# Empty, and the entry that used to be here is worth remembering. C7471632 was
+# the HC-49SD crystal, exempted because we drew it on the HandSoldering land
+# whose pads reach 1.4 mm further out than LCSC's reflow-size ones. That
+# exemption was a symptom: a hand-solder land on a board JLCPCB reflows in full
+# has no reader, and the 6.75 mm of extra pad it cost was part of why nothing
+# could be placed near U7. The crystal is now a packaged oscillator whose two
+# libraries agree to 0.071 mm, so nothing needs exempting.
+SHAPE_DIFFERS = {}
 
 STEPS = (0, 90, 180, 270)
 FIT_TOL = 0.5      # mm, worst per-pad residual before we call the fit poor

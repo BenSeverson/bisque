@@ -27,6 +27,7 @@ which is where the 0.254 and the sign flip below come from.
 import json
 import os
 import subprocess
+import time
 import sys
 
 MIL10_MM = 0.254
@@ -35,13 +36,34 @@ CACHE = os.path.join(HERE, "lcsc_pads.json")
 API = "https://easyeda.com/api/products/%s/components?version=6.4.19.5"
 
 
-def _fetch(lcsc):
-    """-> (package name, [(pad number, x, y), ...]) straight from EasyEDA."""
-    out = subprocess.run(["curl", "-sS", "-m", "40", API % lcsc],
-                         capture_output=True, text=True)
-    if out.returncode != 0:
-        raise RuntimeError("curl failed for %s: %s" % (lcsc, out.stderr.strip()))
-    doc = json.loads(out.stdout)
+def _fetch(lcsc, tries=4):
+    """-> (package name, [(pad number, x, y), ...]) straight from EasyEDA.
+
+    Retries, because a --refresh is ~36 requests back to back and EasyEDA
+    rate-limits that. The tell is an EMPTY 200 rather than an error status:
+    curl exits 0, the body is zero bytes, and json.loads dies with "Expecting
+    value: line 1 column 1", which reads like a corrupt part and is really
+    "you asked too fast". Every part fetches fine one at a time, so the retry
+    just has to outwait the limiter rather than work around anything.
+    """
+    last = None
+    for attempt in range(tries):
+        if attempt:
+            time.sleep(2 ** attempt)          # 2, 4, 8 s
+        out = subprocess.run(["curl", "-sS", "-m", "40", API % lcsc],
+                             capture_output=True, text=True)
+        if out.returncode != 0:
+            last = "curl failed for %s: %s" % (lcsc, out.stderr.strip())
+            continue
+        try:
+            doc = json.loads(out.stdout)
+        except json.JSONDecodeError:
+            last = ("%s: EasyEDA returned %d bytes of non-JSON (rate limit?)"
+                    % (lcsc, len(out.stdout)))
+            continue
+        break
+    else:
+        raise RuntimeError(last)
     if not doc.get("success"):
         raise RuntimeError("%s: EasyEDA returned no component" % lcsc)
     res = doc["result"]

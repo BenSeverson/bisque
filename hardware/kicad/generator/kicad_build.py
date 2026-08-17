@@ -153,6 +153,12 @@ MODEL_FIXUP = {
     "U7": dict(file="QFN-28-1EP_5x5mm_P0.5mm_EP3.1x3.1mm"),
     "SW1": dict(file="SW_Push_1P1T_XKB_TS-1187A"),
     "SW2": dict(file="SW_Push_1P1T_XKB_TS-1187A"),
+    # Y1 - the fifth footprint KiCad 10 ships no model for. It DECLARES one at
+    # ${KICAD10_3DMODEL_DIR}/Oscillator.3dshapes/..., and that directory exists
+    # with nine other parts in it, so the reference looks satisfied right up
+    # until the render quietly omits the part. c_rotation is "0,0,0", so unlike
+    # J1 there is nothing to correct.
+    "Y1": dict(file="Oscillator_SMD_Abracon_ASE-4Pin_3.2x2.5mm"),
 }
 MODEL_DIR = "${KIPRJMOD}/3dmodels/%s.step"
 

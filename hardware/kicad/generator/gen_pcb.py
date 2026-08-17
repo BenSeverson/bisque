@@ -832,7 +832,7 @@ ROUTE_ORDER = [
     ("CTA_P", 0.4), ("CTA_N", 0.4), ("CTA_F", SIG_W),
     ("CTB_P", 0.4), ("CTB_N", 0.4), ("CTB_F", SIG_W),
     # ADE7953 locals
-    ("ADE_CLKIN", SIG_W), ("ADE_CLKOUT", SIG_W), ("ADE_REF", SIG_W),
+    ("ADE_CLKIN", SIG_W), ("ADE_REF", SIG_W),
     ("ADE_VINTA", SIG_W), ("ADE_VINTD", SIG_W), ("ADE_RESET", SIG_W),
     ("ADE_SCLK", SIG_W), ("ADE_CS", SIG_W), ("ADE_VP", SIG_W), ("ADE_VN", SIG_W),
     # protected inputs

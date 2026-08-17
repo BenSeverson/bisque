@@ -156,7 +156,7 @@ GROUPS = [
       "D5", "J11"]),
     ("CT CURRENT SENSING  ADE7953, I2C, current-only\n"
      "no mains - VP/VN to DNP J13",
-     ["U7", "Y1", "C25", "C26", "R30", "C37", "R37", "R38", "C27", "C28",
+     ["U7", "Y1", "C25", "R30", "C37", "R37", "R38", "C27", "C28",
       "C29", "C30", "C33", "C34", "C35", "C36", "R31", "R32", "R33", "C31",
       "R34", "R35", "R36", "C32", "D6", "J12", "J13"]),
     ("TOUCH DAMPING + I2C EXPANSION\n"

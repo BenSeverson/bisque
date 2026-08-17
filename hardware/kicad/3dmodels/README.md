@@ -1,6 +1,6 @@
 # Vendored 3D models
 
-STEP bodies for the five footprints on this board whose models KiCad 10 does
+STEP bodies for the six footprints on this board whose models KiCad 10 does
 not ship, or does not ship reproducibly. `kicad_build.py`'s `MODEL_FIXUP`
 points those footprints here via `${KIPRJMOD}/3dmodels/<stem>.step`, so
 `make pcb-render` works on a clean clone with nothing installed by hand.
@@ -11,6 +11,7 @@ points those footprints here via `${KIPRJMOD}/3dmodels/<stem>.step`, so
 | `SW_Push_1P1T_XKB_TS-1187A.step` | SW1, SW2 | EasyEDA/LCSC **C318884** |
 | `USB_C_Receptacle_HRO_TYPE-C-31-M-12.step` | J1 | EasyEDA/LCSC **C165948** |
 | `QFN-28-1EP_5x5mm_P0.5mm_EP3.1x3.1mm.step` | U7 | EasyEDA/LCSC **C515890** |
+| `Oscillator_SMD_Abracon_ASE-4Pin_3.2x2.5mm.step` | Y1 | EasyEDA/LCSC **C2838127** (`c_rotation 0,0,0`; the STEP's internal filename names the package, `OSC-SMD_4P-L3.2-W2.5-…`, because EasyEDA shares one body across the 3225 4-pad family) |
 
 8.8 MB of that is U1; the whole directory is ~15.9 MB on disk and ~2.8 MB of
 git objects, since STEP is text and compresses about 6:1.
@@ -34,7 +35,7 @@ right", so reproducing them has to be the default rather than a setup chore.
 
 ## Refreshing an LCSC model
 
-The three LCSC models come from the same EasyEDA component API that
+The four LCSC models come from the same EasyEDA component API that
 `generator/lcsc_pads.py` already uses for CPL land patterns. A part's
 `packageDetail` carries an `SVGNODE` shape whose `attrs` hold the 3D model's
 uuid, and the STEP is served from `modules.easyeda.com`:

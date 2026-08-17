@@ -889,38 +889,83 @@ COMPONENTS = {
                      "7": "+3V3", "8": "+3V3", "9": "CTB_F", "10": "GND",
                      "11": "ADE_VN", "12": "ADE_VP", "13": "ADE_REF",
                      "14": "GND", "15": "ADE_VINTA", "16": "GND",
-                     "17": "+3V3", "18": "ADE_CLKIN", "19": "ADE_CLKOUT",
+                     # 19 CLKOUT is the far side of the on-chip oscillator's
+                     # inverter and exists only to hang a crystal off. Y1 is
+                     # now a powered oscillator driving CLKIN as a logic input
+                     # (datasheet p.9: "An external clock can be provided at
+                     # this input"), so nothing drives back into 19 and it is
+                     # left open. ADE_CLKOUT is gone with it.
+                     "17": "+3V3", "18": "ADE_CLKIN", "19": None,
                      "20": None, "21": None, "22": None, "23": None,
                      "24": None, "25": "ADE_SCLK", "26": "I2C_SDA",
                      "27": "I2C_SCL", "28": "ADE_CS", "29": "GND"}),
-    # Crystal: 3.579545 MHz parallel-resonant AT, per REV-B-NOTES.md SS4.
-    # Footprint corrected per the task brief's amendment #2: KiCad's
-    # Crystal_SMD_HC49-SD_HandSoldering (NOT the non-"_SMD_" name in the
-    # original brief text).
-    "Y1": dict(lib="Device", sym="Crystal",
-               fp="Crystal:Crystal_SMD_HC49-SD_HandSoldering",
-               fpf="Crystal_SMD_HC49-SD_HandSoldering.kicad_mod",
-               value="3.579545MHz", at=(96.5, 91.45, 0),
-               pins={"1": "ADE_CLKIN", "2": "ADE_CLKOUT"}),
-    # Crystal load caps - ASSUMED VALUE, NOT A VERIFIED DATASHEET NUMBER.
-    # REV-B-NOTES.md SS4/SS10#1: the specified crystal (LCSC C7471632, YXC
-    # H6OEL89CSC-SUGYLC-3.579545M) has no published C_L - LCSC exposes no
-    # datasheet or C_L field for this MPN, and it explicitly warns "Task 10
-    # must not simply copy 20 pF" (ADI's reference-design value is for
-    # ADI's own reference crystal, not this one). The notes give the
-    # formula C = 2 x (C_L - C_stray) and note that IF this part turns out
-    # to be a 20 pF C_L crystal, the load caps should be ~30 pF, not 20 pF.
-    # ASSUMPTION (open item for board bring-up, not a datasheet fact):
-    # 30 pF, taking the notes' own worked "if C_L=20pF" figure as the best
-    # available estimate absent a real C_L. Verify against YXC's datasheet
-    # (if obtainable) or by measuring startup margin/frequency on the first
-    # populated board before relying on accuracy-critical IRMS readings.
+    # 3.579545 MHz clock. A packaged OSCILLATOR (LCSC C2838127, YJX
+    # TFOM3.579545M4RHKCNT2T, SMD3225-4P), not the parallel-resonant crystal
+    # plus two load caps this used to be. The swap is the fix for the
+    # oscillator loop, and the reasoning is worth keeping because it inverts
+    # the usual default.
+    #
+    # A crystal is normally the right answer - it costs a tenth as much, draws
+    # microamps against this part's 5 mA, and the IC's own inverter is
+    # characterised for one. Every one of those advantages is absent here.
+    # Cost is $0.23 on a $19 BOM; power is 5 mA beside the ESP32's 240 mA on a
+    # mains-fed rail; and this is a current-only metering block whose ±50 ppm
+    # is 100x better than an IRMS reading needs.
+    #
+    # What is present is the one thing a crystal demands and this board cannot
+    # give: a short loop. 3.579545 MHz is a low frequency, so the quartz blank
+    # is large and every 2-terminal part at this frequency is HC-49S - 19.75 mm
+    # of pad on our old hand-solder land, 13.00 mm even on the standard one.
+    # U7's ring is entirely VINTA/VINTD/VDD/REF decoupling that ADE7953 Rev C
+    # p.67 says must stay closest to the chip, so nothing that size fits beside
+    # it and the crystal sat 19.5 mm away with its load caps 26 mm the other
+    # side of the IC - roughly 40 mm per leg, four vias each. At 3.58 mm this
+    # part sits 2.52 mm from CLKIN, and the output is a driven CMOS line rather
+    # than a high-impedance resonant node, so it has no loop to keep short at
+    # all. It also deletes C26 outright and frees C25 to be its decoupler.
+    #
+    # Pin 1 is left OPEN, and that is from the datasheet rather than from the
+    # convention: the Measurement Circuit's switch table gives H -> oscillation
+    # out, OPEN -> oscillation out, L -> High Z. Enabled when floating, so no
+    # pull-up. Pinout confirmed twice over - the datasheet's pin table and
+    # LCSC's own symbol both give 1 Tri-state / 2 GND / 3 OUT / 4 Vdd, which is
+    # also what KiCad's Oscillator:ASE-xxxMHz symbol carries.
+    #
+    # V_OH is >= 90% Vdd = 2.97 V against the ADE7953's 2.4 V V_INH, and the
+    # 15 pF max output load is far above CLKIN plus a few mm of track.
+    #
+    # 7.8 mm from CLKIN, not the 2.5 mm it will physically fit at, and the
+    # difference matters. U7 is in FANOUT, so a ring of pre-seeded escape stubs
+    # and plane vias reaches FANOUT[U7] + 1.25 = 3.0 mm past every pad and is
+    # spoken for before the router starts. Parking the part at 2.5 mm sat on
+    # it: 3 nets unroutable, a plane via with nowhere to go, and 11 DRC
+    # clearance errors. This sits outside that ring, in the space the two
+    # deleted 30 pF load caps used to occupy.
+    #
+    # Being further away costs nothing HERE and that is the whole argument for
+    # the part. OUT is a driven CMOS line, not a high-impedance resonant node,
+    # so it is an ordinary signal with an ordinary length: the tight-loop
+    # requirement that a crystal imposes - and that this corner of the board
+    # cannot satisfy - simply does not exist for an oscillator.
+    "Y1": dict(lib="Oscillator", sym="ASE-xxxMHz",
+               fp="Oscillator:Oscillator_SMD_Abracon_ASE-4Pin_3.2x2.5mm",
+               fpf="Oscillator_SMD_Abracon_ASE-4Pin_3.2x2.5mm.kicad_mod",
+               value="3.579545MHz XO", at=(103.2, 66.8, 0),
+               pins={"1": None, "2": "GND", "3": "ADE_CLKIN", "4": "+3V3"}),
+    # Y1's supply decoupling, and the whole of it - an oscillator needs one
+    # bypass cap and no load caps at all. This designator used to be one of a
+    # pair of 30 pF crystal loads whose value was flagged in REV-B-NOTES.md
+    # SS4/SS10#1 as an ASSUMPTION rather than a datasheet fact, because the old
+    # crystal published no C_L: the 30 pF came from the notes' own worked "if
+    # C_L turns out to be 20 pF" case, and it was an open bring-up item to be
+    # settled by measuring startup margin on the first board. Moving to a
+    # packaged oscillator retires that item outright rather than resolving it -
+    # there is no C_L, no C_stray, and no startup margin for us to own. C26 is
+    # deleted; the ADE7953's own datasheet shows 0.01 uF here and 100 nF is the
+    # part already on this BOM.
     "C25": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="30pF", at=(102.0, 65.5, 0),
-                pins={"1": "ADE_CLKIN", "2": "GND"}),
-    "C26": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="30pF", at=(105.9, 65.5, 0),
-                pins={"1": "ADE_CLKOUT", "2": "GND"}),
+                value="100nF", at=(102.1, 64.0, 0),
+                pins={"1": "+3V3", "2": "GND"}),
     # ~RESET (pin 2): REV-B-NOTES.md SS4 - Figure 35's Test Circuit shows a
     # 10k pull-up to 3.3V with a 1uF cap to ground for a power-on reset
     # stretch (Figure 78's application circuit shows nothing on this pin -
