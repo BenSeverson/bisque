@@ -43,7 +43,7 @@ import silk
 from gen_pcb import (all_seeds, route_all, ripup_retry, promoted_order, plane_vias,
                      apply_stackup, SILK, SILK_GRAPHICS, MANUAL_VIAS,
                      PLANE_LAYER, HIDE_REFS, sync_netclasses, netclass_table,
-                     USB_KEEPOUT)
+                     USB_KEEPOUT, U2_POUR)
 
 # Copper stack-up. Rev B is 4-layer (spec 6.1): signals on the outside, an
 # unbroken GND plane on In1.Cu and the +3V3 plane on In2.Cu. router.py still
@@ -525,6 +525,36 @@ def add_zones(board, nets):
         # touching no pad is unconnected copper - an antenna, and a DRC
         # island. Drop them rather than ship them.
         z.SetIslandRemovalMode(pcbnew.ISLAND_REMOVAL_MODE_ALWAYS)
+
+    # Local +3V3 flood around U2, the one place a GND pour cannot help. Three
+    # things about it are deliberate:
+    #
+    # Priority 1, above the GND pour's 0, or the board-wide zone would fill
+    # this area first and leave the tab with the same clearance gap it has now.
+    #
+    # ZONE_CONNECTION_FULL, not THERMAL. Thermal relief exists to make a pad
+    # hand-solderable by RESTRICTING heat flow into the copper, which is the
+    # exact opposite of what a heat path wants. Everything this zone touches
+    # (U2's tab, its pin-2 pad) is reflow-soldered, so there is no reason to
+    # pay the spokes. This is also why it is a separate zone rather than a
+    # net change on the big one: the pad connection differs.
+    #
+    # F.Cu only. The tab is on the front, and B.Cu under U2 is more useful as
+    # continuous ground.
+    z = pcbnew.ZONE(board)
+    z.SetLayer(pcbnew.F_Cu)
+    z.SetNet(nets["+3V3"])
+    ol = z.Outline()
+    ol.NewOutline()
+    x0, y0, x1, y1 = U2_POUR
+    for (x, y) in [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]:
+        ol.Append(MM(x), MM(y))
+    z.SetLocalClearance(MM(0.3))
+    z.SetMinThickness(MM(0.2))
+    z.SetPadConnection(pcbnew.ZONE_CONNECTION_FULL)
+    z.SetAssignedPriority(1)
+    z.SetIslandRemovalMode(pcbnew.ISLAND_REMOVAL_MODE_ALWAYS)
+    board.Add(z)
 
     # Copper-free box around the USB pair; see the docstring for why this is
     # geometry rather than a clearance. Outer layers only - the pair is a

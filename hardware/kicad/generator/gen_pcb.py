@@ -225,6 +225,20 @@ PLANE_STUB_W = 0.25
 # 93.1 ohm figure that depends on it. Re-measure this if the pair ever moves.
 USB_KEEPOUT = (45.86, 26.20, 65.00, 45.25)
 
+# Local +3V3 flood on F.Cu around U2, (x0, y0, x1, y1). The board-wide outer
+# pour is GND, which does nothing for the AMS1117: its SOT-223 tab is +3V3, so
+# GND copper stops at the clearance gap 1.47 mm away and conducts no heat. The
+# datasheet's theta-JA range of 90 down to 46 C/W is a function of "the size of
+# the copper area" attached to the tab, and at 0.726 W measured this is the one
+# part on the board where that number matters.
+#
+# Bounded by what is actually free: J2's terminal to the west, R5 and the test
+# points to the north, D1/C2 to the south, and to the east USB_KEEPOUT starts
+# at 45.86 so nothing may be poured past it anyway. Everything inside on
+# another net (C1 and D1 on +5V, R5 on CC2, U2's own GND and +5V pins) is
+# carved out by ordinary clearance.
+U2_POUR = (33.0, 30.5, 45.0, 44.5)
+
 # ---------------------------------------------------------------------------
 # Physical stack-up
 # ---------------------------------------------------------------------------
