@@ -70,7 +70,7 @@ JLC_PLACEMENT = {
     "C17630":   (  0,  0.000,  0.000),   # R3    R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17634":   (  0,  0.000,  0.000),   # R39   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17673":   (  0,  0.000,  0.000),   # R44   R_0805_2012Metric                    resid 0.088 (2 pin#)
-    "C17774":   (  0,  0.000,  0.000),   # R31   R_0805_2012Metric                    resid 0.088 (2 pin#)
+    "C17724":   (  0,  0.000,  0.000),   # R31   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C1779":    (  0,  0.000,  0.000),   # C27   C_0805_2012Metric                    resid 0.050 (2 pin#)
     "C17798":   (  0,  0.000,  0.000),   # R10   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C20917":   (180,  0.000,  0.000),   # Q5    SOT-23                               resid 0.083 (3 pin#)
@@ -84,12 +84,11 @@ JLC_PLACEMENT = {
     "C318884":  (  0,  0.000,  0.000),   # SW1   SW_Push_1P1T_XKB_TS-1187A            resid 0.025 (4 shape)
     "C49678":   (  0,  0.000,  0.000),   # C2    C_0805_2012Metric                    resid 0.050 (2 pin#)
     "C515890":  (270,  0.000,  0.000),   # U7    QFN-28-1EP_5x5mm_P0.5mm_EP3.1x3.1mm  resid 0.075 (29 pin#)
-    "C558418":  (270,  0.000,  0.000),   # D5    SOT-23-6                             resid 0.012 (6 pin#)
     "C6186":    (180,  0.000,  0.000),   # U2    SOT-223-3_TabPin2                    resid 0.000 (2 pin#)
     "C7420333": (180,  0.000,  0.000),   # D7    SOT-23                               resid 0.083 (3 pin#)
+    "C7420376": (270,  0.000,  0.000),   # U4    SOT-23-6                             resid 0.062 (6 pin#)
     "C7471632": (  0,  0.000,  0.000),   # Y1    Crystal_SMD_HC49-SD_HandSoldering    resid 1.385 (2 pin#)
     "C7512":    (270,  0.000,  0.000),   # U6    SOIC-16_3.9x9.9mm_P1.27mm            resid 0.261 (16 pin#)
-    "C7519":    (270,  0.000,  0.000),   # U4    SOT-23-6                             resid 0.012 (6 pin#)
     "C81598":   (  0,  0.000,  0.000),   # D4    D_SOD-123                            resid 0.085 (2 pin#)
     "C8678":    (  0,  0.000,  0.000),   # D1    D_SMA                                resid 0.200 (2 pin#)
 }
@@ -119,7 +118,19 @@ def jlc_placement(lcsc, kicad_rot):
             (rot, dx, dy))
 
 
-# ref -> (LCSC part, description, basic_part, verified)
+# ref -> (LCSC part, description, fee_free, verified)
+#
+# fee_free is what it says and NOT "is a Basic part", which is what this field
+# held until the feeder bill was actually checked against JLCPCB's API. Two
+# libraries carry no feeder loading fee on Economic PCBA: Basic (351 parts)
+# and Preferred Extended (1235), the latter being parts JLCPCB keeps mounted
+# but has moved out of Basic. Reading the flag as "Basic" made C107114 (30 pF)
+# and C7420333 (BAT54S) count against the bill they are exempt from, and the
+# total below printed $33 for a board that owes $27.
+#
+# The distinction is only visible in the API, not on the part page's category
+# line, so it is recorded here per part rather than derived:
+#     componentLibraryType == "base" or preferredComponentFlag
 LCSC = {
     "BZ1": ("C96093", "TMB12A05 active magnetic buzzer 5V 12mm THT P7.6", False, True),
     "C1": ("C12891", "CL31A226KAHNNNE 22uF 25V X5R 1206", True, True),
@@ -144,8 +155,8 @@ LCSC = {
     "C22": ("C1710", "CL21B103KBANNNC 10nF 50V X7R 0805", True, True),
     "C23": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
     "C24": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
-    "C25": ("C107114", "CC0805JRNPO9BN300 30pF 50V NP0 0805", False, True),
-    "C26": ("C107114", "CC0805JRNPO9BN300 30pF 50V NP0 0805", False, True),
+    "C25": ("C107114", "CC0805JRNPO9BN300 30pF 50V NP0 0805", True, True),
+    "C26": ("C107114", "CC0805JRNPO9BN300 30pF 50V NP0 0805", True, True),
     "C27": ("C1779", "CL21A475KAQNNNE 4.7uF 25V X5R 0805", True, True),
     "C28": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
     "C29": ("C1779", "CL21A475KAQNNNE 4.7uF 25V X5R 0805", True, True),
@@ -163,9 +174,9 @@ LCSC = {
     "D2": ("C8678", "SS34 SMA", True, True),
     "D3": ("C2480", "SS14 SMA", True, True),
     "D4": ("C81598", "1N4148W SOD-123", True, True),
-    "D5": ("C558418", "SRV05-4 TVS array SOT-23-6", False, True),
-    "D6": ("C558418", "SRV05-4 TVS array SOT-23-6", False, True),
-    "D7": ("C7420333", "BAT54S dual series Schottky SOT-23", False, True),
+    "D5": ("C7420376", "SRV05-4 TVS array SOT-23-6", True, True),
+    "D6": ("C7420376", "SRV05-4 TVS array SOT-23-6", True, True),
+    "D7": ("C7420333", "BAT54S dual series Schottky SOT-23", True, True),
     "J1": ("C165948", "HRO TYPE-C-31-M-12 USB-C 16P", False, True),
     "J2": ("C8465", "WJ500V-5.08-2P 5.08mm screw terminal 1x02", False, True),
     "J3": ("C8465", "WJ500V-5.08-2P 5.08mm screw terminal 1x02", False, True),
@@ -217,10 +228,10 @@ LCSC = {
     "R28": ("C17513", "1k 0805 1%", True, True),
     "R29": ("C17414", "10k 0805 1%", True, True),
     "R30": ("C17414", "10k 0805 1%", True, True),
-    "R31": ("C17774", "0805W8F680KT5E 6.8R 0805 1%", False, True),
+    "R31": ("C17724", "0805W8F510KT5E 5.1R 0805 1%", True, True),
     "R32": ("C17513", "1k 0805 1%", True, True),
     "R33": ("C17513", "1k 0805 1%", True, True),
-    "R34": ("C17774", "0805W8F680KT5E 6.8R 0805 1%", False, True),
+    "R34": ("C17724", "0805W8F510KT5E 5.1R 0805 1%", True, True),
     "R35": ("C17513", "1k 0805 1%", True, True),
     "R36": ("C17513", "1k 0805 1%", True, True),
     "R37": ("C17414", "10k 0805 1%", True, True),
@@ -239,7 +250,7 @@ LCSC = {
     "U1": ("C3013945", "ESP32-S3-WROOM-1U-N16R2 (16MB flash, 2MB quad PSRAM, U.FL)", False, True),
     "U2": ("C6186", "AMS1117-3.3 SOT-223", True, True),
     "U3": ("C2653162", "MAX31856MUD+T TSSOP-14", False, True),
-    "U4": ("C7519", "USBLC6-2SC6 SOT-23-6", False, True),
+    "U4": ("C7420376", "SRV05-4 TVS array SOT-23-6", True, True),
     "U5": ("C2653162", "MAX31856MUD+T TSSOP-14", False, True),
     "U6": ("C7512", "ULN2003ADR SOIC-16 Darlington array", True, True),
     "U7": ("C515890", "ADE7953ACPZ-RL LFCSP-28 energy metering", False, True),

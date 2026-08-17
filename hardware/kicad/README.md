@@ -206,7 +206,8 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   `CTB_N`): two current-transformer inputs into an **ADE7953** energy
   metering IC (U7, LFCSP-28, current-only — the voltage channel is unused),
   on the I2C bus with its own 3.579545 MHz crystal (Y1). Burden resistors
-  (R31/R34, 6.8 Ω), anti-alias RC and an SRV05-4 TVS array (D5/D6) per
+  (R31/R34, 5.1 Ω — full scale ~139 A rms, see `design.py`), anti-alias RC
+  and an SRV05-4 TVS array (D5/D6) per
   channel protect the externally-exposed CT leads. One channel per SSR
   zone, so each element bank gets an independent current reading; with no
   mains voltage sensing on this board, power is estimated as
@@ -220,8 +221,8 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   Carries the on-board ADE7953 today; open for an RTC breakout, an SHT4x RH
   sensor, or an external ADC without board changes. No I2C driver exists in
   firmware yet.
-- **USB-C (J1)** for native-USB flashing: 5.1 kΩ CC resistors, USBLC6-2SC6
-  (U4) ESD protection, VBUS ORed into +5 V. RESET (SW1) and BOOT (SW2)
+- **USB-C (J1)** for native-USB flashing: 5.1 kΩ CC resistors, SRV05-4 (U4)
+  ESD protection, VBUS ORed into +5 V. RESET (SW1) and BOOT (SW2)
   buttons.
 - **Status LED**: WS2812B on IO48; its VDD comes through an SS14 drop diode
   (≈4.6 V) so the 3.3 V data level stays inside the WS2812B's V_IH spec.
@@ -345,11 +346,11 @@ lines covering 109 machine-placed parts) plus `jlcpcb/hand-solder-parts.csv`
 | U1 | ESP32-S3-WROOM-1U-N16R2 | castellated module, U.FL |
 | U2 | AMS1117-3.3 | SOT-223 |
 | U3, U5 | MAX31856MUD+T | TSSOP-14 |
-| U4 | USBLC6-2SC6 | SOT-23-6 |
+| U4 | SRV05-4 TVS array | SOT-23-6 |
 | U6 | ULN2003ADR | SOIC-16 |
 | U7 | ADE7953ACPZ-RL | LFCSP-28 (QFN-28, 5×5 mm) |
 | Y1 | 3.579545 MHz crystal | HC-49S-SMD |
-| D5, D6 | SRV05-4 TVS array | SOT-23-6 |
+| D5, D6 | SRV05-4 TVS array (same part as U4) | SOT-23-6 |
 | D7 | BAT54S dual series Schottky | SOT-23 |
 | Q2, Q3, Q5, Q6 | AO3400A N-MOSFET | SOT-23 |
 | Q4 | AO3401A P-MOSFET (watchdog high-side switch) | SOT-23 |
@@ -414,24 +415,42 @@ carrying designators the BOM does not have:
 | J2, J3, J4, J8, J9 (2-pos screw terminals), J10, J11, J12 (4-pos screw terminals), J5, J6, J7 (KK-254 wafers), BZ1 (buzzer) | 5.08 mm and 2.54 mm pitch — the easiest joints on the board, but the ones that would force Standard assembly |
 | LED1 (WS2812B, PLCC-4 5050) | No addressable RGB LED at LCSC is a Basic part (checked across WS2812/SK6812/XL-xxxx), so its $3 buys nothing an iron can't do to four edge-accessible pads |
 
-What's left goes down the SMT line: **98 Basic parts** (passives, LEDs,
-AO3400A, AO3401A, SS34/SS14, 1N4148W, AMS1117, both tact switches, the
-ULN2003 and the SRV05-4 TVS arrays are all Basic) at no feeder fee,
-and **11 Extended parts** — the module (ESP32-S3-WROOM-1U-N16R2, C3013945),
-both MAX31856MUD+T (C2653162, one designator, two placements), the ADE7953
-(C515890), its crystal (C7471632), the BAT54S watchdog diode (C7420333),
-the SRV05-4 TVS array's specific LCSC line (C558418), the 6.8 Ω CT burden
-resistor (C17774), the 30 pF crystal load caps (C107114), USBLC6-2SC6
-(C7519), the Qwiic connector (C160404) and the USB-C receptacle (C165948) —
-**$33 in feeder fees**, up from rev A's 4 unique Extended parts / $12. Three
-new subsystems (ULN2003, SRV05-4, watchdog) landed at **zero** feeder cost
-by being Basic parts, so the increase is almost entirely the analog/sensing
-front end.
+What's left goes down the SMT line: **102 of 109 placements carry no feeder
+fee**, and only **6 unique Extended parts** do — the module
+(ESP32-S3-WROOM-1U-N16R2, C3013945), both MAX31856MUD+T (C2653162, one
+designator, two placements), the ADE7953 (C515890), its 3.579545 MHz crystal
+(C7471632), the Qwiic connector (C160404) and the USB-C receptacle
+(C165948) — **$18 in feeder fees**.
 
-**Sourcing flag:** LCSC `C17774` (the 6.8 Ω CT burden resistor, R31/R34) was
-down to roughly 970 units in stock as of the last check, with no Basic-part
-alternative at that value/package. Re-check stock immediately before
-ordering — see `FAB-READINESS-REVIEW-REVB.md`.
+Two libraries are free on Economic PCBA, not one: **Basic** (351 parts) and
+**Preferred Extended** (1235), the latter being parts JLCPCB keeps mounted
+but has moved out of Basic. That distinction only appears in JLCPCB's API
+(`componentLibraryType == "base" or preferredComponentFlag`), not on the part
+page's category line, so it is recorded per part in `gen_jlc.LCSC`'s
+`fee_free` flag. Reading that field as "is Basic" is what made this number
+print $33 for a board that owed $27.
+
+The remaining six are structural. The whole fee-free library holds **no
+connectors at all**, so J1 and J14 cannot be avoided at any price, and the
+module, both thermocouple front-ends, the metering IC and its crystal have
+no fee-free equivalent either. $18 is the floor for this board short of
+hand-soldering J14.
+
+Getting from $27 to $18 took three substitutions, all of which are net
+improvements on their own terms rather than compromises:
+
+- **U4, D5, D6 → one Preferred SRV05-4 (C7420376)**, replacing an Extended
+  SRV05-4 line (C558418) on D5/D6 and a USBLC6-2SC6 (C7519) on U4. Worth $6.
+  It also raises U4's ESD rating from IEC 61000-4-2 level 4 (±8 kV contact)
+  to ±30 kV and drops its line capacitance from 3.5 pF max to 1.0 pF.
+- **R31/R34 6.8 Ω → 5.1 Ω (C17724, Basic)**. Worth $3. JLCPCB stocks no
+  6.8 Ω resistor in either fee-free library in *any* package, so that one
+  value was renting a feeder.
+
+**Sourcing flags:** the thinnest stock on the BOM is now `C7471632` (the
+3.579545 MHz crystal) and `C3013945` (the module) — single-sourced, no
+fee-free alternative, and both well under 5 k units. Re-check immediately
+before ordering — see `FAB-READINESS-REVIEW-REVB.md`.
 
 SW1/SW2 are **SMD** tact switches (XKB TS-1187A, C318884), not a
 through-hole part — a Basic part, so it costs no feeder fee *and* stays

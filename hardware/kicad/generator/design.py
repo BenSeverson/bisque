@@ -230,11 +230,63 @@ COMPONENTS = {
     "R5": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
                value="5.1k", at=(42.0, 33.6, 0),
                pins={"1": "CC2", "2": "GND"}),
-    "U4": dict(lib="Power_Protection", sym="USBLC6-2SC6",
+    # SRV05-4 rather than the USBLC6-2SC6 this used to be, which is the same
+    # part D5 and D6 already carry. The driver was JLCPCB's feeder fee — one
+    # part number across three designators instead of two costs $3 less per
+    # order, and the SRV05-4 line chosen (C7420376) is a *Preferred* extended
+    # part, so it is another $3 cheaper again. That is $6 of a $27 bill, and
+    # it is the whole reason this changed.
+    #
+    # It is not a compromise made to save it. Measured off the two datasheets,
+    # the SRV05-4 is the better part here on both axes that matter:
+    #
+    #   * ESD. USBLC6-2SC6 is IEC 61000-4-2 level 4 and no more - +-8 kV
+    #     contact, +-15 kV air. This one is +-30 kV on both.
+    #   * Capacitance. 1.0 pF I/O-GND against the USBLC6's 3.5 pF max, on a
+    #     pair whose impedance the STACKUP comment goes to some length to
+    #     keep at 93.1 ohm.
+    #
+    # What does change is topology, and it is worth knowing why the pin map
+    # below looks so different. The USBLC6 is a pass-through: its two channels
+    # are brought out twice each (1/6 and 3/4), so the pair entered one side
+    # and left the other. The SRV05-4's four channels are independent, so each
+    # line lands on exactly one pin and the array becomes a stub off the pair
+    # instead of a link in it. At 12 Mbps Full Speed a stub this short is
+    # electrically nothing. Tying IO3/IO4 back onto the same two nets would
+    # restore the pass-through look at the cost of doubling the loading to
+    # 2 pF, which buys nothing, so they are left open exactly as D5's IO4 is.
+    #
+    # WHICH pins is not free, and picking the obvious ones cost a rebuild.
+    # This footprint at rot 0 puts 1/2/3 on the west face and 4/5/6 on the
+    # east; J1 is due north of it and U1 is east, so the pair arrives head-on
+    # and leaves toward the east face. The USBLC6 spanned both (1->6, 3->4),
+    # which is why it never mattered before. Land both channels on the WEST
+    # pins - 1 and 3, the numerically obvious choice - and each line dead-ends
+    # on the far side of a package it now has to get around: the router
+    # still solved it, and at the same copper length (40.12 mm on DP against
+    # 40.13 before), but it did it by dipping DP to y 46.75 where it had
+    # previously stayed above 42.10. That grows USB_KEEPOUT 2.5 mm south and
+    # 1.36 mm west, and the west edge is the expensive one - it lands on top
+    # of U2_POUR, so the AMS1117's thermal copper pays for the pin numbering.
+    #
+    # East face instead. IO4/IO3 rather than IO1/IO2 - all four channels are
+    # independent and identical, so this is purely geometry - and it also
+    # keeps DN on the y 33.85 row and DP on y 35.75, exactly the rows the
+    # pass-through used, so the pair stays coupled down one side of the part
+    # instead of splitting around it.
+    #
+    # VP (pin 5) sits between them rather than VN. It is a decoupled 5 V rail,
+    # so it guards as well as a ground would.
+    #
+    # SRV05-4: 1 IO1, 2 VN(GND), 3 IO2, 4 IO3, 5 VP(VBUS), 6 IO4 - the same
+    # pinout D5/D6 are documented against below. VP goes to VBUS, not +3V3:
+    # this array clamps to the rail on pin 5, and the lines it protects are
+    # referenced to the 5 V bus.
+    "U4": dict(lib="Power_Protection", sym="SRV05-4",
                fp="Package_TO_SOT_SMD:SOT-23-6", fpf="SOT-23-6.kicad_mod",
-               value="USBLC6-2SC6", at=(48.0, 34.8, 0),
-               pins={"1": "USB_DN", "6": "USB_DN",
-                     "3": "USB_DP", "4": "USB_DP",
+               value="SRV05-4", at=(48.0, 34.8, 0),
+               pins={"6": "USB_DN", "4": "USB_DP",
+                     "1": None, "3": None,
                      "5": "VBUS", "2": "GND"}),
     # --- Thermocouple ------------------------------------------------------
     # 2x MAX31856 (TSSOP-14) replacing the rev A MAX31855. Pinout confirmed
@@ -932,12 +984,29 @@ COMPONENTS = {
     # Sizing (not from REV-B-NOTES.md - the notes don't cover the CT/burden
     # network, only the ADE7953 itself): a 2000:1 current-output clamp
     # (100A:50mA, e.g. SCT-013-000) against the ADE7953's +-500mV full-scale
-    # differential input. 100A rms -> 50mA rms -> 70.7mA peak;
-    # 0.5V / 70.7mA ~= 7.1 Ohm, so 6.8 Ohm gives headroom. This CT ratio is
-    # a calibration constant the firmware will need - see docs/pin-
-    # assignments.md (Task 16).
+    # differential input. 100A rms -> 50mA rms -> 70.7mA peak, so
+    # 0.5V / 70.7mA ~= 7.1 Ohm is the value that puts 100 A exactly at full
+    # scale.
+    #
+    # 5.1 Ohm, not that 7.1 or the 6.8 this was: JLCPCB stocks no 6.8 Ohm
+    # resistor in its Basic or Preferred libraries in ANY package, so 6R8 was
+    # costing a $3 feeder fee to hold one value. The fee-free ladder either
+    # side of it is 4.7, 5.1, 10 - and 10 is not available, since 70.7mA
+    # across it is 707mV against a 500mV full scale, i.e. the input clips at
+    # ~71 A.
+    #
+    # What 5.1 Ohm costs is range, not accuracy: 100 A now reads 361mV, 72% of
+    # full scale rather than 96%, and full scale moves out to ~139 A rms. On a
+    # part with the ADE7953's dynamic range that is not a measurable loss, and
+    # a kiln element circuit does not go near either number. The alternative
+    # that preserves 6.8 exactly is 10 || 22 (= 6.875 Ohm, both Basic), at
+    # four placements instead of two on a differential sense node - not worth
+    # it for range nobody uses.
+    #
+    # This scaling is a calibration constant the firmware will need, and it
+    # CHANGED with this resistor - see docs/pin-assignments.md (Task 16).
     "R31": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="6R8", at=(93.5, 83.5, 0),
+                value="5R1", at=(93.5, 83.5, 0),
                 pins={"1": "CTA_P", "2": "CTA_N"}),
     "R32": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
                 value="1k", at=(89.0, 83.5, 180),
@@ -950,7 +1019,7 @@ COMPONENTS = {
                 pins={"1": "CTA_F", "2": "GND"}),
     # Channel B - exact copy of channel A above, 6mm south.
     "R34": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="6R8", at=(93.5, 87.0, 0),
+                value="5R1", at=(93.5, 87.0, 0),
                 pins={"1": "CTB_P", "2": "CTB_N"}),
     "R35": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
                 value="1k", at=(89.0, 87.0, 180),

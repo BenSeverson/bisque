@@ -492,7 +492,7 @@ def add_zones(board, nets):
     altogether: the 93.1 ohm figure is a microstrip-over-In1.Cu calculation,
     and it stays valid because there is no outer copper near the pair to
     invalidate it. USB_KEEPOUT is the measured track bounding box (both outer
-    layers, x 46.86..64.00 / y 27.20..44.25) plus 1 mm.
+    layers, x 47.25..64.00 / y 27.20..46.25) plus 1 mm.
     """
     m = 0.5
     corners = [(BX0 + m, BY0 + m), (BX1 - m, BY0 + m),

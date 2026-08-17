@@ -134,16 +134,26 @@ rather than assumed. **Both difference lists are empty.**
 
 Corrected from the design spec's estimate: §6.4 of the hardware-design spec
 projected **6 unique Extended parts / $18** in feeder fees. The as-built
-board carries **11 / $33** — C107114 (30 pF crystal load caps), C160404
-(Qwiic connector) and C165948 (USB-C receptacle) were Basic on rev A's BOM
-line but are Extended in the parts actually used here, and the CT front-end
-pulled in more Extended parts than originally scoped (the crystal, the
-6.8 Ω burden resistor, and the SRV05-4 TVS array's specific LCSC line, in
-addition to the ADE7953 itself). Three new subsystems — the ULN2003 aux
-bank, the SRV05-4 TVS arrays as a *category*, and the watchdog's AO3401A —
-landed at zero feeder cost by being Basic parts; the increase over rev A's
-4/$12 is concentrated in the analog/sensing front end and the CT protection
-components, not in the parts the spec anticipated.
+board now carries exactly that — **6 / $18** — but it read **11 / $33** at
+the time of this review, and closing the gap turned up two separate
+problems rather than one.
+
+Two were accounting, not design: C107114 (30 pF crystal load caps) and
+C7420333 (the BAT54S watchdog diode) are **Preferred Extended**, which is
+fee-free on Economic PCBA exactly as Basic is, and `gen_jlc.LCSC`'s flag was
+being read as "is Basic". They were never chargeable. That alone was $6 of
+the $33.
+
+Three were real, and all three had fee-free substitutes that are also better
+parts: D5/D6's Extended SRV05-4 line (C558418) and U4's USBLC6-2SC6 (C7519)
+collapse onto one Preferred SRV05-4 (C7420376), and the 6.8 Ω CT burden
+resistor (C17774) moves to 5.1 Ω (C17724, Basic) because JLCPCB stocks no
+6.8 Ω part in either fee-free library in any package.
+
+What is left is structural: the fee-free library contains **no connectors at
+all**, so C160404 and C165948 are unavoidable, and the module, both
+MAX31856s, the ADE7953 and its crystal have no fee-free equivalent. $18 is
+this board's floor short of hand-soldering J14.
 
 ## PR #301 review round — the clipped schematic
 
@@ -249,13 +259,16 @@ no line without an LCSC part; gerbers still carry `In1_Cu`/`In2_Cu`.
 
 ## Open items
 
-- **Sourcing flag: LCSC `C17774` (6.8 Ω 0805 1% resistor, R31/R34 — the CT
-  burden resistors) was down to approximately **970 units** in stock as of
-  this review, with no Basic-part alternative at that value/package/tolerance
-  found on LCSC. Two are needed per board. **Re-check stock immediately
-  before ordering** — at low quantity this is the kind of line that goes to
-  zero between review and order without warning, and there is no drop-in
-  Basic substitute queued if it does.
+- ~~**Sourcing flag: LCSC `C17774`** (6.8 Ω 0805 1%, R31/R34)~~ — **closed.**
+  The burden resistors are now 5.1 Ω (`C17724`, Basic, >4.9 M in stock), so
+  the thin line and the $3 feeder fee both went with it. See
+  `design.py` for why 5.1 Ω rather than the 7.1 Ω the CT ratio implies.
+- **Sourcing flag:** the two thinnest lines on the BOM are now `C7471632`
+  (the ADE7953's 3.579545 MHz crystal, ~1.7 k in stock) and `C3013945` (the
+  ESP32-S3-WROOM-1U-N16R2 module, ~3.2 k). Both are single-sourced Extended
+  parts with no fee-free equivalent, and one each per board. **Re-check stock
+  immediately before ordering** — at these quantities a line can go to zero
+  between review and order without warning.
 - **`CERT-001` — modular certification, carried forward from rev A, with the
   rev B antenna caveat attached.** Rev A's note: "the ESP32-S3-WROOM-1
   carries modular certification." Rev B uses the **WROOM-1U** variant, whose
@@ -427,5 +440,7 @@ Carried forward from rev A's review, and not newly re-verified for rev B:
   arithmetic behind the watchdog topology choice is worked in `design.py`'s
   watchdog block against the published spec points, but no new datasheet
   extraction was done for it. Parts unchanged from rev A
-  (AMS1117, AO3400A, WS2812B, USBLC6-2SC6) were not re-verified here and
-  carry whatever confidence rev A's review already assigned them.
+  (AMS1117, AO3400A, WS2812B) were not re-verified here and
+  carry whatever confidence rev A's review already assigned them. The
+  USBLC6-2SC6 that used to be on this list is gone — U4 is an SRV05-4 now,
+  and both its datasheet and C558418's were read directly for the swap.

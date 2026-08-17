@@ -219,11 +219,26 @@ PLANE_STUB_W = 0.25
 
 # Copper-free box on the OUTER layers around the USB pair, (x0, y0, x1, y1).
 # The measured bounding box of every USB_DP/USB_DN segment on F.Cu and B.Cu is
-# x 46.86..64.00 / y 27.20..44.25; this is that plus 1 mm on each side. See
+# x 47.25..64.00 / y 27.20..46.25; this is that plus 1 mm on each side. See
 # add_zones() in kicad_build.py for why the outer GND pours are held off by
 # geometry instead of by a clearance setting, and STACKUP below for the
 # 93.1 ohm figure that depends on it. Re-measure this if the pair ever moves.
-USB_KEEPOUT = (45.86, 26.20, 65.00, 45.25)
+#
+# It moved once already, and the lesson is that this box is a consequence of
+# U4 and not just of J1 and U1. Swapping the USBLC6 for an SRV05-4 turned the
+# array from a link in the pair into a stub off it, and the pair re-routed
+# around a package it used to pass through: 2 mm further south (DP now reaches
+# y 46.25, having previously stopped at 42.10) even after U4's channels were
+# moved to the pins facing U1. Both nets are marginally SHORTER than before
+# (DP 39.08 mm against 40.13, DN 36.97 against 37.05), so this is a change of
+# shape, not of length.
+#
+# The west edge is the one to watch, because U2_POUR ends at x 45.0 and a
+# keepout reaching past that silently eats the AMS1117's thermal copper - the
+# pour is still emitted, it just does not fill. At 46.25 there is 1.25 mm of
+# daylight. The first attempt at the U4 pin map left it at 44.50 and would
+# have taken the bite without failing anything.
+USB_KEEPOUT = (46.25, 26.20, 65.00, 47.25)
 
 # Local +3V3 flood on F.Cu around U2, (x0, y0, x1, y1). The board-wide outer
 # pour is GND, which does nothing for the AMS1117: its SOT-223 tab is +3V3, so
