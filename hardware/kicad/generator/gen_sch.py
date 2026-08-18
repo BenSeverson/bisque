@@ -491,6 +491,14 @@ def stub_pins(sym, pinmap, fused=()):
 # compares KiCad's exported net names against design.py, and an unnamed wire
 # would come back as "Net-(LED2-Pad1)" and fail. One light text replaces two
 # heavy boxes.
+#
+# Three-pin nets fuse too, when they have the shape of a hub pin with two
+# branches hanging off its wire the same way - an IC pin with its 4.7uF ||
+# 100nF bypass pair is the canonical case. The hub wires to the *far* branch
+# exactly like a fused pair, and the near branch taps that spine with a short
+# wire ending at a KiCad junction. A net that fuses does so all-or-nothing:
+# its name would otherwise sit on a local label for the wired pins and a
+# global label for the labelled one, which KiCad reads as two different nets.
 WIRE = 5.08            # shortest leg of a fused connection
 FUSE_STRETCH_MAX = 10  # leg lengthening tried, per leg, before giving up
 
@@ -578,12 +586,18 @@ def wire_points(a, b, va, vb):
 
 
 def fuse_pairs():
-    """Two-pin block-local nets that can be drawn as a wire, in GROUPS order.
+    """Block-local nets that can be drawn as wires, in GROUPS order.
+
+    Two-pin nets become one wire; three-pin nets with a hub-and-branches
+    shape become two wire items sharing the hub pin (the second is later
+    folded into a junction tap on the first - see fuse_plan()).
 
     Skipped, and left as labels: nets that leave their block (the label is
-    doing real work there), rails (already ports), and pairs whose two pins
+    doing real work there), rails (already ports), pairs whose two pins
     point the *same* way - those need a U-turn around one of the bodies, and
-    a wire that has to be read around a corner twice is not an improvement.
+    a wire that has to be read around a corner twice is not an improvement -
+    and three-pin nets whose branch pins don't cross the hub's wire the same
+    way, which is the only shape the spine-plus-tap drawing reads cleanly.
     """
     grp = {r: i for i, (_t, refs) in enumerate(GROUPS) for r in refs}
     net2 = {}
@@ -593,15 +607,40 @@ def fuse_pairs():
                 net2.setdefault(net, []).append((ref, pin))
     out = []
     for net, pins in sorted(net2.items()):   # by net name - deterministic
-        if len(pins) != 2 or net in PWR:
+        if net in PWR:
             continue
-        (ra, pa), (rb, pb) = pins
-        if ra == rb or grp.get(ra) != grp.get(rb):
+        if len(pins) == 2:
+            (ra, pa), (rb, pb) = pins
+            if ra == rb or grp.get(ra) != grp.get(rb):
+                continue
+            va, vb = pin_dir(sym_of(ra), pa), pin_dir(sym_of(rb), pb)
+            if va[0] * vb[0] + va[1] * vb[1] > 0.5:
+                continue                     # same direction - needs a U-turn
+            out.append((net, (ra, pa), (rb, pb), va, vb, fuse_leg(net)))
             continue
-        va, vb = pin_dir(sym_of(ra), pa), pin_dir(sym_of(rb), pb)
-        if va[0] * vb[0] + va[1] * vb[1] > 0.5:
-            continue                         # same direction - needs a U-turn
-        out.append((net, (ra, pa), (rb, pb), va, vb, fuse_leg(net)))
+        if len(pins) != 3:
+            continue
+        tp = sorted(pins)                    # deterministic hub choice
+        refs = [r for r, _p in tp]
+        if len(set(refs)) != 3 or len({grp.get(r) for r in refs}) != 1:
+            continue
+        for h in range(3):
+            rh, ph = tp[h]
+            (r1, p1), (r2, p2) = [tp[i] for i in range(3) if i != h]
+            vh = pin_dir(sym_of(rh), ph)
+            v1, v2 = pin_dir(sym_of(r1), p1), pin_dir(sym_of(r2), p2)
+            # Each branch must leave its pin *across* the hub's wire, not
+            # along it - caps hanging off one horizontal spine. Which side
+            # each hangs on does not matter; a branch running parallel to
+            # the spine would need a U-turn, and stays labelled.
+            if abs(vh[0] * v1[0] + vh[1] * v1[1]) > 0.5:
+                continue
+            if abs(vh[0] * v2[0] + vh[1] * v2[1]) > 0.5:
+                continue
+            leg = fuse_leg(net)
+            out.append((net, (rh, ph), (r1, p1), vh, v1, leg))
+            out.append((net, (rh, ph), (r2, p2), vh, v2, leg))
+            break
     return out
 
 
@@ -644,7 +683,11 @@ def fuse_plan():
         """Place a cell outward from `seed`, skipping anything unplaceable."""
         off = {seed: (0.0, 0.0)}
         order, queue = [seed], [seed]
-        segs = [_shift_seg(s, (0.0, 0.0))
+        # Each entry is (segment, net): stubs carry None, fused wires their
+        # net, so the two sibling wires of one three-pin net - which share
+        # the hub pin and overlap along the spine by construction - are not
+        # read as a collision with each other.
+        segs = [(_shift_seg(s, (0.0, 0.0)), None)
                 for s in member_stubs(seed, _fu(cand, seed))]
         while queue:
             cur = queue.pop(0)
@@ -674,11 +717,12 @@ def fuse_plan():
                     # neighbour's - R5's did.
                     pos = dict(off)
                     pos[other] = at
-                    new = [_shift_seg(s, at)
+                    new = [(_shift_seg(s, at), None)
                            for s in member_stubs(other, _fu(cand, other))]
-                    new += _pair_segs(item, pos)
-                    if any(check_sch_layout.seg_touch(a, b)
-                           for a in new for b in segs):
+                    new += [(s, item[0]) for s in _pair_segs(item, pos)]
+                    if any(check_sch_layout.seg_touch(sa, sb)
+                           for sa, na in new for sb, nb in segs
+                           if na is None or na != nb):
                         continue
                     # ...nor through a part's body or its printed fields.
                     # Wire-versus-wire is not enough: R4's CC1 wire cleared
@@ -687,10 +731,10 @@ def fuse_plan():
                     if any(check_sch_layout.overlap(
                             _seg_box(s), _shift(ref_extent_box(o, cand),
                                                 off[o]))
-                           for s in new for o in others):
+                           for s, _n in new for o in others):
                         continue
                     if any(check_sch_layout.overlap(_seg_box(s), box)
-                           for s in segs):
+                           for s, _n in segs):
                         continue
                     spot, spot_segs = at, new
                     break
@@ -763,6 +807,52 @@ def fuse_plan():
             continue
         cell["wires"].append((net, pts, (ra, pa), (rb, pb)))
         kept.append(item)
+
+    # Fold each three-pin net's two wires into a spine plus a junction tap,
+    # all-or-nothing. Half a fused net is worse than none: the wired pins
+    # would carry a local label and the labelled pin a global one, and KiCad
+    # reads same-named local and global labels as two different nets.
+    by_net = {}
+    for item in pairs:
+        by_net.setdefault(item[0], []).append(item)
+    for net, items in sorted(by_net.items()):
+        if len(items) < 2:
+            continue
+        alive = [it for it in items if it in kept]
+        spine = tap = None
+        if len(alive) == 2:
+            cell = cells[home[alive[0][1][0]]]
+            ws = sorted((w for w in cell["wires"] if w[0] == net),
+                        key=lambda w: abs(w[1][1][0] - w[1][0][0])
+                        + abs(w[1][1][1] - w[1][0][1]))
+            # Both corners sit on the hub pin's exit line, so the shorter
+            # wire's corner lies ON the longer wire. Corners that coincide
+            # are fine when the branches hang on opposite sides - the tap
+            # leaves the shared corner the other way, a plain star node -
+            # but on the same side the tap would redraw part of the spine.
+            if len(ws) == 2:
+                reach = [abs(w[1][1][0] - w[1][0][0])
+                         + abs(w[1][1][1] - w[1][0][1]) for w in ws]
+                d1 = pin_dir(sym_of(ws[0][3][0]), ws[0][3][1])
+                d2 = pin_dir(sym_of(ws[1][3][0]), ws[1][3][1])
+                if reach[1] - reach[0] > 1e-6 or d1 != d2:
+                    tap, spine = ws
+        if spine is None:
+            for it in alive:
+                kept.remove(it)
+                cell = cells[home[it[1][0]]]
+                cell["wires"] = [w for w in cell["wires"] if w[0] != net]
+            if net not in dropped:
+                dropped.append(net)
+            continue
+        cell = cells[home[spine[2][0]]]
+        cell["wires"] = [w for w in cell["wires"]
+                         if not (w[0] == net and w is tap)]
+        # (net, hub pin, tap pin): geometry is re-derived at emission from
+        # where the parts actually landed, exactly like the spine's.
+        cell.setdefault("taps", []).append((net, tap[2], tap[3]))
+
+    dropped = list(dict.fromkeys(dropped))
 
     # Each name picks the end of its wire with the least on it. Only the
     # *choice* is stored - main() re-derives the anchor from where the parts
@@ -1317,6 +1407,43 @@ def main():
                  '\t\t(effects (font (size 1.27 1.27)) (justify %s bottom))\n'
                  '\t\t(uuid %s)\n\t)'
                  % (esc(net), f(lx), f(ly), ang, just, uid("fuselbl", net)))
+        # A three-pin net's near branch: a short wire from the spine down to
+        # the pin, and a junction dot where it lands - without the dot the
+        # T reads as two wires crossing. Geometry is re-derived like the
+        # spine's, and the junction is asserted to sit strictly inside the
+        # spine's first leg so a placement drift fails here, not in review.
+        for net, (ra, pa), (rb, pb) in cell.get("taps", []):
+            sa, sb = sym_of(ra), sym_of(rb)
+            apx, apy = pin_xy(sa, pa)
+            bpx, bpy = pin_xy(sb, pb)
+            a = (placed[ra][0] + apx, placed[ra][1] + apy)
+            b = (placed[rb][0] + bpx, placed[rb][1] + bpy)
+            va = pin_dir(sa, pa)
+            j = (b[0], a[1]) if abs(va[0]) > 0.5 else (a[0], b[1])
+            reach = (j[0] - a[0]) * va[0] + (j[1] - a[1]) * va[1]
+            spine = next(w for w in cell["wires"] if w[0] == net)
+            (rs, ps) = spine[3]
+            spx, spy = pin_xy(sym_of(rs), ps)
+            send = (placed[rs][0] + spx, placed[rs][1] + spy)
+            corner = (send[0], a[1]) if abs(va[0]) > 0.5 else (a[0], send[1])
+            smax = (corner[0] - a[0]) * va[0] + (corner[1] - a[1]) * va[1]
+            # Strictly inside the first leg, or exactly at its corner when
+            # the branches hang on opposite sides (the star-node case that
+            # fuse_plan() admitted) - never past it, never at the hub.
+            same_side = pin_dir(sb, pb) == pin_dir(sym_of(rs), ps)
+            at_corner = abs(reach - smax) < 1e-6
+            assert 1e-6 < reach and (reach < smax - 1e-6
+                                     or (at_corner and not same_side)), \
+                "tap for %s is off its spine (%.2f of %.2f)" % (net, reach,
+                                                                smax)
+            emit('\t(wire (pts (xy %s %s) (xy %s %s))\n'
+                 '\t\t(stroke (width 0) (type default))\n'
+                 '\t\t(uuid %s)\n\t)'
+                 % (f(j[0]), f(j[1]), f(b[0]), f(b[1]),
+                    uid("fusetap", net)))
+            emit('\t(junction (at %s %s) (diameter 0) (color 0 0 0 0)\n'
+                 '\t\t(uuid %s)\n\t)'
+                 % (f(j[0]), f(j[1]), uid("fusej", net)))
 
     # PWR_FLAG instances
     for ref in FLAG_REFS:
@@ -1401,8 +1528,10 @@ if __name__ == "__main__":
     # Never let a demotion be silent: a pair that could not be seated falls
     # back to a pair of global labels, which is correct but is not what the
     # fusing was for.
-    print("fused %d two-pin nets into wires across %d cells"
-          % (len(FUSED), sum(1 for c in CELLS if len(c["refs"]) > 1)))
+    print("fused %d nets into wires across %d cells (%d with a junction tap)"
+          % (len({it[0] for it in FUSED}),
+             sum(1 for c in CELLS if len(c["refs"]) > 1),
+             sum(len(c.get("taps", [])) for c in CELLS)))
     if FUSE_DROPPED:
         print("  NOT fused (no clear placement found, left as labels): %s"
               % ", ".join(FUSE_DROPPED))
