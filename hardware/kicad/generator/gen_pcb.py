@@ -310,6 +310,26 @@ FANOUT_WIDTH = 0.25   # fine-pitch escapes only; see the ROUTE_ORDER comment
 # +3V3, the net that actually needs the plane, in slivers. +5V has few enough
 # terminals to route comfortably as 0.6 mm track, so it does.
 PLANE_LAYER = {"GND": "In1.Cu", "+3V3": "In2.Cu"}
+
+# Copper layer TYPE. KiCad never acts on this - it fills zones and runs DRC
+# identically whatever it says - but it is the only machine-readable statement
+# of what the stack-up IS, and leaving the inner layers on the "signal" default
+# made every EMC tool read this as a four-signal-layer board and report
+# "adjacent signal layers: F.Cu, In1.Cu" against a stack-up that is textbook.
+# The inner layers carry the two plane fills named in PLANE_LAYER above and not
+# one track between them, so "power" is simply the truth.
+#
+# Read twice, and both readers matter: the text emitter below writes it into
+# the board gen_pcb hands to pcbnew, and kicad_build.apply_layer_types() sets
+# it again on the loaded board, because pcbnew rewrites the layer table from
+# its own model on save and drops whatever the input text said. Setting it in
+# only one of the two places is silently a no-op.
+COPPER_LAYER_TYPE = {
+    "F.Cu": "signal",
+    "In1.Cu": "power",     # GND plane
+    "In2.Cu": "power",     # +3V3 plane
+    "B.Cu": "signal",
+}
 PLANE_NETS = tuple(PLANE_LAYER)
 PLANE_STUB_W = 0.25
 
@@ -1850,9 +1870,13 @@ def main(dst):
     ap('\t(general (thickness 1.6) (legacy_teardrops no))')
     ap('\t(paper "A3")')
     ap('\t(layers')
+    # Copper types come from COPPER_LAYER_TYPE so the emitted text and
+    # kicad_build.apply_layer_types() cannot disagree; see that table.
     for lid, lname, ltype, ualias in [
-            (0, "F.Cu", "signal", None), (4, "In1.Cu", "signal", None),
-            (6, "In2.Cu", "signal", None), (2, "B.Cu", "signal", None),
+            (0, "F.Cu", COPPER_LAYER_TYPE["F.Cu"], None),
+            (4, "In1.Cu", COPPER_LAYER_TYPE["In1.Cu"], None),
+            (6, "In2.Cu", COPPER_LAYER_TYPE["In2.Cu"], None),
+            (2, "B.Cu", COPPER_LAYER_TYPE["B.Cu"], None),
             (9, "F.Adhes", "user", "F.Adhesive"), (11, "B.Adhes", "user", "B.Adhesive"),
             (13, "F.Paste", "user", None), (15, "B.Paste", "user", None),
             (5, "F.SilkS", "user", "F.Silkscreen"), (7, "B.SilkS", "user", "B.Silkscreen"),

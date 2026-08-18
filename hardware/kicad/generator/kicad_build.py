@@ -43,7 +43,7 @@ import silk
 from gen_pcb import (all_seeds, route_all, ripup_retry, promoted_order, plane_vias,
                      apply_stackup, SILK, SILK_GRAPHICS, MANUAL_VIAS,
                      PLANE_LAYER, HIDE_REFS, sync_netclasses, netclass_table,
-                     USB_KEEPOUT, U2_POUR)
+                     USB_KEEPOUT, U2_POUR, COPPER_LAYER_TYPE)
 
 # Copper stack-up. Rev B is 4-layer (spec 6.1): signals on the outside, an
 # unbroken GND plane on In1.Cu and the +3V3 plane on In2.Cu. router.py still
@@ -814,6 +814,29 @@ def strip_derived(board):
     _REMOVED.extend(doomed)
 
 
+def apply_layer_types(board):
+    """Set copper layer types on a loaded board from gen_pcb.COPPER_LAYER_TYPE.
+
+    gen_pcb writes these into the board text it emits, and that is not enough:
+    pcbnew builds its own layer table when it loads a board and writes THAT
+    back out, so the types in the input text never reach disk. This runs on
+    both paths - full and --no-route - because the fast path loads a saved
+    board and would otherwise carry forward whatever types it already had,
+    exactly as apply_stackup() has to re-impose the stack-up for the same
+    reason.
+
+    Unlike BOARD_STACKUP, this one KiCad 10 does wrap, so it is set through the
+    API rather than patched into the text afterwards.
+    """
+    kinds = {"signal": pcbnew.LT_SIGNAL, "power": pcbnew.LT_POWER,
+             "mixed": pcbnew.LT_MIXED, "jumper": pcbnew.LT_JUMPER}
+    for name, kind in COPPER_LAYER_TYPE.items():
+        lid = board.GetLayerID(name)
+        if lid < 0:
+            raise SystemExit("kicad_build: no layer %r on the board" % name)
+        board.SetLayerType(lid, kinds[kind])
+
+
 def main(out, reuse_routing=False):
     out = os.path.abspath(out)
     if reuse_routing:
@@ -855,6 +878,11 @@ def main(out, reuse_routing=False):
     # fills, saves and checks in one authentic pass.
     import subprocess
     board.SetFileName(out)
+    # Copper layer types, which unlike the stack-up pcbnew DOES wrap - but it
+    # rewrites the layer table from its own model on save, so the types
+    # gen_pcb wrote into the input text are gone by the time the file lands.
+    # Set on the board object, before the save that would otherwise drop them.
+    apply_layer_types(board)
     pcbnew.SaveBoard(out, board)
     # The physical stack-up, which pcbnew cannot be asked to set: KiCad 10's
     # SWIG bindings do not wrap BOARD_STACKUP, so gen_pcb.STACKUP is written

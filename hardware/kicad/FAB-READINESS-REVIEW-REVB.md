@@ -1,71 +1,290 @@
 # JLCPCB Fabrication Readiness Review — Rev B
 
-Board: `bisque-controller` — **4-layer**, 100 × 100 mm, 1.6 mm, 141 components
-(109 machine-placed SMD across 40 BOM lines + 13 hand-fitted THT/wafer parts +
-4 mounting holes + 15 non-assembled features: 12 test pads, 2 solder jumpers,
-1 DNP header)
-Reviewed: 2026-08-11, against KiCad 10.0.5 and the Task 14 board build.
-Re-reviewed: 2026-08-12, after the PR #301 fix wave (schematic sheet size +
-`SJ3`/`SJ4`) — see "PR #301 review round" below.
-Re-reviewed: 2026-08-12, after the **opto-isolation reversal** — see "The
-opto-isolation reversal" below. That round removed `U8`/`U9`, `SJ3`/`SJ4`,
-the four-layer pour keepout, the router keepout and `check_isolation.py`, and
-added `Q4`/`Q5`/`Q6`/`R47`.
-Status: **ready to order, bare or assembled**, subject to the sourcing flag
-in "Open items" below.
+Board: `bisque-controller` — **4-layer**, 100 × 100 mm, 1.6 mm, **143 components**
+(108 machine-placed SMD across 38 BOM lines + 13 hand-fitted THT/wafer parts +
+4 mounting holes + 3 fiducials + 15 non-assembled features: 12 test pads,
+2 solder jumpers, 1 DNP header)
 
-Rev B is a respin, not a variant: the thermocouple front-end,
-module variant, output bank, and layer count all changed, and no attempt was
-made to keep rev A hardware compatible with rev B firmware defaults. The one
-item that carries forward unchanged is `CERT-001`, below.
+Review lineage:
+- 2026-08-11 — first pass, against KiCad 10.0.5 and the Task 14 board build
+- 2026-08-12 — after the PR #301 fix wave (schematic sheet size + `SJ3`/`SJ4`)
+- 2026-08-12 — after the **opto-isolation reversal** (removed `U8`/`U9`,
+  `SJ3`/`SJ4`, the pour keepout, the router keepout and `check_isolation.py`;
+  added `Q4`/`Q5`/`Q6`/`R47`)
+- **2026-08-17 — current.** Full re-review after the fiducial / SRV05-4 /
+  oscillator / pour / silk / schematic-fusing wave. Schematic `2f322e8e…`,
+  board `2f26da9b…`, working tree clean at `75c551d`.
+
+Rev B is a respin, not a variant: the thermocouple front-end, module variant,
+output bank, and layer count all changed, and no attempt was made to keep rev A
+hardware compatible with rev B firmware defaults. The one item that carries
+forward unchanged is `CERT-001`, below.
 
 ## Verdict
 
-**Ready to order.** Every verification gate in
-`docs/superpowers/specs/2026-08-10-pcb-rev-b-hardware-design.md` §7 that still
-applies passes, including pin-map agreement. The isolation-barrier gate no
-longer applies — the barrier was removed with the optocouplers, and its
-checker was deleted rather than left to pass against a rectangle that does
-not exist.
-The board needed an unplanned stack-up escalation to get there — see "The
-escalation ladder" below — which is now closed with every 2-layer concession
-given back. The one open item that must be re-checked before placing the
-order, not before this review, is the CT burden resistor's stock level (see
-"Open items").
+**No new blockers. The fab package is internally consistent and matches the
+current sources.** Every gate that the prior review passed still passes, and the
+one that mattered most for this wave — the schematic changed twice *after* the
+board was last generated — is verified clean: `check_netlist.py` compares 92 nets
+with 0 mismatches, so the net-fusing commits (`842da7c`, `75c551d`) changed
+drawing only, not connectivity.
 
-## Task 14 DRC results
+Nothing below is a reason to hold an order. Items 1–3 are margin and
+robustness items worth resolving on the next board build; 4–7 are cheap
+housekeeping.
 
-`kicad-cli pcb drc --refill-zones`, via `kicad_build.py`, on the final
-100 × 100 mm / 4-layer / 0805 / rev-A-net-class configuration:
+## Verification basis
 
-- **0 DRC errors**
-- **0 unconnected pads**
-- **0 footprint errors**
-- **0 warnings.** This line read "109 warnings, all silkscreen" (4
-  `silk_edge_clearance`, 24 `silk_over_copper`, 81 `silk_overlap`) through
-  every earlier review, waved through as "same kind as rev A". It was not
-  cosmetic: `5V / OUT` and `AUX OUT` — labels for screw terminals a user
-  hand-wires — printed half off the board edge, and 24 labels sat on exposed
-  pads. Silk placement is now derived by `generator/silk.py` rather than read
-  from a hand-maintained coordinate table, and `generator/check_silk.py`
-  fails the build on any silk over copper or crossing the outline. See the
-  README's "Silkscreen is placed by a packer".
+What the claims in this report actually rest on:
 
-Independent checks beyond KiCad's own DRC, all passing:
-
-| Check | Result |
+| Gate | Result |
 |---|---|
-| `check_pinmap.py` (design.py ↔ Kconfig) | 29 GPIO assignments agree |
-| `check_sch_bounds.py` (nothing off the declared sheet) | all placed items inside A1 |
-| `check_netlist.py` (schematic round-trip) | 92 nets compared, 0 mismatches |
-| `check_pcb.py` (independent connectivity) | 2271 copper items checked, ALL CHECKS PASS |
-| `check_via_in_pad.py` | PASS |
-| `check_canonical.py` (reproducibility) | PASS — rebuild is byte-identical |
+| KiCad DRC (`bisque-controller-drc.rpt`) | 0 violations, 0 unconnected pads, 0 footprint errors |
+| `make pcb-check` — all 12 checkers | **exit 0** |
+| ├ `check_netlist.py` schematic↔board | **92 nets compared, 0 mismatches** |
+| ├ `check_silk.py` | over-copper 0, off-board 0, silk-on-silk 0, under-a-part 0 |
+| ├ `check_pinmap.py` (design.py ↔ Kconfig) | 29 GPIO assignments agree |
+| ├ `check_mpn.py` (schematic ↔ gen_jlc.LCSC) | 121 sourced parts match, 22 unsourced |
+| ├ `check_via_in_pad.py` | no via encroaches an SMD pad |
+| ├ `check_drill_clearance.py` | 476 apertures, min web 0.300 mm |
+| ├ `check_placement.py` | 0 courtyard overlaps, 0 parts outside board |
+| ├ `check_jlc_placement.py` | 108 parts / 36 LCSC land patterns fitted |
+| ├ `check_gerber_zip.py` | `jlcpcb/gerbers.zip` matches `gerbers/` (14 files) |
+| ├ `check_canonical.py` | idempotent, uuids unique (4655) |
+| └ `gen_datasheet_manifest.py --check` | manifest current — 10/14 present, 4 missing |
+| Analyzers (fresh, run `2026-08-17_1938`) | schematic, PCB `--full --proximity`, cross-domain, EMC, thermal, gerber |
 
-`make pcb-check` runs all of the above in one command and is the fastest way
-to confirm this review still describes the committed board.
+Fab-output freshness: `gerbers/`, `gerbers.zip`, `BOM.csv` and `CPL.csv` carry
+mtimes older than the board file, which looks alarming and isn't — git shows the
+board's *content* last changed in `98e386f`, the same commit that regenerated
+the gerbers. The later commits touched the schematic only.
 
-## The escalation ladder
+Datasheets read directly for this review: **AMS1117** (dropout, Note 4),
+**ADE7953 Rev C** (Table 5 / Figure 4, EPAD), **AO3400A / AO3401A** (SOT-23 pin
+diagram).
+
+## Findings
+
+### 1. LDO headroom is thin, and every analyzer overstates it — *medium*
+
+`+5V` is not 5.0 V. The rail sits behind the ORing Schottky D1 (SS34), so U2's
+input is roughly `VIN − 0.4 V ≈ 4.6 V`. Every tool in the run assumed 5.0 V
+(`rail_voltages`, `power_budget`, `analyze_thermal`), so all of them are
+optimistic about the input side.
+
+The AMS1117 datasheet guarantees dropout **only at 0.8 A: 1.1 V typ, 1.3 V max**,
+with Note 4 stating no figure is specified above that and the general description
+promising only that it decreases at lower current. Taking the guaranteed worst
+case, U2 needs 3.3 + 1.3 = **4.6 V in — exactly what is available, with zero
+margin**. Typical dropout at the ~250–400 mA this board draws is well under that,
+so the rail will almost certainly behave; the exposure is a 5 V supply at the
+low end of its tolerance, or cable drop on USB, coinciding with an ESP32-S3
+Wi-Fi TX burst.
+
+Not a fab blocker — it is a first-article measurement. Suggest measuring `+3V3`
+at TP under sustained Wi-Fi TX from the lowest-spec supply you intend to
+support, and specifying ≥4.9 V for the J2 adapter.
+
+*Caveat:* the 0.4 V Schottky drop is a conventional figure — **no SS34 datasheet
+is on disk** (see finding 6), so that number is unverified.
+
+### 2. U7 (ADE7953) exposed pad has zero vias — *medium*
+
+Pad 29 is 3.10 × 3.10 mm on GND; the nearest GND via is **3.36 mm away**, so the
+EP reaches the ground system only laterally through the F.Cu pour. The datasheet
+is explicit (Rev C, Table 5, p.10, and the Figure 4 note): *"Connect the pad to
+AGND and DGND"*, and AD's own reference layout routes those traces directly into
+the pad.
+
+Connectivity itself is fine — DRC reports 0 unconnected pads — so this is a
+noise-floor and thermal-path item on an analog metering front-end, not a
+netlist error. Four to nine vias in the EP down to the In1.Cu GND plane costs
+nothing electrically (same net).
+
+The 3×3 `F.Paste`-only sub-pad pattern under the EP is already correct
+windowpane practice; leave it alone.
+
+### 3. U2's SOT-223 tab has no thermal vias, and the Tj headline is quoted at the wrong ambient — *medium*
+
+The tab (pad 2, 2.0 × 3.8 mm) is on `+3V3`, and In2.Cu is a **90.6 %-fill +3V3
+plane** sitting directly underneath. Vias from tab to plane are free — same net —
+and there are currently none.
+
+The thermal analyzer reports Tj 68.7 °C, margin 56 °C, score 97. That is at
+**25 °C ambient**, which is not the ambient a kiln controller lives in:
+
+| Ambient | U2 Tj | Margin to 125 °C | Score |
+|---|---|---|---|
+| 25 °C | 68.7 °C | 56.3 °C | 97 |
+| 40 °C | 83.7 °C | 41.3 °C | 97 |
+| **50 °C** | **93.7 °C** | **31.3 °C** | 94 |
+| 60 °C | 103.7 °C | 21.3 °C | 94 |
+
+Still inside spec everywhere, but at 50 °C U2 crosses the 85 °C threshold that
+starts to matter for the electrolytics and MLCCs near it. Finding 1 works in
+your favour here: real dissipation is `(4.6 − 3.3) × I`, not `(5.0 − 3.3) × I`,
+so ~0.56 W rather than the modelled 0.73 W.
+
+### 4. Both inner planes were declared `signal` in the stackup — *low, FIXED*
+
+In1.Cu (GND, 92.9 % fill) and In2.Cu (+3V3, 90.6 %) were typed `signal`, which
+is why EMC reported `SU-001 "Adjacent signal layers"` three times against a
+stackup that is in fact textbook.
+
+**Fixed.** `gen_pcb.COPPER_LAYER_TYPE` now declares both inner layers `power`,
+and it is read twice — by the text emitter and by `kicad_build.apply_layer_types()`
+— because **pcbnew rebuilds the layer table from its own model on save and
+drops whatever the input text said.** Setting it in the emitter alone was
+silently a no-op: the first rebuild produced a byte-identical board. Unlike
+`BOARD_STACKUP`, KiCad 10 does wrap `SetLayerType`, so this goes through the
+API rather than `apply_stackup()`'s text patch. `SU-001` is now 0 and EMC's
+error count fell 58 → 55.
+
+### 5. 19 signal-via layer transitions lack an adjacent GND stitching via — *low*
+
+`RP-001`, deterministic. Includes SPI_SCLK, USB_DP and USB_DN. Low real risk at
+these speeds — Full-Speed USB and few-MHz SPI — but the USB pair is the cheapest
+place to add them if the board is respun for any other reason.
+
+### 6. `datasheets/manifest.json` described a design that no longer exists — *housekeeping, FIXED*
+
+The manifest claims **all 26 parts failed to download** while 13 PDFs sit in the
+directory, and it still lists parts that were replaced: `USBLC6-2SC6` for U4,
+`MAX31855KASA+` for U3, `ESP32-S3-WROOM-1-N16R8` for U1. Datasheets for parts
+actually fitted and *not* on disk: **SRV05-4** (U4, D5, D6), **SS34** (D1, D2),
+**SS14** (D3), **1N4148W** (D4).
+
+Consequence for this review: the SS34 drop in finding 1 is unverified, and the
+SRV05-4 clamp topology behind my dismissal of `UC-002` (below) rests on the part
+convention plus the prior review's record of having read it during the swap —
+not on a datasheet I could open.
+
+**Fixed, and made underivable-from-stale.** The manifest is now generated by
+`generator/gen_datasheet_manifest.py` from two authoritative inputs — the values
+in `design.COMPONENTS` and the PDFs actually on disk — so a retired part cannot
+survive in it: nothing maps to it. It reports **10/14 present, 4 missing**
+(`SRV05-4`, `SS34`, `SS14`, `1N4148W`), records the two superseded PDFs as
+`retired_material` with the reason rather than deleting them, and fails on any
+PDF that is in neither table. `make datasheets-manifest` regenerates it;
+`make pcb-check` verifies it.
+
+It is **not** a CI gate, deliberately: `datasheets/*` is gitignored, so the cache
+does not exist in a fresh clone. That invisibility to git is also exactly why the
+old manifest rotted — no diff ever contradicted it — so the guard is a generator
+a human re-runs, not a reviewer. With no cache present the script exits 0.
+
+The four missing datasheets are still missing; fetching them is a network
+operation and was not performed here.
+
+### 7. A stale sourcing flag in this document's own Open Items — *housekeeping, now corrected*
+
+Through the previous round, Open Items flagged **`C7471632`, the ADE7953's
+3.579545 MHz crystal (~1.7 k stock)** as one of the two thinnest BOM lines. That
+part is gone — Y1 is now a packaged oscillator, `C2838127`, and `C7471632`
+appears nowhere in `BOM.csv`. **Corrected in Open Items above.** Still live and
+carried forward there: the module `C3013945` stock flag, `CERT-001` (WROOM-1U
+modular approval vs. whichever U.FL antenna is actually fitted), the `SJ2` /
+WDT-kick firmware gap, and the board-1 watchdog decay measurement.
+
+## Triaged false positives
+
+308 findings came back across six analyzers. These are the groups that account
+for most of the severity, each dismissed with its root cause — worth recording
+so the next review doesn't re-litigate them:
+
+| Finding | Count | Why it's wrong |
+|---|---|---|
+| `KO-001` keepout violation | **39** (every PCB "error") | Bare bbox containment. The zone declares `(vias allowed) (tracks allowed) (pads allowed)` and forbids only `copperpour` — it's the outer-layer pour keepout over the USB pair from `e93bbe0`. The finding's own text says "(bbox check)". |
+| `PS-002` +5V / VBUS "plane split", `RP-002` "+5V plane gap" | 3 + 5 | **There is no +5V or VBUS zone.** All six zones are 1 keepout + 2 `+3V3` + 3 `GND`. A plane split on a net with no plane is a category error; these are ordinary routed nets whose track groups the union-find didn't bridge. |
+| `SS-001` sourcing blocker (<50 % MPN) | 1 | **38/38 assembled BOM lines and 13/13 hand-solder parts carry LCSC part numbers.** Sourcing lives in `gen_jlc.py` → `BOM.csv`, not as MPN properties on symbols. **Fixed at source anyway:** `gen_sch.py` now emits hidden `MPN` and `LCSC` properties from that same table, guarded by `check_mpn.py`, so coverage is 89.5 % (51/57 — the 6 without are test points, jumpers, fiducials, mounting holes and the DNP header, which correctly have none) and `SS-001` is gone. |
+| `LR-001` / `PP-001` on LED1 | 2 | WS2812B is a constant-current smart LED — no series resistor exists or is wanted. `VLED` is fed through D3 **deliberately**: the schematic's own note reads *"VDD dropped ~4.6V for 3.3V data margin"*. The DC-path BFS accepts a wire, 0 Ω, inductor, ferrite or bridged jumper — but not a diode. |
+| `IO-001` "no EMC filtering near J*" | 8 | Every external connector is filtered: J3 → R14/R15 into the MAX31856 with C15–C17; J12 → R31/R32 + D6 TVS; J11 → the 1 k + 10 k + 100 nF network with SRV05-4. |
+| `DP-001/003/004` diff-pair skew & layer changes | 15 | Suffix `_P`/`_N` matching applied to **DC thermocouple inputs** (TC1/TC2) and **50/60 Hz CT inputs** (CTA/CTB). A 25 ps / 4.8 mm match requirement is meaningless at DC. |
+| `SU-001` adjacent signal layers | 3 | Stackup layer typing — see finding 4. |
+| `GR-004` paste 45 % of copper | 1 | 106 THT + 2 NPTH pads, plus test pads, fiducials and solder jumpers, correctly get no paste. Of 405 SMD pads, **384 have paste**. |
+| `GP-001` reference plane gap | 77 | Bulk heuristic (`confidence: heuristic`, `evidence_source: heuristic_rule`) across ~50 nets. Both inner planes are >90 % filled. Not individually actionable. |
+| `UC-002` no ESD on VBUS | 1 | U4 pin 5 (VP) is on VBUS and pin 2 (VN) on GND — VBUS *is* the SRV05-4's clamp rail. See the caveat in finding 6. |
+
+`UC-001` (no decoupling on VBUS) is *not* dismissed: VBUS genuinely carries no
+capacitor, only D2's anode and U4's VP. Bulk sits downstream of D2 on `+5V`
+(C1/C3 22 µF, C11 10 µF). Harmless in practice for this topology; a 4.7 µF on
+VBUS would satisfy the USB 2.0 §7.2.4.1 expectation if you care about strict
+compliance.
+
+## Delta since the prior review
+
+`diff_analysis.py`, run `2026-08-16_1606` → `2026-08-17_1938` — 11 changes,
+classified **major**, and all of them intended:
+
+- **+** FID1/FID2/FID3 (fiducials)
+- **~** U4: `USBLC6-2SC6` → `SRV05-4`
+- **~** Y1: `3.579545MHz` crystal → `3.579545MHz XO` (Abracon 4-pin oscillator);
+  **−** C26, and C25 30 pF → 100 nF as its decoupling
+- **~** R31/R34 burden: `6R8` → `5R1`
+
+No unexplained drift.
+
+## Open items
+
+- **Sourcing flag: the module `C3013945`** (ESP32-S3-WROOM-1U-N16R2, ~3.2 k in
+  stock at the last check). A single-sourced Extended part with no fee-free
+  equivalent, one per board. **Re-check stock immediately before ordering** —
+  at these quantities a line can go to zero between review and order without
+  warning.
+  *Superseded:* earlier rounds of this review also flagged `C7471632`, the
+  ADE7953's 3.579545 MHz **crystal** (~1.7 k stock). That part is gone — Y1 is
+  now a packaged oscillator, `C2838127` — and `C7471632` appears nowhere in
+  `BOM.csv`. The 6.8 Ω burden-resistor flag (`C17774`) closed earlier still;
+  R31/R34 are 5.1 Ω (`C17724`, Basic).
+
+- **`CERT-001` — modular certification, carried forward from rev A, with the
+  rev B antenna caveat attached.** Rev A's note: "the ESP32-S3-WROOM-1
+  carries modular certification." Rev B uses the **WROOM-1U** variant, whose
+  modular approval is granted against specific antenna types and gains —
+  fitting a non-approved (e.g. high-gain) external antenna on the U.FL
+  pigtail steps outside that approval. Confirm the antenna actually populated
+  in the field is on Espressif's approved list before treating a rev B unit
+  as carrying the module's certification; the certification does not
+  automatically extend to an arbitrary U.FL antenna choice the way it did to
+  rev A's fixed on-package antenna.
+- **The hardware watchdog ships before its firmware kick task.**
+  `KILN_PIN_WDT_KICK` (GPIO 36) is defined and wired to the charge pump that
+  gates both SSR channels, but nothing in firmware toggles it yet. Every
+  rev B board needs the `SJ2` ("WDT DEFEAT") solder jumper fitted until the
+  kick task lands, or **the SSRs will not energize under any firmware
+  command.** This is a firmware gap, not a fab-readiness blocker — the board
+  is correct as designed — but it belongs in bring-up notes for anyone
+  assembling a board ahead of the kick task, since it presents as a dead
+  board rather than an obviously-missing feature.
+
+- **Measure the watchdog's decay on board 1 — it is a safety-path assumption.**
+  `C38` (100 nF), `C39` (1 µF) and `R46` (1 MΩ) are engineering estimates, not
+  datasheet-derived, and are labelled `ASSUMPTION` in `design.py`. The
+  arithmetic gives a decay through the AO3400A's 1.45 V max threshold of
+  **0.40 s** at the ESP32's guaranteed `V_OH` and **0.72 s** typical — inside
+  the intended 0.5–1 s band, and the worst corner fails *faster*, which is the
+  safe direction. But that is arithmetic. On the first board, confirm `Q3`
+  actually conducts and time the drop after the kick stops. All three parts are
+  0805 and reworkable if the measurement disagrees. Related: at the guaranteed
+  `V_OH` the gate sits at ~2.16 V, below the 2.5 V point where the AO3400A
+  datasheet guarantees any `R_DS(on)` — judged benign because `Q3` is a
+  ~20 mA return-path switch whose current is set by the 220 Ω/680 Ω series
+  resistors, so even several ohms costs under 100 mV against ~2 V of headroom.
+
+- **`datasheets/manifest.json` is stale** — see finding 6. It claims all 26
+  parts failed while 13 PDFs are on disk, and still lists retired parts
+  (`USBLC6-2SC6` for U4, `MAX31855KASA+` for U3,
+  `ESP32-S3-WROOM-1-N16R8` for U1). Datasheets missing for parts actually
+  fitted: **SRV05-4** (U4, D5, D6), **SS34** (D1, D2), **SS14** (D3),
+  **1N4148W** (D4).
+
+## Design history — decisions and defects, recorded
+
+Everything below predates the 2026-08-17 round and is preserved as the record of
+why the board is shaped the way it is. Numbers in this part describe the state
+at the time each entry was written, except where marked.
+
+### The escalation ladder
 
 The principal engineering risk in this respin was density: 141 footprints on
 the same 100 × 100 mm outline rev A used at 80 mm tall, on a router that had
@@ -113,7 +332,7 @@ after a via unchecked at its start point — invisible at 0.25 mm, and
 0.172 mm from a pad at the 0.7 mm power-net width. Both are fixed in
 `generator/router.py`.
 
-## BOM/CPL parity check
+### BOM/CPL parity check
 
 `generator/gen_jlc.py jlcpcb` output, current as of this review:
 
@@ -155,7 +374,15 @@ all**, so C160404 and C165948 are unavoidable, and the module, both
 MAX31856s, the ADE7953 and its crystal have no fee-free equivalent. $18 is
 this board's floor short of hand-soldering J14.
 
-## PR #301 review round — the clipped schematic
+**Re-counted 2026-08-17.** The as-built package is now **108 machine-placed
+parts across 38 BOM lines** plus 13 hand-soldered, after the SRV05-4
+consolidation, the crystal → oscillator swap (which retired `C26`) and the three
+added fiducials. BOM and CPL designator sets were re-derived directly from
+`jlcpcb/BOM.csv` and `jlcpcb/CPL.csv` for this round: **108 each, both
+difference lists empty**. The $18 feeder-fee floor is carried forward from the
+last fab regeneration and was not re-derived here.
+
+### PR #301 review round — the clipped schematic
 
 A review of PR #301 found a fab-package defect that every gate in this
 document had missed, and it is worth recording *why* it was missed.
@@ -205,7 +432,7 @@ open by default. It had never been implemented. It was implemented in that
 round — and then removed again in the next one, along with the optocouplers
 themselves. See below.
 
-## The opto-isolation reversal
+### The opto-isolation reversal
 
 **What changed.** `U8`/`U9` (LTV-817S), `SJ3`/`SJ4`, the `ISO_BARRIER`
 four-layer pour keepout, the matching router keepout with its per-net
@@ -257,37 +484,11 @@ landed); 141 components; 92 nets, 0 netlist
 mismatches; 2271 copper items checked; BOM/CPL designator sets equal at 109,
 no line without an LCSC part; gerbers still carry `In1_Cu`/`In2_Cu`.
 
-## Open items
+### Resolved items and verified-as-drawn decisions
 
-- ~~**Sourcing flag: LCSC `C17774`** (6.8 Ω 0805 1%, R31/R34)~~ — **closed.**
-  The burden resistors are now 5.1 Ω (`C17724`, Basic, >4.9 M in stock), so
-  the thin line and the $3 feeder fee both went with it. See
-  `design.py` for why 5.1 Ω rather than the 7.1 Ω the CT ratio implies.
-- **Sourcing flag:** the two thinnest lines on the BOM are now `C7471632`
-  (the ADE7953's 3.579545 MHz crystal, ~1.7 k in stock) and `C3013945` (the
-  ESP32-S3-WROOM-1U-N16R2 module, ~3.2 k). Both are single-sourced Extended
-  parts with no fee-free equivalent, and one each per board. **Re-check stock
-  immediately before ordering** — at these quantities a line can go to zero
-  between review and order without warning.
-- **`CERT-001` — modular certification, carried forward from rev A, with the
-  rev B antenna caveat attached.** Rev A's note: "the ESP32-S3-WROOM-1
-  carries modular certification." Rev B uses the **WROOM-1U** variant, whose
-  modular approval is granted against specific antenna types and gains —
-  fitting a non-approved (e.g. high-gain) external antenna on the U.FL
-  pigtail steps outside that approval. Confirm the antenna actually populated
-  in the field is on Espressif's approved list before treating a rev B unit
-  as carrying the module's certification; the certification does not
-  automatically extend to an arbitrary U.FL antenna choice the way it did to
-  rev A's fixed on-package antenna.
-- **The hardware watchdog ships before its firmware kick task.**
-  `KILN_PIN_WDT_KICK` (GPIO 36) is defined and wired to the charge pump that
-  gates both SSR channels, but nothing in firmware toggles it yet. Every
-  rev B board needs the `SJ2` ("WDT DEFEAT") solder jumper fitted until the
-  kick task lands, or **the SSRs will not energize under any firmware
-  command.** This is a firmware gap, not a fab-readiness blocker — the board
-  is correct as designed — but it belongs in bring-up notes for anyone
-  assembling a board ahead of the kick task, since it presents as a dead
-  board rather than an obviously-missing feature.
+Kept because each records a defect class or a deliberate choice, not because
+anything is outstanding.
+
 - **U7's rotation was wrong — RESOLVED, and this entry called it.** The ADE7953
   carried a **+90° CPL correction** from the old `JLC_ROTATION` table's `^QFN-`
   rule, which this review flagged as community-maintained, not vendor-published,
@@ -342,25 +543,19 @@ no line without an LCSC part; gerbers still carry `In1_Cu`/`In2_Cu`.
   0.20 mm, at or below the solder-mask dam JLCPCB can print at this pitch —
   trading a 25 um overhang for a real bridging risk on a 28-pin part. Left as
   drawn deliberately.
-- **Measure the watchdog's decay on board 1 — it is a safety-path assumption.**
-  `C38` (100 nF), `C39` (1 µF) and `R46` (1 MΩ) are engineering estimates, not
-  datasheet-derived, and are labelled `ASSUMPTION` in `design.py`. The
-  arithmetic gives a decay through the AO3400A's 1.45 V max threshold of
-  **0.40 s** at the ESP32's guaranteed `V_OH` and **0.72 s** typical — inside
-  the intended 0.5–1 s band, and the worst corner fails *faster*, which is the
-  safe direction. But that is arithmetic. On the first board, confirm `Q3`
-  actually conducts and time the drop after the kick stops. All three parts are
-  0805 and reworkable if the measurement disagrees. Related: at the guaranteed
-  `V_OH` the gate sits at ~2.16 V, below the 2.5 V point where the AO3400A
-  datasheet guarantees any `R_DS(on)` — judged benign because `Q3` is a
-  ~20 mA return-path switch whose current is set by the 220 Ω/680 Ω series
-  resistors, so even several ohms costs under 100 mV against ~2 V of headroom.
+
+> **Note (2026-08-17):** the U7 exposed-pad entry directly above concerns the
+> *land size* (3.1 mm sq vs LCSC's 3.30 model) and stands. It is a separate
+> question from finding 2 in this review, which is that the EP carries **no
+> vias** — nearest GND via 3.36 mm. The land is right; the stitching is thin.
+
 - **Datasheet coverage inherited from Task 4's pre-layout risk retirement.**
   The ADE7953's `IRMS`-without-voltage-channel question, the MAX31856
   pinout/filter, and the WROOM-1U CPL rotation/origin were all confirmed
   against real datasheets before layout (see the Task 4 report); this review
   does not re-litigate them, only records that the layout that shipped is
   the one that was cleared.
+
 - **GND via hole-to-hole spacing — RESOLVED, and the original entry here was
   wrong.** This item previously concluded that the tightest hole pair on the
   board was via-to-via at 0.45 mm, which clears JLCPCB's published 0.2 mm
@@ -425,22 +620,18 @@ no line without an LCSC part; gerbers still carry `In1_Cu`/`In2_Cu`.
 
 ## Not performed / limits on confidence
 
-Carried forward from rev A's review, and not newly re-verified for rev B:
-
-- **SPICE simulation skipped** — no `ngspice`/`ltspice`/`xyce` on this
-  machine. Value-computation checks on the SSR gate/indicator resistors, the
-  watchdog charge-pump RC and its high-side gate arithmetic, and the CT
-  anti-alias filter are
-  static (datasheet-arithmetic) only, the same limitation rev A's review
-  recorded for its own analog values.
-- **Datasheet coverage is not exhaustive.** The parts load-bearing for this
-  respin's safety-relevant claims (MAX31856, ADE7953, ULN2003, BAT54S) were
-  checked against real datasheets during Task 4 and while writing
-  `design.py`'s inline component comments; the AO3400A/AO3401A gate
-  arithmetic behind the watchdog topology choice is worked in `design.py`'s
-  watchdog block against the published spec points, but no new datasheet
-  extraction was done for it. Parts unchanged from rev A
-  (AMS1117, AO3400A, WS2812B) were not re-verified here and
-  carry whatever confidence rev A's review already assigned them. The
-  USBLC6-2SC6 that used to be on this list is gone — U4 is an SRV05-4 now,
-  and both its datasheet and C558418's were read directly for the swap.
+- **SPICE simulation — skipped.** `which ngspice ltspice xyce` returns nothing on
+  this machine. The AMS1117 headroom arithmetic in finding 1 is static datasheet
+  reasoning, not simulated.
+- **Lifecycle / obsolescence audit — not run.** `lifecycle_audit.py` reads MPNs
+  from the analyzer's BOM section, and the schematic carries none (finding 6).
+  The LCSC codes that do exist are in `BOM.csv`, which the tool doesn't read.
+  Stock re-check before ordering remains a manual step.
+- **Structured datasheet extraction — not available.** `datasheets/extracted/` is
+  empty, so every datasheet claim here comes from reading the PDF text directly,
+  cited inline.
+- **SRV05-4, SS34, SS14, 1N4148W not verified against datasheets** — not on disk.
+- **No board rebuild or 3D re-render.** This review changed nothing; `make pcb`
+  was not run and the committed `3d/.render-stamp` is untouched.
+- **`GP-001` (77 findings) was triaged as a class, not net by net.** If you want
+  per-net reference-plane confidence, that needs a targeted pass.

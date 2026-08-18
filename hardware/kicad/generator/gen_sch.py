@@ -22,6 +22,7 @@ import uuid
 sys.path.insert(0, os.path.dirname(__file__))
 from sexp import parse, find, find_all, Sym, num
 from design import COMPONENTS, PWR_FLAG_NETS
+from gen_jlc import LCSC
 import check_sch_layout
 import inspect_libs
 
@@ -1593,6 +1594,28 @@ def main():
             prop.append('\t\t(property "Description" "%s" (at %s %s 0)\n'
                         '\t\t\t(effects (font (size 1.27 1.27)) hide)\n\t\t)'
                         % (esc(desc_val), f(sx), f(sy)))
+        # Sourcing identity, carried from gen_jlc.LCSC so the schematic and the
+        # BOM can never disagree - there is one table, and check_mpn.py proves
+        # the emitted properties still match it.
+        #
+        # MPN holds the LCSC part number rather than a manufacturer part
+        # number, and that is deliberate: LCSC's C-number IS this board's
+        # orderable identity (it is what BOM.csv ships and what JLCPCB
+        # consumes), and for 49 of the 121 lines - every generic resistor, and
+        # the connectors whose description leads with a manufacturer name -
+        # the table carries no manufacturer part number at all. Deriving one
+        # would mean inventing sourcing data. Tools that want the distributor
+        # field by its proper name read LCSC; tools that look for an MPN find
+        # the same number instead of nothing.
+        #
+        # Both are hidden: check_sch_layout.py scores a symbol's body against
+        # its VISIBLE fields, so a visible field here would move parts.
+        lcsc_entry = LCSC.get(ref)
+        if lcsc_entry:
+            for pname in ("MPN", "LCSC"):
+                prop.append('\t\t(property "%s" "%s" (at %s %s 0)\n'
+                            '\t\t\t(effects (font (size 1.27 1.27)) hide)\n\t\t)'
+                            % (pname, esc(lcsc_entry[0]), f(sx), f(sy)))
         pin_uuid_lines = "".join('\t\t(pin "%s" (uuid %s))\n' % (p[0], uid("pin", ref, p[0]))
                                  for p in pins)
         emit('\t(symbol (lib_id "%s") (at %s %s 0) (unit 1)\n'
