@@ -417,7 +417,7 @@ def add_outline_and_silk(board):
         sh.SetWidth(MM(0.1))
         board.Add(sh)
     anchors = []
-    for (txt, x, y, rot, size) in SILK:
+    for (txt, x, y, rot, size, lock) in SILK:
         t = pcbnew.PCB_TEXT(board)
         t.SetText(txt)
         t.SetPosition(V(x, y))
@@ -434,7 +434,7 @@ def add_outline_and_silk(board):
         t.SetTextThickness(MM(max(SILK_MIN_STROKE, size * 0.15)))
         t.SetTextAngleDegrees(rot)
         board.Add(t)
-        anchors.append((t, x, y))
+        anchors.append((t, x, y, lock))
     # Silk graphics are placed, not anchored, so none of these go into
     # `anchors`: `silk.place()` has nothing to move them to. It does have to
     # SEE them - board-level F.SilkS drawings are in its obstacle set for
@@ -846,7 +846,8 @@ def main(out, reuse_routing=False):
     # Silk placement runs last, once every pad, footprint outline and board
     # text exists: it is a whole-board packing problem, and it cannot be
     # solved a label at a time as each one is created.
-    strayed = silk.adrift(silk.place(board, anchors))
+    _labels = silk.place(board, anchors)
+    strayed, slid = silk.adrift(_labels), silk.offaxis(_labels)
     if not reuse_routing:
         add_zones(board, nets)
     rpt_path = os.path.splitext(out)[0] + "-drc.rpt"
@@ -935,11 +936,22 @@ def main(out, reuse_routing=False):
     # it was pointed at - `CT A+/A-/B+/B-` once slid 14 mm onto a different
     # terminal block - and no amount of placer cleverness fixes an anchor
     # aimed at occupied board. That is a human's call, so it stops the build.
-    if strayed:
-        for txt, d in strayed:
-            print("FAIL: board text %r moved %.2f mm from its anchor "
-                  "(silk.RING_MAX = %.1f) - move the anchor in gen_pcb.SILK, "
-                  "or the parts crowding it" % (txt, d, silk.RING_MAX))
+    for txt, d in strayed:
+        print("FAIL: board text %r moved %.2f mm from its anchor "
+              "(silk.RING_MAX = %.1f) - move the anchor in gen_pcb.SILK, "
+              "or the parts crowding it" % (txt, d, silk.RING_MAX))
+    # The same judgement, one class up in severity. A legend that had to leave
+    # the axis identifying its terminal is not merely far from what it
+    # describes, it is beside something else - `A-` printed level with the B+
+    # screw is worse than no legend at all, because a reader acts on it. The
+    # fix is never in silk.py: give the legend column room (see gen_pcb.
+    # PIN_LEGENDS and TP11, which was moved out of J12's).
+    for txt, axis, d in slid:
+        print("FAIL: terminal legend %r moved %.2f mm along its locked %s "
+              "axis - it names a different terminal now. Clear the legend "
+              "column in gen_pcb.PIN_LEGENDS, or move the part in the way."
+              % (txt, d, axis))
+    if strayed or slid:
         sys.exit(1)
 
 

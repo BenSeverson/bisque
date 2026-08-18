@@ -57,7 +57,7 @@ Independent checks beyond KiCad's own DRC, all passing:
 |---|---|
 | `check_pinmap.py` (design.py ↔ Kconfig) | 29 GPIO assignments agree |
 | `check_sch_bounds.py` (nothing off the declared sheet) | all placed items inside A1 |
-| `check_netlist.py` (schematic round-trip) | 93 nets compared, 0 mismatches |
+| `check_netlist.py` (schematic round-trip) | 92 nets compared, 0 mismatches |
 | `check_pcb.py` (independent connectivity) | 2271 copper items checked, ALL CHECKS PASS |
 | `check_via_in_pad.py` | PASS |
 | `check_canonical.py` (reproducibility) | PASS — rebuild is byte-identical |
@@ -253,7 +253,7 @@ every remaining step still passes.
 
 **Numbers after the reversal:** 0 DRC errors, 0 unconnected, 0 footprint
 errors, 0 warnings (109 silkscreen-only warnings until the silk packer
-landed); 141 components; 93 nets, 0 netlist
+landed); 141 components; 92 nets, 0 netlist
 mismatches; 2271 copper items checked; BOM/CPL designator sets equal at 109,
 no line without an LCSC part; gerbers still carry `In1_Cu`/`In2_Cu`.
 

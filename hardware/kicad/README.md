@@ -19,7 +19,7 @@ plane pours are filled and checked by `kicad-cli pcb drc --refill-zones` —
 **zero errors, zero unconnected, zero warnings**
 (`bisque-controller-drc.rpt`) — and the schematic passes a netlist round-trip
 check (KiCad's exported netlist diffed against the design's connectivity
-table — 93 nets, 0 mismatches). The 3D renders in `3d/` are raytraced by
+table — 92 nets, 0 mismatches). The 3D renders in `3d/` are raytraced by
 `kicad-cli pcb render` with the official component models.
 
 | File | What it is |
@@ -274,6 +274,37 @@ carved a four-layer pour keepout across the SSR optocoupler row and had
 the optocouplers (see "SSR drive ×2" above), returning ~21 × 24 mm of pour
 and routing area on every layer.
 
+### Two escapes are written down rather than routed
+
+`generator/gen_pcb.py` carries two tables of hand-seeded copper —
+`USB_SEEDS` for J1's differential pair and CC lines, and **`ADE_I2C_SEEDS`
+for the ADE7953's SDA and SCL**. Both exist for the same reason: a lane one
+track wide, in a place the greedy router's answer is not stable.
+
+U7's I2C pins leave a 0.5 mm-pitch QFN into the densest neighbourhood on the
+board (2.30 parts/cm², with every escape from a 28-pin part passing through
+it). Their fanout stubs end with two and six free grid nodes; whichever net
+gets there first takes the only lane and the other cannot get in. The
+committed board routes both, but that is a fixed point rather than a
+property — six unrelated placement changes elsewhere re-rolled it, and it
+cost first one net and then the other over five full re-routes. Promotion
+does not help, which is the tell: `I2C_SDA` failed at (94.50, 68.00) even
+when routed **first**, before any other signal existed.
+
+So the two lanes are recorded, read back off the board from a run that did
+succeed. Two properties are load-bearing:
+
+* **`MANUAL_VIAS` carries SCL's drop to B.Cu.** `via_ok` is false at both
+  stub ends — there is no room for a via pad beside a 0.5 mm-pitch escape —
+  so the router cannot place it for itself.
+* **The far end of a seed must be the net's terminal** (`ADE_I2C_TERMS`,
+  exactly as `USB_STUB_TERMS` does for J1). Seed the lane without moving the
+  terminal and the router is still free to reach the fanout stub the short
+  way: it did, both nets came out electrically complete, and the seeds were
+  left hanging off the stubs as 2.5 mm and 8.8 mm of dangling copper. The
+  same trap caught `USB_DP`, whose escape seed overshot its own branch point
+  by 0.5 mm after a re-route — a seed should end where the escape ends.
+
 ### The physical stack-up, and the one impedance target
 
 The board declares **JLCPCB's default 4-layer 1.6 mm press,
@@ -337,7 +368,7 @@ Full table with module pin numbers, nets and per-pin notes:
 
 ## Bill of materials
 
-141 components, 93 nets. Full machine-readable BOM: `jlcpcb/BOM.csv` (40
+141 components, 92 nets. Full machine-readable BOM: `jlcpcb/BOM.csv` (40
 lines covering 109 machine-placed parts) plus `jlcpcb/hand-solder-parts.csv`
 (13 hand-fitted parts). Selected parts worth calling out:
 
@@ -547,7 +578,7 @@ checkers against what's already committed, without touching KiCad:
 
 ```bash
 make pcb          # regenerate schematic + board + fab outputs + renders, then check
-make pcb-build    # schematic + board only (no fab outputs) — the full path, ~158 s
+make pcb-build    # schematic + board only (no fab outputs) — the full path, ~221 s
 make pcb-cosmetic # silk / 3D models / title block only, reusing the routing — ~8 s
 make pcb-fab      # gerbers, drill, BOM/CPL, PDFs — after pcb-build
 make pcb-check    # check only: pinmap, sheet bounds, netlist, connectivity, silkscreen, reproducibility
@@ -582,7 +613,7 @@ committed so a clean clone skips too. `make pcb-render FORCE=1` overrides.
 
 ### Which path does your change need?
 
-Routing 93 nets across 141 parts is essentially all of `pcb-build`'s
+Routing 92 nets across 141 parts is essentially all of `pcb-build`'s
 runtime, and several kinds of change cannot move a single track. Those get
 `make pcb-cosmetic`, which is `kicad_build.py --no-route`: it reads the
 tracks, vias and filled zones back off the existing board and re-derives
@@ -594,7 +625,37 @@ everything else with the same code the full build runs.
 | The nameplate — `TITLE_*` / `TITLE_ROWS`, `SILK_GRAPHICS`, `generator/logo.py` | `make pcb-cosmetic` | **8 s** |
 | 3D models (`MODEL_FIXUP` in `kicad_build.py`, files in `3dmodels/`) | `make pcb-cosmetic` | **8 s** |
 | Board title block | `make pcb-cosmetic` | **8 s** |
-| **Anything else** — placement, connectivity, footprint choice, net classes, `MANUAL_VIAS`, router parameters (`router.py`, `gen_pcb.py`) | `make pcb-build` | **158 s** |
+| **Anything else** — placement, connectivity, footprint choice, net classes, `MANUAL_VIAS`, router parameters (`router.py`, `gen_pcb.py`) | `make pcb-build` | **221 s** |
+
+**That number is for a design the router can close, and a placement change
+is exactly what stops it being one.** The router is greedy with a
+rip-up-and-retry fallback and iterates until the failure set stops shrinking;
+this board's current placement takes three passes and **221 s**
+(`make pcb-cosmetic-verify` measures it), but a placement it *cannot* close
+spends all its time in rip-up. The revisions of this change set that stranded
+a net ran **10–40 minutes each**, and one of them nine minutes on a single
+net. Read the per-pass `N net(s) unrouted` lines rather than waiting in
+silence — a count that is not shrinking means stop and look at the placement,
+and note the run keeps the best pass, not the last one.
+
+Two traps in diagnosing a net that will not route, both of which cost a full
+rebuild here to learn:
+
+* **Measure congestion against a FULLY ROUTED board.** Measuring the board
+  from the failed build is circular: the nets that failed are the ones that
+  are missing, so the region they wanted reads as empty. `git show
+  HEAD:…kicad_pcb` is the reference.
+* **Clip each track to the window; do not test its endpoints.** A corridor is
+  by definition traces passing straight *through* a region, and an
+  endpoint-in-rectangle test scores it zero. Two "completely empty" bands
+  found that way — the escape south of U1 and the lane at the middle of the
+  board — carry 336 mm and 220 mm of track respectively, and putting parts in
+  either one stranded nets.
+
+And when a net fails **even after being promoted to route first**, ordering is
+not the problem: at that point only fixed geometry exists (hand seeds, fanout
+stubs, plane vias), so the lane it needs is genuinely blocked. That is what
+`ADE_I2C_SEEDS` is for — see below.
 
 Both numbers used to be far worse — 421 s and 104 s — and the fast one was
 not dominated by anything the fast path exists to skip. It was the
@@ -786,7 +847,7 @@ power library holds a symbol of that name, which today means `GND`, `+3V3`,
 and keep their labels). That is also what makes it safe — KiCad takes a
 `(power global)` symbol's net name from its Value field, so an exact name
 match is the guarantee the net name survives, and `check_netlist.py`
-round-trips through KiCad to prove it did (93 nets, 0 mismatches, unchanged).
+round-trips through KiCad to prove it did (92 nets, 0 mismatches, unchanged).
 The ports are schematic-only: `design.py` is untouched, so the board, the
 gerbers, the BOM and the CPL are bit-for-bit what they were.
 
@@ -975,17 +1036,38 @@ times as much for sliding **along** its reading direction as across it. The
 28 pin names above J5/J6/J7 identify a pin by sitting over it, so a label
 that drifts sideways doesn't just look ragged — it names the wrong pin.
 
-**The nameplate is the one silk item that is placed rather than anchored.**
+That term is a *guess* at which axis carries the meaning, though, and it is
+backwards for half the labels that have one — beside a vertically stacked
+screw terminal it is the perpendicular slide that renames the screw. So a
+label that knows its own axis now declares it, and the declaration is a hard
+constraint rather than a weight: see **per-terminal legends** below.
+
+**The nameplate is the one silk item that is placed rather than anchored**,
+and the place is *measured at build time*.
 `BISQUE / KILN CONTROLLER / REV B / © 2026 Ben Severson`, under the project's
-flame, sits in `gen_pcb.TITLE_POCKET` — the board's largest genuinely empty
-rectangle, 18 × 32 mm at x 68–86, y 63–95, with no exposed pad, no courtyard
-and no board edge inside it. That rectangle was *measured* off the pad and
-courtyard geometry, not eyeballed; the next-largest is 28 × 10.5 mm at
-(59.5, 45), which a four-row stack does not fit in. The title used to be two
-texts at (62.5, 62.0), in what the comment there called the clear band
-between the switching and analog regions — a band that stopped being clear
-somewhere on the way to 141 parts, after which the packer moved the title
-every build and it read as a caption on whatever it landed beside.
+flame, goes wherever `gen_pcb.largest_empty_rect()` finds the most empty
+board: every part's keep-out (drawn body ∪ copper, grown by
+`TITLE_MARGIN`) is rasterised on a 0.25 mm lattice inside the outline and the
+largest all-free rectangle taken by the standard
+largest-rectangle-in-histogram sweep. The whole block then **scales to fit**
+what it found, down to `TITLE_MIN_SCALE`; below that the build stops rather
+than printing a nameplate nobody can read.
+
+This used to be the hand-measured constant `TITLE_POCKET = (68, 63, 86, 95)`,
+and the search reproduces exactly that rectangle from the placement it was
+measured against — which is the point of replacing it. The constant was not
+wrong, it was *un-remeasured*: the nameplate is the only thing on the board
+with no reason to be anywhere in particular, so it is the thing that should
+give way when a part wants the space, and a stale pocket gives way to nothing
+because it cannot tell that anything moved. The WS2812 status cluster moved
+into that lane in the same revision; the nameplate shrank to 75% and slid
+north, with no edit.
+
+(Before the constant it was two texts at (62.5, 62.0), in what the comment
+there called the clear band between the switching and analog regions — a band
+that stopped being clear somewhere on the way to 141 parts, after which the
+packer moved the title every build and it read as a caption on whatever it
+landed beside.)
 
 Two properties of that block are worth knowing before editing it:
 
@@ -1021,6 +1103,53 @@ achieves. It was calibrated the right way round — run against the *old*
 board it reports exactly the 24 over-copper and 4 edge-clipped items, and
 its silk-on-silk rule counts exactly the 81 `silk_overlap` violations
 kicad-cli reported. The board now scores 0 / 0 / 0.
+
+**Every connector names its own terminals, and the names are locked to
+them.** `gen_pcb.PIN_LEGENDS` gives each hand-wired connector one legend per
+pin, printed beside that pin's own pad — `+`/`-` on the 5 V input, `5V`/`OUT`
+on each SSR block, `K+`/`K-` on both thermocouples, `A+ A- B+ B-` on the CT
+block, `V+ 1 2 3` on the aux terminal, `IN1 IN2 IN3 GND` on the input
+terminal, and the pin-name rows on J5/J6/J7. Nothing in that table is a
+coordinate: the pad centres come from the real footprint geometry and the
+standoff from the real drawn body, so a connector that moves takes its
+legends with it. 50 legends, generated.
+
+They replace the horizontal lists that used to sit beside the blocks —
+`SSR1  5V / OUT`, `TC1  K+/K-`, `CT A+/A-/B+/B-`. Every screw terminal here
+is rotated so its screws stack **vertically**, so reading a list left to
+right told you nothing about which screw was which; you had to find the
+block's pin-1 triangle and count. That was the board's largest silk defect
+(`analysis/silkscreen-review.md` §E) and on the SSR and CT blocks it is the
+one a person acts on with a screwdriver. The blocks keep a short name
+(`SSR1`, `TC1`, `CT`) and the per-screw marks carry the order.
+
+**A legend declares which axis carries its meaning, and may not leave it.**
+`x` for a pin name over a pin, `y` for a mark beside a screw; `silk.py`
+refuses any candidate off that axis, `kicad_build.py` fails the build if one
+ends up off it anyway, and the perpendicular axis stays free — sliding along
+the standoff is how these labels actually find room. J11's four marks face
+the J5/J6/J7 row across a 1.69 mm gap and centre themselves in it.
+
+Two things had to change for that to hold, and both were the placer resolving
+a tie backwards:
+
+* **A reference designator may not take a seated legend's space.** Board
+  texts are placed first, so `K-` seated on J3's lower screw — and `R15`'s
+  designator then took the same gap anyway, collision and all, after which
+  `K-` gave up its screw and printed 2.60 mm away inside the terminal block.
+  R15 had 93 other clear candidates, one of them 4 mm north. A designator is
+  recoverable from the board and a polarity mark is not, so this is a rule
+  now, not a cost.
+* **The ring's smallest step went from 1.0 mm to 0.4 mm.** A 1 mm floor is
+  coarser than most gaps on this board, and for a locked legend both
+  directions collide before either clears.
+
+Where a legend genuinely could not fit, the *part* moved. U2's SOT-223 lead
+pads used to start 1.13 mm from J2's outline at exactly the `+` screw's y,
+leaving 0.93 mm of column for a 1.32 mm glyph — so the regulator and the
+bulk-cap row east of it are 1.0–1.5 mm further east and the column is 2.63 mm.
+`check_silk.ON_PART_OK`, the list of legends allowed to print under a part,
+is now **empty**, and every entry it ever held was retired the same way.
 
 **Test points name their net.** `TP1`–`TP12` print what they probe
 (`+3V3`, `+5V`, `GND`, `MOSI`, `SCLK`, `MISO`, `SDA`, `SCL`, `SSR1`,

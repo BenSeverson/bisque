@@ -110,6 +110,57 @@ def pad_geometry(comp):
         yield (str(name), kind, gx, gy, w, h, circle, layers, hole)
 
 
+def pad_centres(ref):
+    """{pin name: (x, y)} in board mm, for the placed footprint `ref`.
+
+    Multi-pad pins (a USB shield, a JST mounting peg) collapse to their
+    first pad; nothing that asks this question cares about the rest.
+    """
+    out = {}
+    for (name, _k, gx, gy, _w, _h, _c, _l, _hole) in \
+            pad_geometry(COMPONENTS[ref]):
+        out.setdefault(name, (gx, gy))
+    return out
+
+
+def fp_body_box(comp):
+    """Global (x0, y0, x1, y1) of a placed footprint's drawn body.
+
+    F.Fab and F.SilkS graphics, never text and never the courtyard. This is
+    the outline a fitted part occupies and a legend has to stay outside of;
+    a courtyard is placement slack and is routinely 0.25-0.5 mm wider, which
+    on a 1.7 mm band is the difference between a legend that fits and one
+    that does not. Returns None for a footprint that draws neither.
+    """
+    fp = load_fp(comp["fpf"])
+    fx, fy, frot = comp["at"]
+    box = None
+    for key in ("fp_line", "fp_rect", "fp_poly", "fp_circle", "fp_arc"):
+        for it in find_all(fp, key):
+            lay = find(it, "layer")
+            if not lay or str(lay[1]) not in ("F.Fab", "F.SilkS"):
+                continue
+            pts = []
+            for k in ("start", "end", "center", "mid"):
+                e = find(it, k)
+                if e:
+                    pts.append((num(e[1]), num(e[2])))
+            plist = find(it, "pts")
+            if plist:
+                pts += [(num(xy[1]), num(xy[2])) for xy in find_all(plist, "xy")]
+            if key == "fp_circle" and len(pts) >= 2:
+                r = math.hypot(pts[1][0] - pts[0][0], pts[1][1] - pts[0][1])
+                cx, cy = pts[0]
+                pts = [(cx - r, cy - r), (cx + r, cy + r)]
+            for lx, ly in pts:
+                gx, gy = rot_xy(lx, ly, frot)
+                gx, gy = gx + fx, gy + fy
+                box = ((gx, gy, gx, gy) if box is None else
+                       (min(box[0], gx), min(box[1], gy),
+                        max(box[2], gx), max(box[3], gy)))
+    return box
+
+
 # There is no opto-isolation barrier. Rev B carved a four-layer pour keepout
 # (x 20..40.8, y 71..95.5) across the optocoupler row and made it a routing
 # keepout too; the optos were reverted to rev A's direct low-side MOSFET
@@ -151,7 +202,12 @@ def build_router():
 USB_SEEDS = [  # (net, layer, [(x,y)...], width)
     ("USB_DP", 0, [(47.25, 28.445), (47.25, 27.2), (48.25, 27.2),
                    (48.25, 28.445)], 0.25),
-    ("USB_DP", 0, [(47.25, 28.445), (47.25, 31.25)], 0.25),
+    # 30.75, not 31.25. The escape seed used to overshoot by 0.5 mm: the
+    # router branches off wherever the net's existing copper is nearest,
+    # which after a re-route was 30.75, and the last half millimetre was
+    # left as a dangling tail - a `track_dangling` warning on a board whose
+    # report reads 0/0/0. A seed should end where the escape ends.
+    ("USB_DP", 0, [(47.25, 28.445), (47.25, 30.75)], 0.25),
     # The D- link ran (47.75 pad) -> south -> across -> south to the escape
     # point and never actually touched the second D- pad at x 48.75, which sits
     # 1.5 mm *north* of where the link crossed; J1.B7 came out unconnected. Two
@@ -164,11 +220,51 @@ USB_SEEDS = [  # (net, layer, [(x,y)...], width)
     ("VBUS", 0, [(50.45, 28.445), (50.45, 32.0), (50.5, 32.0)], 0.4),
     ("VBUS", 0, [(45.55, 28.445), (45.55, 32.0), (45.5, 32.0)], 0.4),
 ]
-MANUAL_VIAS = []
+# The ADE7953's two I2C escapes, hand-seeded for the same reason the USB pair
+# above is: they are the one place on this board where the greedy router's
+# answer is not stable, and the lane each one needs is a single track wide.
+#
+# U7's SDA and SCL leave a 0.5 mm-pitch QFN into the tightest neighbourhood on
+# the board (2.30 parts/cm2, and every escape from a 28-pin part passes
+# through it). Their fanout stubs end at (94.50, 68.00) and (94.00, 67.00)
+# with two and six free grid nodes respectively; whichever net reaches its
+# stub first takes the only lane and the other cannot get in. That is not an
+# ordering problem and promotion does not fix it - I2C_SDA fails at (94.50,
+# 68.00) even when routed FIRST, before any other signal exists, because by
+# then the fixed geometry (the other 26 pins' stubs and U7's own plane vias)
+# is already in place.
+#
+# It is stable at the fixed point: the committed rev-B board routes both. It
+# is NOT stable under perturbation - six unrelated placement changes
+# elsewhere on the board re-rolled it and cost first one net and then the
+# other, over five full re-routes. So the lanes are written down. These are
+# the exact geometries the router itself found when it did succeed, read back
+# off that board, which is what makes them a record rather than a guess.
+ADE_I2C_SEEDS = [
+    ("I2C_SDA", 0, [(92.75, 64.00), (94.50, 65.75), (94.50, 68.00)], 0.3),
+    ("I2C_SCL", 0, [(94.00, 67.00), (93.75, 67.25)], 0.3),
+    ("I2C_SCL", 1, [(93.75, 67.25), (93.75, 76.00)], 0.3),
+]
+# Vias the router may not place for itself. `via_ok` is false at both I2C
+# stub ends - there is not room for a via pad beside a 0.5 mm-pitch escape -
+# so SCL's drop to B.Cu, which is how the original route left the block, has
+# to be given to it.
+MANUAL_VIAS = [("I2C_SCL", 93.75, 67.25)]
+# ... and the far end of a hand escape has to BE the net's terminal there,
+# exactly as USB_STUB_TERMS does for J1. Seed the lane without moving the
+# terminal and the router is still free to reach the fanout stub the short
+# way; it did, both nets came out electrically complete, and the seeds were
+# left hanging off the stub as 2.5 mm and 8.8 mm of dangling copper -
+# antennas, and two `track_dangling` warnings against a board whose report
+# reads 0/0/0. {net: (fanout stub end this replaces, (x, y, layers))}.
+ADE_I2C_TERMS = {
+    "I2C_SDA": ((94.50, 68.00), (92.75, 64.00, (0,))),
+    "I2C_SCL": ((94.00, 67.00), (93.75, 76.00, (1,))),
+}
 # nets whose J1 pads are replaced by stub terminals (ends grid-aligned)
 USB_STUB_TERMS = {
     "USB_DN": [(48.75, 31.25, (0,))],
-    "USB_DP": [(47.25, 31.25, (0,))],
+    "USB_DP": [(47.25, 30.75, (0,))],
     "CC1": [(49.25, 31.75, (0,))],
     "CC2": [(46.25, 31.75, (0,))],
     "VBUS": [(50.5, 32.0, (0,)), (45.5, 32.0, (0,))],
@@ -706,7 +802,7 @@ def all_seeds(pad_pos):
     a short inward stub tying it to that pad, because the pour cannot reach
     between 0.5 mm-pitch pins.
     """
-    seeds = list(USB_SEEDS)
+    seeds = list(USB_SEEDS) + list(ADE_I2C_SEEDS)
     terms = {k: list(v) for k, v in USB_STUB_TERMS.items()}
     for ref, out in sorted(FANOUT.items()):
         comp = COMPONENTS[ref]
@@ -756,6 +852,9 @@ def all_seeds(pad_pos):
                     ey = _snap(py + math.copysign(reach, dy), BY0)
                 seeds.append((net, 0, [(px, py), (ex, ey)], FANOUT_WIDTH))
                 terms.setdefault(net, []).append((ex, ey, (0,)))
+    for net, (drop, term) in sorted(ADE_I2C_TERMS.items()):
+        terms[net] = [t for t in terms.get(net, [])
+                      if (round(t[0], 3), round(t[1], 3)) != drop] + [term]
     return seeds, terms
 
 
@@ -1198,53 +1297,206 @@ def _rot_at(node, frot):
 # moved the title every build, and a title that lands wherever there is a gap
 # reads as a caption on whatever it landed beside.
 #
-# TITLE_POCKET is the board's largest genuinely empty rectangle, measured off
-# the pad and courtyard geometry rather than eyeballed - 18 x 32 mm with no
-# exposed pad, no courtyard and no board edge inside it, the lane between the
-# SSR/aux side and the ADE7953 cluster. The next-largest is 28 x 10.5 mm at
-# (59.5, 45), which the four-row stack does not fit in.
+# The pocket it goes in is MEASURED, not typed. The nameplate is the last
+# thing on the board that needs a particular place to be: every part is
+# somewhere for an electrical reason and every other legend has to sit beside
+# the thing it names, so the title block is whatever is left over - and
+# "whatever is left over" is a thing a program can find, at build time,
+# against the placement as it actually is.
 #
-# Rows are DERIVED rather than typed. KiCad's text bounding box is exactly
+# It used to be the constant (68, 63, 86, 95): 18 x 32 mm, correct, and
+# measured by hand once. The trouble with the hand measurement is not that it
+# was wrong, it is that nothing re-took it. Four parts moved in this
+# revision, one of them into the band next door, and a stale pocket is
+# invisible - the nameplate still prints, just somewhere that stopped being
+# empty. `largest_empty_rect` re-derives it from the same pad and body
+# geometry the hand measurement used, so it is the same answer when nothing
+# has changed and a different one when something has.
+#
+# Rows are DERIVED rather than typed too. KiCad's text bounding box is
 # 1.7x the glyph size at every size used here, so a stack laid out from the
 # sizes and the gaps stays tight when a size changes - four typed
 # y-coordinates do not, and a nameplate drifting apart one row at a time is
 # how the old two-line one ended up with its subtitle 3.5 mm below it.
-TITLE_POCKET = (68.0, 63.0, 86.0, 95.0)     # x0, y0, x1, y1
 TITLE_LOGO_H = 11.0                          # flame height, mm
 TITLE_LOGO_GAP = 2.0                         # flame to wordmark, mm
 TEXT_BOX_RATIO = 1.7                         # KiCad text bbox height / size
+# KiCad stroke-font advance / (glyph size x character count), measured with
+# pcbnew over this nameplate's own rows: 0.918-0.961 for the multi-character
+# strings here. Rounded up, because the number it feeds is a minimum size the
+# pocket has to clear.
+TEXT_WIDTH_RATIO = 0.98
 # (text, glyph size, gap below)
 TITLE_ROWS = [("BISQUE", 2.6, 0.7),
               ("KILN CONTROLLER", 1.2, 1.3),
               ("REV B", 1.0, 0.7),
               ("© 2026 Ben Severson", 0.9, 0.0)]
+# Clear board the nameplate keeps around itself and from the outline, mm. The
+# first is not slack: the parts bounding the pocket still have to put their
+# own reference designators somewhere, and `silk.py`'s side offsets start
+# 0.25 mm off the body and reach ~5.4 mm, so a pocket taken hard against a
+# part body is one taken out of that part's designator.
+TITLE_MARGIN, TITLE_EDGE = 0.75, 2.0
+POCKET_GRID = 0.25                           # search resolution, mm
+# How far the whole nameplate may be shrunk to fit the space that is left,
+# and the floor below which it is not worth printing. The block is the only
+# thing on this board that yields to everything else - a part is somewhere
+# for an electrical reason and a legend has to be beside what it names - so
+# when the free space shrinks, this shrinks rather than displacing either.
+# Below TITLE_MIN_SCALE, don't print a nameplate: say so and let a person
+# decide what to give up.
+TITLE_MIN_SCALE = 0.60
+# ... and no row goes under this however far the block scales. It is the
+# board's OWN silk-text-height rule, the one KiCad DRC checks - a 0.876 scale
+# once put the copyright line at 0.789 mm and earned a `text_height` warning
+# against a file whose whole claim is 0/0/0. Flooring a row makes the stack
+# slightly taller than pure scaling, so the fit is solved by iteration rather
+# than by one division.
+TITLE_MIN_TEXT = 0.8
+
+
+def _keepout_box(comp, margin):
+    """(x0, y0, x1, y1) a free-standing graphic must stay out of, in mm.
+
+    The drawn body union the copper, grown by `margin`. Pads matter on their
+    own account because the footprints that draw no body at all - test
+    points, mounting holes, solder jumpers - are exactly the flat ones a
+    pocket search would otherwise walk straight over.
+    """
+    box = fp_body_box(comp)
+    for (_n, _k, gx, gy, w, h, _c, _l, _hole) in pad_geometry(comp):
+        pb = (gx - w / 2.0, gy - h / 2.0, gx + w / 2.0, gy + h / 2.0)
+        box = pb if box is None else (min(box[0], pb[0]), min(box[1], pb[1]),
+                                      max(box[2], pb[2]), max(box[3], pb[3]))
+    if box is None:
+        return None
+    return (box[0] - margin, box[1] - margin, box[2] + margin, box[3] + margin)
+
+
+def largest_empty_rect(min_w, min_h, margin=TITLE_MARGIN, edge=TITLE_EDGE,
+                       grid=POCKET_GRID):
+    """The biggest empty (x0, y0, x1, y1) on the board that fits min_w/min_h.
+
+    Rasterise every part's keep-out onto a `grid` mm lattice inside the board
+    outline, then take the largest all-free axis-aligned rectangle by the
+    standard largest-rectangle-in-histogram sweep, considering only
+    rectangles at least min_w x min_h. Ties break on area, then on the
+    topmost then leftmost corner, so the answer is a function of the
+    placement and nothing else - `check_canonical.py` requires that much.
+
+    Copper is deliberately NOT an obstacle. Silkscreen over a track is
+    covered by soldermask and prints perfectly; only exposed pads matter, and
+    those are in the keep-out already.
+    """
+    nx = int((BX1 - BX0) / grid)
+    ny = int((BY1 - BY0) / grid)
+    free = [bytearray(b"\1") * nx for _ in range(ny)]
+
+    def block(x0, y0, x1, y1):
+        c0 = max(0, int(math.floor((x0 - BX0) / grid)))
+        c1 = min(nx - 1, int(math.ceil((x1 - BX0) / grid)))
+        r0 = max(0, int(math.floor((y0 - BY0) / grid)))
+        r1 = min(ny - 1, int(math.ceil((y1 - BY0) / grid)))
+        for r in range(r0, r1 + 1):
+            row = free[r]
+            for c in range(c0, c1 + 1):
+                row[c] = 0
+
+    block(BX0, BY0, BX1, BY0 + edge)
+    block(BX0, BY1 - edge, BX1, BY1)
+    block(BX0, BY0, BX0 + edge, BY1)
+    block(BX1 - edge, BY0, BX1, BY1)
+    for comp in COMPONENTS.values():
+        box = _keepout_box(comp, margin)
+        if box:
+            block(*box)
+
+    need_c = int(math.ceil(min_w / grid))
+    need_r = int(math.ceil(min_h / grid))
+    best = None                          # (area, -r0, -c0, c0, r0, c1, r1)
+    height = [0] * nx
+    for r in range(ny):
+        row = free[r]
+        for c in range(nx):
+            height[c] = height[c] + 1 if row[c] else 0
+        # Monotonic stack over the row's histogram, with a sentinel so every
+        # bar is popped exactly once.
+        stack = []
+        for c in range(nx + 1):
+            h = height[c] if c < nx else 0
+            start = c
+            while stack and stack[-1][1] >= h:
+                start, sh = stack.pop()
+                w = c - start
+                if sh >= need_r and w >= need_c:
+                    key = (sh * w, -(r - sh + 1), -start)
+                    if best is None or key > best[0]:
+                        best = (key, start, r - sh + 1, c - 1, r)
+            stack.append((start, h))
+    if best is None:
+        raise SystemExit(
+            "no empty %.1f x %.1f mm rectangle on the board for the nameplate"
+            " - free space is gone, or TITLE_MARGIN is too generous" %
+            (min_w, min_h))
+    _k, c0, r0, c1, r1 = best
+    return (BX0 + c0 * grid, BY0 + r0 * grid,
+            BX0 + (c1 + 1) * grid, BY0 + (r1 + 1) * grid)
+
+
+def _title_extent(k):
+    """(width, height, [row size]) of the nameplate at scale `k`."""
+    sizes = [max(TITLE_MIN_TEXT, s * k) for _t, s, _g in TITLE_ROWS]
+    h = TITLE_LOGO_H * k + TITLE_LOGO_GAP * k
+    for (txt, _s, gap), size in zip(TITLE_ROWS, sizes):
+        h += size * TEXT_BOX_RATIO + gap * k
+    w = max([TITLE_LOGO_H * k] +
+            [len(t) * size * TEXT_WIDTH_RATIO
+             for (t, _s, _g), size in zip(TITLE_ROWS, sizes)])
+    return w, h, sizes
 
 
 def _title_block():
-    """([(text, x, y, rot, size)], (logo_cx, logo_cy)) for the nameplate."""
-    x0, y0, x1, y1 = TITLE_POCKET
+    """([(text, x, y, rot, size)], (logo_cx, logo_cy), logo_h, scale)."""
+    x0, y0, x1, y1 = largest_empty_rect(*_title_extent(TITLE_MIN_SCALE)[:2])
+    box_w, box_h = x1 - x0, y1 - y0
+    # Fit, then stop at full size: the sizes in TITLE_ROWS are the design, and
+    # a big empty board is not a reason to print a bigger wordmark. Iterating
+    # rather than dividing once, because TITLE_MIN_TEXT stops the small rows
+    # shrinking with the rest and so makes the answer non-linear in k.
+    k = 1.0
+    for _ in range(12):
+        w, h, sizes = _title_extent(k)
+        if w <= box_w and h <= box_h:
+            break
+        k *= min(box_w / w, box_h / h) * 0.999
+    else:
+        raise SystemExit("nameplate does not fit its %.1f x %.1f mm pocket "
+                         "even at the minimum scale" % (box_w, box_h))
     cx = (x0 + x1) / 2.0
-    stack = (TITLE_LOGO_H + TITLE_LOGO_GAP
-             + sum(s * TEXT_BOX_RATIO + g for _t, s, g in TITLE_ROWS))
-    y = y0 + ((y1 - y0) - stack) / 2.0
-    logo_at = (cx, y + TITLE_LOGO_H / 2.0)
-    y += TITLE_LOGO_H + TITLE_LOGO_GAP
+    logo_h = TITLE_LOGO_H * k
+    y = y0 + (box_h - h) / 2.0
+    logo_at = (cx, y + logo_h / 2.0)
+    y += logo_h + TITLE_LOGO_GAP * k
     rows = []
-    for txt, size, gap in TITLE_ROWS:
-        h = size * TEXT_BOX_RATIO
-        rows.append((txt, cx, y + h / 2.0, 0, size))
-        y += h + gap
-    return rows, logo_at
+    for (txt, _s, gap), size in zip(TITLE_ROWS, sizes):
+        rows.append((txt, cx, y + size * TEXT_BOX_RATIO / 2.0, 0,
+                     round(size, 3)))
+        y += size * TEXT_BOX_RATIO + gap * k
+    return rows, logo_at, logo_h, k
 
 
-_TITLE_TEXTS, TITLE_LOGO_AT = _title_block()
+_TITLE_TEXTS, TITLE_LOGO_AT, TITLE_LOGO_SIZE, TITLE_SCALE = _title_block()
+if TITLE_SCALE < 1.0:
+    print("nameplate scaled to %.0f%% to fit the free space at (%.1f, %.1f)"
+          % (TITLE_SCALE * 100, TITLE_LOGO_AT[0], TITLE_LOGO_AT[1]))
 
 # Free-standing silk GRAPHICS, as [(closed polyline in mm, stroke width mm)].
 # Unlike the texts below these are not anchors: `silk.py` does not move a
 # graphic, it routes labels around one, so what is written here is where it
 # prints. The flame is the project's own mark, carried as an SVG path in
 # `logo.py` rather than traced into a point table here.
-SILK_GRAPHICS = [logo.flame(TITLE_LOGO_AT[0], TITLE_LOGO_AT[1], TITLE_LOGO_H)]
+SILK_GRAPHICS = [logo.flame(TITLE_LOGO_AT[0], TITLE_LOGO_AT[1],
+                            TITLE_LOGO_SIZE)]
 
 # Free-standing silk: the nameplate above, then every label that sits beside
 # the connector or control it names.
@@ -1257,27 +1509,21 @@ SILK_GRAPHICS = [logo.flame(TITLE_LOGO_AT[0], TITLE_LOGO_AT[1], TITLE_LOGO_H)]
 # where it belongs - lives here now.
 SILK = _TITLE_TEXTS + [
     ("USB", 40.5, 22.0, 0, 0.9),
-    # Both button legends used to be anchored in the 1.2-2.0 mm strip between
-    # the board edge and the switch, and both were pushed under their button
-    # instead - the one place a legend is guaranteed to be unreadable on a
-    # finished board. The strips are not the same size, so the fixes are not
-    # either. SW2's silk starts at 22.19, leaving 1.99 mm above it, which
-    # takes a 0.9 text box (1.53) with room to spare - `BOOT` just needed an
-    # anchor that was actually in the strip rather than 0.3 mm below it.
-    # SW1's silk starts at 21.39: 1.19 mm, which takes nothing legible, so
-    # `RESET` goes to its west instead, in the 4.20 mm between H1's pad ring
-    # and SW1's own pads, at 0.8 because 0.9 does not fit there. It displaces
-    # `SW1`, which is the right trade - a designator is recoverable from the
-    # board, a button legend is not.
-    ("RESET", 31.0, 24.2, 0, 0.8),
-    # South of SW2, not north, even though north is where the room is. North
-    # is also where `SW2` was already sitting, and a board text cannot evict
-    # a seated reference: the placer runs greedily over a live index, so the
-    # designator is an obstacle from pass 1 and only moves if something makes
-    # IT move. `RESET` got its spot because `SW1` independently preferred
-    # another side; `SW2` did not, so `BOOT` spent two rebuilds pinned to the
-    # button. The 2.43 mm between SW2's silk and `TC1  K+/K-` needs no
-    # argument with anybody.
+    # The two button legends, south of their buttons and level with each
+    # other, because the buttons are now a pair (design.py SW1) instead of
+    # being 55 mm apart. Both spent revisions printed across the button they
+    # name - the one place a legend is guaranteed to be unreadable on a
+    # finished board - because each was anchored in the 1.2-2.0 mm strip
+    # between the switch and the board edge, and only SW2's strip was big
+    # enough to hold anything.
+    #
+    # South, not north, even though north is a wider gap: north is where
+    # `SW1`/`SW2` sit, and a board text cannot evict a seated reference. The
+    # placer runs greedily over a live index, so a designator is an obstacle
+    # from pass 1 and only moves if something makes IT move; `BOOT` spent two
+    # rebuilds pinned to its button waiting for `SW2` to give way. Aim a
+    # legend somewhere the designator is not.
+    ("RESET", 91.0, 28.9, 0, 0.9),
     ("BOOT", 100.0, 28.9, 0, 0.9),
     # LED2 is the +3V3 power-on indicator (green, LEDP_K through R9 to GND).
     # It went unlabelled through rev B, which on a board with three other
@@ -1286,49 +1532,49 @@ SILK = _TITLE_TEXTS + [
     # removing `U.FL ANT ->` (an arrow pointing at a connector that is
     # already the only thing it could point at) freed the strip beside it.
     ("PWR", 58.0, 20.9, 0, 0.8),
+    # Block NAMES only. What is on each individual screw is no longer spelled
+    # out here as a "/"-separated list, because a horizontal list beside a
+    # vertical stack of screws does not say which screw is which - it was the
+    # largest single defect on the board's silk (analysis/silkscreen-review.md
+    # §E). Every terminal now carries its own mark, generated beside its own
+    # pad from PIN_LEGENDS below.
     ("5V IN", 22.0, 34.0, 0, 0.9),
-    # The only per-terminal marks on the board, and they were the only two
-    # labels whose anchor was INSIDE the part it names: x=30.0 is 1.25 mm
-    # inside J2's body (21.35..31.25), so both printed under the block and
-    # vanished the moment it was soldered. East of J2 there is a 3.45 mm gap
-    # before U2, which is where they go now.
-    #
-    # The y values are the pad centres (39.00 / 44.08), not the 39.6 / 44.7
-    # they used to be: on a block this size 0.6 mm of drift is most of the
-    # way to the next screw, and a polarity mark that points between two
-    # terminals says nothing. That also makes these the two labels where the
-    # placer's own bias is backwards - `W_LATERAL` charges four times as much
-    # for sliding along the reading direction, but for a mark beside a
-    # vertically stacked terminal it is the PERPENDICULAR slide that renames
-    # the screw. Anchoring them somewhere they need not move is the fix;
-    # silk.py has no way to know which axis carries the meaning.
-    ("+", 32.8, 39.0, 0, 1.1), ("-", 32.8, 44.08, 0, 1.3),
     ("AUX OUT", 24.5, 48.0, 0, 0.9),
-    # Both SSR terminals are "+5V (watchdog-gated), switched low side" - the
-    # board supplies the control loop, so the pin order is worth naming on
-    # the silk. SJ3/SJ4, the old per-channel opto-collector-to-+5V links,
-    # are gone with the optocouplers.
-    #
-    # Function and pin order are ONE label per terminal, in the gap directly
-    # above that terminal's block. They used to be two texts each, anchored
-    # at y=70.5/72.3 and 83.0/84.8 - and 83.0 is inside J4's courtyard
-    # (72.44..83.66), not J9's, so `SSR2` printed against the wrong block.
-    # The four blocks leave gaps of only 1.3-2.1 mm between them; one label
-    # per gap is what actually fits, and a merged label cannot drift away
-    # from the pin order it belongs to.
-    ("SSR1  5V / OUT", 26.0, 71.4, 0, 0.8),
-    ("SSR2  5V / OUT", 26.0, 84.3, 0, 0.8),
+    # The four west-edge blocks leave gaps of only 1.3-2.1 mm between them,
+    # so each name gets the gap directly above its own block and nothing
+    # more. `SSR2` was once anchored at y=83.0, which is inside J4's
+    # courtyard (72.44..83.66) rather than J9's, and printed against the
+    # wrong block.
+    ("SSR1", 26.0, 71.4, 0, 0.9),
+    ("SSR2", 26.0, 84.3, 0, 0.9),
     # The two amber channel indicators. Each sits across its own terminal
     # pair through a 680R, so it lights only when that channel is driven AND
     # the watchdog rail is up - which is exactly the thing a person standing
-    # at the kiln wants to read off the board, and it had no legend at all.
-    # `ON` rather than a bare `SSR1`: the SSR1 test point is 5 mm away and
-    # already says that, and two identical words on one part of the board
-    # would be worse than none.
-    ("SSR1 ON", 57.0, 74.3, 0, 0.8),
-    ("SSR2 ON", 54.0, 85.2, 0, 0.8),
-    ("TC1  K+/K-", 104.0, 31.0, 0, 0.9),
-    ("TC2  K+/K-", 104.0, 58.5, 0, 0.9),
+    # at the kiln wants to read off the board.
+    #
+    # Above each LED, and the two anchors differ only in y now that LED3 and
+    # LED4 share a column (design.py SSR_IND_X). `ON` rather than a bare
+    # `SSR1`: that channel's test point is 4 mm east and its own generated
+    # label already says `SSR1`, so the row reads `SSR1 ON` over the LED,
+    # `SSR1` under the pad, and the two are about one thing.
+    ("SSR1 ON", 57.0, 75.7, 0, 0.8),
+    ("SSR2 ON", 57.0, 83.7, 0, 0.8),
+    # The two thermocouple blocks, named in the gap OUTSIDE each block
+    # rather than in the passive field west of it. (104, 31) and
+    # (104, 58.5) put both names 5-9 mm from the terminal they belong to
+    # and level with R14/R15 and R16/R17 instead, so `TC1` read as a
+    # legend for whichever of the seven parts around it the reader
+    # guessed - and `TC2` sat nearer C37/R37/R38 than J8.
+    #
+    # Not both above their block, the way the west-edge blocks are done:
+    # J3 and J8 are 0.74 mm apart (courtyards 32.83..44.09 and
+    # 44.83..56.09) and nothing fits between them, so the stack reads
+    # from the outside in - TC1 in the 4.3 mm band under H2, TC2 in the
+    # open board below J8. Both are held west of x 113.08, which is
+    # where the `J3`/`J8` designators sit; a legend aimed at a seated
+    # reference is the one that loses (see RESET/BOOT above).
+    ("TC1", 110.75, 31.5, 0, 0.9),
+    ("TC2", 110.75, 57.3, 0, 0.9),
     # In the free band above J12, centred on the block, NOT at (96, 76).
     # That anchor was 6.5 mm west of J12 with `AC SENSE - DNP` already in the
     # same 1 mm of board, so the placer took the far end of its ring - all
@@ -1336,7 +1582,7 @@ SILK = _TITLE_TEXTS + [
     # 12.98 mm from the block it names, 8.38 mm from the one it does not.
     # J8's bottom is 55.59 and J12's top is 74.17, so there is an 18 mm strip
     # here and nothing else wants it.
-    ("CT A+/A-/B+/B-", 112.8, 72.0, 0, 0.9),
+    ("CT", 112.8, 72.0, 0, 0.9),
     # J13's legend, and it has to be centred ON J13 to say so. At (100, 76)
     # it printed 1.30 mm from J13 but 0.37 mm from C35 and 0.77 mm from the
     # ADE7953, straight across that chip's own value text, so the one part it
@@ -1347,7 +1593,11 @@ SILK = _TITLE_TEXTS + [
     # dash is dropped to buy the 1.6 mm that keeps it clear of C31's
     # designator.
     ("AC SENSE DNP", 98.5, 76.9, 0, 0.8),
-    ("STATUS", 84.0, 93.6, 0, 0.9),
+    # LED1's legend, and it follows LED1 (design.py). North of the LED: south
+    # is D3, and further south is J5's pin-name row, where a stray word reads
+    # as a fifteenth display pin - the mistake `SSR2` made from TP10 before
+    # that test point moved.
+    ("STATUS", 74.0, 84.0, 0, 0.9),
     # There is deliberately no `I2C` zone label. One used to sit over R44/R45
     # - correctly, after a move; it started life 6.1 mm from the parts it
     # named - and it was still the wrong label, because naming two pull-up
@@ -1356,16 +1606,17 @@ SILK = _TITLE_TEXTS + [
     # where a person actually meets it: `SDA`/`SCL` on J7's pin row and
     # `QWIIC  I2C` on J14.
     # J14's own label. Every other user-facing connector on an edge says what
-    # it is - `5V IN`, `SSR1  5V / OUT`, `TC1  K+/K-`, `INPUTS ...` - and the
-    # Qwiic port arrived at the bottom edge next to the input terminal with
-    # nothing but a designator, which is the one place a wrong guess costs a
-    # 3.3 V part.
+    # it is - `5V IN`, `SSR1`, `TC1`, `IN1..GND` - and the Qwiic port arrived
+    # at the bottom edge next to the input terminal with nothing but a
+    # designator, which is the one place a wrong guess costs a 3.3 V part.
+    # It is the one connector with NO per-terminal legend (PIN_LEGENDS): a
+    # 1 mm pitch takes no readable text, and the housing is keyed, so there
+    # is nothing for a reader to get wrong.
     # 109.4, not 110.6: J14's own designator wants the gap directly above the
     # connector, and this label has the whole 5 mm band between J7 and J14 to
     # sit in, so it gives way rather than crowding the reference out of the
     # one spot that is not the connector body.
     ("QWIIC  I2C", 88.0, 109.4, 0, 0.9),
-    ("INPUTS  1 / 2 / 3 / GND", 62.6, 108.8, 0, 0.9),
     # SJ1's legend, and now it is actually at SJ1 (44.30..47.70, 48.20..50.80)
     # rather than 17 mm away beside J10, where it read as a note about the AUX
     # terminal and left the jumper itself with nothing but a designator. SJ1
@@ -1414,16 +1665,105 @@ SILK = _TITLE_TEXTS + [
 # exists to avoid.
 HIDE_REFS = {"H1", "H2", "H3", "H4", "FID1", "FID2", "FID3"}
 
-J5_PINS = ["5V", "GND", "CS", "RST", "DC", "SDI", "SCK", "BL",
-           "SDO", "TCK", "TCS", "TDI", "TDO", "IRQ"]
-J6_PINS = ["UP", "DN", "LT", "RT", "OK", "G"]
-J7_PINS = ["3V3", "GND", "TX", "RX", "SDA", "SCL", "3V3", "GND"]
-# Pin names go immediately north of each header's body (headers sit at y=104,
-# courtyard 100.6..107.4), reading upright with pin 1 at the header's origin.
-for hdr, names in (("J5", J5_PINS), ("J6", J6_PINS), ("J7", J7_PINS)):
-    hx, hy, _rot = COMPONENTS[hdr]["at"]
-    for k, t in enumerate(names):
-        SILK.append((t, hx + 2.54 * k, hy - 4.3, 0, 0.8))
+# ------------------------------------------------ per-terminal pin legends
+# One legend per pin, beside that pin's own pad, for every connector a person
+# wires by hand.
+#
+# This is the fix for `analysis/silkscreen-review.md` §E, which was the
+# board's largest silk defect and the only one that could cost a part or a
+# finger. Every screw terminal on this board is rotated so its screws stack
+# VERTICALLY, and every legend used to be a HORIZONTAL list beside them -
+# `SSR1  5V / OUT`, `TC1  K+/K-`, `CT A+/A-/B+/B-`. Reading left to right
+# tells a reader nothing about which screw is which; they had to find the
+# block's pin-1 triangle and count. On the SSR blocks, which land beside
+# mains-switched wiring, and on the CT block, that is the difference between
+# a legend and a hint. J2's `+`/`-` were the only genuine per-terminal marks
+# on the board, and they printed under the block.
+#
+# ref -> (side, size mm, (legend per pin, in pin order))
+#
+# `side` is which way out of the footprint the legends go, and it also
+# decides which axis carries their MEANING - see the lock below. Everything
+# else is derived: the pad centres come from the real footprint geometry
+# (pad_centres) and the standoff from the real drawn body (fp_body_box), so
+# nothing here is a coordinate anyone has to maintain when a part moves.
+#
+# J13 and J14 deliberately have none. J13 is a DNP 0.1" pair, and J14 is a
+# keyed 1 mm Qwiic housing - a pitch that takes no readable text and a
+# connector a user cannot insert wrongly.
+J5_PINS = ("5V", "GND", "CS", "RST", "DC", "SDI", "SCK", "BL",
+           "SDO", "TCK", "TCS", "TDI", "TDO", "IRQ")
+J6_PINS = ("UP", "DN", "LT", "RT", "OK", "G")
+J7_PINS = ("3V3", "GND", "TX", "RX", "SDA", "SCL", "3V3", "GND")
+PIN_LEGENDS = {
+    # west-edge screw terminals, legends in the interior strip east of them
+    "J2": ("E", 1.0, ("+", "-")),
+    # J10 pin 1 is AUX_VP, the externally supplied coil rail the ULN2003
+    # commons to - an INPUT on a block named `AUX OUT`, which is exactly the
+    # terminal a reader would otherwise guess wrong. `V+` says supply; the
+    # three switched low sides are just numbered.
+    "J10": ("E", 0.8, ("V+", "1", "2", "3")),
+    # Both SSR blocks are "+5V (watchdog-gated) and the switched low side",
+    # so the pin order is worth naming: hook the SSR's control + to `5V` and
+    # its - to `OUT`.
+    "J4": ("E", 0.8, ("5V", "OUT")),
+    "J9": ("E", 0.8, ("5V", "OUT")),
+    # east-edge screw terminals, legends in the interior strip west of them
+    "J3": ("W", 0.8, ("K+", "K-")),
+    "J8": ("W", 0.8, ("K+", "K-")),
+    "J12": ("W", 0.8, ("A+", "A-", "B+", "B-")),
+    # J11's screws stack horizontally, so its legends go north, one per
+    # screw. `IN1/IN2/IN3` rather than `1/2/3` because those are the names
+    # the firmware, docs/pin-assignments.md and the Kconfig options use.
+    # There is no separate `INPUTS` block name any more - it does not fit
+    # (see the note on the standoff below) and four self-describing marks
+    # make it redundant.
+    "J11": ("N", 0.8, ("IN1", "IN2", "IN3", "GND")),
+    # 0.1" headers: pin names north of the body, as before.
+    "J5": ("N", 0.8, J5_PINS),
+    "J6": ("N", 0.8, J6_PINS),
+    "J7": ("N", 0.8, J7_PINS),
+}
+# Standoff from the connector's drawn body to the centre of its legend, mm.
+# 1.3 reproduces every position these labels were hand-authored at before
+# they were derived, and is a wish rather than an instruction: the legend is
+# locked to its pad on the axis that identifies the terminal and free on the
+# other, so `silk.py` slides it along the standoff as far as it has to. J11's
+# do exactly that - it faces the J5/J6/J7 row across a 1.69 mm gap, which
+# fits a 0.8 legend and nothing else, and the placer centres them in it.
+PIN_LEGEND_GAP = 1.3
+# Which axis a legend may NOT be moved along, per side. On a vertical stack
+# of screws it is y that says which screw; on a horizontal pin row it is x.
+# Slide it along that axis and the label does not merely look ragged, it
+# names the wrong terminal - so `silk.py` treats this as a hard constraint,
+# not a weight, and `kicad_build.py` fails the build if one ends up off its
+# axis. The bug this prevents is on the board today: J7's `SDA` and `3V3`
+# were pushed a full 2.60 mm - more than a pin pitch - onto the connector
+# body, because the placer's only defence was a 4x cost (`W_LATERAL`) and it
+# had guessed the axis from the text's reading direction, which is right for
+# a pin row and backwards for a screw stack.
+_LEGEND_LOCK = {"E": "y", "W": "y", "N": "x", "S": "x"}
+
+
+def _pin_legends():
+    """[(text, x, y, rot, size, lock)] for every PIN_LEGENDS entry."""
+    out = []
+    for ref in sorted(PIN_LEGENDS, key=lambda r: (r[0], int(r[1:]))):
+        side, size, names = PIN_LEGENDS[ref]
+        pads = pad_centres(ref)
+        x0, y0, x1, y1 = fp_body_box(COMPONENTS[ref])
+        for k, txt in enumerate(names):
+            px, py = pads[str(k + 1)]
+            if side == "E":
+                at = (x1 + PIN_LEGEND_GAP, py)
+            elif side == "W":
+                at = (x0 - PIN_LEGEND_GAP, py)
+            elif side == "N":
+                at = (px, y0 - PIN_LEGEND_GAP)
+            else:
+                at = (px, y1 + PIN_LEGEND_GAP)
+            out.append((txt, at[0], at[1], 0, size, _LEGEND_LOCK[side]))
+    return out
 
 # ---------------------------------------------------------------- test points
 # What each TPn probes, printed beside it, so the board documents itself at
@@ -1460,15 +1800,15 @@ def _tp_num(ref):
     return int(ref[2:])
 
 
-# Below the pad is the rule; TP10 is the exception, and it is the crowding
-# that makes it one. C11's and R39's designators sit at y 94.3..95.8 either
-# side of it and their 0805 silk marks leave a 3.29 mm window at y~97 for a
-# 3.28 mm label, so the only clear spot below the pad is y~98.5 - which is
-# 1.2 mm above J5's pin-name row and in line with its `SDO`/`TCK` pins, where
-# `SSR2` reads as a fifteenth pin on the display header rather than as a test
-# point 4.4 mm away. Above TP10's own designator is empty, so it goes there:
-# SSR2 / TP10 / pad, reading down.
-TP_LABEL_AT = {"TP10": (44.5, 91.0)}
+# Below the pad, for every test point, with no exceptions - which is worth a
+# note because there used to be one. TP10 sat at (44.5, 94.15), boxed in by
+# C11's and R39's designators with its only clear spot 1.2 mm above J5's
+# pin-name row and in line with its `SDO`/`TCK` pins, where `SSR2` read as a
+# fifteenth pin on the display header. The override that pushed it above the
+# pad was a workaround for the placement; TP10 has since moved to sit beside
+# LED4 in the SSR readout row (design.py SSR_TP_X), where below the pad is
+# simply empty. Prefer moving the part.
+TP_LABEL_AT = {}
 
 for _tp in sorted((r for r in COMPONENTS
                    if r.startswith("TP") and r[2:].isdigit()), key=_tp_num):
@@ -1477,6 +1817,14 @@ for _tp in sorted((r for r in COMPONENTS
     # library default, so the two share the test point without a fight.
     _at = TP_LABEL_AT.get(_tp, (_x, _y + 1.7))
     SILK.append((tp_label(COMPONENTS[_tp]["pins"]["1"]), _at[0], _at[1], 0, 0.8))
+
+SILK += _pin_legends()
+# Every entry is (text, x, y, rot, size, lock) from here on. `lock` is None
+# for the hand-authored legends above - a zone label may be moved wherever it
+# reads best - and an axis name for the generated per-terminal ones, which
+# may not. Normalising here rather than writing None into ninety tuples keeps
+# the table above about intent.
+SILK = [e if len(e) == 6 else (e + (None,)) for e in SILK]
 
 
 def main(dst):
@@ -1537,7 +1885,7 @@ def main(dst):
         ap('\t(gr_line (start %s %s) (end %s %s) (stroke (width 0.1) (type default)) (layer "Edge.Cuts") (uuid "%s"))'
            % (f(a[0]), f(a[1]), f(b[0]), f(b[1]), uid("edge", k)))
     # silk
-    for k, (txt, x, y, rot, size) in enumerate(SILK):
+    for k, (txt, x, y, rot, size, _lock) in enumerate(SILK):
         ap('\t(gr_text "%s" (at %s %s %s) (layer "F.SilkS") (uuid "%s")\n'
            '\t\t(effects (font (size %s %s) (thickness %s)))\n\t)'
            % (txt.replace('"', ''), f(x), f(y), f(rot), uid("silk", k),
