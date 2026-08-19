@@ -9,11 +9,12 @@ Two parts:
 
 - **Part 1 — Rev B parity.** The board exists and the firmware does not use it.
   Every item here is hardware that is *routed, populated and declared in
-  Kconfig*, with nothing driving it.
+  Kconfig*, with nothing driving it — or, in RB-14's case, driven for the
+  part the prototype had rather than the one on the board.
 - **Part 2 — Roadmap.** Application features. Most Tier B items are gated on a
   Part 1 task, and the dependency column says which.
 
-Every item is tracked as a GitHub issue ([#306–#338](https://github.com/BenSeverson/bisque/issues?q=is%3Aissue+is%3Aopen+label%3Arev-b%2Croadmap)), linked from its ID below. Nothing here is scheduled. Ordering within Part 1 is by what blocks bring-up.
+Every item is tracked as a GitHub issue ([#306–#342](https://github.com/BenSeverson/bisque/issues?q=is%3Aissue+is%3Aopen+label%3Arev-b%2Croadmap)), linked from its ID below. Nothing here is scheduled. Ordering within Part 1 is by what blocks bring-up.
 
 ---
 
@@ -64,6 +65,7 @@ firing tick, because it tracks the main SSR's duty simultaneously by definition.
 | **[RB-6](https://github.com/BenSeverson/bisque/issues/311)** | **Aux output bank** — AUX2/AUX3 through the ULN2003 (U6), driven by *role* rather than hardcoded | 15, 16 | Vent (AUX1) is the only one implemented, in `safety.c`. Electrically the three channels are identical, so role assignment is firmware policy. |
 | **[RB-7](https://github.com/BenSeverson/bisque/issues/312)** | **Gas-flow interlock input** | IN2 2 | Same conditioning and fail-safe polarity as the lid switch: open contact reads HIGH, so a broken wire reads "no flow". Prerequisite for the purge relay (RM-B2). |
 | **[RB-8](https://github.com/BenSeverson/bisque/issues/313)** | **Spare protected input** | IN3 1 | Unassigned. Do last, or drop it — there is no consumer. |
+| **[RB-14](https://github.com/BenSeverson/bisque/issues/342)** | **Alarm buzzer drive** — a DC level, not a 4 kHz tone | ALARM 7 | BZ1 is an *active* buzzer (TMB12A05, `C96093`, built-in oscillator), but `safety.c` still drives it the way rev A drove its passive piezo: LEDC, 4 kHz, 50% duty. That puts the average applied voltage at ~2.3 V against the part's 4 V minimum and chops it faster than its own 2.4 kHz resonance. Drop LEDC for `gpio_set_level()` and fix the stale comment and log line; the discrete Q2/D4 driver is correct and needs no board change. |
 
 **RB-6 is a contract change, not just a driver.** `ventActive` is currently a
 hardcoded field in `build_status_json()`, omitted when no vent is fitted. Report
