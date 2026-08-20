@@ -173,6 +173,12 @@ add_host_test(test_log_sink
             ${ROOT}/components/device_log/log_sink.c)
 target_include_directories(test_log_sink PRIVATE ${ROOT}/components/device_log/include)
 
+# wdt_kick — the hardware watchdog's liveness rule, split out of safety.c so
+# the stale-heartbeat case is testable without ESP-IDF or FreeRTOS. Header-only,
+# so the test needs no source beyond itself.
+add_host_test(test_wdt_kick SOURCES test_wdt_kick.c)
+target_include_directories(test_wdt_kick PRIVATE ${ROOT}/components/safety)
+
 # auth_helpers — bearer-token parsing and the constant-time token compare,
 # extracted from api_handlers.c's check_auth so the security-relevant part is
 # testable without esp_http_server.

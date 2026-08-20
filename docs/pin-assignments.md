@@ -54,7 +54,7 @@ is active). "Module pin" is U1's pin number in `design.py`.
 | 20 | 14 | ADC2_9 | `USB_DP` | USB-C D+ | — | fixed function |
 | 21 | 23 | — | `SSR2_CTRL` | SSR zone 2 MOSFET gate (Q6) | `KILN_PIN_SSR2` | routed, default `21`, **no driver** |
 | 35 | 28 | — | `TC2_CS` | Thermocouple 2 (MAX31856) CS | `KILN_PIN_TC2_CS` | routed, default `35`, **no driver** |
-| 36 | 29 | — | `WDT_KICK` | Hardware watchdog kick | `KILN_PIN_WDT_KICK` | routed, default `36`, **no firmware kick task — see [WDT DEFEAT](#the-watchdog-jumper)** |
+| 36 | 29 | — | `WDT_KICK` | Hardware watchdog kick | `KILN_PIN_WDT_KICK` | firmware kicks at 5 Hz; **hardware not yet resized — see [WDT DEFEAT](#the-watchdog-jumper)** |
 | 37 | 30 | — | — | **spare** | — | free (freed by the quad-PSRAM module) |
 | 38 | 31 | — | `BTN_UP` | Nav Up | `KILN_PIN_BTN_UP` | active |
 | 39 | 32 | — | `BTN_DOWN` | Nav Down | `KILN_PIN_BTN_DOWN` | active |
@@ -138,14 +138,26 @@ if the firmware crashes or the controller loses power. The real protection is a
 mechanical microswitch in series with the element contactor.
 
 <a id="the-watchdog-jumper"></a>
-**`WDT_KICK` (36) has hardware but no firmware yet.** GPIO 36 feeds a diode
-charge pump (`hardware/kicad/README.md` §"Hardware watchdog") gating the
-+5 V rail (`SSR_EN`) that feeds both SSR channels. Nothing toggles this pin today, so on a rev B
-board **the SSRs will not energize at all** unless either the `WDT DEFEAT`
-solder jumper (`SJ2`) is fitted (holding the high-side switch on, restoring
-un-gated behaviour for bring-up) or a firmware kick task is added. This is
-the most likely rev B bring-up surprise — see the README's watchdog section
-before assuming a "kiln won't heat" report is the lid interlock again.
+**`WDT_KICK` (36): firmware kicks, but the hardware does not yet match it.**
+GPIO 36 feeds a diode charge pump (`hardware/kicad/README.md` §"Hardware
+watchdog") gating the +5 V rail (`SSR_EN`) that feeds both SSR channels.
+
+Firmware now toggles the pin at **5 Hz**, gated on `safety_task`'s heartbeat
+(`components/safety/wdt_kick.h`). That rate is sized for the **monostable**
+retrigger circuit of [#307](https://github.com/BenSeverson/bisque/issues/307),
+not for the charge pump actually on the board: solving the pump's steady state
+gives 0.63 V of gate drive at 5 Hz against Q3's 1.45 V threshold, and it needs
+≥ 250 Hz even at room temperature. Reverse leakage roughly doubles per 10 °C, so
+the pump's stall budget falls from 0.31 s at 25 °C to 0.11 s at 60 °C and it
+stops working entirely near 85 °C — which is why the fix is a specified
+one-shot, not different passives.
+
+So on a rev B board **the SSRs will not energize at all** unless the `WDT
+DEFEAT` solder jumper (`SJ2`) is fitted, holding the high-side switch on and
+restoring un-gated behaviour. **Do not remove SJ2 until the monostable is
+fitted.** This is the most likely rev B bring-up surprise — see the README's
+watchdog section before assuming a "kiln won't heat" report is the lid
+interlock again.
 
 ## 2. Constraints that shape the map
 

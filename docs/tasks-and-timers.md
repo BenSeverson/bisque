@@ -73,7 +73,7 @@ non-blocking.
 
 | Timer | Period | Callback | Created |
 |---|---|---|---|
-| `ssr_window` | 100 ms | `ssr_timer_cb` → `ssr_window_apply()` — re-evaluates the time-proportional SSR window | [`safety.c:280`](../components/safety/safety.c#L280) |
+| `ssr_window` | 100 ms | `ssr_timer_cb` → `ssr_window_apply()` (time-proportional SSR window) then `wdt_kick_step()` (toggles the watchdog kick, so a 5 Hz square wave) | [`safety.c:280`](../components/safety/safety.c#L280) |
 | `ws_broadcast` | 1000 ms | `ws_broadcast_timer_cb` → notifies the `ws_broadcast` task | [`main.c:230`](../main/main.c#L230) |
 
 ## LVGL timer
