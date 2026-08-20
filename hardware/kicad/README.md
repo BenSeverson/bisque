@@ -137,28 +137,53 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   **Hardware watchdog (`SJ2`, "WDT DEFEAT").** `SSR_EN` — the +5 V rail
   feeding *both* SSR terminals and both indicator LEDs — is supplied by Q4, a
   P-channel high-side MOSFET (AO3401A) whose gate node `SSR_PG` is held down
-  by Q3, itself held on by a diode charge pump (BAT54S, C38/C39, R46) driven
-  from GPIO 36 (`WDT_KICK`); R47 (100 kΩ) pulls `SSR_PG` up as the fail-safe.
-  The watchdog moved to the supply side when the optocouplers were reverted:
-  the two-parts-cheaper stacked-low-side alternative would have left the
-  channel MOSFET only 140 mV of Vgs margin to the AO3400A's lowest guaranteed
-  `R_DS(on)` point before subtracting Q3's own (datasheet-unbounded) drop.
-  Going high-side cuts Q3's load from ~30 mA to 50 µA and puts both switching
-  FETs past a guaranteed spec point — see the arithmetic in
-  `generator/design.py`'s watchdog block. **Nothing in firmware toggles this pin yet.** A
-  charge pump needs transitions to stay charged — a stuck-high pin decays
-  exactly like a stopped one — so on power-up, and on any board where
-  nothing kicks GPIO 36, `SSR_EN` collapses and **both SSR channels stay off
-  regardless of what the firmware commands them to do.** The silkscreened
-  `SJ2` solder jumper shorts `SSR_PG` to GND, holding Q4 on and restoring
-  un-gated behaviour
-  for bring-up and for any build without the firmware kick task. **A board
-  with neither `SJ2` fitted nor a firmware kick task will not heat** — this
-  is the single most likely rev B bring-up surprise, more likely to be
-  mistaken for a bad SSR or a lid-interlock problem than correctly
-  diagnosed as "nobody is kicking the dog yet." The watchdog gates only the
-  two SSR channels; vent, purge, the spare aux channel and the buzzer are
-  unaffected, so a stalled controller can still open its vent.
+  by Q3, itself held on by **U10**, an SN74LVC1G123 retriggerable monostable
+  driven from GPIO 36 (`WDT_KICK`); R47 (100 kΩ) pulls `SSR_PG` up as the
+  fail-safe. The watchdog moved to the supply side when the optocouplers were
+  reverted: the two-parts-cheaper stacked-low-side alternative would have left
+  the channel MOSFET only 140 mV of Vgs margin to the AO3400A's lowest
+  guaranteed `R_DS(on)` point before subtracting Q3's own
+  (datasheet-unbounded) drop. Going high-side cuts Q3's load from ~30 mA to
+  50 µA and puts both switching FETs past a guaranteed spec point — see the
+  arithmetic in `generator/design.py`'s watchdog block.
+
+  Every **rising edge** on `WDT_KICK` restarts U10's window, so `Q` stays high
+  only while firmware keeps kicking; a pin wedged at either level delivers no
+  edge and expires the window exactly like a pin that stopped, which is the
+  whole point. R46 (100 kΩ) and C38 (22 µF) set the window to **1.65–2.71 s**
+  worst-case over −40…125 °C, every term of that bound a datasheet or
+  purchase-tolerance figure. Firmware kicks at 5 Hz from the existing 100 ms
+  SSR timer, gated on `safety_task`'s heartbeat
+  (`components/safety/wdt_kick.h`) — 8.3× margin at the minimum window. R48
+  (100 kΩ) holds `B` low whenever the MCU drives nothing, so a floating CMOS
+  input cannot self-trigger the one-shot during boot ROM, flashing or reset.
+
+  **This replaced a BAT54S diode charge pump, which did not work.** Solving its
+  steady state exactly gives 0.63 V of gate drive at 5 Hz against Q3's 1.45 V
+  threshold — and 0.84 V even in the typical corner, below the *typical* 1.0 V
+  threshold. A faster kick (≥ 250 Hz) rescues the voltage but not the
+  temperature behaviour: Schottky reverse leakage sits in the timing path and
+  roughly doubles per 10 °C, so the budget for a transient firmware stall fell
+  from 0.31 s at 25 °C to 0.11 s at 60 °C and vanished near 85 °C, next to a
+  5 kW heat source. No choice of passives fixes a leak that *is* the timer;
+  the fix was to stop building the timer out of one. Off-the-shelf watchdog
+  supervisors (TPS3823, STWD100) were evaluated and rejected on output shape:
+  they emit a fixed reset *pulse* per timeout, which would leave the heat rail
+  energised 75–95 % of the time under dead firmware. They exist to reboot
+  MCUs; gating a rail needs a level.
+
+  On power-up, and on any board where nothing kicks GPIO 36, `SSR_EN`
+  collapses and **both SSR channels stay off regardless of what the firmware
+  commands them to do.** The silkscreened `SJ2` solder jumper shorts `SSR_PG`
+  to GND, holding Q4 on and restoring un-gated behaviour for bring-up and for
+  any build without the firmware kick. **A board with neither `SJ2` fitted nor
+  a working kick will not heat** — this is the single most likely rev B
+  bring-up surprise, more likely to be mistaken for a bad SSR or a
+  lid-interlock problem than correctly diagnosed as "nobody is kicking the dog
+  yet." `TP12` probes the timing node, which is where a scope settles the real
+  window in one measurement. The watchdog gates only the two SSR channels;
+  vent, purge, the spare aux channel and the buzzer are unaffected, so a
+  stalled controller can still open its vent.
 - **Display**: 14-pin Molex KK-254 friction-lock header **J5** for a 4.0"
   ST7796S SPI module (LCDWIKI MSP4021, 480×320, resistive touch) — grown
   from rev A's 8-pin display-only header to carry the panel's full pin set:
@@ -382,7 +407,7 @@ lines covering 109 machine-placed parts) plus `jlcpcb/hand-solder-parts.csv`
 | U7 | ADE7953ACPZ-RL | LFCSP-28 (QFN-28, 5×5 mm) |
 | Y1 | 3.579545 MHz crystal | HC-49S-SMD |
 | D5, D6 | SRV05-4 TVS array (same part as U4) | SOT-23-6 |
-| D7 | BAT54S dual series Schottky | SOT-23 |
+| U10 | SN74LVC1G123 retriggerable monostable | VSSOP-8 |
 | Q2, Q3, Q5, Q6 | AO3400A N-MOSFET | SOT-23 |
 | Q4 | AO3401A P-MOSFET (watchdog high-side switch) | SOT-23 |
 | J1 | USB-C 16-pin receptacle | HRO TYPE-C-31-M-12 |
@@ -1153,12 +1178,14 @@ is now **empty**, and every entry it ever held was retired the same way.
 
 **Test points name their net.** `TP1`–`TP12` print what they probe
 (`+3V3`, `+5V`, `GND`, `MOSI`, `SCLK`, `MISO`, `SDA`, `SCL`, `SSR1`,
-`SSR2`, `CT A+`, `WDT`) so the board documents itself at the bench. The
+`SSR2`, `CT A+`, `WDT RC`) so the board documents itself at the bench. The
 label is derived from `design.py`'s own net for pin 1 — never a second
 hand-typed table — and shortened by rule: rails print verbatim, a bus
 prefix is dropped (`SPI_MOSI` → `MOSI`), a function suffix is dropped
-(`WDT_HOLD` → `WDT`). `gen_pcb.TP_LABEL_SPECIAL` is the single escape
-hatch, next to the rule it excepts.
+(`SSR1_CTRL` → `SSR1`). `gen_pcb.TP_LABEL_SPECIAL` is the single escape
+hatch, next to the rule it excepts — `WDT_CT_P` takes it, since `CT` is not
+a bus prefix and `P` is not a function suffix, and teaching the rule either
+would collide with the current-transformer nets.
 
 **Zone fills feed the gerbers.** `kicad_build.py` finishes with a
 `kicad-cli pcb drc --refill-zones` pass that rewrites the board file

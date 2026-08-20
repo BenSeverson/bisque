@@ -127,6 +127,8 @@ POWER_NETS = {"GND", "+5V", "+3V3", "VBUS", "VIN", "VLED"}
 R0603 = ("Resistor_SMD:R_0805_2012Metric", "R_0805_2012Metric.kicad_mod")
 C0603 = ("Capacitor_SMD:C_0805_2012Metric", "C_0805_2012Metric.kicad_mod")
 C1206 = ("Capacitor_SMD:C_1206_3216Metric", "C_1206_3216Metric.kicad_mod")
+VSSOP8 = ("Package_SO:VSSOP-8_2.3x2mm_P0.5mm", "VSSOP-8_2.3x2mm_P0.5mm.kicad_mod")
+C1206 = ("Capacitor_SMD:C_1206_3216Metric", "C_1206_3216Metric.kicad_mod")
 
 # --- thermocouple channel geometry ---------------------------------------
 # The two MAX31856 front-ends are one circuit placed twice, and this is the
@@ -649,135 +651,104 @@ COMPONENTS = {
     # mechanical over-temperature cutout in series with the element
     # contactor.
     #
-    # A CHARGE PUMP NEEDS TRANSITIONS - that is the entire point. Firmware
+    # THE RETRIGGER IS EDGE-DRIVEN - that is the entire point. Firmware
     # wedged with WDT_KICK stuck high must fail exactly like firmware that
-    # stopped toggling. C38 is a series (AC-coupling) cap, not a pull-up, so
-    # a DC level at WDT_KICK (high OR low) delivers no net charge per cycle
-    # and WDT_HOLD decays through R46 regardless of which level it stuck at.
-    # A plain RC hold driven by a level would be defeated by a stuck-high
-    # pin; this topology cannot be.
+    # stopped toggling, and a monostable retriggered on B's RISING edge does
+    # precisely that: a DC level delivers no edge, the window expires, Q falls.
     #
     # Gates ONLY the heat outputs (SSR_EN). AUX1-3 (vent/purge/spare, via
     # U6/ULN2003) and the buzzer are on separate nets entirely - untouched by
     # Q3/Q4 - so a stalled controller can still open its vent.
     #
-    # --- WHY HIGH-SIDE (Q4), not a stacked low-side gate -------------------
-    # When the optos were reverted (see the SSR block above) the watchdog had
-    # to keep gating both channels. Two topologies were costed:
+    # --- WHY NOT THE DIODE CHARGE PUMP THIS REPLACES ----------------------
+    # Rev B shipped a BAT54S clamp-and-peak-detector (C38 100nF, C39 1uF,
+    # R46 1M) into Q3's gate, and it does not work. Solving its steady state
+    # exactly - V_hold(min) = d*a*A/(1-b*d), a = C38/(C38+C39), d = e^(-T/tau),
+    # A = V_OH - 2*Vf - gives, at the 5 Hz kick the firmware plan called for,
+    # 0.63V against the AO3400A's Vgs(th) max of 1.45V. The rail never comes
+    # up. It is not a corner case either: the typical corner (V_OH 3.3V,
+    # Vf 0.2V) reaches 0.84V, below even the TYPICAL 1.0V threshold.
     #
-    #   A - stacked low side: each channel MOSFET's SOURCE on SSR_EN, Q3's
-    #       drain on SSR_EN, Q3's source on GND. Two parts fewer.
-    #   B - high side: Q3 pulls the gate of a P-channel switch (Q4) in the
-    #       +5V feed; both channel MOSFETs' sources go hard to GND.
+    # The sizing note this replaces computed the DECAY constant (R46*C39 = 1s)
+    # and the gate margin but never the REPLENISHMENT constant
+    # (R46*C38 = 0.1s), and flagged its own values as an unverified assumption
+    # because "no target kick frequency or hold-decay spec exists yet".
     #
-    # A was rejected on arithmetic, not preference. SS8d below establishes
-    # that at the ESP32's GUARANTEED V_OH (0.8*VDD = 2.64V) the pump holds
-    # Q3's gate at only 2.16V - below 2.5V, the lowest Vgs at which the
-    # AO3400A datasheet guarantees ANY R_DS(on) (48 mOhm at Vgs=2.5V/Id=3A;
-    # nothing at all is specified below it). Q3's drop at the 20-30 mA two
-    # SSR loops draw therefore has NO datasheet upper bound - only an
-    # extrapolation (square-law off the 2.5V point gives ~70 mOhm, ~2 mV,
-    # but that is an estimate, not a spec). In topology A that unbounded
-    # drop subtracts directly from the channel MOSFET's Vgs, which starts at
-    # the same guaranteed 2.64V - i.e. 2.64 - 2.50 = 0.14V of margin to its
-    # own only guaranteed R_DS(on) point BEFORE subtracting anything. 140 mV
-    # of margin against an unbounded subtrahend is not "comfortably
-    # enhanced", so A fails its own acceptance test.
+    # Raising the kick rate rescues the gate voltage (>= 250 Hz) but cannot
+    # rescue the temperature behaviour. Schottky reverse leakage through D2
+    # discharges the hold node in parallel with R46 and roughly doubles per
+    # 10 C, so the budget for a transient firmware stall - a flash erase
+    # stalls BOTH cores - falls from 0.31s at 25C to 0.11s at 60C, and near
+    # 85C the pump stops holding at all. A kiln controller sits next to a
+    # 5 kW heat source. No choice of passives fixes that, because the leak is
+    # in the timing path; the fix is to take it out of the timing path.
     #
-    # B is provable end to end from the datasheets:
-    #   * Q3's only load becomes R47 (100k to +5V) = 50 uA max, not 20-30 mA.
-    #     The AO3400A's Vgs(th) is specified as Id = 250 uA at Vgs = Vds =
-    #     1.45V (max). Our Vgs is 2.16V > 1.45V, so Id at Vds = 1.45V is
-    #     >= 250 uA, while the current actually demanded there is only
-    #     (5 - 1.45)/100k = 35.5 uA - 7x less. Q3 is therefore deep in
-    #     triode; interpolating linearly off that same guaranteed point,
-    #     SSR_PG settles at ~35.5 uA * (1.45V / 250 uA) ~= 0.21V. The
-    #     watchdog gate's worst corner stops mattering because the load went
-    #     down by ~500x, which is strictly better than what rev B shipped.
-    #   * Q4 (AO3401A) then sees Vgs = -(5.0 - 0.21) = -4.79V, past its
-    #     -4.5V spec point, so R_DS(on) <= 60 mOhm is GUARANTEED. Load is
-    #     2 x 15 mA (SSR inputs) + 2 x 4.4 mA (indicators) ~= 39 mA -> drop
-    #     <= 2.4 mV. The SSR sees >= 4.99V.
-    #   * The channel MOSFETs (Q5/Q6) have their sources hard to GND, so
-    #     Vgs = 2.64V worst case >= the 2.5V spec point: R_DS(on) <= 48 mOhm
-    #     guaranteed, ~0.7 mV at 15 mA. Exactly rev A's proven condition.
-    #   * Fail-safe polarity holds: no kick (or no firmware yet at power-on)
-    #     -> Q3 off -> R47 pulls SSR_PG to +5V -> Q4 Vgs = 0 -> rail dead.
-    #     Q4's gate leakage (Igss +-100 nA) across R47 is 10 mV, three
-    #     hundred millivolts clear of the AO3401A's -0.5V min Vgs(th), so
-    #     leakage cannot part-enhance it.
-    # Cost of B over A: two parts (Q4, R47).
+    # --- THE ONE-SHOT ----------------------------------------------------
+    # U10 (SN74LVC1G123, LCSC C26159250) is a single retriggerable monostable.
+    # WDT_KICK drives B (rising-edge trigger) with A tied low and CLR high;
+    # every edge restarts the window, and Q stays HIGH for as long as edges
+    # keep arriving. Q drives Q3's gate directly. Q3, Q4, R47 and the SJ2
+    # defeat jumper are unchanged - only what holds Q3's gate up has changed.
     #
-    # --- Parts: REV-B-NOTES.md SS8a overrides the brief -------------------
-    # The brief specified two discrete SOD-123 singles (D6/D7). REV-B-NOTES
-    # SS8a identifies the correct part as ONE BAT54S dual Schottky in a
-    # single SOT-23 (LCSC C7420333, JLCPCB Extended-but-Preferred,
-    # ~$0.011) - specifically the *series* pair: datasheet Table 2 "Pinning
-    # information" gives pin1=A1, pin2=K2, pin3=K1;A2 (shared cathode/anode
-    # junction). KiCad's own Diode:BAT54S library symbol matches exactly
-    # (pin1 "A", pin2 "K", pin3 "COM"; description "dual schottky ... in
-    # series") and already defaults to Footprint Package_TO_SOT_SMD:SOT-23.
-    # BAT54C (common-cathode) and BAT54A (common-anode) are NOT this part -
-    # neither gives a series pair, per the notes.
+    # Window: tw ~= K*R*C with K = 1.0-1.1, the datasheet's own spec'd bound
+    # at its 10k x 0.1uF anchor, and the same limits at 125C as at 85C.
+    # R46 100k 1% and C38 22uF 25V 1206, with 10% purchase tolerance and a
+    # 15% bias/temp derating allowance, give a worst-case window of
+    # 1.65-2.71s. Firmware kicks at 5 Hz (a rising edge every 200 ms), so the
+    # margin is 8.3x at the minimum window. A wedged controller loses the rail
+    # within 2.71s - 0.22 C of overshoot on a 60 kJ/K kiln at 5 kW, against a
+    # runaway timescale of ~16 minutes.
     #
-    # The series pair's shared pin (COM, pin 3) IS the pump node: tying
-    # pin1(A1) to GND and pin2(K2) to WDT_HOLD makes the two internal diodes
-    # exactly the clamp diode (GND -> pump, conducts when the AC-coupled
-    # node swings below GND) and the rectifier diode (pump -> hold cap,
-    # conducts when the node swings above WDT_HOLD) that a diode-capacitor
-    # charge pump needs - one part, no extra net.
+    # Both values are already on this BOM (R46 -> C149504, C38 -> C12891), so
+    # neither adds a feeder. U10 does: it is Extended and not Preferred, +$3.
+    # Note the BAT54S it replaces was Extended-but-PREFERRED, i.e. fee-free -
+    # removing it saves nothing. See gen_jlc.LCSC's note on that distinction.
     #
-    # Designators: the brief's D6/D7/C33/C34/R41 collide with Task 10 (D6 =
-    # CT TVS array, C33/C34 = ADE7953 decoupling) and Task 11 (R41 = touch
-    # damping resistor). Confirmed free before use (next free at the time:
-    # R46, C38, D7, Q3, SJ2 - see task report for the confirmation command).
+    # Leakage now lives where it is specified: the Rext/Cext I/O leakage is
+    # +-0.25uA against a 33uA charge current, 0.8%, over the full -40..125C
+    # range. That is the whole reason this is an IC and not an RC.
     #
-    # --- Values: brief's 100nF/1uF/1M were estimates; REV-B-NOTES.md SS8
-    # verifies the diode Vf/gate-margin arithmetic but does not specify a
-    # C38/C39/R46 sizing (no target kick frequency or hold-decay spec exists
-    # yet). ASSUMPTION, flagged in the task report: kept at the brief's
-    # values, which are reasonable for a multi-Hz-to-kHz kick square wave -
-    # C38 100nF couples strongly at any plausible kick rate; R46 1M / C39
-    # 1uF gives a ~1s RC decay (see below), fast enough that a wedged
-    # firmware drops the SSRs well within a human's reaction time, slow
-    # enough not to force an unreasonably fast kick task.
+    # Q3's gate drive becomes Q's VOH, ~3.2V, which finally clears the 2.5V
+    # point where the AO3400A guarantees ANY Rds(on) - the corner the pump
+    # block flagged and could not reach.
     #
-    # Gate margin (REV-B-NOTES.md SS8d, at the ESP32's *guaranteed* V_OH
-    # min of 0.8*VDD = 2.64V, not the optimistic 3.3V case, and BAT54S max
-    # Vf @ 0.1mA = 240mV, the pump's actual current regime - NOT the 800mV
-    # @ 100mA figure): V_gate = 2.64 - 2*0.240 = 2.16V against AO3400A
-    # Vgs(th) max 1.45V -> margin = +0.71V. POSITIVE, so Q3 turns on; this
-    # is not a blocker. BUT 2.16V is below the 2.5V point at which the
-    # AO3400A's datasheet guarantees ANY Rds(on) (48mOhm max is only
-    # specified at Vgs=2.5V/Id=3A). Do NOT size any load on this watchdog
-    # gate assuming a guaranteed on-resistance in that worst-case corner -
-    # it is a logic-level gate here (SSR_EN return path only, no significant
-    # current), not a power switch, and that is what keeps this corner from
-    # mattering. If a guaranteed 2.5V spec point in every corner is wanted,
-    # a lower-Vf Schottky or a single-diode topology buys the ~0.35V needed
-    # (REV-B-NOTES.md SS8, "corner worth knowing") - not changed here per
-    # the task instructions; flagged in the report instead.
+    # Fail-safe polarity is unchanged and now has three independent reasons to
+    # hold: no edges -> window expires -> Q low; R48 pulls B low whenever the
+    # MCU drives nothing, so a floating CMOS input cannot self-trigger the
+    # one-shot during boot ROM, flashing or reset; and with U10 unpowered
+    # entirely, Q3's gate simply floats, which R47 already answers.
+    # Then Q3 off -> R47 pulls SSR_PG to +5V -> Q4 off -> rail dead.
     #
-    # Decay arithmetic: tau = R46 * C39 = 1MOhm * 1uF = 1.0s. WDT_HOLD decays
-    # from its charged level toward 0V with that time constant once kicking
-    # stops; it crosses Q3's worst-case Vgs(th) (1.45V, starting from the
-    # ~2.16-2.98V range computed above) well under one tau, consistent with
-    # the brief's ~0.5-1s figure.
-    "C38": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="100nF", at=(52.0, 49.5, 0),
-                pins={"1": "WDT_KICK", "2": "WDT_PUMP"}),
-    "D7": dict(lib="Diode", sym="BAT54S", fp=SOT23[0], fpf=SOT23[1],
-               value="BAT54S", at=(57.0, 49.7, 0),
-               pins={"1": "GND", "2": "WDT_HOLD", "3": "WDT_PUMP"}),
-    "C39": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="1uF", at=(52.0, 53.5, 0),
-                pins={"1": "WDT_HOLD", "2": "GND"}),
+    # No pulldown on WDT_OK: Q is push-pull and defines that node whenever U10
+    # has a supply, and when it does not, the R47 path above is what holds.
+    "U10": dict(lib="74xGxx", sym="74LVC1G123", fp=VSSOP8[0], fpf=VSSOP8[1],
+                value="SN74LVC1G123", at=(52.0, 50.5, 0),
+                pins={"1": "GND", "2": "WDT_KICK", "3": "+3V3", "4": "GND",
+                      "5": "WDT_OK", "6": "WDT_CT_N", "7": "WDT_CT_P",
+                      "8": "+3V3"}),
+    # Rotated 90 deg, and its pins swapped to match: U10's pins 6 and 7 are
+    # 0.5 mm apart on the same edge, so with the cap lying horizontal one of
+    # the two timing nets had to cross the other's pad and the router could
+    # not seat it. Perpendicular, pin 6 (CT_N) fans south to pad 1 and pin 7
+    # (CT_P) fans north to pad 2, and the two runs diverge instead of meeting.
+    "C38": dict(lib="Device", sym="C", fp=C1206[0], fpf=C1206[1],
+                value="22uF", at=(62.0, 51.75, 90),
+                pins={"1": "WDT_CT_N", "2": "WDT_CT_P"}),
     "R46": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="1M", at=(57.0, 53.5, 0),
-                pins={"1": "WDT_HOLD", "2": "GND"}),
+                value="100k", at=(66.0, 50.25, 0),
+                pins={"1": "WDT_CT_P", "2": "+3V3"}),
+    "C39": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
+                value="100nF", at=(50.0, 53.5, 0),
+                pins={"1": "+3V3", "2": "GND"}),
+    # Holds B low whenever the MCU drives nothing - boot ROM, flashing, reset,
+    # or a dead module. No edges means the one-shot expires, which is the
+    # power-on state the rail must have.
+    "R48": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
+                value="100k", at=(49.0, 45.0, 0),
+                pins={"1": "WDT_KICK", "2": "GND"}),
     "Q3": dict(lib="Transistor_FET", sym="AO3400A", fp=SOT23[0], fpf=SOT23[1],
                value="AO3400A", at=(52.0, 57.5, 0),
-               pins={"1": "WDT_HOLD", "2": "GND", "3": "SSR_PG"}),
+               pins={"1": "WDT_OK", "2": "GND", "3": "SSR_PG"}),
     # High-side switch for the whole SSR rail. AO3401A (P-channel, SOT-23,
     # LCSC C15127, JLCPCB Basic): source on +5V, gate on SSR_PG, drain IS
     # SSR_EN. Pin order from KiCad's own Transistor_FET:AO3401A symbol
@@ -1494,8 +1465,8 @@ COMPONENTS = {
     "TP12": dict(lib="Connector", sym="TestPoint",
                  fp="TestPoint:TestPoint_Pad_D1.0mm",
                  fpf="TestPoint_Pad_D1.0mm.kicad_mod",
-                 value="TP", at=(52.0, 61.2, 0),
-                 pins={"1": "WDT_HOLD"}),
+                 value="TP", at=(66.0, 52.5, 0),
+                 pins={"1": "WDT_CT_P"}),
 }
 
 # power flag symbols (schematic only): net -> flag

@@ -25,7 +25,7 @@ Every item is tracked as a GitHub issue ([#306–#342](https://github.com/BenSev
 | ID | Task | GPIO | Why it blocks |
 |---|---|---|---|
 | **[RB-1](https://github.com/BenSeverson/bisque/issues/306)** | **MAX31856 driver**, replacing the MAX31855 one | TC1_CS 10 | The board reads **no temperature at all**. The MAX31855 driver does one read-only 32-bit frame; the MAX31856 needs config-register writes on init and a fault-register decode. |
-| **[RB-2](https://github.com/BenSeverson/bisque/issues/307)** | **Watchdog kick task** | WDT_KICK 36 | A charge pump gates **both** SSR channels. Until something toggles it, every board needs the SJ2 "WDT DEFEAT" jumper fitted or **it will not heat**. |
+| **[RB-2](https://github.com/BenSeverson/bisque/issues/307)** | **Watchdog kick** — *firmware done, board respun* | WDT_KICK 36 | A one-shot gates **both** SSR channels. Until something kicks it, every board needs the SJ2 "WDT DEFEAT" jumper fitted or **it will not heat**. |
 
 **RB-1 notes.** A straight replacement, not a second backend — the runtime-probe
 requirement died with the rev A freeze. Host tests stub the driver
@@ -34,11 +34,24 @@ swap doesn't reach either suite. Revisit `APP_PID_KD_DEFAULT` on the bench while
 here: its value was chosen against the MAX31855's 0.25 °C quantization, and the
 MAX31856 is ~32× finer.
 
-**RB-2 notes.** The pump needs *transitions* — a pin stuck high fails exactly
-like a pin that stopped, which is the whole design. The kick must **stop** on a
-safety fault; a kicker that runs from a timer regardless of system health is
-worse than no watchdog, because it silently defeats the hardware interlock.
-Decide explicitly where the kick lives relative to `safety_task`.
+**RB-2 notes.** The retrigger needs *transitions* — a pin stuck high fails
+exactly like a pin that stopped, which is the whole design. The kick must
+**stop** on a safety fault; a kicker that runs from a timer regardless of system
+health is worse than no watchdog, because it silently defeats the hardware
+interlock.
+
+Resolved as: `safety_task` stamps a heartbeat at the **end** of each completed
+pass, and the existing 100 ms SSR timer toggles the pin only while that stamp is
+fresh (`components/safety/wdt_kick.h`, host-tested). 5 Hz, no new task, no new
+timer.
+
+The board changed with it. The rev B diode charge pump did not work — 0.63 V of
+gate drive at 5 Hz against a 1.45 V threshold, and 0.84 V even typical — and
+could not be rescued by a faster kick, because Schottky reverse leakage sits in
+its timing path and roughly doubles per 10 °C. It is now an SN74LVC1G123
+retriggerable monostable (U10) with a 1.65–2.71 s worst-case window. **Still
+fit SJ2 on any board built before that respin.** See `hardware/kicad/README.md`
+§"Hardware watchdog".
 
 ### Second channel and second zone
 

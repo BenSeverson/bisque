@@ -287,7 +287,12 @@ USB_STUB_TERMS = {
 # the far end as the terminal instead of the pad. Each stub sits exactly on its
 # pad's centreline, ends on a grid node, and claims its lane up front, so the
 # order nets happen to be routed in stops mattering.
-FANOUT = {"U7": 1.75, "U3": 1.5, "U5": 1.5}
+# U10 is a 0.5 mm-pitch VSSOP-8 and needs this for the same reason U7 does:
+# without a seeded escape its pads report "0 goal nodes, free neighbours F=0"
+# - the front layer between 0.5 mm-pitch pads is entirely clearance, and
+# via-in-pad is forbidden, so a pad with no lane cannot start a route at all.
+# 1.25 mm clears the pad row and lands on the 0.25 mm grid.
+FANOUT = {"U7": 1.75, "U3": 1.5, "U5": 1.5, "U10": 1.25}
 SIG_W = 0.3           # default signal track width; see ROUTE_ORDER
 FANOUT_WIDTH = 0.25   # fine-pitch escapes only; see the ROUTE_ORDER comment
 
@@ -941,7 +946,8 @@ ROUTE_ORDER = [
     # SSR driver chains, watchdog gate
     ("SSR1_GATE", SIG_W), ("SSR1_IND_K", SIG_W),
     ("SSR2_GATE", SIG_W), ("SSR2_IND_K", SIG_W),
-    ("SSR_PG", SIG_W), ("WDT_PUMP", SIG_W), ("WDT_HOLD", SIG_W),
+    ("SSR_PG", SIG_W), ("WDT_OK", SIG_W), ("WDT_CT_P", SIG_W),
+    ("WDT_CT_N", SIG_W),
     # buzzer, status LED
     ("BUZZ_GATE", SIG_W), ("WS_DIN", SIG_W),
     # thermocouple front-ends (short, local, kept matched)
@@ -1799,7 +1805,13 @@ def _pin_legends():
 TP_BUS_PREFIX = ("SPI", "I2C", "UART", "USB")
 TP_FUNC_SUFFIX = ("CTRL", "HOLD", "EN", "SEL")
 TP_LABEL_SPECIAL = {"CTA_P": "CT A+", "CTA_N": "CT A-",
-                    "CTB_P": "CT B+", "CTB_N": "CT B-"}
+                    "CTB_P": "CT B+", "CTB_N": "CT B-",
+                    # The rule would print WDT_CT_P verbatim: CT is not a bus
+                    # prefix and P is not a function suffix, and adding either
+                    # to those tables would collide with the current-transformer
+                    # nets above. What a probe here reads is the watchdog's
+                    # timing capacitor, so say that.
+                    "WDT_CT_P": "WDT RC"}
 
 
 def tp_label(net):

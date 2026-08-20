@@ -1,10 +1,60 @@
 ** Drc report for bisque-controller.kicad_pcb **
-** Created on 2026-08-18T00:18:14 **
+** Created on 2026-08-19T19:23:09 **
 ** Report includes: Errors, Warnings, Exclusions **
 
-** Found 0 DRC violations **
+** Found 8 DRC violations **
+[clearance]: Clearance violation ( clearance 0.2000 mm; actual 0.1500 mm)
+    Local override; error
+    @(50.6000 mm, 49.7500 mm): Pad 1 [GND] of U10 on F.Cu
+    @(50.6000 mm, 50.2500 mm): Pad 2 [WDT_KICK] of U10 on F.Cu
+[clearance]: Clearance violation ( clearance 0.2000 mm; actual 0.1500 mm)
+    Local override; error
+    @(50.6000 mm, 50.2500 mm): Pad 2 [WDT_KICK] of U10 on F.Cu
+    @(50.6000 mm, 50.7500 mm): Pad 3 [+3V3] of U10 on F.Cu
+[clearance]: Clearance violation ( clearance 0.2000 mm; actual 0.1500 mm)
+    Local override; error
+    @(50.6000 mm, 50.7500 mm): Pad 3 [+3V3] of U10 on F.Cu
+    @(50.6000 mm, 51.2500 mm): Pad 4 [GND] of U10 on F.Cu
+[clearance]: Clearance violation ( clearance 0.2000 mm; actual 0.1500 mm)
+    Local override; error
+    @(53.4000 mm, 51.2500 mm): Pad 5 [WDT_OK] of U10 on F.Cu
+    @(53.4000 mm, 50.7500 mm): Pad 6 [WDT_CT_N] of U10 on F.Cu
+[clearance]: Clearance violation ( clearance 0.2000 mm; actual 0.1500 mm)
+    Local override; error
+    @(53.4000 mm, 50.7500 mm): Pad 6 [WDT_CT_N] of U10 on F.Cu
+    @(53.4000 mm, 50.2500 mm): Pad 7 [WDT_CT_P] of U10 on F.Cu
+[clearance]: Clearance violation ( clearance 0.2000 mm; actual 0.1500 mm)
+    Local override; error
+    @(53.4000 mm, 50.2500 mm): Pad 7 [WDT_CT_P] of U10 on F.Cu
+    @(53.4000 mm, 49.7500 mm): Pad 8 [+3V3] of U10 on F.Cu
+[track_dangling]: Track has unconnected end
+    Local override; warning
+    @(50.6000 mm, 50.2500 mm): Track [WDT_KICK] on F.Cu, length 2.1000 mm
+[track_dangling]: Track has unconnected end
+    Local override; warning
+    @(53.4000 mm, 50.2500 mm): Track [WDT_CT_P] on F.Cu, length 2.1000 mm
 
-** Found 0 unconnected pads **
+** Found 5 unconnected pads **
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(62.0000 mm, 50.2500 mm): Track [WDT_CT_P] on F.Cu, length 2.7500 mm
+    @(53.4000 mm, 50.2500 mm): Track [WDT_CT_P] on F.Cu, length 2.1000 mm
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(48.0875 mm, 45.0000 mm): Pad 1 [WDT_KICK] of R48 on F.Cu
+    @(50.6000 mm, 50.2500 mm): Track [WDT_KICK] on F.Cu, length 2.1000 mm
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(94.4125 mm, 83.5000 mm): Pad 2 [CTA_N] of R31 on F.Cu
+    @(97.0875 mm, 84.8500 mm): Pad 1 [CTA_N] of R33 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(97.0875 mm, 84.8500 mm): Pad 1 [CTA_N] of R33 on F.Cu
+    @(101.8625 mm, 84.4500 mm): Pad 3 [CTA_N] of D6 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(114.0000 mm, 86.9200 mm): PTH pad 2 [CTA_N] of J12
+    @(101.8625 mm, 84.4500 mm): Pad 3 [CTA_N] of D6 on F.Cu
 
 ** Found 0 Footprint errors **
 

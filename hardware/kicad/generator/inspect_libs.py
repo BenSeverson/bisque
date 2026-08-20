@@ -1,5 +1,6 @@
 """Extract needed symbols (flattening `extends`) and report pin/pad geometry."""
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
@@ -92,6 +93,47 @@ def flatten(lib, name):
                                                  "on_board"):
             insert_at = i + 1
     out[insert_at:insert_at] = props
+    return out
+
+
+def units_of(sym):
+    """Unit numbers a library symbol defines; [1] when it is single-unit.
+
+    KiCad names each sub-symbol `<name>_<unit>_<bodystyle>`, matched on that
+    suffix rather than against the parent's name: inside a schematic's
+    `lib_symbols` the parent carries the full lib_id ("74xGxx:74LVC1G123") while
+    its children keep the bare name, so anchoring on the parent finds nothing
+    and every symbol silently reads as single-unit. Unit 0 holds
+    graphics shared by every unit and is not placeable on its own, so it is not
+    listed here - unit_view() folds it into whichever unit is being drawn.
+    """
+    us = set()
+    for u in find_all(sym, "symbol"):
+        m = re.search(r"_(\d+)_(\d+)$", str(u[1]))
+        if m and int(m.group(1)):
+            us.add(int(m.group(1)))
+    return sorted(us) or [1]
+
+
+def unit_view(sym, unit):
+    """`sym` carrying only `unit`'s sub-symbols, plus the shared unit-0 graphics.
+
+    Every geometry helper in the generator reads a symbol through pins_of() and
+    lib_body_box(), both of which walk whatever sub-symbols they are given - so
+    handing them a unit view is all it takes to lay a single unit out.
+
+    A single-unit symbol is returned unchanged rather than rebuilt, which is what
+    keeps the 120-odd existing parts on byte-identical output.
+    """
+    if len(units_of(sym)) < 2:
+        return sym
+    out = []
+    for x in sym:
+        if isinstance(x, list) and x and str(x[0]) == "symbol":
+            m = re.search(r"_(\d+)_(\d+)$", str(x[1]))
+            if m and int(m.group(1)) not in (0, unit):
+                continue
+        out.append(x)
     return out
 
 

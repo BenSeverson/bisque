@@ -77,6 +77,7 @@ JLC_PLACEMENT = {
     "C2297":    (  0,  0.000,  0.000),   # LED2  LED_0805_2012Metric                  resid 0.113 (2 pin#)
     "C2480":    (  0,  0.000,  0.000),   # D3    D_SMA                                resid 0.035 (2 pin#)
     "C2838127": (  0,  0.000,  0.000),   # Y1    Oscillator_SMD_Abracon_ASE-4Pin_3.2x resid 0.071 (4 pin#)
+    "C26159250":(  0,  0.000,  0.000),   # U10   VSSOP-8_2.3x2mm_P0.5mm               resid 0.000 (8 pin#)
     "C2653162": (270,  0.000,  0.000),   # U3    TSSOP-14_4.4x5mm_P0.65mm             resid 0.062 (14 pin#)
     "C27834":   (  0,  0.000,  0.000),   # R4    R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C28323":   (  0,  0.000,  0.000),   # C5    C_0805_2012Metric                    resid 0.050 (2 pin#)
@@ -85,7 +86,6 @@ JLC_PLACEMENT = {
     "C49678":   (  0,  0.000,  0.000),   # C2    C_0805_2012Metric                    resid 0.050 (2 pin#)
     "C515890":  (270,  0.000,  0.000),   # U7    QFN-28-1EP_5x5mm_P0.5mm_EP3.1x3.1mm  resid 0.075 (29 pin#)
     "C6186":    (180,  0.000,  0.000),   # U2    SOT-223-3_TabPin2                    resid 0.000 (2 pin#)
-    "C7420333": (180,  0.000,  0.000),   # D7    SOT-23                               resid 0.083 (3 pin#)
     "C7420376": (270,  0.000,  0.000),   # U4    SOT-23-6                             resid 0.062 (6 pin#)
     "C7512":    (270,  0.000,  0.000),   # U6    SOIC-16_3.9x9.9mm_P1.27mm            resid 0.261 (16 pin#)
     "C81598":   (  0,  0.000,  0.000),   # D4    D_SOD-123                            resid 0.085 (2 pin#)
@@ -166,15 +166,14 @@ LCSC = {
     "C35": ("C15850", "CL21A106KAYNNNE 10uF 25V X5R 0805", True, True),
     "C36": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
     "C37": ("C28323", "CL21B105KBFNNNE 1uF 50V X7R 0805", True, True),
-    "C38": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
-    "C39": ("C28323", "CL21B105KBFNNNE 1uF 50V X7R 0805", True, True),
+    "C38": ("C12891", "CL31A226KAHNNNE 22uF 25V X5R 1206", True, True),
+    "C39": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
     "D1": ("C8678", "SS34 SMA", True, True),
     "D2": ("C8678", "SS34 SMA", True, True),
     "D3": ("C2480", "SS14 SMA", True, True),
     "D4": ("C81598", "1N4148W SOD-123", True, True),
     "D5": ("C7420376", "SRV05-4 TVS array SOT-23-6", True, True),
     "D6": ("C7420376", "SRV05-4 TVS array SOT-23-6", True, True),
-    "D7": ("C7420333", "BAT54S dual series Schottky SOT-23", True, True),
     "J1": ("C165948", "HRO TYPE-C-31-M-12 USB-C 16P", False, True),
     "J2": ("C8465", "WJ500V-5.08-2P 5.08mm screw terminal 1x02", False, True),
     "J3": ("C8465", "WJ500V-5.08-2P 5.08mm screw terminal 1x02", False, True),
@@ -241,8 +240,9 @@ LCSC = {
     "R43": ("C17634", "33R 0805 1%", True, True),
     "R44": ("C17673", "4.7k 0805 1%", True, True),
     "R45": ("C17673", "4.7k 0805 1%", True, True),
-    "R46": ("C17514", "1M 0805 1%", True, True),
+    "R46": ("C149504", "100k 0805 1%", True, True),
     "R47": ("C149504", "100k 0805 1%", True, True),
+    "R48": ("C149504", "100k 0805 1%", True, True),
     "SW1": ("C318884", "TS-1187A-B-A-B 5.1x5.1mm SMD tactile switch", True, True),
     "SW2": ("C318884", "TS-1187A-B-A-B 5.1x5.1mm SMD tactile switch", True, True),
     "U1": ("C3013945", "ESP32-S3-WROOM-1U-N16R2 (16MB flash, 2MB quad PSRAM, U.FL)", False, True),
@@ -252,6 +252,7 @@ LCSC = {
     "U5": ("C2653162", "MAX31856MUD+T TSSOP-14", False, True),
     "U6": ("C7512", "ULN2003ADR SOIC-16 Darlington array", True, True),
     "U7": ("C515890", "ADE7953ACPZ-RL LFCSP-28 energy metering", False, True),
+    "U10": ("C26159250", "SN74LVC1G123 retriggerable monostable VSSOP-8", False, True),
     "Y1": ("C2838127", "TFOM3.579545M4RHKCNT2T 3.579545MHz XO SMD3225-4P", False, True),
 }
 

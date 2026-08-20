@@ -134,10 +134,14 @@ SEED = {
     "U6": (39.0, 55.0, 180, "SWI"),
     "R23": (46.0, 61.5, 0, "SWI"), "R24": (46.0, 58.0, 0, "SWI"),
     "R25": (46.0, 54.5, 0, "SWI"), "SJ1": (46.0, 49.5, 0, "SWI"),
-    "C38": (52.0, 49.5, 0, "SWI"), "D7": (57.0, 49.5, 0, "SWI"),
+    # U10 (the retriggerable one-shot) took the pump's slot; C38 is rotated so
+    # its two timing pads sit perpendicular to U10's pin row - pins 6 and 7 are
+    # 0.5 mm apart on one edge, and lying the cap flat forces one timing net to
+    # cross the other's pad.
+    "U10": (52.0, 49.5, 0, "SWI"), "C38": (57.0, 49.5, 90, "SWI"),
     "C39": (52.0, 53.5, 0, "SWI"), "R46": (57.0, 53.5, 0, "SWI"),
     "Q3": (52.0, 57.5, 0, "SWI"), "SJ2": (57.0, 57.5, 0, "SWI"),
-    "TP12": (52.0, 61.5, 0, "SWI"),
+    "TP12": (52.0, 61.5, 0, "SWI"), "R48": (57.0, 61.5, 0, "SWI"),
     "BZ1": (41.0, 69.0, 0, "SWI"),
     "D4": (65.0, 66.0, 0, "SWI2"), "Q2": (65.0, 70.0, 0, "SWI2"),
     "R11": (65.0, 74.0, 0, "SWI2"), "R8": (65.0, 78.0, 0, "SWI2"),

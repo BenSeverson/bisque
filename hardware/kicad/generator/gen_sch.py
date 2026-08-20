@@ -41,7 +41,7 @@ def _find_sym_base():
 
 
 inspect_libs.SYMDIR = _find_sym_base()
-from inspect_libs import flatten, pins_of
+from inspect_libs import flatten, pins_of, units_of, unit_view
 
 NS = uuid.UUID("7c9b1f5e-4a4b-4d1a-9c33-bisque00pcb0".replace("bisque00pcb0", "1234567890ab"))
 ROOT = str(uuid.uuid5(NS, "root-sheet"))
@@ -141,14 +141,16 @@ GROUPS = [
     ("SSR DRIVE x2\nlow-side AO3400A; indicator LED across each terminal",
      ["Q5", "R6", "R7", "LED3", "R10", "J4",
       "Q6", "R19", "R20", "LED4", "R21", "J9"]),
-    ("HARDWARE WATCHDOG\nC38/D7/C39/R46 diode charge pump on WDT_KICK holds\n"
-     "Q3 on; Q3 pulls SSR_PG down, turning on high-side Q4, which\n"
-     "supplies SSR_EN - the +5V rail feeding BOTH SSR terminals and\n"
-     "both indicators. R47 is the fail-safe pull-up.\n"
-     "SJ2 = bring-up defeat, REMOVE for service.",
-     # TP12 probes WDT_HOLD; living here lets the net fuse into one wire
-     # with the test point drawn on the node it probes.
-     ["C38", "D7", "C39", "R46", "Q3", "Q4", "R47", "SJ2", "TP12"]),
+    ("HARDWARE WATCHDOG\nU10 retriggerable one-shot: every rising edge on\n"
+     "WDT_KICK restarts a ~2.2 s window, so Q stays high only while\n"
+     "firmware keeps kicking. Q holds Q3 on; Q3 pulls SSR_PG down,\n"
+     "turning on high-side Q4, which supplies SSR_EN - the +5V rail\n"
+     "feeding BOTH SSR terminals and both indicators.\n"
+     "R46/C38 set the window. R48 holds B low when the MCU is high-Z.\n"
+     "R47 is the fail-safe pull-up. SJ2 = bring-up defeat, REMOVE for service.",
+     # TP12 probes the timing node; living here lets the net fuse into one
+     # wire with the test point drawn on the node it probes.
+     ["U10", "C38", "C39", "R46", "R48", "Q3", "Q4", "R47", "SJ2", "TP12"]),
     ("AUX OUTPUT BANK\nULN2003 vent/purge/spare; COM->AUX_VP, SJ1 links to +5V",
      ["U6", "R23", "R24", "R25", "J10", "SJ1"]),
     ("ALARM BUZZER",
@@ -211,6 +213,50 @@ NOTES = (
     "  value (unverified C_L), see design.py comment. ADE7953 I2C\n"
     "  address 0x38 collides with PCF8574A."
 )
+
+# --- multi-unit expansion ---------------------------------------------------
+# KiCad splits some symbols across units - 74xGxx puts logic on unit 1 and the
+# GND/VCC pair on unit 2 - and each unit is placed separately on the sheet. The
+# packer, the fuser and every geometry helper below work on one symbol at one
+# position, so rather than teach each of them about units, COMPONENTS is
+# expanded here into one entry per placeable unit.
+#
+# A single-unit part keeps its own designator as the key, so the 120-odd parts
+# that predate this take exactly the same path and emit exactly the same bytes.
+# A multi-unit part becomes "U10#1" / "U10#2": two cells to the packer, two
+# symbol instances in the output, one designator and one BOM line.
+def _expand_parts():
+    parts, of_ref = {}, {}
+    for ref, c in COMPONENTS.items():
+        sym = flatten(c["lib"], c["sym"])
+        units = units_of(sym)
+        placed = []
+        for u in units:
+            key = ref if len(units) == 1 else "%s#%d" % (ref, u)
+            view = unit_view(sym, u)
+            d = dict(c)
+            if len(units) > 1:
+                have = {p[0] for p in pins_of(view)}
+                d["pins"] = {k: v for k, v in c["pins"].items() if k in have}
+                placed += [p[0] for p in pins_of(view)]
+            d["_ref"], d["_unit"], d["_sym"] = ref, u, view
+            parts[key] = d
+            of_ref.setdefault(ref, []).append(key)
+        # The split must PARTITION the symbol's pins: lose one and the netlist
+        # quietly stops carrying it. This deliberately says nothing about
+        # design.py's declarations, which legitimately name pads the symbol does
+        # not have - J1's shield is "SH" on the footprint and "S1" on the symbol,
+        # and design.py carries both so each side finds its own.
+        if len(units) > 1:
+            assert sorted(placed) == sorted(p[0] for p in pins_of(sym)), (
+                "%s: unit split lost or duplicated pins of %s" % (ref, c["sym"]))
+    return parts, of_ref
+
+
+PARTS, ITEMS_OF = _expand_parts()
+GROUPS = [(title, [k for r in refs for k in ITEMS_OF.get(r, [r])])
+          for title, refs in GROUPS]
+
 
 # --- layout engine ----------------------------------------------------------
 # A1 landscape (841 x 594 mm). The usable box keeps every anchor well inside
@@ -530,8 +576,7 @@ def _seg_box(seg, pad=0.2):
 
 
 def sym_of(ref):
-    c = COMPONENTS[ref]
-    return flatten(c["lib"], c["sym"])
+    return PARTS[ref]["_sym"]
 
 
 def pin_xy(sym, no):
@@ -611,7 +656,7 @@ def fuse_pairs():
     """
     grp = {r: i for i, (_t, refs) in enumerate(GROUPS) for r in refs}
     net2 = {}
-    for ref, c in COMPONENTS.items():
+    for ref, c in PARTS.items():
         for pin, net in c["pins"].items():
             if net:
                 net2.setdefault(net, []).append((ref, pin))
@@ -1208,7 +1253,7 @@ def sym_extent(ref, value, sym, pinmap, fused=()):
 
 def member_stubs(ref, fused):
     """Stub segments a placed part draws, relative to its own origin."""
-    c = COMPONENTS[ref]
+    c = PARTS[ref]
     sym = sym_of(ref)
     out = []
     for p, net, outv, L in stub_pins(sym, c["pins"], fused):
@@ -1223,8 +1268,8 @@ def member_stubs(ref, fused):
 
 
 def ref_extent_box(ref, fused):
-    """sym_extent() for a design.py ref, as a box about its origin."""
-    c = COMPONENTS[ref]
+    """sym_extent() for a placeable item, as a box about its origin."""
+    c = PARTS[ref]
     l, r, u, d = sym_extent(ref, c["value"], sym_of(ref), c["pins"],
                             {p for (rr, p) in fused if rr == ref})
     return (-l, -u, r, d)
@@ -1272,7 +1317,7 @@ def member_boxes(ref, fused):
     Choosing where a fused name goes needs the gap between a part's body and
     its own labels, which sym_extent()'s hull has already swallowed.
     """
-    c = COMPONENTS[ref]
+    c = PARTS[ref]
     sym = sym_of(ref)
     l, r, u, d = body_extent(ref, c["value"], sym, c["pins"], fused)
     out = [(-l, -u, r, d)]
@@ -1299,10 +1344,9 @@ def cell_extent(cell, symcache):
     """
     box = [math.inf, math.inf, -math.inf, -math.inf]
     for ref in cell["refs"]:
-        c = COMPONENTS[ref]
+        c = PARTS[ref]
         fused = {p for (r, p) in FUSED_PINS if r == ref}
-        l, r, u, d = sym_extent(ref, c["value"], symcache[(c["lib"], c["sym"])],
-                                c["pins"], fused)
+        l, r, u, d = sym_extent(ref, c["value"], c["_sym"], c["pins"], fused)
         ox, oy = cell["off"][ref]
         box = [min(box[0], ox - l), min(box[1], oy - u),
                max(box[2], ox + r), max(box[3], oy + d)]
@@ -1329,7 +1373,7 @@ def build_layout(symcache):
     """
     listed = [r for _, refs in GROUPS for r in refs]
     assert len(listed) == len(set(listed)), "a ref is in two GROUPS entries"
-    missing = [r for r in COMPONENTS if r not in set(listed)]
+    missing = [r for r in PARTS if r not in set(listed)]
     assert not missing, "ungrouped refs in design.py: %s" % missing
 
     # The packer's unit is a *cell*: a fused group of parts with fixed
@@ -1356,9 +1400,8 @@ def build_layout(symcache):
                     sym = symcache[("power", "PWR_FLAG")]
                     value, pinmap = "PWR_FLAG", {"1": FLAG_NET[ref]}
                 else:
-                    c = COMPONENTS[ref]
-                    sym, value, pinmap = symcache[(c["lib"], c["sym"])], \
-                        c["value"], c["pins"]
+                    c = PARTS[ref]
+                    sym, value, pinmap = c["_sym"], c["value"], c["pins"]
                 ext[key] = sym_extent(ref, value, sym, pinmap)
                 done.add(ref)
             out.append((key, members))
@@ -1561,11 +1604,11 @@ def main():
 
     # place components
     placed = {}
-    for ref, c in COMPONENTS.items():
+    for ref, c in PARTS.items():
         sx, sy = AT[ref]
         sx, sy = snap(sx), snap(sy)
         key = (c["lib"], c["sym"])
-        sym = symcache[key]
+        sym = c["_sym"]
         pins = pins_of(sym)
         pinmap = c["pins"]
         fused_here = {p for (r, p) in FUSED_PINS if r == ref}
@@ -1580,7 +1623,7 @@ def main():
         prop = []
         prop.append('\t\t(property "Reference" "%s" (at %s %s 0)\n'
                     '\t\t\t(effects (font (size 1.27 1.27)) (justify left))\n\t\t)'
-                    % (ref, f(sx + fdx), f(sy + fdy_ref)))
+                    % (c["_ref"], f(sx + fdx), f(sy + fdy_ref)))
         prop.append('\t\t(property "Value" "%s" (at %s %s 0)\n'
                     '\t\t\t(effects (font (size 1.27 1.27)) (justify left))\n\t\t)'
                     % (esc(c["value"]), f(sx + fdx), f(sy + fdy_val)))
@@ -1610,7 +1653,7 @@ def main():
         #
         # Both are hidden: check_sch_layout.py scores a symbol's body against
         # its VISIBLE fields, so a visible field here would move parts.
-        lcsc_entry = LCSC.get(ref)
+        lcsc_entry = LCSC.get(c["_ref"])
         if lcsc_entry:
             for pname in ("MPN", "LCSC"):
                 prop.append('\t\t(property "%s" "%s" (at %s %s 0)\n'
@@ -1618,12 +1661,12 @@ def main():
                             % (pname, esc(lcsc_entry[0]), f(sx), f(sy)))
         pin_uuid_lines = "".join('\t\t(pin "%s" (uuid %s))\n' % (p[0], uid("pin", ref, p[0]))
                                  for p in pins)
-        emit('\t(symbol (lib_id "%s") (at %s %s 0) (unit 1)\n'
+        emit('\t(symbol (lib_id "%s") (at %s %s 0) (unit %d)\n'
              '\t\t(in_bom yes) (on_board yes) (dnp no)\n'
              '\t\t(uuid %s)\n%s\n%s'
-             '\t\t(instances (project "%s" (path "/%s" (reference "%s") (unit 1))))\n'
-             '\t)' % (lib_id, f(sx), f(sy), u, "\n".join(prop), pin_uuid_lines,
-                      PROJECT, ROOT, ref))
+             '\t\t(instances (project "%s" (path "/%s" (reference "%s") (unit %d))))\n'
+             '\t)' % (lib_id, f(sx), f(sy), c["_unit"], u, "\n".join(prop),
+                      pin_uuid_lines, PROJECT, ROOT, c["_ref"], c["_unit"]))
         # stubs + terminators / no-connects. stub_pins() collapses stacked
         # pins (module GND 1/40/41, USB VBUS) onto one stub and hands back the
         # same lengths the packer reserved space for.

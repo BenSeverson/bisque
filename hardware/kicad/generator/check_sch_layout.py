@@ -37,6 +37,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from sexp import parse, find, find_all, num
+from inspect_libs import unit_view
 
 # Stroke-font metrics, in multiples of the font size. KiCad's newstroke
 # advance runs about 0.6-0.75 em depending on the glyph and its interline is
@@ -318,11 +319,25 @@ def wire_hits(wires, junctions=()):
 
 def collect(sch):
     doc = parse(open(sch).read())[0]
-    libs = {}
+    # Keyed by (lib_id, unit), because a multi-unit symbol places each unit
+    # separately and only that unit's graphics are drawn there. Boxing a placed
+    # unit with the whole symbol's extent unions every unit's body and pins into
+    # one rectangle, which then swallows the part's own fields and any power
+    # port legitimately sitting beside it - 10 phantom collisions on the first
+    # multi-unit part this board carried.
+    libsyms = {}
     ls = find(doc, "lib_symbols")
     if ls:
         for s in find_all(ls, "symbol"):
-            libs[str(s[1])] = lib_body_box(s)
+            libsyms[str(s[1])] = s
+    libs = {}
+
+    def body_box(key, unit):
+        if (key, unit) not in libs:
+            sym = libsyms.get(key)
+            libs[(key, unit)] = (lib_body_box(unit_view(sym, unit)) if sym
+                                 else (-1.27, -1.27, 1.27, 1.27))
+        return libs[(key, unit)]
 
     symbols, texts = [], []
     for item in doc:
@@ -335,7 +350,9 @@ def collect(sch):
             ang = num(at[3]) if len(at) > 3 else 0.0
             lib_id = find(item, "lib_id")
             key = str(lib_id[1]) if lib_id else ""
-            box = place(libs.get(key, (-1.27, -1.27, 1.27, 1.27)), sx, sy, ang)
+            unum = find(item, "unit")
+            box = place(body_box(key, int(num(unum[1])) if unum else 1),
+                        sx, sy, ang)
             ref = key
             for p in find_all(item, "property"):
                 if str(p[1]) == "Reference":
