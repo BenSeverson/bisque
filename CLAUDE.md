@@ -187,7 +187,7 @@ ios/Bisque/         # SwiftUI companion app (see below)
 simulator/          # Host LVGL/SDL2 build of the display UI
 tests/host/         # Unity host unit tests + API fixture generator
 hardware/kicad/     # Generated KiCad project for the single-board PCB
-docs/               # Pin map, roadmap, screenshots
+docs/               # Pin map, task/timer map, roadmap, screenshots
 spiffs_data/        # SPIFFS filesystem image for web assets
 partitions.csv      # ESP32 partition table (16MB, OTA-enabled)
 Makefile            # Dispatcher over every dev entry point (`make help`)
