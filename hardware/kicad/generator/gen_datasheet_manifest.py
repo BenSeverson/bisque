@@ -59,7 +59,7 @@ DOC_FOR = {
     "AMS1117-3.3_1A_Low_Dropout_regulator_positive_3.3V_fixed_output_SOT-223.pdf": "AMS1117-3.3",
     "AO3400A_30V_Vds_5.7A_Id_N-Channel_MOSFET_SOT-23.pdf": "AO3400A",
     "AO3401A_-4.0A_Id_-30V_Vds_P-Channel_MOSFET_SOT-23.pdf": "AO3401A",
-    "BAT54S_Nexperia.pdf": "BAT54S",
+    "SN74LVC1G123_TI.pdf": "SN74LVC1G123",
     "MAX31856.pdf": "MAX31856MUD+",
     "TFOM_3.579545M_XO_C2838127.pdf": "3.579545MHz XO",
     "ULN2003A.pdf": "ULN2003A",

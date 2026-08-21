@@ -127,7 +127,18 @@ POWER_NETS = {"GND", "+5V", "+3V3", "VBUS", "VIN", "VLED"}
 R0603 = ("Resistor_SMD:R_0805_2012Metric", "R_0805_2012Metric.kicad_mod")
 C0603 = ("Capacitor_SMD:C_0805_2012Metric", "C_0805_2012Metric.kicad_mod")
 C1206 = ("Capacitor_SMD:C_1206_3216Metric", "C_1206_3216Metric.kicad_mod")
-VSSOP8 = ("Package_SO:VSSOP-8_2.3x2mm_P0.5mm", "VSSOP-8_2.3x2mm_P0.5mm.kicad_mod")
+# SSOP-8 (TI's DCT package), not the VSSOP-8 the same die also ships in. Two
+# reasons, and the second is the one that decided it:
+#   - Pitch. VSSOP's 0.5 mm land leaves 0.150 mm between adjacent pads and this
+#     board's net classes require 0.200 mm, so that footprint is twelve DRC
+#     violations before a single track is routed. SSOP-8 at 0.65 mm gives
+#     0.350 mm - more margin even than TSSOP-8's 0.250 mm.
+#   - Datasheet basis. The window arithmetic below is TI's (SCES586E): the
+#     K = 1.0-1.1 constant at the 10k x 0.1uF anchor, the +-0.25 uA Rext/Cext
+#     leakage, the -40..125 C table. C123302 is that same TI die in a different
+#     package, so the numbers carry over unchanged. A Nexperia 74LVC1G123 is a
+#     different datasheet and would need the window re-derived from it.
+SSOP8 = ("Package_SO:SSOP-8_2.95x2.8mm_P0.65mm", "SSOP-8_2.95x2.8mm_P0.65mm.kicad_mod")
 C1206 = ("Capacitor_SMD:C_1206_3216Metric", "C_1206_3216Metric.kicad_mod")
 
 # --- thermocouple channel geometry ---------------------------------------
@@ -721,8 +732,8 @@ COMPONENTS = {
     #
     # No pulldown on WDT_OK: Q is push-pull and defines that node whenever U10
     # has a supply, and when it does not, the R47 path above is what holds.
-    "U10": dict(lib="74xGxx", sym="74LVC1G123", fp=VSSOP8[0], fpf=VSSOP8[1],
-                value="SN74LVC1G123", at=(52.0, 50.5, 0),
+    "U10": dict(lib="74xGxx", sym="74LVC1G123", fp=SSOP8[0], fpf=SSOP8[1],
+                value="SN74LVC1G123", at=(53.5, 49.7, 0),
                 pins={"1": "GND", "2": "WDT_KICK", "3": "+3V3", "4": "GND",
                       "5": "WDT_OK", "6": "WDT_CT_N", "7": "WDT_CT_P",
                       "8": "+3V3"}),
@@ -732,19 +743,24 @@ COMPONENTS = {
     # not seat it. Perpendicular, pin 6 (CT_N) fans south to pad 1 and pin 7
     # (CT_P) fans north to pad 2, and the two runs diverge instead of meeting.
     "C38": dict(lib="Device", sym="C", fp=C1206[0], fpf=C1206[1],
-                value="22uF", at=(62.0, 51.75, 90),
+                value="22uF", at=(58.0, 50.3, 90),
                 pins={"1": "WDT_CT_N", "2": "WDT_CT_P"}),
     "R46": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="100k", at=(66.0, 50.25, 0),
-                pins={"1": "WDT_CT_P", "2": "+3V3"}),
+                value="100k", at=(58.0, 54.1, 0),
+                # Rail on pin 1, not pin 2: KiCad's R symbol runs its pins
+                # vertically, and a rail hanging off the BOTTOM pin is
+                # power_path()'s "exactly wrong" case - the port comes back up
+                # past the pin and its bar lands on the part's own fields. The
+                # PCB does not care which pad is which here; C38 is due north.
+                pins={"1": "+3V3", "2": "WDT_CT_P"}),
     "C39": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="100nF", at=(50.0, 53.5, 0),
+                value="100nF", at=(53.5, 53.5, 0),
                 pins={"1": "+3V3", "2": "GND"}),
     # Holds B low whenever the MCU drives nothing - boot ROM, flashing, reset,
     # or a dead module. No edges means the one-shot expires, which is the
     # power-on state the rail must have.
     "R48": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="100k", at=(49.0, 45.0, 0),
+                value="100k", at=(48.5, 52.5, 0),
                 pins={"1": "WDT_KICK", "2": "GND"}),
     "Q3": dict(lib="Transistor_FET", sym="AO3400A", fp=SOT23[0], fpf=SOT23[1],
                value="AO3400A", at=(52.0, 57.5, 0),
@@ -1465,7 +1481,7 @@ COMPONENTS = {
     "TP12": dict(lib="Connector", sym="TestPoint",
                  fp="TestPoint:TestPoint_Pad_D1.0mm",
                  fpf="TestPoint_Pad_D1.0mm.kicad_mod",
-                 value="TP", at=(66.0, 52.5, 0),
+                 value="TP", at=(59.85, 57.0, 0),
                  pins={"1": "WDT_CT_P"}),
 }
 

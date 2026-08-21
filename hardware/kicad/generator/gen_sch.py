@@ -357,7 +357,21 @@ def power_extent(sym):
     return tuple(box)
 
 
-def power_path(net, outv, L):
+def pin_stem(sym, p):
+    """The symbol's body box in sheet coords, relative to pin `p`.
+
+    The one thing power_path() needs to know about the part it is hanging a
+    port off: where the body actually is, so it can tell whether the port would
+    land on it. Not how long the pin is - a test point has a short pin and no
+    body worth missing, and treating those two the same is what walked TP1's
+    and TP2's ports into their own fields.
+    """
+    bx0, by0, bx1, by1 = check_sch_layout.lib_body_box(sym)
+    gx, gy = p[2], -p[3]                          # pin, sheet coords (y down)
+    return (bx0 - gx, -by1 - gy, bx1 - gx, -by0 - gy)
+
+
+def power_path(net, outv, L, stem=None):   # stem: body box rel. to the pin
     """Polyline from a pin to its power port, keeping the port upright.
 
     A ground triangle hangs below its wire and a rail bar sits above it, and
@@ -392,6 +406,31 @@ def power_path(net, outv, L):
         return [(0.0, 0.0), p1,
                 (p1[0] + ELBOW * need[0], p1[1] + ELBOW * need[1])]
     side = (1.0, 0.0) if abs(outv[0]) < 0.5 else (0.0, 1.0)
+    # How far the port's own graphic reaches back along `need`, since that is
+    # what actually lands on things - the bar and the "+3V3" under it, not the
+    # origin.
+    pb = power_extent(PWR[net])
+    reach = (max(abs(pb[1]), abs(pb[3])) if abs(need[1]) > 0.5
+             else max(abs(pb[0]), abs(pb[2])))
+    p2s = (p1[0] + ELBOW * side[0], p1[1] + ELBOW * side[1])
+    end = (p2s[0] + (L + ELBOW) * need[0], p2s[1] + (L + ELBOW) * need[1])
+    port = (end[0] + pb[0], end[1] + pb[1], end[0] + pb[2], end[1] + pb[3])
+    hits_body = stem is not None and not (
+        port[2] <= stem[0] or stem[2] <= port[0]
+        or port[3] <= stem[1] or stem[3] <= port[1])
+    if hits_body:
+        # The standard turn would bring the port back ELBOW *inside* the pin,
+        # and on a part whose pin is shorter than the port is tall that puts the
+        # bar on the symbol. Go out far enough that the whole graphic still
+        # clears the pin's end instead. Only parts that need it take this path:
+        # a deep symbol like U10 does, a test point's stub does not, and moving
+        # a test point's port out walks it into the field block field_pos()
+        # puts beside a single-vertical-pin part.
+        out = max(L, reach) + ELBOW
+        pout = (out * outv[0], out * outv[1])
+        p2 = (pout[0] + ELBOW * side[0], pout[1] + ELBOW * side[1])
+        return [(0.0, 0.0), pout, p2,
+                (p2[0] + ELBOW * need[0], p2[1] + ELBOW * need[1])]
     p2 = (p1[0] + ELBOW * side[0], p1[1] + ELBOW * side[1])
     return [(0.0, 0.0), p1, p2,
             (p2[0] + (L + ELBOW) * need[0], p2[1] + (L + ELBOW) * need[1])]
@@ -408,7 +447,7 @@ LANE_GAP = 1.27  # gap when two terminators' text runs ALONG the pin row
 LANE_CLEAR = 0.25  # ...and when it runs across it, where touching is the risk
 
 
-def term_extent(net, outv, L=STUB):
+def term_extent(net, outv, L=STUB, stem=None):
     """Sheet box everything past a pin covers, measured from the PIN itself.
 
     From the pin, not from the stub end: a power port is now reached by a
@@ -417,7 +456,7 @@ def term_extent(net, outv, L=STUB):
     """
     sym = PWR.get(net)
     if sym is not None:
-        pts = power_path(net, outv, L)
+        pts = power_path(net, outv, L, stem)
         pb = power_extent(sym)
         xs = [q[0] for q in pts] + [pts[-1][0] + pb[0], pts[-1][0] + pb[2]]
         ys = [q[1] for q in pts] + [pts[-1][1] + pb[1], pts[-1][1] + pb[3]]
@@ -489,7 +528,7 @@ def stub_pins(sym, pinmap, fused=()):
             used, reach = [], base - LANE
             for row in sorted(rows, key=_order):
                 p, net, outv, _ = row
-                tb = term_extent(net, outv, STUB)
+                tb = term_extent(net, outv, STUB, pin_stem(sym, p))
                 c = _order(row)
                 w = max(-tb[0], tb[2]) if vert else max(-tb[1], tb[3])
                 # A gap is only wanted where the two terminators' *text* runs
@@ -511,7 +550,7 @@ def stub_pins(sym, pinmap, fused=()):
                 # longest *stub* still turns inside the longest *label*,
                 # which is how seven ports came down on top of U7's and
                 # J14's net names.
-                fb = term_extent(net, outv, row[3])
+                fb = term_extent(net, outv, row[3], pin_stem(sym, row[0]))
                 reach = max(reach, max(-fb[1], fb[3]) if vert
                             else max(-fb[0], fb[2]))
             return reach
@@ -1204,7 +1243,7 @@ def field_pos(sym, pinmap, fused=()):
     for p, net, outv, L in stub_pins(sym, pinmap, fused):
         if net is None or outv[1] > -0.5 or p[0] in fused:
             continue                                  # not leaving upward
-        top = max(top, p[3] - term_extent(net, outv, L)[1])
+        top = max(top, p[3] - term_extent(net, outv, L, pin_stem(sym, p))[1])
     return (min(xs), -(top + 3.81), -(top + 3.81) + 1.9)
 
 
@@ -1242,7 +1281,7 @@ def sym_extent(ref, value, sym, pinmap, fused=()):
         if p[0] in fused:
             continue
         gx, gy = p[2], -p[3]                          # sheet coords, y down
-        tb = (term_extent(net, outv, L) if net is not None
+        tb = (term_extent(net, outv, L, pin_stem(sym, p)) if net is not None
               else (0.0, 0.0, 0.0, 0.0))
         left = max(left, -(gx + tb[0]))
         right = max(right, gx + tb[2])
@@ -1260,7 +1299,7 @@ def member_stubs(ref, fused):
         if net is None or p[0] in fused:
             continue
         gx, gy = p[2], -p[3]
-        pts = (power_path(net, outv, L) if net in PWR
+        pts = (power_path(net, outv, L, pin_stem(sym, p)) if net in PWR
                else [(0.0, 0.0), (L * outv[0], L * outv[1])])
         out += [((gx + a[0], gy + a[1]), (gx + b[0], gy + b[1]))
                 for a, b in zip(pts, pts[1:])]
@@ -1325,7 +1364,7 @@ def member_boxes(ref, fused):
         if net is None or p[0] in fused:
             continue
         gx, gy = p[2], -p[3]
-        tb = term_extent(net, outv, L)
+        tb = term_extent(net, outv, L, pin_stem(sym, p))
         out.append((gx + tb[0], gy + tb[1], gx + tb[2], gy + tb[3]))
     return out
 
@@ -1680,7 +1719,7 @@ def main():
                 emit('\t(no_connect (at %s %s) (uuid %s))'
                      % (f(gx), f(gy), uid("nc", ref, no)))
                 continue
-            pts = (power_path(net, outv, L) if net in PWR
+            pts = (power_path(net, outv, L, pin_stem(sym, p)) if net in PWR
                    else [(0.0, 0.0), (L * outv[0], L * outv[1])])
             pts = [(gx + a, gy + b) for a, b in pts]
             for i, (q0, q1) in enumerate(zip(pts, pts[1:])):

@@ -291,8 +291,11 @@ USB_STUB_TERMS = {
 # without a seeded escape its pads report "0 goal nodes, free neighbours F=0"
 # - the front layer between 0.5 mm-pitch pads is entirely clearance, and
 # via-in-pad is forbidden, so a pad with no lane cannot start a route at all.
-# 1.25 mm clears the pad row and lands on the 0.25 mm grid.
-FANOUT = {"U7": 1.75, "U3": 1.5, "U5": 1.5, "U10": 1.25}
+# 1.75 mm, the same length U7 needs: at 0.5 mm pitch four parallel stubs
+# leave only a 0.2 mm gap between them, so they need to run clear of the
+# pad row before they can fan out at all. 1.25 mm was not enough - pin 2
+# never got a lane and WDT_KICK could not leave the part.
+FANOUT = {"U7": 1.75, "U3": 1.5, "U5": 1.5, "U10": 1.75}
 SIG_W = 0.3           # default signal track width; see ROUTE_ORDER
 FANOUT_WIDTH = 0.25   # fine-pitch escapes only; see the ROUTE_ORDER comment
 

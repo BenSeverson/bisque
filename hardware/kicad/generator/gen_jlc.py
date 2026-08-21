@@ -65,7 +65,6 @@ JLC_PLACEMENT = {
     "C17408":   (  0,  0.000,  0.000),   # R14   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17414":   (  0,  0.000,  0.000),   # R1    R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17513":   (  0,  0.000,  0.000),   # R9    R_0805_2012Metric                    resid 0.088 (2 pin#)
-    "C17514":   (  0,  0.000,  0.000),   # R46   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17630":   (  0,  0.000,  0.000),   # R3    R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17634":   (  0,  0.000,  0.000),   # R39   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17673":   (  0,  0.000,  0.000),   # R44   R_0805_2012Metric                    resid 0.088 (2 pin#)
@@ -77,13 +76,13 @@ JLC_PLACEMENT = {
     "C2297":    (  0,  0.000,  0.000),   # LED2  LED_0805_2012Metric                  resid 0.113 (2 pin#)
     "C2480":    (  0,  0.000,  0.000),   # D3    D_SMA                                resid 0.035 (2 pin#)
     "C2838127": (  0,  0.000,  0.000),   # Y1    Oscillator_SMD_Abracon_ASE-4Pin_3.2x resid 0.071 (4 pin#)
-    "C26159250":(  0,  0.000,  0.000),   # U10   VSSOP-8_2.3x2mm_P0.5mm               resid 0.000 (8 pin#)
     "C2653162": (270,  0.000,  0.000),   # U3    TSSOP-14_4.4x5mm_P0.65mm             resid 0.062 (14 pin#)
     "C27834":   (  0,  0.000,  0.000),   # R4    R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C28323":   (  0,  0.000,  0.000),   # C5    C_0805_2012Metric                    resid 0.050 (2 pin#)
     "C3013945": (  0,  0.000, -0.477),   # U1    ESP32-S3-WROOM-1U                    resid 0.022 (40 pin#)
     "C318884":  (  0,  0.000,  0.000),   # SW1   SW_Push_1P1T_XKB_TS-1187A            resid 0.025 (4 shape)
     "C49678":   (  0,  0.000,  0.000),   # C2    C_0805_2012Metric                    resid 0.050 (2 pin#)
+    "C123302":  (180,  0.000,  0.000),   # U10   SSOP-8_2.95x2.8mm_P0.65mm            fitted by check_jlc_placement
     "C515890":  (270,  0.000,  0.000),   # U7    QFN-28-1EP_5x5mm_P0.5mm_EP3.1x3.1mm  resid 0.075 (29 pin#)
     "C6186":    (180,  0.000,  0.000),   # U2    SOT-223-3_TabPin2                    resid 0.000 (2 pin#)
     "C7420376": (270,  0.000,  0.000),   # U4    SOT-23-6                             resid 0.062 (6 pin#)
@@ -252,7 +251,7 @@ LCSC = {
     "U5": ("C2653162", "MAX31856MUD+T TSSOP-14", False, True),
     "U6": ("C7512", "ULN2003ADR SOIC-16 Darlington array", True, True),
     "U7": ("C515890", "ADE7953ACPZ-RL LFCSP-28 energy metering", False, True),
-    "U10": ("C26159250", "SN74LVC1G123 retriggerable monostable VSSOP-8", False, True),
+    "U10": ("C123302", "SN74LVC1G123DCTR retriggerable monostable SSOP-8", False, True),
     "Y1": ("C2838127", "TFOM3.579545M4RHKCNT2T 3.579545MHz XO SMD3225-4P", False, True),
 }
 
