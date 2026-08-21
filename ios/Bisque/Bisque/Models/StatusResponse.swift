@@ -19,5 +19,7 @@ struct StatusResponse: Codable {
         let openCircuit: Bool
         let shortGnd: Bool
         let shortVcc: Bool
+        /// See DiagThermocouple.outOfRange.
+        let outOfRange: Bool?
     }
 }
