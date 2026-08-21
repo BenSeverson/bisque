@@ -34,7 +34,7 @@ IDF         := . ./scripts/idf-env.sh &&
         size size-firmware size-spiffs \
         ci ci-firmware clean \
         pcb pcb-build pcb-cosmetic pcb-cosmetic-verify pcb-fab pcb-render \
-        pcb-check pcb-check-portable
+        pcb-check pcb-check-portable datasheets-manifest
 
 help:  ## List available targets
 	@awk 'BEGIN{FS=":.*## "} /^[a-z][a-zA-Z0-9_-]*:.*## / {printf "  \033[1m%-20s\033[0m %s\n",$$1,$$2}' $(MAKEFILE_LIST)
@@ -267,6 +267,7 @@ pcb-check-portable:  ## PCB checkers that need no KiCad install (the CI subset)
 	@cd $(KICAD_DIR) && python3 generator/check_pinmap.py \
 	  && python3 generator/check_sch_bounds.py bisque-controller.kicad_sch \
 	  && python3 generator/check_sch_layout.py bisque-controller.kicad_sch \
+	  && python3 generator/check_mpn.py bisque-controller.kicad_sch \
 	  && python3 generator/check_pcb.py bisque-controller.kicad_pcb \
 	  && python3 generator/check_drill_clearance.py bisque-controller.kicad_pcb \
 	  && python3 generator/check_canonical.py bisque-controller.kicad_pcb \
@@ -281,7 +282,13 @@ pcb-check: pcb-check-portable  ## Run every PCB checker (no KiCad rebuild)
 	  && python3 generator/check_jlc_placement.py \
 	  && "$$KPY" generator/check_via_in_pad.py bisque-controller.kicad_pcb \
 	  && "$$KPY" generator/check_silk.py bisque-controller.kicad_pcb \
-	  && "$$KPY" generator/check_placement.py
+	  && "$$KPY" generator/check_placement.py \
+	  && python3 generator/gen_datasheet_manifest.py --check
+
+# The datasheet cache is gitignored, so this is a local housekeeping tool
+# rather than a CI gate — see the header of gen_datasheet_manifest.py.
+datasheets-manifest:  ## Re-index hardware/kicad/datasheets/ into its manifest.json
+	@cd $(KICAD_DIR) && python3 generator/gen_datasheet_manifest.py
 
 # pcb-check runs BEFORE pcb-render on purpose: the raytrace is the most
 # expensive step here and the least informative one to look at if a checker

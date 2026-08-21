@@ -46,6 +46,20 @@ esp_err_t safety_init(int ssr_pin, float max_safe_temp);
 void safety_init_io(int alarm_gpio, int vent_gpio, int lid_gpio);
 
 /**
+ * Configure the hardware watchdog kick output.
+ *
+ * The pin retriggers a monostable whose output gates BOTH SSR opto channels: if
+ * it stops transitioning, or wedges at either level, both SSRs de-energize
+ * within the monostable's window (~1.7-2.7 s) regardless of what firmware
+ * commands. The kick itself is emitted by the existing 100 ms SSR timer and is
+ * gated on safety_task's heartbeat, so it stops when supervision stops.
+ *
+ * Pass -1 on hardware without the circuit. A board with neither the kick nor the
+ * SJ2 "WDT DEFEAT" jumper will not heat.
+ */
+void safety_init_wdt(int wdt_gpio);
+
+/**
  * Trigger alarm output (call on firing complete or error if alarm_enabled).
  * @param pattern 0 = short beep, 1 = long beep, 2 = error pattern.
  */

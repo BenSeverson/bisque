@@ -37,11 +37,13 @@ except ImportError:
 import pcbnew
 from canonicalize import canonicalize_file
 from design import COMPONENTS, netlist, BX0, BY0, BX1, BY1
+from gen_sch import sync_project
 import router as R
 import silk
 from gen_pcb import (all_seeds, route_all, ripup_retry, promoted_order, plane_vias,
                      apply_stackup, SILK, SILK_GRAPHICS, MANUAL_VIAS,
-                     PLANE_LAYER, HIDE_REFS)
+                     PLANE_LAYER, HIDE_REFS, sync_netclasses, netclass_table,
+                     USB_KEEPOUT, U2_POUR, COPPER_LAYER_TYPE)
 
 # Copper stack-up. Rev B is 4-layer (spec 6.1): signals on the outside, an
 # unbroken GND plane on In1.Cu and the +3V3 plane on In2.Cu. router.py still
@@ -73,6 +75,25 @@ FPBASE = _find_fp_base()
 
 
 MM = pcbnew.FromMM
+
+# Minimum silkscreen stroke, mm. JLCPCB quotes 0.153 mm as the floor below
+# which a legend line may print blurred or drop out entirely. 0.16 rather than
+# KiCad's 0.15 house value on purpose: 0.15 is 2.4 um UNDER the quoted number,
+# which is finer than a screen resolves and would almost certainly print, but
+# "under the published figure by less than anyone can measure" is a sentence
+# nobody should have to reconstruct while reading a DFM report. 0.16 is over
+# it, and it was free - the placer seats all 204 labels with 0 silk-on-silk at
+# either value, so there was no trade to make.
+#
+# Both silk TEXT sites clamp here; see the two uses. Footprint OUTLINES are a
+# separate population and are deliberately NOT clamped: they arrive at 0.12 mm
+# from KiCad's own stock libraries (all 37 of ours), which is what every KiCad
+# board ships and what JLCPCB prints daily. Raising them would mean rewriting
+# the vendored .kicad_mod files and would grow every obstacle box the placer
+# works against, to thicken a part outline nobody reads during assembly. The
+# text is what gets read, so the text is what is held to the floor.
+SILK_MIN_STROKE = 0.16
+
 _major = int(pcbnew.Version().split(".")[0])
 if _major < 10:
     sys.exit("kicad_build.py requires KiCad 10+ (found %s)" % pcbnew.Version())
@@ -132,6 +153,12 @@ MODEL_FIXUP = {
     "U7": dict(file="QFN-28-1EP_5x5mm_P0.5mm_EP3.1x3.1mm"),
     "SW1": dict(file="SW_Push_1P1T_XKB_TS-1187A"),
     "SW2": dict(file="SW_Push_1P1T_XKB_TS-1187A"),
+    # Y1 - the fifth footprint KiCad 10 ships no model for. It DECLARES one at
+    # ${KICAD10_3DMODEL_DIR}/Oscillator.3dshapes/..., and that directory exists
+    # with nine other parts in it, so the reference looks satisfied right up
+    # until the render quietly omits the part. c_rotation is "0,0,0", so unlike
+    # J1 there is nothing to correct.
+    "Y1": dict(file="Oscillator_SMD_Abracon_ASE-4Pin_3.2x2.5mm"),
 }
 MODEL_DIR = "${KIPRJMOD}/3dmodels/%s.step"
 
@@ -251,10 +278,42 @@ def build_board(existing=None):
     # nudged out of collisions at this point; at 141 parts a patch list cannot
     # keep up, and it didn't - DRC reported 109 silkscreen violations across
     # 49 designators.
+    #
+    # SILK_MIN_STROKE is a fab floor, not a taste setting. JLCPCB's published
+    # legend capability is 0.153 mm minimum stroke and 0.8 mm minimum height;
+    # below either, the line is documented as possibly blurred or dropped
+    # outright. These labels are load-bearing rather than decorative - the 13
+    # through-hole parts on `jlcpcb/hand-solder-parts.csv` are fitted by hand
+    # against them after the board comes back - so an illegible designator is
+    # a functional defect. The stroke used to be 0.12 mm, 0.033 mm UNDER the
+    # floor.
+    #
+    # The HEIGHT stays at 0.8 mm, which meets the minimum exactly, and the
+    # 0.1875 stroke ratio that gives is bolder than KiCad's 0.15 convention.
+    # That is deliberate, and taking it to 0.9 mm for a prettier 1:6 ratio was
+    # tried and reverted: `silk.py` is a greedy placer over a live index, so
+    # making all 141 designators 12.5% taller does not just cost those labels
+    # room - it reorders who wins which gap board-wide. The one casualty was
+    # the `INPUTS 1 / 2 / 3 / GND` legend, which lost its 1.82 mm slot between
+    # the J6/J7 header row (F.Fab bottom y=106.93) and J11 (F.Fab top
+    # y=108.75) and printed across the terminal block it names. Nothing was
+    # wrong with the anchor; a neighbour simply got there first. Stroke width
+    # was the actual fab defect, so stroke width is all that changed.
     for ref, fp in fps.items():
         t = fp.Reference()
         t.SetTextSize(pcbnew.VECTOR2I(MM(0.8), MM(0.8)))
-        t.SetTextThickness(MM(0.12))
+        t.SetTextThickness(MM(SILK_MIN_STROKE))
+        # The designator is not the only text a footprint can put on silk.
+        # Two here arrive from the stock libraries at 1.0/0.15 - under the
+        # floor by the same 2.4 um the constant above declines to ship - and
+        # neither this loop nor the SILK table would otherwise reach them,
+        # which would leave "every silk text clears the floor" true only of
+        # the text we author. Clamp, never shrink: LED1's pin-1 mark and BZ1's
+        # `+` are deliberately bolder than the floor in their own libraries.
+        for it in list(fp.GraphicalItems()) + [fp.Value()]:
+            if it.GetLayer() == pcbnew.F_SilkS and hasattr(it, "GetText"):
+                if it.GetTextThickness() < MM(SILK_MIN_STROKE):
+                    it.SetTextThickness(MM(SILK_MIN_STROKE))
         # Hidden, not deleted: the field still exists, so the netlist, the
         # BOM and the CPL are untouched and DRC still knows what it is - it
         # simply is not printed. `silk.py` and `check_silk.py` both skip an
@@ -358,16 +417,24 @@ def add_outline_and_silk(board):
         sh.SetWidth(MM(0.1))
         board.Add(sh)
     anchors = []
-    for (txt, x, y, rot, size) in SILK:
+    for (txt, x, y, rot, size, lock) in SILK:
         t = pcbnew.PCB_TEXT(board)
         t.SetText(txt)
         t.SetPosition(V(x, y))
         t.SetLayer(pcbnew.F_SilkS)
         t.SetTextSize(pcbnew.VECTOR2I(MM(size), MM(size)))
-        t.SetTextThickness(MM(max(0.1, size * 0.15)))
+        # The 0.15 ratio is KiCad's own stroke-to-height convention and the
+        # nameplate rows depend on it, but the floor underneath it has to be
+        # the fab's, not a round number: at the 0.8 mm size most of the SILK
+        # table uses, size * 0.15 is 0.12 mm - well under JLCPCB's 0.153 mm
+        # legend minimum, and the old 0.1 mm floor was lower still, so it
+        # never bit. Clamping at SILK_MIN_STROKE leaves every row above
+        # 1.0 mm untouched (they already derive more than the floor) and
+        # lifts only the small legends that were under it.
+        t.SetTextThickness(MM(max(SILK_MIN_STROKE, size * 0.15)))
         t.SetTextAngleDegrees(rot)
         board.Add(t)
-        anchors.append((t, x, y))
+        anchors.append((t, x, y, lock))
     # Silk graphics are placed, not anchored, so none of these go into
     # `anchors`: `silk.place()` has nothing to move them to. It does have to
     # SEE them - board-level F.SilkS drawings are in its obstacle set for
@@ -385,22 +452,65 @@ def add_outline_and_silk(board):
 
 
 def add_zones(board, nets):
-    """The two inner planes.
+    """The two inner planes, plus a GND pour on each outer layer.
 
-    There is deliberately no pour on F.Cu or B.Cu. Rev A poured GND on both
-    signal layers, which on rev B's density was the single largest consumer of
-    routing space on exactly the two layers the boxed-in signals needed; with
-    GND on In1 and +3V3 on In2 the outer layers are signals only.
+    The outer pours are a late addition and the reasoning that kept them off
+    is worth keeping, because it was right at the time. Rev A poured GND on
+    both signal layers; on rev B's density that was the single largest
+    consumer of routing space on exactly the two layers the boxed-in signals
+    needed to escape through, so the 4-layer respin dropped them and gave the
+    outer layers to signals alone.
+
+    What changed is that the routing is now DONE. These zones are added after
+    every track and via exists, so they flood what is left rather than
+    competing for it - the objection was about the router's freedom, and the
+    router has already had it. What they buy back is everything a pour buys
+    that a buried plane does not:
+
+      * U7's exposed pad is now embedded in F.Cu ground rather than sitting
+        on bare laminate with one 0.25 mm stub to one via. Measured: the pour
+        merges with the pad.
+      * The 3.58 MHz crystal gets local ground - 1.30 and 2.35 mm from its
+        two pins. The ADE7953's layout section (Rev C p.67) asks for "a
+        ground plane surrounding as much as possible the through hole crystal
+        pins", and a board with bare laminate on both outer layers had none
+        at all. It does not shorten the 40 mm oscillator loop, which is a
+        placement problem and stays open.
+      * Copper balance, which is the big one. F.Cu carried ~2% coverage
+        against ~90% on both inner layers; it is now 50.9% and B.Cu 73.8%.
+        That asymmetry is what warps a 1.6 mm press.
+
+    It does NOT help U2, and the tempting claim that it would is wrong: the
+    SOT-223 tab is +3V3 and this is a GND pour, so the nearest poured copper
+    stops 1.47 mm away across a clearance gap and conducts nothing. U2's
+    thermal path was fixed by giving its tab four plane vias instead of one
+    (_extra_plane_vias in gen_pcb.py); pouring +3V3 locally around the tab
+    would add to that, and is a separate change.
+
+    USB is held off by geometry, not by a clearance number. gen_pcb.STACKUP's
+    comment is explicit that a flood at the default clearance turns the pair
+    into coplanar waveguide and drags it from 93.1 to ~79 ohm, outside
+    JLCPCB's +-10% window, and that any pour must stay >= 0.5 mm clear. A
+    clearance setting would satisfy that letter while leaving the coupling
+    question live - at 0.5 mm against a 0.2104 mm dielectric the gap is only
+    2.4 dielectric heights, which is not obviously far enough to ignore. So
+    instead a rule area keeps copper out of the pair's neighbourhood
+    altogether: the 93.1 ohm figure is a microstrip-over-In1.Cu calculation,
+    and it stays valid because there is no outer copper near the pair to
+    invalidate it. USB_KEEPOUT is the measured track bounding box (both outer
+    layers, x 47.25..64.00 / y 27.20..46.25) plus 1 mm.
     """
     m = 0.5
-    for netname, layername in sorted(PLANE_LAYER.items()):
+    corners = [(BX0 + m, BY0 + m), (BX1 - m, BY0 + m),
+               (BX1 - m, BY1 - m), (BX0 + m, BY1 - m)]
+
+    def _pour(layer, netname):
         z = pcbnew.ZONE(board)
-        z.SetLayer(PLANE_CU[layername])
+        z.SetLayer(layer)
         z.SetNet(nets[netname])
         ol = z.Outline()
         ol.NewOutline()
-        for (x, y) in [(BX0 + m, BY0 + m), (BX1 - m, BY0 + m),
-                       (BX1 - m, BY1 - m), (BX0 + m, BY1 - m)]:
+        for (x, y) in corners:
             ol.Append(MM(x), MM(y))
         z.SetLocalClearance(MM(0.3))
         z.SetMinThickness(MM(0.2))
@@ -408,11 +518,77 @@ def add_zones(board, nets):
         z.SetThermalReliefSpokeWidth(MM(0.4))
         z.SetPadConnection(pcbnew.ZONE_CONNECTION_THERMAL)
         board.Add(z)
+        return z
 
-    # No rule area. Rev B carved a four-layer pour keepout across the SSR
-    # optocoupler row so the planes could not short around the barrier; the
-    # optos were reverted to direct low-side MOSFET drive (design.py's SSR
-    # block), so nothing needs the pour kept out and both planes run whole.
+    for netname, layername in sorted(PLANE_LAYER.items()):
+        _pour(PLANE_CU[layername], netname)
+
+    for layer in (pcbnew.F_Cu, pcbnew.B_Cu):
+        z = _pour(layer, "GND")
+        # An inner plane is one sheet and any island is a defect worth
+        # reporting (plane_islands does). An outer pour is the opposite: it
+        # is *expected* to leave puddles trapped between traces, and a puddle
+        # touching no pad is unconnected copper - an antenna, and a DRC
+        # island. Drop them rather than ship them.
+        z.SetIslandRemovalMode(pcbnew.ISLAND_REMOVAL_MODE_ALWAYS)
+
+    # Local +3V3 flood around U2, the one place a GND pour cannot help. Three
+    # things about it are deliberate:
+    #
+    # Priority 1, above the GND pour's 0, or the board-wide zone would fill
+    # this area first and leave the tab with the same clearance gap it has now.
+    #
+    # ZONE_CONNECTION_FULL, not THERMAL. Thermal relief exists to make a pad
+    # hand-solderable by RESTRICTING heat flow into the copper, which is the
+    # exact opposite of what a heat path wants. Everything this zone touches
+    # (U2's tab, its pin-2 pad) is reflow-soldered, so there is no reason to
+    # pay the spokes. This is also why it is a separate zone rather than a
+    # net change on the big one: the pad connection differs.
+    #
+    # F.Cu only. The tab is on the front, and B.Cu under U2 is more useful as
+    # continuous ground.
+    z = pcbnew.ZONE(board)
+    z.SetLayer(pcbnew.F_Cu)
+    z.SetNet(nets["+3V3"])
+    ol = z.Outline()
+    ol.NewOutline()
+    x0, y0, x1, y1 = U2_POUR
+    for (x, y) in [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]:
+        ol.Append(MM(x), MM(y))
+    z.SetLocalClearance(MM(0.3))
+    z.SetMinThickness(MM(0.2))
+    z.SetPadConnection(pcbnew.ZONE_CONNECTION_FULL)
+    z.SetAssignedPriority(1)
+    z.SetIslandRemovalMode(pcbnew.ISLAND_REMOVAL_MODE_ALWAYS)
+    board.Add(z)
+
+    # Copper-free box around the USB pair; see the docstring for why this is
+    # geometry rather than a clearance. Outer layers only - the pair is a
+    # microstrip referenced to the In1.Cu GND plane, so that plane must stay
+    # whole underneath it. Cutting In1 here would remove the very reference
+    # the 93.1 ohm figure is computed against.
+    ka = pcbnew.ZONE(board)
+    ls = pcbnew.LSET()
+    ls.addLayer(pcbnew.F_Cu)
+    ls.addLayer(pcbnew.B_Cu)
+    ka.SetLayerSet(ls)
+    ka.SetIsRuleArea(True)
+    ka.SetDoNotAllowZoneFills(True)
+    ka.SetDoNotAllowTracks(False)
+    ka.SetDoNotAllowVias(False)
+    ka.SetDoNotAllowPads(False)
+    ka.SetDoNotAllowFootprints(False)
+    ol = ka.Outline()
+    ol.NewOutline()
+    x0, y0, x1, y1 = USB_KEEPOUT
+    for (x, y) in [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]:
+        ol.Append(MM(x), MM(y))
+    board.Add(ka)
+
+    # Rev B also carved a four-layer pour keepout across the SSR optocoupler
+    # row so the planes could not short around the barrier; the optos were
+    # reverted to direct low-side MOSFET drive (design.py's SSR block), so
+    # that one is gone and both inner planes run whole.
 
 
 def plane_islands(board):
@@ -425,12 +601,23 @@ def plane_islands(board):
     repair: it names the layer and the spot so the fix goes into placement.
     KiCad's own DRC reports the same thing as an unconnected zone, but only
     when a pad happens to sit on the stranded piece.
+
+    INNER layers only. That restriction is the whole meaning of the check: on
+    In1/In2 an island is a severed plane and a real defect, while on an outer
+    pour it is just a puddle of copper trapped between traces, which is what
+    a pour on a routed layer always produces. Reporting those would bury the
+    signal it exists to raise - the outer pours generated two B.Cu puddles of
+    87 and 75 mm2 on their first build, both perfectly ordinary. Anything the
+    outer pours strand with no pad on it is deleted rather than reported, by
+    ISLAND_REMOVAL_MODE_ALWAYS in add_zones().
     """
     out = []
     for z in board.Zones():
         if z.GetIsRuleArea():
             continue
         layer = z.GetLayer()
+        if layer not in PLANE_CU.values():
+            continue
         polys = z.GetFilledPolysList(layer)
         areas = []
         for i in range(polys.OutlineCount()):
@@ -627,6 +814,29 @@ def strip_derived(board):
     _REMOVED.extend(doomed)
 
 
+def apply_layer_types(board):
+    """Set copper layer types on a loaded board from gen_pcb.COPPER_LAYER_TYPE.
+
+    gen_pcb writes these into the board text it emits, and that is not enough:
+    pcbnew builds its own layer table when it loads a board and writes THAT
+    back out, so the types in the input text never reach disk. This runs on
+    both paths - full and --no-route - because the fast path loads a saved
+    board and would otherwise carry forward whatever types it already had,
+    exactly as apply_stackup() has to re-impose the stack-up for the same
+    reason.
+
+    Unlike BOARD_STACKUP, this one KiCad 10 does wrap, so it is set through the
+    API rather than patched into the text afterwards.
+    """
+    kinds = {"signal": pcbnew.LT_SIGNAL, "power": pcbnew.LT_POWER,
+             "mixed": pcbnew.LT_MIXED, "jumper": pcbnew.LT_JUMPER}
+    for name, kind in COPPER_LAYER_TYPE.items():
+        lid = board.GetLayerID(name)
+        if lid < 0:
+            raise SystemExit("kicad_build: no layer %r on the board" % name)
+        board.SetLayerType(lid, kinds[kind])
+
+
 def main(out, reuse_routing=False):
     out = os.path.abspath(out)
     if reuse_routing:
@@ -659,7 +869,8 @@ def main(out, reuse_routing=False):
     # Silk placement runs last, once every pad, footprint outline and board
     # text exists: it is a whole-board packing problem, and it cannot be
     # solved a label at a time as each one is created.
-    strayed = silk.adrift(silk.place(board, anchors))
+    _labels = silk.place(board, anchors)
+    strayed, slid = silk.adrift(_labels), silk.offaxis(_labels)
     if not reuse_routing:
         add_zones(board, nets)
     rpt_path = os.path.splitext(out)[0] + "-drc.rpt"
@@ -667,6 +878,11 @@ def main(out, reuse_routing=False):
     # fills, saves and checks in one authentic pass.
     import subprocess
     board.SetFileName(out)
+    # Copper layer types, which unlike the stack-up pcbnew DOES wrap - but it
+    # rewrites the layer table from its own model on save, so the types
+    # gen_pcb wrote into the input text are gone by the time the file lands.
+    # Set on the board object, before the save that would otherwise drop them.
+    apply_layer_types(board)
     pcbnew.SaveBoard(out, board)
     # The physical stack-up, which pcbnew cannot be asked to set: KiCad 10's
     # SWIG bindings do not wrap BOARD_STACKUP, so gen_pcb.STACKUP is written
@@ -699,6 +915,43 @@ def main(out, reuse_routing=False):
           % (out, "fill inherited" if reuse_routing else "unfilled"))
     subprocess.run(drc, check=True, capture_output=True)
     canonicalize_file(out)
+    # Put `schematic.top_level_sheets` back. Saving this board blanked it, and
+    # the culprit is `pcbnew.SaveBoard()` above, NOT kicad-cli: a BOARD has a
+    # PROJECT attached, saving the board writes that project alongside it, and
+    # on the FULL path build_board() hands us a bare `pcbnew.BOARD()` whose
+    # project is empty - so the root-sheet block is written out as []. The
+    # fast path escapes it because `build_board(loaded)` starts from
+    # LoadBoard(), which attaches the real project and carries the block
+    # through. Measured both ways on a scratch copy: a fresh BOARD saved next
+    # to a populated .kicad_pro empties it; `kicad-cli pcb drc --refill-zones
+    # --save-board` over the same file leaves it exactly alone.
+    #
+    # That last point is worth recording, because 9bcb0bf blamed kicad-cli
+    # ("the PCB tooling never loads a schematic") and concluded it "only ever
+    # adds the block when missing and preserves a populated one". The
+    # conclusion is right and still holds - kicad-cli is innocent here. What
+    # the fix missed is that pcbnew's own writer does the damage, and it runs
+    # AFTER gen_sch.sync_project(), so on `make pcb` the derived entry was
+    # being reverted minutes later and a tracked file ended every full regen
+    # silently changed.
+    #
+    # Re-syncing here, after the last write of the run, is ordering-
+    # independent rather than another lap of the tug-of-war. sync_project is
+    # idempotent: it returns False and touches nothing when already correct,
+    # which is what the fast path reports.
+    # Pass the SCHEMATIC path: sync_project derives both the .kicad_pro to
+    # edit and the `filename` field it records from what it is handed, so
+    # giving it `out` would record "bisque-controller.kicad_pcb" as the root
+    # sheet - in step with nothing, and worse than the empty list.
+    if sync_project(os.path.splitext(out)[0] + ".kicad_sch"):
+        print("  root sheet in .kicad_pro: restored after the board save "
+              "blanked it")
+    # Same story, same remedy: the board save drops every net class but
+    # Default and empties netclass_patterns, so the derived table is written
+    # back here rather than anywhere earlier in the run.
+    if sync_netclasses(os.path.splitext(out)[0] + ".kicad_pro"):
+        print("  net classes in .kicad_pro: %d class(es) written"
+              % (len(netclass_table()) + 1))
     for (lname, area, cx, cy) in plane_islands(pcbnew.LoadBoard(out)):
         print("  !! %s plane island of %.1f mm2 stranded at (%.1f, %.1f)"
               % (lname, area, cx, cy))
@@ -711,11 +964,22 @@ def main(out, reuse_routing=False):
     # it was pointed at - `CT A+/A-/B+/B-` once slid 14 mm onto a different
     # terminal block - and no amount of placer cleverness fixes an anchor
     # aimed at occupied board. That is a human's call, so it stops the build.
-    if strayed:
-        for txt, d in strayed:
-            print("FAIL: board text %r moved %.2f mm from its anchor "
-                  "(silk.RING_MAX = %.1f) - move the anchor in gen_pcb.SILK, "
-                  "or the parts crowding it" % (txt, d, silk.RING_MAX))
+    for txt, d in strayed:
+        print("FAIL: board text %r moved %.2f mm from its anchor "
+              "(silk.RING_MAX = %.1f) - move the anchor in gen_pcb.SILK, "
+              "or the parts crowding it" % (txt, d, silk.RING_MAX))
+    # The same judgement, one class up in severity. A legend that had to leave
+    # the axis identifying its terminal is not merely far from what it
+    # describes, it is beside something else - `A-` printed level with the B+
+    # screw is worse than no legend at all, because a reader acts on it. The
+    # fix is never in silk.py: give the legend column room (see gen_pcb.
+    # PIN_LEGENDS and TP11, which was moved out of J12's).
+    for txt, axis, d in slid:
+        print("FAIL: terminal legend %r moved %.2f mm along its locked %s "
+              "axis - it names a different terminal now. Clear the legend "
+              "column in gen_pcb.PIN_LEGENDS, or move the part in the way."
+              % (txt, d, axis))
+    if strayed or slid:
         sys.exit(1)
 
 

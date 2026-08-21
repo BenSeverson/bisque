@@ -65,27 +65,28 @@ import pcbnew
 SILK_ON_SILK_MAX = 0
 
 
-# Board texts that are allowed to print under a part, as (text, part). Each
-# one is a placement problem the silk placer cannot solve, and each is here
-# with the reason it cannot:
+# Board texts that are allowed to print under a part, as (text, part).
 #
-#   SDA/SCL/3V3 LED1 is a 5 x 5 mm WS2812B sitting in J7's pin-name band, on
-#               top of the labels for pins 5, 6 and 7. Nothing below the row
-#               is free either - J11's block starts 1.8 mm down - so these
-#               three cannot be named until LED1 or the header moves.
+# EMPTY, and that is the state to keep it in. Every entry this list has ever
+# held was a placement problem dressed up as a silk exemption, and every one
+# of them was eventually fixed by moving a part rather than by staying here:
 #
-# That needs a part moved, which is `design.py`'s business and costs a full
-# re-route. Until then the burial is deliberate and recorded; what must not
-# happen is a FOURTH one appearing without anyone noticing, which is what
-# this list is for. Remove an entry when its part moves - a stale one fails
-# too, and two entries have already been removed that way: `RESET` and `BOOT`
-# were here on the reasoning that no room existed beside their buttons, and
-# both were wrong. There was 4.20 mm west of SW1 and 2.43 mm south of SW2;
-# what the earlier anchors had run into was the switch's own designator, not
-# the absence of board.
-ON_PART_OK = {
-    ("SDA", "J7"), ("SCL", "LED1"), ("3V3", "J7"),
-}
+#   RESET/BOOT   recorded on the reasoning that no room existed beside their
+#                buttons. Wrong twice over - there was 4.20 mm west of SW1
+#                and 2.43 mm south of SW2, and what the anchors had run into
+#                was the switch's own designator, not the absence of board.
+#                The buttons have since been placed as a pair with their
+#                legends south of both.
+#   SDA/SCL/3V3  LED1, a 5 x 5 mm WS2812B, sat squarely in J7's pin-name band
+#                on top of the labels for pins 5-7. That one really was
+#                unsolvable in silk, and the fix was the one the entry named:
+#                LED1 moved to the band south of the module.
+#
+# So an addition here should be argued hard. A buried legend is printable,
+# DRC-clean and gone the moment the part is fitted, which is precisely why
+# nothing else catches it; a stale entry fails too, so the list cannot rot
+# into a rubber stamp in either direction.
+ON_PART_OK = set()
 
 
 # The one asset this board shares with another tree. `logo.FLAME_PATH` is a

@@ -54,7 +54,6 @@ VERIFIED_ON = "2026-08-11"
 # the ESP32-S3 module and the USB-C receptacle at their body centres, LCSC
 # anchors them on the pad pattern.
 JLC_PLACEMENT = {
-    "C107114":  (  0,  0.000,  0.000),   # C25   C_0805_2012Metric                    resid 0.050 (2 pin#)
     "C12891":   (  0,  0.000,  0.000),   # C1    C_1206_3216Metric                    resid 0.118 (2 pin#)
     "C149504":  (  0,  0.000,  0.000),   # R47   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C15127":   (180,  0.000,  0.000),   # Q4    SOT-23                               resid 0.283 (3 pin#)
@@ -66,30 +65,28 @@ JLC_PLACEMENT = {
     "C17408":   (  0,  0.000,  0.000),   # R14   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17414":   (  0,  0.000,  0.000),   # R1    R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17513":   (  0,  0.000,  0.000),   # R9    R_0805_2012Metric                    resid 0.088 (2 pin#)
-    "C17514":   (  0,  0.000,  0.000),   # R46   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17630":   (  0,  0.000,  0.000),   # R3    R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17634":   (  0,  0.000,  0.000),   # R39   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17673":   (  0,  0.000,  0.000),   # R44   R_0805_2012Metric                    resid 0.088 (2 pin#)
-    "C17774":   (  0,  0.000,  0.000),   # R31   R_0805_2012Metric                    resid 0.088 (2 pin#)
+    "C17724":   (  0,  0.000,  0.000),   # R31   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C1779":    (  0,  0.000,  0.000),   # C27   C_0805_2012Metric                    resid 0.050 (2 pin#)
     "C17798":   (  0,  0.000,  0.000),   # R10   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C20917":   (180,  0.000,  0.000),   # Q5    SOT-23                               resid 0.083 (3 pin#)
     "C2296":    (  0,  0.000,  0.000),   # LED3  LED_0805_2012Metric                  resid 0.113 (2 pin#)
     "C2297":    (  0,  0.000,  0.000),   # LED2  LED_0805_2012Metric                  resid 0.113 (2 pin#)
     "C2480":    (  0,  0.000,  0.000),   # D3    D_SMA                                resid 0.035 (2 pin#)
+    "C2838127": (  0,  0.000,  0.000),   # Y1    Oscillator_SMD_Abracon_ASE-4Pin_3.2x resid 0.071 (4 pin#)
     "C2653162": (270,  0.000,  0.000),   # U3    TSSOP-14_4.4x5mm_P0.65mm             resid 0.062 (14 pin#)
     "C27834":   (  0,  0.000,  0.000),   # R4    R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C28323":   (  0,  0.000,  0.000),   # C5    C_0805_2012Metric                    resid 0.050 (2 pin#)
     "C3013945": (  0,  0.000, -0.477),   # U1    ESP32-S3-WROOM-1U                    resid 0.022 (40 pin#)
     "C318884":  (  0,  0.000,  0.000),   # SW1   SW_Push_1P1T_XKB_TS-1187A            resid 0.025 (4 shape)
     "C49678":   (  0,  0.000,  0.000),   # C2    C_0805_2012Metric                    resid 0.050 (2 pin#)
+    "C123302":  (180,  0.000,  0.000),   # U10   SSOP-8_2.95x2.8mm_P0.65mm            fitted by check_jlc_placement
     "C515890":  (270,  0.000,  0.000),   # U7    QFN-28-1EP_5x5mm_P0.5mm_EP3.1x3.1mm  resid 0.075 (29 pin#)
-    "C558418":  (270,  0.000,  0.000),   # D5    SOT-23-6                             resid 0.012 (6 pin#)
     "C6186":    (180,  0.000,  0.000),   # U2    SOT-223-3_TabPin2                    resid 0.000 (2 pin#)
-    "C7420333": (180,  0.000,  0.000),   # D7    SOT-23                               resid 0.083 (3 pin#)
-    "C7471632": (  0,  0.000,  0.000),   # Y1    Crystal_SMD_HC49-SD_HandSoldering    resid 1.385 (2 pin#)
+    "C7420376": (270,  0.000,  0.000),   # U4    SOT-23-6                             resid 0.062 (6 pin#)
     "C7512":    (270,  0.000,  0.000),   # U6    SOIC-16_3.9x9.9mm_P1.27mm            resid 0.261 (16 pin#)
-    "C7519":    (270,  0.000,  0.000),   # U4    SOT-23-6                             resid 0.012 (6 pin#)
     "C81598":   (  0,  0.000,  0.000),   # D4    D_SOD-123                            resid 0.085 (2 pin#)
     "C8678":    (  0,  0.000,  0.000),   # D1    D_SMA                                resid 0.200 (2 pin#)
 }
@@ -119,7 +116,19 @@ def jlc_placement(lcsc, kicad_rot):
             (rot, dx, dy))
 
 
-# ref -> (LCSC part, description, basic_part, verified)
+# ref -> (LCSC part, description, fee_free, verified)
+#
+# fee_free is what it says and NOT "is a Basic part", which is what this field
+# held until the feeder bill was actually checked against JLCPCB's API. Two
+# libraries carry no feeder loading fee on Economic PCBA: Basic (351 parts)
+# and Preferred Extended (1235), the latter being parts JLCPCB keeps mounted
+# but has moved out of Basic. Reading the flag as "Basic" made C107114 (30 pF)
+# and C7420333 (BAT54S) count against the bill they are exempt from, and the
+# total below printed $33 for a board that owes $27.
+#
+# The distinction is only visible in the API, not on the part page's category
+# line, so it is recorded here per part rather than derived:
+#     componentLibraryType == "base" or preferredComponentFlag
 LCSC = {
     "BZ1": ("C96093", "TMB12A05 active magnetic buzzer 5V 12mm THT P7.6", False, True),
     "C1": ("C12891", "CL31A226KAHNNNE 22uF 25V X5R 1206", True, True),
@@ -144,8 +153,7 @@ LCSC = {
     "C22": ("C1710", "CL21B103KBANNNC 10nF 50V X7R 0805", True, True),
     "C23": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
     "C24": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
-    "C25": ("C107114", "CC0805JRNPO9BN300 30pF 50V NP0 0805", False, True),
-    "C26": ("C107114", "CC0805JRNPO9BN300 30pF 50V NP0 0805", False, True),
+    "C25": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
     "C27": ("C1779", "CL21A475KAQNNNE 4.7uF 25V X5R 0805", True, True),
     "C28": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
     "C29": ("C1779", "CL21A475KAQNNNE 4.7uF 25V X5R 0805", True, True),
@@ -157,15 +165,14 @@ LCSC = {
     "C35": ("C15850", "CL21A106KAYNNNE 10uF 25V X5R 0805", True, True),
     "C36": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
     "C37": ("C28323", "CL21B105KBFNNNE 1uF 50V X7R 0805", True, True),
-    "C38": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
-    "C39": ("C28323", "CL21B105KBFNNNE 1uF 50V X7R 0805", True, True),
+    "C38": ("C12891", "CL31A226KAHNNNE 22uF 25V X5R 1206", True, True),
+    "C39": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
     "D1": ("C8678", "SS34 SMA", True, True),
     "D2": ("C8678", "SS34 SMA", True, True),
     "D3": ("C2480", "SS14 SMA", True, True),
     "D4": ("C81598", "1N4148W SOD-123", True, True),
-    "D5": ("C558418", "SRV05-4 TVS array SOT-23-6", False, True),
-    "D6": ("C558418", "SRV05-4 TVS array SOT-23-6", False, True),
-    "D7": ("C7420333", "BAT54S dual series Schottky SOT-23", False, True),
+    "D5": ("C7420376", "SRV05-4 TVS array SOT-23-6", True, True),
+    "D6": ("C7420376", "SRV05-4 TVS array SOT-23-6", True, True),
     "J1": ("C165948", "HRO TYPE-C-31-M-12 USB-C 16P", False, True),
     "J2": ("C8465", "WJ500V-5.08-2P 5.08mm screw terminal 1x02", False, True),
     "J3": ("C8465", "WJ500V-5.08-2P 5.08mm screw terminal 1x02", False, True),
@@ -217,10 +224,10 @@ LCSC = {
     "R28": ("C17513", "1k 0805 1%", True, True),
     "R29": ("C17414", "10k 0805 1%", True, True),
     "R30": ("C17414", "10k 0805 1%", True, True),
-    "R31": ("C17774", "0805W8F680KT5E 6.8R 0805 1%", False, True),
+    "R31": ("C17724", "0805W8F510KT5E 5.1R 0805 1%", True, True),
     "R32": ("C17513", "1k 0805 1%", True, True),
     "R33": ("C17513", "1k 0805 1%", True, True),
-    "R34": ("C17774", "0805W8F680KT5E 6.8R 0805 1%", False, True),
+    "R34": ("C17724", "0805W8F510KT5E 5.1R 0805 1%", True, True),
     "R35": ("C17513", "1k 0805 1%", True, True),
     "R36": ("C17513", "1k 0805 1%", True, True),
     "R37": ("C17414", "10k 0805 1%", True, True),
@@ -232,18 +239,20 @@ LCSC = {
     "R43": ("C17634", "33R 0805 1%", True, True),
     "R44": ("C17673", "4.7k 0805 1%", True, True),
     "R45": ("C17673", "4.7k 0805 1%", True, True),
-    "R46": ("C17514", "1M 0805 1%", True, True),
+    "R46": ("C149504", "100k 0805 1%", True, True),
     "R47": ("C149504", "100k 0805 1%", True, True),
+    "R48": ("C149504", "100k 0805 1%", True, True),
     "SW1": ("C318884", "TS-1187A-B-A-B 5.1x5.1mm SMD tactile switch", True, True),
     "SW2": ("C318884", "TS-1187A-B-A-B 5.1x5.1mm SMD tactile switch", True, True),
     "U1": ("C3013945", "ESP32-S3-WROOM-1U-N16R2 (16MB flash, 2MB quad PSRAM, U.FL)", False, True),
     "U2": ("C6186", "AMS1117-3.3 SOT-223", True, True),
     "U3": ("C2653162", "MAX31856MUD+T TSSOP-14", False, True),
-    "U4": ("C7519", "USBLC6-2SC6 SOT-23-6", False, True),
+    "U4": ("C7420376", "SRV05-4 TVS array SOT-23-6", True, True),
     "U5": ("C2653162", "MAX31856MUD+T TSSOP-14", False, True),
     "U6": ("C7512", "ULN2003ADR SOIC-16 Darlington array", True, True),
     "U7": ("C515890", "ADE7953ACPZ-RL LFCSP-28 energy metering", False, True),
-    "Y1": ("C7471632", "3.579545MHz crystal HC-49S-SMD", False, True),
+    "U10": ("C123302", "SN74LVC1G123DCTR retriggerable monostable SSOP-8", False, True),
+    "Y1": ("C2838127", "TFOM3.579545M4RHKCNT2T 3.579545MHz XO SMD3225-4P", False, True),
 }
 
 # Board features with no manufactured part: excluded from the BOM, the CPL,
@@ -260,11 +269,17 @@ LCSC = {
 # went with the optocouplers (see design.py's SSR block). J13: a
 # fitted-but-DNP 2-pin header for a future SELV AC-sense accessory (Task 10)
 # - "NO MAINS ON THIS BOARD" per design.py, so this build does not stuff it.
+# FID1-3: optical alignment targets, bare copper on no net. They must be
+# listed HERE and not left to the H-prefix rule assembly_refs() uses for the
+# mounting holes - a designator that is neither H-prefixed nor in this set
+# reaches the BOM as a blank-LCSC row, i.e. a part to "buy" that is not a
+# part, and JLCPCB's PCBA upload rejects the pair.
 NOT_ASSEMBLED = {
     "TP1", "TP2", "TP3", "TP4", "TP5", "TP6",
     "TP7", "TP8", "TP9", "TP10", "TP11", "TP12",
     "SJ1", "SJ2",
     "J13",
+    "FID1", "FID2", "FID3",
 }
 
 # Parts fitted by hand rather than by JLCPCB.

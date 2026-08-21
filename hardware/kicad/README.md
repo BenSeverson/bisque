@@ -19,12 +19,12 @@ plane pours are filled and checked by `kicad-cli pcb drc --refill-zones` —
 **zero errors, zero unconnected, zero warnings**
 (`bisque-controller-drc.rpt`) — and the schematic passes a netlist round-trip
 check (KiCad's exported netlist diffed against the design's connectivity
-table — 93 nets, 0 mismatches). The 3D renders in `3d/` are raytraced by
+table — 92 nets, 0 mismatches). The 3D renders in `3d/` are raytraced by
 `kicad-cli pcb render` with the official component models.
 
 | File | What it is |
 |---|---|
-| `bisque-controller.kicad_pro` | Project (net classes: 0.3 mm signal / 0.7–0.8 mm power, 0.25 mm only on the short fine-pitch escape stubs off the QFN/TSSOP pads). Hand-maintained **except** `schematic.top_level_sheets`, which `gen_sch.py::sync_project()` derives — see below |
+| `bisque-controller.kicad_pro` | Project. Hand-maintained **except** two blocks, both derived and both written *after* the board is saved because `pcbnew.SaveBoard()` blanks them: `schematic.top_level_sheets` (`gen_sch.py::sync_project()`) and `net_settings` (`gen_pcb.py::sync_netclasses()`, from `ROUTE_ORDER`) — see below |
 | `bisque-controller.kicad_sch` | Schematic (A1, netlist-style: functional groups, global labels for signals, real power ports for rails, and real wires for two-pin nets local to one block). Laid out programmatically by `generator/gen_sch.py` — a `GROUPS` taxonomy plus a deterministic column packer, with a reserved right-hand column for the notes block. A1, not A3: an A3 declaration silently clipped ~40% of the circuit out of the exported PDF while every connectivity checker stayed green (`generator/check_sch_bounds.py` now fails on any off-sheet item), and containment is not readability, so `generator/check_sch_layout.py` additionally fails on any symbol/symbol, text/symbol, text/text or wire/wire collision (wires: a T or a collinear overlap — a plain crossing is allowed) |
 | `bisque-controller.kicad_pcb` | Board: placed, fully routed, 4 layers (F.Cu/B.Cu signals, In1.Cu GND plane, In2.Cu +3V3 plane), on JLCPCB's `JLC04161H-7628` 1.6 mm stack-up — see "The physical stack-up" |
 | `3d/board-3d-*.png` | Raytraced renders, kicad-cli — straight orthographic **top** and **bottom** only. The angled iso/front views were dropped: they look better than they read, and these images get used to check placement and silk, not to advertise |
@@ -137,28 +137,53 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   **Hardware watchdog (`SJ2`, "WDT DEFEAT").** `SSR_EN` — the +5 V rail
   feeding *both* SSR terminals and both indicator LEDs — is supplied by Q4, a
   P-channel high-side MOSFET (AO3401A) whose gate node `SSR_PG` is held down
-  by Q3, itself held on by a diode charge pump (BAT54S, C38/C39, R46) driven
-  from GPIO 36 (`WDT_KICK`); R47 (100 kΩ) pulls `SSR_PG` up as the fail-safe.
-  The watchdog moved to the supply side when the optocouplers were reverted:
-  the two-parts-cheaper stacked-low-side alternative would have left the
-  channel MOSFET only 140 mV of Vgs margin to the AO3400A's lowest guaranteed
-  `R_DS(on)` point before subtracting Q3's own (datasheet-unbounded) drop.
-  Going high-side cuts Q3's load from ~30 mA to 50 µA and puts both switching
-  FETs past a guaranteed spec point — see the arithmetic in
-  `generator/design.py`'s watchdog block. **Nothing in firmware toggles this pin yet.** A
-  charge pump needs transitions to stay charged — a stuck-high pin decays
-  exactly like a stopped one — so on power-up, and on any board where
-  nothing kicks GPIO 36, `SSR_EN` collapses and **both SSR channels stay off
-  regardless of what the firmware commands them to do.** The silkscreened
-  `SJ2` solder jumper shorts `SSR_PG` to GND, holding Q4 on and restoring
-  un-gated behaviour
-  for bring-up and for any build without the firmware kick task. **A board
-  with neither `SJ2` fitted nor a firmware kick task will not heat** — this
-  is the single most likely rev B bring-up surprise, more likely to be
-  mistaken for a bad SSR or a lid-interlock problem than correctly
-  diagnosed as "nobody is kicking the dog yet." The watchdog gates only the
-  two SSR channels; vent, purge, the spare aux channel and the buzzer are
-  unaffected, so a stalled controller can still open its vent.
+  by Q3, itself held on by **U10**, an SN74LVC1G123 retriggerable monostable
+  driven from GPIO 36 (`WDT_KICK`); R47 (100 kΩ) pulls `SSR_PG` up as the
+  fail-safe. The watchdog moved to the supply side when the optocouplers were
+  reverted: the two-parts-cheaper stacked-low-side alternative would have left
+  the channel MOSFET only 140 mV of Vgs margin to the AO3400A's lowest
+  guaranteed `R_DS(on)` point before subtracting Q3's own
+  (datasheet-unbounded) drop. Going high-side cuts Q3's load from ~30 mA to
+  50 µA and puts both switching FETs past a guaranteed spec point — see the
+  arithmetic in `generator/design.py`'s watchdog block.
+
+  Every **rising edge** on `WDT_KICK` restarts U10's window, so `Q` stays high
+  only while firmware keeps kicking; a pin wedged at either level delivers no
+  edge and expires the window exactly like a pin that stopped, which is the
+  whole point. R46 (100 kΩ) and C38 (22 µF) set the window to **1.65–2.71 s**
+  worst-case over −40…125 °C, every term of that bound a datasheet or
+  purchase-tolerance figure. Firmware kicks at 5 Hz from the existing 100 ms
+  SSR timer, gated on `safety_task`'s heartbeat
+  (`components/safety/wdt_kick.h`) — 8.3× margin at the minimum window. R48
+  (100 kΩ) holds `B` low whenever the MCU drives nothing, so a floating CMOS
+  input cannot self-trigger the one-shot during boot ROM, flashing or reset.
+
+  **This replaced a BAT54S diode charge pump, which did not work.** Solving its
+  steady state exactly gives 0.63 V of gate drive at 5 Hz against Q3's 1.45 V
+  threshold — and 0.84 V even in the typical corner, below the *typical* 1.0 V
+  threshold. A faster kick (≥ 250 Hz) rescues the voltage but not the
+  temperature behaviour: Schottky reverse leakage sits in the timing path and
+  roughly doubles per 10 °C, so the budget for a transient firmware stall fell
+  from 0.31 s at 25 °C to 0.11 s at 60 °C and vanished near 85 °C, next to a
+  5 kW heat source. No choice of passives fixes a leak that *is* the timer;
+  the fix was to stop building the timer out of one. Off-the-shelf watchdog
+  supervisors (TPS3823, STWD100) were evaluated and rejected on output shape:
+  they emit a fixed reset *pulse* per timeout, which would leave the heat rail
+  energised 75–95 % of the time under dead firmware. They exist to reboot
+  MCUs; gating a rail needs a level.
+
+  On power-up, and on any board where nothing kicks GPIO 36, `SSR_EN`
+  collapses and **both SSR channels stay off regardless of what the firmware
+  commands them to do.** The silkscreened `SJ2` solder jumper shorts `SSR_PG`
+  to GND, holding Q4 on and restoring un-gated behaviour for bring-up and for
+  any build without the firmware kick. **A board with neither `SJ2` fitted nor
+  a working kick will not heat** — this is the single most likely rev B
+  bring-up surprise, more likely to be mistaken for a bad SSR or a
+  lid-interlock problem than correctly diagnosed as "nobody is kicking the dog
+  yet." `TP12` probes the timing node, which is where a scope settles the real
+  window in one measurement. The watchdog gates only the two SSR channels;
+  vent, purge, the spare aux channel and the buzzer are unaffected, so a
+  stalled controller can still open its vent.
 - **Display**: 14-pin Molex KK-254 friction-lock header **J5** for a 4.0"
   ST7796S SPI module (LCDWIKI MSP4021, 480×320, resistive touch) — grown
   from rev A's 8-pin display-only header to carry the panel's full pin set:
@@ -206,7 +231,8 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   `CTB_N`): two current-transformer inputs into an **ADE7953** energy
   metering IC (U7, LFCSP-28, current-only — the voltage channel is unused),
   on the I2C bus with its own 3.579545 MHz crystal (Y1). Burden resistors
-  (R31/R34, 6.8 Ω), anti-alias RC and an SRV05-4 TVS array (D5/D6) per
+  (R31/R34, 5.1 Ω — full scale ~139 A rms, see `design.py`), anti-alias RC
+  and an SRV05-4 TVS array (D5/D6) per
   channel protect the externally-exposed CT leads. One channel per SSR
   zone, so each element bank gets an independent current reading; with no
   mains voltage sensing on this board, power is estimated as
@@ -220,8 +246,8 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   Carries the on-board ADE7953 today; open for an RTC breakout, an SHT4x RH
   sensor, or an external ADC without board changes. No I2C driver exists in
   firmware yet.
-- **USB-C (J1)** for native-USB flashing: 5.1 kΩ CC resistors, USBLC6-2SC6
-  (U4) ESD protection, VBUS ORed into +5 V. RESET (SW1) and BOOT (SW2)
+- **USB-C (J1)** for native-USB flashing: 5.1 kΩ CC resistors, SRV05-4 (U4)
+  ESD protection, VBUS ORed into +5 V. RESET (SW1) and BOOT (SW2)
   buttons.
 - **Status LED**: WS2812B on IO48; its VDD comes through an SS14 drop diode
   (≈4.6 V) so the 3.3 V data level stays inside the WS2812B's V_IH spec.
@@ -252,7 +278,12 @@ carries +3V3 alone rather than splitting with +5V, since +5V's own consumers
 don't fall into a separable region) closed the board at 0 unrouted nets and
 0 DRC errors, and then gave back **every** concession the 2-layer attempts
 had made: the board walked back to 100 × 100 mm, 0805 passives, and rev A's
-0.3 mm signal / 0.7 mm power net classes. Neither outer layer is poured —
+0.3 mm signal / 0.7 mm power track widths — which the project file now really
+does carry as net classes, derived from `ROUTE_ORDER` by
+`gen_pcb.netclass_table()`; until that landed the widths existed only inside
+the router and `.kicad_pro` held a single 0.2 mm `Default`, so opening the
+board in KiCad to nudge one track handed you a width the board never uses.
+Neither outer layer is poured —
 on this density, the GND pour was the largest single consumer of routing
 space on exactly the two layers the boxed-in nets needed to escape through.
 Track widths came back too, because the router no longer touches fine-pitch
@@ -267,6 +298,37 @@ carved a four-layer pour keepout across the SSR optocoupler row and had
 `generator/check_isolation.py` confirm nothing landed in it; both went with
 the optocouplers (see "SSR drive ×2" above), returning ~21 × 24 mm of pour
 and routing area on every layer.
+
+### Two escapes are written down rather than routed
+
+`generator/gen_pcb.py` carries two tables of hand-seeded copper —
+`USB_SEEDS` for J1's differential pair and CC lines, and **`ADE_I2C_SEEDS`
+for the ADE7953's SDA and SCL**. Both exist for the same reason: a lane one
+track wide, in a place the greedy router's answer is not stable.
+
+U7's I2C pins leave a 0.5 mm-pitch QFN into the densest neighbourhood on the
+board (2.30 parts/cm², with every escape from a 28-pin part passing through
+it). Their fanout stubs end with two and six free grid nodes; whichever net
+gets there first takes the only lane and the other cannot get in. The
+committed board routes both, but that is a fixed point rather than a
+property — six unrelated placement changes elsewhere re-rolled it, and it
+cost first one net and then the other over five full re-routes. Promotion
+does not help, which is the tell: `I2C_SDA` failed at (94.50, 68.00) even
+when routed **first**, before any other signal existed.
+
+So the two lanes are recorded, read back off the board from a run that did
+succeed. Two properties are load-bearing:
+
+* **`MANUAL_VIAS` carries SCL's drop to B.Cu.** `via_ok` is false at both
+  stub ends — there is no room for a via pad beside a 0.5 mm-pitch escape —
+  so the router cannot place it for itself.
+* **The far end of a seed must be the net's terminal** (`ADE_I2C_TERMS`,
+  exactly as `USB_STUB_TERMS` does for J1). Seed the lane without moving the
+  terminal and the router is still free to reach the fanout stub the short
+  way: it did, both nets came out electrically complete, and the seeds were
+  left hanging off the stubs as 2.5 mm and 8.8 mm of dangling copper. The
+  same trap caught `USB_DP`, whose escape seed overshot its own branch point
+  by 0.5 mm after a re-route — a seed should end where the escape ends.
 
 ### The physical stack-up, and the one impedance target
 
@@ -331,7 +393,7 @@ Full table with module pin numbers, nets and per-pin notes:
 
 ## Bill of materials
 
-141 components, 93 nets. Full machine-readable BOM: `jlcpcb/BOM.csv` (40
+141 components, 92 nets. Full machine-readable BOM: `jlcpcb/BOM.csv` (40
 lines covering 109 machine-placed parts) plus `jlcpcb/hand-solder-parts.csv`
 (13 hand-fitted parts). Selected parts worth calling out:
 
@@ -340,12 +402,12 @@ lines covering 109 machine-placed parts) plus `jlcpcb/hand-solder-parts.csv`
 | U1 | ESP32-S3-WROOM-1U-N16R2 | castellated module, U.FL |
 | U2 | AMS1117-3.3 | SOT-223 |
 | U3, U5 | MAX31856MUD+T | TSSOP-14 |
-| U4 | USBLC6-2SC6 | SOT-23-6 |
+| U4 | SRV05-4 TVS array | SOT-23-6 |
 | U6 | ULN2003ADR | SOIC-16 |
 | U7 | ADE7953ACPZ-RL | LFCSP-28 (QFN-28, 5×5 mm) |
 | Y1 | 3.579545 MHz crystal | HC-49S-SMD |
-| D5, D6 | SRV05-4 TVS array | SOT-23-6 |
-| D7 | BAT54S dual series Schottky | SOT-23 |
+| D5, D6 | SRV05-4 TVS array (same part as U4) | SOT-23-6 |
+| U10 | SN74LVC1G123 retriggerable monostable | VSSOP-8 |
 | Q2, Q3, Q5, Q6 | AO3400A N-MOSFET | SOT-23 |
 | Q4 | AO3401A P-MOSFET (watchdog high-side switch) | SOT-23 |
 | J1 | USB-C 16-pin receptacle | HRO TYPE-C-31-M-12 |
@@ -409,24 +471,42 @@ carrying designators the BOM does not have:
 | J2, J3, J4, J8, J9 (2-pos screw terminals), J10, J11, J12 (4-pos screw terminals), J5, J6, J7 (KK-254 wafers), BZ1 (buzzer) | 5.08 mm and 2.54 mm pitch — the easiest joints on the board, but the ones that would force Standard assembly |
 | LED1 (WS2812B, PLCC-4 5050) | No addressable RGB LED at LCSC is a Basic part (checked across WS2812/SK6812/XL-xxxx), so its $3 buys nothing an iron can't do to four edge-accessible pads |
 
-What's left goes down the SMT line: **98 Basic parts** (passives, LEDs,
-AO3400A, AO3401A, SS34/SS14, 1N4148W, AMS1117, both tact switches, the
-ULN2003 and the SRV05-4 TVS arrays are all Basic) at no feeder fee,
-and **11 Extended parts** — the module (ESP32-S3-WROOM-1U-N16R2, C3013945),
-both MAX31856MUD+T (C2653162, one designator, two placements), the ADE7953
-(C515890), its crystal (C7471632), the BAT54S watchdog diode (C7420333),
-the SRV05-4 TVS array's specific LCSC line (C558418), the 6.8 Ω CT burden
-resistor (C17774), the 30 pF crystal load caps (C107114), USBLC6-2SC6
-(C7519), the Qwiic connector (C160404) and the USB-C receptacle (C165948) —
-**$33 in feeder fees**, up from rev A's 4 unique Extended parts / $12. Three
-new subsystems (ULN2003, SRV05-4, watchdog) landed at **zero** feeder cost
-by being Basic parts, so the increase is almost entirely the analog/sensing
-front end.
+What's left goes down the SMT line: **102 of 109 placements carry no feeder
+fee**, and only **6 unique Extended parts** do — the module
+(ESP32-S3-WROOM-1U-N16R2, C3013945), both MAX31856MUD+T (C2653162, one
+designator, two placements), the ADE7953 (C515890), its 3.579545 MHz crystal
+(C7471632), the Qwiic connector (C160404) and the USB-C receptacle
+(C165948) — **$18 in feeder fees**.
 
-**Sourcing flag:** LCSC `C17774` (the 6.8 Ω CT burden resistor, R31/R34) was
-down to roughly 970 units in stock as of the last check, with no Basic-part
-alternative at that value/package. Re-check stock immediately before
-ordering — see `FAB-READINESS-REVIEW-REVB.md`.
+Two libraries are free on Economic PCBA, not one: **Basic** (351 parts) and
+**Preferred Extended** (1235), the latter being parts JLCPCB keeps mounted
+but has moved out of Basic. That distinction only appears in JLCPCB's API
+(`componentLibraryType == "base" or preferredComponentFlag`), not on the part
+page's category line, so it is recorded per part in `gen_jlc.LCSC`'s
+`fee_free` flag. Reading that field as "is Basic" is what made this number
+print $33 for a board that owed $27.
+
+The remaining six are structural. The whole fee-free library holds **no
+connectors at all**, so J1 and J14 cannot be avoided at any price, and the
+module, both thermocouple front-ends, the metering IC and its crystal have
+no fee-free equivalent either. $18 is the floor for this board short of
+hand-soldering J14.
+
+Getting from $27 to $18 took three substitutions, all of which are net
+improvements on their own terms rather than compromises:
+
+- **U4, D5, D6 → one Preferred SRV05-4 (C7420376)**, replacing an Extended
+  SRV05-4 line (C558418) on D5/D6 and a USBLC6-2SC6 (C7519) on U4. Worth $6.
+  It also raises U4's ESD rating from IEC 61000-4-2 level 4 (±8 kV contact)
+  to ±30 kV and drops its line capacitance from 3.5 pF max to 1.0 pF.
+- **R31/R34 6.8 Ω → 5.1 Ω (C17724, Basic)**. Worth $3. JLCPCB stocks no
+  6.8 Ω resistor in either fee-free library in *any* package, so that one
+  value was renting a feeder.
+
+**Sourcing flags:** the thinnest stock on the BOM is now `C7471632` (the
+3.579545 MHz crystal) and `C3013945` (the module) — single-sourced, no
+fee-free alternative, and both well under 5 k units. Re-check immediately
+before ordering — see `FAB-READINESS-REVIEW-REVB.md`.
 
 SW1/SW2 are **SMD** tact switches (XKB TS-1187A, C318884), not a
 through-hole part — a Basic part, so it costs no feeder fee *and* stays
@@ -523,7 +603,7 @@ checkers against what's already committed, without touching KiCad:
 
 ```bash
 make pcb          # regenerate schematic + board + fab outputs + renders, then check
-make pcb-build    # schematic + board only (no fab outputs) — the full path, ~158 s
+make pcb-build    # schematic + board only (no fab outputs) — the full path, ~221 s
 make pcb-cosmetic # silk / 3D models / title block only, reusing the routing — ~8 s
 make pcb-fab      # gerbers, drill, BOM/CPL, PDFs — after pcb-build
 make pcb-check    # check only: pinmap, sheet bounds, netlist, connectivity, silkscreen, reproducibility
@@ -558,7 +638,7 @@ committed so a clean clone skips too. `make pcb-render FORCE=1` overrides.
 
 ### Which path does your change need?
 
-Routing 93 nets across 141 parts is essentially all of `pcb-build`'s
+Routing 92 nets across 141 parts is essentially all of `pcb-build`'s
 runtime, and several kinds of change cannot move a single track. Those get
 `make pcb-cosmetic`, which is `kicad_build.py --no-route`: it reads the
 tracks, vias and filled zones back off the existing board and re-derives
@@ -570,7 +650,37 @@ everything else with the same code the full build runs.
 | The nameplate — `TITLE_*` / `TITLE_ROWS`, `SILK_GRAPHICS`, `generator/logo.py` | `make pcb-cosmetic` | **8 s** |
 | 3D models (`MODEL_FIXUP` in `kicad_build.py`, files in `3dmodels/`) | `make pcb-cosmetic` | **8 s** |
 | Board title block | `make pcb-cosmetic` | **8 s** |
-| **Anything else** — placement, connectivity, footprint choice, net classes, `MANUAL_VIAS`, router parameters (`router.py`, `gen_pcb.py`) | `make pcb-build` | **158 s** |
+| **Anything else** — placement, connectivity, footprint choice, net classes, `MANUAL_VIAS`, router parameters (`router.py`, `gen_pcb.py`) | `make pcb-build` | **221 s** |
+
+**That number is for a design the router can close, and a placement change
+is exactly what stops it being one.** The router is greedy with a
+rip-up-and-retry fallback and iterates until the failure set stops shrinking;
+this board's current placement takes three passes and **221 s**
+(`make pcb-cosmetic-verify` measures it), but a placement it *cannot* close
+spends all its time in rip-up. The revisions of this change set that stranded
+a net ran **10–40 minutes each**, and one of them nine minutes on a single
+net. Read the per-pass `N net(s) unrouted` lines rather than waiting in
+silence — a count that is not shrinking means stop and look at the placement,
+and note the run keeps the best pass, not the last one.
+
+Two traps in diagnosing a net that will not route, both of which cost a full
+rebuild here to learn:
+
+* **Measure congestion against a FULLY ROUTED board.** Measuring the board
+  from the failed build is circular: the nets that failed are the ones that
+  are missing, so the region they wanted reads as empty. `git show
+  HEAD:…kicad_pcb` is the reference.
+* **Clip each track to the window; do not test its endpoints.** A corridor is
+  by definition traces passing straight *through* a region, and an
+  endpoint-in-rectangle test scores it zero. Two "completely empty" bands
+  found that way — the escape south of U1 and the lane at the middle of the
+  board — carry 336 mm and 220 mm of track respectively, and putting parts in
+  either one stranded nets.
+
+And when a net fails **even after being promoted to route first**, ordering is
+not the problem: at that point only fixed geometry exists (hand seeds, fanout
+stubs, plane vias), so the lane it needs is genuinely blocked. That is what
+`ADE_I2C_SEEDS` is for — see below.
 
 Both numbers used to be far worse — 421 s and 104 s — and the fast one was
 not dominated by anything the fast path exists to skip. It was the
@@ -762,7 +872,7 @@ power library holds a symbol of that name, which today means `GND`, `+3V3`,
 and keep their labels). That is also what makes it safe — KiCad takes a
 `(power global)` symbol's net name from its Value field, so an exact name
 match is the guarantee the net name survives, and `check_netlist.py`
-round-trips through KiCad to prove it did (93 nets, 0 mismatches, unchanged).
+round-trips through KiCad to prove it did (92 nets, 0 mismatches, unchanged).
 The ports are schematic-only: `design.py` is untouched, so the board, the
 gerbers, the BOM and the CPL are bit-for-bit what they were.
 
@@ -951,17 +1061,38 @@ times as much for sliding **along** its reading direction as across it. The
 28 pin names above J5/J6/J7 identify a pin by sitting over it, so a label
 that drifts sideways doesn't just look ragged — it names the wrong pin.
 
-**The nameplate is the one silk item that is placed rather than anchored.**
+That term is a *guess* at which axis carries the meaning, though, and it is
+backwards for half the labels that have one — beside a vertically stacked
+screw terminal it is the perpendicular slide that renames the screw. So a
+label that knows its own axis now declares it, and the declaration is a hard
+constraint rather than a weight: see **per-terminal legends** below.
+
+**The nameplate is the one silk item that is placed rather than anchored**,
+and the place is *measured at build time*.
 `BISQUE / KILN CONTROLLER / REV B / © 2026 Ben Severson`, under the project's
-flame, sits in `gen_pcb.TITLE_POCKET` — the board's largest genuinely empty
-rectangle, 18 × 32 mm at x 68–86, y 63–95, with no exposed pad, no courtyard
-and no board edge inside it. That rectangle was *measured* off the pad and
-courtyard geometry, not eyeballed; the next-largest is 28 × 10.5 mm at
-(59.5, 45), which a four-row stack does not fit in. The title used to be two
-texts at (62.5, 62.0), in what the comment there called the clear band
-between the switching and analog regions — a band that stopped being clear
-somewhere on the way to 141 parts, after which the packer moved the title
-every build and it read as a caption on whatever it landed beside.
+flame, goes wherever `gen_pcb.largest_empty_rect()` finds the most empty
+board: every part's keep-out (drawn body ∪ copper, grown by
+`TITLE_MARGIN`) is rasterised on a 0.25 mm lattice inside the outline and the
+largest all-free rectangle taken by the standard
+largest-rectangle-in-histogram sweep. The whole block then **scales to fit**
+what it found, down to `TITLE_MIN_SCALE`; below that the build stops rather
+than printing a nameplate nobody can read.
+
+This used to be the hand-measured constant `TITLE_POCKET = (68, 63, 86, 95)`,
+and the search reproduces exactly that rectangle from the placement it was
+measured against — which is the point of replacing it. The constant was not
+wrong, it was *un-remeasured*: the nameplate is the only thing on the board
+with no reason to be anywhere in particular, so it is the thing that should
+give way when a part wants the space, and a stale pocket gives way to nothing
+because it cannot tell that anything moved. The WS2812 status cluster moved
+into that lane in the same revision; the nameplate shrank to 75% and slid
+north, with no edit.
+
+(Before the constant it was two texts at (62.5, 62.0), in what the comment
+there called the clear band between the switching and analog regions — a band
+that stopped being clear somewhere on the way to 141 parts, after which the
+packer moved the title every build and it read as a caption on whatever it
+landed beside.)
 
 Two properties of that block are worth knowing before editing it:
 
@@ -998,14 +1129,63 @@ board it reports exactly the 24 over-copper and 4 edge-clipped items, and
 its silk-on-silk rule counts exactly the 81 `silk_overlap` violations
 kicad-cli reported. The board now scores 0 / 0 / 0.
 
+**Every connector names its own terminals, and the names are locked to
+them.** `gen_pcb.PIN_LEGENDS` gives each hand-wired connector one legend per
+pin, printed beside that pin's own pad — `+`/`-` on the 5 V input, `5V`/`OUT`
+on each SSR block, `K+`/`K-` on both thermocouples, `A+ A- B+ B-` on the CT
+block, `V+ 1 2 3` on the aux terminal, `IN1 IN2 IN3 GND` on the input
+terminal, and the pin-name rows on J5/J6/J7. Nothing in that table is a
+coordinate: the pad centres come from the real footprint geometry and the
+standoff from the real drawn body, so a connector that moves takes its
+legends with it. 50 legends, generated.
+
+They replace the horizontal lists that used to sit beside the blocks —
+`SSR1  5V / OUT`, `TC1  K+/K-`, `CT A+/A-/B+/B-`. Every screw terminal here
+is rotated so its screws stack **vertically**, so reading a list left to
+right told you nothing about which screw was which; you had to find the
+block's pin-1 triangle and count. That was the board's largest silk defect
+(`analysis/silkscreen-review.md` §E) and on the SSR and CT blocks it is the
+one a person acts on with a screwdriver. The blocks keep a short name
+(`SSR1`, `TC1`, `CT`) and the per-screw marks carry the order.
+
+**A legend declares which axis carries its meaning, and may not leave it.**
+`x` for a pin name over a pin, `y` for a mark beside a screw; `silk.py`
+refuses any candidate off that axis, `kicad_build.py` fails the build if one
+ends up off it anyway, and the perpendicular axis stays free — sliding along
+the standoff is how these labels actually find room. J11's four marks face
+the J5/J6/J7 row across a 1.69 mm gap and centre themselves in it.
+
+Two things had to change for that to hold, and both were the placer resolving
+a tie backwards:
+
+* **A reference designator may not take a seated legend's space.** Board
+  texts are placed first, so `K-` seated on J3's lower screw — and `R15`'s
+  designator then took the same gap anyway, collision and all, after which
+  `K-` gave up its screw and printed 2.60 mm away inside the terminal block.
+  R15 had 93 other clear candidates, one of them 4 mm north. A designator is
+  recoverable from the board and a polarity mark is not, so this is a rule
+  now, not a cost.
+* **The ring's smallest step went from 1.0 mm to 0.4 mm.** A 1 mm floor is
+  coarser than most gaps on this board, and for a locked legend both
+  directions collide before either clears.
+
+Where a legend genuinely could not fit, the *part* moved. U2's SOT-223 lead
+pads used to start 1.13 mm from J2's outline at exactly the `+` screw's y,
+leaving 0.93 mm of column for a 1.32 mm glyph — so the regulator and the
+bulk-cap row east of it are 1.0–1.5 mm further east and the column is 2.63 mm.
+`check_silk.ON_PART_OK`, the list of legends allowed to print under a part,
+is now **empty**, and every entry it ever held was retired the same way.
+
 **Test points name their net.** `TP1`–`TP12` print what they probe
 (`+3V3`, `+5V`, `GND`, `MOSI`, `SCLK`, `MISO`, `SDA`, `SCL`, `SSR1`,
-`SSR2`, `CT A+`, `WDT`) so the board documents itself at the bench. The
+`SSR2`, `CT A+`, `WDT RC`) so the board documents itself at the bench. The
 label is derived from `design.py`'s own net for pin 1 — never a second
 hand-typed table — and shortened by rule: rails print verbatim, a bus
 prefix is dropped (`SPI_MOSI` → `MOSI`), a function suffix is dropped
-(`WDT_HOLD` → `WDT`). `gen_pcb.TP_LABEL_SPECIAL` is the single escape
-hatch, next to the rule it excepts.
+(`SSR1_CTRL` → `SSR1`). `gen_pcb.TP_LABEL_SPECIAL` is the single escape
+hatch, next to the rule it excepts — `WDT_CT_P` takes it, since `CT` is not
+a bus prefix and `P` is not a function suffix, and teaching the rule either
+would collide with the current-transformer nets.
 
 **Zone fills feed the gerbers.** `kicad_build.py` finishes with a
 `kicad-cli pcb drc --refill-zones` pass that rewrites the board file

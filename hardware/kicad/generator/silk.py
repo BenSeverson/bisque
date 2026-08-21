@@ -99,7 +99,34 @@ W_ORDER = 0.02
 # version of this placer had no such term and pushed J7's `SDA` and `3V3` a
 # pin-pitch off their own pads. Moving a label up or down cannot mislead that
 # way, so that direction stays cheap.
+#
+# It is only a guess at which axis carries the meaning, though, and it was
+# wrong for half the labels that have one. Reading direction is the right
+# answer for a pin row printed above a horizontal header and the exact
+# opposite for a mark beside a vertically stacked screw terminal, where it is
+# the PERPENDICULAR slide that renames the screw - so on J2's `+`/`-` this
+# term charged four times as much for the harmless direction. A label that
+# knows its own axis says so (see LOCK below) and this heuristic is only the
+# fallback for the ones that do not.
 W_LATERAL = 4.0
+
+# An axis-locked label may not be moved along the axis that identifies what
+# it names: `x` for a pin name over a pin, `y` for a mark beside a screw. It
+# is a hard constraint rather than a weight, for the same reason
+# `nearer_part` is - a legend on the wrong terminal is not a worse placement,
+# it is a false statement, and no amount of clearance bought is worth one.
+# The perpendicular axis stays free, and doing the perpendicular slide is how
+# these labels actually find room.
+#
+# The tolerance is the float slop in a candidate generated at an exact ring
+# angle, not a budget: 0/90/180/270 in `_RING_A` produce the on-axis
+# candidates and everything else is refused outright.
+#
+# Relaxed in the fallback pass, like every other hard rule here, so the board
+# still builds - but `offaxis()` then reports it and `kicad_build.py` fails,
+# because a legend that cannot reach its own terminal is a placement problem
+# and placement is not silk.py's to fix.
+LOCK_TOL = 0.01
 
 # A REFERENCE DESIGNATOR gets a rule rather than a penalty. The placer only
 # ever sees a bare board, where the middle of a large footprint is the perfect
@@ -180,12 +207,39 @@ W_CROWD = 10.0
 CLEAR_CROWD = 0.5
 _C_CROWD = MM(CLEAR_CROWD)
 
+# The same rule for an axis-locked terminal legend, except HARD and with a
+# wider halo, because W_CROWD turned out to be neither.
+#
+# `J11` landed between `IN2` and `IN3` on the input terminal's new pin row and
+# printed `IN1 IN2 J11 IN3 GND` - the exact failure W_CROWD was written to
+# stop, one row over. It cost nothing to do it: the glyphs clear each other by
+# 0.80 mm, CLEAR_CROWD is 0.5, so no crowd was ever charged and the spot
+# scored 1.0 against 1.48 for the open board 10 mm west. A 0.16 mm box gap
+# that reads as a fifth terminal is not 0.48 mm worse than a clean one.
+#
+# 1.2 mm is above the 0.80 that got through and well below the 2.54 mm pin
+# pitch, so a designator can still sit at the END of a row - which reads
+# fine - but not inside it. Hard rather than weighted for the same reason as
+# the rule above: the label does not become a worse placement, it becomes a
+# different terminal's name, and there is no exchange rate for that.
+CLEAR_LEGEND = 1.2
+_C_LEGEND = MM(CLEAR_LEGEND)
+_C_REF_PROBE = max(_C_CROWD, _C_LEGEND)
+_LOCK_TOL = MM(LOCK_TOL)
+
 PASSES = 4
 
 # Ring offsets for an anchored board text, nearest first. Angle order is
 # below / above / right / left, then the diagonals: a label reads best
 # directly under or over the thing it names.
-_RING_R = (0.0, 1.0, 1.5, 2.0, 2.6, 3.4, 4.2, 5.2, 6.5, 8.0, 10.0,
+#
+# The first step is 0.4 mm, not 1.0. A 1 mm floor is coarser than most of the
+# gaps this board asks a label to sit in, and for the axis-locked legends it
+# is the difference between fitting and not: J11's four terminal marks face
+# the J5/J6/J7 row across a 1.69 mm band, so the whole placement is a ~0.45
+# mm slide, and with 1.0 as the smallest move both directions collide and the
+# only remaining answer is the fallback.
+_RING_R = (0.0, 0.4, 0.7, 1.0, 1.5, 2.0, 2.6, 3.4, 4.2, 5.2, 6.5, 8.0, 10.0,
            12.0, 14.0)
 _RING_A = (90, 270, 0, 180, 45, 135, 225, 315,
            22, 68, 112, 158, 202, 248, 292, 338)
@@ -463,13 +517,15 @@ class _Obstacles:
 class _Label:
     """One movable silk text: the pcbnew item plus where it wants to be."""
 
-    def __init__(self, key, owner, item, anchor, body, kind, board=False):
+    def __init__(self, key, owner, item, anchor, body, kind, board=False,
+                 lock=None):
         self.key = key            # sort key, also the tie-break
         self.owner = owner        # footprint ref, for same-footprint exemption
         self.item = item
         self.anchor = anchor      # (x, y) internal units it wants to be near
         self.body = body          # part body box to sit beside, or None
         self.kind = kind          # "ref" | "text"
+        self.lock = lock          # "x" | "y" | None; see LOCK_TOL
         # A free-standing `gen_pcb.SILK` entry, as opposed to a footprint's
         # own silk text. The two are both `kind == "text"` and are scored the
         # same way but for the body weight, which only a board text pays: the
@@ -552,7 +608,16 @@ class _Label:
         return out
 
 
-def _cost(lab, cx, cy, obs, others, on_part_ok=False):
+def _offaxis(lab, cx, cy):
+    """How far this candidate is along the label's locked axis, in IU."""
+    if lab.lock == "x":
+        return abs(cx - lab.anchor[0])
+    if lab.lock == "y":
+        return abs(cy - lab.anchor[1])
+    return 0.0
+
+
+def _cost(lab, cx, cy, obs, others, on_part_ok=False, locked=True):
     """None if the placement is illegal, else its score.
 
     `others` is the label index, not a list: it holds every label at its
@@ -564,6 +629,8 @@ def _cost(lab, cx, cy, obs, others, on_part_ok=False):
     searched under or the two are not comparable. Sitting on a part body is
     a weight, not a rule, and is charged in both passes.
     """
+    if locked and lab.lock and _offaxis(lab, cx, cy) > _LOCK_TOL:
+        return None
     bb = lab.box(cx, cy)
     sh = lab.shape(cx, cy)
     if obs.on_copper(bb, sh):
@@ -579,19 +646,62 @@ def _cost(lab, cx, cy, obs, others, on_part_ok=False):
     # reach - `near()` returns a superset either way, and the tests below
     # still decide.
     ref = lab.kind == "ref"
-    for o in others.near((bb[0] - _C_CROWD, bb[1] - _C_CROWD,
-                          bb[2] + _C_CROWD, bb[3] + _C_CROWD) if ref else bb):
+    for o in others.near((bb[0] - _C_REF_PROBE, bb[1] - _C_REF_PROBE,
+                          bb[2] + _C_REF_PROBE,
+                          bb[3] + _C_REF_PROBE) if ref else bb):
         if o is lab or o.at is None:
             continue
         if _hit(bb, o.bb, _C_SILK) and sh.Collide(o.shape(*o.at), _C_SILK):
+            # A reference may not take a seated terminal legend's space, and
+            # this is a rule rather than a cost for the same reason
+            # `nearer_part` is. The two are not worth the same: a designator
+            # is recoverable from the board - count along the row, read the
+            # schematic - and a mark saying which screw is + is not, and it
+            # is the one a person acts on with a screwdriver.
+            #
+            # Without it the greedy pass resolves the tie exactly backwards.
+            # Board texts are placed first, so `K-` seated on J3's lower
+            # screw; `R15` then took the same gap anyway (its own first side
+            # candidate, collision and all); and on the next pass `K-`, now
+            # facing a 40-cost overlap, gave up its screw and printed 2.60 mm
+            # away inside the terminal block. R15 had 93 other clear
+            # candidates, one of them 4 mm north. Refusing it the space costs
+            # a designator its favourite gap and nothing else.
+            if ref and not on_part_ok and o.lock:
+                return None
+            # The other half of the same priority, and it is needed: refusing
+            # a reference the space is not enough while the legend still runs
+            # from one. `K-` fled J3's lower screw twice over, and the second
+            # time no reference had moved into anything - `R15`'s designator
+            # was simply SEEDED there, at the library's default offset, and
+            # board texts are scored before references are ever considered.
+            # So the legend paid 40 for a collision with a label that had not
+            # been placed yet, left, and the designator then had no reason to
+            # move. A legend that outranks a designator does not have to
+            # avoid one; the designator avoids it, on the rule above.
+            if lab.lock and o.kind == "ref":
+                continue
             n += 1
-        elif (ref and o.kind == "text" and _hit(bb, o.bb, _C_CROWD)
-                and sh.Collide(o.shape(*o.at), _C_CROWD)):
-            crowd += 1
+        elif ref and o.kind == "text":
+            # Near a terminal legend is as bad as on one - see CLEAR_LEGEND.
+            if (o.lock and not on_part_ok and _hit(bb, o.bb, _C_LEGEND)
+                    and sh.Collide(o.shape(*o.at), _C_LEGEND)):
+                return None
+            if (_hit(bb, o.bb, _C_CROWD)
+                    and sh.Collide(o.shape(*o.at), _C_CROWD)):
+                crowd += 1
     if lab.kind != "ref":
         ddx = abs(cx - lab.anchor[0]) / _ONE_MM
         ddy = abs(cy - lab.anchor[1]) / _ONE_MM
-        dist = math.hypot(W_LATERAL * ddx, ddy)
+        # Which axis is expensive: the label's own if it declares one,
+        # otherwise the reading direction as a guess. In the strict pass a
+        # locked label cannot be off its axis at all and this term is only
+        # the tie-break along the free one; it still has to be right for the
+        # relaxed pass, where the choice is between two bad placements.
+        if lab.lock == "y":
+            dist = math.hypot(ddx, W_LATERAL * ddy)
+        else:
+            dist = math.hypot(W_LATERAL * ddx, ddy)
     else:
         # A reference's distance is measured from its part's BODY, not from
         # the part's centre, and that is what makes W_ON_PART a single number
@@ -610,21 +720,26 @@ def _cost(lab, cx, cy, obs, others, on_part_ok=False):
 
 
 def _ladder(lab):
-    """(on_part_ok, cap) attempts for `lab`, strictest first.
+    """(on_part_ok, cap, locked) attempts for `lab`, strictest first.
 
     A reference is bounded by its side offsets, so it needs no cap and the
     thing it may have to give up is `nearer_part`. A text has no hard rule to
-    give up and is bounded by nothing, so it is the other way round.
+    give up and is bounded by nothing, so it is the other way round - and if
+    it is axis-locked it gives that up last of all, because leaving the axis
+    is the only relaxation here that changes what the label SAYS.
     """
     if lab.kind == "ref":
-        return ((False, None), (True, None))
-    return ((False, RING_MAX), (False, None))
+        return ((False, None, True), (True, None, True))
+    if lab.lock:
+        return ((False, RING_MAX, True), (False, None, True),
+                (False, RING_MAX, False), (False, None, False))
+    return ((False, RING_MAX, True), (False, None, True))
 
 
-def _best(lab, obs, others, on_part_ok=False, cap=None):
+def _best(lab, obs, others, on_part_ok=False, cap=None, locked=True):
     best = None
     for i, (cx, cy) in enumerate(lab.candidates(cap)):
-        c = _cost(lab, cx, cy, obs, others, on_part_ok)
+        c = _cost(lab, cx, cy, obs, others, on_part_ok, locked)
         if c is None:
             continue
         score = c[0] + W_ORDER * i
@@ -651,9 +766,10 @@ def _body_box(fp):
 def collect_labels(board, text_anchors):
     """Every movable F.SilkS text.
 
-    `text_anchors` is [(pcbnew text item, x_mm, y_mm)] for the board-level
-    texts - the coordinate each one was authored at, which the placer treats
-    as a wish rather than a instruction.
+    `text_anchors` is [(pcbnew text item, x_mm, y_mm, lock)] for the
+    board-level texts - the coordinate each one was authored at, which the
+    placer treats as a wish rather than a instruction, plus the axis (if any)
+    on which it is an instruction after all. See LOCK_TOL.
     """
     labels = []
     for fp in sorted(board.GetFootprints(), key=lambda f: _refkey(f.GetReference())):
@@ -669,9 +785,9 @@ def collect_labels(board, text_anchors):
                 ip = it.GetPosition()
                 labels.append(_Label(("3fptext", (_refkey(ref), it.GetText())),
                                      ref, it, (ip.x, ip.y), None, "text"))
-    for i, (item, ax, ay) in enumerate(text_anchors):
+    for i, (item, ax, ay, lock) in enumerate(text_anchors):
         labels.append(_Label(("1text", i), None, item, (MM(ax), MM(ay)),
-                             None, "text", board=True))
+                             None, "text", board=True, lock=lock))
     labels.sort(key=lambda l: l.key)
     return labels
 
@@ -725,9 +841,10 @@ def place(board, text_anchors, verbose=True):
             # gives up `nearer_part`; a text gives up `RING_MAX`. Neither
             # ever gives up the other's, so a relaxed reference still cannot
             # travel and a relaxed text still cannot claim a neighbour.
-            for on_part_ok, cap in _ladder(lab):
-                cur = _cost(lab, lab.at[0], lab.at[1], obs, live, on_part_ok)
-                best = _best(lab, obs, live, on_part_ok, cap)
+            for on_part_ok, cap, locked in _ladder(lab):
+                cur = _cost(lab, lab.at[0], lab.at[1], obs, live,
+                            on_part_ok, locked)
+                best = _best(lab, obs, live, on_part_ok, cap, locked)
                 if best is not None:
                     break
             if best is None:
@@ -759,6 +876,8 @@ def place(board, text_anchors, verbose=True):
     # here is what let `CT A+/A-/B+/B-` ship 13 mm from the CT block.
     strayed = [lab for lab in labels if lab.board and drift(lab) > RING_MAX]
     buried = [lab for lab in labels if lab.board and obs.on_part(lab.bb)]
+    slid = [lab for lab in labels
+            if lab.lock and _offaxis(lab, *lab.at) > _LOCK_TOL]
     if verbose:
         for lab in strayed:
             print("  !! board text %r moved %.2f mm from its anchor (max %.1f)"
@@ -766,6 +885,11 @@ def place(board, text_anchors, verbose=True):
         for lab in buried:
             print("  !! board text %r sits on a part body"
                   % lab.item.GetText())
+        for lab in slid:
+            print("  !! terminal legend %r moved %.2f mm along its locked %s "
+                  "axis - it may now name a different terminal"
+                  % (lab.item.GetText(),
+                     _offaxis(lab, *lab.at) / _ONE_MM, lab.lock))
         n = _collisions(labels, obs)
         hidden = sum(1 for lab in labels if lab.kind == "ref"
                      and obs.on_part(lab.bb))
@@ -773,9 +897,10 @@ def place(board, text_anchors, verbose=True):
                      and obs.nearer_part(lab.owner, lab.bb))
         print("  silk: %d label(s) placed, %d touching other silk, %d illegal,"
               " %d reference(s) on a part body, %d nearer another part,"
-              " %d board text(s) adrift, %d on a part body"
+              " %d board text(s) adrift, %d on a part body,"
+              " %d terminal legend(s) off axis"
               % (len(labels), n, bad, hidden, astray, len(strayed),
-                 len(buried)))
+                 len(buried), len(slid)))
     return labels
 
 
@@ -796,6 +921,21 @@ def adrift(labels):
     """
     return sorted((lab.item.GetText(), drift(lab)) for lab in labels
                   if lab.board and drift(lab) > RING_MAX)
+
+
+def offaxis(labels):
+    """[(text, axis, mm)] for every locked legend that left its own axis.
+
+    Same contract as `adrift`, and the same reason it lives here rather than
+    in `check_silk.py`: the finished board records where a `gr_text` is, not
+    which terminal it was aimed at. A legend that had to leave its axis is
+    naming the wrong screw, so the caller fails the build - the answer is
+    always to move the part or the parts crowding it.
+    """
+    return sorted((lab.item.GetText(), lab.lock,
+                   _offaxis(lab, *lab.at) / _ONE_MM)
+                  for lab in labels
+                  if lab.lock and _offaxis(lab, *lab.at) > _LOCK_TOL)
 
 
 def _collisions(labels, obs):

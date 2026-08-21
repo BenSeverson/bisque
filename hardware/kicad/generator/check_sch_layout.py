@@ -37,6 +37,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from sexp import parse, find, find_all, num
+from inspect_libs import unit_view
 
 # Stroke-font metrics, in multiples of the font size. KiCad's newstroke
 # advance runs about 0.6-0.75 em depending on the glyph and its interline is
@@ -266,7 +267,26 @@ def seg_touch(s, t):
                for e in ends_s | ends_t)
 
 
-def wire_hits(wires):
+def junctions_of(doc):
+    out = []
+    for item in doc:
+        if isinstance(item, list) and item and str(item[0]) == "junction":
+            at = find(item, "at")
+            out.append((num(at[1]), num(at[2])))
+    return out
+
+
+def _t_point(s, t):
+    """Where two perpendicular segments meet, or None if they are parallel."""
+    (ax, ay), (bx, by) = s
+    (cx, cy), (dx, dy) = t
+    s_h, t_h = abs(ay - by) < EPS, abs(cy - dy) < EPS
+    if s_h == t_h:
+        return None
+    return (cx, ay) if s_h else (ax, cy)
+
+
+def wire_hits(wires, junctions=()):
     """Wire pairs sharing a point that is not a shared endpoint.
 
     Every wire here is axis-aligned, so this is a box overlap on degenerate
@@ -277,22 +297,47 @@ def wire_hits(wires):
     and KiCad merged the nets where the label sat. check_netlist.py caught
     that one because it happened to short; a crossing that does not short is
     invisible to every other check we own.
+
+    A T whose meeting point carries a declared junction is the one exception:
+    that is a three-pin fused net's tap, drawn with a dot precisely so it
+    reads as soldered - because it is. Collinear overlaps stay errors even
+    at a junction; the same ink drawn twice explains nothing.
     """
     hits = []
     for i, s in enumerate(wires):
         for t in wires[i + 1:]:
-            if seg_touch(s, t):
-                hits.append((s, t))
+            if not seg_touch(s, t):
+                continue
+            p = _t_point(s, t)
+            if p is not None and any(abs(p[0] - jx) < EPS
+                                     and abs(p[1] - jy) < EPS
+                                     for jx, jy in junctions):
+                continue
+            hits.append((s, t))
     return hits
 
 
 def collect(sch):
     doc = parse(open(sch).read())[0]
-    libs = {}
+    # Keyed by (lib_id, unit), because a multi-unit symbol places each unit
+    # separately and only that unit's graphics are drawn there. Boxing a placed
+    # unit with the whole symbol's extent unions every unit's body and pins into
+    # one rectangle, which then swallows the part's own fields and any power
+    # port legitimately sitting beside it - 10 phantom collisions on the first
+    # multi-unit part this board carried.
+    libsyms = {}
     ls = find(doc, "lib_symbols")
     if ls:
         for s in find_all(ls, "symbol"):
-            libs[str(s[1])] = lib_body_box(s)
+            libsyms[str(s[1])] = s
+    libs = {}
+
+    def body_box(key, unit):
+        if (key, unit) not in libs:
+            sym = libsyms.get(key)
+            libs[(key, unit)] = (lib_body_box(unit_view(sym, unit)) if sym
+                                 else (-1.27, -1.27, 1.27, 1.27))
+        return libs[(key, unit)]
 
     symbols, texts = [], []
     for item in doc:
@@ -305,7 +350,9 @@ def collect(sch):
             ang = num(at[3]) if len(at) > 3 else 0.0
             lib_id = find(item, "lib_id")
             key = str(lib_id[1]) if lib_id else ""
-            box = place(libs.get(key, (-1.27, -1.27, 1.27, 1.27)), sx, sy, ang)
+            unum = find(item, "unit")
+            box = place(body_box(key, int(num(unum[1])) if unum else 1),
+                        sx, sy, ang)
             ref = key
             for p in find_all(item, "property"):
                 if str(p[1]) == "Reference":
@@ -373,14 +420,16 @@ def report(kind, hits, limit=25):
 
 def main(sch):
     symbols, texts = collect(sch)
-    wires = wires_of(parse(open(sch).read())[0])
+    doc = parse(open(sch).read())[0]
+    wires = wires_of(doc)
+    junctions = junctions_of(doc)
     print("check_sch_layout: %d symbols, %d free-text blocks, %d wires in %s"
           % (len(symbols), len(texts), len(wires), os.path.basename(sch)))
     n = 0
     n += report("SYMBOL/SYMBOL", pairs(symbols, symbols, True))
     n += report("TEXT/SYMBOL", pairs(texts, symbols, False))
     n += report("TEXT/TEXT", pairs(texts, texts, True))
-    hits = wire_hits(wires)
+    hits = wire_hits(wires, junctions)
     if hits:
         print("\nWIRE/WIRE: %d crossing(s)" % len(hits))
         for a, b in hits[:25]:

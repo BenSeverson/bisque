@@ -6,7 +6,7 @@ cd "$(dirname "$0")"
 mkdir -p sym
 base="https://gitlab.com/kicad/libraries/kicad-symbols/-/raw/9.0.9.1"
 for f in RF_Module Regulator_Linear Sensor_Temperature Device Connector \
-         Connector_Generic Connector_Generic_MountingPin Switch power \
+         Connector_Generic Connector_Generic_MountingPin Switch power 74xGxx \
          Power_Protection Mechanical LED Transistor_FET; do
   echo "  $f.kicad_sym"
   curl -sSL -o "sym/$f.kicad_sym" "$base/$f.kicad_sym"

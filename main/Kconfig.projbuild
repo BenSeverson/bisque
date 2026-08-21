@@ -333,9 +333,17 @@ menu "Bisque Configuration"
                 A charge pump needs TRANSITIONS, which is the whole point: a
                 stuck level fails exactly like a stopped one.
 
-                NOTHING TOGGLES THIS PIN YET, so a rev B board runs with the
-                WDT DEFEAT solder jumper fitted until the kick task lands. A
-                board with neither the jumper nor the kick task will not heat.
+                Firmware kicks this pin at 5 Hz (the 100 ms SSR timer
+                toggles it), gated on safety_task's heartbeat so the kick
+                stops when supervision stops - see components/safety/wdt_kick.h.
+
+                That rate is sized for the MONOSTABLE retrigger circuit of
+                issue #307, NOT for the as-built diode charge pump, which
+                needs >= 250 Hz to hold its gate and fails outright above
+                ~60 C. Until the board carries the monostable, a rev B board
+                still runs with the WDT DEFEAT solder jumper fitted. A board
+                with neither the jumper nor working watchdog hardware will
+                not heat.
 
                 Set to -1 on hardware without the watchdog circuit.
     endmenu

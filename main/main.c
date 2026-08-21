@@ -120,6 +120,7 @@ void app_main(void)
     /* ── Safety Init ───────────────────────────────── */
     ESP_ERROR_CHECK(safety_init(APP_PIN_SSR1, APP_DEFAULT_MAX_SAFE_TEMP));
     safety_init_io(APP_PIN_ALARM, APP_PIN_VENT, APP_PIN_LID_SWITCH);
+    safety_init_wdt(APP_PIN_WDT_KICK);
 
     /* ── Firing Engine Init ────────────────────────── */
     ESP_ERROR_CHECK(firing_engine_init());

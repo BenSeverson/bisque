@@ -173,6 +173,12 @@ add_host_test(test_log_sink
             ${ROOT}/components/device_log/log_sink.c)
 target_include_directories(test_log_sink PRIVATE ${ROOT}/components/device_log/include)
 
+# wdt_kick — the hardware watchdog's liveness rule, split out of safety.c so
+# the stale-heartbeat case is testable without ESP-IDF or FreeRTOS. Header-only,
+# so the test needs no source beyond itself.
+add_host_test(test_wdt_kick SOURCES test_wdt_kick.c)
+target_include_directories(test_wdt_kick PRIVATE ${ROOT}/components/safety)
+
 # max31856 — the thermocouple driver's register decode, split into a header
 # with no ESP-IDF so the conversion maths and fault mapping are testable here.
 # thermocouple.c itself needs a real SPI bus and stays uncovered; this is the

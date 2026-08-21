@@ -1,5 +1,6 @@
 #include "safety.h"
 #include "safety_internal.h"
+#include "wdt_kick.h"
 #include "thermocouple.h"
 #include "app_config.h"
 #include "esp_log.h"
@@ -72,6 +73,34 @@ static int64_t s_last_ssr_cmd_us = 0;
  * future relay self-test or resume-after-reboot path added early in app_main
  * fails safe instead of silently firing unwatched. */
 static volatile bool s_supervised = false;
+
+/* ── Hardware watchdog kick (RB-2, #307) ──────────────────────────────────
+ * KILN_PIN_WDT_KICK retriggers a monostable whose output gates BOTH SSR opto
+ * channels. It retriggers on EDGES, so a pin wedged at either level expires the
+ * window exactly like a pin that stopped — which is the entire point.
+ *
+ * The kick is split across two places deliberately. safety_task stamps a
+ * heartbeat at the END of each completed pass, and the existing 100 ms SSR timer
+ * toggles the pin only while that stamp is fresh. Emitting the kick straight
+ * from the timer would keep it toggling after safety_task died — the exact
+ * failure the watchdog exists to catch — and stamping at the top of the loop
+ * would mean "the loop was entered" rather than "the checks ran".
+ *
+ * Both cross-task variables are plain 32-bit volatiles rather than spinlocked
+ * state: an aligned 32-bit load is a single instruction on the LX7 and cannot
+ * tear, which is the same reasoning s_vent_active and s_lid_state already use.
+ * That matters here because the alternative costs two critical sections per
+ * kick — the mux plus xEventGroupGetBits() inside safety_is_emergency() — and
+ * both disable interrupts. */
+static int s_wdt_gpio = -1;
+static bool s_wdt_level = false;
+/* Milliseconds, wrapping every 49.7 days; wdt_kick_allowed() is unsigned so the
+   wrap needs no special case. 0 means "no pass completed yet". */
+static volatile uint32_t s_wdt_heartbeat_ms = 0;
+/* Mirrors the emergency latch so the kick path never touches the event group.
+   Written only by safety_emergency_stop_cause() and safety_clear_emergency(),
+   the same two functions that own the bit itself. */
+static volatile bool s_wdt_blocked = false;
 
 static void alarm_tone_on(void)
 {
@@ -321,6 +350,7 @@ void safety_emergency_stop_cause(safety_trip_cause_t cause)
     }
     portEXIT_CRITICAL(&s_safety_mux);
 
+    s_wdt_blocked = true;
     xEventGroupSetBits(s_event_group, SAFETY_BIT_EMERGENCY_STOP);
     ESP_LOGE(TAG, "EMERGENCY STOP activated (cause=%d)", (int)cause);
 }
@@ -344,6 +374,7 @@ void safety_clear_emergency(void)
     portENTER_CRITICAL(&s_safety_mux);
     s_trip_cause = SAFETY_TRIP_NONE;
     portEXIT_CRITICAL(&s_safety_mux);
+    s_wdt_blocked = false;
     xEventGroupClearBits(s_event_group, SAFETY_BIT_EMERGENCY_STOP);
     ESP_LOGI(TAG, "Emergency stop cleared");
 }
@@ -375,6 +406,46 @@ void safety_set_tc_offset(float offset_c)
     portENTER_CRITICAL(&s_safety_mux);
     s_tc_offset_c = offset_c;
     portEXIT_CRITICAL(&s_safety_mux);
+}
+
+void safety_init_wdt(int wdt_gpio)
+{
+    s_wdt_gpio = wdt_gpio;
+    if (wdt_gpio < 0) {
+        ESP_LOGW(TAG, "No WDT kick pin configured; the board needs the SJ2 "
+                      "WDT DEFEAT jumper fitted or it will not heat");
+        return;
+    }
+    gpio_config_t io = {
+        .pin_bit_mask = (1ULL << wdt_gpio),
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_ENABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    ESP_ERROR_CHECK(gpio_config(&io));
+    s_wdt_level = false;
+    gpio_set_level(wdt_gpio, 0);
+    ESP_LOGI(TAG, "WDT kick on GPIO %d (%u ms period)", wdt_gpio, (unsigned)WDT_KICK_PERIOD_MS);
+}
+
+/* One kick tick, called from the 100 ms SSR timer. Toggling on every call makes
+ * a 5 Hz square wave, so the monostable sees a rising edge every 200 ms. */
+static void wdt_kick_step(void)
+{
+    if (s_wdt_gpio < 0) {
+        return;
+    }
+    uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000);
+    if (!wdt_kick_allowed(now_ms, s_wdt_heartbeat_ms, s_wdt_blocked)) {
+        /* Stop toggling and leave the level where it is. Do NOT drive it to a
+           defined level "for safety" — the monostable retriggers on edges, so a
+           held level is already indistinguishable from a stopped one, and
+           pretending otherwise invites someone to add a gpio_set_level here. */
+        return;
+    }
+    s_wdt_level = !s_wdt_level;
+    gpio_set_level(s_wdt_gpio, s_wdt_level ? 1 : 0);
 }
 
 /* Drive the SSR GPIO from the stored duty using the time-proportional window.
@@ -412,6 +483,7 @@ static void ssr_timer_cb(void *arg)
 {
     (void)arg;
     ssr_window_apply();
+    wdt_kick_step();
 }
 
 void safety_set_ssr(float duty)
@@ -553,6 +625,12 @@ void safety_task(void *param)
                 safety_emergency_stop();
             }
         }
+
+        /* Every check above has run, so this pass is complete — stamp the
+           heartbeat that lets the SSR timer keep kicking the hardware watchdog.
+           Deliberately the last statement in the loop body: at the top it would
+           mean "the loop was entered", which is not the same claim. */
+        s_wdt_heartbeat_ms = (uint32_t)(esp_timer_get_time() / 1000);
 
         xTaskDelayUntil(&last_wake, pdMS_TO_TICKS(500));
     }

@@ -47,17 +47,54 @@ docs/pin-assignments.md — keep that table in sync with this one.
 # shortage. Going 4-layer (rung 3: GND plane on In1.Cu, +3V3 plane on In2.Cu)
 # closed it at 0 unrouted/0 DRC errors, and then gave back every rung-1/rung-2
 # concession: the board walked back to 100 x 100 mm, 0805 passives, and rev
-# A's 0.3/0.7 mm net classes, staying inside JLCPCB's <=100x100 promo tier.
+# A's 0.3 mm signal / 0.7-0.8 mm rail widths, staying inside JLCPCB's
+# <=100x100 promo tier. Those widths live in gen_pcb.ROUTE_ORDER, and
+# gen_pcb.netclass_table() derives the .kicad_pro net classes from that same
+# table - for a long time this comment said "net classes" while the project
+# file held one Default class at 0.2 mm and no patterns at all.
 # See the task 14 report for the DRC counts at each rung.
 BX0, BY0, BX1, BY1 = 20.0, 20.0, 120.0, 120.0   # 100 x 100 mm
 
-# Placement regions (docs/.../2026-08-10-pcb-rev-b-hardware-design.md §6.2).
-# The quiet analog region holds both thermocouple cold junctions and the CT
-# front-end; keep it away from the ULN2003 and the SSR drivers.
-#   digital   x 20..120  y 20..48   module, USB-C, reclaimed antenna band
-#   switching x 20..60   y 50..92   ULN2003, SSR drivers, watchdog, buzzer
-#   analog    x 92..120  y 50..92   MAX31856 x2, ADE7953, CT front-end
-#   headers   x 20..120  y 94..120  LCD / nav / aux / I2C, screw terminals
+# Placement regions. DESCRIPTIVE, not enforced - nothing checks a part against
+# a band, so this block is only worth what its accuracy is worth. Measured off
+# the placement below rather than copied forward from spec §6.2, because the
+# spec's version had stopped being true:
+#
+#   digital    x 20..120  y 20..48   module, USB-C, power in, RESET + BOOT
+#   switching  x 20..60   y 48..95   ULN2003, SSR drivers, watchdog, buzzer
+#   analog     x 88..120  y 33..92   MAX31856 x2 (north), ADE7953 + CT (south)
+#   headers    x 20..120  y 94..120  LCD / nav / aux / I2C, input terminal
+#   (unzoned)  x 60..92   y 48..94   buzzer driver, TP4-TP10, status LED,
+#                                    the nameplate
+#
+# Two corrections against §6.2, both found by measuring:
+#
+# The analog region is a COLUMN spanning y 33..92, not the y 50..92 box the
+# spec drew, and it does not "hold both thermocouple cold junctions" in the
+# quiet band - U3 sits at y 37.8 and U5 at y 49.8, i.e. the TC front-ends are
+# level with the digital band and always were. That is tolerable rather than
+# intended: the east end of the digital band holds only R2 and the two
+# buttons, so it is quiet in practice, and every low-level terminal (J3, J8,
+# J12) still lands on the east edge while every mains-side one (J2, J4, J9,
+# J10) lands on the west. That west/east split is the property this floorplan
+# is actually built on and it does hold - ~30 mm separates the SSR/ULN2003
+# cluster from the front-ends.
+#
+# The 32 x 46 mm band between the switching column and the analog column
+# belongs to no region at all. It is the lowest-density area on the board
+# (~1.1 parts/cm2 against 2.30 in the analog column), which is why the
+# nameplate search (gen_pcb.largest_empty_rect) keeps landing in it, why the
+# WS2812 status cluster moved into it, and also why the ADE7953 block, boxed
+# in at 2.30, had to push its crystal 19.5 mm south. If something needs room,
+# this band is where the room is.
+#
+# But do not mistake it for the ONLY room, and above all do not mistake the
+# band just south of the module (x 60..88, y 44..56) for room at all. It
+# measures emptier than anywhere else on the board and it is the escape path
+# for forty castellated pads: putting the status LED there cost SPI_MOSI and
+# SPI_SCLK their test-point terminals and left TC1_CS unrouted. Clear board
+# beside a big part is not free board.
+#
 # There is no isolation-barrier region any more: the opto barrier that used
 # to reserve x 20..40.8 / y 71..95.5 as a four-layer pour keepout went with
 # the optocouplers (see the SSR block below), and the band is now ordinary
@@ -90,6 +127,80 @@ POWER_NETS = {"GND", "+5V", "+3V3", "VBUS", "VIN", "VLED"}
 R0603 = ("Resistor_SMD:R_0805_2012Metric", "R_0805_2012Metric.kicad_mod")
 C0603 = ("Capacitor_SMD:C_0805_2012Metric", "C_0805_2012Metric.kicad_mod")
 C1206 = ("Capacitor_SMD:C_1206_3216Metric", "C_1206_3216Metric.kicad_mod")
+# SSOP-8 (TI's DCT package), not the VSSOP-8 the same die also ships in. Two
+# reasons, and the second is the one that decided it:
+#   - Pitch. VSSOP's 0.5 mm land leaves 0.150 mm between adjacent pads and this
+#     board's net classes require 0.200 mm, so that footprint is twelve DRC
+#     violations before a single track is routed. SSOP-8 at 0.65 mm gives
+#     0.350 mm - more margin even than TSSOP-8's 0.250 mm.
+#   - Datasheet basis. The window arithmetic below is TI's (SCES586E): the
+#     K = 1.0-1.1 constant at the 10k x 0.1uF anchor, the +-0.25 uA Rext/Cext
+#     leakage, the -40..125 C table. C123302 is that same TI die in a different
+#     package, so the numbers carry over unchanged. A Nexperia 74LVC1G123 is a
+#     different datasheet and would need the window re-derived from it.
+SSOP8 = ("Package_SO:SSOP-8_2.95x2.8mm_P0.65mm", "SSOP-8_2.95x2.8mm_P0.65mm.kicad_mod")
+C1206 = ("Capacitor_SMD:C_1206_3216Metric", "C_1206_3216Metric.kicad_mod")
+
+# --- thermocouple channel geometry ---------------------------------------
+# The two MAX31856 front-ends are one circuit placed twice, and this is the
+# table both copies are written against: TC1_Y / TC2_Y are the chips' own y,
+# every other part in a channel is `TCn_Y + <its offset>`, and the two
+# channels use the SAME offsets with the sign flipped, because the two chips
+# are MIRRORED.
+#
+# The mirror is the part worth explaining, because "make both parts face the
+# same way" is the obvious instinct and it was tried and reverted here.
+#
+# U3 is rot 270 and U5 is rot 90 - a 180 deg flip, which on a TSSOP swaps
+# which row every pin is on. So U3's digital row (pins 8-14: SPI + chip
+# select) faces SOUTH and U5's faces NORTH, and the two look at each other
+# across a 6 mm channel at y 41..47. The whole SPI bus lives in that channel:
+# three bus nets plus two chip selects, one lane, both chips reached without
+# leaving it. Turn U5 to match U3 and its digital row moves to y 52.7, which
+# drags the bundle 6 mm south into the ADE7953's own escape corridor - and
+# that corridor has no room. Measured, three times: `I2C_SDA` could not reach
+# U7's SDA escape at (94.5, 68) and the board finished with 4 unconnected
+# pads. It failed even when promoted to route FIRST, so it is a geometry
+# problem, not an ordering one.
+#
+# What the mirror genuinely cost was NOT the rotation. It was that channel 2's
+# parts had been placed on channel 1's offsets un-mirrored, so U5's analog
+# inputs (pins 1-7, south) sat on the OPPOSITE side of the package from their
+# own 100R/100nF/10nF input filter (north, level with the digital row).
+# Channel 2's differential pair left the filter, ran the length of the chip
+# past SPI_SCLK/MOSI/MISO and the chip select, and came back - on an input
+# where 40 uV is a degree. Mirroring the filter with the chip fixes that and
+# keeps the SPI channel; it is what TC2_DY exists to enforce.
+#
+# What the mirror still costs, and this is the residue: the supply pins sit
+# on the far side from the x=90 decoupling column, 9.0 and 7.7 mm out against
+# channel 1's 6.4 and 5.1. Moving those two caps east would fix it and puts
+# 0805s in the SPI channel, which is the one thing this whole arrangement
+# exists to keep clear. On a ~100 SPS sigma-delta with no fast edges, leave
+# it.
+#
+# Nothing in the netlist can catch any of this: connectivity is identical
+# whichever way a chip faces, which is exactly why the geometry is derived
+# here instead.
+TC1_Y, TC2_Y = 37.8, 49.8
+TC1_ROT, TC2_ROT = 270, 90      # mirrored; see above before "fixing" this
+TC1_DY, TC2_DY = 1, -1          # ... and every offset below flips with them
+
+# --- SSR channel readout geometry ----------------------------------------
+# Same idea, for the thing a person standing at the kiln actually reads: each
+# SSR channel's amber indicator and its control test point sit on ONE row,
+# the two rows 8 mm apart, and the two test points share an x. So LED3/TP9
+# name channel 1 and LED4/TP10 name channel 2 by being level with each other,
+# and the pair of test points is a pair you can get two probe tips onto.
+#
+# They used to be scattered across the switching block - LED3 (57.0, 76.0),
+# LED4 (54.0, 87.5), TP9 (58.5, 80.5), TP10 (44.5, 94.15) - on four different
+# y and three different x, 14.2 mm apart, with TP10 close enough to J5's pin
+# row that its `SSR2` legend needed a hand-written override to stop reading
+# as a fifteenth display pin (see gen_pcb.TP_LABEL_AT, now empty).
+SSR_IND_X = 57.0            # both indicator LEDs
+SSR_TP_X = 61.0             # both control test points, 4 mm east of the LED
+SSR1_IND_Y, SSR2_IND_Y = 78.0, 86.0
 SMA = ("Diode_SMD:D_SMA", "D_SMA.kicad_mod")
 SOT23 = ("Package_TO_SOT_SMD:SOT-23", "SOT-23.kicad_mod")
 LED0603 = ("LED_SMD:LED_0805_2012Metric", "LED_0805_2012Metric.kicad_mod")
@@ -125,22 +236,38 @@ COMPONENTS = {
     "D2": dict(lib="Device", sym="D_Schottky", fp=SMA[0], fpf=SMA[1],
                value="SS34", at=(56.25, 36.75, 0),
                pins={"1": "+5V", "2": "VBUS"}),
+    # The regulator and the bulk-cap row east of it sit 1.5 mm further east
+    # than they did, as one block: U2 36.6 -> 38.1, C1 44.0 -> 45.5, C3
+    # 49.2 -> 50.7, C4 53.8 -> 55.3. They are shoulder to shoulder (the
+    # smallest pad-to-pad gap in the row is ~1.1 mm), so moving one means
+    # moving all four, and the last of them still clears D2 and the module.
+    #
+    # The reason is silk, which is a thin reason for moving a regulator and
+    # was still the right call. J2 is the board's power INPUT, and the only
+    # place its two screws can be named individually is the strip east of the
+    # block - there is 0.67 mm to the board edge on the other side. U2's
+    # three SOT-223 lead pads used to start 1.13 mm from J2's outline at
+    # exactly the y of the `+` screw, leaving 0.93 mm of usable column for a
+    # 1.32 mm glyph, so `+` had nowhere legal to print and the placer buried
+    # it inside J2 - the same failure the mark exists to prevent. No y offset
+    # helps either: U2's leads span y 36.45..42.55 continuously and J2's two
+    # screws are inside that band 5.08 mm apart. The column is now 2.43 mm.
     "U2": dict(lib="Regulator_Linear", sym="AMS1117-3.3",
                fp="Package_TO_SOT_SMD:SOT-223-3_TabPin2",
                fpf="SOT-223-3_TabPin2.kicad_mod",
-               value="AMS1117-3.3", at=(36.6, 39.5, 0),
+               value="AMS1117-3.3", at=(38.1, 39.5, 0),
                pins={"1": "GND", "2": "+3V3", "3": "+5V"}),
     "C1": dict(lib="Device", sym="C", fp=C1206[0], fpf=C1206[1],
-               value="22uF/25V", at=(44.0, 39.5, 0),
+               value="22uF/25V", at=(45.2, 39.5, 0),
                pins={"1": "+5V", "2": "GND"}),
     "C2": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
                value="100nF", at=(42.4, 45.6, 0),
                pins={"1": "+5V", "2": "GND"}),
     "C3": dict(lib="Device", sym="C", fp=C1206[0], fpf=C1206[1],
-               value="22uF/25V", at=(49.2, 39.5, 0),
+               value="22uF/25V", at=(50.2, 39.5, 0),
                pins={"1": "+3V3", "2": "GND"}),
     "C4": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-               value="100nF", at=(53.8, 39.9, 0),
+               value="100nF", at=(54.3, 39.9, 0),
                pins={"1": "+3V3", "2": "GND"}),
     "LED2": dict(lib="Device", sym="LED", fp=LED0603[0], fpf=LED0603[1],
                  value="green", at=(55.5, 22.3, 0),
@@ -173,10 +300,27 @@ COMPONENTS = {
     # C318884) is a JLCPCB *Basic* part, so it carries no $3 feeder fee and
     # stays on the SMT line. The THT switches were one of five unique
     # Extended parts that existed only to force Standard assembly.
+    #
+    # The two buttons are a PAIR and are now placed as one: RESET at x=91,
+    # BOOT at x=100, both on y=25, in the free band between the module's east
+    # edge (79.75) and H2's pad ring. RESET used to sit at (36.5, 24.2), on
+    # the far side of the board from BOOT, which is the wrong arrangement for
+    # the one operation that uses both - hold BOOT, tap RESET, release - and
+    # it left each button in a 1.2-2.0 mm strip where neither legend fit
+    # (`RESET` printed under its own button for two revisions; see
+    # gen_pcb.SILK). Level with BOOT, the same 2.4 mm strip that takes `BOOT`
+    # takes `RESET`, and the gap between them is 2.5 mm of clear board.
+    #
+    # The cost is EN's length: the net's other members are R1/C5 beside the
+    # module's west edge, so the switch stub is now ~40 mm rather than ~15.
+    # That is acceptable here and would not be on a bare reset pin - C5 is a
+    # 1 uF sitting AT the module, so the stub is terminated in something very
+    # stiff (10 ms with R1), and EN is a static level, not a signal. Do not
+    # copy the arrangement to a design whose reset input has only a 100 nF.
     "SW1": dict(lib="Switch", sym="SW_Push",
                 fp="Button_Switch_SMD:SW_Push_1P1T_XKB_TS-1187A",
                 fpf="SW_Push_1P1T_XKB_TS-1187A.kicad_mod",
-                value="RESET", at=(36.5, 24.2, 0),
+                value="RESET", at=(91.0, 25.0, 0),
                 pins={"1": "EN", "2": "GND"}),
     "SW2": dict(lib="Switch", sym="SW_Push",
                 fp="Button_Switch_SMD:SW_Push_1P1T_XKB_TS-1187A",
@@ -202,11 +346,63 @@ COMPONENTS = {
     "R5": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
                value="5.1k", at=(42.0, 33.6, 0),
                pins={"1": "CC2", "2": "GND"}),
-    "U4": dict(lib="Power_Protection", sym="USBLC6-2SC6",
+    # SRV05-4 rather than the USBLC6-2SC6 this used to be, which is the same
+    # part D5 and D6 already carry. The driver was JLCPCB's feeder fee — one
+    # part number across three designators instead of two costs $3 less per
+    # order, and the SRV05-4 line chosen (C7420376) is a *Preferred* extended
+    # part, so it is another $3 cheaper again. That is $6 of a $27 bill, and
+    # it is the whole reason this changed.
+    #
+    # It is not a compromise made to save it. Measured off the two datasheets,
+    # the SRV05-4 is the better part here on both axes that matter:
+    #
+    #   * ESD. USBLC6-2SC6 is IEC 61000-4-2 level 4 and no more - +-8 kV
+    #     contact, +-15 kV air. This one is +-30 kV on both.
+    #   * Capacitance. 1.0 pF I/O-GND against the USBLC6's 3.5 pF max, on a
+    #     pair whose impedance the STACKUP comment goes to some length to
+    #     keep at 93.1 ohm.
+    #
+    # What does change is topology, and it is worth knowing why the pin map
+    # below looks so different. The USBLC6 is a pass-through: its two channels
+    # are brought out twice each (1/6 and 3/4), so the pair entered one side
+    # and left the other. The SRV05-4's four channels are independent, so each
+    # line lands on exactly one pin and the array becomes a stub off the pair
+    # instead of a link in it. At 12 Mbps Full Speed a stub this short is
+    # electrically nothing. Tying IO3/IO4 back onto the same two nets would
+    # restore the pass-through look at the cost of doubling the loading to
+    # 2 pF, which buys nothing, so they are left open exactly as D5's IO4 is.
+    #
+    # WHICH pins is not free, and picking the obvious ones cost a rebuild.
+    # This footprint at rot 0 puts 1/2/3 on the west face and 4/5/6 on the
+    # east; J1 is due north of it and U1 is east, so the pair arrives head-on
+    # and leaves toward the east face. The USBLC6 spanned both (1->6, 3->4),
+    # which is why it never mattered before. Land both channels on the WEST
+    # pins - 1 and 3, the numerically obvious choice - and each line dead-ends
+    # on the far side of a package it now has to get around: the router
+    # still solved it, and at the same copper length (40.12 mm on DP against
+    # 40.13 before), but it did it by dipping DP to y 46.75 where it had
+    # previously stayed above 42.10. That grows USB_KEEPOUT 2.5 mm south and
+    # 1.36 mm west, and the west edge is the expensive one - it lands on top
+    # of U2_POUR, so the AMS1117's thermal copper pays for the pin numbering.
+    #
+    # East face instead. IO4/IO3 rather than IO1/IO2 - all four channels are
+    # independent and identical, so this is purely geometry - and it also
+    # keeps DN on the y 33.85 row and DP on y 35.75, exactly the rows the
+    # pass-through used, so the pair stays coupled down one side of the part
+    # instead of splitting around it.
+    #
+    # VP (pin 5) sits between them rather than VN. It is a decoupled 5 V rail,
+    # so it guards as well as a ground would.
+    #
+    # SRV05-4: 1 IO1, 2 VN(GND), 3 IO2, 4 IO3, 5 VP(VBUS), 6 IO4 - the same
+    # pinout D5/D6 are documented against below. VP goes to VBUS, not +3V3:
+    # this array clamps to the rail on pin 5, and the lines it protects are
+    # referenced to the 5 V bus.
+    "U4": dict(lib="Power_Protection", sym="SRV05-4",
                fp="Package_TO_SOT_SMD:SOT-23-6", fpf="SOT-23-6.kicad_mod",
-               value="USBLC6-2SC6", at=(48.0, 34.8, 0),
-               pins={"1": "USB_DN", "6": "USB_DN",
-                     "3": "USB_DP", "4": "USB_DP",
+               value="SRV05-4", at=(48.0, 34.8, 0),
+               pins={"6": "USB_DN", "4": "USB_DP",
+                     "1": None, "3": None,
                      "5": "VBUS", "2": "GND"}),
     # --- Thermocouple ------------------------------------------------------
     # 2x MAX31856 (TSSOP-14) replacing the rev A MAX31855. Pinout confirmed
@@ -265,70 +461,118 @@ COMPONENTS = {
     "U3": dict(lib="Sensor_Temperature", sym="MAX31856",
                fp="Package_SO:TSSOP-14_4.4x5mm_P0.65mm",
                fpf="TSSOP-14_4.4x5mm_P0.65mm.kicad_mod",
-               value="MAX31856MUD+", at=(97.0, 37.8, 270),
+               value="MAX31856MUD+", at=(97.0, TC1_Y, TC1_ROT),
                pins={"1": "GND", "2": "TC1_N", "3": "TC1_N_F",
                      "4": "TC1_P_F", "5": "+3V3", "6": None, "7": None,
                      "8": "+3V3", "9": "TC1_CS", "10": "SPI_SCLK",
                      "11": "SPI_MISO", "12": "SPI_MOSI", "13": None,
                      "14": "GND"}),
+    # AVDD/DVDD decoupling. The datasheet requirement is "independent 100nF
+    # per pin", which this satisfies; the DISTANCES are loose and deliberately
+    # left that way. Measured pad-to-supply-pin, both channels: 6.4 mm to
+    # AVDD, 5.1 mm to DVDD.
+    #
+    # They agree because THE TWO CHANNELS ARE NOW THE SAME CIRCUIT, laid out
+    # twice at a 12.0 mm pitch, and that is the point of the arrangement
+    # rather than a coincidence worth preserving by hand. Every part below
+    # sits at a fixed offset from its own MAX31856 (see TC_CHANNEL_DY), so a
+    # change to one channel is a change to both and the two thermocouple
+    # front-ends cannot silently diverge - which they had. U5 used to be
+    # rotated 90 against U3's 270, a 180 deg flip that put its AVDD/DVDD on
+    # the opposite rows from U3's while the caps stayed on a shared x=90
+    # column derived for U3: 9.0 mm and 7.7 mm, the worst pair on the board,
+    # and nothing said so. Worse, the flip put U5's ANALOG row (pins 1-7,
+    # TC2_N/TC2_N_F/TC2_P_F) on the south side while its 100R/100nF/10nF
+    # input filter sat to the north, level with the digital row - so the two
+    # channels' input networks were not the same shape, on a differential
+    # input worth ~40 uV/C. See the note above U5.
+    #
+    # Tightening the caps FURTHER was tried and REVERTED; do not repeat it
+    # without reading what happened. Parking each cap on its own supply pin's
+    # centreline at 1.74 mm left four nets unroutable (TC1_CS, TC2_CS,
+    # TC1_P_F, TC2_P_F), because two things already own those centrelines out
+    # to ~2.75 mm: the pre-seeded fanout escapes (FANOUT["U3"] = 1.5 mm plus
+    # the alternating 0.75 mm, whose far ends ARE the router's terminals) and
+    # the +3V3 pins' own plane vias, which land at FANOUT + 1.25 on the same
+    # ray. A 0.65 mm pitch TSSOP has no lane to spare either side. Trading a
+    # routing perturbation in the densest region of the board (2.30
+    # parts/cm2) for a good-practice distance, on a ~100 SPS sigma-delta with
+    # no fast edges, is not a trade worth making.
     "C13": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="100nF", at=(90.0, 35.0, 0),
+                value="100nF", at=(90.0, TC1_Y - 2.8 * TC1_DY, 0),
                 pins={"1": "+3V3", "2": "GND"}),
     "C14": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="100nF", at=(90.0, 40.5, 0),
+                value="100nF", at=(90.0, TC1_Y + 2.7 * TC1_DY, 0),
                 pins={"1": "+3V3", "2": "GND"}),
     "R14": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="100R 1%", at=(102.2, 34.0, 180),
+                value="100R 1%", at=(102.2, TC1_Y - 3.8 * TC1_DY, 180),
                 pins={"1": "TC1_P", "2": "TC1_P_F"}),
     "R15": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="100R 1%", at=(105.9, 34.0, 180),
+                value="100R 1%", at=(105.9, TC1_Y - 3.8 * TC1_DY, 180),
                 pins={"1": "TC1_N", "2": "TC1_N_F"}),
     "C15": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="100nF", at=(102.2, 38.0, 0),
+                value="100nF", at=(102.2, TC1_Y + 0.2 * TC1_DY, 0),
                 pins={"1": "TC1_P_F", "2": "TC1_N_F"}),
     "C16": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="10nF", at=(105.9, 38.0, 0),
+                value="10nF", at=(105.9, TC1_Y + 0.2 * TC1_DY, 0),
                 pins={"1": "TC1_P_F", "2": "GND"}),
     "C17": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="10nF", at=(103.0, 42.0, 0),
+                value="10nF", at=(103.0, TC1_Y + 4.2 * TC1_DY, 0),
                 pins={"1": "TC1_N_F", "2": "GND"}),
     "J3": dict(lib="Connector", sym="Screw_Terminal_01x02",
-               fp=TBLOCK[0], fpf=TBLOCK[1], value="TC1_K", at=(114.0, 41.0, 90),
+               fp=TBLOCK[0], fpf=TBLOCK[1], value="TC1_K",
+               at=(114.0, TC1_Y + 3.2, 90),
                pins={"1": "TC1_P", "2": "TC1_N"}),
-    # --- Thermocouple channel 2 (load TC) - exact copy of channel 1 above,
-    # 14mm south, TC2_* nets and TC2_CS. ---
+    # --- Thermocouple channel 2 (load TC) - channel 1 again, 12 mm south
+    # and MIRRORED, with TC2_* nets and TC2_CS. Every `at` below is the
+    # channel-1 line with TC1_Y -> TC2_Y and the offset flipped by TC2_DY,
+    # so the filter, the caps and the terminal all follow the chip's flip
+    # instead of being left on channel 1's side of it (see the TC1_Y/TC2_Y
+    # note above - they had been, and channel 2's differential inputs paid
+    # for it). Move a part in one channel and move it in both.
+    #
+    # R16/R17 and C20/C21 are the exception, and it is J8 rather than U5 that
+    # makes them one: they are pushed 1.6 mm and 0.4 mm FURTHER out than the
+    # mirror asks. Channel 1's filter row clears J3's screws by 0.47 mm going
+    # north; mirrored, channel 2's would land on J8's - R17's pads span y
+    # 52.9..54.3 and J8's `K+` legend wants 52.25..53.75, the same board.
+    # There is no second column to move the legend into (J8's body starts
+    # 1.16 mm east of R17's pads), so the resistors give way. What matters -
+    # the filter on the same side of the package as the analog pins it
+    # filters - is unaffected. ---
     "U5": dict(lib="Sensor_Temperature", sym="MAX31856",
                fp="Package_SO:TSSOP-14_4.4x5mm_P0.65mm",
                fpf="TSSOP-14_4.4x5mm_P0.65mm.kicad_mod",
-               value="MAX31856MUD+", at=(97.0, 49.8, 90),
+               value="MAX31856MUD+", at=(97.0, TC2_Y, TC2_ROT),
                pins={"1": "GND", "2": "TC2_N", "3": "TC2_N_F",
                      "4": "TC2_P_F", "5": "+3V3", "6": None, "7": None,
                      "8": "+3V3", "9": "TC2_CS", "10": "SPI_SCLK",
                      "11": "SPI_MISO", "12": "SPI_MOSI", "13": None,
                      "14": "GND"}),
     "C18": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="100nF", at=(90.0, 47.5, 0),
+                value="100nF", at=(90.0, TC2_Y - 2.8 * TC2_DY, 0),
                 pins={"1": "+3V3", "2": "GND"}),
     "C19": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="100nF", at=(90.0, 53.0, 0),
+                value="100nF", at=(90.0, TC2_Y + 2.7 * TC2_DY, 0),
                 pins={"1": "+3V3", "2": "GND"}),
     "R16": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="100R 1%", at=(102.2, 47.5, 180),
+                value="100R 1%", at=(102.2, TC2_Y + 5.4, 180),
                 pins={"1": "TC2_P", "2": "TC2_P_F"}),
     "R17": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="100R 1%", at=(105.9, 47.5, 180),
+                value="100R 1%", at=(105.9, TC2_Y + 5.4, 180),
                 pins={"1": "TC2_N", "2": "TC2_N_F"}),
     "C20": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="100nF", at=(102.2, 51.0, 0),
+                value="100nF", at=(102.2, TC2_Y + 0.6, 0),
                 pins={"1": "TC2_P_F", "2": "TC2_N_F"}),
     "C21": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="10nF", at=(105.9, 51.0, 0),
+                value="10nF", at=(105.9, TC2_Y + 0.6, 0),
                 pins={"1": "TC2_P_F", "2": "GND"}),
     "C22": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="10nF", at=(103.0, 55.0, 0),
+                value="10nF", at=(103.0, TC2_Y + 4.2 * TC2_DY, 0),
                 pins={"1": "TC2_N_F", "2": "GND"}),
     "J8": dict(lib="Connector", sym="Screw_Terminal_01x02",
-               fp=TBLOCK[0], fpf=TBLOCK[1], value="TC2_K", at=(114.0, 53.0, 90),
+               fp=TBLOCK[0], fpf=TBLOCK[1], value="TC2_K",
+               at=(114.0, TC2_Y + 3.2, 90),
                pins={"1": "TC2_P", "2": "TC2_N"}),
     # --- SSR output: two low-side MOSFET channels -------------------------
     # DESIGN REVERSAL (rev B, post-review). Rev B originally opto-isolated
@@ -373,11 +617,15 @@ COMPONENTS = {
     "R7": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
                value="10k", at=(54.0, 80.5, 0),
                pins={"1": "SSR1_GATE", "2": "GND"}),
+    # The channel's readout row: 680R, indicator LED, control test point, all
+    # on one y, and channel 2's row is the same three parts 8 mm south on the
+    # same three x. See SSR_IND_Y / SSR_TP_X below for why the pair is
+    # written as a pair.
     "LED3": dict(lib="Device", sym="LED", fp=LED0603[0], fpf=LED0603[1],
-                 value="amber", at=(57.0, 76.0, 0),
+                 value="amber", at=(SSR_IND_X, SSR1_IND_Y, 0),
                  pins={"1": "SSR1_IND_K", "2": "SSR_EN"}),
     "R10": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="680R", at=(52.0, 76.65, 0),
+                value="680R", at=(52.0, SSR1_IND_Y, 0),
                 pins={"1": "SSR1_OUT", "2": "SSR1_IND_K"}),
     "J4": dict(lib="Connector", sym="Screw_Terminal_01x02",
                fp=TBLOCK[0], fpf=TBLOCK[1], value="SSR1", at=(26.0, 75.5, 270),
@@ -393,10 +641,10 @@ COMPONENTS = {
                 value="10k", at=(57.0, 92.5, 0),
                 pins={"1": "SSR2_GATE", "2": "GND"}),
     "LED4": dict(lib="Device", sym="LED", fp=LED0603[0], fpf=LED0603[1],
-                 value="amber", at=(54.0, 87.5, 0),
+                 value="amber", at=(SSR_IND_X, SSR2_IND_Y, 0),
                  pins={"1": "SSR2_IND_K", "2": "SSR_EN"}),
     "R21": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="680R", at=(49.0, 87.5, 0),
+                value="680R", at=(52.0, SSR2_IND_Y, 0),
                 pins={"1": "SSR2_OUT", "2": "SSR2_IND_K"}),
     "J9": dict(lib="Connector", sym="Screw_Terminal_01x02",
                fp=TBLOCK[0], fpf=TBLOCK[1], value="SSR2", at=(26.0, 88.0, 270),
@@ -414,135 +662,109 @@ COMPONENTS = {
     # mechanical over-temperature cutout in series with the element
     # contactor.
     #
-    # A CHARGE PUMP NEEDS TRANSITIONS - that is the entire point. Firmware
+    # THE RETRIGGER IS EDGE-DRIVEN - that is the entire point. Firmware
     # wedged with WDT_KICK stuck high must fail exactly like firmware that
-    # stopped toggling. C38 is a series (AC-coupling) cap, not a pull-up, so
-    # a DC level at WDT_KICK (high OR low) delivers no net charge per cycle
-    # and WDT_HOLD decays through R46 regardless of which level it stuck at.
-    # A plain RC hold driven by a level would be defeated by a stuck-high
-    # pin; this topology cannot be.
+    # stopped toggling, and a monostable retriggered on B's RISING edge does
+    # precisely that: a DC level delivers no edge, the window expires, Q falls.
     #
     # Gates ONLY the heat outputs (SSR_EN). AUX1-3 (vent/purge/spare, via
     # U6/ULN2003) and the buzzer are on separate nets entirely - untouched by
     # Q3/Q4 - so a stalled controller can still open its vent.
     #
-    # --- WHY HIGH-SIDE (Q4), not a stacked low-side gate -------------------
-    # When the optos were reverted (see the SSR block above) the watchdog had
-    # to keep gating both channels. Two topologies were costed:
+    # --- WHY NOT THE DIODE CHARGE PUMP THIS REPLACES ----------------------
+    # Rev B shipped a BAT54S clamp-and-peak-detector (C38 100nF, C39 1uF,
+    # R46 1M) into Q3's gate, and it does not work. Solving its steady state
+    # exactly - V_hold(min) = d*a*A/(1-b*d), a = C38/(C38+C39), d = e^(-T/tau),
+    # A = V_OH - 2*Vf - gives, at the 5 Hz kick the firmware plan called for,
+    # 0.63V against the AO3400A's Vgs(th) max of 1.45V. The rail never comes
+    # up. It is not a corner case either: the typical corner (V_OH 3.3V,
+    # Vf 0.2V) reaches 0.84V, below even the TYPICAL 1.0V threshold.
     #
-    #   A - stacked low side: each channel MOSFET's SOURCE on SSR_EN, Q3's
-    #       drain on SSR_EN, Q3's source on GND. Two parts fewer.
-    #   B - high side: Q3 pulls the gate of a P-channel switch (Q4) in the
-    #       +5V feed; both channel MOSFETs' sources go hard to GND.
+    # The sizing note this replaces computed the DECAY constant (R46*C39 = 1s)
+    # and the gate margin but never the REPLENISHMENT constant
+    # (R46*C38 = 0.1s), and flagged its own values as an unverified assumption
+    # because "no target kick frequency or hold-decay spec exists yet".
     #
-    # A was rejected on arithmetic, not preference. SS8d below establishes
-    # that at the ESP32's GUARANTEED V_OH (0.8*VDD = 2.64V) the pump holds
-    # Q3's gate at only 2.16V - below 2.5V, the lowest Vgs at which the
-    # AO3400A datasheet guarantees ANY R_DS(on) (48 mOhm at Vgs=2.5V/Id=3A;
-    # nothing at all is specified below it). Q3's drop at the 20-30 mA two
-    # SSR loops draw therefore has NO datasheet upper bound - only an
-    # extrapolation (square-law off the 2.5V point gives ~70 mOhm, ~2 mV,
-    # but that is an estimate, not a spec). In topology A that unbounded
-    # drop subtracts directly from the channel MOSFET's Vgs, which starts at
-    # the same guaranteed 2.64V - i.e. 2.64 - 2.50 = 0.14V of margin to its
-    # own only guaranteed R_DS(on) point BEFORE subtracting anything. 140 mV
-    # of margin against an unbounded subtrahend is not "comfortably
-    # enhanced", so A fails its own acceptance test.
+    # Raising the kick rate rescues the gate voltage (>= 250 Hz) but cannot
+    # rescue the temperature behaviour. Schottky reverse leakage through D2
+    # discharges the hold node in parallel with R46 and roughly doubles per
+    # 10 C, so the budget for a transient firmware stall - a flash erase
+    # stalls BOTH cores - falls from 0.31s at 25C to 0.11s at 60C, and near
+    # 85C the pump stops holding at all. A kiln controller sits next to a
+    # 5 kW heat source. No choice of passives fixes that, because the leak is
+    # in the timing path; the fix is to take it out of the timing path.
     #
-    # B is provable end to end from the datasheets:
-    #   * Q3's only load becomes R47 (100k to +5V) = 50 uA max, not 20-30 mA.
-    #     The AO3400A's Vgs(th) is specified as Id = 250 uA at Vgs = Vds =
-    #     1.45V (max). Our Vgs is 2.16V > 1.45V, so Id at Vds = 1.45V is
-    #     >= 250 uA, while the current actually demanded there is only
-    #     (5 - 1.45)/100k = 35.5 uA - 7x less. Q3 is therefore deep in
-    #     triode; interpolating linearly off that same guaranteed point,
-    #     SSR_PG settles at ~35.5 uA * (1.45V / 250 uA) ~= 0.21V. The
-    #     watchdog gate's worst corner stops mattering because the load went
-    #     down by ~500x, which is strictly better than what rev B shipped.
-    #   * Q4 (AO3401A) then sees Vgs = -(5.0 - 0.21) = -4.79V, past its
-    #     -4.5V spec point, so R_DS(on) <= 60 mOhm is GUARANTEED. Load is
-    #     2 x 15 mA (SSR inputs) + 2 x 4.4 mA (indicators) ~= 39 mA -> drop
-    #     <= 2.4 mV. The SSR sees >= 4.99V.
-    #   * The channel MOSFETs (Q5/Q6) have their sources hard to GND, so
-    #     Vgs = 2.64V worst case >= the 2.5V spec point: R_DS(on) <= 48 mOhm
-    #     guaranteed, ~0.7 mV at 15 mA. Exactly rev A's proven condition.
-    #   * Fail-safe polarity holds: no kick (or no firmware yet at power-on)
-    #     -> Q3 off -> R47 pulls SSR_PG to +5V -> Q4 Vgs = 0 -> rail dead.
-    #     Q4's gate leakage (Igss +-100 nA) across R47 is 10 mV, three
-    #     hundred millivolts clear of the AO3401A's -0.5V min Vgs(th), so
-    #     leakage cannot part-enhance it.
-    # Cost of B over A: two parts (Q4, R47).
+    # --- THE ONE-SHOT ----------------------------------------------------
+    # U10 (SN74LVC1G123, LCSC C26159250) is a single retriggerable monostable.
+    # WDT_KICK drives B (rising-edge trigger) with A tied low and CLR high;
+    # every edge restarts the window, and Q stays HIGH for as long as edges
+    # keep arriving. Q drives Q3's gate directly. Q3, Q4, R47 and the SJ2
+    # defeat jumper are unchanged - only what holds Q3's gate up has changed.
     #
-    # --- Parts: REV-B-NOTES.md SS8a overrides the brief -------------------
-    # The brief specified two discrete SOD-123 singles (D6/D7). REV-B-NOTES
-    # SS8a identifies the correct part as ONE BAT54S dual Schottky in a
-    # single SOT-23 (LCSC C7420333, JLCPCB Extended-but-Preferred,
-    # ~$0.011) - specifically the *series* pair: datasheet Table 2 "Pinning
-    # information" gives pin1=A1, pin2=K2, pin3=K1;A2 (shared cathode/anode
-    # junction). KiCad's own Diode:BAT54S library symbol matches exactly
-    # (pin1 "A", pin2 "K", pin3 "COM"; description "dual schottky ... in
-    # series") and already defaults to Footprint Package_TO_SOT_SMD:SOT-23.
-    # BAT54C (common-cathode) and BAT54A (common-anode) are NOT this part -
-    # neither gives a series pair, per the notes.
+    # Window: tw ~= K*R*C with K = 1.0-1.1, the datasheet's own spec'd bound
+    # at its 10k x 0.1uF anchor, and the same limits at 125C as at 85C.
+    # R46 100k 1% and C38 22uF 25V 1206, with 10% purchase tolerance and a
+    # 15% bias/temp derating allowance, give a worst-case window of
+    # 1.65-2.71s. Firmware kicks at 5 Hz (a rising edge every 200 ms), so the
+    # margin is 8.3x at the minimum window. A wedged controller loses the rail
+    # within 2.71s - 0.22 C of overshoot on a 60 kJ/K kiln at 5 kW, against a
+    # runaway timescale of ~16 minutes.
     #
-    # The series pair's shared pin (COM, pin 3) IS the pump node: tying
-    # pin1(A1) to GND and pin2(K2) to WDT_HOLD makes the two internal diodes
-    # exactly the clamp diode (GND -> pump, conducts when the AC-coupled
-    # node swings below GND) and the rectifier diode (pump -> hold cap,
-    # conducts when the node swings above WDT_HOLD) that a diode-capacitor
-    # charge pump needs - one part, no extra net.
+    # Both values are already on this BOM (R46 -> C149504, C38 -> C12891), so
+    # neither adds a feeder. U10 does: it is Extended and not Preferred, +$3.
+    # Note the BAT54S it replaces was Extended-but-PREFERRED, i.e. fee-free -
+    # removing it saves nothing. See gen_jlc.LCSC's note on that distinction.
     #
-    # Designators: the brief's D6/D7/C33/C34/R41 collide with Task 10 (D6 =
-    # CT TVS array, C33/C34 = ADE7953 decoupling) and Task 11 (R41 = touch
-    # damping resistor). Confirmed free before use (next free at the time:
-    # R46, C38, D7, Q3, SJ2 - see task report for the confirmation command).
+    # Leakage now lives where it is specified: the Rext/Cext I/O leakage is
+    # +-0.25uA against a 33uA charge current, 0.8%, over the full -40..125C
+    # range. That is the whole reason this is an IC and not an RC.
     #
-    # --- Values: brief's 100nF/1uF/1M were estimates; REV-B-NOTES.md SS8
-    # verifies the diode Vf/gate-margin arithmetic but does not specify a
-    # C38/C39/R46 sizing (no target kick frequency or hold-decay spec exists
-    # yet). ASSUMPTION, flagged in the task report: kept at the brief's
-    # values, which are reasonable for a multi-Hz-to-kHz kick square wave -
-    # C38 100nF couples strongly at any plausible kick rate; R46 1M / C39
-    # 1uF gives a ~1s RC decay (see below), fast enough that a wedged
-    # firmware drops the SSRs well within a human's reaction time, slow
-    # enough not to force an unreasonably fast kick task.
+    # Q3's gate drive becomes Q's VOH, ~3.2V, which finally clears the 2.5V
+    # point where the AO3400A guarantees ANY Rds(on) - the corner the pump
+    # block flagged and could not reach.
     #
-    # Gate margin (REV-B-NOTES.md SS8d, at the ESP32's *guaranteed* V_OH
-    # min of 0.8*VDD = 2.64V, not the optimistic 3.3V case, and BAT54S max
-    # Vf @ 0.1mA = 240mV, the pump's actual current regime - NOT the 800mV
-    # @ 100mA figure): V_gate = 2.64 - 2*0.240 = 2.16V against AO3400A
-    # Vgs(th) max 1.45V -> margin = +0.71V. POSITIVE, so Q3 turns on; this
-    # is not a blocker. BUT 2.16V is below the 2.5V point at which the
-    # AO3400A's datasheet guarantees ANY Rds(on) (48mOhm max is only
-    # specified at Vgs=2.5V/Id=3A). Do NOT size any load on this watchdog
-    # gate assuming a guaranteed on-resistance in that worst-case corner -
-    # it is a logic-level gate here (SSR_EN return path only, no significant
-    # current), not a power switch, and that is what keeps this corner from
-    # mattering. If a guaranteed 2.5V spec point in every corner is wanted,
-    # a lower-Vf Schottky or a single-diode topology buys the ~0.35V needed
-    # (REV-B-NOTES.md SS8, "corner worth knowing") - not changed here per
-    # the task instructions; flagged in the report instead.
+    # Fail-safe polarity is unchanged and now has three independent reasons to
+    # hold: no edges -> window expires -> Q low; R48 pulls B low whenever the
+    # MCU drives nothing, so a floating CMOS input cannot self-trigger the
+    # one-shot during boot ROM, flashing or reset; and with U10 unpowered
+    # entirely, Q3's gate simply floats, which R47 already answers.
+    # Then Q3 off -> R47 pulls SSR_PG to +5V -> Q4 off -> rail dead.
     #
-    # Decay arithmetic: tau = R46 * C39 = 1MOhm * 1uF = 1.0s. WDT_HOLD decays
-    # from its charged level toward 0V with that time constant once kicking
-    # stops; it crosses Q3's worst-case Vgs(th) (1.45V, starting from the
-    # ~2.16-2.98V range computed above) well under one tau, consistent with
-    # the brief's ~0.5-1s figure.
-    "C38": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="100nF", at=(52.0, 49.5, 0),
-                pins={"1": "WDT_KICK", "2": "WDT_PUMP"}),
-    "D7": dict(lib="Diode", sym="BAT54S", fp=SOT23[0], fpf=SOT23[1],
-               value="BAT54S", at=(57.0, 49.7, 0),
-               pins={"1": "GND", "2": "WDT_HOLD", "3": "WDT_PUMP"}),
-    "C39": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="1uF", at=(52.0, 53.5, 0),
-                pins={"1": "WDT_HOLD", "2": "GND"}),
+    # No pulldown on WDT_OK: Q is push-pull and defines that node whenever U10
+    # has a supply, and when it does not, the R47 path above is what holds.
+    "U10": dict(lib="74xGxx", sym="74LVC1G123", fp=SSOP8[0], fpf=SSOP8[1],
+                value="SN74LVC1G123", at=(53.5, 49.7, 0),
+                pins={"1": "GND", "2": "WDT_KICK", "3": "+3V3", "4": "GND",
+                      "5": "WDT_OK", "6": "WDT_CT_N", "7": "WDT_CT_P",
+                      "8": "+3V3"}),
+    # Rotated 90 deg, and its pins swapped to match: U10's pins 6 and 7 are
+    # 0.5 mm apart on the same edge, so with the cap lying horizontal one of
+    # the two timing nets had to cross the other's pad and the router could
+    # not seat it. Perpendicular, pin 6 (CT_N) fans south to pad 1 and pin 7
+    # (CT_P) fans north to pad 2, and the two runs diverge instead of meeting.
+    "C38": dict(lib="Device", sym="C", fp=C1206[0], fpf=C1206[1],
+                value="22uF", at=(58.0, 50.3, 90),
+                pins={"1": "WDT_CT_N", "2": "WDT_CT_P"}),
     "R46": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="1M", at=(57.0, 53.5, 0),
-                pins={"1": "WDT_HOLD", "2": "GND"}),
+                value="100k", at=(58.0, 54.1, 0),
+                # Rail on pin 1, not pin 2: KiCad's R symbol runs its pins
+                # vertically, and a rail hanging off the BOTTOM pin is
+                # power_path()'s "exactly wrong" case - the port comes back up
+                # past the pin and its bar lands on the part's own fields. The
+                # PCB does not care which pad is which here; C38 is due north.
+                pins={"1": "+3V3", "2": "WDT_CT_P"}),
+    "C39": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
+                value="100nF", at=(53.5, 53.5, 0),
+                pins={"1": "+3V3", "2": "GND"}),
+    # Holds B low whenever the MCU drives nothing - boot ROM, flashing, reset,
+    # or a dead module. No edges means the one-shot expires, which is the
+    # power-on state the rail must have.
+    "R48": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
+                value="100k", at=(48.5, 52.5, 0),
+                pins={"1": "WDT_KICK", "2": "GND"}),
     "Q3": dict(lib="Transistor_FET", sym="AO3400A", fp=SOT23[0], fpf=SOT23[1],
                value="AO3400A", at=(52.0, 57.5, 0),
-               pins={"1": "WDT_HOLD", "2": "GND", "3": "SSR_PG"}),
+               pins={"1": "WDT_OK", "2": "GND", "3": "SSR_PG"}),
     # High-side switch for the whole SSR rail. AO3401A (P-channel, SOT-23,
     # LCSC C15127, JLCPCB Basic): source on +5V, gate on SSR_PG, drain IS
     # SSR_EN. Pin order from KiCad's own Transistor_FET:AO3401A symbol
@@ -640,19 +862,68 @@ COMPONENTS = {
                value="10k", at=(65.0, 78.0, 0),
                pins={"1": "BUZZ_GATE", "2": "GND"}),
     # --- WS2812B status LED ---------------------------------------------
+    # R3 / LED1 / C10 west to east with D3 below, in the quietest part-free
+    # window this board has: 0.26 mm/mm2 of track and zero vias, against
+    # 0.53 mm/mm2 and eight vias where the cluster used to sit. Measured, and
+    # measuring it correctly is the whole story of where this went.
+    #
+    # It moved out of the strip above J7 because a 5 x 5 mm PLCC4 is wider
+    # than three pin pitches and was sitting squarely on the label band for
+    # J7's pins 5, 6 and 7: `SDA` and `3V3` were pushed 2.60 mm onto the
+    # connector body and `SCL` onto LED1's own outline, so the row printed as
+    # `3V3 GND TX RX . . . GND` and counting from either end gave the wrong
+    # pin - on the one header carrying I2C and a 3.3 V rail. No silk placer
+    # can fix that (analysis/silkscreen-review.md §B); the part had to move.
+    #
+    # Two candidate homes measured as EMPTY and were not, and both cost a
+    # full re-route to find out:
+    #
+    #   the band south of the module (x 60..88, y 44..56) is U1's escape.
+    #   Forty castellated pads fan through it to the test-point row at y 57.
+    #   SPI_MOSI and SPI_SCLK could not reach TP4/TP5 and TC1_CS finished
+    #   unrouted.
+    #
+    #   the lane at the middle of the board (x 67..80, y 63..95) is the
+    #   nameplate's, and it is also the I2C corridor from the test-point row
+    #   down to the pull-ups and J7 - 220 mm of track through it. I2C_SDA and
+    #   I2C_SCL could not reach the ADE7953.
+    #
+    # The reason both looked free is a measurement bug worth not repeating:
+    # the density probe counted a track only if an ENDPOINT fell inside the
+    # window, so a corridor - which by definition is traces passing straight
+    # through - read as zero. Worse, it was run against the board from the
+    # failed build, where the very nets in question were missing. Measure
+    # against a FULLY ROUTED board, and clip each segment to the window
+    # (Liang-Barsky) rather than testing its endpoints.
+    #
+    # It was at (92.25, 97.45) until this revision, in the 5 mm strip above
+    # J7 - which is J7's PIN-NAME strip. A 5 x 5 mm PLCC4 is wider than three
+    # pin pitches, so LED1 and its 330R covered the label band for pins 5, 6
+    # and 7 outright: `SDA` and `3V3` were pushed 2.60 mm onto the connector
+    # body and `SCL` onto LED1's own outline, and the row printed as
+    # `3V3 GND TX RX . . . GND` - a 10 mm hole, so counting from either end
+    # gives the wrong pin on the one header carrying I2C and a 3.3 V rail.
+    # No silk placer can fix that; the part had to move. See
+    # analysis/silkscreen-review.md §B.
+    #
+    # So it lands one lane west and one band north of where it was: x 66..82,
+    # y 85..95, which is toward the centre of the board (the old spot was
+    # 22 mm east and 27 mm south of it), in front of the panel rather than
+    # behind a connector housing, and clear of every pin-name band. The
+    # 800 kHz single-wire protocol does not care about the run from IO48.
     "LED1": dict(lib="LED", sym="WS2812B",
                  fp="LED_SMD:LED_WS2812B_PLCC4_5.0x5.0mm_P3.2mm",
                  fpf="LED_WS2812B_PLCC4_5.0x5.0mm_P3.2mm.kicad_mod",
-                 value="WS2812B", at=(92.25, 97.45, 0),
+                 value="WS2812B", at=(74.0, 88.0, 0),
                  pins={"1": "VLED", "2": None, "3": "GND", "4": "WS_DIN"}),
     "R3": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-               value="330R", at=(86.65, 96.8, 0),
+               value="330R", at=(68.0, 88.0, 0),
                pins={"1": "LED_DATA", "2": "WS_DIN"}),
     "D3": dict(lib="Device", sym="D_Schottky", fp=SMA[0], fpf=SMA[1],
-               value="SS14", at=(99.7, 96.85, 0),
+               value="SS14", at=(74.0, 93.0, 0),
                pins={"1": "VLED", "2": "+5V"}),
     "C10": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="100nF", at=(105.4, 96.5, 0),
+                value="100nF", at=(80.0, 88.0, 0),
                 pins={"1": "VLED", "2": "GND"}),
     # --- Protected dry-contact inputs (lid / gas flow / spare) -----------
     # Generalises rev A's single lid-switch filter (below) to three
@@ -785,38 +1056,83 @@ COMPONENTS = {
                      "7": "+3V3", "8": "+3V3", "9": "CTB_F", "10": "GND",
                      "11": "ADE_VN", "12": "ADE_VP", "13": "ADE_REF",
                      "14": "GND", "15": "ADE_VINTA", "16": "GND",
-                     "17": "+3V3", "18": "ADE_CLKIN", "19": "ADE_CLKOUT",
+                     # 19 CLKOUT is the far side of the on-chip oscillator's
+                     # inverter and exists only to hang a crystal off. Y1 is
+                     # now a powered oscillator driving CLKIN as a logic input
+                     # (datasheet p.9: "An external clock can be provided at
+                     # this input"), so nothing drives back into 19 and it is
+                     # left open. ADE_CLKOUT is gone with it.
+                     "17": "+3V3", "18": "ADE_CLKIN", "19": None,
                      "20": None, "21": None, "22": None, "23": None,
                      "24": None, "25": "ADE_SCLK", "26": "I2C_SDA",
                      "27": "I2C_SCL", "28": "ADE_CS", "29": "GND"}),
-    # Crystal: 3.579545 MHz parallel-resonant AT, per REV-B-NOTES.md SS4.
-    # Footprint corrected per the task brief's amendment #2: KiCad's
-    # Crystal_SMD_HC49-SD_HandSoldering (NOT the non-"_SMD_" name in the
-    # original brief text).
-    "Y1": dict(lib="Device", sym="Crystal",
-               fp="Crystal:Crystal_SMD_HC49-SD_HandSoldering",
-               fpf="Crystal_SMD_HC49-SD_HandSoldering.kicad_mod",
-               value="3.579545MHz", at=(96.5, 91.45, 0),
-               pins={"1": "ADE_CLKIN", "2": "ADE_CLKOUT"}),
-    # Crystal load caps - ASSUMED VALUE, NOT A VERIFIED DATASHEET NUMBER.
-    # REV-B-NOTES.md SS4/SS10#1: the specified crystal (LCSC C7471632, YXC
-    # H6OEL89CSC-SUGYLC-3.579545M) has no published C_L - LCSC exposes no
-    # datasheet or C_L field for this MPN, and it explicitly warns "Task 10
-    # must not simply copy 20 pF" (ADI's reference-design value is for
-    # ADI's own reference crystal, not this one). The notes give the
-    # formula C = 2 x (C_L - C_stray) and note that IF this part turns out
-    # to be a 20 pF C_L crystal, the load caps should be ~30 pF, not 20 pF.
-    # ASSUMPTION (open item for board bring-up, not a datasheet fact):
-    # 30 pF, taking the notes' own worked "if C_L=20pF" figure as the best
-    # available estimate absent a real C_L. Verify against YXC's datasheet
-    # (if obtainable) or by measuring startup margin/frequency on the first
-    # populated board before relying on accuracy-critical IRMS readings.
+    # 3.579545 MHz clock. A packaged OSCILLATOR (LCSC C2838127, YJX
+    # TFOM3.579545M4RHKCNT2T, SMD3225-4P), not the parallel-resonant crystal
+    # plus two load caps this used to be. The swap is the fix for the
+    # oscillator loop, and the reasoning is worth keeping because it inverts
+    # the usual default.
+    #
+    # A crystal is normally the right answer - it costs a tenth as much, draws
+    # microamps against this part's 5 mA, and the IC's own inverter is
+    # characterised for one. Every one of those advantages is absent here.
+    # Cost is $0.23 on a $19 BOM; power is 5 mA beside the ESP32's 240 mA on a
+    # mains-fed rail; and this is a current-only metering block whose ±50 ppm
+    # is 100x better than an IRMS reading needs.
+    #
+    # What is present is the one thing a crystal demands and this board cannot
+    # give: a short loop. 3.579545 MHz is a low frequency, so the quartz blank
+    # is large and every 2-terminal part at this frequency is HC-49S - 19.75 mm
+    # of pad on our old hand-solder land, 13.00 mm even on the standard one.
+    # U7's ring is entirely VINTA/VINTD/VDD/REF decoupling that ADE7953 Rev C
+    # p.67 says must stay closest to the chip, so nothing that size fits beside
+    # it and the crystal sat 19.5 mm away with its load caps 26 mm the other
+    # side of the IC - roughly 40 mm per leg, four vias each. At 3.58 mm this
+    # part sits 2.52 mm from CLKIN, and the output is a driven CMOS line rather
+    # than a high-impedance resonant node, so it has no loop to keep short at
+    # all. It also deletes C26 outright and frees C25 to be its decoupler.
+    #
+    # Pin 1 is left OPEN, and that is from the datasheet rather than from the
+    # convention: the Measurement Circuit's switch table gives H -> oscillation
+    # out, OPEN -> oscillation out, L -> High Z. Enabled when floating, so no
+    # pull-up. Pinout confirmed twice over - the datasheet's pin table and
+    # LCSC's own symbol both give 1 Tri-state / 2 GND / 3 OUT / 4 Vdd, which is
+    # also what KiCad's Oscillator:ASE-xxxMHz symbol carries.
+    #
+    # V_OH is >= 90% Vdd = 2.97 V against the ADE7953's 2.4 V V_INH, and the
+    # 15 pF max output load is far above CLKIN plus a few mm of track.
+    #
+    # 7.8 mm from CLKIN, not the 2.5 mm it will physically fit at, and the
+    # difference matters. U7 is in FANOUT, so a ring of pre-seeded escape stubs
+    # and plane vias reaches FANOUT[U7] + 1.25 = 3.0 mm past every pad and is
+    # spoken for before the router starts. Parking the part at 2.5 mm sat on
+    # it: 3 nets unroutable, a plane via with nowhere to go, and 11 DRC
+    # clearance errors. This sits outside that ring, in the space the two
+    # deleted 30 pF load caps used to occupy.
+    #
+    # Being further away costs nothing HERE and that is the whole argument for
+    # the part. OUT is a driven CMOS line, not a high-impedance resonant node,
+    # so it is an ordinary signal with an ordinary length: the tight-loop
+    # requirement that a crystal imposes - and that this corner of the board
+    # cannot satisfy - simply does not exist for an oscillator.
+    "Y1": dict(lib="Oscillator", sym="ASE-xxxMHz",
+               fp="Oscillator:Oscillator_SMD_Abracon_ASE-4Pin_3.2x2.5mm",
+               fpf="Oscillator_SMD_Abracon_ASE-4Pin_3.2x2.5mm.kicad_mod",
+               value="3.579545MHz XO", at=(103.2, 66.8, 0),
+               pins={"1": None, "2": "GND", "3": "ADE_CLKIN", "4": "+3V3"}),
+    # Y1's supply decoupling, and the whole of it - an oscillator needs one
+    # bypass cap and no load caps at all. This designator used to be one of a
+    # pair of 30 pF crystal loads whose value was flagged in REV-B-NOTES.md
+    # SS4/SS10#1 as an ASSUMPTION rather than a datasheet fact, because the old
+    # crystal published no C_L: the 30 pF came from the notes' own worked "if
+    # C_L turns out to be 20 pF" case, and it was an open bring-up item to be
+    # settled by measuring startup margin on the first board. Moving to a
+    # packaged oscillator retires that item outright rather than resolving it -
+    # there is no C_L, no C_stray, and no startup margin for us to own. C26 is
+    # deleted; the ADE7953's own datasheet shows 0.01 uF here and 100 nF is the
+    # part already on this BOM.
     "C25": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="30pF", at=(102.0, 65.5, 0),
-                pins={"1": "ADE_CLKIN", "2": "GND"}),
-    "C26": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="30pF", at=(105.9, 65.5, 0),
-                pins={"1": "ADE_CLKOUT", "2": "GND"}),
+                value="100nF", at=(102.1, 64.0, 0),
+                pins={"1": "+3V3", "2": "GND"}),
     # ~RESET (pin 2): REV-B-NOTES.md SS4 - Figure 35's Test Circuit shows a
     # 10k pull-up to 3.3V with a 1uF cap to ground for a power-on reset
     # stretch (Figure 78's application circuit shows nothing on this pin -
@@ -880,12 +1196,29 @@ COMPONENTS = {
     # Sizing (not from REV-B-NOTES.md - the notes don't cover the CT/burden
     # network, only the ADE7953 itself): a 2000:1 current-output clamp
     # (100A:50mA, e.g. SCT-013-000) against the ADE7953's +-500mV full-scale
-    # differential input. 100A rms -> 50mA rms -> 70.7mA peak;
-    # 0.5V / 70.7mA ~= 7.1 Ohm, so 6.8 Ohm gives headroom. This CT ratio is
-    # a calibration constant the firmware will need - see docs/pin-
-    # assignments.md (Task 16).
+    # differential input. 100A rms -> 50mA rms -> 70.7mA peak, so
+    # 0.5V / 70.7mA ~= 7.1 Ohm is the value that puts 100 A exactly at full
+    # scale.
+    #
+    # 5.1 Ohm, not that 7.1 or the 6.8 this was: JLCPCB stocks no 6.8 Ohm
+    # resistor in its Basic or Preferred libraries in ANY package, so 6R8 was
+    # costing a $3 feeder fee to hold one value. The fee-free ladder either
+    # side of it is 4.7, 5.1, 10 - and 10 is not available, since 70.7mA
+    # across it is 707mV against a 500mV full scale, i.e. the input clips at
+    # ~71 A.
+    #
+    # What 5.1 Ohm costs is range, not accuracy: 100 A now reads 361mV, 72% of
+    # full scale rather than 96%, and full scale moves out to ~139 A rms. On a
+    # part with the ADE7953's dynamic range that is not a measurable loss, and
+    # a kiln element circuit does not go near either number. The alternative
+    # that preserves 6.8 exactly is 10 || 22 (= 6.875 Ohm, both Basic), at
+    # four placements instead of two on a differential sense node - not worth
+    # it for range nobody uses.
+    #
+    # This scaling is a calibration constant the firmware will need, and it
+    # CHANGED with this resistor - see docs/pin-assignments.md (Task 16).
     "R31": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="6R8", at=(93.5, 83.5, 0),
+                value="5R1", at=(93.5, 83.5, 0),
                 pins={"1": "CTA_P", "2": "CTA_N"}),
     "R32": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
                 value="1k", at=(89.0, 83.5, 180),
@@ -898,7 +1231,7 @@ COMPONENTS = {
                 pins={"1": "CTA_F", "2": "GND"}),
     # Channel B - exact copy of channel A above, 6mm south.
     "R34": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="6R8", at=(93.5, 87.0, 0),
+                value="5R1", at=(93.5, 87.0, 0),
                 pins={"1": "CTB_P", "2": "CTB_N"}),
     "R35": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
                 value="1k", at=(89.0, 87.0, 180),
@@ -1040,6 +1373,47 @@ COMPONENTS = {
                fp="MountingHole:MountingHole_3.2mm_M3_Pad_Via",
                fpf="MountingHole_3.2mm_M3_Pad_Via.kicad_mod",
                value="M3", at=(114.5, 115.0, 0), pins={"1": "GND"}),
+    # --- Fiducials --------------------------------------------------------
+    # Optical alignment targets for the pick-and-place: 1 mm of bare copper in
+    # a 2 mm mask opening, on no net, doing nothing electrically. The machine
+    # knows where all 109 parts go in BOARD coordinates, but the board in the
+    # fixture is never exactly at nominal - a fraction of a degree of rotation,
+    # a couple hundred microns of offset, and some lamination/route scaling. It
+    # finds these three, solves the transform, and applies it to every
+    # placement.
+    #
+    # JLCPCB panelises this board themselves and puts fiducials on the panel
+    # frame, so an order without these is accepted and usually fine; what board
+    # fiducials add is correction for THIS board's position within the panel.
+    # Worth having at 0.5 mm pitch: U7 is a QFN-28 whose lands are 0.25 mm
+    # wide, where 100 um of placement error is a real fraction of the pad.
+    #
+    # Positions are measured, not eyeballed - each is the roomiest point in its
+    # corner region, scored on distance to the nearest pad, track, via and
+    # board edge (5.24 / 4.22 / 8.36 mm of clearance respectively, against the
+    # ~1.0 mm the mask opening needs). Three of the four corners, which is the
+    # conventional arrangement and the reason no fourth is fitted: the set must
+    # not map onto itself under a 180 deg rotation or a flipped board would
+    # align cleanly and every part would go on backwards. These three are also
+    # comfortably non-collinear (3292 mm2 triangle, shortest leg 79 mm), which
+    # is what lets the fit resolve rotation and scale rather than just offset.
+    #
+    # The pad carries no pin number in the library footprint, and transform_fp
+    # only assigns a net to a NAMED pad, so `pins={}` leaves it netless by
+    # construction. Keep it netless: it is a camera target, and tying it to a
+    # rail would only invite a pour to reach it and kill the contrast.
+    "FID1": dict(lib="Mechanical", sym="Fiducial",
+                 fp="Fiducial:Fiducial_1mm_Mask2mm",
+                 fpf="Fiducial_1mm_Mask2mm.kicad_mod",
+                 value="FIDUCIAL", at=(28.6, 33.0, 0), pins={}),
+    "FID2": dict(lib="Mechanical", sym="Fiducial",
+                 fp="Fiducial:Fiducial_1mm_Mask2mm",
+                 fpf="Fiducial_1mm_Mask2mm.kicad_mod",
+                 value="FIDUCIAL", at=(107.8, 28.2, 0), pins={}),
+    "FID3": dict(lib="Mechanical", sym="Fiducial",
+                 fp="Fiducial:Fiducial_1mm_Mask2mm",
+                 fpf="Fiducial_1mm_Mask2mm.kicad_mod",
+                 value="FIDUCIAL", at=(103.4, 111.6, 0), pins={}),
     # --- Test points (bring-up) ------------------------------------------
     # 1 mm pads, no BOM cost, no assembly cost.
     "TP1": dict(lib="Connector", sym="TestPoint",
@@ -1085,23 +1459,30 @@ COMPONENTS = {
     "TP9": dict(lib="Connector", sym="TestPoint",
                 fp="TestPoint:TestPoint_Pad_D1.0mm",
                 fpf="TestPoint_Pad_D1.0mm.kicad_mod",
-                value="TP", at=(58.5, 80.5, 0),
+                value="TP", at=(SSR_TP_X, SSR1_IND_Y, 0),
                 pins={"1": "SSR1_CTRL"}),
     "TP10": dict(lib="Connector", sym="TestPoint",
                  fp="TestPoint:TestPoint_Pad_D1.0mm",
                  fpf="TestPoint_Pad_D1.0mm.kicad_mod",
-                 value="TP", at=(44.5, 94.15, 0),
+                 value="TP", at=(SSR_TP_X, SSR2_IND_Y, 0),
                  pins={"1": "SSR2_CTRL"}),
     "TP11": dict(lib="Connector", sym="TestPoint",
                  fp="TestPoint:TestPoint_Pad_D1.0mm",
                  fpf="TestPoint_Pad_D1.0mm.kicad_mod",
-                 value="TP", at=(106.5, 87.1, 0),
+                 # Between J12's B+ and A- screws, not level with A-. The
+                 # strip from x 106.4 to J12's body at 108.68 is now the CT
+                 # block's per-terminal legend column (gen_pcb.PIN_LEGENDS),
+                 # and those four labels are y-locked to their own screw -
+                 # they cannot step around a test point sitting in one of
+                 # them. Halfway between two screws is the one x=106.5 spot
+                 # that is in nobody's row.
+                 value="TP", at=(106.5, 84.4, 0),
                  pins={"1": "CTA_P"}),
     "TP12": dict(lib="Connector", sym="TestPoint",
                  fp="TestPoint:TestPoint_Pad_D1.0mm",
                  fpf="TestPoint_Pad_D1.0mm.kicad_mod",
-                 value="TP", at=(52.0, 61.2, 0),
-                 pins={"1": "WDT_HOLD"}),
+                 value="TP", at=(59.85, 57.0, 0),
+                 pins={"1": "WDT_CT_P"}),
 }
 
 # power flag symbols (schematic only): net -> flag
