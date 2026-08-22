@@ -766,6 +766,7 @@ Equivalently, by hand:
 cd hardware/kicad
 python3 generator/gen_sch.py bisque-controller.kicad_sch        # schematic
 python3 generator/check_netlist.py bisque-controller.kicad_sch  # KiCad netlist round-trip: must PASS
+python3 generator/check_sch_uuids.py bisque-controller.kicad_sch  # KiCad invents no uuids: must PASS
 "$KPY" generator/kicad_build.py bisque-controller.kicad_pcb     # board via pcbnew API:
                                                                 #   (add --no-route to reuse the routing
                                                                 #    already on disk — see "Which path

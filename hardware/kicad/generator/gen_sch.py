@@ -1698,8 +1698,18 @@ def main():
                 prop.append('\t\t(property "%s" "%s" (at %s %s 0)\n'
                             '\t\t\t(effects (font (size 1.27 1.27)) hide)\n\t\t)'
                             % (pname, esc(lcsc_entry[0]), f(sx), f(sy)))
+        # A SCH_SYMBOL owns a SCH_PIN for every pin of the LIBRARY symbol, not
+        # just the ones its own unit draws - the unit filters what is rendered,
+        # not what exists. Emitting only the unit view's pins therefore leaves
+        # the other unit's pins with no uuid, and KiCad mints a random v4 one
+        # for each on the first save: U10's two units cost 8 fresh uuids on
+        # every round-trip, which is nondeterminism the generator can't see.
+        # `ref` is the per-instance part key ("U10#1"), so the two units still
+        # get distinct uuids for the same pin number, which is what KiCad
+        # expects. Single-unit parts are unaffected - unit_view() hands back
+        # the symbol itself, so this is the same list they already emitted.
         pin_uuid_lines = "".join('\t\t(pin "%s" (uuid %s))\n' % (p[0], uid("pin", ref, p[0]))
-                                 for p in pins)
+                                 for p in pins_of(flatten(*key)))
         emit('\t(symbol (lib_id "%s") (at %s %s 0) (unit %d)\n'
              '\t\t(in_bom yes) (on_board yes) (dnp no)\n'
              '\t\t(uuid %s)\n%s\n%s'

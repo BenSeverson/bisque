@@ -273,12 +273,12 @@ pcb-check-portable:  ## PCB checkers that need no KiCad install (the CI subset)
 	  && python3 generator/check_canonical.py bisque-controller.kicad_pcb \
 	  && python3 generator/gen_gerber_zip.py --check
 
-# The remaining five need a KiCad install, for the three reasons above. Run
-# the portable set first — same twelve checks as before the split, and a
-# cheap failure beats an expensive one.
+# The remaining six need a KiCad install, for the three reasons above. Run
+# the portable set first — a cheap failure beats an expensive one.
 pcb-check: pcb-check-portable  ## Run every PCB checker (no KiCad rebuild)
 	@$(find_kpy); \
 	cd $(KICAD_DIR) && python3 generator/check_netlist.py bisque-controller.kicad_sch \
+	  && python3 generator/check_sch_uuids.py bisque-controller.kicad_sch \
 	  && python3 generator/check_jlc_placement.py \
 	  && "$$KPY" generator/check_via_in_pad.py bisque-controller.kicad_pcb \
 	  && "$$KPY" generator/check_silk.py bisque-controller.kicad_pcb \
