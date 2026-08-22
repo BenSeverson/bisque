@@ -23,6 +23,7 @@ design.py and the loaded board have drifted apart.
 """
 import math
 import os
+import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
@@ -837,6 +838,75 @@ def apply_layer_types(board):
         board.SetLayerType(lid, kinds[kind])
 
 
+def read_project(out):
+    """Snapshot the sibling .kicad_pro/.kicad_prl before anything writes a board.
+
+    Every tool here attaches the project to the board it saves and writes it
+    back out from the PCB side alone, dropping whatever it never loaded. The
+    known casualty used to be `schematic.top_level_sheets`, which sync_project()
+    puts back - but it is not the only one: a full build also took out the whole
+    `erc` block and `sch_revision`, because build_board() starts from a bare
+    pcbnew.BOARD() with an empty project attached. Nothing noticed, since the
+    two repairs downstream only rebuild the blocks THEY own.
+
+    So snapshot the bytes instead of enumerating what might go missing, and put
+    them back once the last write is done. sync_project()/sync_netclasses()
+    still run afterwards and are idempotent, so the derived blocks stay derived
+    and the hand-authored ones stop being collateral. The fast path never needed
+    this - LoadBoard() attaches the real project - and the restore is a no-op
+    there.
+    """
+    stem = os.path.splitext(out)[0]
+    return {f: open(f, "rb").read()
+            for f in (stem + ".kicad_pro", stem + ".kicad_prl")
+            if os.path.exists(f)}
+
+
+def restore_project(saved):
+    for f, blob in saved.items():
+        if os.path.exists(f) and open(f, "rb").read() != blob:
+            with open(f, "wb") as fh:
+                fh.write(blob)
+            print("  %s: restored blocks the board save dropped"
+                  % os.path.basename(f))
+
+
+def resort_to_kicad_order(path):
+    """Leave the board in the order KiCad's own writer produces.
+
+    KiCad orders board items by uuid - footprints outright, tracks and vias as
+    the tie-break after position - so with every uuid derived (canonicalize.py)
+    that order is a function of the design, and putting the file in it is what
+    makes opening the board in the GUI and saving it a no-op instead of a
+    61,654-line reorder.
+
+    Two things about this are easy to get wrong, and both were, here:
+
+    `kicad-cli pcb drc --save-board` is NOT the tool for it. It writes items
+    back in the order it read them, so it will happily preserve
+    canonicalize.py's content order and report byte-identical output - which
+    makes it useless as a stand-in for a GUI save, and it was believed to be
+    one for a while. `pcb upgrade --force` does sort.
+
+    One pass is not enough. KiCad's sort leaves ties in load order, so a file
+    arriving in a foreign order needs a second pass to settle; measured on this
+    board, pass 1 and pass 2 differ by 16,860 lines and pass 2 and pass 3 by
+    none. Loop to the fixpoint rather than assuming a count, and fail loudly if
+    it does not converge - an oscillation would mean the writer has no fixpoint
+    at all, and every one of these files would churn forever.
+    """
+    for i in range(5):
+        before = open(path, "rb").read()
+        subprocess.run(["kicad-cli", "pcb", "upgrade", "--force", path],
+                       check=True, capture_output=True)
+        if open(path, "rb").read() == before:
+            print("  re-sorted into KiCad's own item order (%d pass(es))" % (i + 1))
+            return i
+    sys.exit("kicad-cli pcb upgrade --force never settled on an order for %s; "
+             "KiCad's writer has no fixpoint here and the board cannot be "
+             "stored in it" % path)
+
+
 def main(out, reuse_routing=False):
     out = os.path.abspath(out)
     if reuse_routing:
@@ -846,10 +916,12 @@ def main(out, reuse_routing=False):
         # Canonicalise on the way IN as well as out. The tracks and vias are
         # carried across with the uuids the file gave them, and KiCad's
         # s-expression writer breaks position ties between items with the
-        # uuid - so a board last written by something that does not
-        # canonicalise (the KiCad GUI, say) would serialise its copper in an
-        # order a full build never produces. Content-derived uuids make that
-        # tie deterministic again. No-op on a board this pipeline wrote.
+        # uuid - so copper the GUI ADDED, carrying a random uuid, would tie
+        # against derived ones and land wherever chance put it. Re-deriving
+        # here makes every tie a function of the design again. No-op on a
+        # board this pipeline wrote, and note the order it produces is not
+        # the order the run ends in: the kicad-cli save below has the last
+        # word on that, deliberately.
         canonicalize_file(out)
         loaded = pcbnew.LoadBoard(out)
         verify_reusable(loaded)
@@ -876,13 +948,13 @@ def main(out, reuse_routing=False):
     rpt_path = os.path.splitext(out)[0] + "-drc.rpt"
     # standalone python fill/DRC needs a project-attached board; kicad-cli
     # fills, saves and checks in one authentic pass.
-    import subprocess
     board.SetFileName(out)
     # Copper layer types, which unlike the stack-up pcbnew DOES wrap - but it
     # rewrites the layer table from its own model on save, so the types
     # gen_pcb wrote into the input text are gone by the time the file lands.
     # Set on the board object, before the save that would otherwise drop them.
     apply_layer_types(board)
+    project_before = read_project(out)
     pcbnew.SaveBoard(out, board)
     # The physical stack-up, which pcbnew cannot be asked to set: KiCad 10's
     # SWIG bindings do not wrap BOARD_STACKUP, so gen_pcb.STACKUP is written
@@ -893,11 +965,17 @@ def main(out, reuse_routing=False):
     # bytes verbatim; that is why gen_pcb.stackup_sexp() emits KiCad's own
     # formatting rather than leaving it to the round trip.
     apply_stackup(out)
-    # Every write goes through canonicalize_file: pcbnew hands each item a
-    # random uuid and then orders the file by it, so without this an
-    # unchanged design lands on disk differently every run (#234). Doing it
-    # after *each* write - not just at the end - matters, because the zone
-    # fill is only reproducible if kicad-cli is handed a reproducible board.
+    # Fix the uuids BEFORE the last KiCad write, and let KiCad do the sorting.
+    # pcbnew hands each item a random uuid and then orders the file by it, so
+    # without this an unchanged design lands on disk differently every run
+    # (#234); with it, KiCad's own comparators - which key on the uuid, either
+    # outright (footprints) or as the tie-break (tracks, vias) - become a
+    # deterministic function of the design. The board therefore leaves this
+    # pipeline in the order KiCad itself would write, which is the whole point:
+    # opening it in the GUI and saving is a no-op instead of a 61k-line reorder.
+    # Running before *each* write, not just once at the end, also matters
+    # because the zone fill is only reproducible if kicad-cli is handed a
+    # reproducible board.
     canonicalize_file(out)
     # --refill-zones is not merely unnecessary on the fast path, it is WRONG.
     # KiCad's filler is idempotent once a zone is filled, but filling an
@@ -914,7 +992,30 @@ def main(out, reuse_routing=False):
     print("saved %s (%s); DRC via kicad-cli..."
           % (out, "fill inherited" if reuse_routing else "unfilled"))
     subprocess.run(drc, check=True, capture_output=True)
+    # Canonicalise once more, then hand it straight back to KiCad so KiCad has
+    # the last word on ORDER. Both halves of that are load-bearing, and each
+    # was learned by removing it.
+    #
+    # The second canonicalise is what keeps the two paths agreeing. A uuid is
+    # derived from the item's serialised content, and a ZONE's content is its
+    # filled_polygon - which does not exist yet when the full path canonicalises
+    # above (it fills from empty, here) but does on the fast path (it inherits
+    # the fill). Skip this and the five pours get one uuid on `pcb-build` and a
+    # different one on `pcb-cosmetic`, breaking pcb-cosmetic-verify on the only
+    # five items in the file whose bytes KiCad writes rather than pcbnew.
+    # Deriving after the fill is what puts both paths on the same content.
+    #
+    # The second save is what stops that from re-introducing the churn it was
+    # meant to remove. KiCad orders items by uuid (footprints outright, tracks
+    # and vias as the position tie-break), so re-deriving uuids leaves the file
+    # sorted on the PREVIOUS ones - and the next GUI save would reorder it,
+    # which is exactly the 61,654-line diff this arrangement exists to kill.
+    # resort_to_kicad_order() sorts it on the uuids it now carries. One extra
+    # canonicalise round is enough: that pass only reorders, so a third would
+    # derive the same uuids again.
     canonicalize_file(out)
+    resort_to_kicad_order(out)
+    restore_project(project_before)
     # Put `schematic.top_level_sheets` back. Saving this board blanked it, and
     # the culprit is `pcbnew.SaveBoard()` above, NOT kicad-cli: a BOARD has a
     # PROJECT attached, saving the board writes that project alongside it, and

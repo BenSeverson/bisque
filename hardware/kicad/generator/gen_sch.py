@@ -16,6 +16,7 @@ Unused pins get explicit no-connect markers.
 import json
 import math
 import os
+import subprocess
 import sys
 import uuid
 
@@ -1908,3 +1909,18 @@ if __name__ == "__main__":
     if changed is not None:
         print("  root sheet in .kicad_pro: %s"
               % ("updated" if changed else "already in step"))
+    # Hand the file straight back to KiCad's own writer. Two things come of
+    # that, and only the second is obvious. The obvious one: what lands in git
+    # is a file KiCad actually wrote, not one this module hand-formatted, so
+    # opening the schematic and saving it is a no-op instead of a 25k-line
+    # reflow. The other: KiCad ORDERS the items it writes, and the order is a
+    # function of the uuids - which are all derived here - so letting it sort
+    # is what makes the generator's order and the GUI's order the same order.
+    # Reproducible because every uuid is content-derived (check_sch_uuids.py
+    # proves KiCad adds none of its own) and `upgrade --force` is idempotent;
+    # two independent runs of gen_sch + upgrade are byte-identical. It leaves
+    # the .kicad_pro alone, so this stays after sync_project rather than
+    # racing it.
+    subprocess.run(["kicad-cli", "sch", "upgrade", "--force", dst],
+                   check=True, capture_output=True)
+    print("  reformatted by kicad-cli (%d bytes)" % os.path.getsize(dst))

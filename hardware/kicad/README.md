@@ -756,9 +756,36 @@ development and both of which are guarded now:
   leave that fill alone or lose byte-identity on the pour.
 * **The board is canonicalised on the way in, not just out.** Tracks and
   vias keep the uuids the file gave them, and KiCad's writer breaks
-  position ties between items with the uuid — so a board last saved by
-  something that does not canonicalise (the KiCad GUI) would serialise its
-  copper in an order a full build never produces.
+  position ties between items with the uuid — so copper the GUI *added*,
+  carrying a random uuid, would tie against derived ones and land wherever
+  chance put it. Re-deriving on load makes every tie a function of the
+  design again.
+* **KiCad has the last word on item order.** Both paths end with
+  `resort_to_kicad_order()`, which runs `kicad-cli pcb upgrade --force`
+  until the bytes settle. KiCad sorts items by uuid — footprints
+  outright, tracks and vias as the tie-break after position — so with
+  every uuid derived from content that order is a function of the design,
+  and storing the board in it makes a GUI save a no-op instead of the
+  61,654-line reorder it used to be (against 58,737 lines, for 7 real
+  edits). `gen_sch.py` ends the same way, with
+  `kicad-cli sch upgrade --force`.
+
+  Two traps worth knowing before you re-verify any of this.
+  `kicad-cli pcb drc --save-board` does **not** sort — it writes items
+  back in the order it read them, so it happily preserves content order
+  and reports byte-identical output. It is useless as a stand-in for a
+  GUI save; use `pcb upgrade --force`. And one pass is not enough: the
+  sort leaves ties in load order, so a file arriving in a foreign order
+  needs several (three, on this board; pass 1 and pass 2 differ by 16,860
+  lines). Hence the loop, and the hard failure if it never settles.
+* **The board is canonicalised after the fill, not only before.** A uuid
+  derives from the item's serialised content, and a zone's content is its
+  `filled_polygon` — which the full path has not written yet when it
+  canonicalises before the DRC, but which the fast path inherits. Derive
+  only before the fill and the five pours get one uuid on `pcb-build` and
+  a different one on `pcb-cosmetic`: a `pcb-cosmetic-verify` failure on
+  the only five items in the file whose bytes KiCad writes rather than
+  pcbnew.
 
 Equivalently, by hand:
 

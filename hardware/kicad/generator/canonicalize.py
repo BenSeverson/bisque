@@ -20,6 +20,15 @@ KiCad wrote is preserved, so the result is still a file KiCad would have
 written. Uuids are not cross-referenced anywhere in a .kicad_pcb (nets are
 matched by name in KiCad 10), so renaming them is safe.
 
+The content order this leaves behind is an implementation detail, and not
+what a board built by this repo is stored in: it exists so that the ordinal
+in a uuid's seed is a function of the design rather than of where pcbnew
+happened to put the item. kicad_build.py re-sorts into KiCad's own order
+afterwards (resort_to_kicad_order), because that is the order the GUI writes
+and storing the file in anything else means every save is a whole-file diff.
+So do not read the sort here as "the canonical order of the board" - the
+canonical thing this module provides is the uuids.
+
 Usage: python3 canonicalize.py board.kicad_pcb [...]
 """
 import re
