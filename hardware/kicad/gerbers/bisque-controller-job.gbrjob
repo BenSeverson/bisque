@@ -5,7 +5,7 @@
       "Application": "Pcbnew",
       "Version": "10.0.5"
     },
-    "CreationDate": "2026-08-20T16:58:24-07:00"
+    "CreationDate": "2026-08-22T00:46:37-07:00"
   },
   "GeneralSpecs": {
     "ProjectId": {
@@ -19,7 +19,7 @@
     },
     "LayerNumber": 4,
     "BoardThickness": 1.6,
-    "Finish": "None",
+    "Finish": "ENIG",
     "ImpedanceControlled": true
   },
   "DesignRules": [

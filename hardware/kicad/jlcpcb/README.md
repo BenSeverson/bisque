@@ -12,26 +12,32 @@ the three CSVs. `make pcb-check` fails if `gerbers.zip` has gone stale against
 `../gerbers/`, so the zip in a clone is always the one that matches the board
 beside it.
 
-## Bring-up: fit SJ2 or the kiln will not heat
+## Bring-up: leave SJ2 open
 
 `SJ2` (the "WDT DEFEAT" solder jumper, silkscreened near the SSR drive
 section) is **not** in `BOM.csv`, `CPL.csv`, or `hand-solder-parts.csv` — it's
 a solder jumper, not a manufactured part, so it's deliberately excluded from
 assembly (see `NOT_ASSEMBLED` in `gen_jlc.py`).
 
-Nothing on this firmware revision toggles `GPIO 36` yet (`KILN_PIN_WDT_KICK`
-in `main/Kconfig.projbuild`). The hardware watchdog on this board gates both
-SSR channels off unless that pin is kept alive by a kick task that doesn't
-exist yet. (There are no opto channels — see "SJ3 and SJ4 no longer exist"
-below; this line said "SSR opto channels" for a while after the optocouplers
-were reverted out.) Until it lands:
+**Leave it open.** This package's board carries `U10`, an SN74LVC1G123
+retriggerable one-shot gating the SSR +5 V rail, and firmware kicks it on
+`GPIO 36` at 5 Hz (`KILN_PIN_WDT_KICK`, `components/safety/wdt_kick.h`) — the
+SSR outputs energize as soon as running firmware is supervising them.
+Bridging `SJ2` holds the rail on unconditionally, defeating the only
+interlock on this board that survives firmware death.
 
-**Bridge `SJ2` with solder (or a 0 Ω jumper) after assembly, before first
-power-on. An unfitted `SJ2` means both SSR outputs stay de-energized — the
-kiln will not heat, and it will look like a dead board rather than a
-missing jumper.**
+The only reasons to bridge it: bench-debugging the SSR drive path with no
+firmware flashed, or a board assembled from a **pre-one-shot** rev B package
+(BAT54S charge pump where `U10` now sits) — on those boards the kick cannot
+hold the rail and `SJ2` must stay fitted.
 
-Remove/open `SJ2` only once a firmware release actually kicks the watchdog.
+(This section used to say the opposite — "fit SJ2 or the kiln will not
+heat" — written before the kick task and the one-shot landed. On a current
+build that advice is exactly backwards.)
+
+If a fresh board will not heat, check that firmware is running and the kick
+is alive (scope `GPIO 36`, or `TP12` for the timing node) before suspecting
+the SSRs — an expired watchdog window presents as a dead output stage.
 
 ## SJ3 and SJ4 no longer exist
 

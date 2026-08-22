@@ -1260,7 +1260,10 @@
 		)
 		(embedded_fonts no)
 	)
-		(symbol "Regulator_Linear:AMS1117-3.3"
+		(symbol "Regulator_Linear:TLV1117-33"
+		(pin_names
+			(offset 0.254)
+		)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
@@ -1274,7 +1277,7 @@
 				)
 			)
 		)
-		(property "Value" "AMS1117-3.3"
+		(property "Value" "TLV1117-33"
 			(at 0 3.175 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1285,8 +1288,8 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Package_TO_SOT_SMD:SOT-223-3_TabPin2"
-			(at 0 5.08 0)
+		(property "Footprint" ""
+			(at 0 0 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(hide yes)
@@ -1296,8 +1299,8 @@
 				)
 			)
 		)
-		(property "Datasheet" "http://www.advanced-monolithic.com/pdf/ds1117.pdf"
-			(at 2.54 -6.35 0)
+		(property "Datasheet" "http://www.ti.com/lit/ds/symlink/tlv1117.pdf"
+			(at 0 0 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(hide yes)
@@ -1307,7 +1310,7 @@
 				)
 			)
 		)
-		(property "Description" "1A Low Dropout regulator, positive, 3.3V fixed output, SOT-223"
+		(property "Description" "800mA Low-Dropout Linear Regulator, 3.3V fixed output, TO-220/TO-252/TO-263/SOT-223"
 			(at 0 0 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1329,7 +1332,7 @@
 				)
 			)
 		)
-		(property "ki_fp_filters" "SOT?223*TabPin2*"
+		(property "ki_fp_filters" "SOT?223* TO?263* TO?252* TO?220*"
 			(at 0 0 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1342,7 +1345,7 @@
 		)
 		(in_pos_files yes)
 		(duplicate_pin_numbers_are_jumpers no)
-		(symbol "AMS1117-3.3_0_1"
+		(symbol "TLV1117-33_0_1"
 			(rectangle
 				(start -5.08 -5.08)
 				(end 5.08 1.905)
@@ -1355,7 +1358,7 @@
 				)
 			)
 		)
-		(symbol "AMS1117-3.3_1_1"
+		(symbol "TLV1117-33_1_1"
 			(pin power_in line
 				(at 0 -7.62 90)
 				(length 2.54)
@@ -10613,28 +10616,28 @@
 		(pin "1" (uuid c35b8f09-60f8-576c-9b61-7eae745b45b0))
 		(instances (project "bisque-controller" (path "/f24e0cd2-71c5-510c-9d15-562ab64c4388" (reference "#PWR0006") (unit 1))))
 	)
-	(symbol (lib_id "Regulator_Linear:AMS1117-3.3") (at 87.63 44.45 0) (unit 1)
+	(symbol (lib_id "Regulator_Linear:TLV1117-33") (at 87.63 44.45 0) (unit 1)
 		(in_bom yes) (on_board yes) (dnp no)
 		(uuid ec3155dd-71fd-5f74-96d2-7b3a1a8d1702)
 		(property "Reference" "U2" (at 80.01 38.735 0)
 			(effects (font (size 1.27 1.27)) (justify left))
 		)
-		(property "Value" "AMS1117-3.3" (at 80.01 40.635 0)
+		(property "Value" "TLV1117LV33" (at 80.01 40.635 0)
 			(effects (font (size 1.27 1.27)) (justify left))
 		)
 		(property "Footprint" "Package_TO_SOT_SMD:SOT-223-3_TabPin2" (at 87.63 44.45 0)
 			(effects (font (size 1.27 1.27)) hide)
 		)
-		(property "Datasheet" "http://www.advanced-monolithic.com/pdf/ds1117.pdf" (at 87.63 44.45 0)
+		(property "Datasheet" "http://www.ti.com/lit/ds/symlink/tlv1117.pdf" (at 87.63 44.45 0)
 			(effects (font (size 1.27 1.27)) hide)
 		)
-		(property "Description" "1A Low Dropout regulator, positive, 3.3V fixed output, SOT-223" (at 87.63 44.45 0)
+		(property "Description" "800mA Low-Dropout Linear Regulator, 3.3V fixed output, TO-220/TO-252/TO-263/SOT-223" (at 87.63 44.45 0)
 			(effects (font (size 1.27 1.27)) hide)
 		)
-		(property "MPN" "C6186" (at 87.63 44.45 0)
+		(property "MPN" "C48937499" (at 87.63 44.45 0)
 			(effects (font (size 1.27 1.27)) hide)
 		)
-		(property "LCSC" "C6186" (at 87.63 44.45 0)
+		(property "LCSC" "C48937499" (at 87.63 44.45 0)
 			(effects (font (size 1.27 1.27)) hide)
 		)
 		(pin "1" (uuid d910029b-fdb2-5a70-8348-e71e03a7b2b5))

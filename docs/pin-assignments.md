@@ -138,26 +138,32 @@ if the firmware crashes or the controller loses power. The real protection is a
 mechanical microswitch in series with the element contactor.
 
 <a id="the-watchdog-jumper"></a>
-**`WDT_KICK` (36): firmware kicks, but the hardware does not yet match it.**
-GPIO 36 feeds a diode charge pump (`hardware/kicad/README.md` §"Hardware
-watchdog") gating the +5 V rail (`SSR_EN`) that feeds both SSR channels.
+**`WDT_KICK` (36): firmware kicks a retriggerable one-shot.**
+GPIO 36 drives the B input of `U10`, an SN74LVC1G123 retriggerable monostable
+([#307](https://github.com/BenSeverson/bisque/issues/307),
+`hardware/kicad/README.md` §"Hardware watchdog") gating the +5 V rail
+(`SSR_EN`) that feeds both SSR channels.
 
-Firmware now toggles the pin at **5 Hz**, gated on `safety_task`'s heartbeat
-(`components/safety/wdt_kick.h`). That rate is sized for the **monostable**
-retrigger circuit of [#307](https://github.com/BenSeverson/bisque/issues/307),
-not for the charge pump actually on the board: solving the pump's steady state
-gives 0.63 V of gate drive at 5 Hz against Q3's 1.45 V threshold, and it needs
-≥ 250 Hz even at room temperature. Reverse leakage roughly doubles per 10 °C, so
-the pump's stall budget falls from 0.31 s at 25 °C to 0.11 s at 60 °C and it
-stops working entirely near 85 °C — which is why the fix is a specified
-one-shot, not different passives.
+Firmware toggles the pin at **5 Hz** — a rising edge every 200 ms — gated on
+`safety_task`'s heartbeat (`components/safety/wdt_kick.h`), against a
+worst-case one-shot window of 1.65–2.71 s (R46 100 kΩ × C38 22 µF): 8.3×
+margin at the minimum window. Every rising edge restarts the window, and a
+pin wedged high or low delivers no edge, so it fails exactly like a pin that
+stopped. When the kick stops — firmware death, a wedged core, supervision
+lost — the window expires and both SSR outputs de-energize within 2.71 s,
+regardless of what the firmware's outputs command.
 
-So on a rev B board **the SSRs will not energize at all** unless the `WDT
-DEFEAT` solder jumper (`SJ2`) is fitted, holding the high-side switch on and
-restoring un-gated behaviour. **Do not remove SJ2 until the monostable is
-fitted.** This is the most likely rev B bring-up surprise — see the README's
-watchdog section before assuming a "kiln won't heat" report is the lid
-interlock again.
+The one-shot replaced rev B's BAT54S diode charge pump, which could not hold
+the rail at any survivable kick rate: 0.63 V of gate drive at 5 Hz against
+Q3's 1.45 V threshold, needing ≥ 250 Hz even at room temperature, with
+Schottky reverse leakage in the timing path roughly doubling per 10 °C — see
+the README for the full arithmetic. **On a current board, leave the `WDT
+DEFEAT` jumper (`SJ2`) open**: fitting it shorts the one-shot out and removes
+the only interlock on this board that survives firmware death. Fit `SJ2` only
+on a board assembled from a pre-one-shot package (charge pump where `U10` now
+sits), where the SSRs cannot energize without it. Either way, a "kiln won't
+heat" report on a fresh board means check the kick (scope GPIO 36, or `TP12`
+for the timing node) before blaming the SSRs or the lid interlock.
 
 ## 2. Constraints that shape the map
 

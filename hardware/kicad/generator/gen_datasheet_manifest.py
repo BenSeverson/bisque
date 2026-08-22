@@ -56,7 +56,7 @@ SCHEMATIC = "bisque-controller.kicad_sch"
 # purpose (the SoC manual behind the module) rather than an orphan.
 DOC_FOR = {
     "ADE7953_Analog_Devices.pdf": "ADE7953ACPZ",
-    "AMS1117-3.3_1A_Low_Dropout_regulator_positive_3.3V_fixed_output_SOT-223.pdf": "AMS1117-3.3",
+    "TLV1117LV_TI.pdf": "TLV1117LV33",
     "AO3400A_30V_Vds_5.7A_Id_N-Channel_MOSFET_SOT-23.pdf": "AO3400A",
     "AO3401A_-4.0A_Id_-30V_Vds_P-Channel_MOSFET_SOT-23.pdf": "AO3401A",
     "SN74LVC1G123_TI.pdf": "SN74LVC1G123",

@@ -459,7 +459,14 @@ def stackup_sexp(indent="\t\t"):
             fields.append("(loss_tangent %s)" % n(tand))
         out.extend("%s\t\t%s" % (indent, fl) for fl in fields)
         out.append("%s\t)" % indent)
-    out.append('%s\t(copper_finish "None")' % indent)
+    # A real finish, not "None": KiCad copies this into the .gbrjob's Finish
+    # field, and "None" told the fab nothing — the order form was the only
+    # place the finish existed, so a mis-click there had nothing to disagree
+    # with. ENIG for the flat pads: the ADE7953 is a 0.5 mm-pitch QFN with a
+    # 3.1 mm exposed pad, and HASL's crown is worst exactly under a large EP.
+    # Change this string and the order form together, or the check below is
+    # worthless.
+    out.append('%s\t(copper_finish "ENIG")' % indent)
     # Tells the fab the epsilon_r values above are a constraint on the
     # substitution they are allowed to make, not a note. Without it JLCPCB may
     # ship any 1.6 mm four-layer press that fits, which is exactly the freedom

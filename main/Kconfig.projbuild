@@ -48,15 +48,16 @@ menu "Bisque Configuration"
             default 17
             help
                 Trigger for the primary (zone 1) SSR output — the kiln's main
-                heat output. Opto-isolated on the rev B board (LTV-817S, U8):
-                GPIO -> 220 ohm series resistor -> opto LED -> shared SSR_EN
-                return, driven from the 100 ms SSR window.
+                heat output. Direct low-side MOSFET drive on the rev B board
+                (Q5; the opto-isolated version was reverted), driven from the
+                100 ms SSR window.
 
-                Gated in hardware by the watchdog charge pump on
+                Gated in hardware by the watchdog one-shot on
                 KILN_PIN_WDT_KICK (GPIO 36, see below): if that pin stops
-                toggling, or a rev B board is missing the SJ2 "WDT DEFEAT"
-                jumper it currently needs (nothing kicks GPIO 36 yet), this
-                output de-energizes regardless of what firmware commands.
+                toggling, SSR_EN collapses and this output de-energizes
+                regardless of what firmware commands. Firmware kicks the pin
+                at 5 Hz; the SJ2 "WDT DEFEAT" jumper bypasses the watchdog
+                and stays open in normal use.
 
         config KILN_PIN_LCD_CS
             int "LCD CS GPIO"
@@ -260,10 +261,11 @@ menu "Bisque Configuration"
             int "SSR zone 2 output GPIO (-1 = disabled)"
             default 21
             help
-                Trigger for the second SSR zone, opto-isolated on the rev B
-                board. Driven from the 100 ms SSR window rather than the 1 Hz
-                firing tick, because zone 2 modulates simultaneously with
-                zone 1.
+                Trigger for the second SSR zone, a direct low-side MOSFET
+                drive on the rev B board (Q6), watchdog-gated exactly like
+                zone 1. Driven from the 100 ms SSR window rather than the
+                1 Hz firing tick, because zone 2 modulates simultaneously
+                with zone 1.
 
                 NOTHING DRIVES THIS PIN YET. Set to -1 on a single-zone kiln.
 
@@ -325,25 +327,30 @@ menu "Bisque Configuration"
             int "Hardware watchdog kick GPIO (-1 = disabled)"
             default 36
             help
-                Square-wave output feeding the charge pump that gates both SSR
-                opto channels. If the firmware stops toggling this pin - or
-                wedges with it stuck high or stuck low - the pump decays and
-                both SSRs de-energize within about a second.
+                Square-wave output retriggering the hardware watchdog
+                one-shot (U10, SN74LVC1G123) that gates SSR_EN, the +5V rail
+                feeding both SSR channels. If the firmware stops toggling
+                this pin - or wedges with it stuck high or stuck low - the
+                one-shot's window (1.65-2.71 s worst case) expires and both
+                SSRs de-energize.
 
-                A charge pump needs TRANSITIONS, which is the whole point: a
-                stuck level fails exactly like a stopped one.
+                The one-shot retriggers on RISING EDGES, which is the whole
+                point: a stuck level delivers no edge and fails exactly like
+                a stopped one.
 
                 Firmware kicks this pin at 5 Hz (the 100 ms SSR timer
-                toggles it), gated on safety_task's heartbeat so the kick
-                stops when supervision stops - see components/safety/wdt_kick.h.
+                toggles it - a rising edge every 200 ms, 8.3x margin at the
+                minimum window), gated on safety_task's heartbeat so the
+                kick stops when supervision stops - see
+                components/safety/wdt_kick.h.
 
-                That rate is sized for the MONOSTABLE retrigger circuit of
-                issue #307, NOT for the as-built diode charge pump, which
-                needs >= 250 Hz to hold its gate and fails outright above
-                ~60 C. Until the board carries the monostable, a rev B board
-                still runs with the WDT DEFEAT solder jumper fitted. A board
-                with neither the jumper nor working watchdog hardware will
-                not heat.
+                The WDT DEFEAT solder jumper (SJ2) shorts the watchdog out.
+                Leave it OPEN on any board that carries U10. Boards built
+                from the earlier rev B package carry a diode charge pump
+                instead, which this kick rate cannot hold (it needs
+                >= 250 Hz and fails outright above ~60 C) - those boards
+                run with SJ2 fitted. A board with neither the jumper nor
+                working watchdog hardware will not heat.
 
                 Set to -1 on hardware without the watchdog circuit.
     endmenu

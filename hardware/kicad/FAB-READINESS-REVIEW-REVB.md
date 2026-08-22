@@ -247,29 +247,28 @@ No unexplained drift.
   as carrying the module's certification; the certification does not
   automatically extend to an arbitrary U.FL antenna choice the way it did to
   rev A's fixed on-package antenna.
-- **The hardware watchdog ships before its firmware kick task.**
-  `KILN_PIN_WDT_KICK` (GPIO 36) is defined and wired to the charge pump that
-  gates both SSR channels, but nothing in firmware toggles it yet. Every
-  rev B board needs the `SJ2` ("WDT DEFEAT") solder jumper fitted until the
-  kick task lands, or **the SSRs will not energize under any firmware
-  command.** This is a firmware gap, not a fab-readiness blocker — the board
-  is correct as designed — but it belongs in bring-up notes for anyone
-  assembling a board ahead of the kick task, since it presents as a dead
-  board rather than an obviously-missing feature.
+- **The hardware watchdog and its firmware kick have both since landed.**
+  `KILN_PIN_WDT_KICK` (GPIO 36) retriggers `U10` (SN74LVC1G123 retriggerable
+  one-shot) gating both SSR channels, and firmware kicks it at 5 Hz, gated on
+  `safety_task`'s heartbeat (`components/safety/wdt_kick.h`). Leave the `SJ2`
+  ("WDT DEFEAT") solder jumper **open** on boards built from this package —
+  fitting it defeats the only firmware-death heat cutoff. (This bullet
+  originally predated both halves: it described the diode charge pump and
+  instructed fitting `SJ2` because no kick task existed yet. That instruction
+  now applies only to boards assembled from the pre-one-shot package.)
 
-- **Measure the watchdog's decay on board 1 — it is a safety-path assumption.**
-  `C38` (100 nF), `C39` (1 µF) and `R46` (1 MΩ) are engineering estimates, not
-  datasheet-derived, and are labelled `ASSUMPTION` in `design.py`. The
-  arithmetic gives a decay through the AO3400A's 1.45 V max threshold of
-  **0.40 s** at the ESP32's guaranteed `V_OH` and **0.72 s** typical — inside
-  the intended 0.5–1 s band, and the worst corner fails *faster*, which is the
-  safe direction. But that is arithmetic. On the first board, confirm `Q3`
-  actually conducts and time the drop after the kick stops. All three parts are
-  0805 and reworkable if the measurement disagrees. Related: at the guaranteed
-  `V_OH` the gate sits at ~2.16 V, below the 2.5 V point where the AO3400A
-  datasheet guarantees any `R_DS(on)` — judged benign because `Q3` is a
-  ~20 mA return-path switch whose current is set by the 220 Ω/680 Ω series
-  resistors, so even several ohms costs under 100 mV against ~2 V of headroom.
+- **Measure the watchdog window on board 1 — it is a safety-path assumption.**
+  The worst-case window arithmetic (1.65–2.71 s from `R46` 100 kΩ × `C38`
+  22 µF, `design.py`'s watchdog block) extrapolates the SN74LVC1G123's
+  K = 1.0–1.1 far beyond the datasheet's 10 kΩ × 0.1 µF spec anchor, and
+  `C38` as ordered (`C12891`, X5R) is rated only to +85 °C, with its ±15 %
+  temperature characteristic guaranteed no further. On the first board, time
+  the actual window at `TP12` across supply and temperature, and confirm the
+  SSR rail drops on all four failure shapes: kick stopped, pin stuck high,
+  pin stuck low, and MCU held in reset. The timing parts are reworkable if
+  the measurement disagrees. (An earlier version of this bullet timed the
+  charge pump's *decay* through `C39`/1 MΩ values that no longer exist —
+  superseded with the pump itself.)
 
 - **`datasheets/manifest.json` is stale** — see finding 6. It claims all 26
   parts failed while 13 PDFs are on disk, and still lists retired parts

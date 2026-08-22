@@ -16,10 +16,11 @@ the full as-built table with module pin numbers and net names:
     shared SPI2 bus (SPI_SCLK/SPI_MOSI/SPI_MISO) through series resistors.
   I2C: SDA=18 SCL=47 — shared bus, pulled up on-board, broken out on
     both J7 (0.1") and J14 (Qwiic/STEMMA QT).
-  Watchdog: WDT_KICK=36 drives the charge pump; Q3 holds SSR_PG down, which
-    turns on the high-side switch Q4 supplying SSR_EN, the +5V rail feeding
-    both SSR terminals. SJ2 ("WDT DEFEAT") shorts SSR_PG to GND for bring-up
-    before the firmware kick task exists.
+  Watchdog: WDT_KICK=36 retriggers the U10 one-shot; its Q holds Q3 on, Q3
+    holds SSR_PG down, which turns on the high-side switch Q4 supplying
+    SSR_EN, the +5V rail feeding both SSR terminals. SJ2 ("WDT DEFEAT")
+    shorts SSR_PG to GND, defeating the watchdog - leave it open on boards
+    that carry U10.
   J11: IN1(lid)=4 IN2(gas flow)=2 IN3(spare)=1
   SSR drive: direct low-side MOSFET per channel (Q5/Q6), rev A's topology.
     Rev B's opto-isolated version (U8/U9 + SJ3/SJ4) was implemented and then
@@ -252,10 +253,19 @@ COMPONENTS = {
     # it inside J2 - the same failure the mark exists to prevent. No y offset
     # helps either: U2's leads span y 36.45..42.55 continuously and J2's two
     # screws are inside that band 5.08 mm apart. The column is now 2.43 mm.
-    "U2": dict(lib="Regulator_Linear", sym="AMS1117-3.3",
+    # TLV1117LV33, not AMS1117: same SOT-223, same 1117 pinout (GND/OUT/IN,
+    # tab=OUT), but dropout is 700mV MAX at 1A against the AMS1117's 1.3V —
+    # the AMS1117 had zero guaranteed headroom behind an SS34 on a sagging
+    # 5V input (5.0 - 0.4 - 1.3 = 3.3V exactly, worse on a 4.75V USB port).
+    # Ceramic-stable at 0-ohm ESR (C3/C4 unchanged), Iq 100uA max. The
+    # trade: Vin abs max is 6V, not the AMS1117's 15V — VIN is spec'd 5V
+    # everywhere on this board, but a 9/12V adapter now kills U2 first.
+    # KiCad ships no TLV1117LV symbol; TLV1117-33 is the same family and
+    # pin map, with the value carrying the real part.
+    "U2": dict(lib="Regulator_Linear", sym="TLV1117-33",
                fp="Package_TO_SOT_SMD:SOT-223-3_TabPin2",
                fpf="SOT-223-3_TabPin2.kicad_mod",
-               value="AMS1117-3.3", at=(38.1, 39.5, 0),
+               value="TLV1117LV33", at=(38.1, 39.5, 0),
                pins={"1": "GND", "2": "+3V3", "3": "+5V"}),
     "C1": dict(lib="Device", sym="C", fp=C1206[0], fpf=C1206[1],
                value="22uF/25V", at=(45.2, 39.5, 0),
@@ -650,13 +660,13 @@ COMPONENTS = {
                fp=TBLOCK[0], fpf=TBLOCK[1], value="SSR2", at=(26.0, 88.0, 270),
                pins={"1": "SSR_EN", "2": "SSR2_OUT"}),
     # --- Hardware watchdog (Task 12) ---------------------------------------
-    # WDT_KICK (U1.29, a firmware square wave) drives a diode charge pump;
-    # the hold node keeps Q3 enhanced, Q3 holds SSR_PG (the gate of the
+    # WDT_KICK (U1.29, a firmware square wave) retriggers U10, a one-shot
+    # whose Q output keeps Q3 enhanced, Q3 holds SSR_PG (the gate of the
     # high-side switch Q4) down, and Q4 supplies SSR_EN - the +5V rail that
     # feeds BOTH SSR terminals (J4.1/J9.1) and both indicator LEDs. Stop
-    # kicking and the pump decays below Q3's Vgs(th) in ~1s (R46*C39, see
-    # arithmetic below), R47 pulls SSR_PG to +5V, Q4 turns off and the whole
-    # SSR rail collapses. This is the only interlock on this board that survives
+    # kicking and the window (1.65-2.71s worst case, R46*C38, see
+    # arithmetic below) expires, Q falls, R47 pulls SSR_PG to +5V, Q4 turns
+    # off and the whole SSR rail collapses. This is the only interlock on this board that survives
     # firmware death - lid/over-temp/stale-TC are firmware-owned and die
     # with it. It is still only SUPPLEMENTARY: the real protection is a
     # mechanical over-temperature cutout in series with the element
