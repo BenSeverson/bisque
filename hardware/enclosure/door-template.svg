@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="305.0mm" height="406.0mm" viewBox="0 0 305.0 406.0">
+<g fill="none" stroke="black" stroke-width="0.3">
+<rect x="0" y="0" width="305.0" height="406.0" fill="none" stroke-dasharray="6 3"/>
+<text x="152.50" y="12.00" text-anchor="middle" fill="black" stroke="none" font-size="4" font-family="sans-serif">DOOR OUTLINE 305 x 406 mm (reference)</text>
+<rect x="109.50" y="81.00" width="86.0" height="58.0"/>
+<line x1="148.50" y1="110.00" x2="156.50" y2="110.00"/><line x1="152.50" y1="106.00" x2="152.50" y2="114.00"/>
+<text x="152.50" y="78.00" text-anchor="middle" fill="black" stroke="none" font-size="4" font-family="sans-serif">CUT WINDOW 86 x 58</text>
+<rect x="98.48" y="79.13" width="108.04" height="61.74" fill="none" stroke-dasharray="2 2"/>
+<circle cx="100.98" cy="81.63" r="1.60"/><line x1="96.98" y1="81.63" x2="104.98" y2="81.63"/><line x1="100.98" y1="77.63" x2="100.98" y2="85.63"/>
+<circle cx="100.98" cy="138.37" r="1.60"/><line x1="96.98" y1="138.37" x2="104.98" y2="138.37"/><line x1="100.98" y1="134.37" x2="100.98" y2="142.37"/>
+<circle cx="204.02" cy="81.63" r="1.60"/><line x1="200.02" y1="81.63" x2="208.02" y2="81.63"/><line x1="204.02" y1="77.63" x2="204.02" y2="85.63"/>
+<circle cx="204.02" cy="138.37" r="1.60"/><line x1="200.02" y1="138.37" x2="208.02" y2="138.37"/><line x1="204.02" y1="134.37" x2="204.02" y2="142.37"/>
+<text x="152.50" y="146.87" text-anchor="middle" fill="black" stroke="none" font-size="4" font-family="sans-serif">display module holes M3 -- VERIFY against your module before drilling</text>
+<circle cx="152.50" cy="166.00" r="6.10"/><line x1="148.50" y1="166.00" x2="156.50" y2="166.00"/><line x1="152.50" y1="162.00" x2="152.50" y2="170.00"/>
+<text x="152.50" y="177.10" text-anchor="middle" fill="black" stroke="none" font-size="4" font-family="sans-serif">UP</text>
+<circle cx="152.50" cy="214.00" r="6.10"/><line x1="148.50" y1="214.00" x2="156.50" y2="214.00"/><line x1="152.50" y1="210.00" x2="152.50" y2="218.00"/>
+<text x="152.50" y="225.10" text-anchor="middle" fill="black" stroke="none" font-size="4" font-family="sans-serif">DOWN</text>
+<circle cx="128.50" cy="190.00" r="6.10"/><line x1="124.50" y1="190.00" x2="132.50" y2="190.00"/><line x1="128.50" y1="186.00" x2="128.50" y2="194.00"/>
+<text x="128.50" y="201.10" text-anchor="middle" fill="black" stroke="none" font-size="4" font-family="sans-serif">LEFT</text>
+<circle cx="176.50" cy="190.00" r="6.10"/><line x1="172.50" y1="190.00" x2="180.50" y2="190.00"/><line x1="176.50" y1="186.00" x2="176.50" y2="194.00"/>
+<text x="176.50" y="201.10" text-anchor="middle" fill="black" stroke="none" font-size="4" font-family="sans-serif">RIGHT</text>
+<circle cx="152.50" cy="190.00" r="6.10"/><line x1="148.50" y1="190.00" x2="156.50" y2="190.00"/><line x1="152.50" y1="186.00" x2="152.50" y2="194.00"/>
+<text x="152.50" y="201.10" text-anchor="middle" fill="black" stroke="none" font-size="4" font-family="sans-serif">SEL</text>
+<text x="208.50" y="191.50" text-anchor="start" fill="black" stroke="none" font-size="4" font-family="sans-serif">5x 12.2 mm</text>
+<rect x="102.50" y="240.00" width="100.0" height="100.0" fill="none" stroke-dasharray="2 2"/>
+<circle cx="107.50" cy="245.00" r="1.60"/><line x1="103.50" y1="245.00" x2="111.50" y2="245.00"/><line x1="107.50" y1="241.00" x2="107.50" y2="249.00"/>
+<circle cx="107.50" cy="335.00" r="1.60"/><line x1="103.50" y1="335.00" x2="111.50" y2="335.00"/><line x1="107.50" y1="331.00" x2="107.50" y2="339.00"/>
+<circle cx="197.50" cy="245.00" r="1.60"/><line x1="193.50" y1="245.00" x2="201.50" y2="245.00"/><line x1="197.50" y1="241.00" x2="197.50" y2="249.00"/>
+<circle cx="197.50" cy="335.00" r="1.60"/><line x1="193.50" y1="335.00" x2="201.50" y2="335.00"/><line x1="197.50" y1="331.00" x2="197.50" y2="339.00"/>
+<text x="152.50" y="290.00" text-anchor="middle" fill="black" stroke="none" font-size="4" font-family="sans-serif">controller PCB holes M3, 90 x 90 grid</text>
+<text x="152.50" y="296.00" text-anchor="middle" fill="black" stroke="none" font-size="4" font-family="sans-serif">south edge (J5/J6) UP, USB-C down</text>
+<line x1="102.5" y1="386.0" x2="202.5" y2="386.0"/>
+<line x1="102.5" y1="386.0" x2="102.5" y2="383.0"/>
+<line x1="112.5" y1="386.0" x2="112.5" y2="383.0"/>
+<line x1="122.5" y1="386.0" x2="122.5" y2="383.0"/>
+<line x1="132.5" y1="386.0" x2="132.5" y2="383.0"/>
+<line x1="142.5" y1="386.0" x2="142.5" y2="383.0"/>
+<line x1="152.5" y1="386.0" x2="152.5" y2="383.0"/>
+<line x1="162.5" y1="386.0" x2="162.5" y2="383.0"/>
+<line x1="172.5" y1="386.0" x2="172.5" y2="383.0"/>
+<line x1="182.5" y1="386.0" x2="182.5" y2="383.0"/>
+<line x1="192.5" y1="386.0" x2="192.5" y2="383.0"/>
+<line x1="202.5" y1="386.0" x2="202.5" y2="383.0"/>
+<text x="152.50" y="392.00" text-anchor="middle" fill="black" stroke="none" font-size="4" font-family="sans-serif">calibration: this ruler must measure exactly 100 mm</text>
+</g>
+</svg>

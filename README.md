@@ -97,6 +97,8 @@ It integrates the ESP32-S3-WROOM-1U module (external U.FL antenna), two MAX31856
 
 See [`hardware/kicad/README.md`](hardware/kicad/README.md) for the full BOM, fabrication notes, and the regeneration workflow. GPIO assignments mirror the firmware's `Kconfig` defaults, so stock firmware runs unmodified.
 
+[`hardware/enclosure/`](hardware/enclosure/README.md) documents a complete enclosure build around an off-the-shelf wall-mount steel box — layout, SSR thermal sizing, mains/SELV segregation, and a printable 1:1 drill template for the door.
+
 > **Safety warning:** Kilns operate at dangerous temperatures and voltages. Ensure all high-voltage wiring is performed by a qualified electrician. Use appropriate safety equipment and never leave a firing kiln unattended.
 
 ## Getting Started
