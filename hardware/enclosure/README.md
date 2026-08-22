@@ -30,14 +30,27 @@ display window), all of which is covered by the printable 1:1 template
 | Contactor (strongly recommended) | Definite-purpose contactor sized for total element current | In series with both SSR outputs, dropped by the mechanical over-temp cutout / E-stop loop |
 | CT × 2 | Split-core CT matched to the board's 5.1 Ω burden (full scale ≈ 139 A rms) | Clamped on each zone's load conductor inside the box, twisted pair to J12 |
 | Wi-Fi antenna | U.FL → SMA bulkhead pigtail + 2.4 GHz antenna | Off-BOM accessory from the KiCad README; the steel box is exactly why the 1U module was chosen |
-| Enclosure | Hammond **EN4SD16126GY** + **EP1612** panel | See below |
+| Enclosure | Generic 16 × 12 × 6 in IP66 steel wall-mount box with inner plate | See below |
 
 ## Enclosure selection
 
-**Baseline: Hammond EN4SD16126GY** — NEMA 4/12 wall-mount mild steel,
-16 × 12 × 6 in (406 × 305 × 152 mm), hinged door with quarter-turn
-latches — plus the matching **EP1612** inner panel (360.7 × 259.1 mm).
-Widely stocked (Digi-Key/Mouser), ~$120 with panel.
+**Baseline: a generic imported 16 × 12 × 6 in (406 × 305 × 152 mm) IP66
+carbon-steel wall-mount box** — hinged, latched door, 1.5 mm
+cold-rolled steel, sold **with a galvanized inner mounting plate
+included** — the Vevor/SKYSHALO-class boxes on Amazon/Walmart, ~$60.
+The name-brand equivalent (Hammond **EN4SD16126GY** + **EP1612** panel,
+Saginaw/Hoffman similar) is the same box mechanically but runs
+**~$240 + ~$35 for the panel** — worth it only if you need the **UL 50/508A
+listing** for an inspected or commercial installation, or a
+NEMA 4/12 rating you'd actually preserve (the baseline design vents the
+box for the SSR chimney anyway, which forfeits the sealed rating
+regardless of what you paid for it).
+
+Two things to check on an import that a Hammond buyer gets for free:
+that the **door is bonded** to the body (most include a ground screw on
+door and body — fit a braided strap between them if there's no factory
+strap), and that the inner plate is actually steel and lands on welded
+studs, not adhesive standoffs.
 
 Why this class of box:
 
@@ -59,9 +72,9 @@ trivially:
 
 | Situation | Box |
 |---|---|
-| ≤ 25 A per zone, no contactor | EN4SD16126GY (baseline) |
-| Up to 40 A per zone, contactor + aux PSU fitted | EN4SD20166GY (20 × 16 × 6 in) + EP2016 |
-| Budget build | Any generic ≥ IP54 wall-mount steel box ≥ 400 × 300 × 150 mm with inner panel — the layout below assumes only those minimums |
+| ≤ 25 A per zone, no contactor | 16 × 12 × 6 in generic (baseline), ~$60 |
+| Up to 40 A per zone, contactor + aux PSU fitted | 20 × 16 × 6 in generic (~$80–100); Hammond EN4SD20166GY + EP2016 if listed gear is required |
+| Inspected / commercial install | Hammond EN4SD16126GY + EP1612 (UL listed, ~$275 all-in) |
 
 ## Layout
 
@@ -72,7 +85,7 @@ fitted) the aux coil feed — all SELV, all in one loomed bundle across
 the hinge with a strain-relieved slack loop.
 
 ```
-        DOOR (inside view)                    BACK PANEL (EP1612)
+        DOOR (inside view)                 BACK PANEL (inner plate)
   ┌──────────────────────────┐         ┌───────────────────────────────┐
   │      ┌────────────┐      │         │  DIN RAIL:                    │
   │      │  display   │      │         │  [PE][IN][FUSE][HDR-15-5][AUX]│
@@ -132,7 +145,7 @@ bond board GND to the earthed door.
 
 ### Back panel and shell
 
-- **DIN rail** across the top of the EP1612: PE terminal, incoming line
+- **DIN rail** across the top of the inner plate: PE terminal, incoming line
   terminals, a fuse holder (1 A slow-blow) feeding the HDR-15-5, an
   optional second fused position for the aux PSU. Feed the controller
   from its own small circuit or tap ahead of the SSRs per local code —
@@ -146,8 +159,9 @@ bond board GND to the earthed door.
   box): mains in (M25), zone 1 out (M25), zone 2 out (M25), TC1 (M16),
   TC2 (M16), spare M16 for lid switch / aux / inputs.
 - **Grounding:** enclosure PE stud → incoming earth; door bonded to the
-  body with the braided strap the EN4SD ships with (add one if using a
-  generic box); EP1612 bonded via its mounting studs; every gland on the
+  body with a braided strap (factory-fitted on name-brand boxes; add one
+  if the import lacks it); inner plate bonded via its mounting studs and
+  ground screw; every gland on the
   mains side metallic and seated on bare metal or star washers.
 
 ## Thermal design

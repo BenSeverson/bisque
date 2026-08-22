@@ -2,7 +2,7 @@
 """1:1 drill/cutout template for the enclosure door (SVG, mm units).
 
 Emits ``door-template.svg`` next to this script: the door outline of the
-baseline Hammond EN4SD16126GY (305 x 406 mm), the display window cutout,
+baseline 16 x 12 x 6 in box (door 305 x 406 mm), the display window cutout,
 the display module mounting holes, the 5-button nav cross, and the
 controller PCB's 90 x 90 mm M3 grid, each with center crosshairs and a
 dimension label. A 100 mm calibration ruler is drawn so a print can be
@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import os
 
-# --- Door (Hammond EN4SD16126GY, mounted 406 mm tall) --------------------
+# --- Door (16 x 12 x 6 in wall-mount box, mounted 406 mm tall) -----------
 DOOR_W = 305.0
 DOOR_H = 406.0
 CENTER_X = DOOR_W / 2  # everything is centered horizontally
