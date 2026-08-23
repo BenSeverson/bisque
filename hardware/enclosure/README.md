@@ -194,15 +194,27 @@ electronics benefit from the same segregation: the PCB and display hang
 in the cool front half of the box, out of the heatsink plume, which also
 keeps the cold-junction terminals stable.
 
-The HDR-15-5 adds ~2 W; the AMS1117 analysis in the KiCad README already
-assumes a hot enclosure ambient, so no further derating is needed.
+The HDR-15-5 adds ~2 W; the on-board LDO's headroom analysis in the KiCad
+README already assumes a hot enclosure ambient, so no further derating is
+needed.
+
+**The 5 V rail is now a hard 5 V, not "5-ish".** U2 is a TLV1117LV33,
+whose absolute-maximum input is **6 V** (the AMS1117 it replaced tolerated
+15 V). Verify the PSU's output before connecting the board — the HDR-15-5's
+trim pot has roughly +/-10% travel and ships adjustable — and never
+substitute a 12 V supply for the board feed. A 12 V aux supply for J10 is
+fine; it reaches only `AUX_VP`, never the board rail, provided `SJ1` stays
+open.
 
 ## Commissioning notes
 
 1. **First power-on with unflashed firmware: both SSR channels are dead
    by design.** The hardware watchdog holds `SSR_EN` down until firmware
    kicks GPIO 36. Before concluding an SSR or wiring fault, read the
-   `SJ2` / "WDT DEFEAT" section of the KiCad README.
+   `SJ2` / "WDT DEFEAT" section of `hardware/kicad/jlcpcb/README.md`.
+   **Leave `SJ2` open in a finished install** — bridging it defeats the
+   only heat cutoff that survives firmware death. It is a bench-debug
+   jumper, not a build step.
 2. **No lid switch fitted?** Jumper J11 pin 1 to J11 GND or set
    `KILN_PIN_LID_SWITCH=-1`, or the kiln will never heat — see
    `docs/pin-assignments.md` §1.
