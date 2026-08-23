@@ -1069,11 +1069,26 @@ What survives in `SILK` is *intent only*: what a label says and roughly
 where it belongs. Those coordinates are anchors that the packer is free to
 move — which is also how a stale anchor got caught: `SSR2` was anchored at
 y=83.0, inside **J4's** courtyard rather than J9's, so it printed against
-the wrong terminal. Each SSR terminal now carries one merged
-`SSR1  5V / OUT` / `SSR2  5V / OUT` label in the gap directly above its own
-block; the four left-edge blocks leave gaps of only 1.3–2.1 mm, so one
-label per gap is what fits, and a merged label cannot drift away from the
-pin order it belongs to.
+the wrong terminal.
+
+**A connector's own name is not written in `SILK` at all any more.**
+`gen_pcb.BLOCK_LEGENDS` declares only the intent a derivation cannot know —
+which way out of the body the name goes and how big it is. The text comes
+from that part's `value` in `design.py` (`BLOCK_LEGEND_NAME` overrides the
+four that legitimately say something else, each with its reason), and the
+anchor from its real drawn body, so a block name has one source, cannot
+drift from what the schematic calls it, and cannot be left behind when the
+part moves. `BLOCK_LEGEND_GAP` — the standoff from the body to the centre of
+the name — is one number rather than nine, and it is a *wish*: the four
+left-edge blocks are 1.76–2.6 mm apart body-to-body and a 0.9 mm name is
+1.53 mm tall, so `block_legend()` measures the free span to the nearest part
+on that side and re-centres the name in it whenever the standoff would push
+it under the neighbour. Only `SSR2` needs that today; at the bare standoff
+it overlapped J4's body by 0.31 mm and the fitted terminal block printed
+over it, and centred it clears both blocks by 0.12 mm. A wide gap keeps the
+standoff, because centring a name in 18 mm of open board puts it nowhere
+near the block it names. What is on each individual screw is a separate, also generated
+question — see **per-terminal legends** below.
 
 Two things the packer deliberately does **not** do, both tried and reverted
 because they made the board worse: charging a label for printing inside a

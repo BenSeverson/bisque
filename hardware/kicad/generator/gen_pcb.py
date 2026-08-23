@@ -1534,6 +1534,148 @@ if TITLE_SCALE < 1.0:
 SILK_GRAPHICS = [logo.flame(TITLE_LOGO_AT[0], TITLE_LOGO_AT[1],
                             TITLE_LOGO_SIZE)]
 
+# ------------------------------------------ connector block legends
+# The NAME of each user-wired connector block, printed beside that block.
+#
+# Neither half of this is hand-typed. The text comes from the part's own
+# `value` in design.py, so a block's name has ONE source and can no longer
+# drift from what the schematic calls it: these nine names and their nine
+# Values were two independent tables, and four of them had already parted
+# company. The anchor is derived from the real drawn body (`fp_body_box`),
+# the way PIN_LEGENDS derives its standoff, so a name follows its part when
+# the part moves. The bug that prevents is on this board's record - `SSR2`
+# was once anchored at y=83.0, which is inside J4's courtyard rather than
+# J9's, and printed against the wrong block.
+#
+# What stays here is the intent a derivation cannot know: which way out of
+# the body the name goes, and how big it is.
+#
+# Not every connector gets one. J5/J6/J7 are 0.1" headers whose pin names say
+# everything a block name would, and J11's `INPUTS` was dropped when its four
+# screws each got a self-describing mark (see PIN_LEGENDS).
+#
+# The standoff from the drawn body to the centre of the name, mm - a WISH,
+# and the only one here that another part can overrule. The four west-edge
+# blocks are 1.76-2.6 mm apart body-to-body and a 0.9 mm name is 1.53 mm
+# tall, so the standoff does not always fit: `block_legend()`
+# measures the free span to the nearest part on that side and centres the
+# name in it when the standoff would push it under the neighbour. This is
+# not a nicety - at the standoff alone, `SSR2` overlapped J4's body by
+# 0.31 mm and the fitted terminal block printed over it. Centred, it clears
+# both blocks by 0.12 mm.
+BLOCK_LEGEND_GAP = 1.3
+# KiCad draws a text box 1.7x the glyph size. Used to ask whether a name
+# fits a gap, so it is the same constant the nameplate's rows derive from.
+BLOCK_TEXT_BOX = TEXT_BOX_RATIO
+
+
+def _bl(side, size, shift=0.0, gap=BLOCK_LEGEND_GAP):
+    """A BLOCK_LEGENDS entry. `shift` slides the name along its FREE axis."""
+    return (side, size, shift, gap)
+
+
+BLOCK_LEGENDS = {
+    "J2": _bl("N", 0.9),
+    # Both thermocouple blocks are named OUTSIDE the pair rather than in the
+    # passive field west of them, which put `TC1` nearer R14/R15 than J3 and
+    # `TC2` nearer C37/R37/R38 than J8. J3 and J8 are 0.74 mm apart and
+    # nothing fits between them, so the stack reads from the outside in: TC1
+    # in the band under H2, TC2 in the open board below J8.
+    #
+    # The shift is the one thing about them that is not centred, and it is
+    # the same on both: x 113.08 is where the `J3`/`J8` designators sit, and
+    # a legend aimed at a seated reference is the one that loses (see
+    # RESET/BOOT in SILK).
+    "J3": _bl("N", 0.9, shift=-3.25),
+    "J8": _bl("S", 0.9, shift=-3.25),
+    "J4": _bl("N", 0.9),
+    "J9": _bl("N", 0.9),
+    "J10": _bl("N", 0.9),
+    "J12": _bl("N", 0.9),
+    # 0.8: `AC SENSE DNP` is the longest name here on the smallest block.
+    "J13": _bl("N", 0.8),
+    # The one entry that asks for more than the standoff. J14's own
+    # designator wants the gap directly above the connector, and this label
+    # has the whole 5 mm band between J7 and J14 to sit in, so it gives way
+    # rather than crowding the reference out of the one spot that is not the
+    # connector body.
+    "J14": _bl("N", 0.9, gap=3.6),
+}
+# The Value IS the name, with underscores read as spaces, unless an entry
+# here says otherwise - and each exception is one for a reason.
+BLOCK_LEGEND_NAME = {
+    # `_K` says type-K in the schematic, where a thermocouple's alloy is a
+    # real distinction. On the board there is one kind of thermocouple input
+    # and its screws are already marked `K+`/`K-`.
+    "J3": "TC1",
+    "J8": "TC2",
+    # The rail is AUX_VP and the block is an output bank. `AUX` beside a
+    # terminal somebody wires does not say which way the current goes.
+    "J10": "AUX OUT",
+    # DNP = do not populate: the ADE7953's voltage channel (VP/VN),
+    # deliberately unfitted because no mains touches this board. The header
+    # exists so a future isolated AC accessory is a firmware change rather
+    # than a respin. The dash of `AC SENSE - DNP` is dropped for the 1.6 mm
+    # that keeps the name clear of C31's designator.
+    "J13": "AC SENSE DNP",
+    # The one connector whose name does not say what it speaks, at the bottom
+    # edge beside the input terminal - the one place a wrong guess costs a
+    # 3.3 V part. It is also the one connector with NO per-terminal legend
+    # (PIN_LEGENDS): a 1 mm pitch takes no readable text, and the housing is
+    # keyed, so there is nothing for a reader to get wrong.
+    "J14": "QWIIC  I2C",
+}
+_BLOCK_EMITTED = set()
+
+
+def _free_span(ref, side):
+    """mm of empty board between `ref`'s drawn body and the nearest part.
+
+    Measured only against parts that actually overlap `ref` across the
+    label's own width, since a part off to one side is not what the name
+    would collide with. Returns None when nothing is on that side.
+    """
+    x0, y0, x1, y1 = fp_body_box(COMPONENTS[ref])
+    best = None
+    for other, comp in COMPONENTS.items():
+        if other == ref:
+            continue
+        b = fp_body_box(comp)
+        if b is None:
+            continue
+        if side in ("N", "S"):
+            if b[2] <= x0 or b[0] >= x1:
+                continue
+            d = y0 - b[3] if side == "N" else b[1] - y1
+        else:
+            if b[3] <= y0 or b[1] >= y1:
+                continue
+            d = x0 - b[2] if side == "W" else b[0] - x1
+        if d >= 0 and (best is None or d < best):
+            best = d
+    return best
+
+
+def block_legend(ref):
+    """(text, x, y, rot, size) for one connector's own name."""
+    side, size, shift, gap = BLOCK_LEGENDS[ref]
+    txt = BLOCK_LEGEND_NAME.get(ref, COMPONENTS[ref]["value"].replace("_", " "))
+    x0, y0, x1, y1 = fp_body_box(COMPONENTS[ref])
+    # The standoff yields to the neighbour, never the other way round: a
+    # wider gap keeps the name at the standoff (centring it in 18 mm of open
+    # board would put it nowhere near the block it names), and only a gap too
+    # tight to hold the box at the standoff re-centres it.
+    half = size * BLOCK_TEXT_BOX / 2.0
+    span = _free_span(ref, side)
+    if span is not None and gap + half > span:
+        gap = span / 2.0
+    cx, cy = (x0 + x1) / 2.0, (y0 + y1) / 2.0
+    at = {"N": (cx + shift, y0 - gap), "S": (cx + shift, y1 + gap),
+          "W": (x0 - gap, cy + shift), "E": (x1 + gap, cy + shift)}[side]
+    _BLOCK_EMITTED.add(ref)
+    return (txt, round(at[0], 3), round(at[1], 3), 0, size)
+
+
 # Free-standing silk: the nameplate above, then every label that sits beside
 # the connector or control it names.
 #
@@ -1574,15 +1716,14 @@ SILK = _TITLE_TEXTS + [
     # largest single defect on the board's silk (analysis/silkscreen-review.md
     # §E). Every terminal now carries its own mark, generated beside its own
     # pad from PIN_LEGENDS below.
-    ("5V IN", 22.0, 34.0, 0, 0.9),
-    ("AUX OUT", 24.5, 48.0, 0, 0.9),
-    # The four west-edge blocks leave gaps of only 1.3-2.1 mm between them,
-    # so each name gets the gap directly above its own block and nothing
-    # more. `SSR2` was once anchored at y=83.0, which is inside J4's
-    # courtyard (72.44..83.66) rather than J9's, and printed against the
-    # wrong block.
-    ("SSR1", 26.0, 71.4, 0, 0.9),
-    ("SSR2", 26.0, 84.3, 0, 0.9),
+    #
+    # Every one of them is generated: the name is the connector's own Value
+    # and the anchor is its own drawn body. What each block asks for beyond
+    # that lives in BLOCK_LEGENDS above, not here.
+    block_legend("J2"),
+    block_legend("J10"),
+    block_legend("J4"),
+    block_legend("J9"),
     # The two amber channel indicators. Each sits across its own terminal
     # pair through a 680R, so it lights only when that channel is driven AND
     # the watchdog rail is up - which is exactly the thing a person standing
@@ -1600,35 +1741,25 @@ SILK = _TITLE_TEXTS + [
     # (104, 58.5) put both names 5-9 mm from the terminal they belong to
     # and level with R14/R15 and R16/R17 instead, so `TC1` read as a
     # legend for whichever of the seven parts around it the reader
-    # guessed - and `TC2` sat nearer C37/R37/R38 than J8.
-    #
-    # Not both above their block, the way the west-edge blocks are done:
-    # J3 and J8 are 0.74 mm apart (courtyards 32.83..44.09 and
-    # 44.83..56.09) and nothing fits between them, so the stack reads
-    # from the outside in - TC1 in the 4.3 mm band under H2, TC2 in the
-    # open board below J8. Both are held west of x 113.08, which is
-    # where the `J3`/`J8` designators sit; a legend aimed at a seated
-    # reference is the one that loses (see RESET/BOOT above).
-    ("TC1", 110.75, 31.5, 0, 0.9),
-    ("TC2", 110.75, 57.3, 0, 0.9),
-    # In the free band above J12, centred on the block, NOT at (96, 76).
-    # That anchor was 6.5 mm west of J12 with `AC SENSE - DNP` already in the
-    # same 1 mm of board, so the placer took the far end of its ring - all
-    # 14 mm of it - and printed the CT legend directly under `TC2  K+/K-`:
-    # 12.98 mm from the block it names, 8.38 mm from the one it does not.
-    # J8's bottom is 55.59 and J12's top is 74.17, so there is an 18 mm strip
-    # here and nothing else wants it.
-    ("CT", 112.8, 72.0, 0, 0.9),
+    # guessed - and `TC2` sat nearer C37/R37/R38 than J8. The north/south
+    # split that fixes it is declared in BLOCK_LEGENDS above.
+    block_legend("J3"),
+    block_legend("J8"),
+    # In the free band above J12 and centred on the block, which is what a
+    # derived anchor gives for free. The hand-typed one was (96, 76): 6.5 mm
+    # west of J12 with `AC SENSE - DNP` already in the same 1 mm of board, so
+    # the placer took the far end of its ring - all 14 mm of it - and printed
+    # the CT legend directly under `TC2  K+/K-`, 12.98 mm from the block it
+    # names and 8.38 mm from the one it does not. J8's bottom is 55.59 and
+    # J12's top is 74.17, so there is an 18 mm strip here and nothing else
+    # wants it.
+    block_legend("J12"),
     # J13's legend, and it has to be centred ON J13 to say so. At (100, 76)
     # it printed 1.30 mm from J13 but 0.37 mm from C35 and 0.77 mm from the
     # ADE7953, straight across that chip's own value text, so the one part it
-    # was not obviously describing was the header. DNP = do not populate:
-    # this is the ADE7953's voltage channel (VP/VN), deliberately unfitted
-    # because no mains touches this board, and the header exists so a future
-    # isolated AC accessory is a firmware change rather than a respin. The
-    # dash is dropped to buy the 1.6 mm that keeps it clear of C31's
-    # designator.
-    ("AC SENSE DNP", 98.5, 76.9, 0, 0.8),
+    # was not obviously describing was the header. What it says, and why it
+    # is not just the Value, is in BLOCK_LEGEND_NAME above.
+    block_legend("J13"),
     # LED1's legend, and it follows LED1 (design.py). North of the LED: south
     # is D3, and further south is J5's pin-name row, where a stray word reads
     # as a fifteenth display pin - the mistake `SSR2` made from TP10 before
@@ -1644,15 +1775,9 @@ SILK = _TITLE_TEXTS + [
     # J14's own label. Every other user-facing connector on an edge says what
     # it is - `5V IN`, `SSR1`, `TC1`, `IN1..GND` - and the Qwiic port arrived
     # at the bottom edge next to the input terminal with nothing but a
-    # designator, which is the one place a wrong guess costs a 3.3 V part.
-    # It is the one connector with NO per-terminal legend (PIN_LEGENDS): a
-    # 1 mm pitch takes no readable text, and the housing is keyed, so there
-    # is nothing for a reader to get wrong.
-    # 109.4, not 110.6: J14's own designator wants the gap directly above the
-    # connector, and this label has the whole 5 mm band between J7 and J14 to
-    # sit in, so it gives way rather than crowding the reference out of the
-    # one spot that is not the connector body.
-    ("QWIIC  I2C", 88.0, 109.4, 0, 0.9),
+    # designator. See BLOCK_LEGENDS above for what it says and why it sits
+    # further off its block than any other name here.
+    block_legend("J14"),
     # SJ1's legend, and now it is actually at SJ1 (44.30..47.70, 48.20..50.80)
     # rather than 17 mm away beside J10, where it read as a note about the AUX
     # terminal and left the jumper itself with nothing but a designator. SJ1
@@ -1867,6 +1992,12 @@ SILK += _pin_legends()
 # may not. Normalising here rather than writing None into ninety tuples keeps
 # the table above about intent.
 SILK = [e if len(e) == 6 else (e + (None,)) for e in SILK]
+# A block legend declared and never printed is a name nobody sees, and the
+# table above is the only place it would be visible. Fail rather than ship a
+# connector whose name exists only in a dict.
+assert _BLOCK_EMITTED == set(BLOCK_LEGENDS), (
+    "connector block legends declared but not in SILK: %s"
+    % sorted(set(BLOCK_LEGENDS) - _BLOCK_EMITTED))
 
 
 def main(dst):
