@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="305.0mm" height="406.0mm" viewBox="0 0 305.0 406.0">
+<g fill="none" stroke="black" stroke-width="0.3">
+<rect x="0" y="0" width="305.0" height="406.0" fill="none" stroke-dasharray="6 3"/>
+<text x="152.50" y="12.00" text-anchor="middle" fill="black" stroke="none" font-size="4" font-family="sans-serif">DOOR OUTLINE 305 x 406 mm (reference)</text>
+<text x="152.50" y="20.00" text-anchor="middle" fill="black" stroke="none" font-size="4" font-family="sans-serif">REV 2 -- TOUCH ONLY: no button holes on this door</text>
+<rect x="110.24" y="91.66" width="84.52" height="56.68"/>
+<line x1="148.50" y1="120.00" x2="156.50" y2="120.00"/><line x1="152.50" y1="116.00" x2="152.50" y2="124.00"/>
+<text x="152.50" y="85.13" text-anchor="middle" fill="black" stroke="none" font-size="4" font-family="sans-serif">CUT 84.5 x 56.7 (active area) -- deburr, glass is exposed</text>
+<rect x="98.48" y="89.13" width="108.04" height="61.74" fill="none" stroke-dasharray="2 2"/>
+<circle cx="100.98" cy="91.63" r="1.60"/><line x1="96.98" y1="91.63" x2="104.98" y2="91.63"/><line x1="100.98" y1="87.63" x2="100.98" y2="95.63"/>
+<circle cx="100.98" cy="148.37" r="1.60"/><line x1="96.98" y1="148.37" x2="104.98" y2="148.37"/><line x1="100.98" y1="144.37" x2="100.98" y2="152.37"/>
+<circle cx="204.02" cy="91.63" r="1.60"/><line x1="200.02" y1="91.63" x2="208.02" y2="91.63"/><line x1="204.02" y1="87.63" x2="204.02" y2="95.63"/>
+<circle cx="204.02" cy="148.37" r="1.60"/><line x1="200.02" y1="148.37" x2="208.02" y2="148.37"/><line x1="204.02" y1="144.37" x2="204.02" y2="152.37"/>
+<text x="152.50" y="156.87" text-anchor="middle" fill="black" stroke="none" font-size="4" font-family="sans-serif">display module holes M3 -- VERIFY against your module before drilling</text>
+<text x="152.50" y="79.13" text-anchor="middle" fill="black" stroke="none" font-size="4" font-family="sans-serif">gasket land only 2.5 mm top/bottom -- see README 'Revision 2'</text>
+<rect x="102.50" y="230.00" width="100.0" height="100.0" fill="none" stroke-dasharray="2 2"/>
+<circle cx="107.50" cy="235.00" r="1.60"/><line x1="103.50" y1="235.00" x2="111.50" y2="235.00"/><line x1="107.50" y1="231.00" x2="107.50" y2="239.00"/>
+<circle cx="107.50" cy="325.00" r="1.60"/><line x1="103.50" y1="325.00" x2="111.50" y2="325.00"/><line x1="107.50" y1="321.00" x2="107.50" y2="329.00"/>
+<circle cx="197.50" cy="235.00" r="1.60"/><line x1="193.50" y1="235.00" x2="201.50" y2="235.00"/><line x1="197.50" y1="231.00" x2="197.50" y2="239.00"/>
+<circle cx="197.50" cy="325.00" r="1.60"/><line x1="193.50" y1="325.00" x2="201.50" y2="325.00"/><line x1="197.50" y1="321.00" x2="197.50" y2="329.00"/>
+<text x="152.50" y="280.00" text-anchor="middle" fill="black" stroke="none" font-size="4" font-family="sans-serif">controller PCB holes M3, 90 x 90 grid</text>
+<text x="152.50" y="286.00" text-anchor="middle" fill="black" stroke="none" font-size="4" font-family="sans-serif">south edge (J5) UP, USB-C down; J6 unfitted</text>
+<line x1="102.5" y1="386.0" x2="202.5" y2="386.0"/>
+<line x1="102.5" y1="386.0" x2="102.5" y2="383.0"/>
+<line x1="112.5" y1="386.0" x2="112.5" y2="383.0"/>
+<line x1="122.5" y1="386.0" x2="122.5" y2="383.0"/>
+<line x1="132.5" y1="386.0" x2="132.5" y2="383.0"/>
+<line x1="142.5" y1="386.0" x2="142.5" y2="383.0"/>
+<line x1="152.5" y1="386.0" x2="152.5" y2="383.0"/>
+<line x1="162.5" y1="386.0" x2="162.5" y2="383.0"/>
+<line x1="172.5" y1="386.0" x2="172.5" y2="383.0"/>
+<line x1="182.5" y1="386.0" x2="182.5" y2="383.0"/>
+<line x1="192.5" y1="386.0" x2="192.5" y2="383.0"/>
+<line x1="202.5" y1="386.0" x2="202.5" y2="383.0"/>
+<text x="152.50" y="392.00" text-anchor="middle" fill="black" stroke="none" font-size="4" font-family="sans-serif">calibration: this ruler must measure exactly 100 mm</text>
+</g>
+</svg>
