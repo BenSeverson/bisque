@@ -138,6 +138,7 @@ cJSON *build_status_json(const firing_progress_t *prog, const thermocouple_readi
     cJSON_AddBoolToObject(tc_obj, "openCircuit", (tc->fault & TC_FAULT_OPEN_CIRCUIT) != 0);
     cJSON_AddBoolToObject(tc_obj, "shortGnd", (tc->fault & TC_FAULT_SHORT_GND) != 0);
     cJSON_AddBoolToObject(tc_obj, "shortVcc", (tc->fault & TC_FAULT_SHORT_VCC) != 0);
+    cJSON_AddBoolToObject(tc_obj, "outOfRange", (tc->fault & TC_FAULT_OUT_OF_RANGE) != 0);
     return root;
 }
 
@@ -449,6 +450,7 @@ cJSON *build_thermocouple_diag_json(const thermocouple_reading_t *tc, int64_t ag
     cJSON_AddBoolToObject(root, "openCircuit", (tc->fault & TC_FAULT_OPEN_CIRCUIT) != 0);
     cJSON_AddBoolToObject(root, "shortGnd", (tc->fault & TC_FAULT_SHORT_GND) != 0);
     cJSON_AddBoolToObject(root, "shortVcc", (tc->fault & TC_FAULT_SHORT_VCC) != 0);
+    cJSON_AddBoolToObject(root, "outOfRange", (tc->fault & TC_FAULT_OUT_OF_RANGE) != 0);
     cJSON_AddNumberToObject(root, "readingAgeMs", (double)age_ms);
     cJSON_AddNumberToObject(root, "temperatureAdjustedC", tc->temperature_c + tc_offset_c);
     cJSON_AddNumberToObject(root, "tcOffsetC", tc_offset_c);

@@ -179,6 +179,15 @@ target_include_directories(test_log_sink PRIVATE ${ROOT}/components/device_log/i
 add_host_test(test_wdt_kick SOURCES test_wdt_kick.c)
 target_include_directories(test_wdt_kick PRIVATE ${ROOT}/components/safety)
 
+# max31856 — the thermocouple driver's register decode, split into a header
+# with no ESP-IDF so the conversion maths and fault mapping are testable here.
+# thermocouple.c itself needs a real SPI bus and stays uncovered; this is the
+# half where a sign-extension bug would otherwise surface as a wrong kiln
+# temperature at 1000 C.
+add_host_test(test_max31856
+    SOURCES test_max31856.c)
+target_include_directories(test_max31856 PRIVATE ${ROOT}/components/thermocouple)
+
 # auth_helpers — bearer-token parsing and the constant-time token compare,
 # extracted from api_handlers.c's check_auth so the security-relevant part is
 # testable without esp_http_server.
