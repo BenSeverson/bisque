@@ -23,8 +23,10 @@ design.py and the loaded board have drifted apart.
 """
 import math
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 
 sys.path.insert(0, os.path.dirname(__file__))
 try:
@@ -641,6 +643,64 @@ def summarize(rpt_path):
     return counts
 
 
+# Sentinel rule appended to a throwaway copy of the .kicad_dru by
+# verify_dru_loaded(). It has to be a constraint no real board can satisfy, so
+# that silence means "file dropped" and never "board happens to comply".
+DRU_SENTINEL_NAME = "SELF-TEST: rules file loaded"
+DRU_SENTINEL = ('\n(rule "%s"\n\t(constraint track_width (min 5mm)))\n'
+                % DRU_SENTINEL_NAME)
+
+
+def verify_dru_loaded(out):
+    """Prove KiCad actually READ the .kicad_dru, rather than assume it.
+
+    A .kicad_dru KiCad cannot parse is discarded IN FULL and WITHOUT A
+    MESSAGE. The one that happened here (FAB-READINESS-REVIEW-REVB.md A11)
+    was a `(condition "...")` string broken across two lines; the cost was
+    that every `kicad-cli pcb drc` pass for the life of the file checked none
+    of JLC's limits and said so in the only way it can - by reporting a clean
+    board. That is indistinguishable from success, which is exactly why it
+    survived: 0 violations is what passing looks like.
+
+    So the load is asserted positively instead. Copy the board, its project
+    and the rules to a scratch directory, append a rule that CANNOT hold on
+    any real board (every track at least 5 mm wide), and require it to fire.
+    A silent sentinel means the rules file was dropped. Returns None on
+    success, or a message describing the failure.
+    """
+    dru = os.path.splitext(out)[0] + ".kicad_dru"
+    if not os.path.exists(dru):
+        return None          # no sidecar is a choice, not a defect
+    pro = os.path.splitext(out)[0] + ".kicad_pro"
+    with tempfile.TemporaryDirectory() as tmp:
+        base = os.path.basename(os.path.splitext(out)[0])
+        shutil.copy(out, os.path.join(tmp, base + ".kicad_pcb"))
+        if os.path.exists(pro):
+            shutil.copy(pro, os.path.join(tmp, base + ".kicad_pro"))
+        # The rules KiCad will be asked to load, plus the sentinel.
+        with open(os.path.join(tmp, base + ".kicad_dru"), "w") as fh:
+            fh.write(open(dru).read() + DRU_SENTINEL)
+        rpt = os.path.join(tmp, "selftest.rpt")
+        # No --refill-zones and no --save-board: this pass exists to find out
+        # whether a file parsed, not to check or rewrite anything.
+        subprocess.run(["kicad-cli", "pcb", "drc", "--format", "report",
+                        "--severity-error", "-o", rpt,
+                        os.path.join(tmp, base + ".kicad_pcb")],
+                       check=True, capture_output=True)
+        hits = open(rpt).read().count(DRU_SENTINEL_NAME)
+    if hits:
+        print("  %s: loaded (self-test rule fired %d\u00d7)"
+              % (os.path.basename(dru), hits))
+        return None
+    return ("%s was IGNORED by KiCad - the whole file, silently. Every JLC "
+            "limit in it went unchecked and the DRC report above is "
+            "meaningless. Almost always a syntax error: a quoted string "
+            "spanning two lines, an unbalanced paren, an unknown token. "
+            "kicad-cli names neither the file nor the line, so bisect it by "
+            "deleting rules until the self-test fires."
+            % os.path.basename(dru))
+
+
 def build_copper(board, fps, order):
     """One complete routing attempt. Returns (router, failed-net list)."""
     r, pad_pos = build_router_model(board, fps)
@@ -1058,6 +1118,7 @@ def main(out, reuse_routing=False):
               % (lname, area, cx, cy))
     print("KiCad DRC report -> %s" % rpt_path)
     summarize(rpt_path)
+    dru_fail = verify_dru_loaded(out)
     # Last, and after the board is on disk: a label that had to travel is not
     # a reason to withhold the artefact you need in order to see why. It is a
     # reason not to ship it. `silk.RING_MAX` is a bound on how far a legend
@@ -1080,7 +1141,9 @@ def main(out, reuse_routing=False):
               "axis - it names a different terminal now. Clear the legend "
               "column in gen_pcb.PIN_LEGENDS, or move the part in the way."
               % (txt, d, axis))
-    if strayed or slid:
+    if dru_fail:
+        print("FAIL: %s" % dru_fail)
+    if strayed or slid or dru_fail:
         sys.exit(1)
 
 

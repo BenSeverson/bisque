@@ -1,0 +1,200 @@
+(version 1)
+# JLCPCB's standard 4-layer process, expressed as KiCad custom rules.
+#
+# This file answers one question and only one: WILL JLCPCB MAKE THIS BOARD on
+# the process it is quoted on, without a surcharge or an engineering query. It
+# is deliberately NOT a statement of design intent -- the netclasses in
+# bisque-controller.kicad_pro already carry that (0.3 mm default track, 0.2 mm
+# clearance, 0.6/0.3 vias), and every copper number below sits well beneath
+# them. A violation here means something slipped off the design's own floor far
+# enough to hit the fab's, which is the only interesting case.
+#
+# Process: JLC04161H-7628, 1.6 mm, 1 oz outer / 0.5 oz inner -- the stack-up
+# gen_pcb.STACKUP writes into the board. Numbers from
+# https://jlcpcb.com/capabilities/pcb-capabilities and, for silkscreen,
+# https://jlcpcb.com/blog/character-design-specifications.
+#
+# EVERY LIMIT HERE IS JLC'S ABSOLUTE MINIMUM, NOT ITS RECOMMENDED VALUE, and
+# the difference is not academic on the silkscreen -- see the silkscreen block
+# at the bottom, where this board sits exactly on the absolute floor and the
+# recommendation is 25% larger. The published community rule files
+# (labtroll/KiCad-DesignRules and its forks, tinfever's) encode the
+# RECOMMENDED 1.0 mm text height as if it were the capability; against this
+# board that is 199 false violations, which is how a report gets ignored.
+#
+# Not generated: a .kicad_dru is a sidecar KiCad reads by project name, so it
+# survives every regeneration of the board untouched, and kicad_build.py's
+# existing `kicad-cli pcb drc` pass picks it up for free. Note that pass does
+# NOT pass --exit-code-violations, so what lands here is reported in
+# bisque-controller-drc.rpt and does not fail the build.
+
+# PROVENANCE. This file is DERIVED from two public, community-maintained rule
+# sets, not written from JLC's spec alone -- both were open while it was
+# written, and 21 of its 31 constraint/condition lines are theirs verbatim or
+# differ only in parenthesisation:
+#
+#   https://github.com/tinfever/KiCAD-Custom-DRC-Rules-for-JLCPCB-with-Unit-Tests
+#   https://github.com/labtroll/KiCad-DesignRules  (and its fork Cimos/KiCad-CustomDesignRules)
+#
+# NEITHER REPOSITORY DECLARES A LICENSE, which under default copyright means
+# all rights reserved rather than public domain. The exposure is thin -- the
+# values are JLCPCB's own published manufacturing limits, which are facts, and
+# KiCad's rule DSL leaves almost no room to express them differently -- but it
+# is not nil, and it should be a deliberate decision rather than an accident.
+#
+# What is NOT theirs, and why: the 0.8 mm text height (both encode JLC's
+# RECOMMENDED 1.0 mm as though it were the capability -- 199 false violations
+# against this board), the by-name pad-to-silk exception below, the split
+# annular rule for vias vs PTH, and the tier selection -- both files ship the
+# 2-layer and surcharge-tier variants commented out; this one states only the
+# process this board is quoted on.
+
+# ----------------------------------------------------------------- copper --
+# Multilayer minimum. This board routes at 0.25 mm and up, so this only ever
+# fires on a hairline nobody meant to draw.
+(rule "JLC: track width and spacing (multilayer)"
+	(constraint track_width (min 0.09mm))
+	(constraint clearance (min 0.09mm))
+	(condition "A.Type == 'track'"))
+
+# ------------------------------------------------------------------- vias --
+# Standard 4-layer: 0.3 mm drill / 0.45 mm pad, which is exactly this board's
+# drill at a 0.15 mm larger pad. Anything smaller is a surcharge tier.
+(rule "JLC: via drill and diameter (standard tier)"
+	(constraint hole_size (min 0.3mm))
+	(constraint via_diameter (min 0.45mm))
+	(condition "A.Type == 'via'"))
+
+# Blind and buried vias are not part of the standard process at all.
+(rule "JLC: through vias only"
+	(constraint disallow buried_via micro_via))
+
+# (0.6 - 0.3) / 2 = 0.15 mm on this board, twice the floor.
+(rule "JLC: via annular ring"
+	(constraint annular_width (min 0.075mm))
+	(condition "A.Type == 'via'"))
+
+# ------------------------------------------------------------------ holes --
+(rule "JLC: PTH hole size and annular ring"
+	(constraint hole_size (min 0.2mm) (max 6.3mm))
+	(constraint annular_width (min 0.15mm))
+	(condition "A.Type == 'pad' && A.isPlated()"))
+
+(rule "JLC: NPTH hole size"
+	(constraint hole_size (min 0.5mm))
+	(condition "A.Type == 'pad' && !A.isPlated()"))
+
+(rule "JLC: plated slot width"
+	(constraint hole_size (min 0.5mm))
+	(condition "A.Hole_Size_X != A.Hole_Size_Y && A.isPlated()"))
+
+(rule "JLC: non-plated slot width"
+	(constraint hole_size (min 1.0mm))
+	(condition "A.Hole_Size_X != A.Hole_Size_Y && !A.isPlated()"))
+
+# -------------------------------------------------------------- clearance --
+(rule "JLC: hole to hole, different nets"
+	(constraint hole_to_hole (min 0.5mm))
+	(condition "A.Net != B.Net"))
+
+(rule "JLC: via to via, same net"
+	(constraint hole_to_hole (min 0.254mm))
+	(condition "A.Type == 'via' && B.Type == 'via' && A.Net == B.Net"))
+
+(rule "JLC: track to NPTH hole wall"
+	(constraint hole_clearance (min 0.254mm))
+	(condition "!A.isPlated() && B.Type == 'track' && A.Net != B.Net"))
+
+(rule "JLC: track to PTH hole wall"
+	(constraint hole_clearance (min 0.33mm))
+	(condition "A.isPlated() && A.Type != 'via' && B.Type == 'track' && A.Net != B.Net"))
+
+# --------------------------------------------------------------- outlines --
+# JLC's stated floor is 0.2 mm to a routed edge; 0.3 mm is this board's own
+# min_copper_edge_clearance and there is no reason to check it any looser.
+# A v-scored edge would want 0.4 mm -- this board is not scored.
+(rule "JLC: copper to routed board edge"
+	(constraint edge_clearance (min 0.3mm)))
+
+# ------------------------------------------------------------------ zones --
+# The pours' narrowest neck, which nothing checked before this: the project's
+# min_connection is 0.0, i.e. the built-in connection_width check is disabled
+# outright, and check_pcb.py measures clearance BETWEEN nets rather than the
+# width of copper WITHIN one.
+#
+# 0.15 mm is picked the same way as everything else here -- off the fab floor,
+# not off intent. Measured, the pours' true minimum is 0.1904 mm (the GND
+# plane on In1.Cu at 20.5, 20.5) with 172 of 218 necks clustered at
+# 0.199-0.1995 mm, which is not a defect but the 0.2 mm zone clearance doing
+# exactly what it is set to do. A rule at 0.25 mm would therefore report 218
+# violations and mean nothing. At 0.15 mm the board is silent and a genuine
+# sliver -- a pour reduced to a thread by a part that moved -- still fails.
+(rule "JLC: zone connection width"
+	(constraint connection_width (min 0.15mm)))
+
+# --------------------------------------------------------------- mechanical --
+# JLC wants 1.0 mm from any hole to a routed edge. Verified non-vacuous: at an
+# absurd 10 mm this rule reports 144 violations, so the pass at 1.0 mm is a
+# real one and not a condition that never matches.
+(rule "JLC: hole to routed board edge"
+	(constraint physical_hole_clearance (min 1.0mm))
+	(condition "B.Type == 'graphic' && B.Layer == 'Edge.Cuts'"))
+
+# Courtyards may not overlap. check_placement.py already tests this, but it
+# needs `import pcbnew` and so is NOT in pcb-check-portable, i.e. not in CI;
+# this puts the same check somewhere that runs on every build. Note the
+# project sets `missing_courtyard` to ignore, so a footprint carrying no
+# courtyard at all still escapes both.
+(rule "courtyards may not overlap"
+	(constraint courtyard_clearance (min 0mm)))
+
+# NOT ENFORCED, deliberately: the USB pair is essentially uncoupled. Measured
+# with (constraint diff_pair_uncoupled (max 5mm)) on NetClass 'USB', this board
+# reports 90.4882 mm, which is the DRC's confirmation of what CLAUDE.md already
+# records from the geometry -- 0.0% of USB_DP's 39.08 mm runs within 0.30 mm of
+# USB_DN. That is an accepted trade (Full-Speed only, 12 Mbps, electrically
+# short), so enforcing it would put a permanent failure in the report. Left
+# here as the measurement, ready to switch on for a rev that routes the pair
+# coupled at a 0.25 mm gap and actually lands on 90 ohm:
+#
+# (rule "USB: differential pair coupling"
+# 	(constraint diff_pair_uncoupled (max 5mm))
+# 	(condition "A.NetClass == 'USB'"))
+
+# ------------------------------------------------------------- silkscreen --
+# The absolute minimum for JLC's STANDARD font is 0.8 mm height at a 0.15 mm
+# stroke, with a stroke:height ratio of roughly 1:5 to 1:6. That is where this
+# board's silk lives, essentially in its entirety: 185 texts at exactly
+# 0.8 mm, 13 at 0.9 mm, one at 0.894 mm -- and 229 of them at a 0.16 mm
+# stroke, i.e. a 1:5.0 ratio, at the far edge of the stated range.
+#
+# So gen_pcb.TITLE_MIN_TEXT = 0.8 is correct against the CAPABILITY, and the
+# nameplate's floor is in the right place. What it is not is comfortable: JLC
+# recommends 1.0 mm at a 0.2 mm stroke, warns of blurred and incomplete
+# characters below that, and this board's silk is the whole point of
+# PIN_LEGENDS and BLOCK_LEGENDS -- 50 per-terminal legends nobody can read are
+# 50 legends that were not worth placing. This rule is set at the capability
+# because that is what the rest of the file checks; the legibility margin is a
+# design decision, not a DRC one.
+(rule "JLC: silkscreen character size (absolute minimum)"
+	(layer "?.Silkscreen")
+	(constraint text_height (min 0.8mm))
+	(constraint text_thickness (min 0.15mm)))
+
+# Pad-to-silk is 0.15 mm, and this board misses it in 13 places -- every one of
+# them geometry inherited from a KiCad library footprint, not anything the
+# generator placed: the TestPoint footprint prints its own ring 0.14 mm from
+# its own pad (TP1-TP12), and the ESP32-S3-WROOM-1U outline passes 0.13 mm from
+# U1 pad 1. JLC clips silk off mask openings in prep, so 0.01-0.02 mm of
+# encroachment by a part's own marking is not a defect. Budgeted BY NAME rather
+# than by dropping the global limit, so that a designator or legend actually
+# buried in a pad -- which is a much larger miss -- still fails.
+(rule "JLC: pad to silkscreen"
+	(layer outer)
+	(constraint silk_clearance (min 0.15mm))
+	(condition "A.Type == 'pad' && (B.Type == 'text' || B.Type == 'graphic')"))
+
+(rule "JLC: pad to silkscreen (library footprint markings)"
+	(layer outer)
+	(constraint silk_clearance (min 0.13mm))
+	(condition "A.Type == 'pad' && (B.Type == 'text' || B.Type == 'graphic') && (A.memberOfFootprint('TP*') || A.memberOfFootprint('U1'))"))

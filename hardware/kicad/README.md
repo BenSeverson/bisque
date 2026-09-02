@@ -27,8 +27,9 @@ table — 92 nets, 0 mismatches). The 3D renders in `3d/` are raytraced by
 | `bisque-controller.kicad_pro` | Project. Hand-maintained **except** two blocks, both derived and both written *after* the board is saved because `pcbnew.SaveBoard()` blanks them: `schematic.top_level_sheets` (`gen_sch.py::sync_project()`) and `net_settings` (`gen_pcb.py::sync_netclasses()`, from `ROUTE_ORDER`) — see below |
 | `bisque-controller.kicad_sch` | Schematic (A1, netlist-style: functional groups, global labels for signals, real power ports for rails, and real wires for two-pin nets local to one block). Laid out programmatically by `generator/gen_sch.py` — a `GROUPS` taxonomy plus a deterministic column packer, with a reserved right-hand column for the notes block. A1, not A3: an A3 declaration silently clipped ~40% of the circuit out of the exported PDF while every connectivity checker stayed green (`generator/check_sch_bounds.py` now fails on any off-sheet item), and containment is not readability, so `generator/check_sch_layout.py` additionally fails on any symbol/symbol, text/symbol, text/text or wire/wire collision (wires: a T or a collinear overlap — a plain crossing is allowed) |
 | `bisque-controller.kicad_pcb` | Board: placed, fully routed, 4 layers (F.Cu/B.Cu signals, In1.Cu GND plane, In2.Cu +3V3 plane), on JLCPCB's `JLC04161H-7628` 1.6 mm stack-up — see "The physical stack-up" |
+| `bisque-controller.kicad_dru` | JLCPCB's standard 4-layer process as KiCad custom rules — **not generated**, and not a statement of design intent: every limit in it is JLC's *absolute minimum*, so a violation means something slipped off the design's own floor (0.3 mm track, 0.2 mm clearance, 0.6/0.3 vias, all from `net_settings`) far enough to hit the fab's. KiCad reads it by project name, so it survives regeneration untouched and the existing `kicad-cli pcb drc` pass picks it up for free — see "Fabrication & assembly at JLCPCB" |
 | `3d/board-3d-*.png` | Raytraced renders, kicad-cli — straight orthographic **top** and **bottom** only. The angled iso/front views were dropped: they look better than they read, and these images get used to check placement and silk, not to advertise |
-| `bisque-controller-drc.rpt` | KiCad DRC report (0 errors, 0 unconnected, 0 warnings — the 109 silkscreen warnings went with the silk packer, see "Regenerating the files") |
+| `bisque-controller-drc.rpt` | KiCad DRC report, now including the `.kicad_dru` rules above (0 errors, 0 unconnected, 0 warnings — the 109 silkscreen warnings went with the silk packer, see "Regenerating the files") |
 | `gerbers/` | Fabrication outputs (kicad-cli: F.Cu, B.Cu, **In1.Cu, In2.Cu**, paste/silk/mask, Edge.Cuts, Excellon drill + job file) |
 | `pdf/` | Schematic and board PDFs (kicad-cli) |
 | `jlcpcb/` | The complete JLCPCB upload: `gerbers.zip` for fabrication, BOM + CPL for assembly, plus the hand-solder shopping list |
@@ -444,6 +445,81 @@ not; see "Density and the 4-layer stack-up" above) but stays inside the
 | Min PTH drill | 0.3 mm (vias) | 0.3 mm |
 | Copper-to-edge | ≥ 0.3 mm | 0.2 mm |
 | Layers / finish | 4 (F.Cu/In1.Cu GND/In2.Cu +3V3/B.Cu), HASL, 1.6 mm, green | standard |
+
+### Checking against JLC before ordering: `bisque-controller.kicad_dru`
+
+JLCPCB itself ships nothing that plugs into KiCad's DRC. What it does offer is
+[JLCDFM](https://jlcdfm.com/) — a free gerber-upload DFM/DFA analyser, the same
+engine that runs automatically when you upload to
+[the quote page](https://cart.jlcpcb.com/quote) — plus a
+[PCBA viewer](https://jlcpcb.com/smt/dfm-result) that renders the BOM+CPL
+placement so rotations can be eyeballed, and an approval-gated
+[ordering API](https://api.jlcpcb.com). All of them are post-export: you learn
+the answer after the gerbers exist.
+
+`bisque-controller.kicad_dru` closes that gap by stating JLC's process as KiCad
+custom rules, so `kicad-cli pcb drc` answers the question on every build. KiCad
+picks the file up by project name, so it is a sidecar the generator never
+touches — a full `make pcb-cosmetic` with it in place leaves the board and
+schematic **byte-identical**.
+
+**It encodes JLC's absolute minimums, not its recommendations, and on
+silkscreen those differ by 25%.** The published community rule files
+([labtroll](https://github.com/labtroll/KiCad-DesignRules) and its forks,
+[tinfever's](https://github.com/tinfever/KiCAD-Custom-DRC-Rules-for-JLCPCB-with-Unit-Tests))
+set `text_height` to 1.0 mm, which is JLC's *recommended* height, not its
+capability — against this board that is **199 false violations**, which is how
+a report gets ignored. JLC's
+[character specification](https://jlcpcb.com/blog/character-design-specifications)
+gives the standard font an absolute minimum of 0.8 mm at a 0.15 mm stroke
+(ratio ~1:5 to 1:6) and a recommendation of 1.0 mm at 0.2 mm. So
+`gen_pcb.TITLE_MIN_TEXT = 0.8` is right against the capability — but it is the
+capability, exactly: 185 of this board's silk texts are at 0.8 mm, 13 at
+0.9 mm, one at 0.894 mm, and 229 of them carry a 0.16 mm stroke, a 1:5.0 ratio
+at the far edge of the stated range. That is a legibility question for a board
+whose whole silk investment is 50 per-terminal legends, not a fab question, so
+it is not enforced here.
+
+The only other thing the board misses is JLC's 0.15 mm pad-to-silk clearance,
+in 13 places, **every one of them geometry inherited from a KiCad library
+footprint** rather than anything the generator placed: the TestPoint footprint
+prints its own ring 0.14 mm from its own pad (TP1–TP12) and the
+ESP32-S3-WROOM-1U outline passes 0.13 mm from U1 pad 1. JLC clips silk off mask
+openings in prep, so a part's own marking encroaching by 0.01–0.02 mm is not a
+defect. Those are budgeted **by name** via `memberOfFootprint()` rather than by
+dropping the global limit, so a designator or legend actually buried in a pad
+— a much larger miss — still fails.
+
+Three rules go beyond what the community files check, each verified against
+this board rather than assumed. `connection_width` at 0.15 mm closes a real
+gap — the project's `min_connection` is `0.0`, so KiCad's check is disabled
+outright, and `check_pcb.py` measures clearance *between* nets rather than the
+width of copper *within* one; the pours' true minimum neck is 0.1904 mm, so a
+rule at the community-typical 0.25 mm would report 218 non-defects. A 1.0 mm
+hole-to-routed-edge rule (JLC's requirement, and a `TODO` in labtroll's file)
+passes, and was checked non-vacuous — at an absurd 10 mm it reports 144
+violations. `courtyard_clearance` duplicates `check_placement.py` on purpose,
+because that checker needs `import pcbnew` and so is not in
+`pcb-check-portable`, i.e. not in CI. One rule is deliberately left commented
+out: `diff_pair_uncoupled` on the USB net class reports **90.4882 mm**, the
+DRC's own confirmation of the uncoupled pair documented under "The physical
+stack-up" — an accepted trade at Full Speed, so enforcing it would park a
+permanent failure in the report.
+
+Two checks remain off in the `.kicad_pro` rather than here, because they are
+board settings and not expressible as custom rules: `min_groove_width` and
+`solder_mask_to_copper_clearance` are both `0.0`, disabling the solder-mask
+dam and sliver checks. Set to 0.1 mm and 0.05 mm on a scratch copy this board
+reports **zero** violations, so enabling them costs nothing and turns on two
+checks that a fine-pitch QFN board should have.
+
+Everything on the copper side passes with room to spare, which is the expected
+answer: the netclasses sit far above the fab floor, and the rules are there to
+catch a slip, not to express intent.
+
+Note that `kicad_build.py`'s DRC pass does **not** pass
+`--exit-code-violations`, so what these rules find is reported in
+`bisque-controller-drc.rpt` and does not fail the build.
 
 Bare boards: roughly **$10–15 for 5 pcs** at the 4-layer ≤100×100 mm tier
 (up from rev A's ~$2–4 2-layer price) plus shipping. Ready-to-upload
