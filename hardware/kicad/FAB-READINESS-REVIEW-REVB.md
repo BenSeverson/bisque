@@ -39,13 +39,15 @@ datasheet. But this exact package should not be ordered as-is.** Ten defects
 are one-line edits in `design.py` / `gen_pcb.py` and one `make pcb` (~6 min)
 before the order, and each of them is a bodge, a filed hole or a wiring trap
 after it. Two firmware items gate board 1 regardless of hardware. One process
-gate the working-tree README describes does not exist: the JLC rules file is
-silently ignored by KiCad.
+gate the working-tree README described did not exist — the JLC rules file was
+silently ignored by KiCad — and is now fixed, tracked and self-testing (A11,
+`124ba4f`): the board passes JLC's process for real rather than vacuously.
 
 Decision path:
 
-1. Land the eleven "fix before ordering" edits, run `make pcb`, re-run this
-   review's spot checks (they are all scripted below), order.
+1. Land the ten remaining "fix before ordering" edits (A11 is done), run
+   `make pcb`, re-run this review's spot checks (they are all scripted
+   below), order.
 2. Or order as-is and accept: two filed mounting holes, four bodged pull-ups,
    one trace cut if the display's SDO turns out not to tri-state, an ADE7953
    with an ungrounded thermal pad, and a CT terminal whose silk invites a
@@ -78,7 +80,7 @@ Decision path:
 | A8 | **USB_DN detours 60 mm through the SSR/watchdog band** — a regression from the one-shot rebuild; the README still claims a 0.28 mm pair skew | USB_DP 38.1 mm / 5 vias, y ≤ 42.1; USB_DN 94.0 mm / 7 vias, y to 72.5, 69 mm outside `USB_KEEPOUT`; pad-to-pad 32.95 vs 90.0 mm | Seed DN alongside DP (`USB_SEEDS`) or promote the pair to route first; correct README "stack-up" paragraph and `gen_pcb.py:357`. Electrically harmless at Full Speed, but it is exactly the routing the docs say does not exist |
 | A9 | **Channel-2 thermocouple filtered nodes are 2–3× longer than channel 1 and loop into the ADE7953 corridor** | TC2_P_F 34.7 mm / 5 vias, TC2_N_F 44.3 mm / 4 vias vs TC1 15.3 / 2 and 21.8 / 3; loop reaches y 62.8 | Promote `TC2_*_F` (and `TC2_N`) ahead of the ADE/I²C nets or seed direct escapes from U5 pins 2–4 toward R17/C20/C22; target ≤ 15 mm, ≤ 2 vias per leg |
 | A10 | **CT channel A is single-ended but the ADE7953 limits single-ended IAP to ±250 mV** (Table 5 pins 5/6, p.20); channel B is allowed ±500 mV | 5.1 Ω burden: 250 mV pk = 34.7 mA rms → **69 A rms** full scale for a 2000:1 CT (channel B: 139 A). Fine for a kiln zone; wrong in the README and in any shared calibration constant | Make channel A differential (R + 33 nF on IAN like IAP, IAN off GND) or document the per-channel full scale and calibrate separately in firmware |
-| A11 | **`bisque-controller.kicad_dru` is silently ignored by KiCad** — the last rule's `(condition "…")` string spans two lines, and kicad-cli drops the whole file without a message. The uncommitted README edit credits the DRC report to these rules; the file is also untracked | Sentinel test on a copy: committed file + `track_width (min 5mm)` → **0** violations; sentinel alone → 398; condition joined onto one line → sentinel fires 199×, board passes JLC rules with 0 | Join the condition onto one line, `git add` the file, and add a sentinel self-test to `kicad_build.py` so a dropped rules file fails loudly |
+| A11 | **RESOLVED in `124ba4f`.** **`bisque-controller.kicad_dru` was silently ignored by KiCad** — the last rule's `(condition "…")` string spanned two lines, and kicad-cli drops the whole file without a message. The README credited the DRC report to these rules; the file was also untracked | Sentinel test on a copy: committed file + `track_width (min 5mm)` → **0** violations; sentinel alone → 398; condition joined onto one line → sentinel fires 199×, board passes JLC rules with 0 | Done: condition joined onto one line, file tracked, and `kicad_build.py::verify_dru_loaded()` now appends that sentinel to a scratch copy of board+project+rules on every build and fails the build if it does not fire (one extra `kicad-cli pcb drc`, 2.27 s). `bisque-controller-drc.rpt` regenerated: still 0 violations, now with the rules genuinely loaded |
 
 ### B. Firmware gates for board 1
 
@@ -128,8 +130,8 @@ Defects: A7 (REF), A8 (USB_DN), A9 (TC2 filtered legs), and the single power via
 - README and `design.py` still describe AMS1117 headroom and a `VLED ≈ 4.6 V` that ignores D1; README/CLAUDE.md quote the pre-regression USB skew.
 - `docs/pin-assignments.md` describes a `+3V3` pin on J11 that does not exist; `lid_state.h` says the default lid GPIO is 21.
 - Title-block date is hard-coded `2026-07-20` (`gen_sch.py:1881`, `kicad_build.py:198`).
-- In-repo `bisque-controller-drc.rpt` predates the board commit and cannot contain the rules the README credits it with (A11).
-- `bisque-controller.kicad_dru` is untracked. (A Freerouting experiment — `bisque-controller-freeroute.*`, two `.dsn` files and a `.lck` — sat untracked beside it when this review started and was removed during it; that board was never the one reviewed.)
+- ~~In-repo `bisque-controller-drc.rpt` predates the board commit and cannot contain the rules the README credits it with (A11).~~ *FIXED in `124ba4f`* — regenerated by `make pcb-cosmetic`; it now does carry them, and still reports 0.
+- ~~`bisque-controller.kicad_dru` is untracked.~~ *FIXED in `124ba4f`* — now tracked. (A Freerouting experiment — `bisque-controller-freeroute.*`, two `.dsn` files and a `.lck` — sat untracked beside it when this review started and was removed during it; that board was never the one reviewed.)
 - Schematic parity (423 warnings): PCB footprints carry no library nickname or MPN field, local-label nets are `/X` in the schematic and `X` on the board. A GUI "Update PCB from Schematic" would rename 114 nets; the generator should emit both.
 - Datasheets still missing on disk: SRV05-4, SS34, SS14, 1N4148W, C12891.
 - Feeder-fee accounting in the README is stale (8 fee-bearing Extended parts, not 6); C17408 appears on two BOM rows as `100R 1%` and `100R`.
