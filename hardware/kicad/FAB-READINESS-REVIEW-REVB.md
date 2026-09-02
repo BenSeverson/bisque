@@ -11,14 +11,152 @@ Review lineage:
 - 2026-08-12 — after the **opto-isolation reversal** (removed `U8`/`U9`,
   `SJ3`/`SJ4`, the pour keepout, the router keepout and `check_isolation.py`;
   added `Q4`/`Q5`/`Q6`/`R47`)
-- **2026-08-17 — current.** Full re-review after the fiducial / SRV05-4 /
+- 2026-08-17 — full re-review after the fiducial / SRV05-4 /
   oscillator / pour / silk / schematic-fusing wave. Schematic `2f322e8e…`,
   board `2f26da9b…`, working tree clean at `75c551d`.
+- **2026-09-02 — current.** Pre-prototype review of the board as committed at
+  `7fa2fd9` (TLV1117LV33, SN74LVC1G123 one-shot, derived block legends):
+  16 independent review lenses plus direct re-measurement of every
+  medium-and-above finding. Everything from "## Verdict" onward below is the
+  2026-08-17 round, preserved as written; the new round is the section that
+  follows this list.
 
 Rev B is a respin, not a variant: the thermocouple front-end, module variant,
 output bank, and layer count all changed, and no attempt was made to keep rev A
 hardware compatible with rev B firmware defaults. The one item that carries
 forward unchanged is `CERT-001`, below.
+
+## 2026-09-02 round — pre-prototype review
+
+**Ask:** review the schematic and PCB before the first prototype run — layout,
+silkscreen legibility, routing quality, circuit completeness — and say whether
+the board will be unusable or need significant rework.
+
+### Verdict
+
+**Nothing makes the board unusable, and every subsystem is wired to its
+datasheet. But this exact package should not be ordered as-is.** Ten defects
+are one-line edits in `design.py` / `gen_pcb.py` and one `make pcb` (~6 min)
+before the order, and each of them is a bodge, a filed hole or a wiring trap
+after it. Two firmware items gate board 1 regardless of hardware. One process
+gate the working-tree README describes does not exist: the JLC rules file is
+silently ignored by KiCad.
+
+Decision path:
+
+1. Land the eleven "fix before ordering" edits, run `make pcb`, re-run this
+   review's spot checks (they are all scripted below), order.
+2. Or order as-is and accept: two filed mounting holes, four bodged pull-ups,
+   one trace cut if the display's SDO turns out not to tri-state, an ADE7953
+   with an ungrounded thermal pad, and a CT terminal whose silk invites a
+   wiring error.
+
+### Verification basis
+
+| Gate | Result (2026-09-01/02, KiCad 10.0.6) |
+|---|---|
+| `kicad-cli pcb drc --severity-all --schematic-parity` | 0 violations, 0 unconnected, 423 parity warnings (see hygiene) |
+| `kicad-cli sch erc --severity-all` | 1 error (U3/U5 SDO both `Output` on SPI_MISO — expected on a tri-state bus), 202 warnings (power-symbol cache, off-grid, VIN/VLED label aliasing) |
+| `make pcb-check` — all 13 checkers | exit 0 (93 nets, 0 mismatches; 29 GPIOs agree with Kconfig; 478 apertures, min web 0.300 mm; gerbers.zip current) |
+| `gen_jlc.py` vs committed `jlcpcb/*.csv` | byte-identical |
+| kicad-happy analyzers (schematic, PCB `--full --proximity`, gerber, cross, EMC, thermal @ 50 °C) | run fresh; every error-level finding triaged (see refuted list) |
+| Review lenses | 16 of 17 independent lenses returned (power, ESP32, thermocouple, ADE7953, SSR/watchdog, aux/buzzer/LED, inputs/I²C/headers, PDN/thermal, analog/crosstalk, USB/ESD/return, silk visual, silk geometric, DFM/BOM/CPL, mechanical, routing, firmware/bring-up); the delta/hygiene lens was done by hand |
+| Independent re-measurement | every medium-and-above finding re-measured with `pcbnew` / `kicad-cli` / datasheet text before it appears below; low/nit items are reported as the reviewers stated them |
+| Datasheets read | SN74LVC1G123 (TI SCES586E), TFOM 3.579545 MHz XO, TLV1117LV, ADE7953 Rev C, MAX31856, ESP32-S3 module v1.8 + series v2.2, WS2812B, ULN2003A, AO3400A/AO3401A, LCDWIKI MSP4021 schematic (QDtech 2019-09-27) and ST7796S v1.0 (fetched), EasyEDA symbol data for the three diodes and two LEDs |
+
+### A. Fix before ordering — each is a generator edit and one `make pcb`
+
+| # | Finding | Measured | Fix |
+|---|---|---|---|
+| A1 | **Mounting-hole grid is 89 × 90 mm, not the 90 × 90 mm the enclosure README and door template drill** | `H1` (25.5, 25.0), `H2` (114.5, 25.0), `H3` (25.5, 115.0), `H4` (114.5, 115.0); `generate_panel_template.py` `PCB_HOLE_GRID = 90.0` | `design.py`: H1/H3 x = 25.0, H2/H4 x = 115.0 (nothing lies within 3.6 mm of the holes); or set the template to 89 × 90 for this build |
+| A2 | **TP11's `CT A+` legend prints inside J12's terminal-mark column, 0.4 mm above the `A-` screw mark** — the CTA_N screw reads as both `CT A+` and `A-` | `CT A+` at (106.50, 85.70), box y 84.95–86.45; `A-` at (107.38, 86.92) = J12 pad 2 (CTA_N) | Move TP11 out of the legend strip (west of D6 or south of J12) or set `TP_LABEL_AT["TP11"]` north/west of the pad; add a `kicad_build.py` assertion that no TP label lands in a connector's `PIN_LEGENDS` column |
+| A3 | **J11's `IN1 IN2 IN3 GND` marks are wedged between connector bodies** | text boxes y 107.03–108.53; J6/J7 silk outline bottom 107.05, J11 silk top 108.62 (0.02 / 0.09 mm); wire entry faces the edge so there is no other side | Move the J5/J6/J7 row ~1.5 mm north in `design.py` and print these four at 1.0 mm; give J11 a block name |
+| A4 | **No pull-up on any SPI chip select, and current firmware never drives two of them** (`TC2_CS` GPIO35, `T_CS` GPIO5) | nets have exactly U1 + slave; GPIO 5/8/10/35 have no pull at reset (ESP32-S3 DS Table 2-1); `main.c` configures only TC1_CS and LCD_CS | Four 10 k to +3V3 (TC1_CS, TC2_CS, LCD_CS, T_CS). Board 1 without them: drive GPIO35 and GPIO5 high before `spi_bus_initialize()` |
+| A5 | **Display SDO is hard-wired to the shared SPI_MISO (J5.9) with no series or DNP element**; the ST7796S datasheet never states SDO goes high-Z when deselected, the module has no series resistor, and the thermocouples share the line | `design.py` J5 pin 9 = SPI_MISO; R39–R43 damp only the five touch lines | 33 Ω (or DNP 0 Ω) in series on J5.9. Bring-up: scope TP6 with the panel plugged in while TC1 is selected; cut J5.9 if MISO is not released |
+| A6 | **U7 ADE7953 exposed pad has no vias** (datasheet Table 5: "Connect the pad to AGND and DGND"; prior-review item 2, still open) | 0 vias in the 3.1 mm pad, nearest GND via 3.36 mm; `PULL_LOW` does not enter the pad | Exempt exposed pads in `check_via_in_pad.py` and drop a 2×2/3×3 grid of 0.3 mm GND vias via `MANUAL_VIAS`. Same policy fix gives U2's tab (nearest +3V3 via 1.5 mm, Tj ≈ 94 °C at 50 °C ambient, prior item 3) and U1's thermal pad (Espressif draws 9 vias; nearest GND via 1.0–2.5 mm) their vias |
+| A7 | **ADE7953 REF decoupling reaches pin 13 through 36–42 mm of copper and 6 vias**, 10 mm of it 0.2 mm from I²C_SCL | pin 13 (96.00, 74.38); C34 (93, 79) 41.7 mm path, C33 (89, 79) 36.5 mm; net 42.3 mm total. Datasheet p.68: ceramic caps "closest to the ADE7953" | Seed/route `ADE_REF` first with a direct run south to C34 (move C33/C34 to ~(96, 77.5)); target < 5 mm, 0 vias. Same treatment for `ADE_VINTD` (12.7 mm, 2 vias) |
+| A8 | **USB_DN detours 60 mm through the SSR/watchdog band** — a regression from the one-shot rebuild; the README still claims a 0.28 mm pair skew | USB_DP 38.1 mm / 5 vias, y ≤ 42.1; USB_DN 94.0 mm / 7 vias, y to 72.5, 69 mm outside `USB_KEEPOUT`; pad-to-pad 32.95 vs 90.0 mm | Seed DN alongside DP (`USB_SEEDS`) or promote the pair to route first; correct README "stack-up" paragraph and `gen_pcb.py:357`. Electrically harmless at Full Speed, but it is exactly the routing the docs say does not exist |
+| A9 | **Channel-2 thermocouple filtered nodes are 2–3× longer than channel 1 and loop into the ADE7953 corridor** | TC2_P_F 34.7 mm / 5 vias, TC2_N_F 44.3 mm / 4 vias vs TC1 15.3 / 2 and 21.8 / 3; loop reaches y 62.8 | Promote `TC2_*_F` (and `TC2_N`) ahead of the ADE/I²C nets or seed direct escapes from U5 pins 2–4 toward R17/C20/C22; target ≤ 15 mm, ≤ 2 vias per leg |
+| A10 | **CT channel A is single-ended but the ADE7953 limits single-ended IAP to ±250 mV** (Table 5 pins 5/6, p.20); channel B is allowed ±500 mV | 5.1 Ω burden: 250 mV pk = 34.7 mA rms → **69 A rms** full scale for a 2000:1 CT (channel B: 139 A). Fine for a kiln zone; wrong in the README and in any shared calibration constant | Make channel A differential (R + 33 nF on IAN like IAP, IAN off GND) or document the per-channel full scale and calibrate separately in firmware |
+| A11 | **`bisque-controller.kicad_dru` is silently ignored by KiCad** — the last rule's `(condition "…")` string spans two lines, and kicad-cli drops the whole file without a message. The uncommitted README edit credits the DRC report to these rules; the file is also untracked | Sentinel test on a copy: committed file + `track_width (min 5mm)` → **0** violations; sentinel alone → 398; condition joined onto one line → sentinel fires 199×, board passes JLC rules with 0 | Join the condition onto one line, `git add` the file, and add a sentinel self-test to `kicad_build.py` so a dropped rules file fails loudly |
+
+### B. Firmware gates for board 1
+
+- **MAX31856 driver (RB-1, #306).** `components/thermocouple/thermocouple.c` is the rev A MAX31855 driver: SPI mode 0, one 32-bit read, no register writes. The MAX31856 needs CPHA = 1, CR0/CR1 configuration and a fault decode; until it lands every board reads a permanent TC fault and `safety_task` trips after 5 s. Keep the device clock ≤ 5 MHz on the shared bus (it is 1 MHz today).
+- **Drive every chip select high at boot** (A4) before the display's 40 MHz bursts start.
+- **Active buzzer driven with a 4 kHz PWM (RB-14, #342).** BZ1 is an active TMB12A05; drive GPIO7 as a level.
+- **Status LED data floats until `status_led_init`** runs after Wi-Fi init; expect random colours at boot (cosmetic).
+- **Bench checklist predates rev B**: add SJ2-open, lid-jumper-or-`-1`, PSU-voltage-before-landing-the-wire, and driver-state steps.
+
+### C. Fix in rev B1 — real margin or robustness cost, not blocking
+
+- **No overvoltage protection on VIN.** U2 is 6 V abs-max, +5V = VIN − ~0.4 V; a 12/24 V aux supply landed on J2 by mistake takes out U2, LED1 and the display. Silk `5–6 VDC ONLY` at J2 now; SMAJ5.0A + PTC on the next spin.
+- **5 V relays on the aux bank are under-driven.** With SJ1 bridged, a coil sees +5V (≈4.6 V) minus the ULN2003 Darlington drop (0.9–1.1 V at 100–200 mA) ≈ 3.5–3.7 V, below a typical 3.75 V must-operate. Feed `AUX_VP` from VIN ahead of D1, or specify relays with ≤ 3.5 V must-operate. Document a simultaneous-current rule for U6 (the 500 mA figure is per channel, one channel on).
+- **WS2812B data margin is PSU-dependent.** VIH = 0.7·VLED; at VIN 5.0 V → VLED ≈ 4.3 V → VIH 3.0 V against a 3.3 V drive; at VIN ≥ 5.35 V the margin is gone. Trimming the PSU up to help the SSR/relay drops hurts the LED; a 74AHCT1G125 on +5V or a second diode in VLED removes the trade.
+- **SSR input voltage is ≈ 4.5 V** (VIN − D1 − Q4 − Q5): fine for 3–32 V-input SSRs, thin for parts specified "5–24 V" with a 4 V must-operate. Note it in the enclosure BOM.
+- **+5V changes layers through single 0.6/0.3 vias** — (44.0, 59.0) and (41.25, 70.0) are each the only path to Q4/J5/D3/BZ1/C11/R47. ≈1 A-class vias for a < 1 A rail, so it works, but power transitions should get two vias in the router.
+- **Layer transitions have no local return** (prior item 5, still open): 220 of 232 signal vias lack a GND via within 1.5 mm; SPI_SCLK 8/8, USB 12/12, I²C 14/14. Add stitching vias at the fast-net transitions and a 100 nF GND–+3V3 cap at each cluster.
+- **The display loom carries 40 MHz SCLK/MOSI/MISO with no series damping**; only the touch lines got 33 Ω. Add 22–33 Ω on SCLK/MOSI/DC/CS at J5, or lower the clock. The nav loom (J6) lands straight on GPIO38–42 with no series R, cap or TVS; D5 protects J11 but nothing protects J6.
+- **SSR outputs have no transient protection** (documented candidate); Q5/Q6 are 30 V parts on a long off-board loom.
+- **`WDT_OK` has no pulldown**; the design note says R47 covers a floating Q3 gate, but R47 holds `SSR_PG`, not the gate. Harmless (Q5/Q6 are held off independently) — 100 k on `WDT_OK` is belt-and-braces. One-shot worst-case window is nearer 1.45 s than the documented 1.65 s once C38's X5R bias derating is included; the 1.1 s firmware budget still fits.
+- **VP/VN float unless the DNP J13 is fitted** — two resistors to GND remove the floating PGA inputs the datasheet gives no guidance for.
+- **Cold junction is 17 mm from the MAX31856 die** with U1 20 mm away; measure the gradient on board 1 before trusting ±1 °C.
+
+### D. Silkscreen — the explicit ask
+
+Correct and unambiguous: all 50 per-terminal marks sit on their own pad's axis with zero error; `+`/`-`, `5V`/`OUT`, `V+ 1 2 3`, `K+`/`K-`, `A+ … B-` all match their nets; buzzer `+` is over pad 1 (+5V); LED1's pin-1 mark is at the chamfer; `RESET`/`BOOT`, `WDT DEFEAT`, `STATUS`, `USB`, `PWR` are nearest the part they name; no silk on pads or fiducial windows; hidden references are exactly H1–H4/FID1–3.
+
+Problems, best first: A2 (TP11 in the CT column), A3 (J11 marks), then:
+
+- `SSR2`, `AUX OUT`, `SSR1` block names print in the 1.2–2.1 mm gaps between 8.6 mm-tall terminal blocks (`SSR2` is 0.02 mm from J9 and 0.36 mm from J4); readable only from directly above. Put the block name where the reference designator sits on the east side (hide J2/J4/J9/J10 refs) or rotate it.
+- `5V IN` has no rating; U2 dies above 6 V. Add `5–6 VDC`.
+- In the enclosure's specified orientation (south edge up) **every legend reads upside-down**. A 180° text rotation in `gen_pcb.py` costs nothing.
+- Header pin-name rows sit 0.5 mm from the KK bodies and run together; J5/J6/J7/J11 carry no block name.
+- Reference designators nearer a neighbour than their own part: C15/C16, LED2, TP11, R33, R9, J6, R44. `TP9`/`TP10` labels `SSR1`/`SSR2` share a row with LED3/LED4's designators 28 mm from the SSR blocks.
+- 185 of the texts are at JLC's 0.8 mm absolute floor with a 0.16 mm stroke; the per-terminal marks would be worth 1.0 mm.
+- `5V IN` is 1.75 mm from FID1's centre — outside the 1 mm window, but close.
+
+### E. Routing quality — the explicit ask
+
+Complete: 0 unconnected, 0 DRC at `--severity-all --all-track-errors`, every fine-pitch track ≥ 0.200 mm from a foreign pad, all copper ≥ 0.55 mm from the edge, inner planes each one solid polygon, outer-pour fragments all anchored (island removal = always), broadside coupling nil (two planes between F and B), USB shield-slot web 0.524 mm (prior 0.078 mm defect closed).
+
+Defects: A7 (REF), A8 (USB_DN), A9 (TC2 filtered legs), and the single power vias and missing return vias in section C. Cosmetic: nine collinear same-net overlaps and eight near-parallel stub overlaps from the router; 110 silk items over tented vias; 30+ foreign-net segments through the pour-only `USB_KEEPOUT`.
+
+### F. Documentation and hygiene
+
+- `gen_pcb.py` SILK comment: "SJ2 must be FITTED on this rev — nothing kicks the watchdog GPIO yet" — the opposite of `jlcpcb/README.md` and `pin-assignments.md`. `wdt_kick.h` still says the one-shot "gates BOTH SSR opto channels".
+- README and `design.py` still describe AMS1117 headroom and a `VLED ≈ 4.6 V` that ignores D1; README/CLAUDE.md quote the pre-regression USB skew.
+- `docs/pin-assignments.md` describes a `+3V3` pin on J11 that does not exist; `lid_state.h` says the default lid GPIO is 21.
+- Title-block date is hard-coded `2026-07-20` (`gen_sch.py:1881`, `kicad_build.py:198`).
+- In-repo `bisque-controller-drc.rpt` predates the board commit and cannot contain the rules the README credits it with (A11).
+- `bisque-controller.kicad_dru` is untracked. (A Freerouting experiment — `bisque-controller-freeroute.*`, two `.dsn` files and a `.lck` — sat untracked beside it when this review started and was removed during it; that board was never the one reviewed.)
+- Schematic parity (423 warnings): PCB footprints carry no library nickname or MPN field, local-label nets are `/X` in the schematic and `X` on the board. A GUI "Update PCB from Schematic" would rename 114 nets; the generator should emit both.
+- Datasheets still missing on disk: SRV05-4, SS34, SS14, 1N4148W, C12891.
+- Feeder-fee accounting in the README is stale (8 fee-bearing Extended parts, not 6); C17408 appears on two BOM rows as `100R 1%` and `100R`.
+
+### G. Confirmed correct
+
+Every pin of U1 (41), U3/U5 (14 each), U7 (29), U10 (8), U6 (16), U4/D5/D6, Y1, Q2–Q6, D1–D4, LED1–4 and every connector was checked against its datasheet or the module vendor's document, not the KiCad symbol. In particular: U10 pin 5 is the true Q (the DCT package has no Q̄), Y1's floating enable means "oscillation out", BIAS on the thermocouple side of the 100 Ω matches MAX31856 Figure 8, IAP/IAN/IBP/IBN/VP/VN/REF/VINTA/VINTD/PULL_HIGH/PULL_LOW numbering matches ADE7953 Figure 4, the EN and IO0 networks are the module datasheet's, GPIO46 is safe (the MSP4021 has no pull-up on RESET; its logic is 3.3 V via an XC6206; its LED pin is a transistor base), diode and LED polarity in the CPL matches LCSC's pad numbering (SS34/SS14/1N4148W pin 1 = K; LEDs via `PIN_REMAP`), TLV1117LV output/input capacitance and stability, the watchdog failure-mode table (kick stopped / stuck high / stuck low / MCU in reset / +3V3 lost), the 5 Hz kick against the 900 ms heartbeat, `SSR_EN` off through boot, all wire-entry faces off-board, M3 hardware clearance, JLC copper/mask/paste/fiducial capabilities, BOM/CPL/hand-solder set arithmetic (109 + 13 + 22 = 144), and every BOM line's LCSC value/package/rating.
+
+### H. Refuted or downgraded
+
+- "GND plane split into 3 islands" / "+5V plane split" (cross-analysis) — no +5V plane exists; In1.Cu is one polygon; outer-pour fragments are all connected.
+- "GPIO46 strapping conflict from a display pull-up" — the QDtech schematic shows no pull-up on TFT_RESET; low, provision only.
+- "Keepout violations" (36), reference-plane gaps (77), IO filtering (8), DC diff-pair skew (15), LED1 no resistor — analyzer artefacts, as triaged in the 2026-08-17 round.
+- "SDO/SDO output conflict" (ERC) — MAX31856 SDO is high-Z when CS is high (Table 5); the bus is legitimate.
+
+### I. Sourcing snapshot (jlcsearch, 2026-09-02)
+
+All BOM lines in stock. Thin lines to re-check at order time: Molex 22272081 (J7) 754, XD-2510-14A (J5) 1 271, WJ500V 4-pos (J10/J11/J12) 1 852, A2547WV-6P (J6) 3 058, ESP32-S3-WROOM-1U-N16R2 3 507, ADE7953 4 846, XO 6 566, SM04B-SRSS-TB 7 284, MAX31856 7 744, SN74LVC1G123 8 800.
+
+### J. Not performed / limits
+
+- One review lens (delta/hygiene) never returned from the multi-agent run; its scope was covered by hand in F and I.
+- Adversarial verification was applied to medium-and-above findings only; low/nit items are the reviewers' claims with their stated evidence.
+- No SPICE (no simulator installed); no thermal simulation — Tj figures use JEDEC RθJA; no CT or thermocouple was measured.
+- Vendor figures recalled rather than fetched: SSR must-operate voltages, relay must-operate, SS34/SS14 Vf curves, C12891 DC-bias curve.
+- Whether this ST7796S module tri-states SDO is unproven either way (A5 is the hedge).
+
 
 ## Verdict
 
