@@ -23,6 +23,7 @@ import uuid
 sys.path.insert(0, os.path.dirname(__file__))
 from sexp import parse, find, find_all, Sym, num
 from design import COMPONENTS, PWR_FLAG_NETS
+from gen_jlc import DNP
 from gen_jlc import LCSC
 import check_sch_layout
 import inspect_libs
@@ -1728,10 +1729,12 @@ def main():
         pin_uuid_lines = "".join('\t\t(pin "%s" (uuid %s))\n' % (p[0], uid("pin", ref, p[0]))
                                  for p in pins_of(flatten(*key)))
         emit('\t(symbol (lib_id "%s") (at %s %s 0) (unit %d)\n'
-             '\t\t(in_bom yes) (on_board yes) (dnp no)\n'
+             '\t\t(in_bom yes) (on_board yes) (dnp %s)\n'
              '\t\t(uuid %s)\n%s\n%s'
              '\t\t(instances (project "%s" (path "/%s" (reference "%s") (unit %d))))\n'
-             '\t)' % (lib_id, f(sx), f(sy), c["_unit"], u, "\n".join(prop),
+             '\t)' % (lib_id, f(sx), f(sy), c["_unit"],
+                      "yes" if c["_ref"] in DNP else "no",
+                      u, "\n".join(prop),
                       pin_uuid_lines, PROJECT, ROOT, c["_ref"], c["_unit"]))
         # stubs + terminators / no-connects. stub_pins() collapses stacked
         # pins (module GND 1/40/41, USB VBUS) onto one stub and hands back the

@@ -310,6 +310,30 @@ NOT_ASSEMBLED = {
     "FID1", "FID2", "FID3",
 }
 
+# Parts that ARE parts, and are deliberately not fitted. Distinct from
+# NOT_ASSEMBLED above, and the distinction is the whole point: the eighteen
+# refs up there are mostly not parts at all. A test point is a bare pad, a
+# solder jumper is copper, a fiducial is bare copper - there is nothing to
+# populate, so calling them "do not populate" asserts something false.
+#
+# J13 is the real case. It is a 2-pin header that could be fitted and is not:
+# the board ships with the ADE7953's voltage channel unconnected (which is why
+# R60/R61 exist, to stop VP/VN floating), and fitting J13 is how someone opts
+# into mains voltage sensing later.
+#
+# Consumed on BOTH sides - gen_sch.py writes `(dnp yes)` and kicad_build.py
+# sets the footprint attribute - so the schematic and the board agree by
+# construction and `--schematic-parity` has nothing to disagree about.
+#
+# What this buys, measured rather than assumed: KiCad greys the symbol and
+# draws a red X through it in the exported schematic. Before it, the only
+# thing in the schematic saying J13 is unfitted was its value string,
+# `AC_SENSE_DNP` - and the schematic PDF is what someone opens when they are
+# deciding whether to wire the voltage channel. The netlist is unaffected:
+# setting it adds one property and leaves the component and both its pins in
+# their nets, so check_netlist.py sees no change.
+DNP = {"J13"}
+
 # Parts fitted by hand rather than by JLCPCB.
 #
 # Each unique Extended part costs a $3 feeder-loading fee regardless of how

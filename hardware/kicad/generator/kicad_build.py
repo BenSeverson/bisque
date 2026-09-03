@@ -43,7 +43,7 @@ from design import COMPONENTS, netlist, BX0, BY0, BX1, BY1
 from gen_sch import sync_project
 import router as R
 import silk
-from gen_jlc import NOT_ASSEMBLED
+from gen_jlc import DNP, NOT_ASSEMBLED
 from gen_pcb import (all_seeds, route_all, ripup_retry, promoted_order, plane_vias,
                      apply_stackup, SILK, SILK_GRAPHICS, MANUAL_VIAS,
                      EP_VIA_GRID, STITCH_VIAS, is_ep_pad, TP_LABEL_TEXTS, LEGEND_OWNER,
@@ -303,6 +303,14 @@ def build_board(existing=None):
         # False` sets the flag on a temporary and writes nothing. It reports
         # no error and the board is unchanged - this shipped once exactly that
         # way, with J13 still drawing a populated header.
+        # The footprint attribute, set from the same table gen_sch.py writes
+        # `(dnp yes)` from, so the two documents cannot disagree and
+        # --schematic-parity has nothing to compare unfavourably. This is a
+        # narrower set than NOT_ASSEMBLED below on purpose: DNP means a part
+        # that could be fitted and is not, and a test point or fiducial is not
+        # a part at all.
+        if ref in DNP:
+            fp.SetDNP(True)
         if ref in NOT_ASSEMBLED and fp.Models():
             keep = [(m.m_Filename,
                      (m.m_Scale.x, m.m_Scale.y, m.m_Scale.z),

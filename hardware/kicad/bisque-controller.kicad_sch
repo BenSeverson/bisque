@@ -36225,7 +36225,7 @@
 		(in_bom yes)
 		(on_board yes)
 		(in_pos_files yes)
-		(dnp no)
+		(dnp yes)
 		(uuid "8b6022c1-2520-53b5-90cb-dec3470a1029")
 		(property "Reference" "J13"
 			(at 495.3 367.03 0)
