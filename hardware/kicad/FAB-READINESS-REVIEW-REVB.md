@@ -55,7 +55,7 @@ SSR drive and the relay coil no longer move with the installer's trim pot.
 |---|---|
 | A1 mounting-hole grid | **fixed** - true 90 x 90; fixing the board beat fixing four doc sites |
 | A2 TP11 in J12's column | **NOT fixed**, deliberately - assertion added, debt declared in `gen_pcb.TP_LEGEND_OK`, three placements tried and each left a different net unroutable |
-| A3 J11 marks | **attempted, reverted** - see below |
+| A3 J11 marks | **downgraded - the premise is a measurement artefact**, see below |
 | A4 chip-select pull-ups | **fixed** - R50-R53 |
 | A5 display SDO | **fixed** - R56 |
 | A6 exposed-pad vias | **fixed** - `EP_VIA_GRID`, U7/U2/U1, derived from real pad geometry |
@@ -94,7 +94,38 @@ Gates: 0 nets unrouted, **0 DRC violations**, silk 0/0/0, netlist round-trip
 except D8/F1/L1 reuses an existing feeder, so the BOM gained three fee-bearing
 lines ($9), not fourteen.
 
-**Why A3 was reverted.** J11's four marks are x-locked over their own pins and
+**A3 is mostly not a defect, and the fix was reverted.** The review reports
+the four marks as wedged into 1.57 mm "with 0.02 / 0.09 mm" of margin. Those
+are KiCad **bounding boxes**, not ink. A bbox is ~1.9x the glyph, so a 0.8 mm
+mark gets a 1.50 mm box: the boxes touch their neighbours while the printed
+strokes are nowhere near them.
+
+Measured off `gerbers/bisque-controller-F_Silkscreen.gto`, which is what the
+fab actually images:
+
+| | value |
+|---|---|
+| ink, centreline | y 107.342 .. 108.142 (0.80 mm, the nominal glyph) |
+| ink edge, +/- half the 0.16 mm stroke | y 107.262 .. 108.222 |
+| clearance to J6/J7's outline (107.05) | **+0.212 mm** |
+| clearance to J11's outline (108.62) | **+0.398 mm** |
+
+(`GND` first measured 1.15 mm tall; three of those points sit at a single y
+across 1.63 mm of x, which is J7's outline running through the window, not a
+glyph. All four marks are 0.80 mm.)
+
+They are also **0.8 mm like 228 of the board's 245 silk texts** - the JLC
+floor the whole board is drawn at, not a size unique to this connector.
+
+So there is nothing to fix by moving parts. What moving parts would buy is
+printing these four at 1.0 mm, and that is blocked by the silk placer's
+bounding-box model rather than by the board: a 1.0 mm glyph carries a 1.88 mm
+box against a 1.57 mm gap, while its *ink* would still clear by 0.285 mm each
+side. If the 1.0 mm is ever wanted, the cheap route is teaching the placer to
+collide on ink for locked legends - not relaying the south edge.
+
+For the record, the relayout was implemented before this was measured, and
+J11's four marks are x-locked over their own pins and
 south of J11 is 0.61 mm of board edge, so the only fix is to open the northern
 gap - which means moving J5/J6/J7. That was tried and it works: the gap goes
 1.57 -> 3.07 mm and the marks fit at 1.0 mm. It also cascades, and every step
