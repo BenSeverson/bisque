@@ -297,9 +297,27 @@ def build_board(existing=None):
         # which is a setting a GUI session can change out from under a
         # committed image. m_Show is a property of the board file itself, so
         # the render is a function of the design either way.
-        if ref in NOT_ASSEMBLED:
-            for m in fp.Models():
-                m.m_Show = False
+        #
+        # Rebuilt, not mutated, for the same reason MODEL_FIXUP above rebuilds:
+        # fp.Models() hands back COPIES, so `for m in fp.Models(): m.m_Show =
+        # False` sets the flag on a temporary and writes nothing. It reports
+        # no error and the board is unchanged - this shipped once exactly that
+        # way, with J13 still drawing a populated header.
+        if ref in NOT_ASSEMBLED and fp.Models():
+            keep = [(m.m_Filename,
+                     (m.m_Scale.x, m.m_Scale.y, m.m_Scale.z),
+                     (m.m_Rotation.x, m.m_Rotation.y, m.m_Rotation.z),
+                     (m.m_Offset.x, m.m_Offset.y, m.m_Offset.z))
+                    for m in fp.Models()]
+            fp.Models().clear()
+            for fn, scale, rot, off in keep:
+                nm = pcbnew.FP_3DMODEL()
+                nm.m_Filename = fn
+                nm.m_Scale = pcbnew.VECTOR3D(*scale)
+                nm.m_Rotation = pcbnew.VECTOR3D(*rot)
+                nm.m_Offset = pcbnew.VECTOR3D(*off)
+                nm.m_Show = False
+                fp.Models().push_back(nm)
         board.Add(fp)
         fps[ref] = fp
     # Silk: one size for every reference designator. WHERE each one lands is
