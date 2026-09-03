@@ -438,6 +438,26 @@ USB_KEEPOUT = (46.25, 26.20, 65.00, 47.25)
 # 0.4 mm of half-track on the widest rail, plus margin.
 FID_KEEPOUT = 1.7
 
+# Degrees added to every silk text's own rotation. 180, because the board is
+# INSTALLED upside-down relative to its own frame: hardware/enclosure/README
+# specifies "rotate the PCB so its south edge (J5/J6/J7/J11) faces up", which
+# is what keeps the 40 MHz display loom short. Silk authored to read normally
+# in the board's frame therefore reads upside-down on every finished unit,
+# and the silk is read almost entirely BY someone wiring terminals with the
+# board in the enclosure - `IN1 IN2 IN3 GND`, `K+`/`K-`, `A+ ... B-`, `5V`,
+# `OUT`, `+`/`-`.
+#
+# The trade, stated because it is real: reference designators and the bench
+# marks (`RESET`, `BOOT`, `WDT DEFEAT`, the test-point labels) are read in the
+# board's OWN frame, during assembly and rework, and this turns those upside
+# down instead. It is the smaller loss - assembly happens once, with a
+# fabrication drawing to hand, and JLC's pick-and-place reads the CPL rather
+# than the legend. Set this to 0 to put it back.
+#
+# Geometry is unaffected: KiCad rotates a centre-justified text about its own
+# anchor, so the box silk.py collides against is identical either way.
+SILK_TEXT_ROT = 180
+
 # Local +3V3 flood on F.Cu around U2, (x0, y0, x1, y1). The board-wide outer
 # pour is GND, which does nothing for the AMS1117: its SOT-223 tab is +3V3, so
 # GND copper stops at the clearance gap 1.47 mm away and conducts no heat. The
