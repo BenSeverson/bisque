@@ -1385,8 +1385,26 @@ COMPONENTS = {
     # differential, which is the whole thing this is buying. R33 stays: with
     # IAN no longer strapped to GND it is what still references the floating
     # CT secondary, and at 1k against the 5R1 burden it does not load it.
+    # East of D6, not south of R33, and the difference is what makes CTA_N
+    # routable at all. CTA_N is a five-pad chain that otherwise runs
+    # monotonically east - R31 (94.4), R33 (97.1), D6 (101.9), J12 (114.0) -
+    # and (98.0, 91.0) hung a southward spur off the middle of it into a
+    # column already blocked by R36. CTA_N then failed to route under every
+    # ordering tried: promoted with the analog group, promoted alone, and
+    # with only ADE_REF promoted. That is geometry, not ordering.
+    #
+    # At x 106.3 it is simply the next link east. The cost is CTA_FN's run
+    # back to U7 pin 6, which gets longer - and CTA_FN is the FILTERED node,
+    # shunted to ground by C40, so it is the leg that can afford distance.
+    # CTA_N carries the raw burden voltage and cannot.
+    #
+    # y 89.0 rather than 91.0, and that is silk rather than copper: J12's `A+`
+    # mark is y-locked to its own screw at 92.00 and can only move in x, with
+    # J12's body immediately east of it. At y 91.0 this resistor took the only
+    # x the mark had and it printed under the block it names. y 89.0 sits in
+    # the 3.58 mm of clear row between the `A-` and `A+` marks.
     "R59": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="1k", at=(98.0, 91.0, 0),
+                value="1k", at=(106.3, 89.0, 0),
                 pins={"1": "CTA_N", "2": "CTA_FN"}),
     "C40": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
                 value="33nF", at=(102.5, 91.0, 0),

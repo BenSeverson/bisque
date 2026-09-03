@@ -1015,6 +1015,23 @@ ROUTE_ORDER = [
     # cheap half of that same fix - if it ever fails while routed FIRST, the
     # lane is genuinely blocked and it needs a seed, not an earlier turn.
     ("ADE_RESET", SIG_W),
+    # ADE_REF and the channel-2 filtered legs, promoted out of the analog
+    # groups below. Both are SHORT local analog nets and both came out as the
+    # two worst routes on the board by going last: ADE_REF measured 103.1 mm
+    # over 9 vias between U7 pin 13 and its own decoupling (C33/C34), and
+    # TC2_P_F 47.6 mm over 6 against channel 1's 16.3 mm over 2.
+    #
+    # Neither length is a capacity problem and both are accuracy ones. ADE_REF
+    # is the ADE7953's voltage reference - datasheet p.68 wants its ceramics
+    # "closest to the ADE7953", and 103 mm of loop is the opposite. TC2_P_F is
+    # a filtered thermocouple node where 40 uV is a degree. Short nets cost
+    # almost nothing to route first, so being late bought nothing either.
+    ("ADE_REF", SIG_W), ("TC2_P_F", SIG_W), ("TC2_N_F", SIG_W),
+    # CTA_N comes with them, and not by choice: promoting the three above took
+    # its lane and it failed. It is the net A10 made longer - the differential
+    # return now reaches R59 as well as R33 and J12 - so it is competing in
+    # the same block for the same reason they are.
+    ("CTA_N", 0.4),
     # the watchdog-gated SSR supply rail and the two switched low sides: the
     # SSR loop current (~15 mA/channel plus its indicator) all lands here
     ("SSR_EN", 0.5), ("SSR1_OUT", 0.4), ("SSR2_OUT", 0.4),
@@ -1051,13 +1068,13 @@ ROUTE_ORDER = [
     ("BUZZ_GATE", SIG_W), ("WS_DIN", SIG_W),
     # thermocouple front-ends (short, local, kept matched)
     ("TC1_P", SIG_W), ("TC1_N", SIG_W), ("TC1_P_F", SIG_W), ("TC1_N_F", SIG_W),
-    ("TC2_P", SIG_W), ("TC2_N", SIG_W), ("TC2_P_F", SIG_W), ("TC2_N_F", SIG_W),
+    ("TC2_P", SIG_W), ("TC2_N", SIG_W),
     # CT front-end and its terminal
     # CT front-end and its terminal
-    ("CTA_P", 0.4), ("CTA_N", 0.4), ("CTA_F", SIG_W), ("CTA_FN", SIG_W),
+    ("CTA_P", 0.4), ("CTA_F", SIG_W), ("CTA_FN", SIG_W),
     ("CTB_P", 0.4), ("CTB_N", 0.4), ("CTB_F", SIG_W),
     # ADE7953 locals
-    ("ADE_CLKIN", SIG_W), ("ADE_REF", SIG_W),
+    ("ADE_CLKIN", SIG_W),
     ("ADE_VINTA", SIG_W), ("ADE_VINTD", SIG_W),
     ("ADE_SCLK", SIG_W), ("ADE_CS", SIG_W), ("ADE_VP", SIG_W), ("ADE_VN", SIG_W),
     # protected inputs
