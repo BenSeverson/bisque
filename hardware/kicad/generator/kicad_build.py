@@ -43,6 +43,7 @@ from design import COMPONENTS, netlist, BX0, BY0, BX1, BY1
 from gen_sch import sync_project
 import router as R
 import silk
+from gen_jlc import NOT_ASSEMBLED
 from gen_pcb import (all_seeds, route_all, ripup_retry, promoted_order, plane_vias,
                      apply_stackup, SILK, SILK_GRAPHICS, MANUAL_VIAS,
                      EP_VIA_GRID, STITCH_VIAS, is_ep_pad, TP_LABEL_TEXTS, LEGEND_OWNER,
@@ -283,6 +284,22 @@ def build_board(existing=None):
                 nm.m_Rotation = pcbnew.VECTOR3D(*fix.get("rotate", rot))
                 nm.m_Offset = pcbnew.VECTOR3D(*fix.get("offset", (0.0, 0.0, 0.0)))
                 fp.Models().push_back(nm)
+        # A part that is not fitted must not be rendered as if it were. J13 is
+        # the AC-sense header, deliberately DNP - the board ships with the
+        # voltage channel unconnected - and it was drawing a full 2-pin header
+        # body in 3d/, which reads as "this is populated". The set is the one
+        # gen_jlc already keeps, so this cannot drift from the BOM: if a part
+        # is excluded from assembly it is also absent from the picture.
+        #
+        # The MODEL is hidden rather than the footprint marked DNP, and that
+        # is deliberate. `kicad-cli pcb render` has no DNP switch; whether it
+        # draws DNP parts follows an appearance PRESET stored in the project,
+        # which is a setting a GUI session can change out from under a
+        # committed image. m_Show is a property of the board file itself, so
+        # the render is a function of the design either way.
+        if ref in NOT_ASSEMBLED:
+            for m in fp.Models():
+                m.m_Show = False
         board.Add(fp)
         fps[ref] = fp
     # Silk: one size for every reference designator. WHERE each one lands is
