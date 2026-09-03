@@ -112,8 +112,17 @@ Two antenna stubs on USB is a worse board than four legible-but-cramped
 labels, so this is reverted. It is a placement exercise for a spin that is
 re-laying that edge anyway, not a pre-fab silk fix.
 
-Still to do before ordering: A3 (above), the broad stitching-via item, and the
-silk batch (180 deg rotation, block names off the inter-terminal gaps).
+The **180 deg silk rotation** from section D is done (`gen_pcb.SILK_TEXT_ROT`):
+the enclosure installs this board south-edge-up, so every legend used to read
+upside-down in service. Reference designators and the bench marks now read
+upside-down on the bench instead, which is the smaller loss and is stated at
+the constant.
+
+Still to do before ordering: **A3** (above), the broad **stitching-via** item
+(220 of 232 signal vias have no GND via within 1.5 mm), and the rest of the
+silk batch - block names still print in the 1.2-2.1 mm gaps between the
+8.6 mm terminal blocks, and the per-terminal marks are still at JLC's 0.8 mm
+floor where 1.0 mm would read better.
 
 Decision path:
 
