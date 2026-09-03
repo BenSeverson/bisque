@@ -43,6 +43,43 @@ gate the working-tree README described did not exist — the JLC rules file was
 silently ignored by KiCad — and is now fixed, tracked and self-testing (A11,
 `124ba4f`): the board passes JLC's process for real rather than vacuously.
 
+### Status, 2026-09-02 evening (branch `hw/rev-b-prefab-fixes`)
+
+Most of section A is landed, and the architecture changed underneath it: the
+board now takes **24 V** and makes its own 5 V (`U11`, XL1509-5.0), which was
+not in the review at all. That collapses four separate rev-B1 items - the
+`+5V` rail stopped being "the input minus D1", so the WS2812B threshold, the
+SSR drive and the relay coil no longer move with the installer's trim pot.
+
+| Item | State |
+|---|---|
+| A1 mounting-hole grid | **fixed** - true 90 x 90; fixing the board beat fixing four doc sites |
+| A2 TP11 in J12's column | **NOT fixed**, deliberately - assertion added, debt declared in `gen_pcb.TP_LEGEND_OK`, three placements tried and each left a different net unroutable |
+| A3 J11 marks | open |
+| A4 chip-select pull-ups | **fixed** - R50-R53 |
+| A5 display SDO | **fixed** - R56 |
+| A6 exposed-pad vias | **fixed** - `EP_VIA_GRID`, U7/U2/U1, derived from real pad geometry |
+| A7 ADE REF decoupling | open |
+| A8 USB_DN detour | open |
+| A9 TC2 filtered legs | open |
+| A10 CT channel A | **fixed** - R59/C40, U7 pin 6 off GND |
+| A11 `.kicad_dru` | fixed previously (`124ba4f`) |
+| C: VIN overvoltage | **fixed** - F1 + D8, scaled to 24 V (an SMAJ5.0A on a 24 V rail is a short) |
+| C: display loom damping | **fixed** - R54/R55/R57/R58 |
+| C: VP/VN floating | **fixed** - R60/R61 |
+| C: `WDT_OK` pulldown | **fixed** - R49, and the design note that argued against it was wrong in the fail-dangerous direction |
+| C: 5 V relays under-driven | **moot** - 24 V coils |
+| C: WS2812B margin | **fixed** - D3 is silicon now, not an SS14; a *regulated* 5.0 V rail made the old Schottky a 10 mV margin |
+| C: return/stitching vias | one added under J7; the broad 220-of-232 item is open |
+
+Gates: 0 nets unrouted, **0 DRC violations**, silk 0/0/0, netlist round-trip
+102 nets / 0 mismatches, all 13 `make pcb-check` checkers pass. Every new part
+except D8/F1/L1 reuses an existing feeder, so the BOM gained three fee-bearing
+lines ($9), not fourteen.
+
+Still to do before ordering: A3, A7, A8, A9, the broad stitching-via item, and
+the silk batch (180 deg rotation, block names off the inter-terminal gaps).
+
 Decision path:
 
 1. Land the ten remaining "fix before ordering" edits (A11 is done), run
