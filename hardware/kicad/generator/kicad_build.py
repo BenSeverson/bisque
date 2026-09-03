@@ -45,7 +45,8 @@ import router as R
 import silk
 from gen_pcb import (all_seeds, route_all, ripup_retry, promoted_order, plane_vias,
                      apply_stackup, SILK, SILK_GRAPHICS, MANUAL_VIAS,
-                     EP_VIA_GRID, STITCH_VIAS, is_ep_pad,
+                     EP_VIA_GRID, STITCH_VIAS, is_ep_pad, TP_LABEL_TEXTS, LEGEND_OWNER,
+                     TP_LEGEND_OK,
                      PLANE_LAYER, HIDE_REFS, sync_netclasses, netclass_table,
                      USB_KEEPOUT, U2_POUR, COPPER_LAYER_TYPE, FID_KEEPOUT)
 
@@ -1067,6 +1068,7 @@ def main(out, reuse_routing=False):
     # solved a label at a time as each one is created.
     _labels = silk.place(board, anchors)
     strayed, slid = silk.adrift(_labels), silk.offaxis(_labels)
+    intruding = silk.in_legend_column(_labels, TP_LABEL_TEXTS, LEGEND_OWNER)
     if not reuse_routing:
         add_zones(board, nets)
     rpt_path = os.path.splitext(out)[0] + "-drc.rpt"
@@ -1205,9 +1207,23 @@ def main(out, reuse_routing=False):
               "axis - it names a different terminal now. Clear the legend "
               "column in gen_pcb.PIN_LEGENDS, or move the part in the way."
               % (txt, d, axis))
+    # A test point's label is free to sit anywhere; a terminal legend is not.
+    # When the free one lands in the locked ones' column nothing in the placer
+    # can resolve it, and the block ends up with two names for one screw.
+    for txt, owner, d in intruding:
+        if (txt, owner) in TP_LEGEND_OK:
+            print("  (known) test-point label %r sits in %s's legend column "
+                  "(overlap %.2f mm) - see gen_pcb.TP_LEGEND_OK" % (txt, owner, d))
+            continue
+        print("FAIL: test-point label %r prints inside %s's terminal legend "
+              "column (overlap %.2f mm) - a reader takes it for one of that "
+              "block's screw marks. Move the TEST POINT (design.py), not the "
+              "label: the legends are axis-locked and cannot step aside."
+              % (txt, owner, d))
     if dru_fail:
         print("FAIL: %s" % dru_fail)
-    if strayed or slid or dru_fail:
+    intruding = [t for t in intruding if (t[0], t[1]) not in TP_LEGEND_OK]
+    if strayed or slid or intruding or dru_fail:
         sys.exit(1)
 
 

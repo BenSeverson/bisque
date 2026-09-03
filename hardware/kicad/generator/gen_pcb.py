@@ -1053,6 +1053,7 @@ ROUTE_ORDER = [
     ("TC1_P", SIG_W), ("TC1_N", SIG_W), ("TC1_P_F", SIG_W), ("TC1_N_F", SIG_W),
     ("TC2_P", SIG_W), ("TC2_N", SIG_W), ("TC2_P_F", SIG_W), ("TC2_N_F", SIG_W),
     # CT front-end and its terminal
+    # CT front-end and its terminal
     ("CTA_P", 0.4), ("CTA_N", 0.4), ("CTA_F", SIG_W), ("CTA_FN", SIG_W),
     ("CTB_P", 0.4), ("CTB_N", 0.4), ("CTB_F", SIG_W),
     # ADE7953 locals
@@ -2006,6 +2007,17 @@ PIN_LEGEND_GAP = 1.3
 _LEGEND_LOCK = {"E": "y", "W": "y", "N": "x", "S": "x"}
 
 
+# (text, x, y) of a per-terminal legend -> the connector it names. A legend is
+# a BOARD text, so its `owner` on the finished board is None and there is no
+# way to recover the block from the item alone - grouping the columns by owner
+# merged every locked legend on the board into one box, and the assertion in
+# silk.in_legend_column() then reported SSR1/SSR2/WDT RC as intruding on a
+# column spanning the whole board. Recorded here, where the association is
+# still in hand, and keyed on the ANCHOR because the text alone is not unique
+# (`GND` names a terminal on three different blocks).
+LEGEND_OWNER = {}
+
+
 def _pin_legends():
     """[(text, x, y, rot, size, lock)] for every PIN_LEGENDS entry."""
     out = []
@@ -2023,6 +2035,7 @@ def _pin_legends():
                 at = (px, y0 - PIN_LEGEND_GAP)
             else:
                 at = (px, y1 + PIN_LEGEND_GAP)
+            LEGEND_OWNER[(txt, round(at[0], 3), round(at[1], 3))] = ref
             out.append((txt, at[0], at[1], 0, size, _LEGEND_LOCK[side]))
     return out
 
@@ -2077,13 +2090,42 @@ def _tp_num(ref):
 # simply empty. Prefer moving the part.
 TP_LABEL_AT = {}
 
+# Texts printed for test points, filled in by the loop below. A test
+# point label is free to sit anywhere, which is exactly why it can end up
+# somewhere it must not: inside a connector's per-terminal legend column,
+# where a reader takes it for one of that block's screw marks. The
+# legends themselves are axis-locked and cannot move aside, so the test
+# point has to. silk.in_legend_column() is the assertion (review A2).
+TP_LABEL_TEXTS = set()
+
+# {(tp label, connector)} whose overlap is accepted, with the reason. Empty is
+# the goal, exactly as check_silk.ON_PART_OK's is, and an entry here is a debt
+# rather than a decision.
+#
+# `CT A+` / J12 is review A2, and it is NOT fixed. The label is TP11's, and it
+# prints in the strip J12's four screw legends own, 0.4 mm above `A-` - so the
+# CTA_N screw carries two names and a reader could wire a CT backwards on the
+# strength of the wrong one. The fix is to move the test point, and there is
+# nowhere for it to go: see the three attempts recorded at TP11 in design.py,
+# each of which left a different net in the ADE/CT block unroutable, including
+# one that failed while promoted to route first.
+#
+# What would actually clear it is space in that block, and the block only got
+# tighter this rev (R59/C40 for the differential CT return, R60/R61 for the
+# VP/VN bias). Two candidates for the next spin, neither cheap enough to do
+# behind a silk fix: give J12 its own column by moving the burden/filter row
+# west, or drop TP11 entirely and probe CTA_P at R32's pad.
+TP_LEGEND_OK = {("CT A+", "J12")}
+
 for _tp in sorted((r for r in COMPONENTS
                    if r.startswith("TP") and r[2:].isdigit()), key=_tp_num):
     _x, _y, _r = COMPONENTS[_tp]["at"]
     # Anchored just below the pad: the reference designator sits above it by
     # library default, so the two share the test point without a fight.
     _at = TP_LABEL_AT.get(_tp, (_x, _y + 1.7))
-    SILK.append((tp_label(COMPONENTS[_tp]["pins"]["1"]), _at[0], _at[1], 0, 0.8))
+    _txt = tp_label(COMPONENTS[_tp]["pins"]["1"])
+    TP_LABEL_TEXTS.add(_txt)
+    SILK.append((_txt, _at[0], _at[1], 0, 0.8))
 
 SILK += _pin_legends()
 # Every entry is (text, x, y, rot, size, lock) from here on. `lock` is None

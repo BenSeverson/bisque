@@ -938,6 +938,49 @@ def offaxis(labels):
                   if lab.lock and _offaxis(lab, *lab.at) > _LOCK_TOL)
 
 
+def in_legend_column(labels, tp_texts, legend_owner):
+    """[(text, block, mm)] for every TP label printing in a legend column.
+
+    A connector's per-terminal legends are axis-locked (see `offaxis`), so
+    when a free-floating label lands among them they cannot step aside and
+    the reader gets two names for one screw. `CT A+` did exactly that over
+    J12's `A-`, on a terminal where a CT wired backwards is the cost.
+
+    The column is derived from the placed legends themselves - their union,
+    grown by half a character - rather than declared, so it follows the block
+    if the block moves. Overlap is measured against the label's real box.
+    """
+    cols = {}
+    for lab in labels:
+        if not lab.lock:
+            continue
+        ref = legend_owner.get((lab.item.GetText(),
+                                round(lab.at[0] / _ONE_MM, 3),
+                                round(lab.at[1] / _ONE_MM, 3)))
+        if ref is None:
+            continue
+        x0, y0, x1, y1 = lab.box(*lab.at)
+        b = cols.setdefault(ref, [x0, y0, x1, y1])
+        b[0], b[1] = min(b[0], x0), min(b[1], y0)
+        b[2], b[3] = max(b[2], x1), max(b[3], y1)
+    out = []
+    for lab in labels:
+        # `lab.lock` first, and it is not redundant: a connector's own legends
+        # share strings with test-point labels - J7's terminals are named
+        # GND, SDA and SCL and so are three test points - so matching on text
+        # alone made every such legend "intrude" on its own column.
+        if lab.lock or lab.item.GetText() not in tp_texts:
+            continue
+        x0, y0, x1, y1 = lab.box(*lab.at)
+        for owner, (cx0, cy0, cx1, cy1) in cols.items():
+            ox = min(x1, cx1) - max(x0, cx0)
+            oy = min(y1, cy1) - max(y0, cy0)
+            if ox > 0 and oy > 0:
+                out.append((lab.item.GetText(), str(owner),
+                            min(ox, oy) / _ONE_MM))
+    return sorted(out)
+
+
 def _collisions(labels, obs):
     seen = 0
     for i, a in enumerate(labels):

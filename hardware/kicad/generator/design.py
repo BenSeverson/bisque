@@ -1696,13 +1696,44 @@ COMPONENTS = {
     "TP11": dict(lib="Connector", sym="TestPoint",
                  fp="TestPoint:TestPoint_Pad_D1.0mm",
                  fpf="TestPoint_Pad_D1.0mm.kicad_mod",
-                 # Between J12's B+ and A- screws, not level with A-. The
-                 # strip from x 106.4 to J12's body at 108.68 is now the CT
-                 # block's per-terminal legend column (gen_pcb.PIN_LEGENDS),
-                 # and those four labels are y-locked to their own screw -
-                 # they cannot step around a test point sitting in one of
-                 # them. Halfway between two screws is the one x=106.5 spot
-                 # that is in nobody's row.
+                 # Out of J12's legend column entirely (review A2). The pad
+                 # used to sit at (106.5, 84.4) - halfway between the B+ and
+                 # A- screws, chosen because it was in nobody's ROW. That was
+                 # the wrong question. The pad fitted; its LABEL did not. A
+                 # test point's label is anchored 1.7 mm below its pad, which
+                 # put `CT A+` at x 104.5..108.5, y 84.9..86.5 - inside the
+                 # strip from x 106.4 to J12's body at 108.68 that the CT
+                 # block's per-terminal legends own, and 0.4 mm above `A-`.
+                 # The CTA_N screw therefore read as both `CT A+` and `A-`,
+                 # on a terminal where getting it wrong means a CT wired
+                 # backwards. The four legends are y-locked to their own
+                 # screws and cannot step around it, so the test point moves.
+                 #
+                 # STAYS at (106.5, 84.4), and review A2 is NOT fixed this
+                 # rev. Three homes were tried and the ADE/CT block cannot
+                 # absorb the test point in any of them - it got tighter this
+                 # rev, not looser, because A10's differential return (R59,
+                 # C40) and the VP/VN bias pair (R60, R61) all landed in it:
+                 #
+                 #   (86.0, 93.0)  open board SW of the ADE - CTA_N failed.
+                 #                 CTA_N now reaches R59 as well as R33 and
+                 #                 J12, so it runs south through exactly the
+                 #                 ground a 10 mm CTA_P stub has to cross. It
+                 #                 failed even PROMOTED to route first, which
+                 #                 on this board means the lane is blocked by
+                 #                 geometry, not by ordering.
+                 #   (85.0, 83.5)  hard against R32, a 1-2 mm stub - ADE_VP
+                 #                 failed instead.
+                 #   ditto, with ADE_VP/ADE_VN promoted - ADE_RESET failed
+                 #                 instead. The block is saturated: each
+                 #                 promotion only moves the failure to
+                 #                 whichever net loses the lane.
+                 #
+                 # So the pad is between J12's B+ and A- screws, in nobody's
+                 # ROW - which was the right answer to the wrong question,
+                 # because the pad fits and its LABEL does not. See
+                 # gen_pcb.TP_LEGEND_OK for what that costs and what would
+                 # actually fix it.
                  value="TP", at=(106.5, 84.4, 0),
                  pins={"1": "CTA_P"}),
     "TP12": dict(lib="Connector", sym="TestPoint",
