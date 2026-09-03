@@ -754,7 +754,7 @@ COMPONENTS = {
     # SSR rail's supply intact. 100k against Q's push-pull VOH costs 32uA
     # and defines the node whenever U10 does not.
     "R49": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="100k", at=(55.0, 54.1, 0),
+                value="100k", at=(58.0, 45.8, 0),
                 pins={"1": "WDT_OK", "2": "GND"}),
     "U10": dict(lib="74xGxx", sym="74LVC1G123", fp=SSOP8[0], fpf=SSOP8[1],
                 value="SN74LVC1G123", at=(53.5, 49.7, 0),
