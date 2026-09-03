@@ -46,7 +46,6 @@ import silk
 from gen_pcb import (all_seeds, route_all, ripup_retry, promoted_order, plane_vias,
                      apply_stackup, SILK, SILK_GRAPHICS, MANUAL_VIAS,
                      EP_VIA_GRID, STITCH_VIAS, is_ep_pad, TP_LABEL_TEXTS, LEGEND_OWNER,
-                     SILK_TEXT_ROT,
                      TP_LEGEND_OK,
                      PLANE_LAYER, HIDE_REFS, sync_netclasses, netclass_table,
                      USB_KEEPOUT, U2_POUR, COPPER_LAYER_TYPE, FID_KEEPOUT)
@@ -307,7 +306,6 @@ def build_board(existing=None):
     # was the actual fab defect, so stroke width is all that changed.
     for ref, fp in fps.items():
         t = fp.Reference()
-        t.SetTextAngleDegrees(t.GetTextAngleDegrees() + SILK_TEXT_ROT)
         t.SetTextSize(pcbnew.VECTOR2I(MM(0.8), MM(0.8)))
         t.SetTextThickness(MM(SILK_MIN_STROKE))
         # The designator is not the only text a footprint can put on silk.
@@ -490,7 +488,7 @@ def add_outline_and_silk(board):
         # 1.0 mm untouched (they already derive more than the floor) and
         # lifts only the small legends that were under it.
         t.SetTextThickness(MM(max(SILK_MIN_STROKE, size * 0.15)))
-        t.SetTextAngleDegrees(rot + SILK_TEXT_ROT)
+        t.SetTextAngleDegrees(rot)
         board.Add(t)
         anchors.append((t, x, y, lock))
     # Silk graphics are placed, not anchored, so none of these go into

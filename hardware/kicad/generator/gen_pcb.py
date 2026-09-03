@@ -438,25 +438,31 @@ USB_KEEPOUT = (46.25, 26.20, 65.00, 47.25)
 # 0.4 mm of half-track on the widest rail, plus margin.
 FID_KEEPOUT = 1.7
 
-# Degrees added to every silk text's own rotation. 180, because the board is
-# INSTALLED upside-down relative to its own frame: hardware/enclosure/README
-# specifies "rotate the PCB so its south edge (J5/J6/J7/J11) faces up", which
-# is what keeps the 40 MHz display loom short. Silk authored to read normally
-# in the board's frame therefore reads upside-down on every finished unit,
-# and the silk is read almost entirely BY someone wiring terminals with the
-# board in the enclosure - `IN1 IN2 IN3 GND`, `K+`/`K-`, `A+ ... B-`, `5V`,
-# `OUT`, `+`/`-`.
+# No SILK_TEXT_ROT knob, and the reason is worth keeping because the idea
+# looks free and is not. The enclosure installs this board south-edge-up
+# (hardware/enclosure/README), so every legend reads upside-down in service,
+# and review section D calls a 180 deg text rotation something that "costs
+# nothing". It was tried, on this board, and it produces a MIXED board:
 #
-# The trade, stated because it is real: reference designators and the bench
-# marks (`RESET`, `BOOT`, `WDT DEFEAT`, the test-point labels) are read in the
-# board's OWN frame, during assembly and rework, and this turns those upside
-# down instead. It is the smaller loss - assembly happens once, with a
-# fabrication drawing to hand, and JLC's pick-and-place reads the CPL rather
-# than the legend. Set this to 0 to put it back.
+#   - board texts (gr_text) rotate and render upside-down - 84 of them;
+#   - reference designators rotate in the FILE and render upright anyway,
+#     because footprint text carries KiCad's KeepUpright flag, which
+#     normalises exactly this case for display and for plotting;
+#   - the flame is a gr_poly and rotates with nothing at all, so the
+#     nameplate ends up upside-down underneath a right-way-up logo.
 #
-# Geometry is unaffected: KiCad rotates a centre-justified text about its own
-# anchor, so the box silk.py collides against is identical either way.
-SILK_TEXT_ROT = 180
+# Making it consistent means turning KeepUpright off on every designator and
+# rotating the brand mark 180 deg, and both of those are worse than the
+# problem: KeepUpright exists because designators are read during assembly
+# and rework in the board's own frame, and an upside-down logo is simply
+# wrong. KiCad normalising against the change is the tell.
+#
+# Nothing caught it either, and that is the second half of the lesson: the
+# silk checks measure collision geometry, and a 180 deg rotation about a
+# centre-justified anchor is geometrically IDENTICAL. It reported 247 labels,
+# 0 touching, 0 illegal, 0 on a part body - on a board that had just been
+# made unreadable. If the enclosure orientation is ever worth serving, serve
+# it by rotating the BOARD in the enclosure drawing, not the text on it.
 
 # Local +3V3 flood on F.Cu around U2, (x0, y0, x1, y1). The board-wide outer
 # pour is GND, which does nothing for the AMS1117: its SOT-223 tab is +3V3, so
