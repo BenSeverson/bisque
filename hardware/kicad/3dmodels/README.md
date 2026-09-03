@@ -1,6 +1,6 @@
 # Vendored 3D models
 
-STEP bodies for the six footprints on this board whose models KiCad 10 does
+STEP bodies for the seven footprints on this board whose models KiCad 10 does
 not ship, or does not ship reproducibly. `kicad_build.py`'s `MODEL_FIXUP`
 points those footprints here via `${KIPRJMOD}/3dmodels/<stem>.step`, so
 `make pcb-render` works on a clean clone with nothing installed by hand.
@@ -12,6 +12,7 @@ points those footprints here via `${KIPRJMOD}/3dmodels/<stem>.step`, so
 | `USB_C_Receptacle_HRO_TYPE-C-31-M-12.step` | J1 | EasyEDA/LCSC **C165948** |
 | `QFN-28-1EP_5x5mm_P0.5mm_EP3.1x3.1mm.step` | U7 | EasyEDA/LCSC **C515890** |
 | `Oscillator_SMD_Abracon_ASE-4Pin_3.2x2.5mm.step` | Y1 | EasyEDA/LCSC **C2838127** (`c_rotation 0,0,0`; the STEP's internal filename names the package, `OSC-SMD_4P-L3.2-W2.5-…`, because EasyEDA shares one body across the 3225 4-pad family) |
+| `Fuse_1812_4532Metric.step` | F1 | EasyEDA/LCSC **C369169** (`F1812_L4.5-W3.2-H1.0`, measured 4.50 x 3.20 x 1.04 mm; `c_rotation 0,0,0`). KiCad's `Fuse.3dshapes` holds 0402/0603/0805/1206/1210 and no 1812, so the stock reference resolves to a real directory and renders nothing |
 
 8.8 MB of that is U1; the whole directory is ~15.9 MB on disk and ~2.8 MB of
 git objects, since STEP is text and compresses about 6:1.

@@ -164,6 +164,14 @@ MODEL_FIXUP = {
     # until the render quietly omits the part. c_rotation is "0,0,0", so unlike
     # J1 there is nothing to correct.
     "Y1": dict(file="Oscillator_SMD_Abracon_ASE-4Pin_3.2x2.5mm"),
+    # F1 - the sixth, and the one that proves the trap is still live. The
+    # footprint declares ${KICAD10_3DMODEL_DIR}/Fuse.3dshapes/
+    # Fuse_1812_4532Metric.step and that directory exists with 0402, 0603,
+    # 0805, 1206 and 1210 in it - just not 1812. So the reference resolves to
+    # a real directory, the render exits 0, and F1 simply is not there.
+    # Nobody noticed until it was spotted in the committed image.
+    # c_rotation "0,0,0", so nothing to correct.
+    "F1": dict(file="Fuse_1812_4532Metric"),
 }
 MODEL_DIR = "${KIPRJMOD}/3dmodels/%s.step"
 
