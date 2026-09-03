@@ -86,9 +86,15 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   `CERT-001` in `FAB-READINESS-REVIEW-REVB.md`. Use an antenna within the
   certified list unless you're prepared to re-certify.
 
-- **Power**: 5 V DC in on screw terminal **J2** (top-left) *or* USB-C; each
-  source feeds the +5 V rail through an SS34 Schottky (D1/D2 — also reverse
-  polarity protection), then an **AMS1117-3.3** (U2, SOT-223) makes 3V3.
+- **Power**: 24 V DC in on screw terminal **J2** (top-left) *or* USB-C.
+  The 24 V side runs J2 → F1 (750 mA/33 V resettable fuse) → D8 (SMAJ30A TVS)
+  → D1 (SS34, reverse polarity) → **U11**, an XL1509-5.0 buck in the
+  south-east corner that makes the +5 V rail; USB VBUS is ORed into the same
+  rail through D2. A **TLV1117LV33** (U2, SOT-223) then makes 3V3.
+  Regulating rather than dropping is the point: +5V used to be literally the
+  input minus D1, so every diode drop and every turn of the installer's trim
+  pot landed on the WS2812B threshold, the SSR drive and the relay coil at
+  once.
   Power LED (green) on 3V3. The display (below) draws from +5V directly, not
   through U2 — its backlight and panel logic were the dominant unmodeled load
   on the LDO, and moving them off keeps U2's junction temperature comfortably
@@ -250,8 +256,14 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
 - **USB-C (J1)** for native-USB flashing: 5.1 kΩ CC resistors, SRV05-4 (U4)
   ESD protection, VBUS ORed into +5 V. RESET (SW1) and BOOT (SW2)
   buttons.
-- **Status LED**: WS2812B on IO48; its VDD comes through an SS14 drop diode
-  (≈4.6 V) so the 3.3 V data level stays inside the WS2812B's V_IH spec.
+- **Status LED**: WS2812B on IO48; its VDD comes through a 1N4148W drop
+  diode (D3), putting VLED at ≈4.15 V so V_IH = 0.7·VLED ≈ 2.9 V stays
+  comfortably under the 3.3 V data level. The diode is *silicon*, not the
+  SS14 Schottky it replaced, and the reason is the buck: on a regulated
+  5.0 V rail an SS14's ~0.3 V leaves VLED at 4.7 V and V_IH at 3.29 V —
+  a 10 mV margin. The old rail sagged enough to hide that. What the
+  regulator removes is the trade, not the drop: VLED no longer moves with
+  the PSU, so a fixed drop is now a real fix rather than a hedge.
 - **Alarm**: 12 mm active 5 V buzzer (BZ1) on IO7, its own discrete AO3400A
   (Q2) low-side driver with flyback diode — kept separate from the ULN2003
   aux bank on purpose, so a 5 V buzzer and a 24 V solenoid never share a
@@ -401,7 +413,7 @@ lines covering 109 machine-placed parts) plus `jlcpcb/hand-solder-parts.csv`
 | Ref | Value / Part | Package |
 |---|---|---|
 | U1 | ESP32-S3-WROOM-1U-N16R2 | castellated module, U.FL |
-| U2 | AMS1117-3.3 | SOT-223 |
+| U2 | TLV1117LV33 | SOT-223 |
 | U3, U5 | MAX31856MUD+T | TSSOP-14 |
 | U4 | SRV05-4 TVS array | SOT-23-6 |
 | U6 | ULN2003ADR | SOIC-16 |

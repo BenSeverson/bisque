@@ -1045,8 +1045,23 @@ COMPONENTS = {
     "R3": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
                value="330R", at=(68.0, 88.0, 0),
                pins={"1": "LED_DATA", "2": "WS_DIN"}),
-    "D3": dict(lib="Device", sym="D_Schottky", fp=SMA[0], fpf=SMA[1],
-               value="SS14", at=(74.0, 93.0, 0),
+    # Silicon, not the SS14 Schottky this was, and the buck is the reason.
+    # VLED = +5V - Vf, and the WS2812B needs 0.7*VLED to stay under the 3.3V
+    # the ESP32 drives. On the old unregulated rail an SS14's ~0.3 V left
+    # VLED at 4.3 V (VIH 3.01 V) only because the input sagged; on a regulated
+    # 5.0 V rail the same diode gives VLED 4.7 V and VIH 3.29 V - a 10 mV
+    # margin, i.e. none. A 1N4148W drops 0.65-0.85 V across the WS2812B's
+    # 5-60 mA range, putting VLED at ~4.15 V and VIH at ~2.9 V, comfortably
+    # under 3.3 V and still well above the part's 3.5 V VDD minimum.
+    #
+    # What regulating removed is the TRADE, not the drop. The review's
+    # "trimming the PSU up to help the SSR/relay drops hurts the LED" is gone
+    # - VLED no longer moves with the installer's trim pot - so a fixed drop
+    # is now a real fix rather than a hedge, and the 74AHCT1G125 the review
+    # offered as the alternative is not needed.
+    "D3": dict(lib="Device", sym="D", fp="Diode_SMD:D_SOD-123",
+               fpf="D_SOD-123.kicad_mod",
+               value="1N4148W", at=(74.0, 93.0, 0),
                pins={"1": "VLED", "2": "+5V"}),
     "C10": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
                 value="100nF", at=(80.0, 88.0, 0),
@@ -1495,10 +1510,10 @@ COMPONENTS = {
                 value="10k", at=(112.0, 64.0, 0),
                 pins={"1": "+3V3", "2": "TC2_CS"}),
     "R52": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="10k", at=(34.5, 99.0, 0),
+                value="10k", at=(28.5, 98.4, 0),
                 pins={"1": "+3V3", "2": "LCD_CS"}),
     "R53": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="10k", at=(38.5, 99.0, 0),
+                value="10k", at=(67.0, 97.5, 0),
                 pins={"1": "+3V3", "2": "T_CS"}),
     # --- Display series damping (review A5 + C "no damping on the loom") ---
     # R39-R43 damped the five TOUCH lines and stopped there, leaving the four
@@ -1516,19 +1531,19 @@ COMPONENTS = {
     # on every board. Bring-up: scope TP6 with the panel plugged in while TC1
     # is selected.
     "R54": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="33", at=(34.5, 94.0, 0),
+                value="33", at=(34.5, 96.0, 0),
                 pins={"1": "SPI_SCLK", "2": "LCD_SCLK_R"}),
     "R55": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="33", at=(38.5, 94.0, 0),
+                value="33", at=(38.5, 96.0, 0),
                 pins={"1": "SPI_MOSI", "2": "LCD_MOSI_R"}),
     "R56": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="33", at=(34.5, 96.5, 0),
+                value="33", at=(34.5, 98.5, 0),
                 pins={"1": "SPI_MISO", "2": "LCD_SDO_R"}),
     "R57": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
                 value="33", at=(23.5, 98.4, 0),
                 pins={"1": "LCD_CS", "2": "LCD_CS_R"}),
     "R58": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="33", at=(38.5, 96.5, 0),
+                value="33", at=(38.5, 98.5, 0),
                 pins={"1": "LCD_DC", "2": "LCD_DC_R"}),
     "J6": dict(lib="Connector_Generic", sym="Conn_01x06",
                fp="Connector_Molex:Molex_KK-254_AE-6410-06A_1x06_P2.54mm_Vertical",

@@ -250,6 +250,73 @@ ADE_I2C_SEEDS = [
 # so SCL's drop to B.Cu, which is how the original route left the block, has
 # to be given to it.
 MANUAL_VIAS = [("I2C_SCL", 93.75, 67.25)]
+
+# Vias INSIDE an exposed/thermal pad, as {(ref, pad): grid n} for an n x n
+# array. Review A6, and the one item on that list that cannot be bodged after
+# fab. Three pads need it and each for its own reason:
+#
+#   U7 pad 29 - the ADE7953's exposed pad. Datasheet Table 5 is explicit:
+#     "Connect the pad to AGND and DGND". It is the part's analog ground
+#     reference, not a heatsink, and it had ZERO vias - nearest GND via
+#     3.36 mm away, reached only through the pad's own escape stub.
+#   U2 pad 2  - the TLV1117LV33's SOT-223 tab (+3V3, hence the local U2_POUR
+#     flood). Measured Tj ~94 C at 50 C ambient with the nearest +3V3 via
+#     1.5 mm off the tab; the datasheet's 90 -> 46 C/W theta-JA range is a
+#     function of attached copper, and vias are how the tab reaches the
+#     In2.Cu plane rather than just the local F.Cu puddle.
+#   U1 pad 41 - the module's thermal pad. Espressif's own reference layout
+#     draws 9; this board had the nearest GND via 1.0-2.5 mm outside it.
+#
+# plane_vias() does not cover any of this. It gives a pad GROUP one via on an
+# escape ray OUTSIDE the pad, which is the right call for signal escapes and
+# is why the ADE7953's five grounds share one hole - but a thermal pad needs
+# copper through its own area, not a stub to a hole beside it.
+#
+# Via-in-pad is deliberate here and only here: on a thermal pad it is standard
+# practice, and check_via_in_pad.py reads this same table so a via inside any
+# OTHER pad still fails. Placed fixed, before routing, so they claim their
+# space while the board is empty.
+# A value is either n, for a symmetric n x n grid spanning the pad, or an
+# explicit list of (fx, fy) offsets in [-1, 1] as fractions of the usable
+# half-span, for a pad that cannot be filled symmetrically.
+#
+# U7 is the second kind, and the reason is worth knowing before "tidying" it
+# back to a 2: the ADE7953's I2C_SCL escape is a hand-seeded fixed track
+# (MANUAL_VIAS above) running south on B.Cu at x 93.75 - straight UNDER the
+# exposed pad. A symmetric 2x2 puts its west column at x 93.90, 0.15 mm off
+# that track, which is 2 shorting_items and 2 hole_clearance errors. The four
+# vias sit in the east of the pad instead. Off-centre is fine here: what the
+# pad needs is low impedance to the ground plane, not symmetry.
+EP_VIA_GRID = {
+    ("U7", "29"): [(0.15, -1.0), (1.0, -1.0), (0.15, 1.0), (1.0, 1.0)],
+    ("U2", "2"): 2,
+    ("U1", "41"): 3,
+}
+
+# A pin number does NOT identify the exposed pad. Several footprints here give
+# one number to several separate pieces of copper - the SOT-223's tab and its
+# pin 2, both halves of a tactile switch's ground side, and, the one that bit:
+# ESP32-S3-WROOM-1U gives pin 41 to the 3.9 mm thermal pad AND to a set of
+# 0.6 mm pads. Taking "the pad numbered 41" gets whichever comes first, and
+# the placer and the checker each picked a different one - the placer drilled
+# the right pad and the checker then failed the vias against the wrong one.
+# So the rule is stated once, here, and both call sites use it.
+EP_MIN_SIDE = 1.5     # mm, in both axes
+
+
+def is_ep_pad(num, want, w_mm, h_mm):
+    """True if this pad is the exposed pad `want` names, not a namesake."""
+    return num == want and w_mm > EP_MIN_SIDE and h_mm > EP_MIN_SIDE
+
+# Stitching via tying an isolated B.Cu ground puddle under J7 back to the
+# In1.Cu plane. The puddle (5.92 mm2, x 93.97..98.96, y 104.56..107.21) is
+# what J7's PTH pad 8 thermal-connects to on that layer, and with the puddle
+# isolated KiCad reports a `starved_thermal` error. The pad itself is fine -
+# it is through-hole, so it reaches the GND plane through its own barrel -
+# but the copper hanging off it was going nowhere. Solid-connecting the pad
+# would also clear the DRC and is the wrong fix: J7 is a hand-soldered
+# header, and thermal relief is exactly what makes that possible.
+STITCH_VIAS = [("GND", 96.50, 105.90)]
 # ... and the far end of a hand escape has to BE the net's terminal there,
 # exactly as USB_STUB_TERMS does for J1. Seed the lane without moving the
 # terminal and the router is still free to reach the fanout stub the short
@@ -363,6 +430,13 @@ PLANE_STUB_W = 0.25
 # daylight. The first attempt at the U4 pin map left it at 44.50 and would
 # have taken the bite without failing anything.
 USB_KEEPOUT = (46.25, 26.20, 65.00, 47.25)
+
+# Half-width of the router keepout around each fiducial, mm. A fiducial is
+# bare copper on NO net carrying a local 0.6 mm pad-clearance override, so
+# nothing in the router's net-based reasoning keeps tracks off it - see
+# kicad_build.build_router_model(). 0.5 mm pad radius + 0.6 mm override +
+# 0.4 mm of half-track on the widest rail, plus margin.
+FID_KEEPOUT = 1.7
 
 # Local +3V3 flood on F.Cu around U2, (x0, y0, x1, y1). The board-wide outer
 # pour is GND, which does nothing for the AMS1117: its SOT-223 tab is +3V3, so
@@ -933,6 +1007,14 @@ ROUTE_ORDER = [
     ("SPI_MOSI", SIG_W), ("SPI_SCLK", SIG_W), ("SPI_MISO", SIG_W),
     ("TC1_CS", SIG_W), ("TC2_CS", SIG_W),
     ("I2C_SDA", SIG_W), ("I2C_SCL", SIG_W),
+    # ADE_RESET escapes U7 pin 2 through the same one-track-wide band as the
+    # I2C pair and has to take it while the band is still empty. It used to
+    # get there by luck, sitting back with the other "ADE7953 locals" below;
+    # adding 25 parts re-rolled the order and it came out unroutable, exactly
+    # the way SDA/SCL did before ADE_I2C_SEEDS existed. Promoting it is the
+    # cheap half of that same fix - if it ever fails while routed FIRST, the
+    # lane is genuinely blocked and it needs a seed, not an earlier turn.
+    ("ADE_RESET", SIG_W),
     # the watchdog-gated SSR supply rail and the two switched low sides: the
     # SSR loop current (~15 mA/channel plus its indicator) all lands here
     ("SSR_EN", 0.5), ("SSR1_OUT", 0.4), ("SSR2_OUT", 0.4),
@@ -975,7 +1057,7 @@ ROUTE_ORDER = [
     ("CTB_P", 0.4), ("CTB_N", 0.4), ("CTB_F", SIG_W),
     # ADE7953 locals
     ("ADE_CLKIN", SIG_W), ("ADE_REF", SIG_W),
-    ("ADE_VINTA", SIG_W), ("ADE_VINTD", SIG_W), ("ADE_RESET", SIG_W),
+    ("ADE_VINTA", SIG_W), ("ADE_VINTD", SIG_W),
     ("ADE_SCLK", SIG_W), ("ADE_CS", SIG_W), ("ADE_VP", SIG_W), ("ADE_VN", SIG_W),
     # protected inputs
     ("IN1_RAW", SIG_W), ("IN2_RAW", SIG_W), ("IN3_RAW", SIG_W),
@@ -1802,11 +1884,19 @@ SILK = _TITLE_TEXTS + [
     # read as C2's label. The shorter form leaves ~1 mm either side, and the
     # rail it names is already spelled out on J10 as `AUX OUT`.
     ("AUX=5V", 47.3, 46.3, 0, 0.8),
-    # SJ2 must be FITTED on this rev — nothing kicks the watchdog GPIO yet
-    # (see main/Kconfig.projbuild KILN_PIN_WDT_KICK). "REMOVE" would be a
-    # lie on every board built from this revision, so the silk just names
-    # the jumper; jlcpcb/README.md and the hand-solder BOM carry the
-    # fit-it-or-it-won't-heat instruction where a builder will see it.
+    # SJ2 must be LEFT OPEN, and this comment used to say the opposite -
+    # "SJ2 must be FITTED on this rev, nothing kicks the watchdog GPIO yet".
+    # That was true before the kick task landed and has been false since:
+    # main.c calls safety_init_wdt(APP_PIN_WDT_KICK) and safety.c drives it
+    # at 5 Hz, so U10 holds the SSR rail up whenever firmware is alive.
+    # Bridging SJ2 defeats the only interlock on this board that survives
+    # firmware death. jlcpcb/README.md and docs/pin-assignments.md already
+    # said so; this file was the one place still contradicting them.
+    #
+    # The silk itself stays a bare name rather than "REMOVE": the jumper is
+    # legitimately fitted on a pre-one-shot rev B board (BAT54S charge pump
+    # where U10 now sits), so an imperative on the copper would be wrong for
+    # one build or the other. The instruction lives where a builder reads it.
     # Directly below SJ2 (55.30..58.70, 56.20..58.80), in the gap before
     # BZ1's outline starts at y=62.90. The old anchor at (50, 61.5) was
     # already 7 mm from the jumper and hard against that outline, so the

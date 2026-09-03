@@ -3,7 +3,7 @@ BZ1,active 5V,Buzzer_12x9.5RM7.6,C96093,1,TMB12A05 active magnetic buzzer 5V 12m
 J10,AUX,"TerminalBlock_Phoenix_MKDS-1,5-4-5.08_1x04_P5.08mm_Horizontal",C42377749,1,WJ500V-5.08-04P 5.08mm screw terminal 1x04,,,
 J11,INPUTS,"TerminalBlock_Phoenix_MKDS-1,5-4-5.08_1x04_P5.08mm_Horizontal",C42377749,1,WJ500V-5.08-04P 5.08mm screw terminal 1x04,,,
 J12,CT,"TerminalBlock_Phoenix_MKDS-1,5-4-5.08_1x04_P5.08mm_Horizontal",C42377749,1,WJ500V-5.08-04P 5.08mm screw terminal 1x04,,,
-J2,5V_IN,"TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal",C8465,1,WJ500V-5.08-2P 5.08mm screw terminal 1x02,1715721,Phoenix Contact,"MKDS 1,5/2-5,08 - the part this footprint is named for"
+J2,24V_IN,"TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal",C8465,1,WJ500V-5.08-2P 5.08mm screw terminal 1x02,1715721,Phoenix Contact,"MKDS 1,5/2-5,08 - the part this footprint is named for"
 J3,TC1_K,"TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal",C8465,1,WJ500V-5.08-2P 5.08mm screw terminal 1x02,1715721,Phoenix Contact,"MKDS 1,5/2-5,08 - the part this footprint is named for"
 J4,SSR1,"TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal",C8465,1,WJ500V-5.08-2P 5.08mm screw terminal 1x02,1715721,Phoenix Contact,"MKDS 1,5/2-5,08 - the part this footprint is named for"
 J5,DISPLAY,Molex_KK-254_AE-6410-14A_1x14_P2.54mm_Vertical,C17701004,1,XD-2510-14A KK-254 friction-lock wafer 1x14,,,

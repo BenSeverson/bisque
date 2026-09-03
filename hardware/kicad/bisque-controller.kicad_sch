@@ -35397,7 +35397,7 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:D_Schottky")
+		(lib_id "Device:D")
 		(at 58.42 445.77 0)
 		(unit 1)
 		(body_style 1)
@@ -35418,7 +35418,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "SS14"
+		(property "Value" "1N4148W"
 			(at 54.61 442.59 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -35429,7 +35429,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Diode_SMD:D_SMA"
+		(property "Footprint" "Diode_SMD:D_SOD-123"
 			(at 58.42 445.77 0)
 			(hide yes)
 			(show_name no)
@@ -35451,7 +35451,7 @@
 				)
 			)
 		)
-		(property "Description" "Schottky diode"
+		(property "Description" "Diode"
 			(at 58.42 445.77 0)
 			(hide yes)
 			(show_name no)
@@ -35462,7 +35462,7 @@
 				)
 			)
 		)
-		(property "MPN" "C2480"
+		(property "MPN" "C81598"
 			(at 58.42 445.77 0)
 			(hide yes)
 			(show_name no)
@@ -35473,7 +35473,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C2480"
+		(property "LCSC" "C81598"
 			(at 58.42 445.77 0)
 			(hide yes)
 			(show_name no)

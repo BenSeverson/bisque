@@ -74,7 +74,6 @@ JLC_PLACEMENT = {
     "C20917":   (180,  0.000,  0.000),   # Q5    SOT-23                               resid 0.083 (3 pin#)
     "C2296":    (  0,  0.000,  0.000),   # LED3  LED_0805_2012Metric                  resid 0.113 (2 pin#)
     "C2297":    (  0,  0.000,  0.000),   # LED2  LED_0805_2012Metric                  resid 0.113 (2 pin#)
-    "C2480":    (  0,  0.000,  0.000),   # D3    D_SMA                                resid 0.035 (2 pin#)
     "C2838127": (  0,  0.000,  0.000),   # Y1    Oscillator_SMD_Abracon_ASE-4Pin_3.2x resid 0.071 (4 pin#)
     "C2653162": (270,  0.000,  0.000),   # U3    TSSOP-14_4.4x5mm_P0.65mm             resid 0.062 (14 pin#)
     "C27834":   (  0,  0.000,  0.000),   # R4    R_0805_2012Metric                    resid 0.088 (2 pin#)
@@ -88,6 +87,11 @@ JLC_PLACEMENT = {
     "C7420376": (270,  0.000,  0.000),   # U4    SOT-23-6                             resid 0.062 (6 pin#)
     "C7512":    (270,  0.000,  0.000),   # U6    SOIC-16_3.9x9.9mm_P1.27mm            resid 0.261 (16 pin#)
     "C81598":   (  0,  0.000,  0.000),   # D4    D_SOD-123                            resid 0.085 (2 pin#)
+    "C13585":   (  0,  0.000,  0.000),   # C41   C_1206_3216Metric                    resid 0.118 (2 pin#)
+    "C369169":  (  0,  0.000,  0.000),   # F1    Fuse_1812_4532Metric                 resid 0.284 (2 pin#)
+    "C475527":  (  0,  0.000,  0.000),   # L1    L_Changjiang_FXL0650                 resid 0.025 (2 pin#)
+    "C61063":   (270,  0.000,  0.000),   # U11   SOIC-8_3.9x4.9mm_P1.27mm             resid 0.230 (8 pin#)
+    "C908776":  (  0,  0.000,  0.000),   # D8    D_SMA                                resid 0.400 (2 pin#)
     "C8678":    (  0,  0.000,  0.000),   # D1    D_SMA                                resid 0.200 (2 pin#)
 }
 
@@ -175,7 +179,7 @@ LCSC = {
     "C45": ("C12891", "CL31A226KAHNNNE 22uF 25V X5R 1206", True, True),
     "D1": ("C8678", "SS34 SMA", True, True),
     "D2": ("C8678", "SS34 SMA", True, True),
-    "D3": ("C2480", "SS14 SMA", True, True),
+    "D3": ("C81598", "1N4148W SOD-123 - VLED drop diode, silicon on purpose", True, True),
     "D4": ("C81598", "1N4148W SOD-123", True, True),
     "D5": ("C7420376", "SRV05-4 TVS array SOT-23-6", True, True),
     "D6": ("C7420376", "SRV05-4 TVS array SOT-23-6", True, True),

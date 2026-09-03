@@ -703,7 +703,19 @@
       },
       {
         "netclass": "Track_0.80mm",
+        "pattern": "SW_5V"
+      },
+      {
+        "netclass": "Track_0.80mm",
         "pattern": "VIN"
+      },
+      {
+        "netclass": "Track_0.80mm",
+        "pattern": "VIN_F"
+      },
+      {
+        "netclass": "Track_0.80mm",
+        "pattern": "VIN_P"
       },
       {
         "netclass": "USB",

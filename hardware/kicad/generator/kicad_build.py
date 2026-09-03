@@ -45,8 +45,9 @@ import router as R
 import silk
 from gen_pcb import (all_seeds, route_all, ripup_retry, promoted_order, plane_vias,
                      apply_stackup, SILK, SILK_GRAPHICS, MANUAL_VIAS,
+                     EP_VIA_GRID, STITCH_VIAS, is_ep_pad,
                      PLANE_LAYER, HIDE_REFS, sync_netclasses, netclass_table,
-                     USB_KEEPOUT, U2_POUR, COPPER_LAYER_TYPE)
+                     USB_KEEPOUT, U2_POUR, COPPER_LAYER_TYPE, FID_KEEPOUT)
 
 # Copper stack-up. Rev B is 4-layer (spec 6.1): signals on the outside, an
 # unbroken GND plane on In1.Cu and the +3V3 plane on In2.Cu. router.py still
@@ -327,6 +328,40 @@ def build_board(existing=None):
     return board, nets, fps
 
 
+def ep_via_positions(fps):
+    """(x, y, net) for every via EP_VIA_GRID asks for, from real pad geometry.
+
+    Derived rather than tabulated so the vias follow the part if it moves, and
+    inset from the pad edge by a via radius plus a little so the annulus stays
+    fully inside the copper - a via breaking the pad edge is a solder-wicking
+    path out of the joint, which is the whole thing via-in-pad has to avoid.
+    """
+    out = []
+    for (ref, num), n in sorted(EP_VIA_GRID.items()):
+        fp = fps[ref]
+        pad = next((p for p in fp.Pads()
+                    if is_ep_pad(str(p.GetNumber()), num,
+                                 pcbnew.ToMM(p.GetSizeX()),
+                                 pcbnew.ToMM(p.GetSizeY()))), None)
+        if pad is None:
+            raise SystemExit("EP_VIA_GRID: %s pad %s is not a large pad" % (ref, num))
+        cx = pcbnew.ToMM(pad.GetPosition().x)
+        cy = pcbnew.ToMM(pad.GetPosition().y)
+        w = pcbnew.ToMM(pad.GetSizeX()); h = pcbnew.ToMM(pad.GetSizeY())
+        inset = R.VIA_DIA / 2.0 + 0.15
+        spanx = max(0.0, w / 2.0 - inset); spany = max(0.0, h / 2.0 - inset)
+        net = pad.GetNetname()
+        if isinstance(n, int):
+            offsets = [(0.0 if n == 1 else (i / (n - 1.0)) * 2.0 - 1.0,
+                        0.0 if n == 1 else (j / (n - 1.0)) * 2.0 - 1.0)
+                       for i in range(n) for j in range(n)]
+        else:
+            offsets = list(n)
+        for fx, fy in offsets:
+            out.append((cx + fx * spanx, cy + fy * spany, net))
+    return out
+
+
 def build_router_model(board, fps):
     r = R.Router(BX0, BY0, BX1, BY1)
     # Antenna keepout, if the module footprint carries one. The WROOM-1U does
@@ -340,6 +375,23 @@ def build_router_model(board, fps):
             bb = z.GetBoundingBox()
             r.add_keepout(pcbnew.ToMM(bb.GetLeft()), BY0,
                           pcbnew.ToMM(bb.GetRight()), pcbnew.ToMM(bb.GetBottom()))
+    # Fiducial keepouts. A fiducial is a bare copper dot with a LOCAL pad
+    # clearance override (0.6 mm) so the placement camera sees an unambiguous
+    # target, and it is on no net - so the router, which reasons about nets,
+    # had no reason to keep away and the pads alone do not stop it. That was
+    # invisible while nothing happened to route nearby; adding the 24 V entry
+    # chain put VIN_F straight past FID1 and the buck's output caps past FID3,
+    # for 6 DRC violations on a board that had 0.
+    #
+    # 1.7 mm from centre: 0.5 mm pad radius + the 0.6 mm override + up to
+    # 0.4 mm of half-track on the widest rail here, plus margin.
+    for ref, fp in fps.items():
+        if not ref.startswith("FID"):
+            continue
+        cx = pcbnew.ToMM(fp.GetPosition().x)
+        cy = pcbnew.ToMM(fp.GetPosition().y)
+        r.add_keepout(cx - FID_KEEPOUT, cy - FID_KEEPOUT,
+                      cx + FID_KEEPOUT, cy + FID_KEEPOUT)
     pad_pos = {}
     for ref, fp in fps.items():
         c = COMPONENTS[ref]
@@ -528,6 +580,14 @@ def add_zones(board, nets):
 
     for layer in (pcbnew.F_Cu, pcbnew.B_Cu):
         z = _pour(layer, "GND")
+        # min_thickness stays at _pour's 0.2 mm. 0.25 was tried, to sever the
+        # 0.116 mm neck that moving H1 west (review A1) left in the NW corner
+        # puddle, and it is a strictly worse trade: it severed the B.Cu pour
+        # near J5 too, isolating a puddle that J5 pad 2 then thermal-connected
+        # to with one spoke. That is a `starved_thermal` ERROR in place of a
+        # `connection_width` WARNING on a corner sliver of ground that carries
+        # nothing. If the neck is ever worth removing, do it by moving copper
+        # near H1, not by raising the floor for the whole board.
         # An inner plane is one sheet and any island is a defect worth
         # reporting (plane_islands does). An outer pour is the opposite: it
         # is *expected* to leave puddles trapped between traces, and a puddle
@@ -709,6 +769,10 @@ def build_copper(board, fps, order):
         for a, b in zip(pts, pts[1:]):
             r.add_seg(net, layer, a[0], a[1], b[0], b[1], w, fixed=True)
     for (net, x, y) in MANUAL_VIAS:
+        r.add_via(net, x, y, fixed=True)
+    for (net, x, y) in STITCH_VIAS:
+        r.add_via(net, x, y, fixed=True)
+    for (x, y, net) in ep_via_positions(fps):
         r.add_via(net, x, y, fixed=True)
     # Plane vias first: they are not optional (a missing one is an unconnected
     # pad) and they are short, so they claim their spots while the board is

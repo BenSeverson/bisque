@@ -3,8 +3,8 @@
  * The liveness half of the hardware watchdog (RB-2). Kept free of ESP-IDF so
  * tests/host/test_wdt_kick.c can drive it; safety.c owns the pin and the timer.
  *
- * KILN_PIN_WDT_KICK retriggers a monostable whose output gates BOTH SSR opto
- * channels, and it retriggers on EDGES — a pin wedged at either level expires
+ * KILN_PIN_WDT_KICK retriggers a monostable whose output gates the SSR +5V
+ * rail feeding BOTH channels, and it retriggers on EDGES — a pin wedged at either level expires
  * the window exactly like a pin that stopped. So the question this file answers
  * is not "is the output on" but "is the firmware still alive enough to be
  * allowed to heat".

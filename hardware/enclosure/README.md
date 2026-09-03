@@ -28,8 +28,8 @@ what differs.
 | Bisque controller PCB | `hardware/kicad/` | 100 × 100 mm, M3 holes on a 90 × 90 mm grid, **grounded** — metal standoffs deliberately bond board GND to the earthed door |
 | Display module | LCDWIKI **MSP4021** (4.0" ST7796S SPI) | PCB 61.74 × 108.04 mm, active area 55.68 × 83.52 mm, used landscape; 14-pin loom to J5 |
 | Nav switch | 5 × 12 mm panel-mount momentary pushbuttons | Cross layout (Up/Down/Left/Right/Select), wired to J6; active-low to GND, no resistors needed (ESP32 pull-ups) |
-| 5 V supply | Mean Well **HDR-15-5** (5 V / 2.4 A, DIN rail) | Board + display + backlight + buzzer + SSR inputs peak well under 1.5 A — ~1.6× headroom minimum |
-| Aux coil supply (optional) | Mean Well HDR-15-12 or -24 | Only if a vent/purge solenoid hangs off J10; feeds `AUX_VP`. Leave `SJ1` open when fitted |
+| 24 V supply | Mean Well **HDR-15-24** (24 V / 0.63 A, DIN rail) | One supply for the whole box. The board regulates its own 5 V (U11), so it draws ~0.25 A at 24 V; the rest is available for 24 V relay coils on `AUX_VP` |
+| Aux coil supply | *none needed* | `AUX_VP` can come off the same 24 V rail. A 24 V relay coil draws 10–20 mA against a 5 V coil's 70–100 mA, so the one HDR-15-24 drives roughly 20 of them. A separate supply is still fine — leave `SJ1` open when one is fitted |
 | SSR × 2 | Omron **G3NA-240B** (40 A) or Crydom D2440-class | DC input 5–24 V, zero-cross, **with a datasheet control↔load isolation rating** — this is the only mains barrier to the board, see the KiCad README |
 | SSR heatsinks × 2 | Omron **Y92B-N100** (1.63 K/W) or per vendor pairing table | See "Thermal design" — the sizing rule, not the part number, is the requirement |
 | Mains distribution | DIN terminal blocks, 2× DIN fuse holder or MCB (controller feed + aux), PE block | On the same DIN rail as the PSU |
@@ -94,7 +94,7 @@ the hinge with a strain-relieved slack loop.
         DOOR (inside view)                 BACK PANEL (inner plate)
   ┌──────────────────────────┐         ┌───────────────────────────────┐
   │      ┌────────────┐      │         │  DIN RAIL:                    │
-  │      │  display   │      │         │  [PE][IN][FUSE][HDR-15-5][AUX]│
+  │      │  display   │      │         │  [PE][IN][FUSE][HDR-15-24][AUX]│
   │      │  window    │      │         │                               │
   │      └────────────┘      │         │  ┌────────┐    ┌────────┐    │
   │           (U)            │         │  │ SSR 1  │    │ SSR 2  │    │
@@ -152,7 +152,7 @@ bond board GND to the earthed door.
 ### Back panel and shell
 
 - **DIN rail** across the top of the inner plate: PE terminal, incoming line
-  terminals, a fuse holder (1 A slow-blow) feeding the HDR-15-5, an
+  terminals, a fuse holder (1 A slow-blow) feeding the HDR-15-24, an
   optional second fused position for the aux PSU. Feed the controller
   from its own small circuit or tap ahead of the SSRs per local code —
   never downstream of them.
@@ -200,17 +200,25 @@ electronics benefit from the same segregation: the PCB and display hang
 in the cool front half of the box, out of the heatsink plume, which also
 keeps the cold-junction terminals stable.
 
-The HDR-15-5 adds ~2 W; the on-board LDO's headroom analysis in the KiCad
+The HDR-15-24 adds ~2 W; the on-board LDO's headroom analysis in the KiCad
 README already assumes a hot enclosure ambient, so no further derating is
 needed.
 
-**The 5 V rail is now a hard 5 V, not "5-ish".** U2 is a TLV1117LV33,
-whose absolute-maximum input is **6 V** (the AMS1117 it replaced tolerated
-15 V). Verify the PSU's output before connecting the board — the HDR-15-5's
-trim pot has roughly +/-10% travel and ships adjustable — and never
-substitute a 12 V supply for the board feed. A 12 V aux supply for J10 is
-fine; it reaches only `AUX_VP`, never the board rail, provided `SJ1` stays
-open.
+**The board input is 24 V and the 5 V rail is made on board.** J2 feeds
+F1 (a 750 mA / 33 V resettable fuse) and D8 (an SMAJ30A TVS) at the entry,
+then D1 for reverse polarity, then U11 — an XL1509-5.0 buck whose absolute
+maximum input is **40 V**. Two consequences worth knowing:
+
+- **The trim pot no longer matters.** +5V used to be literally the input
+  minus D1, so every turn of the PSU's trim landed on the WS2812B logic
+  threshold, the SSR drive voltage and the relay coil at once. It is now a
+  regulated 5.0 V across the HDR-15-24's whole +/-10% travel.
+- **A 12 V supply on J2 is no longer fatal, and neither is 24 V on the aux
+  terminal.** The rail that used to die at 6.4 V now tolerates 40 V, and
+  F1/D8 clamp anything past that. This is the one place where the old
+  "verify the PSU before connecting the board" warning can be relaxed —
+  though landing mains on J2 is still a destroyed board, which is why the
+  terminal is fused and labelled.
 
 ## Commissioning notes
 

@@ -75,8 +75,8 @@ static int64_t s_last_ssr_cmd_us = 0;
 static volatile bool s_supervised = false;
 
 /* ── Hardware watchdog kick (RB-2, #307) ──────────────────────────────────
- * KILN_PIN_WDT_KICK retriggers a monostable whose output gates BOTH SSR opto
- * channels. It retriggers on EDGES, so a pin wedged at either level expires the
+ * KILN_PIN_WDT_KICK retriggers a monostable whose output gates the SSR +5V
+ * rail feeding BOTH channels. It retriggers on EDGES, so a pin wedged at either level expires the
  * window exactly like a pin that stopped — which is the entire point.
  *
  * The kick is split across two places deliberately. safety_task stamps a
