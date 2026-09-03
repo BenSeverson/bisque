@@ -151,7 +151,8 @@ GROUPS = [
      "R47 is the fail-safe pull-up. SJ2 = bring-up defeat, REMOVE for service.",
      # TP12 probes the timing node; living here lets the net fuse into one
      # wire with the test point drawn on the node it probes.
-     ["U10", "C38", "C39", "R46", "R48", "Q3", "Q4", "R47", "SJ2", "TP12"]),
+     ["U10", "C38", "C39", "R46", "R48", "R49", "Q3", "Q4", "R47", "SJ2",
+      "TP12"]),
     ("AUX OUTPUT BANK\nULN2003 vent/purge/spare; COM->AUX_VP, SJ1 links to +5V",
      ["U6", "R23", "R24", "R25", "J10", "SJ1"]),
     ("ALARM BUZZER",
@@ -164,12 +165,18 @@ GROUPS = [
      "no mains - VP/VN to DNP J13",
      ["U7", "Y1", "C25", "R30", "C37", "R37", "R38", "C27", "C28",
       "C29", "C30", "C33", "C34", "C35", "C36", "R31", "R32", "R33", "C31",
+      "R59", "C40", "R60", "R61",
       "R34", "R35", "R36", "C32", "D6", "J12", "J13"]),
-    ("TOUCH DAMPING + I2C EXPANSION\n"
-     "R39-R43 damp the shared SPI2 bus for the display module's\n"
-     "XPT2046 (not on this board); J14 Qwiic and J7 5-8 (0.1 in)\n"
-     "share the I2C bus, pulled up by R44/R45",
-     ["J14", "R44", "R45", "R39", "R40", "R41", "R42", "R43"]),
+    ("SPI BUS DAMPING + CHIP-SELECT PULL-UPS + I2C EXPANSION\n"
+     "R39-R43 damp the display module's XPT2046 touch lines and\n"
+     "R54-R58 the four 40 MHz display lines; both loom to J5.\n"
+     "R56 is also the SDO hedge - lift it if the panel does not\n"
+     "tri-state J5.9 off the shared SPI_MISO.\n"
+     "R50-R53 hold all four chip selects deasserted from power-on,\n"
+     "before firmware configures any GPIO.\n"
+     "J14 Qwiic and J7 5-8 (0.1 in) share I2C, pulled up by R44/R45",
+     ["J14", "R44", "R45", "R39", "R40", "R41", "R42", "R43",
+      "R50", "R51", "R52", "R53", "R54", "R55", "R56", "R57", "R58"]),
     ("TEST POINTS",
      ["TP1", "TP2", "TP3", "TP4", "TP5", "TP6",
       "TP7", "TP8", "TP9", "TP10", "TP11"]),

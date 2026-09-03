@@ -740,8 +740,22 @@ COMPONENTS = {
     # entirely, Q3's gate simply floats, which R47 already answers.
     # Then Q3 off -> R47 pulls SSR_PG to +5V -> Q4 off -> rail dead.
     #
-    # No pulldown on WDT_OK: Q is push-pull and defines that node whenever U10
-    # has a supply, and when it does not, the R47 path above is what holds.
+    # R49 pulls WDT_OK down. The earlier note here claimed no pulldown was
+    # needed because "with U10 unpowered Q3's gate simply floats, which R47
+    # already answers" - that is wrong, and wrong in the fail-DANGEROUS
+    # direction. R47 holds SSR_PG, not Q3's gate, and it only wins while Q3
+    # is off. A floating gate is not off: the AO3400A's Vgs(th) floor is
+    # ~0.65V, so any leakage or coupling that lifts WDT_OK above it turns Q3
+    # ON, which pulls SSR_PG down through a few tens of milliohms against
+    # R47's 100k, which turns Q4 ON and makes the SSR rail LIVE with no
+    # firmware and no watchdog. The case is real rather than theoretical:
+    # +3V3 is U2's output and +5V is not, so any +3V3 failure (LDO dead,
+    # rail shorted, U2 in thermal shutdown) unpowers U10 while leaving the
+    # SSR rail's supply intact. 100k against Q's push-pull VOH costs 32uA
+    # and defines the node whenever U10 does not.
+    "R49": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
+                value="100k", at=(55.0, 54.1, 0),
+                pins={"1": "WDT_OK", "2": "GND"}),
     "U10": dict(lib="74xGxx", sym="74LVC1G123", fp=SSOP8[0], fpf=SSOP8[1],
                 value="SN74LVC1G123", at=(53.5, 49.7, 0),
                 pins={"1": "GND", "2": "WDT_KICK", "3": "+3V3", "4": "GND",
@@ -1062,7 +1076,7 @@ COMPONENTS = {
                fpf="QFN-28-1EP_5x5mm_P0.5mm_EP3.1x3.1mm.kicad_mod",
                value="ADE7953ACPZ", at=(95.0, 72.0, 0),
                pins={"1": None, "2": "ADE_RESET", "3": "ADE_VINTD",
-                     "4": "GND", "5": "CTA_F", "6": "GND",
+                     "4": "GND", "5": "CTA_F", "6": "CTA_FN",
                      "7": "+3V3", "8": "+3V3", "9": "CTB_F", "10": "GND",
                      "11": "ADE_VN", "12": "ADE_VP", "13": "ADE_REF",
                      "14": "GND", "15": "ADE_VINTA", "16": "GND",
@@ -1239,6 +1253,37 @@ COMPONENTS = {
     "C31": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
                 value="33nF", at=(103.5, 79.0, 0),
                 pins={"1": "CTA_F", "2": "GND"}),
+    # Channel A's RETURN leg (review A10). Both channels used to run
+    # single-ended - signal on IAP, IAN strapped to GND - and that is fine on
+    # channel B but not on channel A, because the asymmetry is inside the
+    # chip: ADE7953 Table 5 (p.20) allows +-500 mV on IB single-ended and only
+    # +-250 mV on IA. With the 5R1 burden that is 34.7 mA rms, so a 2000:1 CT
+    # full-scales at 69 A rms on channel A against 139 A on channel B - a 2x
+    # difference that is invisible in the netlist, wrong in the README, and
+    # would land in firmware as one shared calibration constant.
+    #
+    # Driving IAN as a real input recovers the full +-500 mV differential.
+    # R59/C40 mirror R32/C31 exactly so both legs see the same 1k/33nF
+    # anti-alias corner - an unmatched pair converts common-mode into
+    # differential, which is the whole thing this is buying. R33 stays: with
+    # IAN no longer strapped to GND it is what still references the floating
+    # CT secondary, and at 1k against the 5R1 burden it does not load it.
+    "R59": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
+                value="1k", at=(98.0, 91.0, 0),
+                pins={"1": "CTA_N", "2": "CTA_FN"}),
+    "C40": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
+                value="33nF", at=(102.5, 91.0, 0),
+                pins={"1": "CTA_FN", "2": "GND"}),
+    # ADE7953 voltage-channel inputs. J13 is DNP, so without these VP and VN
+    # are floating PGA inputs and the datasheet gives no guidance for that
+    # state. 1k to GND on each defines them and matches the current channels'
+    # series resistance, so fitting J13 later needs no other change.
+    "R60": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
+                value="1k", at=(90.0, 91.0, 0),
+                pins={"1": "ADE_VP", "2": "GND"}),
+    "R61": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
+                value="1k", at=(94.0, 91.0, 0),
+                pins={"1": "ADE_VN", "2": "GND"}),
     # Channel B - exact copy of channel A above, 6mm south.
     "R34": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
                 value="5R1", at=(93.5, 87.0, 0),
@@ -1301,9 +1346,9 @@ COMPONENTS = {
                # here needs no other board change. Moving off +3V3 also
                # takes the backlight/panel current off the AMS1117 (U2)
                # entirely rather than through its LDO drop.
-               pins={"1": "+5V", "2": "GND", "3": "LCD_CS", "4": "LCD_RST",
-                     "5": "LCD_DC", "6": "SPI_MOSI", "7": "SPI_SCLK",
-                     "8": "LCD_BL", "9": "SPI_MISO", "10": "T_CLK_R",
+               pins={"1": "+5V", "2": "GND", "3": "LCD_CS_R", "4": "LCD_RST",
+                     "5": "LCD_DC_R", "6": "LCD_MOSI_R", "7": "LCD_SCLK_R",
+                     "8": "LCD_BL", "9": "LCD_SDO_R", "10": "T_CLK_R",
                      "11": "T_CS_R", "12": "T_DIN_R", "13": "T_DO_R",
                      "14": "T_IRQ_R"}),
     "C11": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
@@ -1328,6 +1373,61 @@ COMPONENTS = {
     "R43": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
                 value="33", at=(62.05, 96.5, 0),
                 pins={"1": "T_IRQ", "2": "T_IRQ_R"}),
+    # --- Chip-select pull-ups (review A4) ---------------------------------
+    # None of the four SPI chip selects had a pull-up, and GPIO 5/8/10/35 have
+    # no pull at reset (ESP32-S3 DS Table 2-1), so every slave sees a floating
+    # CS from power-on until firmware configures the pin - and firmware only
+    # ever drove two of them. On a bus that multi-drops four devices at 40 MHz
+    # that is bus contention during the display's first bursts, with two
+    # MAX31856s and an XPT2046 free to decide they are selected.
+    #
+    # Placement is nearly free here because +3V3 is a PLANE (In2.Cu): a
+    # pull-up needs one signal tap and one plane via, not a routed rail. The
+    # two TC pull-ups therefore sit in the empty east block rather than in the
+    # 6 mm SPI channel between U3 and U5, which is the one lane on this board
+    # that must stay clear (see the thermocouple geometry note above).
+    "R50": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
+                value="10k", at=(112.0, 60.0, 0),
+                pins={"1": "+3V3", "2": "TC1_CS"}),
+    "R51": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
+                value="10k", at=(112.0, 64.0, 0),
+                pins={"1": "+3V3", "2": "TC2_CS"}),
+    "R52": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
+                value="10k", at=(34.5, 99.0, 0),
+                pins={"1": "+3V3", "2": "LCD_CS"}),
+    "R53": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
+                value="10k", at=(38.5, 99.0, 0),
+                pins={"1": "+3V3", "2": "T_CS"}),
+    # --- Display series damping (review A5 + C "no damping on the loom") ---
+    # R39-R43 damped the five TOUCH lines and stopped there, leaving the four
+    # fastest nets on the board - SCLK, MOSI, DC and CS at 40 MHz - driving a
+    # loom to a door-mounted panel with nothing in series. R54-R58 finish the
+    # job with the same 33R the touch lines already use.
+    #
+    # R56 is review item A5 and is the one that is not just damping. J5 pin 9
+    # is the panel's SDO, hard-wired onto the shared SPI_MISO with both
+    # MAX31856s. The ST7796S datasheet never states that SDO goes high-Z when
+    # the panel is deselected, this module carries no series resistor of its
+    # own, and if it does hold the line the thermocouples cannot be read at
+    # all. 33R is the hedge: it damps like the others if SDO does tri-state,
+    # and if it does not, R56 is a component to lift instead of a track to cut
+    # on every board. Bring-up: scope TP6 with the panel plugged in while TC1
+    # is selected.
+    "R54": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
+                value="33", at=(34.5, 94.0, 0),
+                pins={"1": "SPI_SCLK", "2": "LCD_SCLK_R"}),
+    "R55": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
+                value="33", at=(38.5, 94.0, 0),
+                pins={"1": "SPI_MOSI", "2": "LCD_MOSI_R"}),
+    "R56": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
+                value="33", at=(34.5, 96.5, 0),
+                pins={"1": "SPI_MISO", "2": "LCD_SDO_R"}),
+    "R57": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
+                value="33", at=(23.5, 98.4, 0),
+                pins={"1": "LCD_CS", "2": "LCD_CS_R"}),
+    "R58": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
+                value="33", at=(38.5, 96.5, 0),
+                pins={"1": "LCD_DC", "2": "LCD_DC_R"}),
     "J6": dict(lib="Connector_Generic", sym="Conn_01x06",
                fp="Connector_Molex:Molex_KK-254_AE-6410-06A_1x06_P2.54mm_Vertical",
                fpf="Molex_KK-254_AE-6410-06A_1x06_P2.54mm_Vertical.kicad_mod",
@@ -1370,19 +1470,19 @@ COMPONENTS = {
     "H1": dict(lib="Mechanical", sym="MountingHole_Pad",
                fp="MountingHole:MountingHole_3.2mm_M3_Pad_Via",
                fpf="MountingHole_3.2mm_M3_Pad_Via.kicad_mod",
-               value="M3", at=(25.5, 25.0, 0), pins={"1": "GND"}),
+               value="M3", at=(25.0, 25.0, 0), pins={"1": "GND"}),
     "H2": dict(lib="Mechanical", sym="MountingHole_Pad",
                fp="MountingHole:MountingHole_3.2mm_M3_Pad_Via",
                fpf="MountingHole_3.2mm_M3_Pad_Via.kicad_mod",
-               value="M3", at=(114.5, 25.0, 0), pins={"1": "GND"}),
+               value="M3", at=(115.0, 25.0, 0), pins={"1": "GND"}),
     "H3": dict(lib="Mechanical", sym="MountingHole_Pad",
                fp="MountingHole:MountingHole_3.2mm_M3_Pad_Via",
                fpf="MountingHole_3.2mm_M3_Pad_Via.kicad_mod",
-               value="M3", at=(25.5, 115.0, 0), pins={"1": "GND"}),
+               value="M3", at=(25.0, 115.0, 0), pins={"1": "GND"}),
     "H4": dict(lib="Mechanical", sym="MountingHole_Pad",
                fp="MountingHole:MountingHole_3.2mm_M3_Pad_Via",
                fpf="MountingHole_3.2mm_M3_Pad_Via.kicad_mod",
-               value="M3", at=(114.5, 115.0, 0), pins={"1": "GND"}),
+               value="M3", at=(115.0, 115.0, 0), pins={"1": "GND"}),
     # --- Fiducials --------------------------------------------------------
     # Optical alignment targets for the pick-and-place: 1 mm of bare copper in
     # a 2 mm mask opening, on no net, doing nothing electrically. The machine
