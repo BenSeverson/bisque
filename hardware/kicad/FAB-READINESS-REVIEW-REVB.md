@@ -112,11 +112,14 @@ Two antenna stubs on USB is a worse board than four legible-but-cramped
 labels, so this is reverted. It is a placement exercise for a spin that is
 re-laying that edge anyway, not a pre-fab silk fix.
 
-The **180 deg silk rotation** from section D is done (`gen_pcb.SILK_TEXT_ROT`):
-the enclosure installs this board south-edge-up, so every legend used to read
-upside-down in service. Reference designators and the bench marks now read
-upside-down on the bench instead, which is the smaller loss and is stated at
-the constant.
+**The 180 deg silk rotation from section D does not work and should be struck
+from the review.** It was implemented and reverted. Rotating the text gives a
+board in neither orientation: gr_text rotates, reference designators rotate in
+the file and render upright anyway (KiCad's KeepUpright flag normalises them),
+and the flame is a gr_poly that rotates with nothing - so the nameplate ends
+up upside-down under a right-way-up logo. Consistency would need KeepUpright
+off on every designator and the brand mark inverted, both worse than the
+problem. The reasoning is recorded in gen_pcb.py above the silk tables.
 
 Still to do before ordering: **A3** (above), the broad **stitching-via** item
 (220 of 232 signal vias have no GND via within 1.5 mm), and the rest of the
