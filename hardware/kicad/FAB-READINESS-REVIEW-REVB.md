@@ -55,13 +55,13 @@ SSR drive and the relay coil no longer move with the installer's trim pot.
 |---|---|
 | A1 mounting-hole grid | **fixed** - true 90 x 90; fixing the board beat fixing four doc sites |
 | A2 TP11 in J12's column | **NOT fixed**, deliberately - assertion added, debt declared in `gen_pcb.TP_LEGEND_OK`, three placements tried and each left a different net unroutable |
-| A3 J11 marks | open |
+| A3 J11 marks | **attempted, reverted** - see below |
 | A4 chip-select pull-ups | **fixed** - R50-R53 |
 | A5 display SDO | **fixed** - R56 |
 | A6 exposed-pad vias | **fixed** - `EP_VIA_GRID`, U7/U2/U1, derived from real pad geometry |
-| A7 ADE REF decoupling | open |
-| A8 USB_DN detour | open |
-| A9 TC2 filtered legs | open |
+| A7 ADE REF decoupling | **fixed** - 103.1 mm / 9 vias -> 15.4 / 2, by promoting it out of the late analog group |
+| A8 USB_DN detour | **resolved** - now 33.2 mm / 5 vias against USB_DP's 50.8 / 8; the review measured 94.0 / 7. The intervening re-routes took it out |
+| A9 TC2 filtered legs | **fixed** - TC2_P_F 47.6 mm / 6 vias -> 17.4 / 2, now within a millimetre of channel 1 |
 | A10 CT channel A | **fixed** - R59/C40, U7 pin 6 off GND |
 | A11 `.kicad_dru` | fixed previously (`124ba4f`) |
 | C: VIN overvoltage | **fixed** - F1 + D8, scaled to 24 V (an SMAJ5.0A on a 24 V rail is a short) |
@@ -94,8 +94,26 @@ Gates: 0 nets unrouted, **0 DRC violations**, silk 0/0/0, netlist round-trip
 except D8/F1/L1 reuses an existing feeder, so the BOM gained three fee-bearing
 lines ($9), not fourteen.
 
-Still to do before ordering: A3, A7, A8, A9, the broad stitching-via item, and
-the silk batch (180 deg rotation, block names off the inter-terminal gaps).
+**Why A3 was reverted.** J11's four marks are x-locked over their own pins and
+south of J11 is 0.61 mm of board edge, so the only fix is to open the northern
+gap - which means moving J5/J6/J7. That was tried and it works: the gap goes
+1.57 -> 3.07 mm and the marks fit at 1.0 mm. It also cascades, and every step
+of the cascade cost something:
+
+1. moving the header row 1.5 mm north collides with the display damping
+   resistors, so those move up 2.0 mm;
+2. which puts R52/R57's reference designators on J9's silk outline (3
+   `silk_overlap` warnings), so those two move south of J5;
+3. which re-rolls the route enough to leave USB_DP and CC1's hand seeds
+   dangling - 2.3 mm and 3.3 mm of unconnected copper on USB signals, the
+   failure mode `USB_STUB_TERMS` exists to prevent.
+
+Two antenna stubs on USB is a worse board than four legible-but-cramped
+labels, so this is reverted. It is a placement exercise for a spin that is
+re-laying that edge anyway, not a pre-fab silk fix.
+
+Still to do before ordering: A3 (above), the broad stitching-via item, and the
+silk batch (180 deg rotation, block names off the inter-terminal gaps).
 
 Decision path:
 
