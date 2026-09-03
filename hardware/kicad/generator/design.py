@@ -228,15 +228,117 @@ COMPONENTS = {
                      "38": "IN2", "39": "IN3", "40": "GND",
                      "41": "GND"}),
     # --- Power -----------------------------------------------------------
+    # The board makes its own 5 V rail from a 24 V input (U11 below). Until
+    # this rev it took 5 V directly and +5V was literally VIN minus D1, so
+    # every drop and every turn of the installer's trim pot landed on the
+    # WS2812B threshold, the SSR drive and the relay coil at once. Regulating
+    # after the drop is what makes D1's forward voltage stop mattering: at
+    # 24 V it costs 1.6% of the rail instead of 8%, and downstream of a
+    # regulator it is headroom rather than error.
+    #
+    # The protection cluster stays HERE, at the entry, not beside the buck -
+    # a TVS placed at the load protects only the load. The 24 V run east to
+    # U11 is the cheap direction to send power: ~0.25 A against the ~1 A the
+    # same load costs on a 5 V rail.
     "J2": dict(lib="Connector", sym="Screw_Terminal_01x02",
-               fp=TBLOCK[0], fpf=TBLOCK[1], value="5V_IN", at=(26.0, 39.0, 270),
+               fp=TBLOCK[0], fpf=TBLOCK[1], value="24V_IN", at=(26.0, 39.0, 270),
                pins={"1": "VIN", "2": "GND"}),
+    # Review C item 1, scaled to the new input. The review named an SMAJ5.0A,
+    # which on a 24 V rail is a permanent short - a 5.0 V standoff breaks down
+    # at 6.4 V. F1+D8 are the same clamp-and-blow pair at the right voltage:
+    # D8 defines the clamp, F1 ends the event. Neither works alone - a 400 W
+    # TVS is rated for a 10/1000 us pulse, not for holding a DC fault, and a
+    # PPTC on its own is far too slow to protect anything from the voltage.
+    #
+    # Ratings are picked against each other and against U11's 40 V abs max.
+    # D8 stands off 30 V (above an HDR-15-24 at full +10% trim, 26.4 V) and
+    # breaks down at 33.3 V min, so a SUSTAINED fault sits at 33-37 V, inside
+    # U11's rating. Its 48.4 V clamp at 8.3 A does exceed 40 V, but that is a
+    # surge figure and an abs-max is a DC spec. F1 must survive the fault
+    # voltage MINUS the clamp, so its 33 V rating covers inputs to ~67 V.
+    # 750 mA hold against a ~250 mA load leaves room for inrush without
+    # nuisance tripping, and its 90 mohm sits upstream of a regulator.
+    "F1": dict(lib="Device", sym="Polyfuse", fp="Fuse:Fuse_1812_4532Metric",
+               fpf="Fuse_1812_4532Metric.kicad_mod",
+               value="750mA/33V", at=(23.7, 32.2, 0),
+               pins={"1": "VIN", "2": "VIN_F"}),
+    "D8": dict(lib="Device", sym="D_TVS", fp=SMA[0], fpf=SMA[1],
+               value="SMAJ30A", at=(35.0, 23.5, 0),
+               pins={"1": "VIN_F", "2": "GND"}),
+    # D1 keeps its job and its place, and stops being expensive. Pad 1 is the
+    # cathode on this footprint, so 1=VIN_P (load side), 2=VIN_F (source).
     "D1": dict(lib="Device", sym="D_Schottky", fp=SMA[0], fpf=SMA[1],
                value="SS34", at=(36.6, 45.6, 0),
-               pins={"1": "+5V", "2": "VIN"}),
+               pins={"1": "VIN_P", "2": "VIN_F"}),
     "D2": dict(lib="Device", sym="D_Schottky", fp=SMA[0], fpf=SMA[1],
                value="SS34", at=(56.25, 36.75, 0),
                pins={"1": "+5V", "2": "VBUS"}),
+    # --- 24 V -> 5 V buck (the +5V rail) ---------------------------------
+    # XL1509-5.0E1: 40 V abs max in, FIXED 5 V out, 2 A, 150 kHz, SOIC-8,
+    # LCSC C61063 and a JLCPCB *Basic* part, so it costs no feeder fee. Two
+    # things picked it over the adjustable 500 kHz parts: 40 V of input
+    # headroom means the 12/24 V misconnect that used to destroy U2 is not
+    # even a fault any more, and a fixed output needs no feedback divider -
+    # two fewer parts and no divider to get wrong. FB (pin 3) ties straight
+    # to the output for the fixed version. EN (pin 4) is active LOW, so it is
+    # grounded to keep the regulator enabled.
+    #
+    # The whole block sits in the south-east because that is the only region
+    # of this board with room: 266 mm2 at x 100.25-119.25, y 95.75-109.75
+    # carrying zero tracks and zero vias. The power corner cannot take it -
+    # measured, its largest free pocket is 12.5 x 6.5 mm and the y 30-36 band
+    # is boxed in by J2, R5 and U2 on three sides, so fitting the buck there
+    # means exiling the LDO block out of the quadrant entirely.
+    #
+    # Being 18-34 mm from the CT front-end is the price. It is affordable
+    # rather than free: the ADE7953 measures a 50/60 Hz signal through the
+    # 1k/33nF filters on CTA_F/CTB_F, whose ~4.8 kHz corner puts 150 kHz
+    # ~30x down, and the MAX31856s are 50-60 mm away behind their own
+    # filters. Keep the hot loop (C41/C42 -> U11 pin 1 -> pin 2 -> D7 -> GND)
+    # tight; it, not the inductor, is what radiates.
+    "C41": dict(lib="Device", sym="C", fp=C1206[0], fpf=C1206[1],
+                value="10uF/50V", at=(104.0, 98.5, 0),
+                pins={"1": "VIN_P", "2": "GND"}),
+    "C42": dict(lib="Device", sym="C", fp=C1206[0], fpf=C1206[1],
+                value="10uF/50V", at=(110.5, 98.5, 0),
+                pins={"1": "VIN_P", "2": "GND"}),
+    "C43": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
+                value="100nF", at=(116.0, 98.5, 0),
+                pins={"1": "VIN_P", "2": "GND"}),
+    "U11": dict(lib="Regulator_Switching", sym="XL1509-5.0",
+                fp="Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
+                fpf="SOIC-8_3.9x4.9mm_P1.27mm.kicad_mod",
+                value="XL1509-5.0E1", at=(104.5, 103.5, 0),
+                pins={"1": "VIN_P", "2": "SW_5V", "3": "+5V", "4": "GND",
+                      "5": "GND", "6": "GND", "7": "GND", "8": "GND"}),
+    # Catch diode. Non-synchronous buck, so this carries the inductor current
+    # for ~79% of every cycle - it is not optional and it is not a snubber.
+    # SS34 is already a BOM line and its 40 V / 3 A covers a 24 V input at
+    # 1.28 A peak. Pad 1 = cathode, on the switch node.
+    "D7": dict(lib="Device", sym="D_Schottky", fp=SMA[0], fpf=SMA[1],
+               value="SS34", at=(112.5, 102.0, 0),
+               pins={"1": "SW_5V", "2": "GND"}),
+    # 47 uH is the small end, not a lazy round number: at 150 kHz and
+    # 24 -> 5 V it gives dI = 5 x 0.792 / (47u x 150k) = 0.56 A, so 56%
+    # ripple on a 1 A load and a 1.28 A peak. Going smaller makes that worse,
+    # not the part - inductor volume goes as L x I^2.
+    "L1": dict(lib="Device", sym="L", fp="Inductor_SMD:L_Changjiang_FXL0650",
+               fpf="L_Changjiang_FXL0650.kicad_mod",
+               # +5V on pin 1, SW_5V on pin 2, and the order is not arbitrary
+               # even though an inductor is symmetric. A rail's port symbol is
+               # never rotated - a +5V bar sits ABOVE its wire - so a rail on
+               # the DOWNWARD pin makes power_path() elbow the wire sideways,
+               # into the same flank field_pos() hands to an all-vertical-pin
+               # part's Reference/Value. That collision is a check_sch_layout
+               # failure, and swapping the pins is the whole fix.
+               value="47uH/2A", at=(114.0, 107.5, 0),
+               pins={"1": "+5V", "2": "SW_5V"}),
+    "C44": dict(lib="Device", sym="C", fp=C1206[0], fpf=C1206[1],
+                value="22uF", at=(103.0, 108.5, 0),
+                pins={"1": "+5V", "2": "GND"}),
+    "C45": dict(lib="Device", sym="C", fp=C1206[0], fpf=C1206[1],
+                value="22uF", at=(108.0, 108.8, 90),
+                pins={"1": "+5V", "2": "GND"}),
     # The regulator and the bulk-cap row east of it sit 1.5 mm further east
     # than they did, as one block: U2 36.6 -> 38.1, C1 44.0 -> 45.5, C3
     # 49.2 -> 50.7, C4 53.8 -> 55.3. They are shoulder to shoulder (the

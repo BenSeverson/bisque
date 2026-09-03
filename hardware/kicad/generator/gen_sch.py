@@ -123,8 +123,17 @@ FLAG_NET = dict(zip(FLAG_REFS, PWR_FLAG_NETS))
 #     stub, and the rendered net name at the end of the stub), so facing
 #     stubs cannot land on the same point in the first place.
 GROUPS = [
-    ("POWER IN\n5V DC terminal or USB, ORed Schottky diodes",
-     ["J2", "D1", "D2", "U2", "C1", "C2", "C3", "C4", "LED2", "R9"]),
+    ("POWER IN  24 VDC terminal or USB\n"
+     "F1+D8 clamp-and-blow at the entry; D1 blocks reverse polarity.\n"
+     "U11 (right) makes +5V; D2 ORs in USB VBUS; U2 drops it to +3V3",
+     ["J2", "F1", "D8", "D1", "D2", "U2", "C1", "C2", "C3", "C4",
+      "LED2", "R9"]),
+    ("24 V -> 5 V BUCK  XL1509-5.0, fixed output\n"
+     "C41-C43 in, D7 catch, L1 47uH, C44/C45 out. FB ties to the\n"
+     "output because the part is the fixed 5.0 V version; EN is\n"
+     "active LOW and grounded. Keep C41/C42 - U11 - D7 tight: that\n"
+     "loop, not L1, is what radiates.",
+     ["U11", "C41", "C42", "C43", "D7", "L1", "C44", "C45"]),
     ("USB-C\nnative USB flashing + ESD",
      ["J1", "U4", "R4", "R5"]),
     ("RESET / BOOT / DECOUPLING",

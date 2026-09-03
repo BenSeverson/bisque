@@ -917,8 +917,15 @@ ROUTE_ORDER = [
     # (FANOUT_WIDTH, still 0.25 mm) or of its plane-via stub (PLANE_STUB_W),
     # so the narrow width is confined to the ~2 mm of escape that geometrically
     # requires it and the rest of the net runs at full width.
-    ("VIN", 0.8), ("+5V", 0.7), ("VLED", 0.7), ("VBUS", 0.5),
+    ("VIN", 0.8), ("VIN_F", 0.8), ("VIN_P", 0.8),
+    ("+5V", 0.7), ("VLED", 0.7), ("VBUS", 0.5),
     ("AUX_VP", 0.7),
+    # U11's switch node. Wide because it carries the full inductor current,
+    # but deliberately SHORT rather than generous: SW_5V swings the whole
+    # input rail at the switching edge, so every extra mm2 of it is antenna.
+    # It exists only between U11 pin 2, D7's cathode and L1 pin 1, all three
+    # of which are placed within a few mm of each other for that reason.
+    ("SW_5V", 0.8),
     # The multi-drop buses: longest reach, most terminals, hardest to thread.
     # The two thermocouple chip selects ride the same channel between U3 and U5
     # and are routed with them rather than with the other escapes, or the bus
@@ -964,7 +971,7 @@ ROUTE_ORDER = [
     ("TC1_P", SIG_W), ("TC1_N", SIG_W), ("TC1_P_F", SIG_W), ("TC1_N_F", SIG_W),
     ("TC2_P", SIG_W), ("TC2_N", SIG_W), ("TC2_P_F", SIG_W), ("TC2_N_F", SIG_W),
     # CT front-end and its terminal
-    ("CTA_P", 0.4), ("CTA_N", 0.4), ("CTA_F", SIG_W),
+    ("CTA_P", 0.4), ("CTA_N", 0.4), ("CTA_F", SIG_W), ("CTA_FN", SIG_W),
     ("CTB_P", 0.4), ("CTB_N", 0.4), ("CTB_F", SIG_W),
     # ADE7953 locals
     ("ADE_CLKIN", SIG_W), ("ADE_REF", SIG_W),
@@ -975,6 +982,9 @@ ROUTE_ORDER = [
     # touch series damping (header side of R39-R43)
     ("T_CLK_R", SIG_W), ("T_CS_R", SIG_W), ("T_DIN_R", SIG_W), ("T_DO_R", SIG_W),
     ("T_IRQ_R", SIG_W),
+    # display series damping (header side of R54-R58)
+    ("LCD_SCLK_R", SIG_W), ("LCD_MOSI_R", SIG_W), ("LCD_SDO_R", SIG_W),
+    ("LCD_CS_R", SIG_W), ("LCD_DC_R", SIG_W),
 ]
 
 # ---------------------------------------------------------------------------
