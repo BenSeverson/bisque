@@ -71,6 +71,23 @@ SSR drive and the relay coil no longer move with the installer's trim pot.
 | C: 5 V relays under-driven | **moot** - 24 V coils |
 | C: WS2812B margin | **fixed** - D3 is silicon now, not an SS14; a *regulated* 5.0 V rail made the old Schottky a 10 mV margin |
 | C: return/stitching vias | one added under J7; the broad 220-of-232 item is open |
+| C: `+5V` single power vias (Track 3 #7) | **attempted, not landed** - see below |
+
+**Why `+5V` still transitions layers on single vias.** A post-routing pass was
+written and measured: **0 added, 13 had no room.** Two things kill the cheap
+version, and the second is the real one:
+
+- Adjacent grid cells are 0.25 mm apart where two 0.6 mm vias need >= 0.8 mm,
+  so the neighbour search never finds a legal cell.
+- More fundamentally, a via at any *free* cell is not connected to the rail on
+  either layer. Paralleling a transition means the rail must have copper at
+  the companion's position on BOTH layers, which needs a short spur on each -
+  new router capability, not a placement tweak. It belongs in `_commit`, where
+  the path is in hand, and that is an inline change to the hot loop of a
+  router this board has repeatedly punished for taking space early.
+
+The rails work as they are - roughly 1 A of via for a sub-1 A rail. This is a
+redundancy item, not a capacity one.
 
 Gates: 0 nets unrouted, **0 DRC violations**, silk 0/0/0, netlist round-trip
 102 nets / 0 mismatches, all 13 `make pcb-check` checkers pass. Every new part
