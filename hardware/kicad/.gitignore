@@ -1,5 +1,8 @@
 bisque-controller-backups/
 _autosave-*
+# KiCad's open-session locks. Two of these were committed by accident;
+# they exist only while the GUI has the file open.
+~*.lck
 
 # Regenerable review byproducts (kicad-happy analyzer runs, datasheet cache)
 analysis/
