@@ -27,6 +27,7 @@ from gen_jlc import DNP
 from gen_jlc import LCSC
 import check_sch_layout
 import inspect_libs
+import stages
 
 
 def _find_sym_base():
@@ -1921,6 +1922,11 @@ if __name__ == "__main__":
         print("  NOT fused (no clear placement found, left as labels): %s"
               % ", ".join(FUSE_DROPPED))
     text = main()
+    # Intermediate snapshots into hardware/kicad/stages/, on every run. Only
+    # 0* is cleared: kicad_build.py owns the numbered board stages in the same
+    # directory, and `make pcb-build` runs it afterwards as its own process.
+    stages.reset(dst, "0*")
+    stages.write(text, dst, "01-sch-generated.kicad_sch")
     with open(dst, "w") as fh:
         fh.write(text)
     print("wrote %s (%d bytes)" % (dst, len(text)))
@@ -1943,3 +1949,5 @@ if __name__ == "__main__":
     subprocess.run(["kicad-cli", "sch", "upgrade", "--force", dst],
                    check=True, capture_output=True)
     print("  reformatted by kicad-cli (%d bytes)" % os.path.getsize(dst))
+    stages.copy(dst, dst, "02-sch-upgraded.kicad_sch")
+    print("  stages -> %s/01-sch-generated, 02-sch-upgraded" % stages.DIRNAME)

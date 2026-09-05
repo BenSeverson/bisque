@@ -43,6 +43,7 @@ from design import COMPONENTS, netlist, BX0, BY0, BX1, BY1
 from gen_sch import sync_project
 import router as R
 import silk
+import stages
 from gen_jlc import DNP, NOT_ASSEMBLED
 from gen_pcb import (all_seeds, route_all, ripup_retry, promoted_order, plane_vias,
                      apply_stackup, SILK, SILK_GRAPHICS, MANUAL_VIAS,
@@ -1085,6 +1086,10 @@ def resort_to_kicad_order(path):
 
 def main(out, reuse_routing=False):
     out = os.path.abspath(out)
+    # Intermediate snapshots into hardware/kicad/stages/, on every run. Only
+    # this writer's numbers are cleared: gen_sch.py owns 0* in the same
+    # directory and `make pcb-build` runs it as a separate process first.
+    stages.reset(out, "[1-9]*")
     if reuse_routing:
         if not os.path.isfile(out):
             sys.exit("--no-route reuses the routing in %s, and that file does "
@@ -1106,22 +1111,29 @@ def main(out, reuse_routing=False):
               % (os.path.basename(out), len(list(loaded.GetTracks())) - n_via,
                  n_via, len(list(loaded.Zones()))))
         strip_derived(loaded)
+        stages.board(loaded, out, "10-reused.kicad_pcb")
         board, nets, fps = build_board(loaded)
+        stages.board(board, out, "20-placed.kicad_pcb")
     else:
         board, nets, fps = build_board()
+        stages.board(board, out, "20-placed.kicad_pcb")
         r, failed = route_board(board, fps)
         if failed:
             print("UNROUTED: %s" % ", ".join(failed))
         add_copper(board, nets, r)
+        stages.board(board, out, "30-routed.kicad_pcb")
     anchors = add_outline_and_silk(board)
+    stages.board(board, out, "40-outline.kicad_pcb")
     # Silk placement runs last, once every pad, footprint outline and board
     # text exists: it is a whole-board packing problem, and it cannot be
     # solved a label at a time as each one is created.
     _labels = silk.place(board, anchors)
+    stages.board(board, out, "50-silk.kicad_pcb")
     strayed, slid = silk.adrift(_labels), silk.offaxis(_labels)
     intruding = silk.in_legend_column(_labels, TP_LABEL_TEXTS, LEGEND_OWNER)
     if not reuse_routing:
         add_zones(board, nets)
+        stages.board(board, out, "60-zones.kicad_pcb")
     rpt_path = os.path.splitext(out)[0] + "-drc.rpt"
     # standalone python fill/DRC needs a project-attached board; kicad-cli
     # fills, saves and checks in one authentic pass.
@@ -1142,6 +1154,7 @@ def main(out, reuse_routing=False):
     # bytes verbatim; that is why gen_pcb.stackup_sexp() emits KiCad's own
     # formatting rather than leaving it to the round trip.
     apply_stackup(out)
+    stages.copy(out, out, "70-stackup.kicad_pcb")
     # Fix the uuids BEFORE the last KiCad write, and let KiCad do the sorting.
     # pcbnew hands each item a random uuid and then orders the file by it, so
     # without this an unchanged design lands on disk differently every run
@@ -1169,6 +1182,7 @@ def main(out, reuse_routing=False):
     print("saved %s (%s); DRC via kicad-cli..."
           % (out, "fill inherited" if reuse_routing else "unfilled"))
     subprocess.run(drc, check=True, capture_output=True)
+    stages.copy(out, out, "80-filled.kicad_pcb")
     # Canonicalise once more, then hand it straight back to KiCad so KiCad has
     # the last word on ORDER. Both halves of that are load-bearing, and each
     # was learned by removing it.
@@ -1192,6 +1206,7 @@ def main(out, reuse_routing=False):
     # derive the same uuids again.
     canonicalize_file(out)
     resort_to_kicad_order(out)
+    stages.copy(out, out, "90-final.kicad_pcb")
     restore_project(project_before)
     # Put `schematic.top_level_sheets` back. Saving this board blanked it, and
     # the culprit is `pcbnew.SaveBoard()` above, NOT kicad-cli: a BOARD has a
@@ -1230,6 +1245,12 @@ def main(out, reuse_routing=False):
     if sync_netclasses(os.path.splitext(out)[0] + ".kicad_pro"):
         print("  net classes in .kicad_pro: %d class(es) written"
               % (len(netclass_table()) + 1))
+    # Last, once the .kicad_pro is finished: a stage board opened without one
+    # gets KiCad's defaults - no net classes, no custom DRC rules - and then
+    # reports violations the real board does not, which is the opposite of a
+    # debugging aid.
+    print("  stages -> %s/ (%d project file(s) attached)"
+          % (stages.DIRNAME, stages.attach_projects(out)))
     for (lname, area, cx, cy) in plane_islands(pcbnew.LoadBoard(out)):
         print("  !! %s plane island of %.1f mm2 stranded at (%.1f, %.1f)"
               % (lname, area, cx, cy))

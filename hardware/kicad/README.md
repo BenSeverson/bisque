@@ -724,6 +724,55 @@ and it works here for the same reason — the board build is reproducible, so
 an unchanged design hashes identically on any machine. The stamp is
 committed so a clean clone skips too. `make pcb-render FORCE=1` overrides.
 
+### Seeing what each stage produced: `stages/`
+
+Every run of `gen_sch.py` and `kicad_build.py` drops the file it is holding
+at each stage into `stages/` (gitignored, overwritten each run). Nothing
+reads them. They exist because the finished board is the *last* of ten
+states and six of them have written over the evidence by the time you look:
+"the silk placer put that legend somewhere daft" and "the router left this
+net open" are both questions about a board that no longer exists on disk.
+Each stage board gets a `.kicad_pro` and `.kicad_dru` copy under its own
+basename, so opening one in KiCad gives it the real net classes and DRC
+rules rather than the defaults — a board with no project reports violations
+the real one does not, which is the opposite of a debugging aid.
+
+| File | State |
+|---|---|
+| `01-sch-generated.kicad_sch` | `gen_sch.py`'s own text, before KiCad sees it |
+| `02-sch-upgraded.kicad_sch` | after `kicad-cli sch upgrade --force` — the 20k → 45k line reflow |
+| `10-reused.kicad_pcb` | `--no-route` only: the board as loaded, canonicalised, derived items stripped |
+| `20-placed.kicad_pcb` | after `build_board()` — footprints and nets, no copper |
+| `30-routed.kicad_pcb` | full path only: after `route_board()` + `add_copper()` |
+| `40-outline.kicad_pcb` | after `add_outline_and_silk()` — silk exists, unplaced |
+| `50-silk.kicad_pcb` | after `silk.place()` |
+| `60-zones.kicad_pcb` | full path only: after `add_zones()`, unfilled |
+| `70-stackup.kicad_pcb` | after the pcbnew save and `apply_stackup()` |
+| `80-filled.kicad_pcb` | after `kicad-cli pcb drc --refill-zones --save-board` |
+| `90-final.kicad_pcb` | after the last `canonicalize` + `resort_to_kicad_order()` |
+
+Missing numbers are how you tell which path ran: no `30`/`60` means
+`--no-route`, no `10` means a full build.
+
+This is unconditional, and it is safe to have on the byte-identity path for
+one specific reason. `10`–`60` go through `pcbnew.SaveBoard(...,
+aSkipSettings=True)`, and the skip is load-bearing rather than an
+optimisation: without it, saving attaches and writes the board's PROJECT —
+the exact side effect `kicad_build.main()` already has to undo once with
+`read_project`/`restore_project`, and which silently emptied the `erc` block
+and `sch_revision` for a while. With it, a stage snapshot writes a
+`.kicad_pcb` and touches nothing else. `70`–`90` are plain file copies of a
+board already on disk, so they cannot perturb anything at all. `make
+pcb-build` and `make pcb-cosmetic` both still produce a board byte-identical
+to the committed one.
+
+Each writer clears only its own numbers (`gen_sch.py` owns `0*`,
+`kicad_build.py` owns `[1-9]*`): `make pcb-build` runs them as two processes
+into one directory, and a writer that wiped the whole directory would take
+the other's output with it. Clearing at all matters because a stale stage is
+worse than an absent one — a `--no-route` run that left the previous full
+build's `30-routed.kicad_pcb` sitting in sequence would look current.
+
 ### Which path does your change need?
 
 Routing 92 nets across 141 parts is essentially all of `pcb-build`'s

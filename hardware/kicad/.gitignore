@@ -12,3 +12,9 @@ datasheets/*
 # floorplan.py's output; design.py records the placement it produced
 generator/floorplan.json
 generator/__pycache__/
+
+# Per-stage snapshots from gen_sch.py / kicad_build.py (generator/stages.py).
+# Written on every run; nothing reads them, they are there to be opened in
+# KiCad at the stage a problem appeared rather than inferred from the
+# finished board.
+stages/
