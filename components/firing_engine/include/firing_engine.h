@@ -1,6 +1,7 @@
 #pragma once
 
 #include "firing_types.h"
+#include "firing_engine_shared.h"
 #include "pid_control.h"
 #include "esp_err.h"
 #include "freertos/FreeRTOS.h"
@@ -20,40 +21,10 @@ esp_err_t firing_engine_init(void);
  */
 QueueHandle_t firing_engine_get_cmd_queue(void);
 
-/**
- * Find the first segment whose ramp-rate sign is inconsistent with the
- * direction from its starting temperature to its target (a segment that would
- * be mislabelled HEATING/COOLING, disabling the heating watchdogs).
- *
- * Segment 0 starts from `start_temp`; later segments start from the previous
- * target. Pass a non-finite `start_temp` (NAN) to skip segment 0's own check
- * when the firing-start temperature is unknown (profile save). Returns the
- * offending segment index, or -1 if all segments are consistent. Pure.
- *
- * Defined in firing_helpers.c.
- */
-int firing_first_bad_ramp_sign(const firing_profile_t *profile, float start_temp);
-
-/**
- * True while a relay diagnostic pulse is holding the SSR on. This is a
- * distinct busy state from a firing: `firing_engine_get_progress()` reports
- * is_active == false during a relay test, so callers that must not run
- * concurrently with it (firing start, autotune start, OTA, reboot) have to
- * consult this in addition to is_active.
- */
-bool firing_engine_relay_test_active(void);
-
-/**
- * Arm a relay diagnostic pulse for `duration_s` seconds (clamped to
- * [1, RELAY_TEST_MAX_S internally]). Returns true if armed, false if the kiln
- * is busy (firing, armed delayed start, autotune, or a test already running).
- *
- * Synchronous and atomic: the caller gets a definitive answer with no queue
- * latency, so an HTTP handler can return a real 200/409 instead of a fire-and-
- * forget {ok:true}. Does not check OTA — callers that need that gate it
- * separately. The firing tick drives the SSR for the armed pulse.
- */
-bool firing_engine_relay_test_arm(uint32_t duration_s);
+/* firing_first_bad_ramp_sign, firing_engine_relay_test_active and
+ * firing_engine_relay_test_arm are part of this public API but are declared in
+ * firing_engine_shared.h, which firing_engine_internal.h also includes — see
+ * that header for why they cannot live in either one alone. */
 
 /* ── Firing transition events ───────────────────────── */
 

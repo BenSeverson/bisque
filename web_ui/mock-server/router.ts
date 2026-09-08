@@ -709,6 +709,7 @@ export function dispatch(method: string, apiPath: string, body: unknown): Dispat
         openCircuit: false,
         shortGnd: false,
         shortVcc: false,
+        outOfRange: false,
         readingAgeMs: Math.round(Math.random() * 250),
         tcOffsetC: state.settings.tcOffsetC ?? 0,
         temperatureAdjustedC: temp + (state.settings.tcOffsetC ?? 0),

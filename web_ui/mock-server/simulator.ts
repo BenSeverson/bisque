@@ -543,6 +543,7 @@ export function getStatusResponse() {
       openCircuit: false,
       shortGnd: false,
       shortVcc: false,
+      outOfRange: false,
     },
   };
 }

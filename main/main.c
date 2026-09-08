@@ -8,6 +8,7 @@
 #include "nvs_flash.h"
 #include "esp_app_desc.h"
 #include "ota_manager.h"
+#include "driver/gpio.h"
 #include "driver/spi_master.h"
 #include "mdns.h"
 #include "esp_sntp.h"
@@ -79,6 +80,39 @@ void app_main(void)
     };
     ESP_ERROR_CHECK(spi_bus_initialize(APP_SPI_HOST, &spi_bus_cfg, SPI_DMA_CH_AUTO));
     ESP_LOGI(TAG, "SPI bus initialized");
+
+    /* Park the chip selects of populated-but-undriven bus peers HIGH before any
+     * traffic. Rev B multi-drops four devices on SPI2 — the LCD, both MAX31856s
+     * and the XPT2046 touch controller — but only the LCD and TC1 have drivers,
+     * which own their CS via spics_io_num. TC2's and touch's CS are left in
+     * their reset state: no firmware writes them and neither net carries a
+     * pull-up, so both sit floating at an active-low input. A float sampled low
+     * puts that device on the bus for every transaction, and it drives MISO
+     * alongside TC1 — so the failure is not "channel 2 misbehaves", it is TC1's
+     * CR0 probe failing or its temperature reads returning contended data.
+     *
+     * The level is latched before the output driver is enabled so enabling it
+     * cannot glitch the line low. Drop a pin from this list only when something
+     * else has taken ownership of it (TC2 at RB-3, touch when a driver lands). */
+    static const int idle_cs_pins[] = {APP_PIN_TC2_CS, APP_PIN_TOUCH_CS};
+    for (size_t i = 0; i < sizeof(idle_cs_pins) / sizeof(idle_cs_pins[0]); i++) {
+        int pin = idle_cs_pins[i];
+        if (pin < 0) {
+            continue; /* -1 = not fitted on this build */
+        }
+        gpio_set_level(pin, 1);
+        gpio_config_t cs_cfg = {
+            .pin_bit_mask = 1ULL << pin,
+            .mode = GPIO_MODE_OUTPUT,
+            /* Holds the line deasserted if the pin is ever floated again. */
+            .pull_up_en = GPIO_PULLUP_ENABLE,
+            .pull_down_en = GPIO_PULLDOWN_DISABLE,
+            .intr_type = GPIO_INTR_DISABLE,
+        };
+        ESP_ERROR_CHECK(gpio_config(&cs_cfg));
+        gpio_set_level(pin, 1);
+        ESP_LOGI(TAG, "Parked idle SPI chip select on GPIO %d", pin);
+    }
 
     /* ── Thermocouple Init ─────────────────────────── */
     ESP_ERROR_CHECK(thermocouple_init(APP_SPI_HOST, APP_PIN_TC1_CS));

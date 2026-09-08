@@ -24,15 +24,17 @@ Every item is tracked as a GitHub issue ([#306–#342](https://github.com/BenSev
 
 | ID | Task | GPIO | Why it blocks |
 |---|---|---|---|
-| **[RB-1](https://github.com/BenSeverson/bisque/issues/306)** | **MAX31856 driver**, replacing the MAX31855 one | TC1_CS 10 | The board reads **no temperature at all**. The MAX31855 driver does one read-only 32-bit frame; the MAX31856 needs config-register writes on init and a fault-register decode. |
+| **[RB-1](https://github.com/BenSeverson/bisque/issues/306)** — *driver done, [bench pending](https://github.com/BenSeverson/bisque/issues/343)* | **MAX31856 driver**, replacing the MAX31855 one | TC1_CS 10 | The board reads **no temperature at all**. The MAX31855 driver does one read-only 32-bit frame; the MAX31856 needs config-register writes on init and a fault-register decode. |
 | **[RB-2](https://github.com/BenSeverson/bisque/issues/307)** | **Watchdog kick** — *firmware done, board respun* | WDT_KICK 36 | A one-shot gates **both** SSR channels. Until something kicks it, every board needs the SJ2 "WDT DEFEAT" jumper fitted or **it will not heat**. |
 
 **RB-1 notes.** A straight replacement, not a second backend — the runtime-probe
 requirement died with the rev A freeze. Host tests stub the driver
 (`tests/host/stubs/thermocouple_host.c`) and the simulator mocks ESP-IDF, so the
-swap doesn't reach either suite. Revisit `APP_PID_KD_DEFAULT` on the bench while
-here: its value was chosen against the MAX31855's 0.25 °C quantization, and the
-MAX31856 is ~32× finer.
+swap doesn't reach either suite — so nothing in the driver has touched real
+silicon, and every register value is datasheet-derived. Bench bring-up, and the
+`APP_PID_KD_DEFAULT` retune that goes with it, is
+[#343](https://github.com/BenSeverson/bisque/issues/343): that value was chosen
+against the MAX31855's 0.25 °C quantization, and the MAX31856 is ~32× finer.
 
 **RB-2 notes.** The retrigger needs *transitions* — a pin stuck high fails
 exactly like a pin that stopped, which is the whole design. The kick must

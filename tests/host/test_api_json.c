@@ -155,6 +155,7 @@ static void test_status_full_shape(void)
     assert_bool_field(tc_obj, "openCircuit");
     assert_bool_field(tc_obj, "shortGnd");
     assert_bool_field(tc_obj, "shortVcc");
+    assert_bool_field(tc_obj, "outOfRange");
 
     dump_fixture("status", root);
     cJSON_Delete(root);
@@ -181,8 +182,36 @@ static void test_status_zeros_temp_when_fault(void)
                             cJSON_GetObjectItem(cJSON_GetObjectItem(root, "thermocouple"), "temperature")->valuedouble);
     TEST_ASSERT_TRUE(cJSON_IsTrue(cJSON_GetObjectItem(cJSON_GetObjectItem(root, "thermocouple"), "openCircuit")));
     TEST_ASSERT_FALSE(cJSON_IsTrue(cJSON_GetObjectItem(cJSON_GetObjectItem(root, "thermocouple"), "shortGnd")));
+    TEST_ASSERT_FALSE(cJSON_IsTrue(cJSON_GetObjectItem(cJSON_GetObjectItem(root, "thermocouple"), "outOfRange")));
     TEST_ASSERT_EQUAL_INT(0, cJSON_GetObjectItem(root, "dutyPercent")->valueint);
     TEST_ASSERT_FALSE(cJSON_IsTrue(cJSON_GetObjectItem(root, "ventActive")));
+    cJSON_Delete(root);
+}
+
+/* An over-range hot junction is the one fault whose *reported* temperature is a
+ * plausible number rather than an obvious failure — the MAX31856 clamps at the
+ * type limit. So the flag that distinguishes "1372 C" from "at least 1372 C, we
+ * cannot tell" has to survive serialization, or the operator sees a kiln
+ * sitting calmly at its limit. */
+static void test_status_reports_out_of_range_distinctly(void)
+{
+    firing_progress_t prog = {.status = FIRING_STATUS_ERROR};
+    thermocouple_reading_t tc = {
+        .temperature_c = 1372.0f,
+        .fault = TC_FAULT_OUT_OF_RANGE,
+    };
+    cJSON *root = build_status_json(&prog, &tc, 5.0f, 0.0f, VENT_STATE_OFF, LID_STATE_NOT_FITTED);
+    cJSON *tc_obj = cJSON_GetObjectItem(root, "thermocouple");
+
+    TEST_ASSERT_TRUE(cJSON_IsTrue(cJSON_GetObjectItem(tc_obj, "fault")));
+    TEST_ASSERT_TRUE(cJSON_IsTrue(cJSON_GetObjectItem(tc_obj, "outOfRange")));
+    /* Not conflated with a wiring fault. */
+    TEST_ASSERT_FALSE(cJSON_IsTrue(cJSON_GetObjectItem(tc_obj, "openCircuit")));
+    TEST_ASSERT_FALSE(cJSON_IsTrue(cJSON_GetObjectItem(tc_obj, "shortGnd")));
+    TEST_ASSERT_FALSE(cJSON_IsTrue(cJSON_GetObjectItem(tc_obj, "shortVcc")));
+    /* Same zero-clamp as any other fault: the clamped 1372 must not reach the
+     * headline reading, where it would look like a live measurement. */
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, cJSON_GetObjectItem(root, "currentTemp")->valuedouble);
     cJSON_Delete(root);
 }
 
@@ -1189,6 +1218,7 @@ int main(void)
     UNITY_BEGIN();
     RUN_TEST(test_status_full_shape);
     RUN_TEST(test_status_zeros_temp_when_fault);
+    RUN_TEST(test_status_reports_out_of_range_distinctly);
     RUN_TEST(test_status_clamps_duty);
     RUN_TEST(test_status_omits_vent_when_not_fitted);
     RUN_TEST(test_status_omits_lid_when_not_fitted);

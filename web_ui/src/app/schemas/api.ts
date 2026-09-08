@@ -62,6 +62,10 @@ export const firingProgressResponseSchema = z.object({
     openCircuit: z.boolean(),
     shortGnd: z.boolean(),
     shortVcc: z.boolean(),
+    /* Hot junction outside the probe type's measurable range, so the reported
+     * temperature is a clamp rather than a measurement. Optional because a kiln
+     * on firmware older than the MAX31856 driver never sends it. */
+    outOfRange: z.boolean().optional(),
   }),
 });
 
@@ -268,6 +272,8 @@ export const thermocoupleDiagSchema = z.object({
   openCircuit: z.boolean(),
   shortGnd: z.boolean(),
   shortVcc: z.boolean(),
+  /* See firingProgressResponseSchema — optional for the same reason. */
+  outOfRange: z.boolean().optional(),
   readingAgeMs: z.number(),
   tcOffsetC: z.number(),
   temperatureAdjustedC: z.number(),

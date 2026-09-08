@@ -1150,6 +1150,7 @@ export function Settings() {
                       tcDiag.openCircuit && "Open Circuit",
                       tcDiag.shortGnd && "Short to GND",
                       tcDiag.shortVcc && "Short to VCC",
+                      tcDiag.outOfRange && "Temperature Out of Range",
                     ]
                       .filter(Boolean)
                       .join(", ")}

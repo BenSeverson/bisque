@@ -10,6 +10,7 @@
  */
 
 #include "firing_types.h"
+#include "firing_engine_shared.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -55,35 +56,6 @@ bool at_target_predicate(float current_temp, float setpoint, float target_temp);
  */
 uint32_t firing_remaining_s(const firing_profile_t *profile, int current_segment, float current_temp, bool holding,
                             float hold_elapsed_s);
-
-/**
- * Find the first segment whose ramp-rate sign is inconsistent with the
- * direction from its starting temperature to its target — the config in which
- * the engine labels a segment COOLING while actually driving full-power
- * heating (or vice versa), disabling the heating watchdogs.
- *
- * Segment 0 starts from `start_temp`; each later segment starts from the
- * previous segment's target. A move of more than RAMP_SIGN_EPS_C toward a
- * higher temperature requires a positive ramp; toward a lower temperature, a
- * negative ramp. Near-equal targets (|delta| <= eps) impose no direction.
- *
- * Pass a non-finite `start_temp` (e.g. NAN) to skip segment 0's own direction
- * check — used at profile-save time, when the kiln temperature the profile
- * will eventually fire from is unknown; the inter-segment checks still apply.
- *
- * Returns the offending segment index, or -1 if every segment is consistent
- * (also -1 for a NULL/empty profile). Pure: no globals, no I/O.
- *
- * Also declared in the public firing_engine.h for the web server; mirrored
- * here (dep-free) so the host helper test can link it without pulling in
- * FreeRTOS/esp_err.
- */
-int firing_first_bad_ramp_sign(const firing_profile_t *profile, float start_temp);
-
-/* Also declared in the public firing_engine.h; mirrored here so the host
- * scenario test can link them without the FreeRTOS-heavy public header. */
-bool firing_engine_relay_test_active(void);
-bool firing_engine_relay_test_arm(uint32_t duration_s);
 
 /**
  * Advance the firing engine by one tick using `now_us` as wall-clock time.

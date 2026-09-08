@@ -1074,7 +1074,7 @@ static void test_tc_fault_holds_ssr_off(void)
 
     /* Inject a thermocouple fault and run one tick by hand — the scenario
      * helper would reset the fault flag at the end of each tick. A faulted
-     * MAX31855 reports 0°C; without the gate the PID sees 0°C vs a hot setpoint
+     * MAX31856 reports 0°C; without the gate the PID sees 0°C vs a hot setpoint
      * and commands full power. */
     thermocouple_test_set(0.0f, TC_FAULT_OPEN_CIRCUIT);
     host_clock_advance(HARNESS_TICK_US);
