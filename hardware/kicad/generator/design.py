@@ -356,12 +356,81 @@ COMPONENTS = {
     # helps either: U2's leads span y 36.45..42.55 continuously and J2's two
     # screws are inside that band 5.08 mm apart. The column is now 2.43 mm.
     # TLV1117LV33, not AMS1117: same SOT-223, same 1117 pinout (GND/OUT/IN,
-    # tab=OUT), but dropout is 700mV MAX at 1A against the AMS1117's 1.3V —
-    # the AMS1117 had zero guaranteed headroom behind an SS34 on a sagging
-    # 5V input (5.0 - 0.4 - 1.3 = 3.3V exactly, worse on a 4.75V USB port).
-    # Ceramic-stable at 0-ohm ESR (C3/C4 unchanged), Iq 100uA max. The
-    # trade: Vin abs max is 6V, not the AMS1117's 15V — VIN is spec'd 5V
-    # everywhere on this board, but a 9/12V adapter now kills U2 first.
+    # tab=OUT), but dropout is 700mV MAX at 1A against the AMS1117's 1.1V
+    # at 800mA. The AMS1117 is a JLCPCB *Basic* part, so the swap keeps
+    # getting proposed as a free $3 (#348). It is not free, and the reason
+    # is NOT the 24V input:
+    #
+    # U2's input rail has two sources. U11 is one, and behind the buck's
+    # regulated 5.0V an AMS1117 would be fine. D2 is the other, and it is
+    # the one that decides the part: VBUS -> +5V is how the board runs on
+    # USB alone, which is every bench and flashing session. A 4.75V port
+    # (5V -5%) behind D2's ~0.4V Schottky puts +5V at 4.35V, and 4.35 -
+    # 1.1 = 3.25V — the AMS1117 is out of regulation before the ESP32 has
+    # transmitted anything. The TLV leaves 350mV. Adding U11 raised the
+    # floor on the 24V path and did nothing at all to the USB path, so
+    # "the board has more headroom now" is true and does not apply here.
+    #
+    # Nor is the SOT-223 the constraint, which is the next thing asked. The
+    # WHOLE fee-free library - 350 Basic plus 996 Preferred, enumerated, not
+    # searched (2026-09-09) - holds three fixed 3.3V linear regulators in
+    # any package: this AMS1117, a 100mA HT7533-1 (C14289, SOT-89-3) and a
+    # 200mA XC6206 (C5446, SOT-23-3L). Both of the others are an order of
+    # magnitude short of the 240mA the ESP32 alone draws. There is no
+    # fee-free 3.3V LDO on JLCPCB that can carry this rail, full stop.
+    #
+    # The one thing that would work is a SWITCHER: XL1509-ADJE1 (C74192) is
+    # Preferred, it is U11's own family, and a second one at 3.3V could reuse
+    # L1's inductor and an SS34, so it adds no feeder fee and removes this
+    # one. A real -$3. Three reasons it is not taken, and NONE of them is
+    # "150 kHz is too noisy for the analog front end" - that objection was
+    # made here once and it is wrong. The ADE7953 post-regulates internally
+    # (VINTA/VINTD/REF are on-chip LDO/reference outputs, decoupled below),
+    # the CT path corners at 4.8 kHz so 150 kHz is 31x out, and the MAX31856s
+    # convert over ~100 ms behind a 50/60 Hz notch. The fundamental is filtered
+    # three times over before it reaches anything that measures.
+    #
+    #   1. THE BEAT, which nothing filters. The XL1509 has no SYNC pin and its
+    #      own spread is 127-173 kHz, so two of them sit tens of kHz apart and
+    #      drift independently with temperature and load. Each is a duty-cycle-
+    #      modulated load on the shared rail, i.e. a mixer, and |f1-f2| lands
+    #      inside both control loops' bandwidth, so the loops track it and put
+    #      it on their outputs. That difference frequency goes anywhere from a
+    #      few Hz to 46 kHz and MOVES - down through 50/60 Hz where the ADE7953
+    #      integrates, and through DC where the MAX31856 lives. A 5 Hz beat is
+    #      temperature wander that never reproduces on the bench. Solvable by
+    #      frequency choice, never by filtering: see the rev-C note below.
+    #
+    #   2. FAULT ENERGY, and this is the kiln-specific one. R49's fail-safe
+    #      (below) has U10 - the watchdog that drops the SSR - sitting on the
+    #      rail U2 makes. An LDO pass element failing short puts 5V on that
+    #      rail. A 24V-fed buck failing short puts 24V on it. Same failure,
+    #      different energy, on the one part standing between a wedged
+    #      controller and 5 kW of element.
+    #
+    #   3. THE BOARD HAS NEVER BEEN BUILT. Putting a switcher on the analog
+    #      rail at the same time as first silicon on the metering and
+    #      thermocouple front ends means that if the noise floor disappoints
+    #      there is no known-good rail to A/B against. That is the actual
+    #      reason to wait, and it expires the moment rev B is characterised.
+    #
+    # The one argument that DOES favour the switcher is thermal, and it is
+    # better than the bench numbers suggest: 0.51 W at 300 mA is a ~27 C rise
+    # in this SOT-223 with its pour, but a kiln controller's enclosure ambient
+    # is not 25 C, and at 50 C ambient a 500 mA peak puts the junction near
+    # 95 C. Inside the 125 C spec, thinner than "0.85 W, that's nothing".
+    #
+    # REV C, if U2's thermals turn out to be the real constraint: TPS5430DDAR
+    # (C9864, Basic, 500 kHz, SOIC-8-EP) or TPS54331DR (C9865, Preferred,
+    # 570 kHz). Either beats U11 at ~350/420 kHz, out of band rather than
+    # hoped away, takes 3.3V straight off the 24V input, and still reuses
+    # L1's 47 uH (dI = 0.12 A at 500 kHz), so it stays fee-free. Design the
+    # beat out; do not filter it.
+    #
+    # Ceramic-stable at 0-ohm ESR (C3/C4 unchanged), Iq 100uA max. The old
+    # trade — Vin abs max 6V against the AMS1117's 15V, so a 9/12V adapter
+    # kills U2 first — is gone with the 5V input: J2 is 24V into U11 now,
+    # and the only unregulated path to U2 is VBUS, which USB caps at 5.5V.
     # KiCad ships no TLV1117LV symbol; TLV1117-33 is the same family and
     # pin map, with the value carrying the real part.
     "U2": dict(lib="Regulator_Linear", sym="TLV1117-33",
