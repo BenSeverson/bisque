@@ -371,23 +371,35 @@ HAND_SOLDER = {
 # Second source at Mouser for the hand-fitted parts, keyed by LCSC part
 # number, so the shopping list works against either supplier.
 #
-# Three of these five are Chinese generics on LCSC and the Mouser column is
+# Four of these six are Chinese generics on LCSC and the Mouser column is
 # the *genuine* part the KiCad footprint was drawn from — so it fits at least
 # as well, clone dimensional tolerance being the usual source of trouble. It
 # also costs several times more: a real Phoenix MKDS is dollars against cents
 # for the WJ500V clone, taking this list from ~$1.50/board to roughly
 # $8–12/board.
 #
-# Verified 2026-07-31 by MPN and datasheet, *not* by live API — there is no
-# Mouser API key configured and Mouser blocks automated page fetches. Confirm
-# stock and price at order time.
+# Every MPN here is the part the footprint's own `descr` names, so the fit is
+# a documented fact rather than a judgement — the KK-254 footprints carry
+# "old/engineering part number: AE-6410-NNA example for new part number:
+# 22-27-2NN1" and the terminal blocks are named MKDS-1,5-N-5.08. Look the
+# footprint up before adding a row; do not pattern-match the digits.
+#
+# Confirmed 2026-09-09 against Mouser's live catalog, one search per MPN, so
+# these are lines Mouser actually carries and not merely parts it lists. There
+# is still no Mouser API key (and Mouser blocks scripted fetches, so this took
+# a real browser) — re-confirm stock and price at order time.
 MOUSER_ALT = {
     "C240822": ("22-27-2081", "Molex",
                 "identical part - the LCSC line is already genuine Molex"),
     "C239381": ("22-27-2061", "Molex",
                 "genuine KK-254 1x06; LCSC line is an A2547WV clone"),
+    "C17701004": ("22-27-2141", "Molex",
+                  "genuine KK-254 1x14 (AE-6410-14A); LCSC line is an "
+                  "XD-2510-14A clone"),
     "C8465": ("1715721", "Phoenix Contact",
               "MKDS 1,5/2-5,08 - the part this footprint is named for"),
+    "C42377749": ("1715747", "Phoenix Contact",
+                  "MKDS 1,5/4-5,08 - the part this footprint is named for"),
     "C96093": ("CMI-1295-0585T", "Same Sky",
                "12x9.5mm body, 7.6mm pitch, 5V THT active - datasheet-verified"),
     # Mouser hosts WS2812B datasheets and sells third-party modules built on

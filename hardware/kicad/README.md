@@ -617,11 +617,11 @@ so the shopping list works against either supplier:
 
 | Ref | LCSC | Mouser alternate |
 |---|---|---|
-| J5 | C17701004 | none — KK-254 1×14 friction-lock wafer; source from LCSC |
+| J5 | C17701004 | Molex **22-27-2141** — genuine KK-254 1×14 (LCSC line is an XD-2510-14A clone) |
 | J6 | C239381 | Molex **22-27-2061** — genuine KK-254 1×06 (LCSC line is an A2547WV clone) |
 | J7 | C240822 | Molex **22-27-2081** — identical, the LCSC line is already genuine Molex |
 | J2, J3, J4, J8, J9 | C8465 | Phoenix Contact **1715721** (MKDS 1,5/2-5,08) — the part this footprint is named for |
-| J10, J11, J12 | C42377749 | none — WJ500V-5.08-04P 4-pos screw terminal; source from LCSC |
+| J10, J11, J12 | C42377749 | Phoenix Contact **1715747** (MKDS 1,5/4-5,08) — the part this footprint is named for |
 | BZ1 | C96093 | Same Sky **CMI-1295-0585T** — Ø12 × 9.5 mm, 7.6 mm pitch, 5 V THT active |
 | LED1 | C2761795 | **none** — no bare Worldsemi 5050 in Mouser's catalog; use LCSC, DigiKey, Adafruit or SparkFun |
 
@@ -629,9 +629,33 @@ Several of these LCSC lines are Chinese generics and the Mouser column is the
 genuine part each footprint was drawn from where one exists, so it fits at
 least as well — clone dimensional tolerance being the usual source of
 trouble. It costs several times more, though: a real Phoenix MKDS is
-dollars against cents for the WJ500V clone. The alternates were verified by
-MPN and datasheet, not by live API (no Mouser API key, and Mouser blocks
-automated page fetches) — confirm stock at order time.
+dollars against cents for the WJ500V clone.
+
+**Every one of these MPNs is written down in the footprint itself, and that
+is the only place to look one up.** KiCad's KK-254 footprints carry
+`old/engineering part number: AE-6410-NNA example for new part number:
+22-27-2NN1` in their `descr`, and the terminal blocks are named
+`MKDS-1,5-N-5.08` after the Phoenix order code — so J5's 1×14 is Molex
+22-27-2141 (`AE-6410-14A`, confirmed on Molex's own part page) and the 4-pos
+block is Phoenix 1715747, as facts rather than judgements. Do not extrapolate
+from the digits of a neighbouring row: the Phoenix order numbers are not
+sequential in position count, and the KK-254 family has four different
+14-circuit vertical friction-lock headers (22-12/18/23/27-2141) that are *not*
+the same part.
+
+J5 and J10–J12 sat blank in this table for one release because the two rows
+were filled in by pattern and the pattern did not exist. Both parts were on
+Mouser's shelf the whole time.
+
+The alternates were confirmed 2026-09-09 against Mouser's live catalog, one
+search per MPN — so these are lines Mouser actually carries, not just parts it
+lists. That still took a real browser: there is no Mouser API key here and
+Mouser blocks scripted fetches (`curl` and `WebFetch` both get an Akamai
+challenge page served with `200 OK` and a `.pdf` content-type, so a fetch that
+"succeeds" is how this goes wrong quietly). Molex's own part pages carry a live
+distributor-inventory table including Mouser stock and price, and are not
+blocked — that is the cheaper check for a Molex line. Re-confirm stock at order
+time.
 
 **Assembly stays Economic**: with 0 through-hole parts left in the assembly
 BOM (`gen_jlc.py`'s own output confirms this every run), the whole
