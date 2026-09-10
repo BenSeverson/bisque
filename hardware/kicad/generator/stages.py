@@ -51,10 +51,18 @@ def reset(ref_path, pattern):
     Stale files are worse than absent ones here: a stage that stops being
     emitted (a `--no-route` run, which skips routing and zones) would otherwise
     leave the previous full build's copy sitting in sequence, looking current.
+
+    Directories are cleared too, because opening a stage board in KiCad leaves
+    a `<name>-backups/` beside it - which matches the number pattern, and made
+    the next build die on `os.remove` with an EPERM that reads like a
+    permissions problem rather than "you looked at the evidence".
     """
     d = dir_for(ref_path)
     for p in glob.glob(os.path.join(d, pattern)):
-        os.remove(p)
+        if os.path.isdir(p):
+            shutil.rmtree(p)
+        else:
+            os.remove(p)
     return d
 
 
