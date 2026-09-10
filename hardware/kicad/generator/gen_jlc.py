@@ -1,8 +1,11 @@
 """Generate JLCPCB assembly files (BOM.csv + CPL.csv) from design.py.
 
 Every LCSC part number below was verified live against the LCSC catalog
-(package, value and stock) — see VERIFIED_ON. Re-verify before a production
-run, since stock and part status drift.
+(package, value and stock) — see VERIFIED_ON. The most recent sweep re-checked
+the library tier and the stock of all 39 lines and re-fitted every land pattern
+(`lcsc_pads.py --refresh`, then `check_jlc_placement.py`); no `fee_free` flag
+had drifted. Re-verify before a production run, since stock and part status
+drift.
 
 CPL coordinates follow KiCad's footprint-position convention (Y negated), plus
 a per-part correction to both the angle and the origin: JLCPCB places LCSC's
@@ -28,7 +31,7 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 from design import COMPONENTS
 
-VERIFIED_ON = "2026-08-11"
+VERIFIED_ON = "2026-09-09"
 
 # JLCPCB does not place our footprint. It places LCSC's footprint for that
 # part number, anchoring *its* origin at Mid X / Mid Y and turning *its* pin 1
@@ -91,7 +94,7 @@ JLC_PLACEMENT = {
     "C369169":  (  0,  0.000,  0.000),   # F1    Fuse_1812_4532Metric                 resid 0.284 (2 pin#)
     "C475527":  (  0,  0.000,  0.000),   # L1    L_Changjiang_FXL0650                 resid 0.025 (2 pin#)
     "C61063":   (270,  0.000,  0.000),   # U11   SOIC-8_3.9x4.9mm_P1.27mm             resid 0.230 (8 pin#)
-    "C908776":  (  0,  0.000,  0.000),   # D8    D_SMA                                resid 0.400 (2 pin#)
+    "C19077547": (  0,  0.000,  0.000),   # D8    D_SMA                                resid 0.404 (2 pin#)
     "C8678":    (  0,  0.000,  0.000),   # D1    D_SMA                                resid 0.200 (2 pin#)
 }
 
@@ -184,7 +187,15 @@ LCSC = {
     "D5": ("C7420376", "SRV05-4 TVS array SOT-23-6", True, True),
     "D6": ("C7420376", "SRV05-4 TVS array SOT-23-6", True, True),
     "D7": ("C8678", "SS34 40V 3A Schottky SMA - U11 catch diode", True, True),
-    "D8": ("C908776", "SMAJ30A 30V 400W unidirectional TVS SMA", False, True),
+    # The one SMAJ30A of 44 listings that LCSC files as Preferred rather
+    # than Extended, which is the whole reason for it (#348) - same MPN,
+    # same DO-214AC land pattern, same 30V/400W part, $3 less per order.
+    # Pure listing arbitrage, so it is also the cheapest line here to
+    # revert: nothing but this string and its JLC_PLACEMENT row moves.
+    # Stock is the catch - 651 units against C908776's 197k, thinner
+    # than anything else on the BOM. Fine for prototypes, re-check
+    # before a production run, and fall back to C908776 if it is gone.
+    "D8": ("C19077547", "SMAJ30A 30V 400W unidirectional TVS SMA", True, True),
     "F1": ("C369169", "JK-mSMD075-33 PPTC 750mA hold / 1.5A trip, 33V, 1812", False, True),
     "L1": ("C475527", "FXL0650-470-M 47uH 2A 2.6A-sat 230mohm 7x6.6mm", False, True),
     "J1": ("C165948", "HRO TYPE-C-31-M-12 USB-C 16P", False, True),

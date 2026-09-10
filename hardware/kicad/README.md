@@ -559,12 +559,14 @@ carrying designators the BOM does not have:
 | J2, J3, J4, J8, J9 (2-pos screw terminals), J10, J11, J12 (4-pos screw terminals), J5, J6, J7 (KK-254 wafers), BZ1 (buzzer) | 5.08 mm and 2.54 mm pitch — the easiest joints on the board, but the ones that would force Standard assembly |
 | LED1 (WS2812B, PLCC-4 5050) | No addressable RGB LED at LCSC is a Basic part (checked across WS2812/SK6812/XL-xxxx), so its $3 buys nothing an iron can't do to four edge-accessible pads |
 
-What's left goes down the SMT line: **102 of 109 placements carry no feeder
-fee**, and only **6 unique Extended parts** do — the module
+What's left goes down the SMT line: **122 of 133 placements carry no feeder
+fee**, and only **10 unique Extended parts** do — the module
 (ESP32-S3-WROOM-1U-N16R2, C3013945), both MAX31856MUD+T (C2653162, one
-designator, two placements), the ADE7953 (C515890), its 3.579545 MHz crystal
-(C7471632), the Qwiic connector (C160404) and the USB-C receptacle
-(C165948) — **$18 in feeder fees**.
+designator, two placements), the ADE7953 (C515890), its 3.579545 MHz
+oscillator (C2838127), the watchdog monostable (SN74LVC1G123, C123302), the
+LDO (TLV1117LV33, C48937499), the buck's inductor (C475527), the input PPTC
+(C369169), the Qwiic connector (C160404) and the USB-C receptacle (C165948)
+— **$30 in feeder fees**.
 
 Two libraries are free on Economic PCBA, not one: **Basic** (351 parts) and
 **Preferred Extended** (1235), the latter being parts JLCPCB keeps mounted
@@ -574,14 +576,18 @@ page's category line, so it is recorded per part in `gen_jlc.LCSC`'s
 `fee_free` flag. Reading that field as "is Basic" is what made this number
 print $33 for a board that owed $27.
 
-The remaining six are structural. The whole fee-free library holds **no
-connectors at all**, so J1 and J14 cannot be avoided at any price, and the
-module, both thermocouple front-ends, the metering IC and its crystal have
-no fee-free equivalent either. $18 is the floor for this board short of
-hand-soldering J14.
+The remaining ten are structural, and the whole list was re-swept against
+the fee-free library part by part (#348). The library holds **no connectors
+at all**, so J1 and J14 cannot be avoided at any price; it holds no PPTC, no
+oscillator at 3.579545 MHz, no retriggerable monostable, and no inductor
+fit for a 2 A rail; and the module, both thermocouple front-ends and the
+metering IC have no fee-free equivalent either. **U2 is the one that looks
+free and is not** — the AMS1117-3.3 is Basic, drops into the same SOT-223
+with the same pinout, and would drop out of regulation on a USB-only 4.35 V
+rail; the argument is written out at `U2` in `design.py`. $30 is the floor
+for this board short of hand-soldering F1, L1 and J14 as well.
 
-Getting from $27 to $18 took three substitutions, all of which are net
-improvements on their own terms rather than compromises:
+Substitutions that bought fee-free lines without giving anything up:
 
 - **U4, D5, D6 → one Preferred SRV05-4 (C7420376)**, replacing an Extended
   SRV05-4 line (C558418) on D5/D6 and a USBLC6-2SC6 (C7519) on U4. Worth $6.
@@ -590,11 +596,17 @@ improvements on their own terms rather than compromises:
 - **R31/R34 6.8 Ω → 5.1 Ω (C17724, Basic)**. Worth $3. JLCPCB stocks no
   6.8 Ω resistor in either fee-free library in *any* package, so that one
   value was renting a feeder.
+- **D8 → the Preferred SMAJ30A (C19077547)**, replacing the Extended
+  C908776. Worth $3 and nothing else: same MPN, same DO-214AC land pattern,
+  same 30 V / 400 W part, different library tier. One of 44 SMAJ30A
+  listings is Preferred and this is it.
 
-**Sourcing flags:** the thinnest stock on the BOM is now `C7471632` (the
-3.579545 MHz crystal) and `C3013945` (the module) — single-sourced, no
-fee-free alternative, and both well under 5 k units. Re-check immediately
-before ordering — see `FAB-READINESS-REVIEW-REVB.md`.
+**Sourcing flags:** the thinnest stock on the BOM is `C19077547` (D8, ~651
+units — the price of that last substitution, and a one-string revert to
+`C908776` if it runs dry), then `C3013945` (the module, ~3.5 k), `C515890`
+(the ADE7953, ~4.8 k) and `C2838127` (the oscillator, ~6.6 k) — all
+single-sourced with no fee-free alternative. Re-check immediately before
+ordering — see `FAB-READINESS-REVIEW-REVB.md`.
 
 SW1/SW2 are **SMD** tact switches (XKB TS-1187A, C318884), not a
 through-hole part — a Basic part, so it costs no feeder fee *and* stays
