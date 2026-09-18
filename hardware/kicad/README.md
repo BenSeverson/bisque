@@ -613,7 +613,15 @@ through-hole part — a Basic part, so it costs no feeder fee *and* stays
 machine-placed.
 
 `hand-solder-parts.csv` carries a **Mouser second source** where one exists,
-so the shopping list works against either supplier:
+so the shopping list works against either supplier. It is **one row per
+orderable part**, not one per designator: J2/J3/J4/J8/J9 are five identical
+WJ500V-5.08-2P blocks that happen to be called 24V_IN, TC1_K, SSR1, TC2_K and
+SSR2, and a shopping list wants `Qty 5` on one line rather than five lines of
+one. `BOM.csv` still keys on the schematic value as well, because JLCPCB's
+`Comment` column is per line; the two use `group_by_orderable()` and
+`group_by_part()` respectively. The values are joined in designator order into
+the `Comment` cell, so collapsing the rows loses nothing — the line still says
+which connector is which.
 
 | Ref | LCSC | Mouser alternate |
 |---|---|---|
@@ -647,6 +655,50 @@ J5 and J10–J12 sat blank in this table for one release because the two rows
 were filled in by pattern and the pattern did not exist. Both parts were on
 Mouser's shelf the whole time.
 
+### Mating connectors (cable side)
+
+The same file carries the female housings and crimp terminals for the board's
+male headers, as rows with `Kind` = **`mating`** rather than `board`. They are
+not fitted to the board — they go on the far end of the loom — but they belong
+on the same order, because a board with no mating connectors is a board you
+cannot wire up, and that is the line you notice missing a week later.
+
+| Part | Mouser MPN | Qty/board | For |
+|---|---|---|---|
+| Molex KK 254 crimp housing, 14 ckt (2695-14RP) | **22-01-3147** | 1 | J5 DISPLAY |
+| Molex KK 254 crimp housing, 8 ckt (2695-08RP) | **22-01-3087** | 1 | J7 AUX |
+| Molex KK 254 crimp housing, 6 ckt (2695-06RP) | **22-01-3067** | 1 | J6 NAV_SW |
+| Molex KK 254 female crimp terminal, 30-22 AWG, tin (series 2759) | **08-50-0114** | 28 | one per circuit |
+
+Only the KK-254 wafers need them. The screw terminals clamp bare wire, `J13`
+is DNP, and `J14` is a JST SH Qwiic socket you buy a ready-made cable for.
+
+The quantities are **derived from the board, not typed**: `mating_rows()` in
+`gen_jlc.py` reads each header's own pin map, so 14 + 6 + 8 = 28 terminals
+cannot drift when a header changes width, and a fourth KK-254 wafer added
+without a `KK254_HOUSING` row fails the build rather than shipping a shopping
+list you cannot make a loom from.
+
+**The housing numbering is not the header numbering**, so this was followed
+rather than pattern-matched — the same rule the table above is written under.
+The footprints name the headers `22-27-2141` / `-2061` / `-2081` (Molex series
+6410); Molex's part page for each says *"Mates With: KK 254 Single Row Crimp
+Housings — 2695"*; series 2695 is `22-01-3NN7`, whose own pages list series
+6410 back among the headers they mate and series 2759 among the terminals they
+take.
+
+**The terminal is the one judgement call**, and it is between three real parts:
+`08-50-0114` is tin (matching the headers' matte tin) and Mouser sells it at
+MOQ 1, but Molex marks it **obsolete**, so that stock is finite. The active tin
+successor `08-50-0113` is reel-only at Mouser (MOQ 10 000; DigiKey has it as
+cut tape). `08-55-0102` is active, bagged loose pieces, MOQ 1 at the same
+price — but gold mating plating onto a tin pin, which is fine at 4 A and 25
+mating cycles and not what you would specify for a box that lives warm. None
+of the three carries an LCSC number here; these lines are Mouser-only.
+
+Neither the housings nor the terminals appear in `BOM.csv` or `CPL.csv` —
+there is nothing on the board to place.
+
 The alternates were confirmed 2026-09-09 against Mouser's live catalog, one
 search per MPN — so these are lines Mouser actually carries, not just parts it
 lists. That still took a real browser: there is no Mouser API key here and
@@ -654,8 +706,9 @@ Mouser blocks scripted fetches (`curl` and `WebFetch` both get an Akamai
 challenge page served with `200 OK` and a `.pdf` content-type, so a fetch that
 "succeeds" is how this goes wrong quietly). Molex's own part pages carry a live
 distributor-inventory table including Mouser stock and price, and are not
-blocked — that is the cheaper check for a Molex line. Re-confirm stock at order
-time.
+blocked — that is the cheaper check for a Molex line, and it is the only one
+that worked for the mating connectors above (confirmed 2026-09-10; DigiKey
+serves a bot challenge too now). Re-confirm stock at order time.
 
 **Assembly stays Economic**: with 0 through-hole parts left in the assembly
 BOM (`gen_jlc.py`'s own output confirms this every run), the whole

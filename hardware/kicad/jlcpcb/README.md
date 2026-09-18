@@ -3,7 +3,18 @@
 Everything an order uploads is in this directory. `gerbers.zip` goes to the PCB
 order form; `BOM.csv` + `CPL.csv` go to the SMT assembly step.
 `hand-solder-parts.csv` is the shopping list for the through-hole parts you
-solder yourself after the board comes back.
+solder yourself after the board comes back, plus the mating connectors for the
+board's headers.
+
+Its first column, `Kind`, splits it in two. `board` rows are parts that get
+soldered down — one row per **orderable part**, so the five identical
+2-position screw terminals are one line of `Qty 5` rather than five lines of
+one (their schematic names are joined in the `Comment` cell, in designator
+order, so nothing is lost). `mating` rows are the female crimp housings and
+terminals that go on the far end of the loom: they are not on the board, so
+they have no designator, footprint or LCSC line, and they appear in neither
+`BOM.csv` nor `CPL.csv`. See the sourcing section of `../README.md` for the
+part numbers and why those particular ones.
 
 All four are generated — don't hand-edit. `make pcb-fab` writes them:
 `generator/gen_gerber_zip.py` packs `../gerbers/` (including the `.gbrjob`,

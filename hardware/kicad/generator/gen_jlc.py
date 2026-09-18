@@ -24,6 +24,7 @@ have no manufactured part at all, so they must not appear in the shopping
 list either.
 """
 import csv
+import re
 import math
 import os
 import sys
@@ -408,6 +409,69 @@ MOUSER_ALT = {
                  "NOT AT MOUSER - source from LCSC, DigiKey, Adafruit or SparkFun"),
 }
 
+# Cable-side parts: the female crimp housings and terminals that mate with the
+# board's male pin headers. Nothing here is fitted TO the board - these are
+# what you crimp onto the loom at the far end - but they belong on the same
+# shopping list, because a board with no mating connectors is a board you
+# cannot wire up, and an order placed one line short is discovered a week
+# later. They are written with Kind="mating" so a reader (and a filter) can
+# tell them from the parts that get soldered down.
+#
+# Only the KK-254 wafers need them. The screw terminals (J2-J4, J8-J12) clamp
+# bare wire, J13 is a DNP header (NOT_ASSEMBLED), and J14 is a JST SH Qwiic
+# socket wired with a ready-made cable rather than a crimped one.
+#
+# The chain of fact, because this file's own rule is not to pattern-match the
+# digits - the KK family has four different 14-circuit vertical friction-lock
+# headers, and the housing numbering is not the header numbering:
+#
+#   1. the footprints name the headers 22-27-2141 / -2061 / -2081 in their
+#      `descr` (that is where MOUSER_ALT's rows come from), Molex series 6410;
+#   2. Molex's part page for 22272141 says, under "Mates With / Use With":
+#      "KK 254 Single Row Crimp Housings - 2695";
+#   3. series 2695 is 22-01-3NN7 (engineering number 2695-NNRP), and each of
+#      those pages lists series 6410 back among the headers it mates and
+#      series 2759 among the "KK 254 Female Crimp Terminals" it takes;
+#   4. series 2759's chart carries exactly one tin part, 08-50-0113, plus the
+#      gold 08-55-0101/0102/0131 - all of them 30-22 AWG.
+#
+# The terminal row is the one judgement call, and it is between three real
+# parts rather than a guess:
+#
+#   * 08-50-0114 - tin, MOQ 1 at Mouser (54 k in stock, $0.16/1). Molex marks
+#     it OBSOLETE, so that stock is finite. Chosen anyway, because the headers
+#     are matte tin and this is the only tin terminal you can buy one of.
+#   * 08-50-0113 - the active tin successor, but Mouser sells it only by the
+#     10 k reel. DigiKey has it as cut tape if you want the current part.
+#   * 08-55-0102 - active, bagged loose pieces, MOQ 1, same $0.16 - but gold
+#     mating plating onto a tin pin. Fine at 4 A and 25 mating cycles; not
+#     what you would specify for a box that lives warm.
+#
+# Confirmed 2026-09-10 on Molex's own part pages, whose distributor-inventory
+# table (OEMSecrets) carries live Mouser stock, MOQ and price and is not
+# behind Mouser's bot wall - the cheap check MOUSER_ALT's comment recommends.
+# Re-confirm at order time, and buy spare terminals: the count below is exact
+# and a miscrimp costs one.
+KK254_HOUSING = {
+    # board ref -> (Mouser MPN, Molex engineering number)
+    "J5": ("22-01-3147", "2695-14RP"),
+    "J6": ("22-01-3067", "2695-06RP"),
+    "J7": ("22-01-3087", "2695-08RP"),
+}
+
+KK254_TERMINAL = (
+    "08-50-0114", "Molex",
+    "KK 254 female crimp terminal, 30-22 AWG, tin (series 2759)",
+    "one per circuit across %s; Molex-obsolete but the only tin terminal "
+    "Mouser sells at MOQ 1 - the active successor 08-50-0113 is reel-only "
+    "there, and 08-55-0102 is active/bagged/MOQ 1 but gold onto a tin pin",
+)
+
+# Footprint substring identifying a KK-254 wafer, so a fourth one added to the
+# board without a KK254_HOUSING row fails the build instead of shipping a
+# shopping list you cannot make a loom from.
+KK254_FP_MARK = "Molex_KK-254_"
+
 _FP_ATTR_CACHE = {}
 
 
@@ -439,6 +503,12 @@ def assembly_refs():
             if not ref.startswith("H") and ref not in NOT_ASSEMBLED]
 
 
+def ref_key(ref):
+    """Sort key that orders J2 before J10 rather than after it."""
+    m = re.match(r"^([A-Za-z]+)(\d*)", ref)
+    return (m.group(1), int(m.group(2) or 0), ref)
+
+
 def group_by_part(refs):
     """refs -> {(value, footprint, lcsc): [ref, ...]}"""
     groups = {}
@@ -448,6 +518,68 @@ def group_by_part(refs):
         key = (c["value"], c["fp"], part[0] if part else "")
         groups.setdefault(key, []).append(ref)
     return groups
+
+
+def group_by_orderable(refs):
+    """[(values, footprint, lcsc, [ref, ...])] - ONE entry per orderable part.
+
+    group_by_part() keys on the schematic value as well, which is right for
+    BOM.csv (JLCPCB's Comment column is per line) and wrong for a shopping
+    list: J2/J3/J4/J8/J9 are five identical WJ500V-5.08-2P blocks that happen
+    to be called 24V_IN, TC1_K, SSR1, TC2_K and SSR2, and you buy five of one
+    part, not one each of five. Keying on (footprint, LCSC) collapses them.
+
+    The values are not thrown away - they are joined in designator order, so
+    the row still says which connector is which without splitting the line.
+    """
+    groups = {}
+    for ref in refs:
+        c = COMPONENTS[ref]
+        part = LCSC.get(ref)
+        groups.setdefault((c["fp"], part[0] if part else ""), []).append(ref)
+    out = []
+    for (fp, lcsc), grefs in groups.items():
+        grefs.sort(key=ref_key)
+        out.append((" / ".join(COMPONENTS[r]["value"] for r in grefs),
+                    fp, lcsc, grefs))
+    return sorted(out, key=lambda e: ref_key(e[3][0]))
+
+
+def mating_rows(hand_refs):
+    """[(designators, comment, qty, description, mpn, mfr, note)] - the
+    cable-side parts the hand-fitted headers need.
+
+    Derived from the board rather than typed out: the circuit counts come from
+    each connector's own pin map, so the terminal quantity cannot drift when a
+    header changes width. See KK254_HOUSING for where the part numbers come
+    from.
+    """
+    kk = sorted((r for r in hand_refs if KK254_FP_MARK in COMPONENTS[r]["fp"]),
+                key=ref_key)
+    missing = [r for r in kk if r not in KK254_HOUSING]
+    if missing:
+        raise SystemExit(
+            "KK-254 header(s) with no mating housing in KK254_HOUSING: %s - "
+            "add the Molex 2695 part for that circuit count; the table's "
+            "comment says how to look one up" % ", ".join(missing))
+
+    rows = []
+    for ref in kk:
+        mpn, eng = KK254_HOUSING[ref]
+        n = len(COMPONENTS[ref]["pins"])
+        header = MOUSER_ALT[LCSC[ref][0]][0]
+        rows.append((ref, "%s mate" % COMPONENTS[ref]["value"], 1,
+                     "KK 254 crimp housing, %d ckt, friction ramp with "
+                     "polarizing ribs (%s)" % (n, eng),
+                     mpn, "Molex",
+                     "mates %s, the %s header on the board" % (ref, header)))
+    if kk:
+        refs = ",".join(kk)
+        mpn, mfr, desc, note = KK254_TERMINAL
+        rows.append((refs, "loom terminals",
+                     sum(len(COMPONENTS[r]["pins"]) for r in kk),
+                     desc, mpn, mfr, note % refs))
+    return rows
 
 
 def main(outdir):
@@ -499,29 +631,42 @@ def main(outdir):
     # numbers, so it can be pasted straight into an LCSC cart alongside the
     # PCBA order — but nothing here is bound to LCSC's catalogue any more,
     # which matters for the KK-254 wafers (the lowest-stock lines on the BOM).
+    #
+    # One row per orderable part, not per designator: see group_by_orderable().
+    # Kind separates the parts that get soldered to the board ("board") from
+    # the housings and terminals that go on the other end of the loom
+    # ("mating"), which are not on the board at all and therefore have no
+    # designator, footprint or LCSC line of their own.
     no_alt = []
+    mates = mating_rows(hand_refs)
     with open(hand_path, "w", newline="") as fh:
         w = csv.writer(fh)
-        w.writerow(["Designator", "Comment", "Footprint", "LCSC Part #",
-                    "Qty per board", "Description",
-                    "Mouser MPN", "Mouser Manufacturer", "Second-source note"])
-        for (value, fp, lcsc), grefs in sorted(group_by_part(hand_refs).items(),
-                                               key=lambda kv: kv[1][0]):
+        w.writerow(["Kind", "Designator", "Comment", "Footprint",
+                    "LCSC Part #", "Qty per board", "Description",
+                    "Mouser MPN", "Mouser Manufacturer", "Notes"])
+        for value, fp, lcsc, grefs in group_by_orderable(hand_refs):
             part = LCSC.get(grefs[0])
             mpn, mfr, note = MOUSER_ALT.get(lcsc, ("", "", ""))
             if not mpn:
                 no_alt.append("%s (%s)" % (",".join(grefs), lcsc))
-            w.writerow([",".join(grefs), value, fp.split(":", 1)[1], lcsc,
-                        len(grefs), part[1] if part else "",
+            w.writerow(["board", ",".join(grefs), value, fp.split(":", 1)[1],
+                        lcsc, len(grefs), part[1] if part else "",
+                        mpn, mfr, note])
+        for mrefs, comment, qty, desc, mpn, mfr, note in mates:
+            w.writerow(["mating", mrefs, comment, "", "", qty, desc,
                         mpn, mfr, note])
 
     ext = {LCSC[r][0] for r in refs if r in LCSC and not LCSC[r][2]}
     print("wrote %s, %s, %s" % (bom_path, cpl_path, hand_path))
-    print("%d parts to JLCPCB (%d BOM lines), %d hand-soldered, LCSC verified %s"
-          % (len(refs), len(groups), len(hand_refs), VERIFIED_ON))
+    print("%d parts to JLCPCB (%d BOM lines), %d hand-soldered on "
+          "%d line(s), LCSC verified %s"
+          % (len(refs), len(groups), len(hand_refs),
+             len(group_by_orderable(hand_refs)), VERIFIED_ON))
     print("%d unique Extended part(s) -> $%d in feeder fees: %s"
           % (len(ext), 3 * len(ext), ", ".join(sorted(ext))))
-    print("hand-soldered: %s" % ", ".join(sorted(hand_refs)))
+    print("hand-soldered: %s" % ", ".join(sorted(hand_refs, key=ref_key)))
+    print("mating connectors (cable side, %d line(s)): %s"
+          % (len(mates), ", ".join("%s x%d" % (r[4], r[2]) for r in mates)))
     if no_alt:
         print("  no Mouser second source for: %s" % ", ".join(no_alt))
     if corrections:
