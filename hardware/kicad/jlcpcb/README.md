@@ -16,12 +16,51 @@ they have no designator, footprint or LCSC line, and they appear in neither
 `BOM.csv` nor `CPL.csv`. See the sourcing section of `../README.md` for the
 part numbers and why those particular ones.
 
-All four are generated — don't hand-edit. `make pcb-fab` writes them:
+`mouser-order.csv` is the same shopping list again, shaped for Mouser's
+importer instead of for a reader — see "Ordering from Mouser" below.
+
+All five are generated — don't hand-edit. `make pcb-fab` writes them:
 `generator/gen_gerber_zip.py` packs `../gerbers/` (including the `.gbrjob`,
 which is what tells the fab the stack-up), and `generator/gen_jlc.py` writes
-the three CSVs. `make pcb-check` fails if `gerbers.zip` has gone stale against
+the four CSVs. `make pcb-check` fails if `gerbers.zip` has gone stale against
 `../gerbers/`, so the zip in a clone is always the one that matches the board
 beside it.
+
+## Ordering from Mouser
+
+`hand-solder-parts.csv` is for a human deciding what a part is and where it
+goes, so it carries the LCSC number beside the Mouser one and works against
+either supplier. That shape does not import: Mouser's spreadsheet upload has a
+column-mapping step where picking `LCSC Part #` by mistake silently fails
+every line, and its quick-paste box takes two columns and nothing else.
+
+`mouser-order.csv` is the same parts shaped for that importer — one
+part-number column, with `Mfr Part Number` and `Quantity` first so columns A
+and B paste straight into the quick-import box, then `Manufacturer`,
+`Description` and `Customer Part Number` (the designators, so Mouser echoes
+onto the packing list which bag is which). Board-fitted and mating parts are
+one list. Both of Mouser's import paths need a My Mouser login.
+
+The `Description` is the **Mouser** part's, not the LCSC one's — a row reading
+`22-27-2141 … XD-2510-14A` is the kind of thing that makes you think the
+import matched the wrong part.
+
+Two deliberate differences from `hand-solder-parts.csv`:
+
+* **`LED1` is not in it.** No bare Worldsemi 5050 is in Mouser's catalog, and
+  an unmatched line you have to notice and delete is worse than one the
+  generator names on stdout. Source the WS2812B from LCSC, DigiKey, Adafruit
+  or SparkFun.
+* **35 crimp terminals, not 28.** A miscrimp is not un-done — it is cut off
+  and thrown away — and running out halfway through a 14-way loom stops the
+  build for a week over $0.16, so `SPARES` adds 25 % to that line alone.
+  Housings and board parts get no margin; you do not consume those by getting
+  them wrong. `hand-solder-parts.csv` keeps saying the exact per-board 28,
+  because the two files answer different questions and conflating them is how
+  one of them ends up wrong.
+
+`Quantity` is otherwise per board — use Mouser's own board multiplier for
+more than one.
 
 ## Bring-up: leave SJ2 open
 

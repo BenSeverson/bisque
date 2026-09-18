@@ -389,23 +389,38 @@ HAND_SOLDER = {
 # these are lines Mouser actually carries and not merely parts it lists. There
 # is still no Mouser API key (and Mouser blocks scripted fetches, so this took
 # a real browser) — re-confirm stock and price at order time.
+# LCSC part -> (Mouser MPN, manufacturer, description OF THE MOUSER PART,
+# why-this-part note). The description is the Mouser side deliberately: the
+# LCSC description names the clone ("XD-2510-14A"), and a row reading
+# `22-27-2141 ... XD-2510-14A` in mouser-order.csv is the kind of thing that
+# makes you think the import matched the wrong part.
 MOUSER_ALT = {
     "C240822": ("22-27-2081", "Molex",
+                "KK 254 vertical friction-lock header, 1x08, 2.54mm "
+                "(AE-6410-08A)",
                 "identical part - the LCSC line is already genuine Molex"),
     "C239381": ("22-27-2061", "Molex",
+                "KK 254 vertical friction-lock header, 1x06, 2.54mm "
+                "(AE-6410-06A)",
                 "genuine KK-254 1x06; LCSC line is an A2547WV clone"),
     "C17701004": ("22-27-2141", "Molex",
+                  "KK 254 vertical friction-lock header, 1x14, 2.54mm "
+                  "(AE-6410-14A)",
                   "genuine KK-254 1x14 (AE-6410-14A); LCSC line is an "
                   "XD-2510-14A clone"),
     "C8465": ("1715721", "Phoenix Contact",
+              "MKDS 1,5/2-5,08 screw terminal block, 1x02, 5.08mm, horizontal",
               "MKDS 1,5/2-5,08 - the part this footprint is named for"),
     "C42377749": ("1715747", "Phoenix Contact",
+                  "MKDS 1,5/4-5,08 screw terminal block, 1x04, 5.08mm, "
+                  "horizontal",
                   "MKDS 1,5/4-5,08 - the part this footprint is named for"),
     "C96093": ("CMI-1295-0585T", "Same Sky",
+               "active magnetic buzzer, 5V, 12x9.5mm THT, 7.6mm pitch",
                "12x9.5mm body, 7.6mm pitch, 5V THT active - datasheet-verified"),
     # Mouser hosts WS2812B datasheets and sells third-party modules built on
     # it, but no bare Worldsemi 5050 could be found in their catalog.
-    "C2761795": ("", "",
+    "C2761795": ("", "", "",
                  "NOT AT MOUSER - source from LCSC, DigiKey, Adafruit or SparkFun"),
 }
 
@@ -546,13 +561,17 @@ def group_by_orderable(refs):
 
 
 def mating_rows(hand_refs):
-    """[(designators, comment, qty, description, mpn, mfr, note)] - the
+    """[{refs, comment, qty, desc, mpn, mfr, note, consumable}] - the
     cable-side parts the hand-fitted headers need.
 
     Derived from the board rather than typed out: the circuit counts come from
     each connector's own pin map, so the terminal quantity cannot drift when a
     header changes width. See KK254_HOUSING for where the part numbers come
     from.
+
+    `qty` is the exact per-board count, which is what the shopping list should
+    say. `consumable` marks the rows where that exact count is not what you
+    order - see SPARES.
     """
     kk = sorted((r for r in hand_refs if KK254_FP_MARK in COMPONENTS[r]["fp"]),
                 key=ref_key)
@@ -568,17 +587,64 @@ def mating_rows(hand_refs):
         mpn, eng = KK254_HOUSING[ref]
         n = len(COMPONENTS[ref]["pins"])
         header = MOUSER_ALT[LCSC[ref][0]][0]
-        rows.append((ref, "%s mate" % COMPONENTS[ref]["value"], 1,
-                     "KK 254 crimp housing, %d ckt, friction ramp with "
-                     "polarizing ribs (%s)" % (n, eng),
-                     mpn, "Molex",
-                     "mates %s, the %s header on the board" % (ref, header)))
+        rows.append(dict(
+            refs=ref, comment="%s mate" % COMPONENTS[ref]["value"], qty=1,
+            desc="KK 254 crimp housing, %d ckt, friction ramp with "
+                 "polarizing ribs (%s)" % (n, eng),
+            mpn=mpn, mfr="Molex", consumable=False,
+            note="mates %s, the %s header on the board" % (ref, header)))
     if kk:
         refs = ",".join(kk)
         mpn, mfr, desc, note = KK254_TERMINAL
-        rows.append((refs, "loom terminals",
-                     sum(len(COMPONENTS[r]["pins"]) for r in kk),
-                     desc, mpn, mfr, note % refs))
+        rows.append(dict(
+            refs=refs, comment="loom terminals",
+            qty=sum(len(COMPONENTS[r]["pins"]) for r in kk),
+            desc=desc, mpn=mpn, mfr=mfr, note=note % refs, consumable=True))
+    return rows
+
+
+# A crimp terminal is the one part on this order that a mistake destroys: a
+# miscrimp is not un-done, it is cut off and thrown away, and running out
+# halfway through a 14-way loom stops the build for a week over $0.16. So the
+# Mouser order file orders more terminals than the board strictly needs, while
+# hand-solder-parts.csv keeps saying the exact per-board count - the two
+# answer different questions and conflating them is how one of them ends up
+# wrong. Housings and board parts get no margin; you do not consume those by
+# getting them wrong.
+SPARES = 0.25
+
+
+def order_qty(qty, consumable):
+    return math.ceil(qty * (1 + SPARES)) if consumable else qty
+
+
+def mouser_order(hand_refs, mates):
+    """[(mpn, qty, manufacturer, description, customer part number)] - the
+    Mouser order for one board, board-fitted parts and cable side together.
+
+    A separate file from hand-solder-parts.csv because the two are read by
+    different things. That one is for a human deciding what a part is and
+    where it goes, and carries the LCSC number beside the Mouser one so it
+    works against either supplier. This one is for Mouser's importer, which
+    wants exactly one part-number column: both of its import paths are behind
+    a My Mouser login, the spreadsheet upload has a column-mapping step where
+    picking `LCSC Part #` by mistake silently fails every line, and the
+    quick-paste box takes two columns and nothing else - which is why MPN and
+    Quantity are first here.
+
+    Rows with no Mouser MPN are dropped rather than emitted blank: Mouser
+    cannot match them, and an unmatched line you have to notice and delete is
+    worse than one the generator tells you about. main() names them.
+    """
+    rows = []
+    for value, fp, lcsc, grefs in group_by_orderable(hand_refs):
+        mpn, mfr, desc, _ = MOUSER_ALT.get(lcsc, ("", "", "", ""))
+        if not mpn:
+            continue
+        rows.append((mpn, len(grefs), mfr, desc, ",".join(grefs)))
+    for m in mates:
+        rows.append((m["mpn"], order_qty(m["qty"], m["consumable"]),
+                     m["mfr"], m["desc"], m["refs"]))
     return rows
 
 
@@ -587,6 +653,7 @@ def main(outdir):
     bom_path = os.path.join(outdir, "BOM.csv")
     cpl_path = os.path.join(outdir, "CPL.csv")
     hand_path = os.path.join(outdir, "hand-solder-parts.csv")
+    mouser_path = os.path.join(outdir, "mouser-order.csv")
 
     all_refs = assembly_refs()
     refs = [r for r in all_refs if r not in HAND_SOLDER]
@@ -646,18 +713,28 @@ def main(outdir):
                     "Mouser MPN", "Mouser Manufacturer", "Notes"])
         for value, fp, lcsc, grefs in group_by_orderable(hand_refs):
             part = LCSC.get(grefs[0])
-            mpn, mfr, note = MOUSER_ALT.get(lcsc, ("", "", ""))
+            mpn, mfr, _, note = MOUSER_ALT.get(lcsc, ("", "", "", ""))
             if not mpn:
                 no_alt.append("%s (%s)" % (",".join(grefs), lcsc))
             w.writerow(["board", ",".join(grefs), value, fp.split(":", 1)[1],
                         lcsc, len(grefs), part[1] if part else "",
                         mpn, mfr, note])
-        for mrefs, comment, qty, desc, mpn, mfr, note in mates:
-            w.writerow(["mating", mrefs, comment, "", "", qty, desc,
-                        mpn, mfr, note])
+        for m in mates:
+            w.writerow(["mating", m["refs"], m["comment"], "", "", m["qty"],
+                        m["desc"], m["mpn"], m["mfr"], m["note"]])
+
+    # The same parts again, shaped for Mouser's importer rather than for a
+    # reader - see mouser_order().
+    order = mouser_order(hand_refs, mates)
+    with open(mouser_path, "w", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(["Mfr Part Number", "Quantity", "Manufacturer",
+                    "Description", "Customer Part Number"])
+        w.writerows(order)
 
     ext = {LCSC[r][0] for r in refs if r in LCSC and not LCSC[r][2]}
-    print("wrote %s, %s, %s" % (bom_path, cpl_path, hand_path))
+    print("wrote %s, %s, %s, %s"
+          % (bom_path, cpl_path, hand_path, mouser_path))
     print("%d parts to JLCPCB (%d BOM lines), %d hand-soldered on "
           "%d line(s), LCSC verified %s"
           % (len(refs), len(groups), len(hand_refs),
@@ -666,9 +743,18 @@ def main(outdir):
           % (len(ext), 3 * len(ext), ", ".join(sorted(ext))))
     print("hand-soldered: %s" % ", ".join(sorted(hand_refs, key=ref_key)))
     print("mating connectors (cable side, %d line(s)): %s"
-          % (len(mates), ", ".join("%s x%d" % (r[4], r[2]) for r in mates)))
+          % (len(mates), ", ".join("%s x%d" % (m["mpn"], m["qty"])
+                                   for m in mates)))
+    spared = ["%s %d->%d" % (m["mpn"], m["qty"],
+                             order_qty(m["qty"], m["consumable"]))
+              for m in mates if m["consumable"]]
+    print("mouser-order.csv: %d line(s), %d piece(s)%s"
+          % (len(order), sum(r[1] for r in order),
+             "; +%d%% spares on %s" % (SPARES * 100, ", ".join(spared))
+             if spared else ""))
     if no_alt:
-        print("  no Mouser second source for: %s" % ", ".join(no_alt))
+        print("  NOT in mouser-order.csv, no Mouser line: %s"
+              % ", ".join(no_alt))
     if corrections:
         print("JLCPCB placement corrections applied (%d):" % len(corrections))
         for ref, fp_name, rot, jrot, crot, dx, dy in corrections:

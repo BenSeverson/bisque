@@ -32,7 +32,7 @@ table — 92 nets, 0 mismatches). The 3D renders in `3d/` are raytraced by
 | `bisque-controller-drc.rpt` | KiCad DRC report, now including the `.kicad_dru` rules above (0 errors, 0 unconnected, 0 warnings — the 109 silkscreen warnings went with the silk packer, see "Regenerating the files") |
 | `gerbers/` | Fabrication outputs (kicad-cli: F.Cu, B.Cu, **In1.Cu, In2.Cu**, paste/silk/mask, Edge.Cuts, Excellon drill + job file) |
 | `pdf/` | Schematic and board PDFs (kicad-cli) |
-| `jlcpcb/` | The complete JLCPCB upload: `gerbers.zip` for fabrication, BOM + CPL for assembly, plus the hand-solder shopping list |
+| `jlcpcb/` | The complete JLCPCB upload: `gerbers.zip` for fabrication, BOM + CPL for assembly, plus the hand-solder shopping list and `mouser-order.csv` |
 | `generator/` | Scripts that build everything from one connectivity table |
 
 ## Opening it
@@ -539,8 +539,9 @@ gerbers + drill files, including the two inner-layer files, are in
 `gerbers/`.
 
 **Assembly**: `generator/gen_jlc.py` writes `jlcpcb/BOM.csv` +
-`jlcpcb/CPL.csv` for the PCBA upload, and `jlcpcb/hand-solder-parts.csv` for
-the parts you fit yourself. Every part carries an LCSC part number verified
+`jlcpcb/CPL.csv` for the PCBA upload, `jlcpcb/hand-solder-parts.csv` for the
+parts you fit yourself, and `jlcpcb/mouser-order.csv` for ordering those from
+Mouser in one import. Every part carries an LCSC part number verified
 against the catalog (package, value, stock) — there are no blanks and nothing
 to guess at in JLC's BOM matcher.
 
@@ -698,6 +699,37 @@ of the three carries an LCSC number here; these lines are Mouser-only.
 
 Neither the housings nor the terminals appear in `BOM.csv` or `CPL.csv` —
 there is nothing on the board to place.
+
+### `mouser-order.csv` — the same parts, shaped for the importer
+
+`hand-solder-parts.csv` is written for a human deciding what a part is and
+where it goes, which is why it carries the LCSC number beside the Mouser one.
+That shape does not import. Mouser's spreadsheet upload has a column-mapping
+step in which picking `LCSC Part #` instead of `Mouser MPN` fails every line
+*silently* — both columns are populated, so nothing warns you — and its
+quick-paste box takes two columns and nothing else.
+
+So `gen_jlc.py` emits a second file with one part-number column:
+
+```
+Mfr Part Number,Quantity,Manufacturer,Description,Customer Part Number
+```
+
+MPN and quantity first, so columns A and B paste straight into the quick
+importer; `Customer Part Number` carries the designators, which Mouser echoes
+onto the packing list so you can tell which bag is which. Board-fitted and
+mating parts are one list, and the `Description` is the **Mouser** part's, not
+the LCSC one's — a row reading `22-27-2141 … XD-2510-14A` is the kind of thing
+that makes you think the import matched the wrong part.
+
+Two deliberate differences from the shopping list, both in `jlcpcb/README.md`
+at more length: `LED1` is dropped (Mouser has no bare Worldsemi 5050, and an
+unmatched line you must notice and delete is worse than one named on stdout),
+and the crimp-terminal line is ordered at **35** rather than the board's exact
+28. `SPARES` adds 25 % to consumable lines only — a miscrimp is cut off and
+thrown away, and running out mid-loom stops the build for a week over $0.16 —
+while `hand-solder-parts.csv` keeps saying 28, because the two files answer
+different questions.
 
 The alternates were confirmed 2026-09-09 against Mouser's live catalog, one
 search per MPN — so these are lines Mouser actually carries, not just parts it
