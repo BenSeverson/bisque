@@ -235,7 +235,7 @@ static lv_obj_t *create_content_area(void)
     lv_obj_t *c = lv_obj_create(s_screen);
     lv_obj_set_size(c, UI_LCD_W, UI_LCD_H - STATUS_BAR_H);
     lv_obj_set_pos(c, 0, CONTENT_Y);
-    lv_obj_clear_flag(c, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(c, false);
     return c;
 }
 
@@ -428,7 +428,7 @@ static void build_view_active(void)
     }
     lv_chart_set_range(s_chart, LV_CHART_AXIS_PRIMARY_Y, 0, y_max);
     lv_chart_set_div_line_count(s_chart, 6, 0); /* horizontal grid every ~200°C */
-    lv_obj_clear_flag(s_chart, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(s_chart, false);
 
     /* Planned series first so it draws underneath the actual line. */
     s_chart_planned = lv_chart_add_series(s_chart, UI_COLOR_TEXT_DIM, LV_CHART_AXIS_PRIMARY_Y);
@@ -450,7 +450,7 @@ static void build_view_active(void)
     /* PAUSED overlay — created here, hidden by default. dashboard_update toggles visibility. */
     s_paused_overlay = ui_make_label(s_content, UI_FONT_BIG, UI_COLOR_TEXT_DIM, "PAUSED");
     lv_obj_align_to(s_paused_overlay, s_chart, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_add_flag(s_paused_overlay, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(s_paused_overlay, true);
 }
 
 static void update_view_active(const thermocouple_reading_t *tc, const firing_progress_t *prog)
@@ -477,14 +477,14 @@ static void update_view_active(const thermocouple_reading_t *tc, const firing_pr
     if (prog->estimated_remaining > 0) {
         format_duration(prog->estimated_remaining, buf, sizeof(buf), "~");
         lv_label_set_text(s_active_remaining, buf);
-        lv_obj_clear_flag(s_active_remaining, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(s_active_remaining, false);
         if (s_active_remaining_hdr) {
-            lv_obj_clear_flag(s_active_remaining_hdr, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(s_active_remaining_hdr, false);
         }
     } else {
-        lv_obj_add_flag(s_active_remaining, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(s_active_remaining, true);
         if (s_active_remaining_hdr) {
-            lv_obj_add_flag(s_active_remaining_hdr, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(s_active_remaining_hdr, true);
         }
     }
 
@@ -691,14 +691,14 @@ static void switch_view(view_id_t target, const firing_progress_t *prog, bool fo
 void dashboard_create(void)
 {
     s_screen = lv_obj_create(NULL);
-    lv_obj_clear_flag(s_screen, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(s_screen, false);
 
     s_status_bar = lv_obj_create(s_screen);
     lv_obj_set_size(s_status_bar, UI_LCD_W, STATUS_BAR_H);
     lv_obj_set_pos(s_status_bar, 0, 0);
     lv_obj_set_style_bg_color(s_status_bar, UI_COLOR_IDLE, 0);
     lv_obj_set_style_bg_opa(s_status_bar, LV_OPA_COVER, 0);
-    lv_obj_clear_flag(s_status_bar, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(s_status_bar, false);
 
     s_status_label = ui_make_label(s_status_bar, UI_FONT_SMALL, UI_COLOR_ON_ACCENT, "IDLE");
     lv_obj_align(s_status_label, LV_ALIGN_LEFT_MID, 16, 0);
@@ -721,7 +721,7 @@ void dashboard_create(void)
     lv_obj_set_style_radius(s_vent_label, 10, 0);
     lv_obj_set_style_pad_hor(s_vent_label, 6, 0);
     lv_obj_set_style_pad_ver(s_vent_label, 2, 0);
-    lv_obj_add_flag(s_vent_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(s_vent_label, true);
     /* Lid marker: same pill treatment, but on the warm accent rather than the
        screen background. An open lid during a firing is a condition the operator
        has to act on, not a running accessory like the fan. */
@@ -731,7 +731,7 @@ void dashboard_create(void)
     lv_obj_set_style_radius(s_lid_label, 10, 0);
     lv_obj_set_style_pad_hor(s_lid_label, 6, 0);
     lv_obj_set_style_pad_ver(s_lid_label, 2, 0);
-    lv_obj_add_flag(s_lid_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(s_lid_label, true);
 
     align_status_markers();
     s_vent_shown = false;
@@ -742,8 +742,8 @@ void dashboard_create(void)
     s_select_trap = lv_obj_create(s_screen);
     lv_obj_set_size(s_select_trap, 1, 1);
     lv_obj_set_pos(s_select_trap, -10, -10);
-    lv_obj_clear_flag(s_select_trap, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(s_select_trap, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_scrollable(s_select_trap, false);
+    lv_obj_set_clickable(s_select_trap, true);
     lv_obj_add_event_cb(s_select_trap, on_select_trap_clicked, LV_EVENT_CLICKED, NULL);
     lv_group_add_obj(g_input_group, s_select_trap);
     lv_group_focus_obj(s_select_trap);
@@ -819,9 +819,9 @@ void dashboard_update(const thermocouple_reading_t *tc, const firing_progress_t 
     bool show_vent = (vent == VENT_STATE_ON);
     if (show_vent != s_vent_shown) {
         if (show_vent) {
-            lv_obj_clear_flag(s_vent_label, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(s_vent_label, false);
         } else {
-            lv_obj_add_flag(s_vent_label, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(s_vent_label, true);
         }
         s_vent_shown = show_vent;
     }
@@ -833,9 +833,9 @@ void dashboard_update(const thermocouple_reading_t *tc, const firing_progress_t 
     bool show_lid = (lid == LID_STATE_OPEN);
     if (show_lid != s_lid_shown) {
         if (show_lid) {
-            lv_obj_clear_flag(s_lid_label, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(s_lid_label, false);
         } else {
-            lv_obj_add_flag(s_lid_label, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(s_lid_label, true);
         }
         s_lid_shown = show_lid;
     }
@@ -863,9 +863,9 @@ void dashboard_update(const thermocouple_reading_t *tc, const firing_progress_t 
     /* PAUSED overlay visibility. */
     if (s_paused_overlay) {
         if (s_current_view == VIEW_PAUSED) {
-            lv_obj_clear_flag(s_paused_overlay, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(s_paused_overlay, false);
         } else {
-            lv_obj_add_flag(s_paused_overlay, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(s_paused_overlay, true);
         }
     }
 

@@ -110,12 +110,16 @@ add_definitions(-DLV_CONF_INCLUDE_SIMPLE)
 # Collect LVGL sources (core + drivers we need)
 file(GLOB_RECURSE LVGL_CORE_SRC
     ${LVGL_DIR}/src/core/*.c
+    ${LVGL_DIR}/src/debugging/*.c
     ${LVGL_DIR}/src/display/*.c
     ${LVGL_DIR}/src/draw/*.c
     ${LVGL_DIR}/src/font/*.c
+    ${LVGL_DIR}/src/fs/*.c
+    ${LVGL_DIR}/src/image/*.c
     ${LVGL_DIR}/src/indev/*.c
     ${LVGL_DIR}/src/layouts/*.c
     ${LVGL_DIR}/src/libs/*.c
+    ${LVGL_DIR}/src/logging/*.c
     ${LVGL_DIR}/src/lv_init.c
     ${LVGL_DIR}/src/misc/*.c
     ${LVGL_DIR}/src/osal/*.c

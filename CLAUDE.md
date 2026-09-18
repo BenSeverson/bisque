@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-ESP32-S3 ceramic kiln controller. Firmware built with **ESP-IDF** (C), using **LVGL v9.5.0** for the embedded display UI. The display is a **4.0" ST7796S TFT LCD** (480x320 landscape, SPI, RGB565).
+ESP32-S3 ceramic kiln controller. Firmware built with **ESP-IDF** (C), using **LVGL v9.6.0** for the embedded display UI. The display is a **4.0" ST7796S TFT LCD** (480x320 landscape, SPI, RGB565).
 
 ## Build & Flash
 
@@ -157,12 +157,13 @@ worth knowing before you debug the wrong thing: `BISQUE_MARKETING_VERSION` /
 xcodebuild expands those from its own environment. The `test-ios` target handles
 both.
 
-**CI builds iOS with Xcode 16.4; a current Mac has Xcode 26.** That gap is
-wide enough to compile differently, so a green `make test-ios` locally is not
-proof CI will pass. The one that has already bitten: `XCTestCase.setUp()` /
+**CI builds iOS on `macos-26` (Xcode 26.x); a current Mac may already be on
+Xcode 27.** Even a one-major gap is wide enough to compile differently, so a
+green `make test-ios` locally is not proof CI will pass. The one that has
+already bitten (when CI was still on Xcode 16): `XCTestCase.setUp()` /
 `tearDown()` are nonisolated in the Xcode 16 XCTest and `@MainActor` in the
-Xcode 26 one, so an override touching `@MainActor` test state builds locally and
-fails on CI. Avoid overriding them — set fixtures up inside each test instead.
+Xcode 26 one, so an override touching `@MainActor` test state built locally and
+failed on CI. Avoid overriding them — set fixtures up inside each test instead.
 
 ## Project Structure
 
@@ -237,9 +238,9 @@ Anything new under `www/` that should be gzipped needs adding to the `find` in
 
 ### LVGL Configuration
 
-- LVGL v9.5.0, `LV_OS_FREERTOS` (LVGL lock API)
+- LVGL v9.6.0, `LV_OS_FREERTOS` (LVGL lock API)
 - Color depth: 16-bit, `LV_COLOR_16_SWAP=y`
-- Memory pool: 24KB (`CONFIG_LV_MEM_SIZE_KILOBYTES` in `sdkconfig.defaults`)
+- Memory pool: 24KB (`CONFIG_LV_MEM_SIZE=24576`, in bytes, in `sdkconfig.defaults` — the old `_KILOBYTES` option is deprecated in LVGL 9.6 and warns under `-Werror`)
 - Fonts enabled: Montserrat 24, 36, 48 (default: 24)
 - Widgets in use: label, chart, list, buttonmatrix, obj (containers/dots)
 - Layout: mostly absolute positioning via `lv_obj_set_pos()`/`lv_obj_align()`. Flex (`LV_USE_FLEX`) is enabled and used by `modal_profile_picker.c` to stack each list row's name+subtitle; grid is compiled out.

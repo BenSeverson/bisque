@@ -70,12 +70,15 @@ fi
 # managed_components/ itself it will fetch this same version, so the two agree —
 # and simulator/CMakeLists.txt prefers that copy, so the standalone clone below
 # stops being used the moment there is a firmware build in the tree.
-LVGL_VERSION="$(awk '/^  lvgl\/lvgl:/{f=1; next} f && /version:/{gsub(/"/,"",$2); print $2; exit}' \
+LVGL_VERSION="$(awk '/^  lvgl\/lvgl:/{f=1; next} f && /^    version:/{gsub(/"/,"",$2); print $2; exit}' \
     dependencies.lock 2>/dev/null || true)"
 if [ -z "$LVGL_VERSION" ]; then
     log "could not read the LVGL version from dependencies.lock — skipping."
     exit 0
 fi
+# The registry appends a build suffix (`9.6.0~1`) when it republishes a
+# release; the upstream tag and lv_version.h carry only the semver part.
+LVGL_VERSION="${LVGL_VERSION%%~*}"
 
 # Validate the cache against the pin rather than just checking it exists.
 # Container state outlives a dependencies.lock bump, so an existence-only fast

@@ -78,7 +78,7 @@ session (registered in `.claude/settings.json`). It:
 4. Runs `install-sim-deps.sh` — SDL2 plus LVGL pinned to the version in
    `dependencies.lock`, so `make sim` works. Also no policy change needed.
 5. Runs `install-esp-idf.sh`, which preflights the Espressif hosts and then
-   installs ESP-IDF v6.0.2 + the esp32s3 tools + esp-clang (for clang-tidy).
+   installs ESP-IDF v6.1 + the esp32s3 tools + esp-clang (for clang-tidy).
 6. Runs `install-kicad.sh`, which preflights the Launchpad hosts and then
    installs KiCad 10 with `pcbnew`.
 7. Prints a summary of what this session can actually do.

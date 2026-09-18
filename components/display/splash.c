@@ -47,7 +47,7 @@ void splash_create(void)
     lv_obj_set_pos(s_root, 0, 0);
     lv_obj_set_style_bg_color(s_root, UI_SPLASH_BG, 0);
     lv_obj_set_style_bg_opa(s_root, LV_OPA_COVER, 0);
-    lv_obj_clear_flag(s_root, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(s_root, false);
 
     lv_obj_t *flame = lv_image_create(s_root);
     lv_image_set_src(flame, &flame_icon);

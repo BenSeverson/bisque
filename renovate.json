@@ -24,14 +24,14 @@
       ],
       "matchStringsStrategy": "any",
       "matchStrings": [
-        "esp_idf_version:\\s*(?<currentValue>v\\d+\\.\\d+\\.\\d+)",
-        "espressif/idf:(?<currentValue>v\\d+\\.\\d+\\.\\d+)",
-        "esp-clang-idf-(?<currentValue>v\\d+\\.\\d+\\.\\d+)",
-        "IDF_VERSION:-(?<currentValue>v\\d+\\.\\d+\\.\\d+)",
-        "ESP-IDF (?<currentValue>v\\d+\\.\\d+\\.\\d+)",
-        "ESP--IDF-(?<currentValue>v\\d+\\.\\d+\\.\\d+)-blue",
-        "esp-idf/en/(?<currentValue>v\\d+\\.\\d+\\.\\d+)/",
-        "\\.espressif/(?<currentValue>v\\d+\\.\\d+\\.\\d+)/esp-idf"
+        "esp_idf_version:\\s*(?<currentValue>v\\d+\\.\\d+(?:\\.\\d+)?)",
+        "espressif/idf:(?<currentValue>v\\d+\\.\\d+(?:\\.\\d+)?)",
+        "esp-clang-idf-(?<currentValue>v\\d+\\.\\d+(?:\\.\\d+)?)",
+        "IDF_VERSION:-(?<currentValue>v\\d+\\.\\d+(?:\\.\\d+)?)",
+        "ESP-IDF (?<currentValue>v\\d+\\.\\d+(?:\\.\\d+)?)",
+        "ESP--IDF-(?<currentValue>v\\d+\\.\\d+(?:\\.\\d+)?)-blue",
+        "esp-idf/en/(?<currentValue>v\\d+\\.\\d+(?:\\.\\d+)?)/",
+        "\\.espressif/(?<currentValue>v\\d+\\.\\d+(?:\\.\\d+)?)/esp-idf"
       ],
       "depNameTemplate": "espressif/esp-idf",
       "datasourceTemplate": "github-releases",

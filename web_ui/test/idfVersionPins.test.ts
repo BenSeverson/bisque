@@ -30,7 +30,7 @@ const read = (rel: string) => readFileSync(resolve(repoRoot, rel), "utf8");
  * of the version in the repo is downstream of it.
  */
 const CANONICAL_FILE = ".github/workflows/release.yml";
-const CANONICAL_PATTERN = /esp_idf_version:\s*(v\d+\.\d+\.\d+)/;
+const CANONICAL_PATTERN = /esp_idf_version:\s*(v\d+\.\d+(?:\.\d+)?)/;
 
 /**
  * Historical plans and specs quote whatever version was current when they were
@@ -106,11 +106,19 @@ function findPins(file: string): Pin[] {
   }
   if (content.includes("\0")) return []; // binary
   // A literal indexOf sweep rather than a RegExp built from canonicalVersion:
-  // the version is already constrained to v\d+\.\d+\.\d+ by CANONICAL_PATTERN,
-  // but escaping a value into a pattern is a habit worth not forming, and the
-  // search here is genuinely for a fixed string.
+  // the version is already constrained to v\d+\.\d+(\.\d+)? by CANONICAL_PATTERN
+  // (ESP-IDF tags a minor release vX.Y and only its patches vX.Y.Z), but
+  // escaping a value into a pattern is a habit worth not forming, and the
+  // search here is genuinely for a fixed string. A minor tag is a prefix of
+  // every unrelated vX.Y.Z on the same line of history — an actions/cache pin
+  // comment, say — so a hit that continues with `.<digit>` is not this version.
   const pins: Pin[] = [];
   for (let at = content.indexOf(canonicalVersion); at !== -1;) {
+    const tail = content.slice(at + canonicalVersion.length, at + canonicalVersion.length + 2);
+    if (/^\.\d/.test(tail)) {
+      at = content.indexOf(canonicalVersion, at + canonicalVersion.length);
+      continue;
+    }
     const before = content.slice(0, at);
     const lineStart = before.lastIndexOf("\n") + 1;
     const lineEnd = content.indexOf("\n", at);

@@ -96,8 +96,10 @@ jobs:
       - name: Resolve LVGL version
         id: lvgl
         run: |
-          LVGL_VERSION=$(awk '/^  lvgl\/lvgl:/{f=1; next} f && /version:/{print $2; exit}' dependencies.lock)
-          echo "version=${LVGL_VERSION}" >> "$GITHUB_OUTPUT"
+          LVGL_VERSION=$(awk '/^  lvgl\/lvgl:/{f=1; next} f && /^    version:/{print $2; exit}' dependencies.lock)
+          # The registry appends a build suffix (`9.6.0~1`) on a republish; the
+          # upstream tag carries only the semver part.
+          echo "version=${LVGL_VERSION%%~*}" >> "$GITHUB_OUTPUT"
       - name: Cache LVGL clone
         id: lvgl-cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -135,7 +137,7 @@ jobs:
   # if iOS becomes a release-blocking platform, add `build-ios` to the
   # `needs:` list on the `build` job below.
   build-ios:
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -174,7 +176,7 @@ jobs:
   # still run in parallel and still gate the overall workflow result;
   # they just no longer delay this job's start.
   #
-  # This job runs entirely inside the espressif/idf:v6.0.2 image — the
+  # This job runs entirely inside the espressif/idf:v6.1 image — the
   # same image espressif/esp-idf-ci-action uses internally. The build is
   # deliberately NOT CodeQL-traced: a traced build cannot use ccache (a
   # cache hit skips the compiler, so CodeQL would see nothing compile),
@@ -185,7 +187,7 @@ jobs:
     needs: [lint-c, unit-host]
     runs-on: ubuntu-latest
     container:
-      image: espressif/idf:v6.0.2
+      image: espressif/idf:v6.1
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -265,7 +267,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: /opt/esp/tools/esp-clang
-          key: esp-clang-idf-v6.0.2
+          key: esp-clang-idf-v6.1
 
       # `idf.py clang-check` always exits 0 (it only generates a report), so
       # it cannot gate on its own — a real lint regression would pass

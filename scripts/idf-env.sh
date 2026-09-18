@@ -110,12 +110,17 @@ else
     #   ~/esp/...              the classic git-clone + install.sh layout
     #   ~/.espressif/v*/...    the ESP-IDF Installer / eim / IDE layout
     #   /opt/...               system-wide and Docker installs
+    #
+    # `find`, not a glob: zsh aborts the whole command line on an unmatched
+    # glob (`no matches found`) even inside $(...), and only one of these
+    # layouts exists on any given machine. A `2>/dev/null` on `ls` does not
+    # help — the shell fails before ls runs.
     if [ -z "$_idf_root" ]; then
         for _c in \
             "$HOME/esp-idf" \
-            $(ls -d "$HOME"/esp/v*/esp-idf 2>/dev/null | _idf_vsort) \
+            $(find "$HOME/esp" -mindepth 2 -maxdepth 2 -type d -name esp-idf -path '*/v*/esp-idf' 2>/dev/null | _idf_vsort) \
             "$HOME/esp/esp-idf" \
-            $(ls -d "$HOME"/.espressif/v*/esp-idf 2>/dev/null | _idf_vsort) \
+            $(find "$HOME/.espressif" -mindepth 2 -maxdepth 2 -type d -name esp-idf -path '*/v*/esp-idf' 2>/dev/null | _idf_vsort) \
             "/opt/esp/idf" \
             "/opt/esp-idf"; do
             if [ -f "$_c/export.sh" ]; then
@@ -129,7 +134,7 @@ fi
 
 if [ -z "$_idf_root" ]; then
     echo "idf-env: no ESP-IDF install found." >&2
-    echo "  Install it (https://docs.espressif.com/projects/esp-idf/en/v6.0.2/esp32s3/get-started/)" >&2
+    echo "  Install it (https://docs.espressif.com/projects/esp-idf/en/v6.1/esp32s3/get-started/)" >&2
     echo "  or point IDF_PATH at an existing one, then re-run." >&2
     unset _idf_root
     _idf_cleanup
@@ -164,8 +169,27 @@ _idf_rmlog() {
     [ "$_idf_log" = /dev/null ] || rm -f "$_idf_log"
 }
 
+# An install made by eim (the ESP-IDF Installation Manager, Espressif's
+# recommended installer since 6.x) keeps its toolchain and Python venv under
+# $IDF_TOOLS_PATH (default ~/.espressif/tools) rather than beside the tree, and
+# writes an activation script there that knows where. Plain export.sh does not:
+# it looks for ~/.espressif/python_env/idf<ver>_py<ver>_env, which eim never
+# creates, and fails with "doesn't exist! Please run the install script". So
+# prefer eim's script when one exists for this install. It defines idf.py as a
+# shell FUNCTION rather than putting $IDF_PATH/tools on PATH, which a `make`
+# recipe's fresh sh never inherits — hence the PATH prepend after either route.
+_idf_eim="${IDF_TOOLS_PATH:-$HOME/.espressif/tools}/activate_idf_$(basename "$(dirname "$IDF_PATH")").sh"
 _idf_rc=0
-. "$IDF_PATH/export.sh" >"$_idf_log" 2>&1 || _idf_rc=$?
+if [ -f "$_idf_eim" ]; then
+    . "$_idf_eim" >"$_idf_log" 2>&1 || _idf_rc=$?
+else
+    . "$IDF_PATH/export.sh" >"$_idf_log" 2>&1 || _idf_rc=$?
+fi
+unset _idf_eim
+case ":$PATH:" in
+*":$IDF_PATH/tools:"*) ;;
+*) PATH="$IDF_PATH/tools:$PATH" && export PATH ;;
+esac
 
 # Only idf.py-on-PATH is fatal here: IDF_PYTHON_ENV_PATH and ESP_IDF_VERSION
 # are what _idf_activated wants for next time, but older installs export

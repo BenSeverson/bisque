@@ -4,7 +4,7 @@
 # do in CI and in the VS Code dev container.
 #
 # The target is parity, not "a build that completes". CI builds inside
-# espressif/idf:v6.0.2 (.github/workflows/build.yml) and resolves managed
+# espressif/idf:v6.1 (.github/workflows/build.yml) and resolves managed
 # components from the Espressif registry; this script reproduces that on a
 # stock container. It installs the pinned IDF version, the esp32s3 tools, the
 # Python environment under Espressif's own dependency constraints, and
@@ -18,7 +18,7 @@
 # allow it, then exits cleanly so session startup stays fast.
 set -euo pipefail
 
-IDF_VERSION="${IDF_VERSION:-v6.0.2}"
+IDF_VERSION="${IDF_VERSION:-v6.1}"
 IDF_TARGET="${IDF_TARGET:-esp32s3}"
 IDF_DIR="${IDF_DIR:-$HOME/esp-idf}"
 

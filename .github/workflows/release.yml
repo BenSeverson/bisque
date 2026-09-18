@@ -42,9 +42,9 @@ jobs:
       # esp-idf-ci-action ships a moving `v1` branch (no `v1` tag); kept
       # as a branch ref. All other actions are SHA-pinned.
       - name: Build firmware
-        uses: espressif/esp-idf-ci-action@v1
+        uses: espressif/esp-idf-ci-action@e6f5c74232b1ccd4c97ed641f1e48553853f1fd5 # v1.2.0
         with:
-          esp_idf_version: v6.0.2
+          esp_idf_version: v6.1
           target: esp32s3
       - name: Fix build directory permissions
         run: sudo chown -R $(id -u):$(id -g) build

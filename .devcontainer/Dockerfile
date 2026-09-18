@@ -1,7 +1,7 @@
 # Bisque dev container — full firmware + web toolchain.
 #
 # Base on the exact image CI uses (.github/workflows/build.yml) so a local
-# container build matches the PR check. ESP-IDF v6.0.2 (target esp32s3) is
+# container build matches the PR check. ESP-IDF v6.1 (target esp32s3) is
 # pre-installed at $IDF_PATH (/opt/esp/idf); tools live under /opt/esp.
 #
 # Layered here (durable, image-cached): the two extra tools CI installs at
@@ -9,7 +9,7 @@
 # generator pipeline, plus shell init so idf.py is always on PATH. Node 24
 # and the Claude Code CLI are added via devcontainer features (see
 # devcontainer.json). Web deps install in postCreate.sh.
-FROM espressif/idf:v6.0.2
+FROM espressif/idf:v6.1
 
 # cppcheck for `make cppcheck` (CI installs it via apt at runtime).
 RUN apt-get update \
