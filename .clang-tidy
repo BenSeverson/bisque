@@ -28,6 +28,11 @@ WarningsAsErrors: >
   readability-misleading-indentation,
   readability-redundant-declaration,
 HeaderFilterRegex: '(main|components)/.*\.h$'
+# HeaderFilterRegex also matches ESP-IDF's own components/ tree (and the
+# component manager's managed_components/), and CI's gate fails on ANY finding
+# regardless of path. IDF 6.1 + esp-clang 21 report ~2,900
+# bugprone-macro-parentheses hits inside IDF headers, none of them ours.
+ExcludeHeaderFilterRegex: '(/esp-idf/|/esp/idf/|/managed_components/)'
 CheckOptions:
   - key: bugprone-assert-side-effect.AssertMacros
     value: 'assert,ESP_ERROR_CHECK'

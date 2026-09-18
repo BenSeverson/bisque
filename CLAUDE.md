@@ -36,10 +36,10 @@ After editing any firmware C/H files under `main/` or `components/`, run `clang-
 
 `./scripts/lint.sh` (also installed as the pre-push hook via `./scripts/install-hooks.sh`) is a **subset** of CI: it runs `clang-format --dry-run` plus the web UI typecheck/lint/format checks. It does **not** run `clang-tidy` or `cppcheck`, so a push that passes `lint.sh` can still fail the `build` job's static-analysis steps. Both are available locally — `make clang-tidy` (after a firmware build) and `make cppcheck` — and are worth running on any firmware change.
 
-Reading `make clang-tidy` output takes a filter. It reports findings from every header a TU pulls in, and `.clang-tidy`'s `HeaderFilterRegex` (`(main|components)/.*\.h$`) matches ESP-IDF's *own* `components/` too, so hundreds of lines come from `~/.espressif/` and `managed_components/` and are not yours. Apply CI's gate, then narrow to the repo:
+Read `make clang-tidy` output with **CI's gate and nothing narrower**. The `build` job fails on any `file:line:col: warning|error:` line that is not `clang-diagnostic-*`, with **no path filter** — a finding inside an ESP-IDF header fails the PR exactly like one in `main/`. `.clang-tidy`'s `HeaderFilterRegex` (`(main|components)/.*\.h$`) would match ESP-IDF's *own* `components/` tree, so `ExcludeHeaderFilterRegex` drops anything under an `esp-idf/`, `esp/idf/` or `managed_components/` path; without it, IDF 6.1 + esp-clang 21 report ~2,900 `bugprone-macro-parentheses` hits from IDF headers. Grepping the local report down to `$PWD/(components|main)/` has already produced a false green once (the 6.1 bump passed locally and failed CI), so check the unfiltered count:
 
 ```bash
-grep -E ':[0-9]+:[0-9]+: (warning|error): ' warnings.txt | grep -v clang-diagnostic- | grep "$PWD/\(components\|main\)/"
+grep -E ':[0-9]+:[0-9]+: (warning|error): ' warnings.txt | grep -vc clang-diagnostic-
 ```
 
 `readability-redundant-declaration` is an error here, and it is the one that bites on refactors: declaring a function in both `web_server.h` and `api_json.h` is silent until some translation unit includes both. Declare each function in exactly one header.
