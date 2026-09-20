@@ -89,6 +89,25 @@ If a fresh board will not heat, check that firmware is running and the kick
 is alive (scope `GPIO 36`, or `TP12` for the timing node) before suspecting
 the SSRs — an expired watchdog window presents as a dead output stage.
 
+## SJ1: leave it open unless the aux coils are 5 V
+
+`SJ1` ("AUX=5V") links the board's `+5V` rail to `AUX_VP`, the ULN2003
+(`U6`) coil rail on `J10` pin 1. It exists for the case where the aux
+relays are 5 V parts and you want the board to feed them.
+
+**Leave it open on the documented build, and never bridge it while an
+external supply is landed on J10.1.** The enclosure design runs 24 V relay
+coils off the same HDR-15-24 that feeds the board, so `AUX_VP` is fed
+externally at 24 V — and bridging `SJ1` then connects that 24 V straight
+onto `+5V`, whose loads include `U2` (6 V absolute maximum), `LED1`, the
+buzzer and the SSR gate rail. It is a one-jumper way to destroy most of the
+low-voltage side of the board.
+
+Bridge it only when `J10` pin 1 has nothing landed on it and the coils are
+5 V — and note the ULN2003's Darlington drop of 0.9–1.1 V puts a "5 V" coil
+at ~3.9 V, which is below many 5 V relays' must-operate voltage. 24 V coils
+off the shared supply are the supported arrangement.
+
 ## SJ3 and SJ4 no longer exist
 
 Earlier rev B builds had `SJ3`/`SJ4`, per-channel links from board +5 V to an

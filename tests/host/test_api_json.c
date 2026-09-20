@@ -238,10 +238,10 @@ static void test_status_omits_vent_when_not_fitted(void)
 }
 
 /* A kiln built without a lid switch sets CONFIG_KILN_PIN_LID_SWITCH = -1 (the
- * default is GPIO 21, matching the PCB) and has no switch to report on.
- * `lidOpen: false` for those would be
- * indistinguishable from a fitted switch that happens to be closed, and every
- * such kiln would render an indicator for hardware it doesn't have. Omit the
+ * default is GPIO 4, matching the PCB) and has no switch to report on.
+ * `lidOpen: false` for those would be indistinguishable from a fitted switch
+ * that happens to be closed, and every such kiln would render an indicator
+ * for hardware it doesn't have. Omit the
  * key entirely instead — the same contract ventActive follows (#83). */
 static void test_status_omits_lid_when_not_fitted(void)
 {

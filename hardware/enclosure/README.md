@@ -1,7 +1,7 @@
 # Bisque Kiln Controller — Enclosure Design
 
 A build-it-from-catalog-parts enclosure for the complete controller: the
-rev B PCB, the 4.0" display, the 5-way nav switch, the 5 V supply, both
+rev B PCB, the 4.0" display, the 5-way nav switch, the 24 V supply, both
 SSRs and their heatsinks, the mains distribution, and the CT sensors. The
 enclosure itself is an **off-the-shelf wall-mount steel box** — no custom
 sheet-metal fabrication, only drilling and one rectangular cutout (the
@@ -86,7 +86,7 @@ trivially:
 
 Two zones, hard-segregated: **everything SELV lives on the door,
 everything mains lives on the back panel.** The only things that cross
-are the SSR control pairs, the CT twisted pairs, the 5 V feed, and (if
+are the SSR control pairs, the CT twisted pairs, the 24 V feed to J2, and (if
 fitted) the aux coil feed — all SELV, all in one loomed bundle across
 the hinge with a strain-relieved slack loop.
 
