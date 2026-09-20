@@ -131,11 +131,13 @@ GROUPS = [
      ["J2", "F1", "D8", "D1", "D2", "U2", "C1", "C2", "C3", "C4",
       "LED2", "R9"]),
     ("24 V -> 5 V BUCK  XL1509-5.0, fixed output\n"
-     "C41-C43 in, D7 catch, L1 47uH, C44/C45 out. FB ties to the\n"
+     "C41-C43 in, D7 catch, L1 47uH, C44/C45/C46 out. FB ties to the\n"
      "output because the part is the fixed 5.0 V version; EN is\n"
-     "active LOW and grounded. Keep C41/C42 - U11 - D7 tight: that\n"
-     "loop, not L1, is what radiates.",
-     ["U11", "C41", "C42", "C43", "D7", "L1", "C44", "C45"]),
+     "active LOW and grounded. C46 is an ELECTROLYTIC on purpose:\n"
+     "voltage-mode with fixed compensation needs its ESR zero, and\n"
+     "an all-ceramic output has none. Keep C41/C42 - U11 - D7\n"
+     "tight: that loop, not L1, is what radiates.",
+     ["U11", "C41", "C42", "C43", "D7", "L1", "C44", "C45", "C46"]),
     ("USB-C\nnative USB flashing + ESD",
      ["J1", "U4", "R4", "R5"]),
     ("RESET / BOOT / DECOUPLING",
@@ -1898,7 +1900,7 @@ def main():
     # Growing the sheet means growing X1/Y1 and PAPER's entry to match.
     out.append('\t(paper "A1")')
     out.append('\t(title_block\n\t\t(title "Bisque Kiln Controller")\n'
-               '\t\t(date "2026-07-20")\n\t\t(rev "B")\n'
+               '\t\t(date "2026-09-19")\n\t\t(rev "B")\n'
                '\t\t(company "Bisque project")\n'
                '\t\t(comment 1 "ESP32-S3-WROOM-1U-N16R2 + 2x MAX31856 + dual SSR + ADE7953")\n'
                '\t\t(comment 2 "4-layer, 100 x 100 mm, JLCPCB standard process")\n\t)')

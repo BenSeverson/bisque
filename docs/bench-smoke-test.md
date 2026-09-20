@@ -21,6 +21,43 @@ If a green PR ships, the only thing left to verify on the bench is that
 the firmware actually talks to the hardware. That's what this
 checklist is for.
 
+## Rev B board prerequisites
+
+Skip this section on a rev A board. On **rev B** these four things each stop
+the board dead or damage it, and none of them is a firmware bug:
+
+- [ ] **The supply is 24 V.** J2 feeds F1 → D8 → D1 → U11 (an XL1509-5.0
+      buck). Meter the PSU *before* landing the wire: 5 V there browns the
+      board out, and anything above ~33 V takes out the TVS and the fuse.
+- [ ] **`SJ2` ("WDT DEFEAT") is open.** The SSR rail is gated by the U10
+      one-shot, which firmware retriggers on GPIO 36 at 5 Hz. Open is the
+      supervised (correct) state — see "Bring-up: leave SJ2 open" in
+      [`hardware/kicad/jlcpcb/README.md`](../hardware/kicad/jlcpcb/README.md).
+- [ ] **`SJ1` ("AUX=5V") is open** if anything is landed on J10 pin 1.
+      Bridging it with an external 24 V coil rail present puts 24 V on `+5V`.
+- [ ] **The lid input is satisfied.** `IN1` (J11 pin 1) is pulled up, so an
+      unwired terminal reads *lid open* and the kiln will not heat. Fit the
+      lid switch, jumper J11 pin 1 to J11 pin 4 (GND), or build with
+      `KILN_PIN_LID_SWITCH=-1`.
+
+## First power-up on board 1 (once only)
+
+The 24 V front end and the on-board 5 V buck are new in rev B and have never
+been built. Before running a profile through them:
+
+- [ ] **Scope `+5V`** at C44 under load (Wi-Fi associated, backlight on).
+      Expect < ~100 mV of ripple at 150 kHz and **no** low-frequency
+      envelope — subharmonic wobble at a few kHz means the buck's loop is
+      marginal and C46, the bulk electrolytic, is doing less than intended.
+- [ ] **Check U2 and U11 by hand** after 10 minutes at temperature. Warm is
+      expected (U2 dissipates ~0.5 W); too hot to hold is not.
+- [ ] **Power from USB-C alone, with J2 disconnected.** The board runs off
+      VBUS through D2 for flashing, which back-feeds U11's output. Confirm
+      U11 stays cool and the board enumerates.
+- [ ] Bring the display up at a reduced SPI clock first if it is unstable —
+      SCLK is a multi-drop net with two thermocouple stubs and ~150 mm of
+      loom before the panel.
+
 ## Pre-flight
 
 - [ ] Flash the release build (`./build.sh && idf.py flash`).
@@ -28,7 +65,11 @@ checklist is for.
 - [ ] Thermocouple reads a sensible room temperature (15–30°C) — not 0,
       not 1000, no fault icon.
 - [ ] SSR is wired and the relay's LED (or audible click) is observable
-      from the bench.
+      from the bench. On rev B the board has **two** channels (J4 = zone 1,
+      J9 = zone 2) with amber indicators LED3/LED4; the firmware drives
+      zone 1 only, so LED4 staying dark is expected.
+- [ ] The `SSR1 ON` indicator is **off** at idle. If it is lit before any
+      firing starts, the watchdog gate is defeated — check `SJ2`.
 
 ## Load the smoke-test profile
 

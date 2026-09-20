@@ -209,7 +209,7 @@ def build_board(existing=None):
     # this table, so `--no-route` cannot inherit a stale one.
     tb = pcbnew.TITLE_BLOCK()
     tb.SetTitle("Bisque Kiln Controller")
-    tb.SetDate("2026-07-20")
+    tb.SetDate("2026-09-19")
     tb.SetRevision("B")
     tb.SetCompany("Bisque project")
     tb.SetComment(0, "ESP32-S3-WROOM-1U-N16R2 + 2x MAX31856 + dual SSR + ADE7953")

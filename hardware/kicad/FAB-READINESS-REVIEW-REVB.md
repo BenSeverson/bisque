@@ -14,17 +14,339 @@ Review lineage:
 - 2026-08-17 — full re-review after the fiducial / SRV05-4 /
   oscillator / pour / silk / schematic-fusing wave. Schematic `2f322e8e…`,
   board `2f26da9b…`, working tree clean at `75c551d`.
-- **2026-09-02 — current.** Pre-prototype review of the board as committed at
+- 2026-09-02 — pre-prototype review of the board as committed at
   `7fa2fd9` (TLV1117LV33, SN74LVC1G123 one-shot, derived block legends):
   16 independent review lenses plus direct re-measurement of every
-  medium-and-above finding. Everything from "## Verdict" onward below is the
-  2026-08-17 round, preserved as written; the new round is the section that
-  follows this list.
+  medium-and-above finding.
+- **2026-09-18 — current.** Pre-order review of the board as committed at
+  `cb7d412` (24 V input with the XL1509 buck, CS pull-ups, display damping,
+  differential CT, exposed-pad via grids): one reviewer plus measurement
+  scripts and live sourcing data, after the planned multi-agent pass was
+  lost to a usage limit. Everything from "## Verdict" onward below is the
+  2026-08-17 round, preserved as written; the two later rounds are the
+  sections that follow this list, newest first.
 
 Rev B is a respin, not a variant: the thermocouple front-end, module variant,
 output bank, and layer count all changed, and no attempt was made to keep rev A
 hardware compatible with rev B firmware defaults. The one item that carries
 forward unchanged is `CERT-001`, below.
+
+## 2026-09-18 round — pre-order review
+
+**Ask:** full review of the schematic and PCB before placing the first
+JLCPCB order (5 boards, top-side SMT, hand-fitted THT).
+
+Board as committed at `cb7d412` (working tree clean under `hardware/kicad/`;
+`hardware/kicad-konnect/` is an untracked Konnect scratch project from
+2026-09-10 and is not part of the order). Schematic `105780bb…`, board
+`69e601d9…`. Since the 2026-09-02 round the board gained the 24 V input
+(F1/D8/U11/L1/D7/C41–C45), the chip-select pull-ups, the display damping
+row, the differential CT channel, the exposed-pad via grids and the J13 DNP
+marking — 30 hardware commits. The power stage had never been reviewed; it
+got the deepest look.
+
+### Verdict
+
+**Nothing found makes the board unusable or the package unorderable, and
+the gates are all green. One generator edit is worth landing before the
+order — an electrolytic footprint on the buck output (A1) — because the
+alternative is a bodge across C44 on a power stage that has never been
+built. Everything else is a bench check on board 1, a rev-C item, or an
+order-form choice.** The prior round's A-list is verified fixed except A2
+(TP11 legend, accepted debt) and A7 (REF decoupling, improved not closed).
+
+### Status, 2026-09-19 — A1 landed, documentation corrected
+
+**A1 is fixed and the package is rebuilt.** `C46`, a 100 uF 16 V aluminium
+electrolytic (LCSC `C2977550`, `CP_Elec_5x5.4`), now sits across `+5V` at
+(97.5, 113.25) with 0.66 mm of courtyard clearance to C44, 3.40 mm from
+FID3's centre to the can body (the assembly camera needs to see the
+fiducial), and a ~7.8 mm run to C44's `+5V` pad. The reasoning — why an
+ESR zero and not more ceramic, why D5 and not D6.3 — is written out at C46
+in `design.py` so it survives the next person who sees an electrolytic
+beside two MLCCs and tries to tidy it up.
+
+Rebuild result, `make pcb` + `make pcb-check` + `make pcb-render`:
+
+| Gate | Result |
+|---|---|
+| Router | **0 nets unrouted** at pass 3 (the rip-up log shows it re-routing T_CS, LCD_SDO_R and LCD_DC around the new part, then closing) |
+| `kicad-cli pcb drc` (JLC `.kicad_dru`) | **0 violations, 0 unconnected pads, 0 footprint errors** |
+| `make pcb-check`, all 14 checkers | exit 0 — netlist round-trip, schematic uuid round-trip, 29 GPIOs vs Kconfig, drill web 0.300 mm, 148 3D models resolve, `gerbers.zip` current, silk 0/0/0/0, no via in an SMD pad |
+| `check_jlc_placement` | 134 parts / 40 LCSC land patterns fitted (was 133 / 39) |
+| `check_mpn` | 147 sourced parts (was 146) |
+| Fab files | BOM 43 lines / 134 placements, CPL 134; C46 present in both at (97.500, -113.250) rot 0; absent from the hand-solder and Mouser lists, correctly |
+| Feeder fees | **11 lines / $33**, up from 10 / $30 — C2977550 is the new one. LCSC lists no aluminium electrolytic in either fee-free library, so there is no way to avoid it |
+| 3D renders | re-raytraced (`make pcb` stops at `pcb-check`, so `pcb-render` needed running separately) |
+
+**One thing to eyeball before you submit the order, and it is the only
+check the toolchain cannot make for you.** C46 is the board's first
+polarised two-pad part, and a two-pad symmetric land is exactly the case
+geometric fitting cannot police: rotating it 180 degrees still makes the
+pads coincide, so only the pad *numbering* carries the polarity. The
+evidence that rotation 0 is right is good — both KiCad and LCSC put pad 1
+on the chamfered end, KiCad draws a `+` at pad 1 in silk and fab, and the
+two lands differ only by 0.2 mm about a shared origin — but it is
+convention rather than a measurement. **Open JLCPCB's assembly preview
+after uploading BOM+CPL and confirm C46's `+` faces the board's `+` mark**
+(west, toward J14). A reversed 100 uF electrolytic vents on first power-up.
+
+Documentation fixed in the same pass:
+
+| Item | Change |
+|---|---|
+| Surface finish | `README.md`'s capability table said HASL against a board that declares **ENIG**; corrected, with a note that JLC takes the finish from the order form and that `"ImpedanceControlled": true` is a stack-up declaration, not a thing to buy |
+| USB pair figures | `CLAUDE.md` and `README.md` both carried pre-A8 numbers. Re-measured: DP J1.B6→U1.14 **39.372 mm / 6 vias** against DN J1.B7→U1.13 **29.119 mm / 4** — a **10.25 mm (~69 ps)** skew, not the 0.278 mm claimed; **11.3%** of DP's 50.81 mm runs within a 0.30 mm **edge** gap, not 0.0%. Both files now name the convention, because at 0.3 mm wide on 0.2 mm clearance a *centre-to-centre* figure can never fall below 0.5 mm — "0.0% within 0.30 mm" was vacuously true, which is how it survived two rounds |
+| Lid default | `lid_state.h` said GPIO 21; Kconfig and the board say **GPIO 4** |
+| Enclosure README | two places still called the box supply "the 5 V supply" / "the 5 V feed" against its own text; it is **24 V** into J2 |
+| `jlcpcb/README.md` | new **SJ1** section: bridging it with an external 24 V coil rail landed on J10.1 puts 24 V onto `+5V`, whose loads include a 6 V-max LDO |
+| `bench-smoke-test.md` | had no rev B content. Now opens with the four things that stop the board dead (24 V supply, SJ2 open, SJ1 open, lid input satisfied) and a first-power-up section for the never-built power stage |
+| Feeder accounting | README's 10 lines / $30 / "122 of 133" updated to 11 / $33 / "122 of 134" |
+| Title block | hard-coded `2026-07-20` → `2026-09-19` in `gen_sch.py` and `kicad_build.py` |
+| `lcsc_pads.py` | not a doc fix but found while making one: `--refresh` had been failing with "rate limit?" on what is actually a **CloudFront 403 against curl's default User-Agent**. It now sends a browser UA and the error message distinguishes the two cases |
+
+**Not done, deliberately:** the duplicate `C17408` BOM rows (`100R 1%` for
+R14–R17 against `100R` for R6/R19/R11) are still two lines. Merging them
+means editing four component *values*, which is a schematic change with no
+defect behind it — JLC's matcher takes both rows fine. Everything else in
+sections C and E remains as written: bench checks on board 1, and rev-C
+items.
+
+### Verification basis
+
+| Gate | Result (2026-09-18, KiCad 10.0.6) |
+|---|---|
+| `make pcb-check` — all 14 checkers | exit 0 (29 GPIOs agree with Kconfig; netlist round-trip 102 nets / 0 mismatches; sch uuid round-trip; drill web ≥ 0.300 mm; 147 3D models resolve; `gerbers.zip` matches `gerbers/`; JLC placement 133 parts fitted; 0 via-in-SMD-pad; silk 0/0/0/0) |
+| `kicad-cli pcb drc --severity-all --schematic-parity --all-track-errors --refill-zones` (with the JLC `.kicad_dru`) | 0 violations, 0 unconnected, 478 parity notes (146 missing-MPN-field, 189 footprint lib-nickname, 22 Description, 121 net_conflict = 30 no-connects + `/X` vs `X` local-label names — generator cosmetics, unchanged) |
+| Same DRC with mask dam 0.10 mm / mask-to-copper 0.05 mm enabled (scratch copy) | **0 violations** — the README's claim holds |
+| `kicad-cli sch erc --severity-all` | 0 errors (SDO/SDO on SPI_MISO = tri-state bus; U11 VIN "not driven" = VIN_P has no PWR_FLAG); 167 power-symbol cache warnings, 52 off-grid, 2 same_local_global_label (VIN, VLED) |
+| Konnect `run_design_review` / `find_shorted_nets` / `find_orphan_items` / `check_bom_health` / `validate_for_manufacturing` | 0 shorts, 0 orphans, BOM 0 issues, READY; one audit error "VBUS has no decoupling" (see C); its 33 "single-pin nets" are the fused local labels the netlist round-trip proves connected; its "2 copper layers" is its own parser |
+| kicad-happy analyzers (schematic, PCB `--full --proximity`, gerber, cross, EMC, thermal @ 50 °C) | run fresh; every error-level finding triaged — all are the known artefacts (keepout, plane-split, LED1 resistor, PP-001 VLED, IO-001, diff-pair rules) except TV-001/VP-001 (EP vias, addressed below) |
+| Fab files | BOM 133 + hand-solder 13 + not-assembled 22 (12 TP, 3 FID, 4 H, SJ1/SJ2, J13) = 168 = `design.py`, disjoint; J13 carries the DNP attribute; `.gbrjob` declares the JLC04161H-7628 stack (0.2104 / 1.065 / 0.2104 mm), 4 layers, 1.6 mm, **ENIG** |
+| Live JLC/LCSC stock and fee status (jlcsearch, 2026-09-18) | all 43 lines in stock; 10 fee-bearing lines = $30 as the README says (F1, J1, J14, L1, U1, U10, U2, U3/U5, U7, Y1); D8 and SRV05-4 are Preferred |
+| Measurement | every number below was measured on the committed board with `pcbnew` 10.0.6 or read from the gerbers; scripts are in the session scratchpad (`agents/*/measure*.py`, `mine/fab_checks.py`) |
+| Datasheets read this round | XL1509 Rev 2.0 (XLSEMI, fetched from LCSC: pin table p.2, abs max p.5, layout/CFF note p.8, design tables p.9), LCDWIKI MSP4021/3520 manual (14-pin table), SRV05-4, WS2812B, 1N4148W, ADE7953 Rev C (CS/I²C selection), plus the prior round's set for the unchanged blocks |
+
+**Process note.** The planned 16-lens adversarial workflow hit the session
+usage limit after 1.86 M subagent tokens with no agent returning; its
+measurement scripts and datasheet extracts survived and were reused. This
+round is therefore one reviewer plus scripts, not sixteen plus verifiers —
+findings below are measured, but they have not had the independent
+refutation pass the 2026-09-02 round had. See "Not performed".
+
+### A. Worth a generator edit before ordering
+
+| # | Finding | Measured | Fix |
+|---|---|---|---|
+| A1 | **The XL1509 buck has an all-ceramic output.** The datasheet's 5 V design table (p.9) lists only 180 µF/35 V electrolytic (Panasonic HFQ) or 100 µF/10 V tantalum (AVX TPS) for COUT, and p.8 says a feed-forward cap "provides additional stability for … very low ESR output capacitors" — which the fixed-5.0 part cannot fit, because FB (pin 3) is tied straight to the output. The part is an LM2596-class voltage-mode regulator whose internal compensation assumes the ESR zero of an electrolytic; ceramic-only outputs on that family are the textbook instability case | C44/C45 = 2 × 22 µF X5R 1206 (C12891), ~16 µF each at 5 V bias, ESR of a few mΩ. Input: C41/C42 2 × 10 µF/50 V X5R at 24 V bias ≈ 10 µF total against the datasheet's 470 µF CIN | Add an SMD aluminium electrolytic footprint on +5V beside C44 (100–220 µF / 16 V, 6.3 mm can; pick a JLC Basic line so it is fee-free, or leave the pads for a hand-fitted radial) and optionally 47–100 µF / 50 V on VIN_P beside C41. Two footprints in `design.py`, one `make pcb`. If the ceramic loop happens to be stable the parts cost nothing; if it is not, board 1 has a 5 V rail oscillating under the LDO, the SSR gate rail and the WS2812B, and the fix is a cap tacked across C44 |
+
+### B. Order-form choices (no board change)
+
+- **Finish: the package says ENIG, the README says HASL.** `gen_pcb.py:565`
+  chose ENIG deliberately (0.5 mm-pitch QFN-28 with a 3.1 mm exposed pad,
+  9-via module pad) and the `.gbrjob` carries `"Finish": "ENIG"`;
+  `README.md:459`'s capability table still says HASL. Order **ENIG** and fix
+  the table. JLC takes the finish from the order form, not the gbrjob.
+- **Impedance control: do not buy it.** The gbrjob's
+  `"ImpedanceControlled": true` is only the stack-up declaration; the one
+  target (USB FS at 90 Ω) is documented as uncoupled and accepted.
+- **Via covering: tented** (the board tents both sides; 469 of 470 vias have
+  no mask opening — the one exception is under U1's thermal pad opening,
+  by design).
+- **Order number:** the board carries no `JLCJLCJLCJLC` marker, so JLC will
+  place its order number on the silk wherever it likes — on this board that
+  is a legend. Pick "remove order number" (small fee) or add the marker in
+  an empty pour area in rev C.
+- **Stock at order time** (5 boards need 5 + JLC attrition of each):
+  D8 SMAJ30A C19077547 **651** (Preferred) — fallbacks C908776 (197 k,
+  Extended) or the bidirectional SMAJ30CA C19077548 (Preferred, 14 k; with
+  D1 blocking reverse polarity a bidirectional clamp is electrically fine
+  here); ESP32-S3-WROOM-1U-N16R2 3 507; MAX31856 7 744; ADE7953 4 846; XO
+  6 566; SN74LVC1G123 8 800; TLV1117LV33 98 k. The thin hand-solder lines
+  (J7 22-27-2081 at 754, J5 XD-2510-14A at 1 271) come from Mouser anyway.
+
+### C. Bench checks on board 1 (cannot be settled on paper)
+
+| # | Check | Why |
+|---|---|---|
+| C1 | **USB-only power back-feeds the buck.** With VIN_P at 0 V, U11 pin 3 (FB, tied to +5V) and pin 2 (SW, DC through L1) sit at VBUS − D2 ≈ 4.4–4.8 V. XL1509 abs max (p.5) rates FB and the switch pin at "−0.3 to Vin". The LM2596 it clones rates FB to +25 V and the output to −1 V, so this is probably a clone-datasheet artefact — but USB-only is every flashing session. Measure current into U11 (lift nothing: measure VBUS current with and without U11's +5V path, or U11 case temperature) on USB alone. If it draws or warms, rev C needs an ideal-diode or accepts a Schottky between the buck and +5V | Datasheet limit on paper in a routine operating mode |
+| C2 | **Scope the +5V rail** at C44 under the real load (Wi-Fi TX + backlight + both SSR LEDs) for subharmonic or ~kHz oscillation. This is the A1 question answered with hardware | Ceramic-only COUT |
+| C3 | **Bring the SPI bus up at 20 MHz, then raise.** SPI_SCLK is a 124 mm, 8-via multi-drop net: U1 → U3 32 mm, U5 37 mm, touch damper R39 71 mm, display damper R54 85 mm, then ≤ 150 mm of loom. The 33 Ω dampers sit at the connector end, so the two MAX31856 stubs are undamped branches on a 40 MHz clock; SPI_SCLK also runs 11 mm at 0.2 mm from SSR2_CTRL and SPI_MISO parallels SPI_SCLK for 19.9 mm on B.Cu. Ringing at the MAX31856 SCLK pins or the display is the expected failure mode; the clock is a firmware knob | Multi-drop 40 MHz over 85 mm + loom |
+| C4 | **Cold-junction gradient** (prior C item, unchanged): U3/U5 are 27/31 mm from U1 and 59/60 mm from U2; J3/J8 are 17 mm from their chips. Log CJ temperature vs a reference over a warm-up | On-die CJ with 0.5–1 W parts 30 mm away |
+| C5 | **WS2812B data threshold at idle.** At the LED's ~1 mA dark current D3 drops ~0.55–0.6 V (1N4148W: 0.715 V max at 1 mA), so VLED ≈ 4.4 V and VIH ≥ 0.7 × 4.4 = 3.08 V against an ESP32-S3 VOH that is 3.2 V typical and 2.64 V spec minimum. The design note assumed 0.65–0.85 V. Works on typical silicon; if colours are wrong at boot or idle, that is why (rev C: 74AHCT1G125 or a second diode) | Margin lives inside the VOH tolerance |
+| C6 | **Buzzer drive** (prior B item, still open): `components/safety/safety.c:24` still chops ALARM at 4 kHz through LEDC; BZ1 is an active TMB12A05 and wants a level (`d4ccca1` documents this, the code is unchanged). It will sound, modulated; fix in firmware before judging the part | Firmware |
+
+### D. Prior-round status, re-measured
+
+| Item | State now |
+|---|---|
+| A1 hole grid | **fixed** — H1–H4 at (25,25) (115,25) (25,115) (115,115): 90 × 90 mm, all four GND |
+| A2 TP11 legend | **accepted debt**, unchanged — `TP_LEGEND_OK = {("CT A+","J12")}`; `CT A+` still prints beside J12's `A-` mark |
+| A4 CS pull-ups | **fixed** — R50 TC1_CS, R51 TC2_CS, R52 LCD_CS, R53 T_CS, 10 k to +3V3, measured on the pads |
+| A5 display SDO | **fixed** — R56 33 Ω between SPI_MISO and J5.9 |
+| A6 EP vias | **fixed** — U7 4 × 0.3 mm in the 3.1 mm EP (GND), U2 4 × 0.3 mm in the tab (+3V3, In2), U1 9 × 0.3 mm (Espressif's grid). The thermal analyzer's "U2 no thermal vias" is wrong; TV-001's "4 < 5" for U7 is a threshold, not a datasheet number |
+| A7 ADE REF | **improved, not closed** — U7.13 → C34 10.0 mm / 2 vias, → C33 15.1 mm / 2 vias (was 42 mm); target was < 5 mm / 0 vias |
+| A8 USB_DN detour | **resolved** — USB_DN 33.2 mm / 5 vias total |
+| A9 TC2 filtered legs | **fixed** — TC2_P_F 17.4 mm / 2 vias vs TC1_P_F 15.7 / 2; TC2_N_F 24.2 / 3 vs TC1_N_F 24.2 / 2 |
+| A10 CT channel A | **fixed** — U7.6 (IAN) = CTA_FN through R59 1 k with C40 33 nF; both channels ±500 mV, 139 A rms at 5.1 Ω / 2000:1, as the enclosure README now states |
+| A11 `.kicad_dru` | loads; JLC-rule DRC 0 violations |
+| C: F1 + D8, R54–R58, R60/R61, R49, D3 silicon | all present on the measured nets |
+| C: `+5V` single power vias | **open** — 5 transitions, one 0.6/0.3 via each: (40.0, 72.0) (41.0, 60.5) (44.25, 52.25) (90.0, 95.75) (91.25, 97.0). Rev C |
+| C: stitching vias | **open** — 15 of 285 signal vias have a GND via within 1.5 mm (31 within 2 mm); 118 GND vias + 58 GND THT pads on the board. SPI_SCLK 0/8, SPI_MOSI 1/10, SPI_MISO 1/9, USB_DP 2/8, USB_DN 0/5, I2C 0/14. Mitigated by the 4-layer stack (F.Cu references the In1 GND plane directly; B.Cu references the +3V3 plane) — a rev-C EMI item, not a function item |
+| C: SSR outputs no clamp; nav loom J6 no series R / ESD; display loom J5 no ESD | **open**, rev C. J1/J11/J12 carry SRV05-4s (pin 2 GND, pin 5 VCC verified against the SRV05-4 datasheet: U4 VCC = VBUS, D5/D6 VCC = +3V3) |
+| D silk block names | the render shows `24V IN`, `AUX OUT`, `SSR1`, `SSR2`, `TC1`, `TC2`, `CT` above their blocks; per-terminal marks on every screw; `WDT DEFEAT`, `AUX=5V`, `AC SENSE DNP`, `STATUS`, `PWR`, `USB`, `RESET`/`BOOT`, nameplate with rev. Text is upside-down in the enclosure's orientation (struck as unfixable last round) |
+| F: `wdt_kick.h` "opto" wording | fixed |
+| F: `pin-assignments.md` J11 `+3V3` pin | fixed |
+| F: `lid_state.h:17` "defaults to GPIO 21" | **open** — Kconfig default is 4 |
+| F: title-block date | **open** — `2026-07-20` hard-coded at `gen_sch.py:1901` and `kicad_build.py:212` |
+| F: USB skew claims | **stale** — CLAUDE.md and `README.md:387` still quote 32.3/32.6 mm and 40.1/37.0 mm pairs. Measured pad-to-pad through the copper: USB_DP 42.9 mm (A6) / 39.4 mm (B6) over 6 vias, USB_DN 29.8 / 29.1 mm over 4 vias; 11 % of DP runs within 0.3 mm of DN. Electrically irrelevant at Full Speed; the docs are wrong |
+| F: `bench-smoke-test.md` | **open** — still no rev-B steps (SJ2 open, lid jumper or `-1`, 24 V before landing the wire, USB-only back-feed check, SPI clock) |
+| I: sourcing | see B |
+
+### E. New findings — rev C unless noted
+
+- **CT anti-alias caps are 30–38 mm from the ADE7953.** U7.5 (IAP) → C31
+  38.0 mm / 4 vias (R32 → C31 alone is 21 mm), U7.6 (IAN) → C40 30.5 mm /
+  2 vias, U7.9 (IBP) → C32 36.6 mm / 8 vias; CTA_F runs 4.5 mm within
+  0.5 mm of I²C_SDA. The RC corner is 4.8 kHz and the chip integrates at
+  50/60 Hz, so it measures — but the datasheet puts the filter at the pins,
+  and the filtered node is the 1 kΩ side. Move C31/C32/C40 to within ~3 mm
+  of pins 5/6/9 (medium).
+- **Buck hot loop 39 mm² (perimeter 31 mm).** SW_5V leaves U11 pin 2 on
+  F.Cu, crosses to B.Cu through two vias and comes back to D7; D7's anode
+  returns to C41/C42's GND pads through In1 (F.Cu pour is not continuous
+  along the loop; nearest GND vias 1.0–1.5 mm from each pad). The plane
+  0.21 mm below keeps the loop inductance low, so this is an EMI item, not a
+  function one; the datasheet's own layout note (p.2) wants the GND pin
+  outside the diode-to-output-cap ground path. Rev C: SW_5V on F.Cu only,
+  D7 anode adjacent to C42's GND pad (medium).
+- **ADE7953 VDD decoupling is 7–8 mm out** (C36 7.0 mm and C35 7.9 mm from
+  pin 17, through the +3V3 plane); VINTA/VINTD are 6.9–9.6 mm; MAX31856
+  supply caps 5–9 mm (design note acknowledges). Low.
+- **TC2_N (raw) is 35.6 mm against TC1_N's 21.4 mm** and runs 5.35 mm
+  parallel to TXD0 on B.Cu (UART console edges into the pre-filter leg).
+  Low — C22 is on the filtered side.
+- **VBUS has no local capacitor or clamp** (Konnect, analyzer). D2 → C1 is
+  the only bulk; U4's VCC pin references VBUS. Add 1 µF at J1 in rev C. Low.
+- **SJ1 is a 24 V-onto-+5V trap.** With `AUX_VP` fed from the 24 V rail at
+  J10.1, bridging SJ1 puts 24 V on +5V (U2 is 6 V abs max; LED1, BZ1 and the
+  SSR gate rail follow). The silk says `AUX=5V` and the enclosure README
+  says leave it open; add the one-line warning to `jlcpcb/README.md`'s
+  bring-up section beside SJ2. Docs.
+- **BOM has two rows for C17408** (`100R 1%` R14–R17 and `100R` R6/R19/R11).
+  JLC accepts it; merge for tidiness. Nit.
+- **Enclosure README** still says "the 5 V supply" (line 4) and "the 5 V
+  feed" (line 89) against its own line 207 (24 V in, 5 V made on board).
+  Docs.
+
+### F. Confirmed correct this round
+
+- **Power stage wiring vs the XL1509 datasheet:** pin 1 VIN, pin 2 SW,
+  pin 3 FB tied to the 5 V output (fixed version, per the typical
+  application), pin 4 ON/OFF grounded (active low, "floating is default
+  low"), pins 5–8 GND; catch diode D7 cathode on SW; L1 SW → +5V; inductor
+  ripple 0.56 A p-p at 24 V, 1.28 A peak against L1's 2.6 A saturation; F1
+  hold 0.75 A (≈ 0.5 A derated to 60 °C) against ~0.25 A input; D8 30 V
+  standoff / 33.3 V breakdown vs 26.4 V at +10 % trim and the XL1509's 45 V
+  abs max; D1 blocks reversed 24 V (D8 conducts forward and F1 trips); D2
+  ORing: with both supplies VBUS ≤ 5.25 V against a regulated 5.0 V
+  conducts negligibly.
+- **Every diode/LED orientation** on the KiCad `Device:D` convention
+  (pin 1 = K): D1 K→VIN_P, D2 K→+5V, D3 K→VLED, D4 K→+5V (buzzer flyback),
+  D7 K→SW_5V, D8 K→VIN_F, LED2/3/4 cathodes on their resistors.
+- **J5 pin order matches the LCDWIKI 14-pin header exactly** (VCC, GND, CS,
+  RESET, DC/RS, SDI, SCK, LED, SDO, T_CLK, T_CS, T_DIN, T_DO, T_IRQ); VCC is
+  +5V (module accepts 3.3–5 V; its XC6206 makes 3.3 V and its backlight
+  draws from VCC, so the display adds nothing to the +3V3 budget). J1 USB-C:
+  both D± pairs tied, CC1/CC2 5.1 k, SBU NC, shield to GND. J7: 3V3 GND TX
+  RX SDA SCL 3V3 GND with TXD0/RXD0 = GPIO43/44. J14 Qwiic: GND 3V3 SDA SCL.
+  J6: five buttons + GND.
+- **Watchdog chain** pin-for-pin against SCES586E: A̅ low, B = WDT_KICK
+  (rising edge, 5 Hz from the 100 ms SSR timer), CLR̅ high, Q = WDT_OK with
+  R49 100 k pulldown, Cext/Rext-Cext on C38 22 µF / R46 100 k, Q3 → SSR_PG
+  (R47 100 k to +5V) → Q4 → SSR_EN 0.5 mm to J4.1/J9.1; Q5/Q6 gates through
+  R6/R19 100 Ω with R7/R20 10 k pulldowns; SJ2 shorts SSR_PG to GND. Every
+  single fault considered (kick stuck high/low, +3V3 lost, MCU in reset or
+  download mode, U10 unpowered) leaves SSR_EN off.
+- **Reset-state of every dangerous output** is pinned by a resistor:
+  SSR1/2_CTRL (R7/R20), AUX1–3 (R23–R25), ALARM (R8), WDT_KICK (R48),
+  IO0 (R2 pull-up), EN (R1/C5). LCD_RST (GPIO46) has no pull on the board
+  and the module has none on RESET, so BOOT-button download mode is not
+  blocked; GPIO45 NC selects 3.3 V VDD_SPI; GPIO3 floats at reset
+  (backlight undefined until firmware — cosmetic); N16R2 is quad PSRAM so
+  GPIO35/36/37 are free.
+- **ADE7953:** CS and SCLK pulled high (R38/R37 10 k) — the datasheet
+  requires CS high for I²C; the part locks the interface on first use;
+  PULL_HIGH/PULL_LOW tied; XO enable floating = running; VP/VN to R60/R61
+  and the DNP J13 only. **No mains-referenced copper exists on the board.**
+- **Planes:** In1 GND is one polygon (327 holes, the two largest voids are
+  connector anti-pad clusters under SSR_EN at J4 and I²C/RXD0 at J7); In2
+  +3V3 is one polygon; the cross-analyzer's "GND 2 islands" is refuted. Every
+  decoupling cap's GND pad has a GND via within 1.4 mm.
+- **Rails:** VIN/VIN_F/VIN_P/SW_5V 0.8 mm, +5V 0.7 mm, SSR_EN 0.5 mm, VBUS
+  0.4–0.5 mm; all above IPC-2221 for their currents.
+- **Thermal (estimates, 50 °C ambient):** U2 ≈ 0.5 W average on a 0.3 A
+  +3V3 budget (ESP32 + 2 × MAX31856 + ADE7953 + pull-ups; the display is on
+  +5V) → Tj ≈ 75–85 °C, ≈ 100 °C at 0.5 A Wi-Fi peaks, inside 125 °C with
+  the tab's four vias into In2; U11 ≈ 0.3–0.4 W → Tj ≈ 80–90 °C at the
+  datasheet's 100 °C/W free-air figure; D7 ≈ 0.26 W in an SMA. No rev-C
+  change needed; measure U2 on board 1.
+- **Fab package:** 4 copper + 2 mask + 2 paste + 2 silk + edge + drill +
+  map + gbrjob; paste on U7's EP is 9 windows of 0.83 mm (64 %), on U1's
+  pad 9 of 0.9 mm (48 %), U2's tab 100 % with its 4 vias inside the mask
+  opening (wicking into the +3V3 vias is acceptable on a thermal tab); test
+  pads and fiducials carry no paste; FID1–3 at (28.6,33.0) (107.8,28.2)
+  (103.4,111.6), 1 mm copper, non-symmetric; parts nearest the routed edge
+  are J1 (0.20 mm courtyard, by design for the receptacle), F1 0.70 mm and
+  the terminal blocks 0.86 mm, all above JLC's 0.2 mm copper-to-edge with
+  copper itself ≥ 0.55 mm. Mask dam and sliver checks pass at JLC's
+  0.10 / 0.05 mm.
+- **Enclosure fit:** 90 × 90 grid matches `generate_panel_template.py`
+  (`PCB_HOLE_GRID = 90.0`); with the south edge up, J5/J6/J7/J11/J14 face
+  the display, J1 faces down, J2/J10/J4/J9 face the hinge loom, J3/J8/J12
+  the other side, as the enclosure README lays out; grounded M3 holes bond
+  board GND to the earthed door as intended.
+- **Firmware gates:** MAX31856 driver merged (`#339`: SPI mode 1, 1 MHz,
+  CR0/CR1/MASK setup with read-back); TC2_CS and T_CS driven idle-high in
+  `main.c:97` before the bus starts; TC1_CS/LCD_CS owned by their drivers;
+  WDT kick at 5 Hz; lid default GPIO 4 with the jumper-or-`-1` rule
+  documented.
+
+### G. Refuted or downgraded this round
+
+- "U2 has no thermal vias / Tj 94 °C" (thermal analyzer) — four 0.3 mm
+  vias in the tab reach the In2 +3V3 plane; the estimate above supersedes.
+- "+5V plane split 5 islands", "VBUS plane split", "GND 2 islands",
+  46 keepout violations, 39 reference-plane gaps, 8 IO-filtering errors,
+  diff-pair skew/layer errors, "LED1 no resistor", "LED1 VDD no DC path" —
+  the same artefacts as the last two rounds, re-confirmed against the
+  board.
+- Konnect "33 single-pin nets" — fused local labels; 0 shorts, 0 orphans,
+  102 nets round-trip.
+- "F1 0.75 mm from board edge" (PM-002) — 0.70 mm courtyard to a routed
+  edge, copper ≥ 0.55 mm; inside JLC's capability and JLC panelises with
+  rails for SMT.
+
+### H. Not performed / limits
+
+- The 16-lens adversarial workflow died on the usage limit (17/17 agents,
+  1.86 M tokens, zero returns); no finding here has had an independent
+  refutation pass. The A1 and C1 judgements rest on the XL1509 datasheet
+  text and LM2596-family behaviour, not on a simulation or a scope.
+- No SPICE (no simulator installed); no thermal simulation; no EMC
+  pre-compliance beyond the loop-area and stitching arithmetic.
+- CPL rotations were not re-derived independently this round
+  (`check_jlc_placement.py` passes; the 2026-09-02 round verified them
+  against LCSC's patterns).
+- ESP32-S3 reset pull-state table was not re-read; the reset-state
+  conclusions rest on the board's own pull resistors, which cover every
+  output that matters.
+- Vendor figures recalled rather than fetched: SSR-40DA input current,
+  HDR-15-24 output capacitance, 1N4148W typical Vf at 1 mA (the maximum was
+  read), MLCC DC-bias curves for C12891/C13585.
+- The display module manual on disk is the MSP3520 (3.5") manual; the
+  MSP4021 shares the 14-pin header order and voltage spec, per LCDWIKI, but
+  the 4.0" manual itself was not fetched.
 
 ## 2026-09-02 round — pre-prototype review
 

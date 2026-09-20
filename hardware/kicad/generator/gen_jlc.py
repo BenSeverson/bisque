@@ -82,6 +82,15 @@ JLC_PLACEMENT = {
     "C2653162": (270,  0.000,  0.000),   # U3    TSSOP-14_4.4x5mm_P0.65mm             resid 0.062 (14 pin#)
     "C27834":   (  0,  0.000,  0.000),   # R4    R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C28323":   (  0,  0.000,  0.000),   # C5    C_0805_2012Metric                    resid 0.050 (2 pin#)
+    # C46, the buck's bulk electrolytic. Both libraries put pad 1 on the
+    # chamfered end and both draw the part the same way up, so the fit is
+    # the identity - LCSC lands at +-2.400 against our +-2.200, a 0.2 mm
+    # land-size difference about a shared origin. Worth stating explicitly
+    # because a two-pad symmetric land is the one case the geometric fit
+    # CANNOT police: rotating it 180 deg still makes the pads coincide, so
+    # only the pad NUMBERING carries the polarity, and on a 100 uF
+    # electrolytic getting it wrong vents the part on first power-up.
+    "C2977550": (  0,  0.000,  0.000),   # C46   CP_Elec_5x5.4                        polarised - see note
     "C3013945": (  0,  0.000, -0.477),   # U1    ESP32-S3-WROOM-1U                    resid 0.022 (40 pin#)
     "C318884":  (  0,  0.000,  0.000),   # SW1   SW_Push_1P1T_XKB_TS-1187A            resid 0.025 (4 shape)
     "C49678":   (  0,  0.000,  0.000),   # C2    C_0805_2012Metric                    resid 0.050 (2 pin#)
@@ -181,6 +190,11 @@ LCSC = {
     "C43": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
     "C44": ("C12891", "CL31A226KAHNNNE 22uF 25V X5R 1206", True, True),
     "C45": ("C12891", "CL31A226KAHNNNE 22uF 25V X5R 1206", True, True),
+    # The buck's ESR zero - see the long note at C46 in design.py. No
+    # aluminium electrolytic is fee-free at LCSC in any package, so this is
+    # the one line on the board that buys a feeder fee for three cents of
+    # part.
+    "C46": ("C2977550", "RVT1C101M0505 100uF 16V D5x5.4 aluminium electrolytic", False, True),
     "D1": ("C8678", "SS34 SMA", True, True),
     "D2": ("C8678", "SS34 SMA", True, True),
     "D3": ("C81598", "1N4148W SOD-123 - VLED drop diode, silicon on purpose", True, True),

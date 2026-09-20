@@ -339,6 +339,44 @@ COMPONENTS = {
     "C45": dict(lib="Device", sym="C", fp=C1206[0], fpf=C1206[1],
                 value="22uF", at=(108.0, 108.8, 90),
                 pins={"1": "+5V", "2": "GND"}),
+    # C46 is the reason this rail is stable, and it is NOT interchangeable
+    # with more ceramic. The XL1509 is an LM2596-class VOLTAGE-mode regulator
+    # with fixed internal compensation: the loop has an LC double pole and no
+    # zero of its own, so it relies on the ESR zero of the output capacitor to
+    # recover phase before crossover. The datasheet says so by omission and by
+    # example - its 5 V/2 A design table (Rev 2.0 p.9) lists ONLY through-hole
+    # electrolytic (180 uF/35 V) or surface-mount tantalum (100 uF/10 V) for
+    # COUT, and p.8's note about "very low ESR output capacitors" offers a
+    # feed-forward capacitor as the cure, which the FIXED-output part cannot
+    # take: FB is tied straight to the output, so there is no divider to put
+    # CFF across.
+    #
+    # C44/C45 alone are 2 x 22 uF X5R, ~32 uF after DC bias at 5 V, ESR a few
+    # milliohms. That puts the double pole at 1/(2*pi*sqrt(47u*32u)) = 4.1 kHz
+    # and the ESR zero near 1 MHz - i.e. nowhere useful - which is the classic
+    # all-ceramic instability for this family. Adding 100 uF of aluminium at
+    # ~0.5-1.5 ohm ESR moves the pole to ~2.0 kHz and plants a zero at
+    # 1.1-3.2 kHz, right where it is wanted.
+    #
+    # High ESR is a FEATURE here and costs nothing in ripple: at 150 kHz the
+    # ceramics are ~0.04 ohm and this part is ~1 ohm, so the ceramics shunt
+    # ~96% of the inductor ripple and C46 sees ~6 mA against its 50 mA rating.
+    # Do not "improve" it with a polymer or another MLCC - both have the low
+    # ESR that is the problem.
+    #
+    # D5 x 5.4 mm rather than the commoner D6.3: the only free board left in
+    # this corner is 6.0 mm tall (CP_Elec_6.3x5.4 needs a 7.10 mm courtyard),
+    # and 100 uF is the largest value that fits a D5 can. Placed south-west of
+    # C44 with 0.66 mm of courtyard clearance to it, 3.4 mm of body-to-centre
+    # clearance to FID3 (the assembly camera needs to see the fiducial), and a
+    # ~7.8 mm run on +5V - long for a ceramic, irrelevant for a bulk cap whose
+    # job is at 2 kHz. No fee-free equivalent exists: LCSC lists no aluminium
+    # electrolytic in the Basic or Preferred libraries at all, so this line
+    # costs the eleventh feeder fee ($3).
+    "C46": dict(lib="Device", sym="C_Polarized",
+                fp="Capacitor_SMD:CP_Elec_5x5.4", fpf="CP_Elec_5x5.4.kicad_mod",
+                value="100uF/16V", at=(97.5, 113.25, 0),
+                pins={"1": "+5V", "2": "GND"}),
     # The regulator and the bulk-cap row east of it sit 1.5 mm further east
     # than they did, as one block: U2 36.6 -> 38.1, C1 44.0 -> 45.5, C3
     # 49.2 -> 50.7, C4 53.8 -> 55.3. They are shoulder to shoulder (the

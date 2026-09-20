@@ -384,8 +384,12 @@ Two things would also move it, neither of which is on the board today: a GND
 pour on F.Cu or B.Cu (coplanar coupling drops the pair to 79 Ω at the default
 0.2 mm clearance — hold any such pour ≥ 0.5 mm off the pair), and re-routing
 the pair itself. Note also that `USB_DP` and `USB_DN` are not routed as a
-tightly coupled pair — 40.1 mm and 37.0 mm respectively, over 5 and 6 vias —
-so 93.1 Ω describes the stretches where they run together. Full Speed's ~4 ns
+tightly coupled pair. Measured on the board as committed (pad to pad through
+the copper, pad endpoints collapsed onto one node): `USB_DP` J1.B6 → U1.14 is
+39.4 mm over 6 vias against `USB_DN` J1.B7 → U1.13 at 29.1 mm over 4, and only
+11.3% of `USB_DP`'s 50.8 mm of copper runs within a 0.30 mm **edge-to-edge**
+gap of `USB_DN` (81.6% runs beyond 0.75 mm). So 93.1 Ω describes the stretches
+where they run together. Full Speed's ~4 ns
 edges tolerate that comfortably; a High Speed interface would not.
 
 ### GPIO map (mirrors `main/Kconfig.projbuild` defaults)
@@ -456,7 +460,18 @@ not; see "Density and the 4-layer stack-up" above) but stays inside the
 | Via | 0.6 mm / 0.3 mm drill | 0.4 mm / 0.3 mm |
 | Min PTH drill | 0.3 mm (vias) | 0.3 mm |
 | Copper-to-edge | ≥ 0.3 mm | 0.2 mm |
-| Layers / finish | 4 (F.Cu/In1.Cu GND/In2.Cu +3V3/B.Cu), HASL, 1.6 mm, green | standard |
+| Layers / finish | 4 (F.Cu/In1.Cu GND/In2.Cu +3V3/B.Cu), **ENIG**, 1.6 mm, green | ENIG is a paid option, not the default |
+
+Two of those are order-form choices rather than board content, and the board
+file is the one that states them: `gen_pcb.py` writes **ENIG** into the
+stack-up (`copper_finish`), and `kicad-cli` copies it into
+`gerbers/bisque-controller-job.gbrjob` as `"Finish": "ENIG"` — but JLC takes
+the finish from the order form, so **select ENIG when ordering** or the board
+arrives HASL. ENIG was chosen deliberately: U7 is a 0.5 mm-pitch QFN-28 with a
+3.1 mm exposed pad and HASL's crown is worst exactly under a large EP.
+Similarly `"ImpedanceControlled": true` only declares the stack-up the
+numbers above are computed against — the one impedance target is documented
+as uncoupled and accepted, so do **not** pay for impedance control.
 
 ### Checking against JLC before ordering: `bisque-controller.kicad_dru`
 
@@ -560,14 +575,16 @@ carrying designators the BOM does not have:
 | J2, J3, J4, J8, J9 (2-pos screw terminals), J10, J11, J12 (4-pos screw terminals), J5, J6, J7 (KK-254 wafers), BZ1 (buzzer) | 5.08 mm and 2.54 mm pitch — the easiest joints on the board, but the ones that would force Standard assembly |
 | LED1 (WS2812B, PLCC-4 5050) | No addressable RGB LED at LCSC is a Basic part (checked across WS2812/SK6812/XL-xxxx), so its $3 buys nothing an iron can't do to four edge-accessible pads |
 
-What's left goes down the SMT line: **122 of 133 placements carry no feeder
-fee**, and only **10 unique Extended parts** do — the module
+What's left goes down the SMT line: **122 of 134 placements carry no feeder
+fee**, and only **11 unique Extended parts** do — the module
 (ESP32-S3-WROOM-1U-N16R2, C3013945), both MAX31856MUD+T (C2653162, one
 designator, two placements), the ADE7953 (C515890), its 3.579545 MHz
 oscillator (C2838127), the watchdog monostable (SN74LVC1G123, C123302), the
 LDO (TLV1117LV33, C48937499), the buck's inductor (C475527), the input PPTC
-(C369169), the Qwiic connector (C160404) and the USB-C receptacle (C165948)
-— **$30 in feeder fees**.
+(C369169), the buck's bulk electrolytic (C46, C2977550), the Qwiic connector
+(C160404) and the USB-C receptacle (C165948) — **$33 in feeder fees**.
+`gen_jlc.py` prints that list and total on every `make pcb-fab`, so it is
+checkable rather than remembered.
 
 Two libraries are free on Economic PCBA, not one: **Basic** (351 parts) and
 **Preferred Extended** (1235), the latter being parts JLCPCB keeps mounted
@@ -577,16 +594,19 @@ page's category line, so it is recorded per part in `gen_jlc.LCSC`'s
 `fee_free` flag. Reading that field as "is Basic" is what made this number
 print $33 for a board that owed $27.
 
-The remaining ten are structural, and the whole list was re-swept against
+The remaining eleven are structural, and the whole list was re-swept against
 the fee-free library part by part (#348). The library holds **no connectors
 at all**, so J1 and J14 cannot be avoided at any price; it holds no PPTC, no
-oscillator at 3.579545 MHz, no retriggerable monostable, and no inductor
-fit for a 2 A rail; and the module, both thermocouple front-ends and the
+oscillator at 3.579545 MHz, no retriggerable monostable, no inductor
+fit for a 2 A rail, and **no aluminium electrolytic in any package** — which
+is what makes C46 the one line here that pays $3 for a three-cent part, and
+it is paid because the alternative is an unstable 5 V rail (see C46 in
+`design.py`); and the module, both thermocouple front-ends and the
 metering IC have no fee-free equivalent either. **U2 is the one that looks
 free and is not** — the AMS1117-3.3 is Basic, drops into the same SOT-223
 with the same pinout, and would drop out of regulation on a USB-only 4.35 V
-rail; the argument is written out at `U2` in `design.py`. $30 is the floor
-for this board short of hand-soldering F1, L1 and J14 as well.
+rail; the argument is written out at `U2` in `design.py`. $33 is the floor
+for this board short of hand-soldering F1, L1, C46 and J14 as well.
 
 Substitutions that bought fee-free lines without giving anything up:
 

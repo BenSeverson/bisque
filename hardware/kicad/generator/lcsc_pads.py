@@ -34,23 +34,37 @@ MIL10_MM = 0.254
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(HERE, "lcsc_pads.json")
 API = "https://easyeda.com/api/products/%s/components?version=6.4.19.5"
+# CloudFront 403s curl's default User-Agent. See _fetch.
+BROWSER_UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+              "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36")
 
 
 def _fetch(lcsc, tries=4):
     """-> (package name, [(pad number, x, y), ...]) straight from EasyEDA.
 
     Retries, because a --refresh is ~36 requests back to back and EasyEDA
-    rate-limits that. The tell is an EMPTY 200 rather than an error status:
-    curl exits 0, the body is zero bytes, and json.loads dies with "Expecting
-    value: line 1 column 1", which reads like a corrupt part and is really
-    "you asked too fast". Every part fetches fine one at a time, so the retry
-    just has to outwait the limiter rather than work around anything.
+    pushes back on that. Two different failures both surface as json.loads
+    dying with "Expecting value: line 1 column 1", and they need opposite
+    responses:
+
+      - an EMPTY 200. curl exits 0 with a zero-byte body: that is the rate
+        limiter, and waiting it out is the whole fix.
+      - a 919-byte CloudFront "403 ERROR / Request blocked." page. That is
+        NOT a rate limit and no amount of waiting clears it - CloudFront
+        rejects curl's default User-Agent outright. Sending a browser UA
+        (below) turns the same request into a 200, which is why one is set
+        rather than left to curl.
+
+    The distinction cost a refresh that retried a 403 twelve times on the
+    theory it was the limiter, so the message below names the status.
     """
     last = None
     for attempt in range(tries):
         if attempt:
             time.sleep(2 ** attempt)          # 2, 4, 8 s
-        out = subprocess.run(["curl", "-sS", "-m", "40", API % lcsc],
+        out = subprocess.run(["curl", "-sS", "-m", "40", "-A", BROWSER_UA,
+                              "-H", "Accept: application/json",
+                              API % lcsc],
                              capture_output=True, text=True)
         if out.returncode != 0:
             last = "curl failed for %s: %s" % (lcsc, out.stderr.strip())
@@ -58,8 +72,11 @@ def _fetch(lcsc, tries=4):
         try:
             doc = json.loads(out.stdout)
         except json.JSONDecodeError:
-            last = ("%s: EasyEDA returned %d bytes of non-JSON (rate limit?)"
-                    % (lcsc, len(out.stdout)))
+            blocked = "403 ERROR" in out.stdout or "Request blocked" in out.stdout
+            last = ("%s: EasyEDA returned %d bytes of non-JSON (%s)"
+                    % (lcsc, len(out.stdout),
+                       "CloudFront 403 - blocked, not throttled; retrying "
+                       "will not help" if blocked else "empty body, rate limit"))
             continue
         break
     else:
