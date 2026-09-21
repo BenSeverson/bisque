@@ -213,6 +213,22 @@ COMPONENTS = {
     "U1": dict(lib="RF_Module", sym="ESP32-S3-WROOM-1",
                fp="RF_Module:ESP32-S3-WROOM-1U", fpf="ESP32-S3-WROOM-1U.kicad_mod",
                value="ESP32-S3-WROOM-1U-N16R2", at=(70.0, 34.0, 0),
+               # The five nav buttons on pins 31-35 map straight across to
+               # J6.1-J6.5, and that mapping has all five nets crossing all
+               # the others - pins 31-35 are a column at x 78.75 and J6's pins
+               # a row at y 104, opposite sides of the region, so the NESTED
+               # matching is the planar one. Reversing it was tried and
+               # REVERTED, and the measurement is the reason: the two
+               # matchings have the same total ideal length to within 0.2 mm
+               # (353.0 vs 352.8), the rebuild came out 2.7 mm LONGER over two
+               # fewer vias, and both figures are inside the noise of an
+               # unrelated reshuffle. The crossings are nearly free because
+               # the sources span 5 mm of column against a 70 mm run: the five
+               # nets are almost parallel whichever way they are paired, and a
+               # crossing between near-parallel tracks costs a layer change,
+               # not length. Not worth a Kconfig re-map. Keep in step with
+               # main/Kconfig.projbuild and docs/pin-assignments.md -
+               # check_pinmap.py asserts the first two agree and CI runs it.
                pins={"1": "GND", "2": "+3V3", "3": "EN", "4": "IN1",
                      "5": "T_CS", "6": "T_IRQ", "7": "ALARM",
                      "8": "AUX2", "9": "AUX3", "10": "SSR1_CTRL",
@@ -760,9 +776,27 @@ COMPONENTS = {
     # note above - they had been, and channel 2's differential inputs paid
     # for it). Move a part in one channel and move it in both.
     #
-    # R16/R17 and C20/C21 are the exception, and it is J8 rather than U5 that
-    # makes them one: they are pushed 1.6 mm and 0.4 mm FURTHER out than the
-    # mirror asks. Channel 1's filter row clears J3's screws by 0.47 mm going
+    # THE MIRROR IS IN X AS WELL AS Y, and only the y half used to be applied.
+    # Flipping U5 reverses the order of its analog pins: U3 reads P_F (97.00),
+    # N_F (97.65), N (98.30) west to east and U5 reads N (95.70), N_F (96.35),
+    # P_F (97.00). The chip did not move in x, so the FILTER COLUMNS have to
+    # reverse to follow it - R16 (the P leg) east at 105.9 and R17 (the N leg)
+    # west at 102.2, the opposite of channel 1's R14/R15. With channel 1's x
+    # order copied straight across, both ends of the channel crossed: J8's
+    # near screw (P, y 53.0) reached for the far west resistor while the far
+    # screw (N, y 47.92) reached for the near east one, and downstream P_F
+    # left the west pad for the east pin while N_F did the reverse. Channel 1
+    # routes 35.2 mm over ZERO vias; channel 2 was routing 128.9 mm over ten,
+    # for the same circuit, on a differential input where 40 uV is a degree.
+    #
+    # C20 turns with them (rot 180), which puts its N_F pad exactly under
+    # R17's. C21 and C22 do not move and both get closer to their own nets as
+    # a side effect - C21's P_F pad now lands on R16's, where before it was
+    # 3.7 mm away across the pair.
+    #
+    # R16/R17 and C20/C21 keep one exception to the y mirror, and it is J8
+    # rather than U5 that makes them one: they are pushed 1.6 mm and 0.4 mm
+    # FURTHER out than the mirror asks. Channel 1's filter row clears J3's screws by 0.47 mm going
     # north; mirrored, channel 2's would land on J8's - R17's pads span y
     # 52.9..54.3 and J8's `K+` legend wants 52.25..53.75, the same board.
     # There is no second column to move the legend into (J8's body starts
@@ -785,13 +819,13 @@ COMPONENTS = {
                 value="100nF", at=(90.0, TC2_Y + 2.7 * TC2_DY, 0),
                 pins={"1": "+3V3", "2": "GND"}),
     "R16": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="100R 1%", at=(102.2, TC2_Y + 5.4, 180),
+                value="100R 1%", at=(105.9, TC2_Y + 5.4, 180),
                 pins={"1": "TC2_P", "2": "TC2_P_F"}),
     "R17": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="100R 1%", at=(105.9, TC2_Y + 5.4, 180),
+                value="100R 1%", at=(102.2, TC2_Y + 5.4, 180),
                 pins={"1": "TC2_N", "2": "TC2_N_F"}),
     "C20": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="100nF", at=(102.2, TC2_Y + 0.6, 0),
+                value="100nF", at=(102.2, TC2_Y + 0.6, 180),
                 pins={"1": "TC2_P_F", "2": "TC2_N_F"}),
     "C21": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
                 value="10nF", at=(105.9, TC2_Y + 0.6, 0),
@@ -1236,8 +1270,16 @@ COMPONENTS = {
     "R27": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
                 value="10k", at=(55.0, 111.0, 0),
                 pins={"1": "+3V3", "2": "IN2"}),
+    # Channel 2's filter cap, in channel 2's row. It used to sit at
+    # (35.0, 115.0) - 20 mm west of its own R26/R27, on the far side of
+    # channel 3 - which is what made IN2 the longest signal net on the board
+    # (158.6 mm routed, 108.3 mm ideal) and hung a westward spur across
+    # channel 3's row. x 58.9 is the only slot that exists for it: R27's
+    # courtyard ends at 56.7 and J11's begins at 61.0, so the 0805 lands with
+    # ~0.5 mm either side. It takes IN2's ideal from 108.3 mm to ~94 mm and
+    # makes the three dry-contact channels three clean rows.
     "C23": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-                value="100nF", at=(35.0, 115.0, 0),
+                value="100nF", at=(58.9, 111.0, 0),
                 pins={"1": "IN2", "2": "GND"}),
     "R28": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
                 value="1k", at=(40.0, 115.0, 180),
@@ -1665,8 +1707,18 @@ COMPONENTS = {
     # and if it does not, R56 is a component to lift instead of a track to cut
     # on every board. Bring-up: scope TP6 with the panel plugged in while TC1
     # is selected.
+    # R54 and R58 sit at each other's obvious slots, and that is the point.
+    # J5's pins 5/6/7 are DC / MOSI / SCLK at x 34.16 / 36.70 / 39.24, so the
+    # three damping resistors have to run in that same order west to east or
+    # their three ~8 mm nets cross each other in the 6 mm between this row
+    # and the connector. They did: with SCLK at x 34.5 and DC at 38.5,
+    # LCD_MOSI_R routed 102.7 mm over 12 vias for an 8.4 mm net, LCD_DC_R
+    # 67.3 mm and LCD_SCLK_R 59.7 mm - 205 mm of excess and 17 vias between
+    # them. R39-R43 one row east do the identical job uncrossed and land
+    # within 1.5 mm of ideal, which is what says this was ordering rather
+    # than congestion. Move one of these two and move the other.
     "R54": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="33", at=(34.5, 96.0, 0),
+                value="33", at=(38.5, 98.5, 0),
                 pins={"1": "SPI_SCLK", "2": "LCD_SCLK_R"}),
     "R55": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
                 value="33", at=(38.5, 96.0, 0),
@@ -1678,7 +1730,7 @@ COMPONENTS = {
                 value="33", at=(23.5, 98.4, 0),
                 pins={"1": "LCD_CS", "2": "LCD_CS_R"}),
     "R58": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="33", at=(38.5, 98.5, 0),
+                value="33", at=(34.5, 96.0, 0),
                 pins={"1": "LCD_DC", "2": "LCD_DC_R"}),
     "J6": dict(lib="Connector_Generic", sym="Conn_01x06",
                fp="Connector_Molex:Molex_KK-254_AE-6410-06A_1x06_P2.54mm_Vertical",

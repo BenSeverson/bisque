@@ -1181,11 +1181,64 @@ ROUTE_ORDER = [
     # a filtered thermocouple node where 40 uV is a degree. Short nets cost
     # almost nothing to route first, so being late bought nothing either.
     ("ADE_REF", SIG_W), ("TC2_P_F", SIG_W), ("TC2_N_F", SIG_W),
+    # TC2_P/TC2_N come up with the filtered legs for the same reason, and the
+    # reason is now measured rather than assumed: with the filter columns
+    # mirrored (design.py R16/R17) TC2_P fell to 8.1 mm over one via, while
+    # TC2_N - still back in the "thermocouple front-ends" block near the
+    # bottom - went the other way, 130.7 mm over THIRTEEN vias against a
+    # 20.9 mm ideal. Same circuit, same fix, opposite results, because one of
+    # the pair was routed early and the other last. Channel 1 is the control:
+    # TC1_P/TC1_N route 35.2 mm over zero vias and do not move.
+    ("TC2_P", SIG_W), ("TC2_N", SIG_W),
+    # ADE_SCLK and ADE_CS leave U7 pins 25 and 28 through the same north-edge
+    # fan, and both are two-pad STRAPS to a pull-up 10 mm north (R37, R38).
+    # Left in the "ADE7953 locals" tail, ADE_SCLK routed 136.5 mm over 8 vias
+    # for a 12.5 mm net, taking a lap to y 106 and back.
+    #
+    # They belong here and NOT above ADE_REF, which is where they were tried
+    # first. THAT FAN IS ZERO-SUM: promoted ahead of the reference, ADE_SCLK
+    # fell to 14.7 mm over no vias and ADE_REF rose from 16.8 mm over 2 vias
+    # to 74.6 mm over 8, ADE_VN from 21.5 mm to 61.2 mm over ten, and the
+    # nine-net block as a whole did not move (281.6 -> 274.7 mm, 20 -> 24
+    # vias). Measure the BLOCK, not the net being promoted. Where two nets in
+    # this fan want the same lane the analog one takes it: ADE_REF is the
+    # ADE7953's voltage reference and the datasheet (p.68) wants its ceramics
+    # closest to the chip, while ADE_SCLK is a DC strap that only has to
+    # arrive.
+    ("ADE_SCLK", SIG_W), ("ADE_CS", SIG_W),
+    # The two voltage-channel inputs, for the same reason and with the same
+    # ranking: both are one resistor to one U7 pin, and ADE_VN going last cost
+    # it 61.2 mm over 10 vias for a 21 mm net.
+    ("ADE_VP", SIG_W), ("ADE_VN", SIG_W),
+    # Same argument, two more blocks that were paying it. The SSR gate nets
+    # are 16 and 19 mm chains from each MOSFET's gate to its 100R/10k pair,
+    # entirely inside the switching block, and going last cost them 100.7 mm
+    # over EIGHTEEN vias. The five display damping nets are each ~8 mm from a
+    # resistor to the J5 pin directly below it and were dead last in this
+    # list; the touch five (R39-R43), routed immediately before them, land
+    # within 1.5 mm of ideal, so the lane is there if they take it in time.
+    ("SSR1_GATE", SIG_W), ("SSR2_GATE", SIG_W), ("SSR_PG", SIG_W),
+    ("LCD_DC_R", SIG_W), ("LCD_MOSI_R", SIG_W), ("LCD_SCLK_R", SIG_W),
+    ("LCD_CS_R", SIG_W), ("LCD_SDO_R", SIG_W),
     # CTA_N comes with them, and not by choice: promoting the three above took
     # its lane and it failed. It is the net A10 made longer - the differential
     # return now reaches R59 as well as R33 and J12 - so it is competing in
     # the same block for the same reason they are.
     ("CTA_N", 0.4),
+    # CTA_F and CTA_FN follow CTA_N for the same reason it is here: they are
+    # the same five-part chain and leaving them behind just moves the problem.
+    # Promoting CTA_N alone took the block from 251.0 mm to 279.8 mm - CTA_N
+    # itself fell from 57.5 mm over 6 vias to 25.0 mm over none, and CTA_F and
+    # CTA_FN paid for it, CTA_FN going from 2 vias to 12. Both are analog legs
+    # into U7's current channel; CTA_FN is the filtered one and can afford
+    # distance, but not twelve layer changes.
+    ("CTA_F", SIG_W), ("CTA_FN", SIG_W),
+    # And channel B with it. The two CT front-ends are one circuit placed
+    # twice, so splitting them across this list just moves the congestion from
+    # one to the other: promoting channel A alone took B from 96.4 mm over 8
+    # vias to 109.8 mm over 15 while A went 251.0 -> 129.3 mm. Promote the
+    # pair or neither.
+    ("CTB_P", 0.4), ("CTB_N", 0.4), ("CTB_F", SIG_W),
     # the watchdog-gated SSR supply rail and the two switched low sides: the
     # SSR loop current (~15 mA/channel plus its indicator) all lands here
     ("SSR_EN", 0.5), ("SSR1_OUT", 0.4), ("SSR2_OUT", 0.4),
@@ -1217,32 +1270,25 @@ ROUTE_ORDER = [
     # kicad_build.build_copper() - and marked fixed, so nothing below can
     # move them or take their lane.
     ("CC1", SIG_W), ("CC2", SIG_W),
-    # SSR driver chains, watchdog gate
-    ("SSR1_GATE", SIG_W), ("SSR1_IND_K", SIG_W),
-    ("SSR2_GATE", SIG_W), ("SSR2_IND_K", SIG_W),
-    ("SSR_PG", SIG_W), ("WDT_OK", SIG_W), ("WDT_CT_P", SIG_W),
+    # SSR driver chains, watchdog gate (the two gate nets are promoted above)
+    ("SSR1_IND_K", SIG_W), ("SSR2_IND_K", SIG_W),
+    ("WDT_OK", SIG_W), ("WDT_CT_P", SIG_W),
     ("WDT_CT_N", SIG_W),
     # buzzer, status LED
     ("BUZZ_GATE", SIG_W), ("WS_DIN", SIG_W),
     # thermocouple front-ends (short, local, kept matched)
     ("TC1_P", SIG_W), ("TC1_N", SIG_W), ("TC1_P_F", SIG_W), ("TC1_N_F", SIG_W),
-    ("TC2_P", SIG_W), ("TC2_N", SIG_W),
     # CT front-end and its terminal
     # CT front-end and its terminal
-    ("CTA_P", 0.4), ("CTA_F", SIG_W), ("CTA_FN", SIG_W),
-    ("CTB_P", 0.4), ("CTB_N", 0.4), ("CTB_F", SIG_W),
+    ("CTA_P", 0.4),
     # ADE7953 locals
     ("ADE_CLKIN", SIG_W),
     ("ADE_VINTA", SIG_W), ("ADE_VINTD", SIG_W),
-    ("ADE_SCLK", SIG_W), ("ADE_CS", SIG_W), ("ADE_VP", SIG_W), ("ADE_VN", SIG_W),
     # protected inputs
     ("IN1_RAW", SIG_W), ("IN2_RAW", SIG_W), ("IN3_RAW", SIG_W),
     # touch series damping (header side of R39-R43)
     ("T_CLK_R", SIG_W), ("T_CS_R", SIG_W), ("T_DIN_R", SIG_W), ("T_DO_R", SIG_W),
     ("T_IRQ_R", SIG_W),
-    # display series damping (header side of R54-R58)
-    ("LCD_SCLK_R", SIG_W), ("LCD_MOSI_R", SIG_W), ("LCD_SDO_R", SIG_W),
-    ("LCD_CS_R", SIG_W), ("LCD_DC_R", SIG_W),
 ]
 
 # ---------------------------------------------------------------------------
