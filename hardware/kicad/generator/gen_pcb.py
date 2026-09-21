@@ -202,19 +202,13 @@ def build_router():
 USB_SEEDS = [  # (net, layer, [(x,y)...], width)
     ("USB_DP", 0, [(47.25, 28.445), (47.25, 27.2), (48.25, 27.2),
                    (48.25, 28.445)], 0.25),
-    # 30.75, not 31.25. The escape seed used to overshoot by 0.5 mm: the
-    # router branches off wherever the net's existing copper is nearest,
-    # which after a re-route was 30.75, and the last half millimetre was
-    # left as a dangling tail - a `track_dangling` warning on a board whose
-    # report reads 0/0/0. A seed should end where the escape ends.
-    ("USB_DP", 0, [(47.25, 28.445), (47.25, 30.75)], 0.25),
     # The D- link ran (47.75 pad) -> south -> across -> south to the escape
     # point and never actually touched the second D- pad at x 48.75, which sits
-    # 1.5 mm *north* of where the link crossed; J1.B7 came out unconnected. Two
-    # polylines, mirroring the D+ pair above: the link, and the escape run
-    # started at the pad it is supposed to leave from.
+    # 1.5 mm *north* of where the link crossed; J1.B7 came out unconnected.
+    # The link is one polyline; the escape run - which starts at the pad it is
+    # supposed to leave from and now runs on through the TVS - is drawn by
+    # usb_pair_seeds() below from the pad positions, for D+ and D- alike.
     ("USB_DN", 0, [(47.75, 28.445), (47.75, 30.0), (48.75, 30.0)], 0.25),
-    ("USB_DN", 0, [(48.75, 28.445), (48.75, 31.25)], 0.25),
     ("CC1", 0, [(49.25, 28.445), (49.25, 31.75)], 0.25),
     ("CC2", 0, [(46.25, 28.445), (46.25, 31.75)], 0.25),
     ("VBUS", 0, [(50.45, 28.445), (50.45, 32.0), (50.5, 32.0)], 0.4),
@@ -330,8 +324,6 @@ ADE_I2C_TERMS = {
 }
 # nets whose J1 pads are replaced by stub terminals (ends grid-aligned)
 USB_STUB_TERMS = {
-    "USB_DN": [(48.75, 31.25, (0,))],
-    "USB_DP": [(47.25, 30.75, (0,))],
     "CC1": [(49.25, 31.75, (0,))],
     "CC2": [(46.25, 31.75, (0,))],
     "VBUS": [(50.5, 32.0, (0,)), (45.5, 32.0, (0,))],
@@ -408,28 +400,20 @@ COPPER_LAYER_TYPE = {
 PLANE_NETS = tuple(PLANE_LAYER)
 PLANE_STUB_W = 0.25
 
-# Copper-free box on the OUTER layers around the USB pair, (x0, y0, x1, y1).
-# The measured bounding box of every USB_DP/USB_DN segment on F.Cu and B.Cu is
-# x 47.25..64.00 / y 27.20..46.25; this is that plus 1 mm on each side. See
-# add_zones() in kicad_build.py for why the outer GND pours are held off by
-# geometry instead of by a clearance setting, and STACKUP below for the
-# 93.1 ohm figure that depends on it. Re-measure this if the pair ever moves.
-#
-# It moved once already, and the lesson is that this box is a consequence of
-# U4 and not just of J1 and U1. Swapping the USBLC6 for an SRV05-4 turned the
-# array from a link in the pair into a stub off it, and the pair re-routed
-# around a package it used to pass through: 2 mm further south (DP now reaches
-# y 46.25, having previously stopped at 42.10) even after U4's channels were
-# moved to the pins facing U1. Both nets are marginally SHORTER than before
-# (DP 39.08 mm against 40.13, DN 36.97 against 37.05), so this is a change of
-# shape, not of length.
+# Margin of the copper-free box on the OUTER layers around the USB pair. The
+# box itself is DERIVED - kicad_build.usb_keepout() takes the bounding box of
+# every USB_DP/USB_DN track on the board and grows it by this much - because
+# it used to be a hand-measured constant with a "re-measure this if the pair
+# ever moves" note, and the pair moved twice without anyone doing so. See
+# add_zones() for why the outer GND pours are held off by geometry instead of
+# by a clearance setting, and STACKUP below for the 93.1 ohm figure that
+# depends on it.
 #
 # The west edge is the one to watch, because U2_POUR ends at x 45.0 and a
 # keepout reaching past that silently eats the AMS1117's thermal copper - the
-# pour is still emitted, it just does not fill. At 46.25 there is 1.25 mm of
-# daylight. The first attempt at the U4 pin map left it at 44.50 and would
-# have taken the bite without failing anything.
-USB_KEEPOUT = (46.25, 26.20, 65.00, 47.25)
+# pour is still emitted, it just does not fill. usb_keepout() asserts the
+# derived box stays east of U2_POUR rather than trusting the placement to.
+USB_KEEPOUT_MARGIN = 1.0
 
 # Half-width of the router keepout around each fiducial, mm. A fiducial is
 # bare copper on NO net carrying a local 0.6 mm pad-clearance override, so
@@ -472,8 +456,9 @@ FID_KEEPOUT = 1.7
 # part on the board where that number matters.
 #
 # Bounded by what is actually free: J2's terminal to the west, R5 and the test
-# points to the north, D1/C2 to the south, and to the east USB_KEEPOUT starts
-# at 45.86 so nothing may be poured past it anyway. Everything inside on
+# points to the north, D1/C2 to the south, and to the east the USB pair's
+# keepout (kicad_build.usb_keepout(), which asserts it stays east of this
+# box) so nothing may be poured past it anyway. Everything inside on
 # another net (C1 and D1 on +5V, R5 on CC2, U2's own GND and +5V pins) is
 # carved out by ordinary clearance.
 U2_POUR = (33.0, 30.5, 45.0, 44.5)
@@ -492,7 +477,7 @@ U2_POUR = (33.0, 30.5, 45.0, 44.5)
 # then routes a 0.1 mm fallback width.
 #
 # The board has exactly one impedance target: USB 2.0 Full Speed, 90 ohm
-# differential (USB_DP/USB_DN, J1 -> U6 -> U1). On these numbers the pair as
+# differential (USB_DP/USB_DN, J1 -> U4 -> U1). On these numbers the pair as
 # routed — 0.3 mm wide, 0.2 mm gap, microstrip over the In1.Cu GND plane
 # through 0.2104 mm of 7628 prepreg — comes out at 93.1 ohm differential,
 # inside JLCPCB's +-10% window. That is why declaring the stack-up needed no
@@ -993,6 +978,149 @@ def all_seeds(pad_pos):
     return seeds, terms
 
 
+# ---------------------------------------------------------------------------
+# The USB differential pair
+# ---------------------------------------------------------------------------
+# J1 -> U4 -> U1, routed as ONE object by router.route_pair() before plane
+# vias or any signal exist, on F.Cu, at USB_DIFF_WIDTH / USB_DIFF_GAP. The
+# lead-in from J1 through the TVS is hand geometry drawn off the pad
+# positions: J1's D+/D- pads interleave at 0.5 mm pitch (DP 47.25, DN 47.75,
+# DP 48.25, DN 48.75), so the two lines leave the connector 1.5 mm apart,
+# jog onto U4's outer pad columns 1.9 mm apart, run straight through both
+# pads of each column (U4 is a flow-through, see design.py), and only then
+# converge to the coupled pitch. That converging exit is shaped, not left to
+# the router, because two other things have to fit in the 1.6 mm channel
+# between the lines: pin 2's plane via north of the part, and the via that
+# brings VBUS to pin 5 south of it. The inner line (the one on U1's side)
+# turns first and the outer one passes a full pitch below it, which leaves
+# the via slot at (U4.x, south pad bottom + ~0.65) open - see usb_pair_seeds.
+# The one impedance-controlled pair on the board. Values are the geometry the
+# 93.1 ohm figure in STACKUP's comment is computed from - if you retune one,
+# retune the other, and re-solve against the stack-up rather than guessing.
+USB_DIFF_PAIR = ("USB_DP", "USB_DN")
+USB_DIFF_WIDTH, USB_DIFF_GAP = 0.3, 0.2
+USB_TVS = "U4"
+USB_MODULE = "U1"
+USB_J1 = "J1"
+USB_J1_ESCAPE_W = 0.25    # J1's 0.5 mm-pitch pads; the pair's own width from U4 on
+
+
+def _one_pad(pad_pos, ref, pin):
+    pads = pad_pos[(ref, pin)]
+    assert len(pads) == 1, "%s.%s is %d pieces of copper" % (ref, pin, len(pads))
+    return pads[0][0], pads[0][1]
+
+
+def _pad_shape(r, x, y):
+    """The router's Shape for the pad centred at (x, y)."""
+    for p in r.pads:
+        if abs(p.cx - x) < 1e-3 and abs(p.cy - y) < 1e-3:
+            return p
+    raise KeyError("no pad at (%.3f, %.3f)" % (x, y))
+
+
+def usb_pair_seeds(r, pad_pos):
+    """(seeds, start, first_dir) for the pair's hand lead-in.
+
+    `seeds` are (net, layer, pts, width) like USB_SEEDS; `start` is
+    {net: (x, y)}, where each net's lead-in ends and route_pair() takes over;
+    `first_dir` is the grid step the coupled pair must begin with.
+    """
+    comp = COMPONENTS[USB_TVS]
+    cols = {}
+    for pin, net in comp["pins"].items():
+        if net in USB_DIFF_PAIR:
+            cols.setdefault(net, []).append(_one_pad(pad_pos, USB_TVS, pin))
+    tvs_x = comp["at"][0]
+    seeds, start = [], {}
+    # Toward the module: the pair leaves U4 on the side U1 is on.
+    sx = 1 if COMPONENTS[USB_MODULE]["at"][0] > tvs_x else -1
+    geom = {}
+    for net, pads in sorted(cols.items()):
+        assert len(pads) == 2, "%s: %s needs both pins of one column" % (USB_TVS, net)
+        (xa, ya), (xb, yb) = sorted(pads, key=lambda p: p[1])
+        assert abs(xa - xb) < 1e-3, "%s: %s pads are not one column" % (USB_TVS, net)
+        geom[net] = (xa, ya, yb)
+    # Half the pad's extent along the column, off the router's own model of
+    # the pad rather than a footprint constant.
+    half = max(_pad_shape(r, x, y).h for pads in cols.values()
+               for (x, y) in pads) / 2.0
+    inner = max(geom, key=lambda n: sx * geom[n][0])
+    outer = min(geom, key=lambda n: sx * geom[n][0])
+    ux_i, _yn_i, ys_i = geom[inner]
+    ux_o, _yn_o, ys_o = geom[outer]
+    pitch = USB_DIFF_WIDTH + USB_DIFF_GAP
+    y_bottom = max(ys_i, ys_o) + half
+    # First grid column at least half a pitch beyond the inner line...
+    x_start = _snap(ux_i + sx * 0.5, BX0)
+    if sx * (x_start - ux_i) < 0.5 - 1e-9:
+        x_start += sx * R.GRID
+    d_i = abs(x_start - ux_i)               # the inner line's 45-degree leg
+    # ... and the inner line turns onto it having first cleared the pad row
+    # by 0.35 mm. That number is what leaves the via slot: the outer line
+    # passes a full pitch lower still, so a 0.6 mm via for the south middle
+    # pad fits between the two lines at pad-bottom + ~0.65 with 0.3 mm to
+    # the outer line's run and 0.4 to its diagonal (VBUS to U4 pin 5 uses
+    # it). Shrink it and the slot closes; the router then has nowhere to
+    # bring VBUS in.
+    y_in = _snap(y_bottom + 0.35 + d_i, BY0)
+    if y_in < y_bottom + 0.35 + d_i - 1e-9:
+        y_in += R.GRID
+    y_out = y_in + pitch
+    start[inner] = (x_start, y_in)
+    start[outer] = (x_start, y_out)
+    # J1 end: the escape leaves the pad of each net nearest its U4 column, and
+    # jogs onto the column just above the north pad. Both jogs move outward,
+    # away from the middle column's via slot between them.
+    j1 = COMPONENTS[USB_J1]
+    for net, (ux, yn, ys) in geom.items():
+        jpads = [_one_pad(pad_pos, USB_J1, pin) for pin, n in j1["pins"].items()
+                 if n == net]
+        jx, jy = min(jpads, key=lambda p: abs(p[0] - ux))
+        y_jog = yn - half - 0.3 - abs(ux - jx)
+        seeds.append((net, 0, [(jx, jy), (jx, y_jog)], USB_J1_ESCAPE_W))
+        pts = [(jx, y_jog), (ux, y_jog + abs(ux - jx)), (ux, ys)]
+        if net == inner:
+            pts += [(ux, y_in - d_i), (x_start, y_in)]
+        else:
+            pts += [(ux, y_in), (ux + sx * (y_out - y_in), y_out), (x_start, y_out)]
+        seeds.append((net, 0, pts, USB_DIFF_WIDTH))
+    return seeds, start, (sx, 0)
+
+
+def usb_pair_goal(pad_pos):
+    """({net: (x, y)}, last_dir): the module's D+/D- pad centres, and the
+    grid step the pair has to arrive on - straight into the pad row from the
+    side the pads face, which is away from the module's centre."""
+    nl = netlist()
+    out = {}
+    for net in USB_DIFF_PAIR:
+        pins = [pin for (ref, pin) in nl[net] if ref == USB_MODULE]
+        assert len(pins) == 1, "%s has %d %s pins" % (net, len(pins), USB_MODULE)
+        out[net] = _one_pad(pad_pos, USB_MODULE, pins[0])
+    mx, my = COMPONENTS[USB_MODULE]["at"][:2]
+    px = sum(p[0] for p in out.values()) / len(out)
+    py = sum(p[1] for p in out.values()) / len(out)
+    if abs(mx - px) >= abs(my - py):
+        last_dir = (1 if mx > px else -1, 0)
+    else:
+        last_dir = (0, 1 if my > py else -1)
+    return out, last_dir
+
+
+def route_usb_pair(r, pad_pos):
+    """Draw the lead-in and route the coupled pair. Returns {net: polyline}."""
+    seeds, start, first_dir = usb_pair_seeds(r, pad_pos)
+    for (net, layer, pts, w) in seeds:
+        for a, b in zip(pts, pts[1:]):
+            r.add_seg(net, layer, a[0], a[1], b[0], b[1], w, fixed=True)
+    goal, last_dir = usb_pair_goal(pad_pos)
+    a, b = USB_DIFF_PAIR
+    return r.route_pair(a, b, (start[a], start[b]), (goal[a], goal[b]),
+                        USB_DIFF_WIDTH, USB_DIFF_GAP, layer=0,
+                        first_dir=first_dir, last_dir=last_dir)
+
+
 # Every net except GND, which is poured. Order is the router's only conflict
 # resolution: it is greedy and never rips up, so the widest and least
 # reroutable copper goes first and the many short two-pin locals go last,
@@ -1083,8 +1211,12 @@ ROUTE_ORDER = [
     ("WDT_KICK", SIG_W), ("BTN_UP", SIG_W), ("BTN_DOWN", SIG_W),
     ("BTN_LEFT", SIG_W), ("BTN_RIGHT", SIG_W), ("BTN_SEL", SIG_W),
     ("RXD0", SIG_W), ("TXD0", SIG_W), ("IN2", SIG_W), ("IN3", SIG_W),
-    # USB (pre-seeded escapes, see USB_SEEDS)
-    ("CC1", SIG_W), ("CC2", SIG_W), ("USB_DN", SIG_W), ("USB_DP", SIG_W),
+    # USB configuration channels (pre-seeded escapes, see USB_SEEDS). D+/D-
+    # are NOT here: they are the differential pair, routed as one by
+    # route_usb_pair() before plane vias or any signal exist - see
+    # kicad_build.build_copper() - and marked fixed, so nothing below can
+    # move them or take their lane.
+    ("CC1", SIG_W), ("CC2", SIG_W),
     # SSR driver chains, watchdog gate
     ("SSR1_GATE", SIG_W), ("SSR1_IND_K", SIG_W),
     ("SSR2_GATE", SIG_W), ("SSR2_IND_K", SIG_W),
@@ -1136,11 +1268,8 @@ ROUTE_ORDER = [
 # switched low sides AND the four CT sense nets, which have nothing else in
 # common. A name like "Power" would be a lie for half its members.
 NETCLASS_CLEARANCE = 0.2      # as routed; JLCPCB's 4-layer floor is 0.09
-# The one impedance-controlled pair on the board. Values are the geometry the
-# 93.1 ohm figure in STACKUP's comment is computed from - if you retune one,
-# retune the other, and re-solve against the stack-up rather than guessing.
-USB_DIFF_PAIR = ("USB_DP", "USB_DN")
-USB_DIFF_WIDTH, USB_DIFF_GAP = 0.3, 0.2
+# The USB class takes its geometry from USB_DIFF_WIDTH / USB_DIFF_GAP in the
+# pair section above, the same numbers route_pair() draws it with.
 
 
 def netclass_table():
@@ -1366,7 +1495,7 @@ def route_all(r, pad_pos, seed_list=None, stub_terms=None, order=None,
         routed.add(net)
         if verbose:
             print("  routed %-10s %d segs total" % (net, len(r.result_tracks)))
-    missing = set(nl) - routed - set(PLANE_NETS)
+    missing = set(nl) - routed - set(PLANE_NETS) - set(USB_DIFF_PAIR)
     assert not missing, "unrouted nets: %s" % missing
     return failed
 

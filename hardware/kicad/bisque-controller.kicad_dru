@@ -148,18 +148,19 @@
 (rule "courtyards may not overlap"
 	(constraint courtyard_clearance (min 0mm)))
 
-# NOT ENFORCED, deliberately: the USB pair is essentially uncoupled. Measured
-# with (constraint diff_pair_uncoupled (max 5mm)) on NetClass 'USB', this board
-# reports 90.4882 mm, which is the DRC's confirmation of what CLAUDE.md already
-# records from the geometry -- 0.0% of USB_DP's 39.08 mm runs within 0.30 mm of
-# USB_DN. That is an accepted trade (Full-Speed only, 12 Mbps, electrically
-# short), so enforcing it would put a permanent failure in the report. Left
-# here as the measurement, ready to switch on for a rev that routes the pair
-# coupled at a 0.25 mm gap and actually lands on 90 ohm:
-#
-# (rule "USB: differential pair coupling"
-# 	(constraint diff_pair_uncoupled (max 5mm))
-# 	(condition "A.NetClass == 'USB'"))
+# The USB pair is routed AS a pair (router.route_pair, see the README), and
+# this holds it there. What is left uncoupled is the connector's and the
+# parts' geometry - J1's 0.5 mm pad pitch, the flow-through under U4's
+# 1.9 mm-spaced columns, the fan into U1's 1.27 mm pitch - and KiCad measures
+# it at 16.9084 mm on the board the pair first landed on. Before the pair
+# router existed the same rule at (max 5mm) reported 90.4882 mm, which is why
+# it used to sit here commented out as a measurement rather than a rule.
+# 20 mm is that figure with room for the fans to land a node or two
+# differently; generator/check_usb_pair.py budgets the same thing per net,
+# plus skew and via count, without needing KiCad.
+(rule "USB: differential pair coupling"
+	(constraint diff_pair_uncoupled (max 20mm))
+	(condition "A.NetClass == 'USB'"))
 
 # ------------------------------------------------------------- silkscreen --
 # The absolute minimum for JLC's STANDARD font is 0.8 mm height at a 0.15 mm
