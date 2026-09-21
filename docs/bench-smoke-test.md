@@ -104,6 +104,10 @@ curl -X POST http://<kiln-ip>/api/v1/profiles/import \
       advance from `heating` → `cooling` is the more important check.
       Press the on-screen Stop button if you don't want to wait for
       the cool segment to finish naturally.)
+- [ ] **BZ1 sounds on completion** — three ~500 ms beeps, 200 ms apart, at
+      a clear steady volume. A weak or raspy buzz means the alarm pin is
+      being chopped rather than held
+      ([#342](https://github.com/BenSeverson/bisque/issues/342)).
 - [ ] **No error events** during the run (no `error` status, no fault
       banner on the LCD).
 

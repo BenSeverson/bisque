@@ -270,8 +270,17 @@ COMPONENTS = {
     "D1": dict(lib="Device", sym="D_Schottky", fp=SMA[0], fpf=SMA[1],
                value="SS34", at=(36.6, 45.6, 0),
                pins={"1": "VIN_P", "2": "VIN_F"}),
+    # y 36.35, not 36.75: 0.4 mm north opens the lane the USB pair
+    # runs down. Between this diode's south edge and C4's north edge the pair
+    # needs 1.2 mm (two 0.3 mm tracks, the 0.2 mm gap, 0.2 mm clearance each
+    # side), and C3's north edge pins the pair's centreline at y 38.0 until
+    # it is past C3 - so D2's pads have to end above y 37.4, and at 36.75
+    # they ended at 37.65 (36.35 is as far as R4's courtyard allows, and
+    # leaves 0.15 mm of slack). The router's answer to that was to thread the
+    # pair BETWEEN this part's two pads, under its body, at 0.35 mm from
+    # each; legal, and not how anyone would draw it.
     "D2": dict(lib="Device", sym="D_Schottky", fp=SMA[0], fpf=SMA[1],
-               value="SS34", at=(56.25, 36.75, 0),
+               value="SS34", at=(56.25, 36.35, 0),
                pins={"1": "+5V", "2": "VBUS"}),
     # --- 24 V -> 5 V buck (the +5V rail) ---------------------------------
     # XL1509-5.0E1: 40 V abs max in, FIXED 5 V out, 2 A, 150 kHz, SOIC-8,
@@ -577,51 +586,52 @@ COMPONENTS = {
     #
     #   * ESD. USBLC6-2SC6 is IEC 61000-4-2 level 4 and no more - +-8 kV
     #     contact, +-15 kV air. This one is +-30 kV on both.
-    #   * Capacitance. 1.0 pF I/O-GND against the USBLC6's 3.5 pF max, on a
-    #     pair whose impedance the STACKUP comment goes to some length to
+    #   * Capacitance. 1.0 pF per channel against the USBLC6's 3.5 pF max, on
+    #     a pair whose impedance the STACKUP comment goes to some length to
     #     keep at 93.1 ohm.
     #
-    # What does change is topology, and it is worth knowing why the pin map
-    # below looks so different. The USBLC6 is a pass-through: its two channels
-    # are brought out twice each (1/6 and 3/4), so the pair entered one side
-    # and left the other. The SRV05-4's four channels are independent, so each
-    # line lands on exactly one pin and the array becomes a stub off the pair
-    # instead of a link in it. At 12 Mbps Full Speed a stub this short is
-    # electrically nothing. Tying IO3/IO4 back onto the same two nets would
-    # restore the pass-through look at the cost of doubling the loading to
-    # 2 pF, which buys nothing, so they are left open exactly as D5's IO4 is.
+    # Placed as a FLOW-THROUGH, and the pin map below is that decision. The
+    # USBLC6 was a pass-through part: each channel is brought out on both
+    # faces (1/6 and 3/4), so the pair entered one side and left the other.
+    # The SRV05-4's four channels are independent, one pin each, and the
+    # first rev of this swap used two of them (IO3/IO4, east face) and let
+    # the pair reach them as stubs. That cannot be routed as a coupled pair
+    # at all, and the reason is topological rather than a matter of skill:
+    # both pads sit on ONE face, so whichever track runs nearer the part can
+    # stub straight in, but the other has to cross it to reach its own pad.
+    # The router did the only thing left - took D+ the long way round the
+    # package - and the pair came out 50.8 mm against 33.2 mm, over 8 and 5
+    # vias, with 0% of its length coupled.
     #
-    # WHICH pins is not free, and picking the obvious ones cost a rebuild.
-    # This footprint at rot 0 puts 1/2/3 on the west face and 4/5/6 on the
-    # east; J1 is due north of it and U1 is east, so the pair arrives head-on
-    # and leaves toward the east face. The USBLC6 spanned both (1->6, 3->4),
-    # which is why it never mattered before. Land both channels on the WEST
-    # pins - 1 and 3, the numerically obvious choice - and each line dead-ends
-    # on the far side of a package it now has to get around: the router
-    # still solved it, and at the same copper length (40.12 mm on DP against
-    # 40.13 before), but it did it by dipping DP to y 46.75 where it had
-    # previously stayed above 42.10. That grows USB_KEEPOUT 2.5 mm south and
-    # 1.36 mm west, and the west edge is the expensive one - it lands on top
-    # of U2_POUR, so the AMS1117's thermal copper pays for the pin numbering.
+    # So the part is turned 90 degrees to put its pad rows across the pair's
+    # path (rot 270: pins 1/2/3 on the north row facing J1, 4/5/6 south), and
+    # each line uses BOTH pins of one column: D+ enters pin 3, runs 1 mm under
+    # the body, and leaves by pin 4 directly below it; D- does the same
+    # through pins 1 and 6. Two straight lines, no stubs, no detour, and the
+    # rest of the pair can be routed coupled from the south row onward
+    # (gen_pcb.usb_pair_seeds draws this from the pad positions - move the
+    # part and the copper follows). The price is the loading this comment
+    # once refused to pay - 2.0 pF per line instead of 1.0 - and it is worth
+    # paying now that it buys the flow-through: it is still under the 3.5 pF
+    # the USBLC6 had, against a Full-Speed budget measured in tens of pF.
     #
-    # East face instead. IO4/IO3 rather than IO1/IO2 - all four channels are
-    # independent and identical, so this is purely geometry - and it also
-    # keeps DN on the y 33.85 row and DP on y 35.75, exactly the rows the
-    # pass-through used, so the pair stays coupled down one side of the part
-    # instead of splitting around it.
-    #
-    # VP (pin 5) sits between them rather than VN. It is a decoupled 5 V rail,
-    # so it guards as well as a ground would.
+    # The middle column is VN (pin 2, GND) north and VP (pin 5, VBUS) south,
+    # and that orientation is deliberate. Each middle pad is boxed in by the
+    # two lines on either side of it, so each can only be reached through the
+    # 1.6 mm channel between them: pin 2 gets its plane via in the channel
+    # between J1's escapes, and pin 5 gets VBUS by a via in the channel below
+    # the south row, before the two lines converge into a pair. The hand
+    # escapes in gen_pcb leave exactly those two slots open. VP goes to VBUS,
+    # not +3V3: this array clamps to the rail on pin 5, and the lines it
+    # protects are referenced to the 5 V bus.
     #
     # SRV05-4: 1 IO1, 2 VN(GND), 3 IO2, 4 IO3, 5 VP(VBUS), 6 IO4 - the same
-    # pinout D5/D6 are documented against below. VP goes to VBUS, not +3V3:
-    # this array clamps to the rail on pin 5, and the lines it protects are
-    # referenced to the 5 V bus.
+    # pinout D5/D6 are documented against below.
     "U4": dict(lib="Power_Protection", sym="SRV05-4",
                fp="Package_TO_SOT_SMD:SOT-23-6", fpf="SOT-23-6.kicad_mod",
-               value="SRV05-4", at=(48.0, 34.8, 0),
-               pins={"6": "USB_DN", "4": "USB_DP",
-                     "1": None, "3": None,
+               value="SRV05-4", at=(48.0, 34.8, 270),
+               pins={"3": "USB_DP", "4": "USB_DP",
+                     "1": "USB_DN", "6": "USB_DN",
                      "5": "VBUS", "2": "GND"}),
     # --- Thermocouple ------------------------------------------------------
     # 2x MAX31856 (TSSOP-14) replacing the rev A MAX31855. Pinout confirmed

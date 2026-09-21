@@ -52,7 +52,7 @@ fills all-zeros, because the PCB tooling never loads a schematic and has no
 uuid to record. So the file grew an unexplained diff after a regen and could
 flip between two values depending on which tool ran last.
 
-`gen_sch.py::sync_project()` now derives the entry from the same `ROOT`
+`project_sync.py::sync_project()` (shared by `gen_sch.py` and `kicad_build.py`) now derives the entry from the same `ROOT`
 constant the schematic's own `(uuid ...)` comes from, and runs on every
 `pcb-build` / `pcb-cosmetic`. Whoever opens the project next finds it already
 correct and leaves it alone — kicad-cli only ever *adds* the block when it is
@@ -312,12 +312,58 @@ carved a four-layer pour keepout across the SSR optocoupler row and had
 the optocouplers (see "SSR drive ×2" above), returning ~21 × 24 mm of pour
 and routing area on every layer.
 
+### The USB pair is routed as a pair, and first
+
+`USB_DP`/`USB_DN` are the one impedance-controlled object on the board, and
+`generator/router.py`'s A* knows nothing about pairs: it routes one net at a
+time, never rips up, and takes whatever lane is free when the net's turn
+comes. Left to that, the pair came out 50.8 mm against 33.2 mm, over 8 and 5
+vias, with 0 % of either net running beside the other — the DRC's own
+`diff_pair_uncoupled` measured 90.5 mm. So the pair gets its own router and
+its own turn:
+
+* **`Router.route_pair()`** finds the pair as ONE track of width
+  `2 × 0.3 + 0.2 = 0.8 mm` down the centreline (so clearance is checked for
+  the pair's whole envelope, with both nets' own copper exempt via
+  `PairNet`), then splits it into two offset tracks and joins each to its
+  terminal with a straight fan. Right angles in the centreline are chamfered
+  *before* the split, so both tracks keep the same shape — `miter_corners()`
+  would do it one track at a time, and that is how a matched pair picks up
+  skew. Every fan is checked for clearance against the *other* net's pads and
+  for crossing; an end that fails is struck off and the search re-run. No
+  vias, one layer, and everything it draws is `fixed`. The first and last
+  steps can be pinned (`first_dir`, `last_dir`): the lead-in already ends in
+  a coupled straight, and a pair that met the module's pad row on a diagonal
+  had its fans converge to 0.43 mm before opening — under clearance, and the
+  checker said so.
+* **It runs before plane vias or any signal exist** (`kicad_build.build_copper`),
+  so the board is empty when it picks its lane and every other net routes
+  around it. `USB_DP`/`USB_DN` are therefore not in `ROUTE_ORDER` at all.
+* **The lead-in is drawn from the pad positions** (`gen_pcb.usb_pair_seeds`):
+  J1's D+/D- pads interleave at 0.5 mm pitch, so the two lines leave the
+  connector 1.5 mm apart, jog onto U4's outer pad columns 1.9 mm apart, run
+  straight through both pads of each column — the SRV05-4 is placed as a
+  **flow-through**, each line on two of its independent channels (see U4 in
+  `design.py` for why a stub-connected TVS cannot be reached by a coupled
+  pair at all) — and only then converge to the coupled pitch. The funnel is
+  shaped so the two vias the TVS's middle column needs (pin 2's plane via
+  north of the part, VBUS to pin 5 south of it) each have a slot.
+* **`generator/check_usb_pair.py`** holds it there, in CI: one piece of
+  copper per net, no vias, F.Cu only, skew ≤ 3.5 mm pad to pad, at most
+  16 mm of either net uncoupled and at least 40 % coupled. Measured on the
+  board this landed on: 25.1 / 22.6 mm J1 → U1, 0 vias, 14.1 / 13.6 mm
+  coupled, 2.5 mm skew — 2.4 mm of which is the funnel, the outer line
+  travelling the 1.9 mm column offset the inner one does not (~18 ps against
+  a Full-Speed bit of 83 ns). The `.kicad_dru` now enforces
+  `diff_pair_uncoupled` too, at a budget set from the same board.
+
 ### Two escapes are written down rather than routed
 
 `generator/gen_pcb.py` carries two tables of hand-seeded copper —
-`USB_SEEDS` for J1's differential pair and CC lines, and **`ADE_I2C_SEEDS`
-for the ADE7953's SDA and SCL**. Both exist for the same reason: a lane one
-track wide, in a place the greedy router's answer is not stable.
+`USB_SEEDS` for J1's D+/D- links and CC lines (the pair's own escapes come
+from `usb_pair_seeds()`), and **`ADE_I2C_SEEDS` for the ADE7953's SDA and
+SCL**. Both exist for the same reason: a lane one track wide, in a place the
+greedy router's answer is not stable.
 
 U7's I2C pins leave a 0.5 mm-pitch QFN into the densest neighbourhood on the
 board (2.30 parts/cm², with every escape from a 28-pin part passing through
@@ -370,7 +416,7 @@ fab a stack-up that does not exist. It now carries the real materials and
 `"ImpedanceControlled": true`.
 
 The board has exactly **one** impedance target: USB 2.0 Full Speed, 90 Ω
-differential (`USB_DP`/`USB_DN`, J1 → U6 → U1; there is no RF trace, the
+differential (`USB_DP`/`USB_DN`, J1 → U4 → U1; there is no RF trace, the
 WROOM-1U keeps its radio and U.FL on-module). On this press the pair as
 already routed — 0.3 mm wide, 0.2 mm gap, microstrip over the In1.Cu GND
 plane through 0.2104 mm of 7628 prepreg — computes to **93.1 Ω differential
@@ -382,15 +428,13 @@ them rather than letting the swap pass silently.
 
 Two things would also move it, neither of which is on the board today: a GND
 pour on F.Cu or B.Cu (coplanar coupling drops the pair to 79 Ω at the default
-0.2 mm clearance — hold any such pour ≥ 0.5 mm off the pair), and re-routing
-the pair itself. Note also that `USB_DP` and `USB_DN` are not routed as a
-tightly coupled pair. Measured on the board as committed (pad to pad through
-the copper, pad endpoints collapsed onto one node): `USB_DP` J1.B6 → U1.14 is
-39.4 mm over 6 vias against `USB_DN` J1.B7 → U1.13 at 29.1 mm over 4, and only
-11.3% of `USB_DP`'s 50.8 mm of copper runs within a 0.30 mm **edge-to-edge**
-gap of `USB_DN` (81.6% runs beyond 0.75 mm). So 93.1 Ω describes the stretches
-where they run together. Full Speed's ~4 ns
-edges tolerate that comfortably; a High Speed interface would not.
+0.2 mm clearance — the outer pours are held off by a keepout derived from the
+pair's own bounding box, `kicad_build.usb_keepout()`), and re-routing the
+pair at a different width or gap. The pair IS routed coupled at that geometry
+from the TVS to the module (see "The USB pair is routed as a pair, and
+first"); the stretches that are not — J1's 0.5 mm pad pitch, the
+flow-through under U4, the fan into the module's 1.27 mm pitch — are the
+connector's and the parts' geometry, and `check_usb_pair.py` budgets them.
 
 ### GPIO map (mirrors `main/Kconfig.projbuild` defaults)
 
@@ -469,9 +513,14 @@ stack-up (`copper_finish`), and `kicad-cli` copies it into
 the finish from the order form, so **select ENIG when ordering** or the board
 arrives HASL. ENIG was chosen deliberately: U7 is a 0.5 mm-pitch QFN-28 with a
 3.1 mm exposed pad and HASL's crown is worst exactly under a large EP.
-Similarly `"ImpedanceControlled": true` only declares the stack-up the
-numbers above are computed against — the one impedance target is documented
-as uncoupled and accepted, so do **not** pay for impedance control.
+
+`"ImpedanceControlled": true` in the same file declares the stack-up the 93.1 Ω
+figure is computed against; it is not an instruction to buy JLC's impedance-
+control service. **Do not.** That service is a controlled-etch process with a
+TDR coupon, priced accordingly, and this board does not need it: the one
+target is USB 2.0 **Full Speed** (12 Mbps), the pair is short and now routed
+coupled at the declared geometry, and 93.1 Ω against 90 Ω is inside the ±10 %
+an uncontrolled stack-up already holds.
 
 ### Checking against JLC before ordering: `bisque-controller.kicad_dru`
 
@@ -528,10 +577,10 @@ passes, and was checked non-vacuous — at an absurd 10 mm it reports 144
 violations. `courtyard_clearance` duplicates `check_placement.py` on purpose,
 because that checker needs `import pcbnew` and so is not in
 `pcb-check-portable`, i.e. not in CI. One rule is deliberately left commented
-out: `diff_pair_uncoupled` on the USB net class reports **90.4882 mm**, the
-DRC's own confirmation of the uncoupled pair documented under "The physical
-stack-up" — an accepted trade at Full Speed, so enforcing it would park a
-permanent failure in the report.
+out: `diff_pair_uncoupled` on the USB net class reported **90.4882 mm** on
+the board before the pair was routed as a pair — an accepted trade at Full
+Speed then, so enforcing it would have parked a permanent failure in the
+report. It is enforced now, at a budget set from the pair-routed board.
 
 Two checks remain off in the `.kicad_pro` rather than here, because they are
 board settings and not expressible as custom rules: `min_groove_width` and

@@ -40,7 +40,7 @@ except ImportError:
 import pcbnew
 from canonicalize import canonicalize_file
 from design import COMPONENTS, netlist, BX0, BY0, BX1, BY1
-from gen_sch import sync_project
+from project_sync import sync_project
 import router as R
 import silk
 import stages
@@ -50,7 +50,8 @@ from gen_pcb import (all_seeds, route_all, ripup_retry, promoted_order, plane_vi
                      EP_VIA_GRID, STITCH_VIAS, is_ep_pad, TP_LABEL_TEXTS, LEGEND_OWNER,
                      TP_LEGEND_OK,
                      PLANE_LAYER, HIDE_REFS, sync_netclasses, netclass_table,
-                     USB_KEEPOUT, U2_POUR, COPPER_LAYER_TYPE, FID_KEEPOUT)
+                     USB_KEEPOUT_MARGIN, USB_DIFF_PAIR, route_usb_pair,
+                     U2_POUR, COPPER_LAYER_TYPE, FID_KEEPOUT)
 
 # Copper stack-up. Rev B is 4-layer (spec 6.1): signals on the outside, an
 # unbroken GND plane on In1.Cu and the +3V3 plane on In2.Cu. router.py still
@@ -559,6 +560,36 @@ def add_outline_and_silk(board):
     return anchors
 
 
+def usb_keepout(board):
+    """(x0, y0, x1, y1) of the outer-layer copper keepout around the USB pair:
+    the bounding box of every USB_DP/USB_DN track on the board, grown by
+    USB_KEEPOUT_MARGIN.
+
+    Read off the board rather than typed, so it follows the pair on both
+    paths - the full build has just drawn the tracks, --no-route has just
+    loaded them - and cannot go stale the way the measured constant it
+    replaces did. Asserts the box stays east of U2_POUR: a keepout reaching
+    into that pour does not fail anything, it just stops the AMS1117's
+    thermal copper from filling.
+    """
+    names = set(USB_DIFF_PAIR)
+    xs, ys = [], []
+    for t in board.GetTracks():
+        if t.Type() != pcbnew.PCB_TRACE_T or t.GetNetname() not in names:
+            continue
+        for v in (t.GetStart(), t.GetEnd()):
+            xs.append(pcbnew.ToMM(v.x))
+            ys.append(pcbnew.ToMM(v.y))
+    assert xs, "usb_keepout: no %s tracks on the board" % "/".join(sorted(names))
+    m = USB_KEEPOUT_MARGIN
+    box = (min(xs) - m, min(ys) - m, max(xs) + m, max(ys) + m)
+    assert box[0] >= U2_POUR[2], (
+        "USB keepout reaches x %.2f, into U2_POUR (ends at x %.2f): the pair "
+        "has moved west and the AMS1117's thermal pour would silently stop "
+        "filling" % (box[0], U2_POUR[2]))
+    return box
+
+
 def add_zones(board, nets):
     """The two inner planes, plus a GND pour on each outer layer.
 
@@ -605,8 +636,8 @@ def add_zones(board, nets):
     instead a rule area keeps copper out of the pair's neighbourhood
     altogether: the 93.1 ohm figure is a microstrip-over-In1.Cu calculation,
     and it stays valid because there is no outer copper near the pair to
-    invalidate it. USB_KEEPOUT is the measured track bounding box (both outer
-    layers, x 47.25..64.00 / y 27.20..46.25) plus 1 mm.
+    invalidate it. The box is usb_keepout(): the pair's track bounding box
+    plus USB_KEEPOUT_MARGIN, derived from the board every build.
     """
     m = 0.5
     corners = [(BX0 + m, BY0 + m), (BX1 - m, BY0 + m),
@@ -696,7 +727,7 @@ def add_zones(board, nets):
     ka.SetDoNotAllowFootprints(False)
     ol = ka.Outline()
     ol.NewOutline()
-    x0, y0, x1, y1 = USB_KEEPOUT
+    x0, y0, x1, y1 = usb_keepout(board)
     for (x, y) in [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]:
         ol.Append(MM(x), MM(y))
     board.Add(ka)
@@ -827,9 +858,22 @@ def build_copper(board, fps, order):
         r.add_via(net, x, y, fixed=True)
     for (x, y, net) in ep_via_positions(fps):
         r.add_via(net, x, y, fixed=True)
-    # Plane vias first: they are not optional (a missing one is an unconnected
+    # The USB pair before anything else, plane vias included. It is the one
+    # impedance-controlled object on the board and the only one whose two
+    # tracks have to stay side by side, so it gets the board while the board
+    # is empty; everything after it is routed around it. Routed as one
+    # object (router.route_pair) and marked fixed, so no later net and no
+    # rip-up can move it. A failure here is a placement problem, not an
+    # ordering one, and stops the build.
+    pair = route_usb_pair(r, pad_pos)
+    a, b = USB_DIFF_PAIR
+    la, lb = (sum(math.hypot(q[0] - p[0], q[1] - p[1])
+                  for p, q in zip(pair[n], pair[n][1:])) for n in (a, b))
+    print("  USB pair: %s %.2f mm, %s %.2f mm, skew %.2f mm, F.Cu, no vias"
+          % (a, la, b, lb, abs(la - lb)))
+    # Plane vias next: they are not optional (a missing one is an unconnected
     # pad) and they are short, so they claim their spots while the board is
-    # empty and the signal router threads what is left.
+    # still nearly empty and the signal router threads what is left.
     pv, pv_fail = plane_vias(r, pad_pos, seed_list)
     print("  plane vias: %d (%d unplaceable)" % (len(pv), len(pv_fail)))
     failed = route_all(r, pad_pos, seed_list, stub_terms, order=order,
@@ -857,6 +901,7 @@ def route_board(board, fps, passes=6):
     """
     promoted = []
     best = None
+    seen = []
     for attempt in range(passes):
         order = promoted_order(promoted) if promoted else None
         print("routing pass %d (%d promoted)..." % (attempt + 1, len(promoted)))
@@ -868,10 +913,19 @@ def route_board(board, fps, passes=6):
             best = (r, failed)
         if not failed:
             break
-        new = [n for n in failed if n not in promoted]
-        if not new:
-            break                      # promoting these has stopped helping
-        promoted = promoted + new
+        if frozenset(failed) in seen:
+            break                      # the same answer again: a cycle
+        seen.append(frozenset(failed))
+        # This pass's failures go to the FRONT, ahead of everything promoted
+        # before them. Appending them behind is what this used to do, and
+        # it is wrong for the case that actually recurs: a net promoted in
+        # pass N fails in pass N+1 because a net promoted in the same batch
+        # - routed just ahead of it - took its lane (CTA_N lost D6.3 to
+        # CTB_N that way and the loop then declared the promotion had
+        # "stopped helping", with the answer one position away). A net that
+        # failed while promoted has to move ahead of whoever beat it; a net
+        # that no longer fails keeps its place behind.
+        promoted = failed + [n for n in promoted if n not in failed]
     return best
 
 

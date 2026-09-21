@@ -33,6 +33,7 @@
       "vias",
       "footprint_text",
       "footprint_anchors",
+      "ratsnest",
       "grid",
       "footprints_front",
       "footprints_back",
@@ -106,7 +107,7 @@
       103,
       103,
       103,
-      0
+      239
     ],
     "custom_group_rules": [],
     "expanded_rows": [],

@@ -6,7 +6,6 @@
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "driver/gpio.h"
-#include "driver/ledc.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
@@ -17,16 +16,12 @@ static const char *TAG = "safety";
 /* Vent active below this temperature during firing */
 #define VENT_MAX_TEMP_C 700.0f
 
-/* Piezo buzzer tone driven via LEDC. The buzzer needs an AC waveform to
-   produce sound; static GPIO levels won't work. 4 kHz matched the resonance
-   peak of the buzzer used during bench testing — adjust if a different
-   buzzer is fitted. */
-#define ALARM_TONE_FREQ_HZ    4000
-#define ALARM_TONE_DUTY_RES   LEDC_TIMER_10_BIT
-#define ALARM_TONE_DUTY_50PCT (1U << (ALARM_TONE_DUTY_RES - 1))
-#define ALARM_LEDC_TIMER      LEDC_TIMER_0
-#define ALARM_LEDC_CHANNEL    LEDC_CHANNEL_0
-#define ALARM_LEDC_MODE       LEDC_LOW_SPEED_MODE
+/* BZ1 is an *active* buzzer (TMB12A05): it carries its own oscillator and
+   sounds on a DC supply, so the alarm pin is a plain level, not a tone. Rev A's
+   passive piezo needed an LEDC square wave; chopping this part's low-side
+   switch at 4 kHz would hold the average applied voltage at ~2.3 V against its
+   4 V minimum and interrupt the internal oscillator faster than its own 2.4 kHz
+   resonance. Q2 is a low-side N-channel switch, so high = sounding. */
 
 static int s_ssr_pin = -1;
 static int s_alarm_gpio = -1;
@@ -102,16 +97,14 @@ static volatile uint32_t s_wdt_heartbeat_ms = 0;
    the same two functions that own the bit itself. */
 static volatile bool s_wdt_blocked = false;
 
-static void alarm_tone_on(void)
+/* The only place the alarm pin is written; a no-op when no alarm GPIO is
+ * configured, the way vent_write() is. */
+static void alarm_write(bool on)
 {
-    ledc_set_duty(ALARM_LEDC_MODE, ALARM_LEDC_CHANNEL, ALARM_TONE_DUTY_50PCT);
-    ledc_update_duty(ALARM_LEDC_MODE, ALARM_LEDC_CHANNEL);
-}
-
-static void alarm_tone_off(void)
-{
-    ledc_set_duty(ALARM_LEDC_MODE, ALARM_LEDC_CHANNEL, 0);
-    ledc_update_duty(ALARM_LEDC_MODE, ALARM_LEDC_CHANNEL);
+    if (s_alarm_gpio < 0) {
+        return;
+    }
+    gpio_set_level(s_alarm_gpio, on ? 1 : 0);
 }
 
 /* The only place the vent pin is written. Pin and cache move together here so
@@ -157,25 +150,16 @@ void safety_init_io(int alarm_gpio, int vent_gpio, int lid_gpio)
     s_lid_gpio = lid_gpio;
 
     if (alarm_gpio >= 0) {
-        const ledc_timer_config_t timer = {
-            .speed_mode = ALARM_LEDC_MODE,
-            .timer_num = ALARM_LEDC_TIMER,
-            .duty_resolution = ALARM_TONE_DUTY_RES,
-            .freq_hz = ALARM_TONE_FREQ_HZ,
-            .clk_cfg = LEDC_AUTO_CLK,
+        gpio_config_t io = {
+            .pin_bit_mask = (1ULL << alarm_gpio),
+            .mode = GPIO_MODE_OUTPUT,
+            .pull_up_en = GPIO_PULLUP_DISABLE,
+            .pull_down_en = GPIO_PULLDOWN_ENABLE,
+            .intr_type = GPIO_INTR_DISABLE,
         };
-        const ledc_channel_config_t channel = {
-            .speed_mode = ALARM_LEDC_MODE,
-            .channel = ALARM_LEDC_CHANNEL,
-            .timer_sel = ALARM_LEDC_TIMER,
-            .intr_type = LEDC_INTR_DISABLE,
-            .gpio_num = alarm_gpio,
-            .duty = 0,
-            .hpoint = 0,
-        };
-        ESP_ERROR_CHECK(ledc_timer_config(&timer));
-        ESP_ERROR_CHECK(ledc_channel_config(&channel));
-        ESP_LOGI(TAG, "Alarm GPIO %d configured (LEDC %d Hz tone)", alarm_gpio, ALARM_TONE_FREQ_HZ);
+        gpio_config(&io);
+        alarm_write(false); /* s_alarm_gpio is already set, above */
+        ESP_LOGI(TAG, "Alarm GPIO %d configured (active buzzer, DC level)", alarm_gpio);
     }
 
     if (vent_gpio >= 0) {
@@ -221,30 +205,30 @@ void safety_trigger_alarm(int pattern)
 
     switch (pattern) {
     case 0: /* short beep */
-        alarm_tone_on();
+        alarm_write(true);
         vTaskDelay(pdMS_TO_TICKS(200));
-        alarm_tone_off();
+        alarm_write(false);
         break;
     case 1: /* long beep (completion) */
         for (int i = 0; i < 3; i++) {
-            alarm_tone_on();
+            alarm_write(true);
             vTaskDelay(pdMS_TO_TICKS(500));
-            alarm_tone_off();
+            alarm_write(false);
             vTaskDelay(pdMS_TO_TICKS(200));
         }
         break;
     case 2: /* error pattern */
         for (int i = 0; i < 5; i++) {
-            alarm_tone_on();
+            alarm_write(true);
             vTaskDelay(pdMS_TO_TICKS(100));
-            alarm_tone_off();
+            alarm_write(false);
             vTaskDelay(pdMS_TO_TICKS(100));
         }
         break;
     default:
-        alarm_tone_on();
+        alarm_write(true);
         vTaskDelay(pdMS_TO_TICKS(300));
-        alarm_tone_off();
+        alarm_write(false);
         break;
     }
 }

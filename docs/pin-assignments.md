@@ -38,7 +38,7 @@ is active). "Module pin" is U1's pin number in `design.py`.
 | 4 | 4 | ADC1_3 | `IN1` | Protected input 1 (lid) | `KILN_PIN_LID_SWITCH` | **active** (default `4`, matches the PCB) — [needs a switch or a jumper](#if-you-do-not-fit-a-lid-switch) |
 | 5 | 5 | ADC1_4 | `T_CS` | Touch controller CS | `KILN_PIN_TOUCH_CS` | routed, default `5`, **no driver** |
 | 6 | 6 | ADC1_5 | `T_IRQ` | Touch pen-down interrupt | `KILN_PIN_TOUCH_IRQ` | routed, default `6`, **no driver** |
-| 7 | 7 | ADC1_6 | `ALARM` | Buzzer BZ1 | `KILN_PIN_ALARM` | active |
+| 7 | 7 | ADC1_6 | `ALARM` | Buzzer BZ1 | `KILN_PIN_ALARM` | active — plain DC level; BZ1 is an *active* buzzer (TMB12A05) and makes its own tone |
 | 8 | 12 | ADC1_7 | `LCD_CS` | Display CS | `KILN_PIN_LCD_CS` | active |
 | 9 | 17 | ADC1_8 | `LCD_DC` | Display D/C | `KILN_PIN_LCD_DC` | active |
 | 10 | 18 | ADC1_9 | `TC1_CS` | Thermocouple 1 (MAX31856) CS | `KILN_PIN_TC1_CS` | active |

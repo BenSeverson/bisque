@@ -96,7 +96,7 @@ Documentation fixed in the same pass:
 | Item | Change |
 |---|---|
 | Surface finish | `README.md`'s capability table said HASL against a board that declares **ENIG**; corrected, with a note that JLC takes the finish from the order form and that `"ImpedanceControlled": true` is a stack-up declaration, not a thing to buy |
-| USB pair figures | `CLAUDE.md` and `README.md` both carried pre-A8 numbers. Re-measured: DP J1.B6→U1.14 **39.372 mm / 6 vias** against DN J1.B7→U1.13 **29.119 mm / 4** — a **10.25 mm (~69 ps)** skew, not the 0.278 mm claimed; **11.3%** of DP's 50.81 mm runs within a 0.30 mm **edge** gap, not 0.0%. Both files now name the convention, because at 0.3 mm wide on 0.2 mm clearance a *centre-to-centre* figure can never fall below 0.5 mm — "0.0% within 0.30 mm" was vacuously true, which is how it survived two rounds |
+| USB pair figures | Corrected here, then **superseded two days later by #355**, which re-routed the pair as a pair. Both files now carry #355's numbers instead. The correction is recorded in the merge note below rather than deleted, because the measurement method outlived the numbers |
 | Lid default | `lid_state.h` said GPIO 21; Kconfig and the board say **GPIO 4** |
 | Enclosure README | two places still called the box supply "the 5 V supply" / "the 5 V feed" against its own text; it is **24 V** into J2 |
 | `jlcpcb/README.md` | new **SJ1** section: bridging it with an external 24 V coil rail landed on J10.1 puts 24 V onto `+5V`, whose loads include a 6 V-max LDO |
@@ -111,6 +111,55 @@ means editing four component *values*, which is a schematic change with no
 defect behind it — JLC's matcher takes both rows fine. Everything else in
 sections C and E remains as written: bench checks on board 1, and rev-C
 items.
+
+### Status, 2026-09-21 — merged with main, two findings closed by it
+
+Merging `main` brought in two hardware commits that landed after this round
+was written, and each one closes an item it had left open. Neither was
+prompted by this review; both are better than what it asked for.
+
+**#355 — the USB pair is routed as a pair now, and the review's USB findings
+are obsolete.** `router.route_pair()` finds D+/D- as one 0.8 mm centreline,
+splits it, and runs before any other net exists; U4 became a flow-through so
+a coupled pair can reach both lines, and D2 moved 0.4 mm to open the lane.
+Measured on the result: **25.1 / 22.6 mm J1 → U1, 0 vias, 2.5 mm skew,
+14.1 / 13.6 mm coupled**, against the 50.8 / 33.2 mm over 8 and 5 vias with
+0% coupled that this round measured. `check_usb_pair.py` now holds those
+numbers in CI and the `.kicad_dru` enforces `diff_pair_uncoupled`.
+
+So section F's "USB skew claims are stale" and the 10.25 mm skew this round
+measured both describe a board that no longer exists. **One thing from that
+work is worth keeping**, because it is about method rather than numbers:
+these tracks are 0.3 mm wide on 0.2 mm clearance, so a *centre-to-centre*
+coupling figure can never fall below 0.5 mm, and the "0.0% within 0.30 mm"
+that sat in CLAUDE.md for two rounds was vacuously true rather than measured.
+State the convention when quoting a coupling percentage.
+
+**#354 — the buzzer is driven as a DC level.** `components/safety/safety.c`
+no longer chops ALARM through LEDC at 4 kHz, so **C6 is closed**. The bench
+checklist gained a matching check (three ~500 ms beeps; a weak or raspy buzz
+means the pin is being chopped again).
+
+**The merge itself.** Every generated artifact conflicted — board, schematic,
+eleven gerbers, drill, zip, PDFs, renders — because both sides had
+regenerated them. None was hand-merged: the *sources* were merged, then the
+whole set was rebuilt from them, which is the only resolution that can be
+right for derived files. Result:
+
+| Gate | Result (2026-09-21, post-merge) |
+|---|---|
+| Router | **0 nets unrouted** at pass 4 |
+| `kicad-cli pcb drc` | **0 violations, 0 unconnected pads, 0 footprint errors** |
+| `make pcb-check` | exit 0 — now 15 checkers, including #355's `check_usb_pair` (**OK** with C46 present) |
+| Netlist / uuid round-trip | 102 nets, 0 mismatches; 1835 uuids, 0 minted, 0 dropped |
+| Placement / sourcing | 134 parts / 40 LCSC land patterns; 147 sourced parts |
+| C46 | present in BOM and CPL at (97.500, -113.250) rot 0, unchanged by the merge |
+| Feeder fees | 11 lines / $33 |
+| Host tests | 12/12 |
+
+The only thing the merge changed about C46 is nothing: #355's work is all in
+the north-west corner (J1, U4, D2) and C46 is in the south-east, so it
+re-routed around it and the pair checker still passes.
 
 ### Verification basis
 

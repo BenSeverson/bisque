@@ -143,6 +143,40 @@ class Seg:
         return math.hypot(x - px, y - py) - self.w / 2.0
 
 
+class PairNet(object):
+    """Two net names the clearance model treats as ONE net.
+
+    route_pair() routes a differential pair as a single fat track down the
+    pair's centreline, and while it does so neither member's copper - the
+    hand-drawn escapes at J1, the pass-through under the TVS - may count as
+    an obstacle. Every clearance test in this file is written `o.net == net`
+    against a str, so rather than teach each of them about pairs this object
+    answers that comparison for both names: `"USB_DP" == PairNet("USB_DP",
+    "USB_DN")` is True, because str's __eq__ returns NotImplemented for a
+    foreign type and Python then asks the PairNet. None (a no-net pad) and
+    every other net compare unequal, exactly as they would against a str.
+    Hashable, so it can key the blocked/via memo like a net name does.
+    """
+    __slots__ = ("a", "b")
+
+    def __init__(self, a, b):
+        self.a, self.b = a, b
+
+    def __eq__(self, other):
+        if isinstance(other, PairNet):
+            return (self.a, self.b) == (other.a, other.b)
+        return other == self.a or other == self.b
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __hash__(self):
+        return hash((self.a, self.b))
+
+    def __repr__(self):
+        return "%s/%s" % (self.a, self.b)
+
+
 class Router:
     def __init__(self, x0, y0, x1, y1, edge_margin=0.65):
         self.x0, self.y0, self.x1, self.y1 = x0, y0, x1, y1
@@ -288,7 +322,11 @@ class Router:
         return (int(round((x - self.x0) / GRID)), int(round((y - self.y0) / GRID)))
 
     def _begin(self, net):
-        if self._memo_net != net:
+        # Type-aware on purpose: a PairNet compares equal to either of its
+        # member names, and a memo built for one member is not valid for
+        # the pair (or the reverse) - the clearance semantics differ.
+        if self._memo_net is None or type(self._memo_net) is not type(net) \
+           or self._memo_net != net:
             self._memo = {}
             self._memo_net = net
 
@@ -499,7 +537,8 @@ class Router:
         return max(dx, dy) + 0.41421 * min(dx, dy)
 
     def _astar(self, net, width, srcs, goal, goals, via_cost,
-               wrong_layer_cost, layer_pref, allow_via):
+               wrong_layer_cost, layer_pref, allow_via, first_dir=None,
+               last_dir=None):
         """Octilinear (45-degree) A*. Diagonal steps additionally require both
         adjacent orthogonal cells to be free so the trace body never clips an
         obstacle corner. Bend cost is graded: 45-degree turns are cheap,
@@ -517,17 +556,25 @@ class Router:
             if node in visited:
                 continue
             visited.add(node)
-            i, j, l = node
-            if node in goals:
-                path = [node]
+            i, j, l = node[:3]
+            # A goal is accepted when popped as itself (no last_dir) or as
+            # the 4-tuple marker pushed below for an arrival in last_dir.
+            if (len(node) == 4) or (last_dir is None and node in goals):
+                path = [node[:3]]
                 cur = node
                 while best[cur][1] is not None:
                     cur = best[cur][1]
-                    path.append(cur)
+                    path.append(cur[:3])
                 path.reverse()
                 return path
             par = best[node][1]
             for di, dj, base in self.DIRS:
+                # route_pair() pins the pair's first step to the direction
+                # its hand-drawn lead-in already points: the two tracks are
+                # offset perpendicular to the direction of travel, so the
+                # first step decides where the lead-in has to have ended.
+                if par is None and first_dir is not None and (di, dj) != first_dir:
+                    continue
                 ni, nj = i + di, j + dj
                 if not (0 <= ni < self.nx and 0 <= nj < self.ny):
                     continue
@@ -535,8 +582,19 @@ class Router:
                 if nnode in visited:
                     continue
                 is_goal = nnode in goals
-                if not is_goal and self.blocked(net, width, ni, nj, l):
-                    continue
+                # route_pair() can also pin the LAST step: the two tracks are
+                # offset perpendicular to the arrival, and a pair arriving on
+                # a diagonal fans into a pad row with its fans converging
+                # below clearance before they open. A goal reached in any
+                # other direction is only a node on the way to one reached
+                # correctly, and is pushed as such (and clearance-checked as
+                # such); the accepted arrival is a separate marker node so
+                # that a wrong-direction visit does not consume it.
+                accept = is_goal and (last_dir is None or (di, dj) == last_dir)
+                if not (is_goal and last_dir is None) and \
+                   self.blocked(net, width, ni, nj, l):
+                    if not accept:
+                        continue
                 if di and dj:
                     # no corner-clipping between diagonal neighbours
                     if self.blocked(net, width, i + di, j, l) or                        self.blocked(net, width, i, j + dj, l):
@@ -553,11 +611,20 @@ class Router:
                         else:
                             step += 1.5       # reversal / acute: avoid
                 ng = g + step
+                h = self._octile(ni - gx, nj - gy)
+                if accept and last_dir is not None:
+                    mark = (ni, nj, l, 1)
+                    if mark not in visited:
+                        old = best.get(mark)
+                        if old is None or ng < old[0] - 1e-9:
+                            best[mark] = (ng, node)
+                            heapq.heappush(openq, (ng + h, ng, mark))
+                    if self.blocked(net, width, ni, nj, l):
+                        continue            # accepted as a goal, not as transit
                 old = best.get(nnode)
                 if old is None or ng < old[0] - 1e-9:
                     best[nnode] = (ng, node)
-                    heapq.heappush(openq, (ng + self._octile(ni - gx, nj - gy),
-                                           ng, nnode))
+                    heapq.heappush(openq, (ng + h, ng, nnode))
             if allow_via:
                 nnode = (i, j, 1 - l)
                 # The track resumes at this node on the far layer, so that
@@ -619,6 +686,287 @@ class Router:
             srcs[node] = None
         # memo entries for own-net copper stay valid (own net never blocks self)
 
+
+    # --- differential pair -------------------------------------------------
+    def _pair_ends(self, pair, W, layer, cx, cy, radius):
+        """Grid nodes within `radius` of (cx, cy) that a track of width W may
+        occupy, nearest first. Ties break on (i, j) so the choice is
+        deterministic."""
+        i0, j0 = self.snap(cx, cy)
+        span = int(math.ceil(radius / GRID))
+        out = []
+        for di in range(-span, span + 1):
+            for dj in range(-span, span + 1):
+                i, j = i0 + di, j0 + dj
+                if not (0 <= i < self.nx and 0 <= j < self.ny):
+                    continue
+                x, y = self.cell_xy(i, j)
+                d = math.hypot(x - cx, y - cy)
+                if d > radius + 1e-9 or self.blocked(pair, W, i, j, layer):
+                    continue
+                out.append((round(d, 6), i, j))
+        return [(i, j) for (_d, i, j) in sorted(out)]
+
+    def _seg_clear(self, net, layer, need, a, b, step=0.05):
+        """Sampled clearance of the segment a-b, as hop_clear() does it."""
+        d = math.hypot(b[0] - a[0], b[1] - a[1])
+        n = max(1, int(d / step))
+        for k in range(n + 1):
+            t = k / float(n)
+            if not self._clear_of(net, a[0] + (b[0] - a[0]) * t,
+                                  a[1] + (b[1] - a[1]) * t, layer, need):
+                return False
+        return True
+
+    @staticmethod
+    def _simplify(pts):
+        out = [pts[0]]
+        for k in range(1, len(pts) - 1):
+            (x0, y0), (x1, y1), (x2, y2) = out[-1], pts[k], pts[k + 1]
+            if abs((x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1)) < 1e-9:
+                continue
+            out.append(pts[k])
+        out.append(pts[-1])
+        return out
+
+    def _pair_chamfer(self, pair, W, layer, pts, c=2 * GRID):
+        """Cut every right angle in the centreline to a 45-degree chamfer of
+        leg `c`, where the chamfer body clears foreign copper at the pair's
+        full width.
+
+        Offsetting a polyline moves copper: the outer track of a 90-degree
+        corner is longer than the inner one by two offsets (0.5 mm here), and
+        at 45 degrees by a fifth of that. miter_corners() would soften the
+        corner afterwards, but one track at a time with its own leg length,
+        which is how a matched pair picks up skew. Doing it on the centreline
+        keeps both tracks the same shape. A chamfer that does not clear is
+        left as the right angle it was.
+        """
+        out = [pts[0]]
+        need = W / 2.0 + CLEAR
+        for k in range(1, len(pts) - 1):
+            p0, p1, p2 = out[-1], pts[k], pts[k + 1]
+            u1 = (p1[0] - p0[0], p1[1] - p0[1])
+            u2 = (p2[0] - p1[0], p2[1] - p1[1])
+            l1, l2 = math.hypot(*u1), math.hypot(*u2)
+            if l1 < 2 * c - 1e-9 or l2 < 2 * c - 1e-9 or \
+               abs(u1[0] * u2[0] + u1[1] * u2[1]) > 1e-9 * l1 * l2 + 1e-9:
+                out.append(p1)          # not a right angle, or too short
+                continue
+            a = (p1[0] - u1[0] / l1 * c, p1[1] - u1[1] / l1 * c)
+            b = (p1[0] + u2[0] / l2 * c, p1[1] + u2[1] / l2 * c)
+            if self._seg_clear(pair, layer, need, a, b):
+                out.extend([a, b])
+            else:
+                out.append(p1)
+        out.append(pts[-1])
+        return out
+
+    @staticmethod
+    def _offset(pts, delta):
+        """Polyline `pts` shifted by `delta` along its left normal, with
+        mitred joins. Positive delta is the side where cross(dir, p) > 0."""
+        def normal(a, b):
+            dx, dy = b[0] - a[0], b[1] - a[1]
+            L = math.hypot(dx, dy)
+            return (-dy / L, dx / L)
+        ns = [normal(a, b) for a, b in zip(pts, pts[1:])]
+        out = [(pts[0][0] + delta * ns[0][0], pts[0][1] + delta * ns[0][1])]
+        for k in range(1, len(pts) - 1):
+            n1, n2 = ns[k - 1], ns[k]
+            dot = n1[0] * n2[0] + n1[1] * n2[1]
+            f = delta / (1.0 + dot)
+            out.append((pts[k][0] + f * (n1[0] + n2[0]),
+                        pts[k][1] + f * (n1[1] + n2[1])))
+        out.append((pts[-1][0] + delta * ns[-1][0],
+                    pts[-1][1] + delta * ns[-1][1]))
+        return out
+
+    @staticmethod
+    def _seg_gap(s1, s2, step=0.05):
+        """Centre-to-centre distance between two segments, sampled."""
+        def pts(s):
+            (ax, ay), (bx, by) = s
+            n = max(1, int(math.hypot(bx - ax, by - ay) / step))
+            return [(ax + (bx - ax) * k / n, ay + (by - ay) * k / n) for k in range(n + 1)]
+        best = float("inf")
+        for (x, y) in pts(s1):
+            d = Seg(None, 0, s2[0][0], s2[0][1], s2[1][0], s2[1][1], 0.0).dist(x, y)
+            if d < best:
+                best = d
+        return best
+
+    @staticmethod
+    def _cross_side(a, b, p):
+        """Sign of p relative to the directed line a->b (0 on the line)."""
+        c = (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])
+        return 0 if abs(c) < 1e-9 else (1 if c > 0 else -1)
+
+    @classmethod
+    def _segs_cross(cls, a, b, c, d):
+        """Proper crossing of segments a-b and c-d (shared endpoints don't
+        count)."""
+        s1, s2 = cls._cross_side(a, b, c), cls._cross_side(a, b, d)
+        s3, s4 = cls._cross_side(c, d, a), cls._cross_side(c, d, b)
+        return s1 * s2 < 0 and s3 * s4 < 0
+
+    def route_pair(self, net_a, net_b, start, goal, width, gap, layer=0,
+                   first_dir=None, last_dir=None, fan_r=2.0):
+        """Route nets a and b as an edge-coupled pair on one layer.
+
+        `start` and `goal` are ((xa, ya), (xb, yb)): where each net's copper
+        is at the two ends - a hand-drawn lead-in's last point, a pad centre.
+        The pair is found as ONE track of width 2*width+gap down the
+        centreline (so clearance is checked for the pair's full envelope, and
+        neither net's own copper counts - see PairNet), then split into two
+        tracks `width` wide, `gap` apart, and each joined to its terminal by
+        a straight fan. Which side each net takes is read off the geometry
+        at both ends and has to agree, or the pair would need a crossover;
+        that is reported rather than routed. No vias: a via pair cannot hold
+        the gap, and the one pair on this board fits one layer.
+
+        `first_dir` pins the first step, for a lead-in that already ends in
+        a coupled straight; `last_dir` pins the last, so the pair meets a
+        pad row square-on and its fans open from the pair pitch rather than
+        first converging below it. The fans are validated for clearance and for not
+        crossing each other or the other net's track; a start node whose fans
+        fail is skipped for the next nearest, so the ends can be reshaped by
+        moving copper rather than by editing this.
+
+        Returns {net: [(x, y), ...]} - each track's polyline, fans included.
+        Everything committed is `fixed`: rip-up may not touch it.
+        """
+        pair = PairNet(net_a, net_b)
+        # The pair's own PADS stay obstacles while it SEARCHES. Only the
+        # lead-in copper (Segs) is shared: a fat centreline that ran across
+        # one member's pad would be one track over a foreign pad once split,
+        # and the terminal pads are where the two tracks part company by
+        # design - the fans make that last hop, one net at a time, and for
+        # THAT test each pad has to be its own net again. So the pads are
+        # relabelled around the search and restored around the validation.
+        own_pads = [(o, o.net) for o in self.pads if o.net == pair]
+
+        def hide_pads(hide):
+            for o, net in own_pads:
+                o.net = "__pair_pad__" if hide else net
+            self._memo, self._memo_net = {}, pair
+
+        try:
+            return self._route_pair(pair, net_a, net_b, start, goal, width,
+                                    gap, layer, first_dir, last_dir, fan_r,
+                                    hide_pads)
+        finally:
+            hide_pads(False)
+            self._memo, self._memo_net = {}, None
+
+    def _route_pair(self, pair, net_a, net_b, start, goal, width, gap, layer,
+                    first_dir, last_dir, fan_r, hide_pads):
+        hide_pads(True)
+        W = 2 * width + gap
+        d = (width + gap) / 2.0
+        (a0, b0), (a1, b1) = start, goal
+        c0 = ((a0[0] + b0[0]) / 2.0, (a0[1] + b0[1]) / 2.0)
+        c1 = ((a1[0] + b1[0]) / 2.0, (a1[1] + b1[1]) / 2.0)
+        starts = self._pair_ends(pair, W, layer, c0[0], c0[1], fan_r)
+        goals = self._pair_ends(pair, W, layer, c1[0], c1[1], fan_r)
+        if not starts or not goals:
+            raise RuntimeError("pair %s: no free node within %.2f mm of %s"
+                               % (pair, fan_r, "start" if not starts else "goal"))
+        gi, gj = self.snap(c1[0], c1[1])
+        need = width / 2.0 + CLEAR
+        why = []
+        for (si, sj) in starts:
+            # A* stops at whichever goal node is cheapest, and the cheapest is
+            # often the wrong one: a node the pair reaches with both terminals
+            # on the same side, or from which a fan would cross the other
+            # track. So a goal that fails validation is struck off and the
+            # search re-run from the same start, until the set is exhausted.
+            goal_set = set((i, j, layer) for (i, j) in goals)
+            while goal_set:
+                hide_pads(True)
+                path = self._astar(pair, W, {(si, sj, layer): None}, (gi, gj),
+                                   goal_set, 0.0, 0.0, layer, False,
+                                   first_dir=first_dir, last_dir=last_dir)
+                if path is None:
+                    # Free space is one connected thing: a goal this start
+                    # cannot reach, no neighbouring start can either.
+                    why.append("no path from (%.2f, %.2f) to %d goal(s)"
+                               % (self.cell_xy(si, sj) + (len(goal_set),)))
+                    raise RuntimeError("pair %s route failed: %s"
+                                       % (pair, "; ".join(why[-6:])))
+                goal_set.discard(path[-1])
+                pts = self._simplify([self.cell_xy(i, j) for (i, j, _l) in path])
+                pts = self._pair_chamfer(pair, W, layer, pts)
+                hide_pads(False)
+                # Which side of the centreline each net rides: the assignment
+                # with the shorter fans. A side test at each end was tried
+                # first and is wrong for a pair arriving on a diagonal, where
+                # both pads lie to one side of the extended centreline and
+                # the fans simply open by different amounts. Whether the
+                # fans cross is tested below, and that is the real question.
+                def fans(sign):
+                    tr = {net_a: self._offset(pts, sign * d),
+                          net_b: self._offset(pts, -sign * d)}
+                    L = sum(math.hypot(p[0] - q[0], p[1] - q[1]) for p, q in
+                            ((a0, tr[net_a][0]), (b0, tr[net_b][0]),
+                             (tr[net_a][-1], a1), (tr[net_b][-1], b1)))
+                    return L, tr
+                tracks = min((fans(1), fans(-1)), key=lambda t: t[0])[1]
+                ok = True
+                for net, term0, term1 in ((net_a, a0, a1), (net_b, b0, b1)):
+                    tr = tracks[net]
+                    other = tracks[net_b if net is net_a else net_a]
+                    # fans: terminal -> first track point, last track point -> terminal
+                    for (fa, fb, first) in ((term0, tr[0], True), (tr[-1], term1, False)):
+                        if math.hypot(fb[0] - fa[0], fb[1] - fa[1]) < 1e-6:
+                            continue
+                        # Checked as the net itself, not the pair: near the
+                        # terminals the other net's pads and lead-in are
+                        # foreign copper this fan must clear.
+                        if not self._seg_clear(net, layer, need, fa, fb):
+                            ok = False
+                            why.append("%s fan (%.2f,%.2f)-(%.2f,%.2f) not clear"
+                                       % ((net,) + fa + fb))
+                        ends = (other[0], other[1]) if first else (other[-2], other[-1])
+                        if self._segs_cross(fa, fb, ends[0], ends[1]):
+                            ok = False
+                            why.append("%s fan crosses the other track" % net)
+                    for p, q in zip(tr, tr[1:]):
+                        if not self._seg_clear(net, layer, need, p, q):
+                            ok = False
+                            why.append("%s track (%.2f,%.2f)-(%.2f,%.2f) not clear"
+                                       % ((net,) + p + q))
+                            break
+                if ok:
+                    # The two fans at one end against each other: neither is
+                    # in the model yet, so this is the only test they get.
+                    for label, fa, fb in (
+                            ("start", (a0, tracks[net_a][0]), (b0, tracks[net_b][0])),
+                            ("goal", (tracks[net_a][-1], a1), (tracks[net_b][-1], b1))):
+                        if self._segs_cross(fa[0], fa[1], fb[0], fb[1]):
+                            ok = False
+                            why.append("%s fans cross" % label)
+                        elif self._seg_gap(fa, fb) < width + CLEAR - 1e-9:
+                            ok = False
+                            why.append("%s fans %.2f mm apart" % (label, self._seg_gap(fa, fb)))
+                if not ok:
+                    if net_a in DEBUG_NETS or net_b in DEBUG_NETS:
+                        print("    DBG pair start (%.2f, %.2f) rejected: %s"
+                              % (self.cell_xy(si, sj) + ("; ".join(why[-4:]),)))
+                    continue
+                out = {}
+                for net, term0, term1 in ((net_a, a0, a1), (net_b, b0, b1)):
+                    poly = [term0] + tracks[net] + [term1]
+                    poly = [p for k, p in enumerate(poly)
+                            if k == 0 or math.hypot(p[0] - poly[k - 1][0],
+                                                    p[1] - poly[k - 1][1]) > 1e-6]
+                    for p, q in zip(poly, poly[1:]):
+                        self.add_seg(net, layer, p[0], p[1], q[0], q[1], width,
+                                     fixed=True)
+                    out[net] = poly
+                self._memo, self._memo_net = {}, None
+                return out
+        raise RuntimeError("pair %s route failed: %s" % (pair, "; ".join(why[:6])))
 
     # --- post-pass: 45-degree mitering of remaining right-angle corners ---
     def miter_corners(self, max_miter=1.0, min_miter=0.25):

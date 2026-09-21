@@ -4,7 +4,7 @@
  * Internal helpers for the safety watchdog. NOT a public API — exposed only so
  * the host test harness (tests/host/) can unit-test the pure decision logic
  * without compiling the full safety.c translation unit (which pulls in GPIO,
- * LEDC, esp_timer and an endless FreeRTOS task loop).
+ * esp_timer and an endless FreeRTOS task loop).
  *
  * Anything declared here is permitted to change without notice.
  */

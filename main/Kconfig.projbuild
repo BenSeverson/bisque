@@ -86,6 +86,9 @@ menu "Bisque Configuration"
             default 7
             help
                 GPIO for buzzer or relay triggered on firing complete or error.
+                Driven as a plain DC level, so it suits an ACTIVE buzzer (one
+                with its own oscillator, like the board's TMB12A05) or a relay;
+                a passive piezo needs a tone and will stay silent.
                 Set to -1 to disable.
 
         config KILN_PIN_VENT
