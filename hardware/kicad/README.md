@@ -114,45 +114,103 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   itself; use ungrounded-junction (isolated-tip) K-type probes on both
   channels. This is a documentation obligation, not something the board
   enforces electrically.
-- **SSR drive ×2, direct low-side MOSFET**: screw terminals **J4** (zone 1) /
-  **J9** (zone 2), each **pin 1 = `SSR_EN`** (board +5 V, gated by the
-  hardware watchdog — see below) and **pin 2 = the switched low side**
-  (`SSR1_OUT` / `SSR2_OUT`). Per channel: GPIO → 100 Ω series resistor → gate
-  of an AO3400A (**Q5** zone 1, **Q6** zone 2), source to GND, drain on the
-  terminal, with a **10 kΩ gate pulldown** (R7/R20) holding the FET off
-  through boot and reset and an amber indicator LED + 680 Ω across the
-  terminal pair, so the LED shows real drive state. The board supplies the
-  SSR control loop. (The SSRs themselves and all mains wiring stay outside
-  this board.)
+- **SSR drive ×2, 24 V opto-driven low-side MOSFET**: screw terminals **J4**
+  (zone 1) / **J9** (zone 2), each **pin 1 = `VIN_P`** (24 V, fused and
+  TVS-clamped, **always live**) and **pin 2 = the switched low side**
+  (`SSR1_OUT` / `SSR2_OUT`). Per channel: GPIO → 220 Ω → the LED of an
+  TLP291 (**U8** zone 1, **U9** zone 2) → GND; the opto's collector sits on
+  `SSR_EN` (+5 V) and its emitter drives the gate of a **CJ2310** (**Q5** /
+  **Q6**), a 60 V logic-level N-channel MOSFET, with a **10 kΩ gate pulldown**
+  (R7/R20). Both channels return through **Q7**, a third CJ2310 that is the
+  watchdog's gate (see below). An amber indicator LED + 4.7 kΩ sits across
+  each terminal pair, so it lights only when the channel is actually
+  conducting. **D9**/**D10** freewheel each terminal for inductive loads. The
+  board supplies the SSR control loop. (The SSRs themselves and all mains
+  wiring stay outside this board.)
 
-  **This is rev A's topology, restored.** Rev B opto-isolated both channels
-  with an LTV-817S each (`U8`/`U9`), floating `J4`/`J9` as dry contacts,
-  carving a four-layer pour keepout across the opto row, adding `SJ3`/`SJ4`
-  to optionally tie each opto collector to board +5 V, and checking the
-  barrier with `check_isolation.py`. That was **reversed** before fab: an
-  optocoupler only isolates if the SSR control loop is powered from a supply
-  that is *not this board*, and this board's is. Close the loop through board
-  `+5V` and board `GND` — exactly what `SJ3`/`SJ4` existed to permit — and
-  both sides of the "barrier" are one SELV domain, leaving a sacrificial part
-  in series with the SSR input. The as-built terminals could not have closed
-  an isolated loop anyway: neither carried a `GND` pin. So the optos, the
-  jumpers, the pour and router keepouts and `check_isolation.py` are all gone,
-  and the freed area went back to pour and routing. Do not re-add
-  opto-isolation without also specifying an off-board control supply and a
-  terminal that carries it.
+  **Current budget, and it is a limit rather than a note.** F1 holds at
+  750 mA and U11 takes ~250 mA of it, so the two channels share ~400 mA. Two
+  SSR inputs plus their indicators is ~40 mA, a 10× margin; one small DC
+  contactor coil per channel fits; two large ones do not.
 
-  **Hardware watchdog (`SJ2`, "WDT DEFEAT").** `SSR_EN` — the +5 V rail
-  feeding *both* SSR terminals and both indicator LEDs — is supplied by Q4, a
-  P-channel high-side MOSFET (AO3401A) whose gate node `SSR_PG` is held down
-  by Q3, itself held on by **U10**, an SN74LVC1G123 retriggerable monostable
-  driven from GPIO 36 (`WDT_KICK`); R47 (100 kΩ) pulls `SSR_PG` up as the
-  fail-safe. The watchdog moved to the supply side when the optocouplers were
-  reverted: the two-parts-cheaper stacked-low-side alternative would have left
-  the channel MOSFET only 140 mV of Vgs margin to the AO3400A's lowest
-  guaranteed `R_DS(on)` point before subtracting Q3's own
-  (datasheet-unbounded) drop. Going high-side cuts Q3's load from ~30 mA to
-  50 µA and puts both switching FETs past a guaranteed spec point — see the
-  arithmetic in `generator/design.py`'s watchdog block.
+  **The optocouplers are containment, not isolation, and that distinction is
+  load-bearing.** Rev B opto-*isolated* both channels — dry-contact terminals,
+  a four-layer pour keepout across the opto row, `SJ3`/`SJ4` to tie each
+  collector to board +5 V, and `check_isolation.py` — and that was **reversed**
+  before fab, because an optocoupler only isolates if the SSR control loop is
+  powered from a supply that is *not this board*, and this board's is.
+  **That reasoning still stands and is not being overturned.** These terminals
+  are still board-powered, both sides still share `GND`, and there is still no
+  pour keepout, no router keepout, no rule area and no `check_isolation.py`.
+  Do not re-add any of them; read commit `93a31d7` first.
+
+  What changed is the failure the parts are bought for. At 5 V, a channel
+  MOSFET failing gate-to-drain put 5 V through 100 Ω into a GPIO and the
+  ESP32's clamp survived it. At 24 V the same single failure puts ~240 mA into
+  that clamp and takes the module with it. The opto removes the conductor: the
+  only thing the MCU touches is an LED. It is also not more parts than the
+  alternative — a gate-to-GND zener contains the same fault for the same one
+  part per channel, but contains it *by conducting*, so it has to survive the
+  fault to work and fails open silently.
+
+  **The opto is a TLP291 in SOP-4, not the LTV-817S this started as, and the
+  reason is geometry.** The SMD-DIP4 body is 12.04 mm across its courtyard;
+  the corridor between `J4`/`J9` and the rest of the block is ~5.5 mm and has
+  to carry both these parts and the four per-terminal legends (`24V`/`OUT`,
+  each locked to its own screw's y and free only in x). A 12 mm opto leaves
+  those legends nowhere to go, and they print on the terminal body — three
+  `check_silk` failures that no amount of re-spacing fixes, because the
+  corridor is simply too narrow. At 8.50 × 3.10 mm it opens to ~6.7 mm.
+  It costs one Extended feeder where the LTV-817S was Basic, and buys 80 V
+  `V_CEO` against 35 V, which is free margin on a 24 V board.
+
+  The 220 Ω is sized against the ESP32's **guaranteed** `V_OH`
+  (0.8 × VDD = 2.64 V), not against 3.3 V: the opto's CTR bin is only
+  specified at `I_F` = 5 mA and falls off steeply below it, and 330 Ω at that
+  corner gives 4.7 mA. 220 Ω gives 7.0 mA there, 5.6 mA with `V_F` also at
+  its maximum, and 10.0 mA typical — half the ESP32's recommended source
+  current.
+
+  The collector sitting on the **5 V** rail rather than on 24 V is deliberate:
+  an emitter follower into R7 saturates, so the gate lands at
+  `5 V − V_CE(sat)` ≈ 4.8 V — set by the rail, not by the opto's CTR. Run the
+  collector from 24 V instead and the gate goes to ~24 V, past the MOSFET's
+  ±20 V `V_GS`, and you need a zener to get back to where the 5 V rail
+  already was for free.
+
+  **Hardware watchdog (`SJ2`, "WDT DEFEAT").** `SSR_EN` — since rev B.2 a
+  +5 V **gate-drive** rail rather than the terminal supply — is supplied by
+  Q4, a P-channel high-side MOSFET (AO3401A) whose gate node `SSR_PG` is held
+  down by Q3, itself held on by **U10**, an SN74LVC1G123 retriggerable
+  monostable driven from GPIO 36 (`WDT_KICK`); R47 (100 kΩ) pulls `SSR_PG` up
+  as the fail-safe. `SSR_EN` feeds both opto collectors *and* Q7's gate, so
+  when it collapses the channels open **two independent ways**: the optos lose
+  their collector rail and Q7 loses its gate. **R18** (10 kΩ) is what makes
+  that work — `SSR_EN` is Q4's *drain*, so with Q4 off nothing would define it
+  and Q7's gate would float, which is the same fail-dangerous bug R49 exists
+  to fix one node upstream.
+
+  **Q7 is in the shared return, and it is not the "stacked low side" this
+  design rejected.** The watchdog has to be able to open a channel whose
+  MOSFET has failed *short* — the case a firmware-owned interlock cannot cover
+  — so it stays in the load path. Keeping it on the high side at 24 V would
+  need a 60 V P-channel switch (the only fee-free one at JLCPCB is a
+  50 V/130 mA part that caps the terminals below their own current budget)
+  plus a divider to hold its `V_GS` inside ±20 V off a rail that reaches 37 V
+  while D8 clamps a sustained fault — putting the board's most safety-critical
+  node on a divider referenced to the fault. Q7 does the same job with the
+  same part as the channels and leaves U10/Q3/Q4/R47/SJ2 untouched in the 5 V
+  domain. The rejected "topology A" made **Q3** the series element back when
+  the charge pump could only lift its gate to 2.16 V, so its drop was
+  unbounded; Q7 is a dedicated switch gated at ~5 V, where the CJ2310 is
+  specified at 125 mΩ — 5 mV at 40 mA. The objection was to an unbounded drop,
+  and this one has a datasheet line under it. **R22** (100 kΩ) pins `SSR_RTN`
+  down so that with everything off it cannot drift to 24 V and put −24 V
+  across Q5/Q6's gates. It is 100 kΩ rather than 10 kΩ because of the very
+  fault the watchdog is in the load path *for*: with a channel MOSFET failed
+  short and the window expired, R22 in series with the SSR's own ~1.2 kΩ
+  input is all that is left, and 10 kΩ passes 2.1 mA — inside the trigger
+  range of an SSR-40DA-class input. 100 kΩ passes 237 µA.
 
   Every **rising edge** on `WDT_KICK` restarts U10's window, so `Q` stays high
   only while firmware keeps kicking; a pin wedged at either level delivers no
@@ -309,8 +367,11 @@ the full measured escalation ladder.
 Both planes run whole: there are **no rule areas** on this board. Rev B
 carved a four-layer pour keepout across the SSR optocoupler row and had
 `generator/check_isolation.py` confirm nothing landed in it; both went with
-the optocouplers (see "SSR drive ×2" above), returning ~21 × 24 mm of pour
-and routing area on every layer.
+the opto-*isolated* design (see "SSR drive ×2" above), returning ~21 × 24 mm
+of pour and routing area on every layer. **U8/U9 returning in rev B.2 did
+not bring the keepout back** — they are a containment part on the gate drive,
+in ordinary pour and routing area, and re-adding a rule area on their account
+would re-introduce a cost for a barrier the board does not claim.
 
 ### The USB pair is routed as a pair, and first
 
@@ -1643,10 +1704,13 @@ instead.)
 
 ## Safety
 
-This board switches an external SSR's **control input** only — board +5 V
-out, switched low side back, both channels. It is **not** opto-isolated: rev
-B built that and reverted it, because an optocoupler only isolates when the
-SSR control loop is powered off-board and this board powers it.
+This board switches an external SSR's **control input** only — board 24 V
+out, switched low side back, both channels. The optocouplers on the gate
+drive are **not** an isolation barrier: rev B built an opto-*isolated*
+version and reverted it, because an optocoupler only isolates when the SSR
+control loop is powered off-board and this board powers it. U8/U9 keep a
+24 V gate fault off the GPIO; they do not separate the domains, which still
+share `GND`.
 
 **Consequence — use a genuinely isolated SSR.** `J4` and `J9` are now common
 with board `GND`, which is common with the USB shield and therefore with

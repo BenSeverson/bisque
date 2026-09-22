@@ -48,11 +48,11 @@ is active). "Module pin" is U1's pin number in `design.py`.
 | 14 | 22 | ADC2_3 | `AUX1` | Vent relay, via ULN2003 (U6) → J10.2 | `KILN_PIN_VENT` | **active** (default `14`, matches the PCB) |
 | 15 | 8 | ADC2_4 | `AUX2` | Aux channel 2, via U6 → J10.3 | `KILN_PIN_AUX2` | routed, default `-1`, **no driver** |
 | 16 | 9 | ADC2_5 | `AUX3` | Aux channel 3, via U6 → J10.4 | `KILN_PIN_AUX3` | routed, default `-1`, **no driver** |
-| 17 | 10 | ADC2_6 | `SSR1_CTRL` | SSR zone 1 MOSFET gate (Q5) | `KILN_PIN_SSR1` | active |
+| 17 | 10 | ADC2_6 | `SSR1_CTRL` | SSR zone 1 opto LED (U8) → Q5 gate | `KILN_PIN_SSR1` | active |
 | 18 | 11 | ADC2_7 | `I2C_SDA` | I2C data | `KILN_PIN_I2C_SDA` | routed, default `18`, **no driver** |
 | 19 | 13 | ADC2_8 | `USB_DN` | USB-C D− | — | fixed function |
 | 20 | 14 | ADC2_9 | `USB_DP` | USB-C D+ | — | fixed function |
-| 21 | 23 | — | `SSR2_CTRL` | SSR zone 2 MOSFET gate (Q6) | `KILN_PIN_SSR2` | routed, default `21`, **no driver** |
+| 21 | 23 | — | `SSR2_CTRL` | SSR zone 2 opto LED (U9) → Q6 gate | `KILN_PIN_SSR2` | routed, default `21`, **no driver** |
 | 35 | 28 | — | `TC2_CS` | Thermocouple 2 (MAX31856) CS | `KILN_PIN_TC2_CS` | routed, default `35`, **no driver** |
 | 36 | 29 | — | `WDT_KICK` | Hardware watchdog kick | `KILN_PIN_WDT_KICK` | firmware kicks at 5 Hz; **hardware not yet resized — see [WDT DEFEAT](#the-watchdog-jumper)** |
 | 37 | 30 | — | — | **spare** | — | free (freed by the quad-PSRAM module) |
@@ -141,8 +141,10 @@ mechanical microswitch in series with the element contactor.
 **`WDT_KICK` (36): firmware kicks a retriggerable one-shot.**
 GPIO 36 drives the B input of `U10`, an SN74LVC1G123 retriggerable monostable
 ([#307](https://github.com/BenSeverson/bisque/issues/307),
-`hardware/kicad/README.md` §"Hardware watchdog") gating the +5 V rail
-(`SSR_EN`) that feeds both SSR channels.
+`hardware/kicad/README.md` §"Hardware watchdog") gating the +5 V **gate-drive**
+rail (`SSR_EN`). `SSR_EN` feeds both opto collectors and Q7's gate, so losing
+it opens both channels two independent ways. The SSR terminals themselves are
+fed from `VIN_P` (24 V) and stay live; it is the switched low side that opens.
 
 Firmware toggles the pin at **5 Hz** — a rising edge every 200 ms — gated on
 `safety_task`'s heartbeat (`components/safety/wdt_kick.h`), against a

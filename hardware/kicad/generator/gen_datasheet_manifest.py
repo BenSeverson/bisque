@@ -58,11 +58,13 @@ DOC_FOR = {
     "ADE7953_Analog_Devices.pdf": "ADE7953ACPZ",
     "TLV1117LV_TI.pdf": "TLV1117LV33",
     "AO3400A_30V_Vds_5.7A_Id_N-Channel_MOSFET_SOT-23.pdf": "AO3400A",
+    "CJ2310_60V_Vds_3A_Id_N-Channel_MOSFET_SOT-23.pdf": "CJ2310",
     "AO3401A_-4.0A_Id_-30V_Vds_P-Channel_MOSFET_SOT-23.pdf": "AO3401A",
     "SN74LVC1G123_TI.pdf": "SN74LVC1G123",
     "MAX31856.pdf": "MAX31856MUD+",
     "TFOM_3.579545M_XO_C2838127.pdf": "3.579545MHz XO",
     "ULN2003A.pdf": "ULN2003A",
+    "TLP291_Toshiba_Photocoupler.pdf": "TLP291",
     "WS2812B_RGB_LED_with_integrated_controller.pdf": "WS2812B",
     # The module's own datasheet is the WROOM-1 sheet; Espressif documents the
     # -1 and -1U together and the pinout is identical (check_pinmap.py's
@@ -80,10 +82,14 @@ DOC_FOR = {
 # the deliberate alternative to deleting the file; anything in datasheets/ that
 # is in neither DOC_FOR nor here is reported as an orphan.
 RETIRED = {
-    "LTV-817_LiteOn_Photocoupler_M_S_S-TA_S-TA1_S-TP_RevC.pdf":
-        "U8/U9, removed in the opto-isolation reversal",
     "USBLC6-2SC6_ST.pdf":
         "U4 before it became an SRV05-4",
+    # U8/U9 are optocouplers again in rev B.2, but not THIS optocoupler: the
+    # LTV-817S's SMD-DIP4 body would not leave room for J4/J9's per-terminal
+    # legends, so the part is a TLP291 in SOP-4. Kept because it is the
+    # evidence behind the opto-isolation reversal, which still stands.
+    "LTV-817_LiteOn_Photocoupler_M_S_S-TA_S-TA1_S-TP_RevC.pdf":
+        "U8/U9 before the SOP-4 repackage; also the opto-isolation reversal",
 }
 
 # Values that are real parts but for which no datasheet is expected: generic
@@ -92,9 +98,8 @@ RETIRED = {
 NO_DATASHEET_EXPECTED = {
     "100R", "100R 1%", "100k", "100nF", "10k", "10nF", "10uF", "1M", "1k",
     "1uF", "22uF/25V", "33", "330R", "33nF", "4.7k", "4.7uF", "5.1k", "5R1",
-    "680R",
     # labels on connectors, jumpers, test points and mechanical parts
-    "5V_IN", "AC_SENSE_DNP", "AUX", "AUX_VP=5V", "BOOT", "CT", "DISPLAY",
+    "24V_IN", "AC_SENSE_DNP", "AUX", "AUX_VP=5V", "BOOT", "CT", "DISPLAY",
     "FIDUCIAL", "INPUTS", "M3", "NAV_SW", "QWIIC", "RESET", "SSR1", "SSR2",
     "TC1_K", "TC2_K", "TP", "USB-C", "WDT_DEFEAT", "amber", "green",
     "active 5V",

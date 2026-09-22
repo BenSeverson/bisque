@@ -14,6 +14,13 @@ Review lineage:
 - 2026-08-17 — full re-review after the fiducial / SRV05-4 /
   oscillator / pour / silk / schematic-fusing wave. Schematic `2f322e8e…`,
   board `2f26da9b…`, working tree clean at `75c551d`.
+- **2026-09-21 — SUPERSEDED IN PART by rev B.2** (24 V SSR outputs: terminals
+  moved from `SSR_EN` to `VIN_P`, `U8`/`U9` optocouplers back on the gate
+  drive as a *containment* part, `Q5`/`Q6` to 60 V CJ2310, new `Q7` watchdog
+  gate in the shared return, `R18`/`R22`, `D9`/`D10`). Everything below about
+  the SSR block, the `SSR_EN` rail and its track widths describes the
+  **previous** board. **Re-review before ordering.** The net-class, DRC,
+  fiducial, stack-up and USB-pair findings are unaffected.
 - 2026-09-02 — pre-prototype review of the board as committed at
   `7fa2fd9` (TLV1117LV33, SN74LVC1G123 one-shot, derived block legends):
   16 independent review lenses plus direct re-measurement of every

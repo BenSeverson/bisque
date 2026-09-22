@@ -1218,6 +1218,14 @@ ROUTE_ORDER = [
     # list; the touch five (R39-R43), routed immediately before them, land
     # within 1.5 mm of ideal, so the lane is there if they take it in time.
     ("SSR1_GATE", SIG_W), ("SSR2_GATE", SIG_W), ("SSR_PG", SIG_W),
+    # BUZZ_GATE joins them, and for exactly the same reason. It is three pads
+    # in a straight 8 mm line at x=65 (Q2 gate, R11, R8), entirely inside the
+    # switching block. Left at the bottom of this list it came out as a 25 mm
+    # B.Cu detour around x=68 over three vias, and the last 0.25 mm of that
+    # detour landed on the MIDDLE of its own earlier track rather than on an
+    # end - a `track_dangling` warning against a board whose report has to
+    # read 0/0/0. A net that boxed in is not a net to leave until last.
+    ("BUZZ_GATE", SIG_W),
     ("LCD_DC_R", SIG_W), ("LCD_MOSI_R", SIG_W), ("LCD_SCLK_R", SIG_W),
     ("LCD_CS_R", SIG_W), ("LCD_SDO_R", SIG_W),
     # CTA_N comes with them, and not by choice: promoting the three above took
@@ -1239,9 +1247,16 @@ ROUTE_ORDER = [
     # vias to 109.8 mm over 15 while A went 251.0 -> 129.3 mm. Promote the
     # pair or neither.
     ("CTB_P", 0.4), ("CTB_N", 0.4), ("CTB_F", SIG_W),
-    # the watchdog-gated SSR supply rail and the two switched low sides: the
-    # SSR loop current (~15 mA/channel plus its indicator) all lands here
-    ("SSR_EN", 0.5), ("SSR1_OUT", 0.4), ("SSR2_OUT", 0.4),
+    # The two switched low sides and the shared return they meet at. The SSR
+    # loop current (~20 mA/channel with its indicator, up to the ~200 mA per
+    # channel F1's budget allows) lands on these three, and SSR_RTN carries
+    # BOTH channels, so it is the widest of them.
+    ("SSR_RTN", 0.6), ("SSR1_OUT", 0.4), ("SSR2_OUT", 0.4),
+    # SSR_EN stopped being a supply rail in rev B.2 - it is gate drive now,
+    # ~1.5 mA into two opto collectors, Q7's gate and R18 - but it stays at
+    # 0.5 mm rather than SIG_W because it is the net that gates the heat and
+    # a fat, short, low-impedance run is worth more here than the lane is.
+    ("SSR_EN", 0.5),
     # aux bank outputs carry relay/solenoid coil current
     # AUX*_OUT run outermost-first: U6's output pins and J10's terminal
     # positions are in opposite order, so AUX1 and AUX3 have to swap sides.
@@ -1272,10 +1287,12 @@ ROUTE_ORDER = [
     ("CC1", SIG_W), ("CC2", SIG_W),
     # SSR driver chains, watchdog gate (the two gate nets are promoted above)
     ("SSR1_IND_K", SIG_W), ("SSR2_IND_K", SIG_W),
+    # Opto LED anodes: one resistor to one opto pin, wholly inside the block.
+    ("SSR1_LED_A", SIG_W), ("SSR2_LED_A", SIG_W),
     ("WDT_OK", SIG_W), ("WDT_CT_P", SIG_W),
     ("WDT_CT_N", SIG_W),
-    # buzzer, status LED
-    ("BUZZ_GATE", SIG_W), ("WS_DIN", SIG_W),
+    # status LED
+    ("WS_DIN", SIG_W),
     # thermocouple front-ends (short, local, kept matched)
     ("TC1_P", SIG_W), ("TC1_N", SIG_W), ("TC1_P_F", SIG_W), ("TC1_N_F", SIG_W),
     # CT front-end and its terminal
@@ -1676,7 +1693,12 @@ TEXT_WIDTH_RATIO = 0.98
 # (text, glyph size, gap below)
 TITLE_ROWS = [("BISQUE", 2.6, 0.7),
               ("KILN CONTROLLER", 1.2, 1.3),
-              ("REV B", 1.0, 0.7),
+              # B.2, not B: the SSR terminals went from +5 V to 24 V. A
+              # board that still said REV B would be indistinguishable on a
+              # bench from one whose pin 1 is 5 V, and the failure mode is a
+              # 5 V SSR input wired to 24 V. This is the one silk string on
+              # the board that has to move when the output stage does.
+              ("REV B.2", 1.0, 0.7),
               ("© 2026 Ben Severson", 0.9, 0.0)]
 # Clear board the nameplate keeps around itself and from the outline, mm. The
 # first is not slack: the parts bounding the pocket still have to put their
@@ -2036,9 +2058,16 @@ SILK = _TITLE_TEXTS + [
     block_legend("J4"),
     block_legend("J9"),
     # The two amber channel indicators. Each sits across its own terminal
-    # pair through a 680R, so it lights only when that channel is driven AND
-    # the watchdog rail is up - which is exactly the thing a person standing
-    # at the kiln wants to read off the board.
+    # pair through a 4.7k, so it lights only when that channel is actually
+    # CONDUCTING - which is exactly the thing a person standing at the kiln
+    # wants to read off the board.
+    #
+    # Since rev B.2 that pairs with the test point 4 mm east into a real
+    # diagnostic rather than two views of one signal. TPn reads what firmware
+    # COMMANDS (it is on SSRn_CTRL, the GPIO side of the optocoupler); the
+    # LED reads what the output STAGE did. High test point with a dark LED
+    # now means the fault is between them - opto, MOSFET, or the watchdog
+    # having dropped SSR_EN - and that is three parts, not thirty.
     #
     # Above each LED, and the two anchors differ only in y now that LED3 and
     # LED4 share a column (design.py SSR_IND_X). `ON` rather than a bare
@@ -2084,7 +2113,7 @@ SILK = _TITLE_TEXTS + [
     # where a person actually meets it: `SDA`/`SCL` on J7's pin row and
     # `QWIIC  I2C` on J14.
     # J14's own label. Every other user-facing connector on an edge says what
-    # it is - `5V IN`, `SSR1`, `TC1`, `IN1..GND` - and the Qwiic port arrived
+    # it is - `24V IN`, `SSR1`, `TC1`, `IN1..GND` - and the Qwiic port arrived
     # at the bottom edge next to the input terminal with nothing but a
     # designator. See BLOCK_LEGENDS above for what it says and why it sits
     # further off its block than any other name here.
@@ -2107,7 +2136,8 @@ SILK = _TITLE_TEXTS + [
     # "SJ2 must be FITTED on this rev, nothing kicks the watchdog GPIO yet".
     # That was true before the kick task landed and has been false since:
     # main.c calls safety_init_wdt(APP_PIN_WDT_KICK) and safety.c drives it
-    # at 5 Hz, so U10 holds the SSR rail up whenever firmware is alive.
+    # at 5 Hz, so U10 holds the SSR gate-drive rail up whenever firmware is
+    # alive.
     # Bridging SJ2 defeats the only interlock on this board that survives
     # firmware death. jlcpcb/README.md and docs/pin-assignments.md already
     # said so; this file was the one place still contradicting them.
@@ -2183,11 +2213,13 @@ PIN_LEGENDS = {
     # terminal a reader would otherwise guess wrong. `V+` says supply; the
     # three switched low sides are just numbered.
     "J10": ("E", 0.8, ("V+", "1", "2", "3")),
-    # Both SSR blocks are "+5V (watchdog-gated) and the switched low side",
-    # so the pin order is worth naming: hook the SSR's control + to `5V` and
-    # its - to `OUT`.
-    "J4": ("E", 0.8, ("5V", "OUT")),
-    "J9": ("E", 0.8, ("5V", "OUT")),
+    # Both SSR blocks are "24 V (always live) and the switched low side", so
+    # the pin order is worth naming: hook the SSR's control + to `24V` and
+    # its - to `OUT`. `24V` rather than `5V` since rev B.2, and it is the one
+    # legend on this board a stale copy could damage a part through - a 5 V
+    # SSR input wired to what the silk still called 5 V would see 24 V.
+    "J4": ("E", 0.8, ("24V", "OUT")),
+    "J9": ("E", 0.8, ("24V", "OUT")),
     # east-edge screw terminals, legends in the interior strip west of them
     "J3": ("W", 0.8, ("K+", "K-")),
     "J8": ("W", 0.8, ("K+", "K-")),

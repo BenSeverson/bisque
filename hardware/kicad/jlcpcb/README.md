@@ -70,7 +70,7 @@ a solder jumper, not a manufactured part, so it's deliberately excluded from
 assembly (see `NOT_ASSEMBLED` in `gen_jlc.py`).
 
 **Leave it open.** This package's board carries `U10`, an SN74LVC1G123
-retriggerable one-shot gating the SSR +5 V rail, and firmware kicks it on
+retriggerable one-shot gating the SSR +5 V gate-drive rail, and firmware kicks it on
 `GPIO 36` at 5 Hz (`KILN_PIN_WDT_KICK`, `components/safety/wdt_kick.h`) — the
 SSR outputs energize as soon as running firmware is supervising them.
 Bridging `SJ2` holds the rail on unconditionally, defeating the only
@@ -108,13 +108,27 @@ Bridge it only when `J10` pin 1 has nothing landed on it and the coils are
 at ~3.9 V, which is below many 5 V relays' must-operate voltage. 24 V coils
 off the shared supply are the supported arrangement.
 
-## SJ3 and SJ4 no longer exist
+## SJ3 and SJ4 no longer exist, and the optocouplers are back
 
 Earlier rev B builds had `SJ3`/`SJ4`, per-channel links from board +5 V to an
 optocoupler collector, and told you to leave them open to keep each SSR
-channel isolated. **Both the jumpers and the optocouplers are gone.** The
-board now drives each SSR channel with a direct low-side MOSFET and supplies
-the control loop itself: `J4`/`J9` pin 1 is +5 V (watchdog-gated), pin 2 is
-the switched low side. Opto-isolation only isolates when the control loop is
-powered off-board, which this one is not — see `hardware/kicad/README.md`.
-Only `SJ1` and `SJ2` remain.
+channel isolated. **The jumpers are gone for good.** Opto-*isolation* only
+isolates when the control loop is powered off-board, which this one is not —
+see `hardware/kicad/README.md`. Only `SJ1` and `SJ2` remain.
+
+`U8`/`U9` themselves **are** fitted again as of rev B.2, doing a different
+job: they sit between each GPIO and its MOSFET gate so that a gate-to-drain
+failure on a now-**24 V** channel cannot put 24 V into the ESP32. The
+terminals are still not isolated — both sides share `GND`.
+
+## SSR terminals are 24 V
+
+`J4`/`J9` pin 1 is **`VIN_P`, 24 V, always live** (fused by `F1`, clamped by
+`D8`); pin 2 is the switched low side. Wire the SSR's control **+** to the
+pin silkscreened `24V` and its **−** to `OUT`. **A 5 V-only SSR input wired
+here will be destroyed** — check the SSR's control range (an SSR-40DA-class
+input takes 3–32 V and is fine).
+
+The watchdog now gates the shared **return** (`Q7`) rather than the supply,
+so an expired window opens pin 2 and leaves pin 1 live. Budget **≤200 mA per
+channel**: `F1` holds at 750 mA and the buck takes ~250 mA of it.

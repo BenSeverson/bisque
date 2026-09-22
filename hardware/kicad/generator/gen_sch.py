@@ -114,14 +114,22 @@ GROUPS = [
      ["U3", "C13", "C14", "R14", "R15", "C15", "C16", "C17", "J3"]),
     ("THERMOCOUPLE 2 (load)  MAX31856\nT- floats to J8, biased via BIAS",
      ["U5", "C18", "C19", "R16", "R17", "C20", "C21", "C22", "J8"]),
-    ("SSR DRIVE x2\nlow-side AO3400A; indicator LED across each terminal",
-     ["Q5", "R6", "R7", "LED3", "R10", "J4",
-      "Q6", "R19", "R20", "LED4", "R21", "J9"]),
+    ("SSR DRIVE x2\n24 V terminals off VIN_P, switched low side by a 60 V\n"
+     "CJ2310. The GPIO drives an opto LED, never the gate: at 24 V a\n"
+     "gate-to-drain failure would otherwise put 240 mA into the pin.\n"
+     "Opto collectors sit on SSR_EN (5 V), so the gate lands at ~4.9 V\n"
+     "from the RAIL rather than from CTR. Q7 is the watchdog's gate in\n"
+     "the shared return - it opens a channel whose MOSFET failed short.\n"
+     "R18/R22 define SSR_EN and SSR_RTN when their switches are off.\n"
+     "NOT an isolation barrier - see design.py's SSR block.",
+     ["Q5", "U8", "R6", "R7", "LED3", "R10", "D9", "J4",
+      "Q6", "U9", "R19", "R20", "LED4", "R21", "D10", "J9",
+      "Q7", "R18", "R22"]),
     ("HARDWARE WATCHDOG\nU10 retriggerable one-shot: every rising edge on\n"
      "WDT_KICK restarts a ~2.2 s window, so Q stays high only while\n"
      "firmware keeps kicking. Q holds Q3 on; Q3 pulls SSR_PG down,\n"
-     "turning on high-side Q4, which supplies SSR_EN - the +5V rail\n"
-     "feeding BOTH SSR terminals and both indicators.\n"
+     "turning on high-side Q4, which supplies SSR_EN - the +5V GATE\n"
+     "DRIVE rail feeding both opto collectors and Q7's gate.\n"
      "R46/C38 set the window. R48 holds B low when the MCU is high-Z.\n"
      "R47 is the fail-safe pull-up. SJ2 = bring-up defeat, REMOVE for service.",
      # TP12 probes the timing node; living here lets the net fuse into one
@@ -164,12 +172,15 @@ GROUPS = [
 
 NOTES_TITLE = "NOTES  -  Bisque kiln controller, rev B"
 NOTES = (
-    "SSR terminals J4/J9: pin1 = SSR_EN (board +5V, watchdog-gated),\n"
-    "  pin2 = the switched low side. Boot-safe: R7/R20 hold each\n"
-    "  MOSFET gate down while the ESP32 pins are high-impedance.\n"
-    "  NOT opto-isolated - rev B tried that and reverted it: an opto\n"
-    "  only isolates if the SSR loop is powered off-board, and this\n"
-    "  board powers it.\n"
+    "SSR terminals J4/J9: pin1 = VIN_P (24 V, fused and TVS-clamped,\n"
+    "  ALWAYS LIVE), pin2 = the switched low side. The watchdog gates\n"
+    "  the shared return (Q7), not the supply, so a tripped watchdog\n"
+    "  leaves 24 V on pin 1 and opens pin 2. Boot-safe: R7/R20 hold\n"
+    "  each gate down while the optos are dark.\n"
+    "  The optos are NOT an isolation barrier - both sides share GND.\n"
+    "  Rev B's opto-ISOLATED design was reverted and stays reverted;\n"
+    "  U8/U9 are here to keep a 24 V gate fault off the GPIO.\n"
+    "  Per channel <=200 mA: F1 holds at 750 mA and U11 takes ~250.\n"
     "\n"
     "TC1 terminal J3 / TC2 terminal J8: pin1 = K+, pin2 = K- - both\n"
     "  float, biased near AGND only through each MAX31856's internal\n"
@@ -1862,7 +1873,7 @@ def main():
     # Growing the sheet means growing X1/Y1 and PAPER's entry to match.
     out.append('\t(paper "A1")')
     out.append('\t(title_block\n\t\t(title "Bisque Kiln Controller")\n'
-               '\t\t(date "2026-09-19")\n\t\t(rev "B")\n'
+               '\t\t(date "2026-09-21")\n\t\t(rev "B.2")\n'
                '\t\t(company "Bisque project")\n'
                '\t\t(comment 1 "ESP32-S3-WROOM-1U-N16R2 + 2x MAX31856 + dual SSR + ADE7953")\n'
                '\t\t(comment 2 "4-layer, 100 x 100 mm, JLCPCB standard process")\n\t)')

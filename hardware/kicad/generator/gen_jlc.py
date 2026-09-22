@@ -32,7 +32,7 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 from design import COMPONENTS
 
-VERIFIED_ON = "2026-09-09"
+VERIFIED_ON = "2026-09-09"    # C75882, C55144 and C17557 added 2026-09-21
 
 # JLCPCB does not place our footprint. It places LCSC's footprint for that
 # part number, anchoring *its* origin at Mid X / Mid Y and turning *its* pin 1
@@ -58,6 +58,10 @@ VERIFIED_ON = "2026-09-09"
 # the ESP32-S3 module and the USB-C receptacle at their body centres, LCSC
 # anchors them on the pad pattern.
 JLC_PLACEMENT = {
+    # U8/U9. LCSC draws the opto's land ACROSS the package where KiCad draws
+    # it along - pads at (+-1.27, +-5.0) against our (+-4.765, +-1.27) - so
+    # this is a quarter turn, not the identity a 4-pad DIP looks like it
+    # should be. Exactly the class of error a package-family table makes.
     "C12891":   (  0,  0.000,  0.000),   # C1    C_1206_3216Metric                    resid 0.118 (2 pin#)
     "C149504":  (  0,  0.000,  0.000),   # R47   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C15127":   (180,  0.000,  0.000),   # Q4    SOT-23                               resid 0.283 (3 pin#)
@@ -69,12 +73,12 @@ JLC_PLACEMENT = {
     "C17408":   (  0,  0.000,  0.000),   # R14   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17414":   (  0,  0.000,  0.000),   # R1    R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17513":   (  0,  0.000,  0.000),   # R9    R_0805_2012Metric                    resid 0.088 (2 pin#)
+    "C17557":   (  0,  0.000,  0.000),   # R6    R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17630":   (  0,  0.000,  0.000),   # R3    R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17634":   (  0,  0.000,  0.000),   # R39   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17673":   (  0,  0.000,  0.000),   # R44   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17724":   (  0,  0.000,  0.000),   # R31   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C1779":    (  0,  0.000,  0.000),   # C27   C_0805_2012Metric                    resid 0.050 (2 pin#)
-    "C17798":   (  0,  0.000,  0.000),   # R10   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C20917":   (180,  0.000,  0.000),   # Q5    SOT-23                               resid 0.083 (3 pin#)
     "C2296":    (  0,  0.000,  0.000),   # LED3  LED_0805_2012Metric                  resid 0.113 (2 pin#)
     "C2297":    (  0,  0.000,  0.000),   # LED2  LED_0805_2012Metric                  resid 0.113 (2 pin#)
@@ -95,10 +99,15 @@ JLC_PLACEMENT = {
     "C318884":  (  0,  0.000,  0.000),   # SW1   SW_Push_1P1T_XKB_TS-1187A            resid 0.025 (4 shape)
     "C49678":   (  0,  0.000,  0.000),   # C2    C_0805_2012Metric                    resid 0.050 (2 pin#)
     "C123302":  (180,  0.000,  0.000),   # U10   SSOP-8_2.95x2.8mm_P0.65mm            fitted by check_jlc_placement
+    # U8/U9. A 4-pad package whose pads are NOT symmetric about the origin
+    # (1/2 one side, 3/4 the other), so the pin-numbered fit disambiguates
+    # the half turn that a 2-pad land never can.
+    "C55144":   (180,  0.000,  0.000),   # U8    SOP-4_4.4x2.6mm_P1.27mm              resid 0.312 (4 pin#)
     "C515890":  (270,  0.000,  0.000),   # U7    QFN-28-1EP_5x5mm_P0.5mm_EP3.1x3.1mm  resid 0.075 (29 pin#)
     "C48937499": (270, -0.287, -0.000),  # U2    SOT-223-3_TabPin2                    resid 0.000 (2 pin#)
     "C7420376": (270,  0.000,  0.000),   # U4    SOT-23-6                             resid 0.062 (6 pin#)
     "C7512":    (270,  0.000,  0.000),   # U6    SOIC-16_3.9x9.9mm_P1.27mm            resid 0.261 (16 pin#)
+    "C75882":   (180,  0.000,  0.000),   # Q5    SOT-23                               resid 0.397 (3 pin#)
     "C81598":   (  0,  0.000,  0.000),   # D4    D_SOD-123                            resid 0.085 (2 pin#)
     "C13585":   (  0,  0.000,  0.000),   # C41   C_1206_3216Metric                    resid 0.118 (2 pin#)
     "C369169":  (  0,  0.000,  0.000),   # F1    Fuse_1812_4532Metric                 resid 0.284 (2 pin#)
@@ -211,6 +220,11 @@ LCSC = {
     # than anything else on the BOM. Fine for prototypes, re-check
     # before a production run, and fall back to C908776 if it is gone.
     "D8": ("C19077547", "SMAJ30A 30V 400W unidirectional TVS SMA", True, True),
+    # Freewheel across each SSR terminal pair. Same part as D3/D4, so no
+    # new line - see design.py for why 150 mA/450 mA peak is the right
+    # size against F1's budget rather than an SMA Schottky.
+    "D9": ("C81598", "1N4148W SOD-123 - SSR1 terminal freewheel", True, True),
+    "D10": ("C81598", "1N4148W SOD-123 - SSR2 terminal freewheel", True, True),
     "F1": ("C369169", "JK-mSMD075-33 PPTC 750mA hold / 1.5A trip, 33V, 1812", False, True),
     "L1": ("C475527", "FXL0650-470-M 47uH 2A 2.6A-sat 230mohm 7x6.6mm", False, True),
     "J1": ("C165948", "HRO TYPE-C-31-M-12 USB-C 16P", False, True),
@@ -234,18 +248,23 @@ LCSC = {
     "Q3": ("C20917", "AO3400A SOT-23", True, True),
     # Watchdog high-side switch: the one P-channel part on the board.
     "Q4": ("C15127", "AO3401A P-channel SOT-23", True, True),
-    "Q5": ("C20917", "AO3400A SOT-23", True, True),
-    "Q6": ("C20917", "AO3400A SOT-23", True, True),
+    # Q5/Q6/Q7 stand off 24 V (37 V while D8 clamps a sustained fault), so
+    # they are 60 V parts rather than the AO3400A's 30 V, and the CJ2310's
+    # 125 mOhm is specified AT 4.5 V - the gate voltage the optos actually
+    # deliver. The board's one Extended-and-not-Preferred line besides U10.
+    "Q5": ("C75882", "CJ2310 60V 3A N-channel SOT-23", False, True),
+    "Q6": ("C75882", "CJ2310 60V 3A N-channel SOT-23", False, True),
+    "Q7": ("C75882", "CJ2310 60V 3A N-channel SOT-23 - watchdog return gate", False, True),
     "R1": ("C17414", "10k 0805 1%", True, True),
     "R2": ("C17414", "10k 0805 1%", True, True),
     "R3": ("C17630", "330R 0805 1%", True, True),
     "R4": ("C27834", "5.1k 0805 1%", True, True),
     "R5": ("C27834", "5.1k 0805 1%", True, True),
-    "R6": ("C17408", "100R 0805 1%", True, True),
+    "R6": ("C17557", "220R 0805 1%", True, True),
     "R7": ("C17414", "10k 0805 1%", True, True),
     "R8": ("C17414", "10k 0805 1%", True, True),
     "R9": ("C17513", "1k 0805 1%", True, True),
-    "R10": ("C17798", "680R 0805 1%", True, True),
+    "R10": ("C17673", "4.7k 0805 1%", True, True),
     "R11": ("C17408", "100R 0805 1%", True, True),
     "R12": ("C17513", "1k 0805 1%", True, True),
     "R13": ("C17414", "10k 0805 1%", True, True),
@@ -253,9 +272,11 @@ LCSC = {
     "R15": ("C17408", "100R 0805 1%", True, True),
     "R16": ("C17408", "100R 0805 1%", True, True),
     "R17": ("C17408", "100R 0805 1%", True, True),
-    "R19": ("C17408", "100R 0805 1%", True, True),
+    "R18": ("C17414", "10k 0805 1%", True, True),
+    "R19": ("C17557", "220R 0805 1%", True, True),
     "R20": ("C17414", "10k 0805 1%", True, True),
-    "R21": ("C17798", "680R 0805 1%", True, True),
+    "R21": ("C17673", "4.7k 0805 1%", True, True),
+    "R22": ("C149504", "100k 0805 1%", True, True),
     "R23": ("C17414", "10k 0805 1%", True, True),
     "R24": ("C17414", "10k 0805 1%", True, True),
     "R25": ("C17414", "10k 0805 1%", True, True),
@@ -297,6 +318,16 @@ LCSC = {
     "R61": ("C17513", "1k 0805 1%", True, True),
     "SW1": ("C318884", "TS-1187A-B-A-B 5.1x5.1mm SMD tactile switch", True, True),
     "SW2": ("C318884", "TS-1187A-B-A-B 5.1x5.1mm SMD tactile switch", True, True),
+    # Containment, not isolation - see design.py's SSR block. SOP-4 rather
+    # than the LTV-817S's SMD-DIP4 this replaced, and that is a LAYOUT
+    # decision: 8.50 mm of courtyard against 12.04 mm is what lets the four
+    # per-terminal legends share the corridor beside J4/J9. It costs a
+    # feeder (the LTV-817S was Basic, this is Extended); the GB rank's
+    # 100-400% CTR (datasheet p.2, not the listing's 100-600) is what the
+    # gate-current margin is computed against. V_CEO is 80 V against the
+    # LTV-817S's 35 V, which is free margin on a 24 V board.
+    "U8": ("C55144", "TLP291(GB-TP,SE) optocoupler CTR 100-400% (rank GB) SOP-4", False, True),
+    "U9": ("C55144", "TLP291(GB-TP,SE) optocoupler CTR 100-400% (rank GB) SOP-4", False, True),
     "U1": ("C3013945", "ESP32-S3-WROOM-1U-N16R2 (16MB flash, 2MB quad PSRAM, U.FL)", False, True),
     "U2": ("C48937499", "TLV1117LV33DCYR SOT-223 LDO (700mV max dropout)", False, True),
     "U3": ("C2653162", "MAX31856MUD+T TSSOP-14", False, True),

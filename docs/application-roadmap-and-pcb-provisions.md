@@ -176,10 +176,13 @@ comfortable during the design:
 ### 3.3 Output bank: 2 SSR zones + 3 auxiliary channels (shipped, rev B)
 
 - **Two SSR triggers** (`SSR1_CTRL`/GPIO 17, `SSR2_CTRL`/GPIO 21), each a
-  direct low-side AO3400A with an LED indicator. Roadmap §3.3 asked for
-  opto-isolation and rev B built it, then reverted it: an optocoupler only
-  isolates if the SSR control loop is powered off-board, and this board
-  powers the loop (hardware-design spec §2.4). This grew from the single main-SSR trigger
+  **24 V** terminal off `VIN_P` switched low-side by a 60 V CJ2310 whose gate
+  is driven through an optocoupler, with an LED indicator. Roadmap §3.3 asked
+  for opto-**isolation** and rev B built it, then reverted it: an optocoupler
+  only isolates if the SSR control loop is powered off-board, and this board
+  powers the loop (hardware-design spec §2.4). **That is still true.** The
+  optos returned in rev B.2 for a different job — keeping a 24 V gate fault
+  off the GPIO — and the terminals are still not isolated. This grew from the single main-SSR trigger
   originally planned here to a full second zone, gated together by the
   hardware watchdog (§5.3 of the hardware-design spec).
 - **Three aux channels** through a shared ULN2003ADR Darlington array (not the
