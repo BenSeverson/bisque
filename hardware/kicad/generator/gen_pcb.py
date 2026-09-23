@@ -244,7 +244,6 @@ ADE_I2C_SEEDS = [
 # so SCL's drop to B.Cu, which is how the original route left the block, has
 # to be given to it.
 MANUAL_VIAS = [("I2C_SCL", 93.75, 67.25)]
-
 # Vias INSIDE an exposed/thermal pad, as {(ref, pad): grid n} for an n x n
 # array. Review A6, and the one item on that list that cannot be bodged after
 # fab. Three pads need it and each for its own reason:
@@ -354,9 +353,50 @@ USB_STUB_TERMS = {
 # leave only a 0.2 mm gap between them, so they need to run clear of the
 # pad row before they can fan out at all. 1.25 mm was not enough - pin 2
 # never got a lane and WDT_KICK could not leave the part.
-FANOUT = {"U7": 1.75, "U3": 1.5, "U5": 1.5, "U10": 1.75}
+FANOUT = {"U7": 1.75, "U3": 1.5, "U5": 1.5, "U10": 1.75, "U12": 1.75}
 SIG_W = 0.3           # default signal track width; see ROUTE_ORDER
 FANOUT_WIDTH = 0.25   # fine-pitch escapes only; see the ROUTE_ORDER comment
+
+# U12's two RAIL escapes, and the reason this part needed hand geometry when
+# the other four FANOUT parts did not.
+#
+# Everything else in FANOUT is fine-pitch because it is a big digital part,
+# and every net leaving it is a 0.3 mm signal or a plane net. U12 is the
+# first fine-pitch part on this board whose escapes carry RAILS: BUCK_5V and
+# +5V at 0.7 mm, VBUS at 0.5 mm. That breaks the fanout's one assumption.
+#
+# The arithmetic, because it is what decides the geometry. all_seeds() sends
+# two stubs out of each side of an SOT-583 on the footprint's own 0.5 mm
+# pitch and staggers their lengths (1.75 and 2.50 mm) so the ends do not
+# crowd. The LONG one ends in open board and is fine. The SHORT one ends
+# 0.5 mm from a stub that keeps running past it, and the router has to START
+# a track there at the NET's width: 0.7 mm of BUCK_5V centred 0.5 mm from a
+# 0.25 mm stub leaves 0.025 mm where 0.2 mm of clearance is needed. So the
+# node is not tight, it is illegal, and the router says so precisely - "0
+# goal node(s) ... free neighbours F/B=2/0" at (58.25, 36.00). Only a
+# 0.3 mm track fits there at all, which is why no previous FANOUT part ever
+# hit this.
+#
+# The fix is to carry each short escape on at FANOUT_WIDTH until it is clear
+# of its neighbour, then hand the router a terminal where a rail-width track
+# is legal - the same trick ADE_I2C_SEEDS uses further up this file, for the same
+# underlying reason (a one-track-wide escape off a 0.5 mm-pitch part).
+# Both run NORTH, away from the +5V stub that boxes them in, into the band
+# that R4's courtyard and U12's own PR1 escape keep empty:
+#   BUCK_5V to (58.25, 34.75) - 1.75 mm from the +5V stub, 1.93 mm from
+#     R64's nearer pad, 1.75 mm from U12's PR1 escape. 0.7 mm needs 0.55.
+#   VBUS to (53.25, 35.00) - 0.70 mm from R4's nearest pad and 1.5 mm from
+#     the +5V stub. 0.5 mm needs 0.45.
+# If U12 moves, these move with it, and check_pcb's clearance pass is what
+# catches it if they do not.
+MUX_SEEDS = [
+    ("BUCK_5V", 0, [(58.25, 36.00), (58.25, 34.75)], FANOUT_WIDTH),
+    ("VBUS",    0, [(53.25, 36.00), (53.25, 35.00)], FANOUT_WIDTH),
+]
+MUX_TERMS = {
+    "BUCK_5V": ((58.25, 36.00), (58.25, 34.75, (0,))),
+    "VBUS":    ((53.25, 36.00), (53.25, 35.00, (0,))),
+}
 
 # ---------------------------------------------------------------------------
 # Inner planes (rev B is 4-layer; spec 6.1)
@@ -456,11 +496,12 @@ FID_KEEPOUT = 1.7
 # part on the board where that number matters.
 #
 # Bounded by what is actually free: J2's terminal to the west, R5 and the test
-# points to the north, D1/C2 to the south, and to the east the USB pair's
+# points to the north, Q8/C2 to the south (Q8 inherited D1's slot when the
+# reverse-polarity diode became a P-FET), and to the east the USB pair's
 # keepout (kicad_build.usb_keepout(), which asserts it stays east of this
 # box) so nothing may be poured past it anyway. Everything inside on
-# another net (C1 and D1 on +5V, R5 on CC2, U2's own GND and +5V pins) is
-# carved out by ordinary clearance.
+# another net (C1 on +5V, Q8 on VIN_P/VIN_F/VIN_GATE, R5 on CC2, U2's own
+# GND and +5V pins) is carved out by ordinary clearance.
 U2_POUR = (33.0, 30.5, 45.0, 44.5)
 
 # ---------------------------------------------------------------------------
@@ -922,7 +963,7 @@ def all_seeds(pad_pos):
     a short inward stub tying it to that pad, because the pour cannot reach
     between 0.5 mm-pitch pins.
     """
-    seeds = list(USB_SEEDS) + list(ADE_I2C_SEEDS)
+    seeds = list(USB_SEEDS) + list(ADE_I2C_SEEDS) + list(MUX_SEEDS)
     terms = {k: list(v) for k, v in USB_STUB_TERMS.items()}
     for ref, out in sorted(FANOUT.items()):
         comp = COMPONENTS[ref]
@@ -972,9 +1013,10 @@ def all_seeds(pad_pos):
                     ey = _snap(py + math.copysign(reach, dy), BY0)
                 seeds.append((net, 0, [(px, py), (ex, ey)], FANOUT_WIDTH))
                 terms.setdefault(net, []).append((ex, ey, (0,)))
-    for net, (drop, term) in sorted(ADE_I2C_TERMS.items()):
-        terms[net] = [t for t in terms.get(net, [])
-                      if (round(t[0], 3), round(t[1], 3)) != drop] + [term]
+    for tbl in (ADE_I2C_TERMS, MUX_TERMS):
+        for net, (drop, term) in sorted(tbl.items()):
+            terms[net] = [t for t in terms.get(net, [])
+                          if (round(t[0], 3), round(t[1], 3)) != drop] + [term]
     return seeds, terms
 
 
@@ -1146,6 +1188,12 @@ ROUTE_ORDER = [
     # so the narrow width is confined to the ~2 mm of escape that geometrically
     # requires it and the rest of the net runs at full width.
     ("VIN", 0.8), ("VIN_F", 0.8), ("VIN_P", 0.8),
+    # BUCK_5V is U11's output before U12 selects it, so it is the net that
+    # carries the whole rail across the board (the buck is in the south-east,
+    # everything it feeds is in the north-west) while +5V is now only the
+    # short distribution downstream of the mux. It goes first of the two for
+    # exactly that reason: it is the longer run and the harder to reroute.
+    ("BUCK_5V", 0.7),
     ("+5V", 0.7), ("VLED", 0.7), ("VBUS", 0.5),
     ("AUX_VP", 0.7),
     # U11's switch node. Wide because it carries the full inductor current,
@@ -1306,6 +1354,10 @@ ROUTE_ORDER = [
     # touch series damping (header side of R39-R43)
     ("T_CLK_R", SIG_W), ("T_CS_R", SIG_W), ("T_DIN_R", SIG_W), ("T_DO_R", SIG_W),
     ("T_IRQ_R", SIG_W),
+    # Reverse-polarity gate node (Q8/R62/D11) and the mux's priority divider
+    # (U12/R63/R64). Both are three-terminal nets a few mm across, wholly
+    # inside their own cluster, so they go last with the other locals.
+    ("VIN_GATE", SIG_W), ("MUX_PR1", SIG_W),
 ]
 
 # ---------------------------------------------------------------------------

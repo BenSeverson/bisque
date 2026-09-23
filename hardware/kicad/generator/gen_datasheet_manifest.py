@@ -57,6 +57,10 @@ SCHEMATIC = "bisque-controller.kicad_sch"
 DOC_FOR = {
     "ADE7953_Analog_Devices.pdf": "ADE7953ACPZ",
     "TLV1117LV_TI.pdf": "TLV1117LV33",
+    # Read for the U12 swap: pin table (5-1), abs max / recommended VINx
+    # (6.1/6.2), VREF and the priority-mode divider (7.6.1.1), break-before-
+    # make switchover time and reverse-current blocking (7.3.4).
+    "TPS2116_TI.pdf": "TPS2116DRLR",
     "AO3400A_30V_Vds_5.7A_Id_N-Channel_MOSFET_SOT-23.pdf": "AO3400A",
     "CJ2310_60V_Vds_3A_Id_N-Channel_MOSFET_SOT-23.pdf": "CJ2310",
     "AO3401A_-4.0A_Id_-30V_Vds_P-Channel_MOSFET_SOT-23.pdf": "AO3401A",

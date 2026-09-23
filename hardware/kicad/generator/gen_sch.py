@@ -88,10 +88,17 @@ FLAG_NET = dict(zip(FLAG_REFS, PWR_FLAG_NETS))
 #     stubs cannot land on the same point in the first place.
 GROUPS = [
     ("POWER IN  24 VDC terminal or USB\n"
-     "F1+D8 clamp-and-blow at the entry; D1 blocks reverse polarity.\n"
-     "U11 (right) makes +5V; D2 ORs in USB VBUS; U2 drops it to +3V3",
-     ["J2", "F1", "D8", "D1", "D2", "U2", "C1", "C2", "C3", "C4",
-      "LED2", "R9"]),
+     "F1+D8 clamp-and-blow at the entry. Q8 blocks reverse polarity as a\n"
+     "P-FET, not a diode: its body diode conducts on correct polarity and\n"
+     "the gate then pulls itself on through R62, clamped by D11 because\n"
+     "24 V is twice the AO3401A's V_GS rating. U11 (right) makes BUCK_5V;\n"
+     "U12 selects between it and USB VBUS to make +5V, giving the buck\n"
+     "PRIORITY via R63/R64 rather than letting the higher voltage win --\n"
+     "a 5.25 V host would otherwise source the SSR terminals and the\n"
+     "relay bank. U12 also blocks USB back-feeding the unpowered buck.\n"
+     "U2 drops +5V to +3V3",
+     ["J2", "F1", "D8", "Q8", "R62", "D11", "U12", "R63", "R64",
+      "U2", "C1", "C2", "C3", "C4", "LED2", "R9"]),
     ("24 V -> 5 V BUCK  XL1509-5.0, fixed output\n"
      "C41-C43 in, D7 catch, L1 47uH, C44/C45/C46 out. FB ties to the\n"
      "output because the part is the fixed 5.0 V version; EN is\n"

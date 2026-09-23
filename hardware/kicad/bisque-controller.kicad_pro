@@ -722,6 +722,10 @@
       },
       {
         "netclass": "Track_0.70mm",
+        "pattern": "BUCK_5V"
+      },
+      {
+        "netclass": "Track_0.70mm",
         "pattern": "VLED"
       },
       {

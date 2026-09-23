@@ -206,13 +206,17 @@ needed.
 
 **The board input is 24 V and the 5 V rail is made on board.** J2 feeds
 F1 (a 750 mA / 33 V resettable fuse) and D8 (an SMAJ30A TVS) at the entry,
-then D1 for reverse polarity, then U11 — an XL1509-5.0 buck whose absolute
+then Q8 for reverse polarity, then U11 — an XL1509-5.0 buck whose absolute
 maximum input is **40 V**. Two consequences worth knowing:
 
 - **The trim pot no longer matters.** +5V used to be literally the input
-  minus D1, so every turn of the PSU's trim landed on the WS2812B logic
-  threshold, the SSR drive voltage and the relay coil at once. It is now a
-  regulated 5.0 V across the HDR-15-24's whole +/-10% travel.
+  minus a series Schottky, so every turn of the PSU's trim landed on the
+  WS2812B logic threshold, the SSR drive voltage and the relay coil at once.
+  It is now a regulated 5.0 V across the HDR-15-24's whole +/-10% travel.
+  Reverse polarity is a P-channel MOSFET rather than that Schottky, so the
+  24 V SSR terminals — which hang off the protected input, not off the
+  regulated rail — now sit within ~40 mV of the supply instead of ~0.4 V
+  below it.
 - **A 12 V supply on J2 is no longer fatal, and neither is 24 V on the aux
   terminal.** The rail that used to die at 6.4 V now tolerates 40 V, and
   F1/D8 clamp anything past that. This is the one place where the old

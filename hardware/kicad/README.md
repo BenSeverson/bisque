@@ -88,13 +88,32 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
 
 - **Power**: 24 V DC in on screw terminal **J2** (top-left) *or* USB-C.
   The 24 V side runs J2 → F1 (750 mA/33 V resettable fuse) → D8 (SMAJ30A TVS)
-  → D1 (SS34, reverse polarity) → **U11**, an XL1509-5.0 buck in the
-  south-east corner that makes the +5 V rail; USB VBUS is ORed into the same
-  rail through D2. A **TLV1117LV33** (U2, SOT-223) then makes 3V3.
+  → **Q8** (AO3401A P-FET, reverse polarity) → **U11**, an XL1509-5.0 buck in
+  the south-east corner that makes `BUCK_5V`; **U12** (TPS2116) then selects
+  between `BUCK_5V` and USB VBUS to make `+5V`, and a **TLV1117LV33**
+  (U2, SOT-223) drops that to 3V3.
   Regulating rather than dropping is the point: +5V used to be literally the
-  input minus D1, so every diode drop and every turn of the installer's trim
-  pot landed on the WS2812B threshold, the SSR drive and the relay coil at
-  once.
+  input minus a Schottky, so every diode drop and every turn of the
+  installer's trim pot landed on the WS2812B threshold, the SSR drive and the
+  relay coil at once. Both of the board's remaining series diodes are now
+  gone with it — the reverse-polarity SS34 is Q8 (~39 mV instead of ~0.4 V,
+  which matters because `VIN_P` feeds both 24 V SSR terminals as well as the
+  buck) and the USB ORing SS34 is U12 (~40 mΩ).
+
+  **U12 runs in priority mode, not highest-voltage-wins, and that is the
+  whole reason it is a mux and not an ideal diode.** A 5.25 V USB host is
+  higher than a 5.0 V buck, so a plain ORing part would let a laptop source
+  the relay bank and both SSR terminals; the diode used to prevent that for
+  free by dropping. MODE ties to VIN1 and R63/R64 divide `BUCK_5V` into PR1
+  with a 4.0 V threshold, so the buck wins whenever it is up. U12 also
+  blocks USB back-feeding the unpowered buck, which closes fab-review
+  finding **C1** (5 V on U11's FB and switch pins during every USB-only
+  flashing session). Its ST pin is left unconnected on purpose — see
+  `design.py` at U12 for why that GPIO is not worth the route.
+
+  `BUCK_5V` and `+5V` are deliberately separate nets: C44/C45/**C46** are the
+  buck's compensation (C46 is the electrolytic supplying the ESR zero) and
+  belong on the buck's side of the mux, not the load's.
   Power LED (green) on 3V3. The display (below) draws from +5V directly, not
   through U2 — its backlight and panel logic were the dominant unmodeled load
   on the LDO, and moving them off keeps U2's junction temperature comfortably
@@ -685,14 +704,24 @@ carrying designators the BOM does not have:
 | J2, J3, J4, J8, J9 (2-pos screw terminals), J10, J11, J12 (4-pos screw terminals), J5, J6, J7 (KK-254 wafers), BZ1 (buzzer) | 5.08 mm and 2.54 mm pitch — the easiest joints on the board, but the ones that would force Standard assembly |
 | LED1 (WS2812B, PLCC-4 5050) | No addressable RGB LED at LCSC is a Basic part (checked across WS2812/SK6812/XL-xxxx), so its $3 buys nothing an iron can't do to four edge-accessible pads |
 
-What's left goes down the SMT line: **122 of 134 placements carry no feeder
-fee**, and only **11 unique Extended parts** do — the module
+What's left goes down the SMT line: **127 of 145 placements carry no feeder
+fee**, and only **14 unique Extended parts** do — the module
 (ESP32-S3-WROOM-1U-N16R2, C3013945), both MAX31856MUD+T (C2653162, one
 designator, two placements), the ADE7953 (C515890), its 3.579545 MHz
 oscillator (C2838127), the watchdog monostable (SN74LVC1G123, C123302), the
 LDO (TLV1117LV33, C48937499), the buck's inductor (C475527), the input PPTC
-(C369169), the buck's bulk electrolytic (C46, C2977550), the Qwiic connector
-(C160404) and the USB-C receptacle (C165948) — **$33 in feeder fees**.
+(C369169), the buck's bulk electrolytic (C46, C2977550), the two SSR
+optocouplers (TLP291, C55144), the three 60 V CJ2310s they drive (C75882),
+the **TPS2116 power mux** (U12, C3235557), the Qwiic connector (C160404) and
+the USB-C receptacle (C165948) — **$42 in feeder fees**.
+
+The last three of those are recent and worth attributing: the optos and the
+CJ2310s arrived with the 24 V SSR rework, and U12 with the power-mux swap
+that deleted D2. U12 is the only one of the fourteen with no fee-free
+alternative *of any kind* — the Basic and Preferred libraries hold no power
+mux and no ideal-diode controller at any voltage, so unlike the LDO (where
+the argument is headroom, see `design.py` at U2) there is nothing to
+re-litigate here.
 `gen_jlc.py` prints that list and total on every `make pcb-fab`, so it is
 checkable rather than remembered.
 

@@ -28,6 +28,13 @@ the full as-built table with module pin numbers and net names:
     optocoupler (U8/U9), with Q7 in the shared return as the watchdog gate.
     The optos are CONTAINMENT, not isolation - rev B's opto-ISOLATED version
     was reverted and that reasoning still stands. See the SSR block below.
+  Power path: J2 -> F1 -> D8 (clamp) -> Q8 (reverse polarity, a P-FET and no
+    longer a diode) = VIN_P, which feeds the buck AND both SSR terminals.
+    U11 makes BUCK_5V; U12 selects between BUCK_5V and USB VBUS to make +5V,
+    in PRIORITY mode so the buck wins over a higher USB port rather than the
+    other way round; U2 drops +5V to +3V3. BUCK_5V and +5V are separate nets
+    on purpose - C44/C45/C46 belong to the buck's feedback loop and stay on
+    its side of the mux. See the Q8 and U12 blocks for both derivations.
 
 J7's pins 5-8 carried VENT/(unconnected)/AUX_A/AUX_B through Task 10, all
 either dangling single-pin nets or declared-but-undriven — nothing on this
@@ -249,13 +256,15 @@ COMPONENTS = {
                      "38": "IN2", "39": "IN3", "40": "GND",
                      "41": "GND"}),
     # --- Power -----------------------------------------------------------
-    # The board makes its own 5 V rail from a 24 V input (U11 below). Until
-    # this rev it took 5 V directly and +5V was literally VIN minus D1, so
-    # every drop and every turn of the installer's trim pot landed on the
-    # WS2812B threshold, the SSR drive and the relay coil at once. Regulating
-    # after the drop is what makes D1's forward voltage stop mattering: at
-    # 24 V it costs 1.6% of the rail instead of 8%, and downstream of a
-    # regulator it is headroom rather than error.
+    # The board makes its own 5 V rail from a 24 V input (U11 below). Two revs
+    # ago it took 5 V directly and +5V was literally VIN minus a series
+    # Schottky, so every drop and every turn of the installer's trim pot
+    # landed on the WS2812B threshold, the SSR drive and the relay coil at
+    # once. Regulating after the protection is what stopped that, and this
+    # rev finishes the job by taking the drop out of the protection as well:
+    # reverse polarity is now Q8, a P-FET at ~33 mV, and the USB OR is U12,
+    # a power mux at ~40 mOhm. Between them they deleted the board's last two
+    # series diode drops, on the two rails least able to spare one.
     #
     # The protection cluster stays HERE, at the entry, not beside the buck -
     # a TVS placed at the load protects only the load. The 24 V run east to
@@ -286,23 +295,198 @@ COMPONENTS = {
     "D8": dict(lib="Device", sym="D_TVS", fp=SMA[0], fpf=SMA[1],
                value="SMAJ30A", at=(35.0, 23.5, 0),
                pins={"1": "VIN_F", "2": "GND"}),
-    # D1 keeps its job and its place, and stops being expensive. Pad 1 is the
-    # cathode on this footprint, so 1=VIN_P (load side), 2=VIN_F (source).
-    "D1": dict(lib="Device", sym="D_Schottky", fp=SMA[0], fpf=SMA[1],
-               value="SS34", at=(36.6, 45.6, 0),
-               pins={"1": "VIN_P", "2": "VIN_F"}),
-    # y 36.35, not 36.75: 0.4 mm north opens the lane the USB pair
-    # runs down. Between this diode's south edge and C4's north edge the pair
-    # needs 1.2 mm (two 0.3 mm tracks, the 0.2 mm gap, 0.2 mm clearance each
-    # side), and C3's north edge pins the pair's centreline at y 38.0 until
-    # it is past C3 - so D2's pads have to end above y 37.4, and at 36.75
-    # they ended at 37.65 (36.35 is as far as R4's courtyard allows, and
-    # leaves 0.15 mm of slack). The router's answer to that was to thread the
-    # pair BETWEEN this part's two pads, under its body, at 0.35 mm from
-    # each; legal, and not how anyone would draw it.
-    "D2": dict(lib="Device", sym="D_Schottky", fp=SMA[0], fpf=SMA[1],
-               value="SS34", at=(56.25, 36.35, 0),
-               pins={"1": "+5V", "2": "VBUS"}),
+    # --- REVERSE POLARITY: a P-channel MOSFET, not a diode ----------------
+    # D1, an SS34 in series with the rail, was here and was the obvious part
+    # for the job right up until VIN_P stopped being a 250 mA net. It now
+    # feeds the buck AND both 24 V SSR terminals, whose budget below is
+    # 400 mA, so at the fuse's 750 mA hold the diode burned 0.4 V x 0.65 A =
+    # 260 mW in an SMA. Q8 burns 0.65^2 x 60 mOhm = 25 mW and drops ~39 mV,
+    # taking the AO3401A's GUARANTEED 60 mOhm at V_GS = -4.5 V rather than
+    # the 47 mOhm typical or the 50 mOhm it reaches at -10 V, because -4.5 V
+    # is the datasheet's lowest spec point still below D11's clamp. Same
+    # protection, ~235 mW back, and the SSR block no longer has to spend a
+    # paragraph excusing a terminal voltage of "24 V minus a diode".
+    #
+    # SOURCE on the LOAD side (VIN_P), DRAIN on the SUPPLY side (VIN_F), gate
+    # pulled to GND. That orientation is the one that reads backwards and it
+    # is not negotiable: a P-channel body diode runs drain->source, so with
+    # the drain on the supply it conducts the instant power arrives and the
+    # FET then enhances itself from the V_GS that appears across it. Wire the
+    # part the intuitive way round and the body diode faces the supply, which
+    # conducts a reversed input straight into the board and protects nothing.
+    #
+    # WHY 30 V IS ENOUGH HERE WHEN IT WAS NOT FOR Q5/Q6/Q7. The SSR block
+    # buys 60 V CJ2310s because those switches stand off a sustained fault at
+    # the 33-37 V D8 clamps it to. Q8 never stands off anything like it, in
+    # either direction, and the two reasons are different:
+    #   FORWARD - the body diode clamps V_DS to one drop from the first
+    #     microsecond, before the gate has charged at all. The part never
+    #     blocks the input voltage, not even during a fast ramp or a fault.
+    #   REVERSE - a reversed input forward-biases D8, which holds VIN_F at
+    #     about -0.8 V. Q8 stands off well under a volt.
+    # It is also not a free choice. The whole fee-free library holds exactly
+    # one P-channel part above 30 V - an LBSS84, 130 mA and 10 ohm, which
+    # cannot carry this rail at all - so a 60 V P-FET here would be a feeder
+    # fee to solve a problem the body diode and D8 already solve. AO3401A is
+    # Q4's part, already a BOM line and already Basic: this swap adds none.
+    #
+    # R62 turns it on; D11 is what stops R62 destroying the gate. At 24 V an
+    # unclamped V_GS is twice the AO3401A's +-12 V rating. 100k against the
+    # zener's ~7.5 V at this current draws (24 - 7.5)/100k = 165 uA, i.e.
+    # 4 mW against the diode's 260 mW. 8.2 V and not 10 or 12 V because the
+    # tolerance stacks the wrong way - a 12 V part at +5% is 12.6 V, outside
+    # the rating it exists to guard - while 7.5 V at the low end still clears
+    # the -4.5 V spec point where the AO3401A guarantees 60 mOhm, which is
+    # the number the loss above is taken at.
+    #
+    # Pin order from KiCad's Transistor_FET:AO3401A symbol, as for Q4:
+    # 1 G, 2 S, 3 D.
+    "Q8": dict(lib="Transistor_FET", sym="AO3401A", fp=SOT23[0], fpf=SOT23[1],
+               value="AO3401A", at=(36.6, 45.6, 0),
+               pins={"1": "VIN_GATE", "2": "VIN_P", "3": "VIN_F"}),
+    # R62 and D11 sit SOUTH of Q8, not in the free column west of it, and
+    # that column is the reason. J2's two screws are the board's only
+    # per-terminal polarity marks, and the strip between J2's body (x 31.71)
+    # and whatever is east of it is the only place `-` can legally print at
+    # its screw's y of 44.08 - a 1.32 mm glyph needing the whole gap. An 0805
+    # parked there is silk-clean by DRC and still buries the mark inside the
+    # connector, which is exactly the failure the U2 row was shifted 1.5 mm
+    # east to fix (see U2). The first placement of R62 did it again, and
+    # silk.py caught it as "board text '-' sits on a part body".
+    "R62": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
+                value="100k", at=(33.5, 48.35, 0),
+                pins={"1": "VIN_GATE", "2": "GND"}),
+    # Pad 1 is the cathode on this footprint, so 1 = VIN_P (the source, and
+    # the more positive node) and 2 = VIN_GATE. Fitted the other way round it
+    # is a forward diode across the gate and the FET never turns on at all.
+    "D11": dict(lib="Device", sym="D_Zener", fp="Diode_SMD:D_SOD-323",
+                fpf="D_SOD-323.kicad_mod",
+                value="BZT52C8V2", at=(37.4, 48.6, 180),
+                pins={"1": "VIN_P", "2": "VIN_GATE"}),
+    # --- +5V SOURCE SELECT: a power mux, not an ORing diode ---------------
+    # D2, an SS34 from VBUS to +5V, was here. It did three jobs and did one
+    # of them expensively: it let USB power the board with no 24 V present,
+    # it stopped the buck back-driving a host, and - because a diode drops -
+    # it handed the buck priority whenever both were live, for free. The cost
+    # was 0.4 V off the USB path, and that 0.4 V is the whole reason U2 has
+    # to be a TLV1117LV. See U2 below: the conclusion there does not change,
+    # but the arithmetic reaching it does, so it is restated there.
+    #
+    # U12 does all three jobs across ~40 mOhm rather than a diode drop, and
+    # adds the one this board actually needed: it blocks reverse current INTO
+    # the unpowered buck. Today every USB-only bench session - which is every
+    # flashing session - parks 5 V on U11's output, back-feeding FB (pin 3)
+    # and, through L1, the switch pin, both rated only to V_IN on a part
+    # whose V_IN is 0 V at the time. That is fab-review finding C1 and this
+    # is its fix, so the measurement it asked for on board 1 is moot.
+    #
+    # PRIORITY MODE, NOT HIGHEST-VOLTAGE-WINS, AND THE DIFFERENCE IS THE
+    # POINT. An ideal diode or a plain ORing controller passes whichever
+    # input is higher, and a 5.25 V USB port is higher than a 5.0 V buck - so
+    # a laptop would end up sourcing the relay bank and both SSR terminals.
+    # The diode gave the buck priority by dropping; U12 has to be told. MODE
+    # ties to VIN1, so pins 3 and 5 are both BUCK_5V - one net with two
+    # terminals, nothing for the router to strand on a private MODE stub -
+    # and R63/R64 divide BUCK_5V into PR1. Above VREF the buck wins whatever
+    # USB is doing.
+    #
+    # 30k/10k sets the switchover at 4.0 V nominal, and that value is pinned
+    # from BOTH ends rather than rounded to:
+    #   TOO HIGH and the buck loses its own priority. VREF is 0.92-1.08 V, so
+    #     the real threshold is 3.68-4.32 V; against a buck 4% low (4.8 V)
+    #     the worst corner still reads PR1 = 1.20 V against a 1.08 V VREF.
+    #     33k/10k - the obvious 4.3 V divider - leaves 36 mV at that same
+    #     corner, which is not a margin.
+    #   TOO LOW and THE RAIL SAGS TO THE THRESHOLD before USB takes over.
+    #     Pull the 24 V with USB plugged in and +5V tracks BUCK_5V down until
+    #     PR1 crosses VREF: the threshold IS the floor of that dip. 10k/4.7k
+    #     needs no new BOM line and puts it at 3.13 V, under U2's dropout -
+    #     so a bench supply switched off would brown out the ESP32 on the way
+    #     to the USB rail it was about to reach. 3.68 V worst case clears U2
+    #     (3.3 V + 90 mV at 200 mA) by 290 mV.
+    # The switchover is break-before-make and ~8 us, over which +5V's own
+    # ceramics (C1 22 uF + C11 10 uF + C2, ~25 uF after DC bias) droop
+    # 0.3 A x 8 us / 25 uF = ~100 mV - so the dip depth is set by the
+    # threshold and essentially nothing else. Coming back the other way U12 holds channel 1 open until
+    # BUCK_5V has risen past VOUT, so a 24 V power-up never back-drives the
+    # buck either.
+    #
+    # ST (pin 8) IS DELIBERATELY UNCONNECTED, and it is the one thing here
+    # worth reopening in a later rev. It is an open-drain "running on VIN2"
+    # flag, and a kiln controller that refuses to start a firing on bench
+    # power is a real feature. The only free GPIO is module pin 30 (GPIO37)
+    # at x 78.75 - the far side of U1 - so the net would have to cross the
+    # castellated escape band at x 60..88, the band that cost SPI_MOSI and
+    # SPI_SCLK their test points the last time anything was routed through
+    # it. Not worth a strandable net for a flag no firmware reads yet.
+    #
+    # PLACEMENT, AND IT IS NOT JUST A COURTYARD PROBLEM. SOT-583-8 is a
+    # 0.5 mm-pitch part, so it belongs in gen_pcb.FANOUT with U7/U3/U5/U10
+    # for exactly the reason documented there: the front layer between
+    # 0.5 mm-pitch pads is entirely clearance, via-in-pad is forbidden, and a
+    # pad with no seeded lane cannot start a route at all. Left out of the
+    # table it fails precisely the way U10 did - "0 goal node(s), free
+    # neighbours F/B=0/0" on VBUS, +5V and BUCK_5V, which is what the first
+    # attempt at this part did on pass 1.
+    #
+    # ROT 180, NOT 0, AND THE FANOUT IS THE WHOLE REASON. all_seeds() sends
+    # each pad out along whichever axis its offset from the part centre is
+    # larger on. This footprint is 1.48 mm across the columns and 1.50 mm
+    # along them, so the four CORNER pads escape vertically and the four
+    # middle pads horizontally - a 0.01 mm margin deciding a direction. At
+    # rot 0 the two corner pads that carry a net are PR1 and MODE, and they
+    # escape SOUTH: 1.75 mm from y 36.95 lands at y 38.7, straight through
+    # the USB pair. At rot 180 those two are at the north edge instead and
+    # escape into the open band above, while GND (a plane net, via not stub)
+    # and the unconnected ST take the south corners where a stub would be a
+    # problem. The horizontal pairs then fall out right as well: VBUS and
+    # +5V leave west toward U4/J1 and U2, BUCK_5V and +5V leave east.
+    #
+    # The USB pair's own constraint still holds and is now met with room to
+    # spare: C3's north edge pins the pair's centreline at y 38.0 until it is
+    # past C3, the pair needs 1.2 mm, so anything here must end above y 37.4.
+    # The SMA ended at 37.25 with 0.15 mm of slack and the router still chose
+    # to thread the pair BETWEEN its two pads, under the body. This part's
+    # pads end at 36.95 and its courtyard at 37.50, and nothing of it reaches
+    # into the lane, so the pair can simply run south of it.
+    #
+    # R63/R64 are NOT beside the part, and that is deliberate: the west
+    # escape corridor (two stubs at y 35.95 and 36.45 running out to x 52.5)
+    # has to stay empty, and an 0805 anywhere in D2's old footprint sits in
+    # it - the first attempt put R63 at x 52.5 and its pad landed 0.20 mm
+    # from the VBUS stub. They go instead in the band north of R4 (x 54.7 to
+    # 60, y 29.8 to 32.6), which is the largest genuinely free area in this
+    # quadrant, both rotated so their MUX_PR1 pads share y 32.31. That makes
+    # PR1 a straight 2.4 mm run with U12's own PR1 stub ending 0.7 mm off it,
+    # and hands BUCK_5V the detour around R63 - the right way round, because
+    # PR1 is a 0.3 mm signal routed LAST while BUCK_5V is a 0.7 mm rail
+    # routed fourth, into an empty band.
+    #
+    # ONE THING THE DIODE USED TO DO THAT U12 DOES NOT: drop 0.4 V off a
+    # high USB port. VIN2 now sees VBUS directly, against a 5.5 V
+    # recommended maximum and a 6.0 V absolute maximum. A compliant source
+    # is 4.75-5.25 V so this is 250 mV inside the recommendation and 750 mV
+    # inside the rating, and U4 (the SRV05-4 on VBUS) clamps the transients
+    # either way - but a non-compliant charger sitting at 5.6 V would now be
+    # out of the recommended range where the Schottky used to hide it. Judged
+    # acceptable: the same charger already puts 5.6 V on the SSR gate rail,
+    # the WS2812B and the display, none of which had a diode in front of them
+    # either.
+    #
+    # +$3, the one feeder this change adds. Nothing fee-free does this job:
+    # the Basic and Preferred libraries hold no power mux and no ideal-diode
+    # controller at any voltage.
+    "U12": dict(lib="Power_Management", sym="TPS2116DRL",
+                fp="Package_TO_SOT_SMD:SOT-583-8", fpf="SOT-583-8.kicad_mod",
+                value="TPS2116DRLR", at=(55.8, 36.2, 180),
+                pins={"1": "GND", "2": "+5V", "3": "BUCK_5V", "4": "MUX_PR1",
+                      "5": "BUCK_5V", "6": "VBUS", "7": "+5V", "8": None}),
+    "R63": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
+                value="30k", at=(55.8, 31.4, 270),
+                pins={"1": "BUCK_5V", "2": "MUX_PR1"}),
+    "R64": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
+                value="10k", at=(58.2, 31.6, 90),
+                pins={"1": "MUX_PR1", "2": "GND"}),
     # --- 24 V -> 5 V buck (the +5V rail) ---------------------------------
     # XL1509-5.0E1: 40 V abs max in, FIXED 5 V out, 2 A, 150 kHz, SOIC-8,
     # LCSC C61063 and a JLCPCB *Basic* part, so it costs no feeder fee. Two
@@ -339,7 +523,7 @@ COMPONENTS = {
                 fp="Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
                 fpf="SOIC-8_3.9x4.9mm_P1.27mm.kicad_mod",
                 value="XL1509-5.0E1", at=(104.5, 103.5, 0),
-                pins={"1": "VIN_P", "2": "SW_5V", "3": "+5V", "4": "GND",
+                pins={"1": "VIN_P", "2": "SW_5V", "3": "BUCK_5V", "4": "GND",
                       "5": "GND", "6": "GND", "7": "GND", "8": "GND"}),
     # Catch diode. Non-synchronous buck, so this carries the inductor current
     # for ~79% of every cycle - it is not optional and it is not a snubber.
@@ -362,13 +546,13 @@ COMPONENTS = {
                # part's Reference/Value. That collision is a check_sch_layout
                # failure, and swapping the pins is the whole fix.
                value="47uH/2A", at=(114.0, 107.5, 0),
-               pins={"1": "+5V", "2": "SW_5V"}),
+               pins={"1": "BUCK_5V", "2": "SW_5V"}),
     "C44": dict(lib="Device", sym="C", fp=C1206[0], fpf=C1206[1],
                 value="22uF", at=(103.0, 108.5, 0),
-                pins={"1": "+5V", "2": "GND"}),
+                pins={"1": "BUCK_5V", "2": "GND"}),
     "C45": dict(lib="Device", sym="C", fp=C1206[0], fpf=C1206[1],
                 value="22uF", at=(108.0, 108.8, 90),
-                pins={"1": "+5V", "2": "GND"}),
+                pins={"1": "BUCK_5V", "2": "GND"}),
     # C46 is the reason this rail is stable, and it is NOT interchangeable
     # with more ceramic. The XL1509 is an LM2596-class VOLTAGE-mode regulator
     # with fixed internal compensation: the loop has an LC double pole and no
@@ -406,12 +590,12 @@ COMPONENTS = {
     "C46": dict(lib="Device", sym="C_Polarized",
                 fp="Capacitor_SMD:CP_Elec_5x5.4", fpf="CP_Elec_5x5.4.kicad_mod",
                 value="100uF/16V", at=(97.5, 113.25, 0),
-                pins={"1": "+5V", "2": "GND"}),
+                pins={"1": "BUCK_5V", "2": "GND"}),
     # The regulator and the bulk-cap row east of it sit 1.5 mm further east
     # than they did, as one block: U2 36.6 -> 38.1, C1 44.0 -> 45.5, C3
     # 49.2 -> 50.7, C4 53.8 -> 55.3. They are shoulder to shoulder (the
     # smallest pad-to-pad gap in the row is ~1.1 mm), so moving one means
-    # moving all four, and the last of them still clears D2 and the module.
+    # moving all four, and the last of them still clears U12 and the module.
     #
     # The reason is silk, which is a thin reason for moving a regulator and
     # was still the right call. J2 is the board's power INPUT, and the only
@@ -430,14 +614,25 @@ COMPONENTS = {
     # is NOT the 24V input:
     #
     # U2's input rail has two sources. U11 is one, and behind the buck's
-    # regulated 5.0V an AMS1117 would be fine. D2 is the other, and it is
+    # regulated 5.0V an AMS1117 would be fine. USB is the other, and it is
     # the one that decides the part: VBUS -> +5V is how the board runs on
-    # USB alone, which is every bench and flashing session. A 4.75V port
-    # (5V -5%) behind D2's ~0.4V Schottky puts +5V at 4.35V, and 4.35 -
-    # 1.1 = 3.25V — the AMS1117 is out of regulation before the ESP32 has
-    # transmitted anything. The TLV leaves 350mV. Adding U11 raised the
-    # floor on the 24V path and did nothing at all to the USB path, so
-    # "the board has more headroom now" is true and does not apply here.
+    # USB alone, which is every bench and flashing session.
+    #
+    # THIS SURVIVED U12, WHICH IS THE INTERESTING PART, because removing the
+    # ORing diode's 0.4V is exactly the change that should have reopened it.
+    # It does not, and the reason is that USB's own tolerance is wider than
+    # the drop that was deleted. A 4.75V port (5V -5%) behind the old SS34
+    # put +5V at 4.35V against the AMS1117's ~4.4V need - out of regulation
+    # before the ESP32 had transmitted anything. Through U12's ~40 mOhm the
+    # same port puts +5V at 4.73V, which looks like 330mV of margin and is
+    # not: 4.75V is specified AT THE PORT, and a cable plus two contacts at
+    # 0.2-0.5 ohm take another 0.1-0.25V out of it at half an amp. That
+    # leaves the AMS1117 somewhere between 0.2V and 0.05V, and behind a
+    # bus-powered hub (4.35V at the connector, which USB permits) it is out
+    # of regulation again. The TLV's 700mV-max dropout holds in all of it.
+    # Neither U11 nor U12 raised the floor of the USB path - only the port
+    # and the cable set that - so "the board has more headroom now" is true
+    # twice over and still does not apply here.
     #
     # Nor is the SOT-223 the constraint, which is the next thing asked. The
     # WHOLE fee-free library - 350 Basic plus 996 Preferred, enumerated, not
@@ -535,12 +730,25 @@ COMPONENTS = {
     "R1": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
                value="10k", at=(56.0, 42.3, 0),
                pins={"1": "+3V3", "2": "EN"}),
-    # Rotated 90 deg (not 0) so the GND pad faces the open pour below rather
-    # than the sliver between C5, R1 and the module's left edge. At rot 0 that
-    # sliver was too narrow to take a stitching via once vias were barred from
-    # sitting inside pads (router.VIA_PAD_GAP), stranding this pad on F.Cu.
+    # Rotated (270, so GND is the SOUTH pad) rather than 0, so the GND pad
+    # faces the open pour below instead of the sliver between C5, R1 and the
+    # module's left edge. At rot 0 that sliver was too narrow to take a
+    # stitching via once vias were barred from sitting inside pads
+    # (router.VIA_PAD_GAP), stranding this pad on F.Cu.
+    #
+    # This comment described a rotation the table had stopped carrying - the
+    # `at` said 0 - and the board went back to failing the way the comment
+    # says it does, just via a different mechanism: at rot 0 the pads lie
+    # EAST-WEST, so EN enters on the west and has to come round the north of
+    # the part to reach it, and the EN track then runs 1.30 mm over the GND
+    # pad and starves its F.Cu thermal to one spoke where the rule wants two.
+    # KiCad calls that `starved_thermal`, and it was the board's only DRC
+    # violation after U12 went in (the mux re-rolled the routing order, which
+    # is what moved EN onto that line). At 270 the pads lie NORTH-SOUTH: EN
+    # is the north pad and meets its own track head-on, GND is the south pad
+    # with the open pour under it. Do not "simplify" this back to 0.
     "C5": dict(lib="Device", sym="C", fp=C0603[0], fpf=C0603[1],
-               value="1uF", at=(52.0, 42.3, 0),
+               value="1uF", at=(52.0, 42.7, 270),
                pins={"1": "EN", "2": "GND"}),
     "R2": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
                value="10k", at=(106.0, 22.5, 0),
@@ -856,11 +1064,13 @@ COMPONENTS = {
     # noise margin on a loom that runs beside element wiring, and because it
     # is what every other DC control terminal in a kiln cabinet already is.
     #
-    # The high side is VIN_P - post-F1, post-D8, post-D1 - not VIN. That is
+    # The high side is VIN_P - post-F1, post-D8, post-Q8 - not VIN. That is
     # the whole point of picking a node: a terminal fed from raw VIN bypasses
-    # the reverse-polarity diode and the fuse, and a screw terminal is
-    # exactly where a wiring mistake lands. The cost is D1's ~0.4 V, which
-    # is 1.7% of 24 V.
+    # the reverse-polarity switch and the fuse, and a screw terminal is
+    # exactly where a wiring mistake lands. This used to cost ~0.4 V, the
+    # drop of the SS34 that Q8 replaced; it now costs ~33 mV, so the terminal
+    # really is at the input voltage and the 3-32 V SSR window is entered
+    # with the whole of it.
     #
     # CURRENT BUDGET, and it is a real limit rather than a note. F1 holds at
     # 750 mA and U11 draws ~250 mA of it, so the two channels share ~400 mA
@@ -1135,8 +1345,10 @@ COMPONENTS = {
     # because "no target kick frequency or hold-decay spec exists yet".
     #
     # Raising the kick rate rescues the gate voltage (>= 250 Hz) but cannot
-    # rescue the temperature behaviour. Schottky reverse leakage through D2
-    # discharges the hold node in parallel with R46 and roughly doubles per
+    # rescue the temperature behaviour. Schottky reverse leakage through the
+    # BAT54S's second diode (nothing to do with the board's old D2, which was
+    # the USB ORing part U12 replaced) discharges the hold node in parallel
+    # with R46 and roughly doubles per
     # 10 C, so the budget for a transient firmware stall - a flash erase
     # stalls BOTH cores - falls from 0.31s at 25C to 0.11s at 60C, and near
     # 85C the pump stops holding at all. A kiln controller sits next to a

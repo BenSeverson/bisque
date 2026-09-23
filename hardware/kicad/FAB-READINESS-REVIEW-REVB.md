@@ -216,8 +216,10 @@ refutation pass the 2026-09-02 round had. See "Not performed".
 - **Stock at order time** (5 boards need 5 + JLC attrition of each):
   D8 SMAJ30A C19077547 **651** (Preferred) — fallbacks C908776 (197 k,
   Extended) or the bidirectional SMAJ30CA C19077548 (Preferred, 14 k; with
-  D1 blocking reverse polarity a bidirectional clamp is electrically fine
-  here); ESP32-S3-WROOM-1U-N16R2 3 507; MAX31856 7 744; ADE7953 4 846; XO
+  Q8 blocking reverse polarity a bidirectional clamp is electrically fine
+  here — though note a bidirectional part would stop clamping a reversed
+  input to one diode drop, which is the thing that keeps Q8's 30 V V_DS
+  rating sufficient; see `design.py` at Q8 before taking this fallback); ESP32-S3-WROOM-1U-N16R2 3 507; MAX31856 7 744; ADE7953 4 846; XO
   6 566; SN74LVC1G123 8 800; TLV1117LV33 98 k. The thin hand-solder lines
   (J7 22-27-2081 at 754, J5 XD-2510-14A at 1 271) come from Mouser anyway.
 
@@ -225,7 +227,7 @@ refutation pass the 2026-09-02 round had. See "Not performed".
 
 | # | Check | Why |
 |---|---|---|
-| C1 | **USB-only power back-feeds the buck.** With VIN_P at 0 V, U11 pin 3 (FB, tied to +5V) and pin 2 (SW, DC through L1) sit at VBUS − D2 ≈ 4.4–4.8 V. XL1509 abs max (p.5) rates FB and the switch pin at "−0.3 to Vin". The LM2596 it clones rates FB to +25 V and the output to −1 V, so this is probably a clone-datasheet artefact — but USB-only is every flashing session. Measure current into U11 (lift nothing: measure VBUS current with and without U11's +5V path, or U11 case temperature) on USB alone. If it draws or warms, rev C needs an ideal-diode or accepts a Schottky between the buck and +5V | Datasheet limit on paper in a routine operating mode |
+| C1 | ~~**USB-only power back-feeds the buck.** With VIN_P at 0 V, U11 pin 3 (FB, tied to +5V) and pin 2 (SW, DC through L1) sit at VBUS − D2 ≈ 4.4–4.8 V. XL1509 abs max (p.5) rates FB and the switch pin at "−0.3 to Vin".~~ **CLOSED IN DESIGN, no bench check needed.** The remedy this row asked for — "rev C needs an ideal-diode or accepts a Schottky between the buck and +5V" — was taken, and taken as the stronger of the two: D2 is now **U12**, a TPS2116 power mux, and the buck's output is its own net (`BUCK_5V`) on the far side of it. The back-feed path no longer exists, because the channel U12 is not using is open, not forward-biased. Note the row's own framing was too narrow: a plain ideal diode would have fixed the back-feed and broken something else, since it passes the HIGHER input and a 5.25 V host beats a 5.0 V buck. U12 is in priority mode for that reason — see `design.py` at U12 | Was: datasheet limit on paper in a routine operating mode |
 | C2 | **Scope the +5V rail** at C44 under the real load (Wi-Fi TX + backlight + both SSR LEDs) for subharmonic or ~kHz oscillation. This is the A1 question answered with hardware | Ceramic-only COUT |
 | C3 | **Bring the SPI bus up at 20 MHz, then raise.** SPI_SCLK is a 124 mm, 8-via multi-drop net: U1 → U3 32 mm, U5 37 mm, touch damper R39 71 mm, display damper R54 85 mm, then ≤ 150 mm of loom. The 33 Ω dampers sit at the connector end, so the two MAX31856 stubs are undamped branches on a 40 MHz clock; SPI_SCLK also runs 11 mm at 0.2 mm from SSR2_CTRL and SPI_MISO parallels SPI_SCLK for 19.9 mm on B.Cu. Ringing at the MAX31856 SCLK pins or the display is the expected failure mode; the clock is a firmware knob | Multi-drop 40 MHz over 85 mm + loom |
 | C4 | **Cold-junction gradient** (prior C item, unchanged): U3/U5 are 27/31 mm from U1 and 59/60 mm from U2; J3/J8 are 17 mm from their chips. Log CJ temperature vs a reference over a warm-up | On-die CJ with 0.5–1 W parts 30 mm away |
@@ -339,8 +341,11 @@ refutation pass the 2026-09-02 round had. See "Not performed".
   connector anti-pad clusters under SSR_EN at J4 and I²C/RXD0 at J7); In2
   +3V3 is one polygon; the cross-analyzer's "GND 2 islands" is refuted. Every
   decoupling cap's GND pad has a GND via within 1.4 mm.
-- **Rails:** VIN/VIN_F/VIN_P/SW_5V 0.8 mm, +5V 0.7 mm, SSR_EN 0.5 mm, VBUS
-  0.4–0.5 mm; all above IPC-2221 for their currents.
+- **Rails:** VIN/VIN_F/VIN_P/SW_5V 0.8 mm, BUCK_5V/+5V 0.7 mm, SSR_EN
+  0.5 mm, VBUS 0.4–0.5 mm; all above IPC-2221 for their currents.
+  (`BUCK_5V` is the buck output ahead of U12 and now carries the long
+  south-east-to-north-west run that `+5V` used to; `+5V` is only the
+  distribution downstream of the mux.)
 - **Thermal (estimates, 50 °C ambient):** U2 ≈ 0.5 W average on a 0.3 A
   +3V3 budget (ESP32 + 2 × MAX31856 + ADE7953 + pull-ups; the display is on
   +5V) → Tj ≈ 75–85 °C, ≈ 100 °C at 0.5 A Wi-Fi peaks, inside 125 °C with
@@ -699,6 +704,16 @@ diagram).
 ## Findings
 
 ### 1. LDO headroom is thin, and every analyzer overstates it — *medium*
+
+> **Superseded three times over; kept for the method, not the numbers.** This
+> round predates U11 (the 24 V input and the buck), the TLV1117LV that
+> replaced this AMS1117, and U12 (the power mux that replaced the ORing
+> Schottky). `+5V` is now a regulated 5.0 V from the buck through ~40 mΩ of
+> mux, and the USB path is ~4.73 V at a 4.75 V port rather than 4.35 V. The
+> live version of this argument — including why the AMS1117 still does not
+> come back even with the diode drop gone — is the U2 block in `design.py`.
+> The exposure named in the last paragraph (low supply or cable drop
+> coinciding with a Wi-Fi TX burst) is the part that outlived the numbers.
 
 `+5V` is not 5.0 V. The rail sits behind the ORing Schottky D1 (SS34), so U2's
 input is roughly `VIN − 0.4 V ≈ 4.6 V`. Every tool in the run assumed 5.0 V

@@ -72,6 +72,7 @@ JLC_PLACEMENT = {
     "C1739":    (  0,  0.000,  0.000),   # C31   C_0805_2012Metric                    resid 0.050 (2 pin#)
     "C17408":   (  0,  0.000,  0.000),   # R14   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17414":   (  0,  0.000,  0.000),   # R1    R_0805_2012Metric                    resid 0.088 (2 pin#)
+    "C17621":   (  0,  0.000,  0.000),   # R63   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17513":   (  0,  0.000,  0.000),   # R9    R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17557":   (  0,  0.000,  0.000),   # R6    R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17630":   (  0,  0.000,  0.000),   # R3    R_0805_2012Metric                    resid 0.088 (2 pin#)
@@ -80,6 +81,7 @@ JLC_PLACEMENT = {
     "C17724":   (  0,  0.000,  0.000),   # R31   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C1779":    (  0,  0.000,  0.000),   # C27   C_0805_2012Metric                    resid 0.050 (2 pin#)
     "C20917":   (180,  0.000,  0.000),   # Q5    SOT-23                               resid 0.083 (3 pin#)
+    "C22375294": (  0,  0.000,  0.000),   # D11   D_SOD-323                            resid 0.089 (2 pin#)
     "C2296":    (  0,  0.000,  0.000),   # LED3  LED_0805_2012Metric                  resid 0.113 (2 pin#)
     "C2297":    (  0,  0.000,  0.000),   # LED2  LED_0805_2012Metric                  resid 0.113 (2 pin#)
     "C2838127": (  0,  0.000,  0.000),   # Y1    Oscillator_SMD_Abracon_ASE-4Pin_3.2x resid 0.071 (4 pin#)
@@ -110,11 +112,17 @@ JLC_PLACEMENT = {
     "C75882":   (180,  0.000,  0.000),   # Q5    SOT-23                               resid 0.397 (3 pin#)
     "C81598":   (  0,  0.000,  0.000),   # D4    D_SOD-123                            resid 0.085 (2 pin#)
     "C13585":   (  0,  0.000,  0.000),   # C41   C_1206_3216Metric                    resid 0.118 (2 pin#)
+    # U12. A QUARTER TURN, and the one row here that could not have been
+    # guessed from the package name: LCSC runs the SOT-583's 0.5 mm pitch
+    # along x with the two rows above and below, KiCad runs it along y with
+    # the rows left and right. Same 8 pads, same part, land drawn on the
+    # other axis - the ADE7953's 180-out QFN all over again.
+    "C3235557": (270,  0.000,  0.000),   # U12   SOT-583-8                            resid 0.100 (8 pin#)
     "C369169":  (  0,  0.000,  0.000),   # F1    Fuse_1812_4532Metric                 resid 0.284 (2 pin#)
     "C475527":  (  0,  0.000,  0.000),   # L1    L_Changjiang_FXL0650                 resid 0.025 (2 pin#)
     "C61063":   (270,  0.000,  0.000),   # U11   SOIC-8_3.9x4.9mm_P1.27mm             resid 0.230 (8 pin#)
     "C19077547": (  0,  0.000,  0.000),   # D8    D_SMA                                resid 0.404 (2 pin#)
-    "C8678":    (  0,  0.000,  0.000),   # D1    D_SMA                                resid 0.200 (2 pin#)
+    "C8678":    (  0,  0.000,  0.000),   # D7    D_SMA                                resid 0.200 (2 pin#)
 }
 
 
@@ -204,13 +212,18 @@ LCSC = {
     # the one line on the board that buys a feeder fee for three cents of
     # part.
     "C46": ("C2977550", "RVT1C101M0505 100uF 16V D5x5.4 aluminium electrolytic", False, True),
-    "D1": ("C8678", "SS34 SMA", True, True),
-    "D2": ("C8678", "SS34 SMA", True, True),
     "D3": ("C81598", "1N4148W SOD-123 - VLED drop diode, silicon on purpose", True, True),
     "D4": ("C81598", "1N4148W SOD-123", True, True),
     "D5": ("C7420376", "SRV05-4 TVS array SOT-23-6", True, True),
     "D6": ("C7420376", "SRV05-4 TVS array SOT-23-6", True, True),
     "D7": ("C8678", "SS34 40V 3A Schottky SMA - U11 catch diode", True, True),
+    # Q8's gate clamp. 8.2V, not the 10V or 12V that look like more headroom
+    # against the AO3401A's +-12V V_GS: a 12V zener at +5% is 12.6V, i.e.
+    # outside the rating it is fitted to guard. SOD-323 rather than the
+    # SOD-123 the other small diodes use - it is what this Preferred line
+    # comes in, and the part sits in a 2.9mm slot west of Q8 where the
+    # smaller land is the easier fit anyway.
+    "D11": ("C22375294", "BZT52C8V2S 8.2V 200mW zener SOD-323", True, True),
     # The one SMAJ30A of 44 listings that LCSC files as Preferred rather
     # than Extended, which is the whole reason for it (#348) - same MPN,
     # same DO-214AC land pattern, same 30V/400W part, $3 less per order.
@@ -255,6 +268,12 @@ LCSC = {
     "Q5": ("C75882", "CJ2310 60V 3A N-channel SOT-23", False, True),
     "Q6": ("C75882", "CJ2310 60V 3A N-channel SOT-23", False, True),
     "Q7": ("C75882", "CJ2310 60V 3A N-channel SOT-23 - watchdog return gate", False, True),
+    # Reverse-polarity switch, replacing the SS34 that used to be D1. Same
+    # part as Q4 and already Basic, so the swap adds no feeder fee - and the
+    # 30V rating is sufficient here for reasons design.py derives at Q8 (the
+    # body diode clamps V_DS forward, D8 clamps it reverse), which is NOT the
+    # argument that applies to Q5/Q6/Q7's 60V CJ2310s.
+    "Q8": ("C15127", "AO3401A P-channel SOT-23 - reverse polarity", True, True),
     "R1": ("C17414", "10k 0805 1%", True, True),
     "R2": ("C17414", "10k 0805 1%", True, True),
     "R3": ("C17630", "330R 0805 1%", True, True),
@@ -316,6 +335,12 @@ LCSC = {
     "R59": ("C17513", "1k 0805 1%", True, True),
     "R60": ("C17513", "1k 0805 1%", True, True),
     "R61": ("C17513", "1k 0805 1%", True, True),
+    "R62": ("C149504", "100k 0805 1%", True, True),
+    # 30k is the one new passive value this board gained. Basic, so fee-free;
+    # with R64 it sets U12's buck-priority threshold at 4.0V - see design.py
+    # at U12 for why that number is pinned from both ends rather than rounded.
+    "R63": ("C17621", "30k 0805 1%", True, True),
+    "R64": ("C17414", "10k 0805 1%", True, True),
     "SW1": ("C318884", "TS-1187A-B-A-B 5.1x5.1mm SMD tactile switch", True, True),
     "SW2": ("C318884", "TS-1187A-B-A-B 5.1x5.1mm SMD tactile switch", True, True),
     # Containment, not isolation - see design.py's SSR block. SOP-4 rather
@@ -337,6 +362,13 @@ LCSC = {
     "U7": ("C515890", "ADE7953ACPZ-RL LFCSP-28 energy metering", False, True),
     "U10": ("C123302", "SN74LVC1G123DCTR retriggerable monostable SSOP-8", False, True),
     "U11": ("C61063", "XL1509-5.0E1 4.5-40Vin 5V fixed 2A 150kHz buck SOIC-8", True, True),
+    # The +5V source select, replacing the SS34 ORing diode that was D2.
+    # Extended and not Preferred, so this is a real +$3 - and unavoidable:
+    # the whole fee-free library holds no power mux and no ideal-diode
+    # controller at any voltage. Priority mode (MODE tied to VIN1) is what
+    # keeps the buck winning over a 5.25V USB host; an ideal diode would
+    # hand the rail to whichever input happened to be higher.
+    "U12": ("C3235557", "TPS2116DRLR 2.5A power mux SOT-583", False, True),
     "Y1": ("C2838127", "TFOM3.579545M4RHKCNT2T 3.579545MHz XO SMD3225-4P", False, True),
 }
 
