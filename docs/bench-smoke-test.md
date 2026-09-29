@@ -53,13 +53,12 @@ None of them is a firmware bug.
       unwired terminal reads *lid open* and the kiln will not heat. Fit the
       lid switch, jumper J11 pin 1 to J11 pin 4 (GND), or build with
       `KILN_PIN_LID_SWITCH=-1`.
-- [ ] **Nothing real is on J9 yet.** Firmware does not drive SSR2's GPIO
-      (21) until zone 2 support lands
-      ([#310](https://github.com/BenSeverson/bisque/issues/310)). Rev B.2
-      no longer pins that line low on the board, so while the watchdog is
-      live, channel 2 depends on the pin's reset state. Leave J9 empty, or
-      fit only a dummy (below), until firmware parks GPIO 21 low or the
-      "SSR2 stays off" check below has passed.
+- [ ] **Channel 2 is not driven by firmware yet.** GPIO 21 (SSR2) stays
+      unconfigured until zone 2 support lands
+      ([#310](https://github.com/BenSeverson/bisque/issues/310)), and rev
+      B.2 no longer pins that line on the board. Espressif's datasheet has
+      the pin resetting with no pull, so channel 2 should stay off. Confirm
+      it with the "SSR2 stays off" check below before relying on J9.
 
 ## First power-up on board 1 (once only)
 
@@ -146,9 +145,9 @@ permission rail) is live without starting a profile.
       safety-path figure that is extrapolated rather than specified.
 - [ ] **SSR2 stays off.** With `SSR_EN` live, R20's non-ground pad
       (`SSR2_GATE`) reads **below 0.3 V**, and LED4 and the J9 dummy stay
-      dark. If the gate sits higher, GPIO 21's reset state is pulling
-      channel 2 on, and a real SSR must not go on J9 until firmware parks
-      that pin low.
+      dark. If the gate sits higher, something is lifting the floating
+      GPIO 21 line: disconnect J9 and report it, because the datasheet says
+      that pin resets with no pull.
 
 ## Pre-flight
 

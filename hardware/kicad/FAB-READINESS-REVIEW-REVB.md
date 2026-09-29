@@ -63,8 +63,9 @@ decision before the order, and none of them needs a copper change:
 
 - **A1 is a real loss of coverage in B.2.** It is architectural: a
   judgement, not a bug.
-- **A2 is a one-line firmware fix.** Until it lands, a real SSR on J9 is not
-  safe to leave connected.
+- **A2 was a suspected hazard, and the datasheet since cleared it.**
+  GPIO 21 resets with no pull. It remains a one-line defensive firmware
+  fix, not a blocker.
 - **A3 is a resistor value change.**
 
 Everything else is a bench check on board 1 or a rev-C item.
@@ -78,7 +79,7 @@ Everything else is a bench check on board 1 or a rev-C item.
 | `make pcb-check-portable` | all pass (pin map, schematic bounds and layout, `check_pcb`, drill web, canonical form, 159 3D models, USB pair, `gerbers.zip`) |
 | `make pcb-check`, KiCad-dependent half | netlist round-trip, sch uuids, JLC placement, via-in-pad and silk (0/0/0/0) pass. **`check_placement.py` did not run**: this container's wxPython is broken (`wx._core` missing), so `kicad_build` cannot import. The fast courtyard checker checked 0 parts because no KiCad footprint libraries are installed here. Courtyard overlap is therefore **not re-verified** this round; `f1cf1e6` reports it clean |
 | BOM / CPL | all 23 refs above present in both |
-| Datasheets | **None could be fetched.** The environment's network policy denies `ti.com`, `lcsc.com`, `easyeda.com`, `aosmd.com`, Mouser, Digi-Key and every mirror tried. See "Limits" |
+| Datasheets | Only **ESP32-S3 Series Datasheet v2.2** (espressif.com), read for A2. Everything else was denied by the environment's network policy: `ti.com`, `lcsc.com`, `easyeda.com`, `aosmd.com`, Mouser, Digi-Key and every mirror tried. See "Limits" |
 | U12 pinout, second source | `Power_Management:TPS2116DRL` (KiCad 10) and LCSC's own `TPS2116DRLR` symbol, as used by an unrelated open design (Jun-copter/FlightComputer, same buck-priority topology), agree pin for pin with `design.py`: 1 GND, 2/7 VOUT, 3 VIN1, 4 PR1, 5 MODE, 6 VIN2, 8 ST |
 
 ### A. Decide before ordering (no copper change)
@@ -86,7 +87,7 @@ Everything else is a bench check on board 1 or a rev-C item.
 | # | Finding | Measured / derived | Recommendation |
 |---|---|---|---|
 | A1 | **A ground fault on an SSR's switched lead now bypasses the watchdog as well as the channel MOSFET.** In B.1, J4/J9 pin 1 was `SSR_EN`, the watchdog-gated rail. Suppose an SSR's `−` lead found ground: chafed onto the backplate (board GND is bonded to the earthed door through H1–H4), or miswired to J2's `-`, the PSU `−`, or a shared negative bus. The SSR would come on, but the watchdog could still take it off. Firmware's emergency stop deliberately blocks the kick (`s_wdt_blocked`), so an over-temperature trip reached it that way too. In B.2 pin 1 is `VIN_P`, always live, and the watchdog is Q7 in the *return*. The same fault turns the SSR on with no board-level path to turn it off. `design.py`'s "Q7 does the same job" is true for Q5 failing short, which is the case it was argued for. It is not true for this one | By inspection of the topology; both revs' netlists | **Accept for B.2**, on the grounds that the exposure is the same class as an SSR failing short: the commonest kiln-controller failure, which no board can cut and only the contactor handles. Three conditions on that. (1) The enclosure's "strongly recommended" contactor, dropped by the mechanical over-temp cutout, becomes the only independent cutoff for this fault, so treat it as required. (2) The wiring rule goes in the docs (done in this pass): SSR `−` to `OUT` only, never to any ground, and never commoned between channels. (3) Commissioning meters `OUT` to GND before first heat (now in the bench checklist). Rev C options: a high-side cutoff (rejected in B.2 for want of a fee-free 60 V P-FET; re-check the library), or an `OUT`-sense divider so firmware can at least alarm. The one free GPIO is 37 |
-| A2 | **SSR2's GPIO is never configured, and in B.2 nothing on the board pins it.** B.1 held `SSR2_CTRL` low through R19 (100 R) + R20 (10 k). B.2 moved R20 to the far side of U9, so the GPIO net's only load is the opto LED. Firmware drives GPIO 17 (SSR1) low in `safety_init()`, but nothing configures GPIO 21 until RB-5 (#310). While firmware is kicking, `SSR_EN` is live, so channel 2's state rests on the ESP32-S3's reset pull on GPIO 21. That pull was not verified this round (the datasheet was unreachable) | A 45 kΩ internal pull-up would put 49 µA into the LED. At TLP291 CTR up to 400 %, that is ≤ 0.2 mA into R20, so **up to ~2.0 V on Q6's gate**. That is inside the CJ2310's threshold range, with an SSR input that can trigger at ~2 mA. If the pin resets with no pull, the LED holds the node near 0 V and nothing happens | **Park GPIO 21 as output-low at boot** (`main.c`, beside the chip-select parking) until RB-5 lands. It is one `gpio_config` call and costs nothing. Until then, do not leave a real SSR on J9, and run the bench check that measures `SSR2_GATE` with the watchdog live |
+| A2 | **SSR2's GPIO is never configured, and in B.2 nothing on the board pins it** (*downgraded 2026-09-29, same day: low*). B.1 held `SSR2_CTRL` low through R19 (100 R) + R20 (10 k). B.2 moved R20 to the far side of U9, so the GPIO net's only load is the opto LED. Firmware drives GPIO 17 (SSR1) low in `safety_init()`, but nothing configures GPIO 21 until RB-5 (#310). While firmware is kicking, `SSR_EN` is live, so channel 2's state rests on GPIO 21's reset state. **ESP32-S3 Series Datasheet v2.2, pin overview table (PDF page 17): GPIO 21's "At Reset" and "After Reset" columns are both empty. No weak pull-up and no input enable, where GPIO 17 shows `IE` and U0TXD shows `WPU, IE`.** | The feared case was an internal ~45 kΩ pull-up putting 49 µA into the LED, ≤ 0.2 mA into R20 at CTR 400 %, and up to ~2.0 V on Q6's gate. **The datasheet rules that out.** A floating, input-disabled pin sources only leakage, and the LED clamps the node near 0 V. What remains is an undefined line, with only leakage and coupling to act on it | **Park GPIO 21 as output-low at boot** (`main.c`, beside the chip-select parking) until RB-5 lands. It is defensive, not urgent: one `gpio_config` call that turns "the datasheet says it floats" into "firmware holds it low". J9 may carry a real SSR. The bench check on `SSR2_GATE` stays as confirmation |
 | A3 | **R10/R21 run at the edge of their 1/8 W rating.** C17673 is a UNI-ROYAL `0805W8F…` part, i.e. 1/8 W. The 4.7 k indicator resistors sit across 24 V | (24.0 − 2.0)² / 4.7 k = **103 mW (82 %)**. At the HDR-15-24's +10 % trim, 26.4 V: **127 mW (101 %)**. Thick film derates from 70 °C, and this is a kiln enclosure | **10 k**, an existing BOM line (C17414, no new feeder): 2.2 mA / 48 mW at 24 V, 60 mW at 26.4 V. The amber LEDs dim about 2×, which is fine for a state indicator. This is a value change only, with no copper change |
 | A4 | **The documented SSR's input may not be rated for the terminal's top voltage.** The enclosure BOM lists the Omron G3NA-240B as "DC input 5–24 V". The terminal is `VIN_P`, up to 26.4 V at +10 % trim | Rated range from the repo's own table; operating range not checked (datasheet unreachable) | Before wiring, confirm the chosen SSR's *operating* input range covers 26.4 V (Crydom D2440-class inputs are 3–32 V), or leave the PSU trim at nominal. Added to the bench prerequisites |
 
@@ -119,8 +120,8 @@ Everything else is a bench check on board 1 or a rev-C item.
   healthy), scope TP12 against `SSR_EN` (R18's non-ground pad) and press
   RESET. The time from the last retrigger to `SSR_EN` falling
   should be 1.65–2.71 s.
-- **`SSR2_GATE` < 0.3 V** (R20's non-ground pad) with `SSR_EN` live, while
-  A2 is open.
+- **`SSR2_GATE` < 0.3 V** (R20's non-ground pad) with `SSR_EN` live, until
+  firmware parks GPIO 21. This confirms on hardware what the datasheet says.
 
 ### C. Rev C
 
@@ -193,8 +194,8 @@ Everything else is a bench check on board 1 or a rev-C item.
   channel, and above all the MODE-low/VIN1-absent behaviour) are taken from
   `design.py` and corroborated only by topology. The AO3401A, CJ2310 and
   TLP291 figures are recalled, and they agree with `design.py`'s. The
-  ESP32-S3 reset pull on GPIO 21 is unknown, which is why A2 is written
-  against the worst case. To re-run this with sources, allow `www.ti.com`
+  ESP32-S3 reset state of GPIO 21 *was* read, from Espressif's datasheet
+  v2.2, the one host that was reachable. That is what downgraded A2. To re-run this with sources, allow `www.ti.com`
   and `www.lcsc.com` in the environment's network settings.
 - Courtyard overlap was not re-checked (see verification basis).
 - No SPICE and no scope. The switchover dip, window timing and U12's
