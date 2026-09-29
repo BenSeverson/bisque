@@ -98,17 +98,21 @@ output ahead of the mux, is not `+5V`; probe it at C44.
 
 - [ ] **USB-C alone, J2 disconnected.** The board boots and enumerates, TP2
       reads close to the port's VBUS, and **C44 (`BUCK_5V`) stays near 0 V**.
-      This is the one U12 behaviour the design review could not check against
-      the datasheet: with the buck absent, the mux must select USB. It also
-      proves the buck is not being back-fed. If the board is dead on USB
-      alone, check U12 before anything else.
+      With the buck absent, MODE and PR1 are both at 0 V, and the TPS2116
+      datasheet has the mux pass the higher input, which is USB. This check
+      confirms that on hardware, and also proves the buck is not being
+      back-fed. If the board is dead on USB alone, check U12 before anything
+      else.
 - [ ] **Both connected: the buck wins.** With 24 V and USB both present,
       TP2 reads the buck's 5.0 V, not the port's (often 5.1–5.2 V).
       Unplugging USB should not move it.
 - [ ] **Switchover.** With USB attached, switch the 24 V off, then on again.
       The board must **not reset**: check that uptime (Settings → System, or
       `GET /api/v1/system`) carried on. If you have a scope on TP2, `+5V`
-      should bottom out no lower than ~3.7 V on the way to USB.
+      should bottom out no lower than ~3.7 V **in both directions**; the
+      return of 24 V dips it too, by design. Unless U12 has had its input
+      capacitors added (review item A6), also put a probe on VBUS at U4
+      while the 24 V comes back, and stop if it overshoots 6 V.
 - [ ] Bring the display up at a reduced SPI clock first if it is unstable.
       SCLK is a multi-drop net with two thermocouple stubs and ~150 mm of
       loom before the panel.

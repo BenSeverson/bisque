@@ -58,15 +58,19 @@ Board as committed at `95de30c` (no hardware change since `f1cf1e6`).
 **Both blocks are built as designed, and the design mostly holds up.** Every
 new part's pads carry the nets `design.py` gives them, the pinouts agree with
 the parts, the drive arithmetic checks out, and DRC and the checkers are clean.
-**No finding here makes the board unorderable.** Three things deserve a
-decision before the order, and none of them needs a copper change:
+**No finding here makes the board unorderable.** The round first ran blind
+and was then re-checked the same day against the datasheets, once the
+environment's network policy allowed them. The re-check confirmed the
+design's figures and added two findings. Things to decide before the order:
 
 - **A1 is a real loss of coverage in B.2.** It is architectural: a
   judgement, not a bug.
-- **A2 was a suspected hazard, and the datasheet since cleared it.**
-  GPIO 21 resets with no pull. It remains a one-line defensive firmware
-  fix, not a blocker.
-- **A3 is a resistor value change.**
+- **A6 is the one recommended copper change.** The TPS2116 datasheet wants
+  input capacitors close to the part, and U12 has none on either input.
+- **A3 and A5 are resistor value changes** on existing BOM lines.
+- **A2 was a suspected hazard, and the datasheet cleared it.** GPIO 21
+  resets with no pull. It remains a one-line defensive firmware fix.
+- **A4 is an installation check**, not a board item.
 
 Everything else is a bench check on board 1 or a rev-C item.
 
@@ -79,32 +83,37 @@ Everything else is a bench check on board 1 or a rev-C item.
 | `make pcb-check-portable` | all pass (pin map, schematic bounds and layout, `check_pcb`, drill web, canonical form, 159 3D models, USB pair, `gerbers.zip`) |
 | `make pcb-check`, KiCad-dependent half | netlist round-trip, sch uuids, JLC placement, via-in-pad and silk (0/0/0/0) pass. **`check_placement.py` did not run**: this container's wxPython is broken (`wx._core` missing), so `kicad_build` cannot import. The fast courtyard checker checked 0 parts because no KiCad footprint libraries are installed here. Courtyard overlap is therefore **not re-verified** this round; `f1cf1e6` reports it clean |
 | BOM / CPL | all 23 refs above present in both |
-| Datasheets | Only **ESP32-S3 Series Datasheet v2.2** (espressif.com), read for A2. Everything else was denied by the environment's network policy: `ti.com`, `lcsc.com`, `easyeda.com`, `aosmd.com`, Mouser, Digi-Key and every mirror tried. See "Limits" |
+| Datasheets | Read on the same-day re-check: **TPS2116** (TI SLVSFG1A, May 2021); **CJ2310**, **TLP291**, **AO3401A** and **BZT52C8V2S** (LCSC copies of the manufacturers' sheets, `datasheet.lcsc.com/lcsc/<part>.pdf`); **ESP32-S3 Series Datasheet v2.2** (espressif.com); C17673's LCSC listing (125 mW). The first pass had none of these: the environment's network policy denied every datasheet host until it was changed |
+| Stock (jlcsearch, 2026-09-29) | new lines: TPS2116DRLR 12 811, TLP291 126 914, CJ2310 177 409, BZT52C8V2S 247 410, RVT1C101M0505 (C46) 138 880. Still thin: the ESP32-S3-WROOM-1U-N16R2 at **3 507** and D8's SMAJ30A at **651**, unchanged, so re-check both on order day |
 | U12 pinout, second source | `Power_Management:TPS2116DRL` (KiCad 10) and LCSC's own `TPS2116DRLR` symbol, as used by an unrelated open design (Jun-copter/FlightComputer, same buck-priority topology), agree pin for pin with `design.py`: 1 GND, 2/7 VOUT, 3 VIN1, 4 PR1, 5 MODE, 6 VIN2, 8 ST |
 
-### A. Decide before ordering (no copper change)
+### A. Decide before ordering (only A6 changes copper)
 
 | # | Finding | Measured / derived | Recommendation |
 |---|---|---|---|
 | A1 | **A ground fault on an SSR's switched lead now bypasses the watchdog as well as the channel MOSFET.** In B.1, J4/J9 pin 1 was `SSR_EN`, the watchdog-gated rail. Suppose an SSR's `−` lead found ground: chafed onto the backplate (board GND is bonded to the earthed door through H1–H4), or miswired to J2's `-`, the PSU `−`, or a shared negative bus. The SSR would come on, but the watchdog could still take it off. Firmware's emergency stop deliberately blocks the kick (`s_wdt_blocked`), so an over-temperature trip reached it that way too. In B.2 pin 1 is `VIN_P`, always live, and the watchdog is Q7 in the *return*. The same fault turns the SSR on with no board-level path to turn it off. `design.py`'s "Q7 does the same job" is true for Q5 failing short, which is the case it was argued for. It is not true for this one | By inspection of the topology; both revs' netlists | **Accept for B.2**, on the grounds that the exposure is the same class as an SSR failing short: the commonest kiln-controller failure, which no board can cut and only the contactor handles. Three conditions on that. (1) The enclosure's "strongly recommended" contactor, dropped by the mechanical over-temp cutout, becomes the only independent cutoff for this fault, so treat it as required. (2) The wiring rule goes in the docs (done in this pass): SSR `−` to `OUT` only, never to any ground, and never commoned between channels. (3) Commissioning meters `OUT` to GND before first heat (now in the bench checklist). Rev C options: a high-side cutoff (rejected in B.2 for want of a fee-free 60 V P-FET; re-check the library), or an `OUT`-sense divider so firmware can at least alarm. The one free GPIO is 37 |
 | A2 | **SSR2's GPIO is never configured, and in B.2 nothing on the board pins it** (*downgraded 2026-09-29, same day: low*). B.1 held `SSR2_CTRL` low through R19 (100 R) + R20 (10 k). B.2 moved R20 to the far side of U9, so the GPIO net's only load is the opto LED. Firmware drives GPIO 17 (SSR1) low in `safety_init()`, but nothing configures GPIO 21 until RB-5 (#310). While firmware is kicking, `SSR_EN` is live, so channel 2's state rests on GPIO 21's reset state. **ESP32-S3 Series Datasheet v2.2, pin overview table (PDF page 17): GPIO 21's "At Reset" and "After Reset" columns are both empty. No weak pull-up and no input enable, where GPIO 17 shows `IE` and U0TXD shows `WPU, IE`.** | The feared case was an internal ~45 kΩ pull-up putting 49 µA into the LED, ≤ 0.2 mA into R20 at CTR 400 %, and up to ~2.0 V on Q6's gate. **The datasheet rules that out.** A floating, input-disabled pin sources only leakage, and the LED clamps the node near 0 V. What remains is an undefined line, with only leakage and coupling to act on it | **Park GPIO 21 as output-low at boot** (`main.c`, beside the chip-select parking) until RB-5 lands. It is defensive, not urgent: one `gpio_config` call that turns "the datasheet says it floats" into "firmware holds it low". J9 may carry a real SSR. The bench check on `SSR2_GATE` stays as confirmation |
-| A3 | **R10/R21 run at the edge of their 1/8 W rating.** C17673 is a UNI-ROYAL `0805W8F…` part, i.e. 1/8 W. The 4.7 k indicator resistors sit across 24 V | (24.0 − 2.0)² / 4.7 k = **103 mW (82 %)**. At the HDR-15-24's +10 % trim, 26.4 V: **127 mW (101 %)**. Thick film derates from 70 °C, and this is a kiln enclosure | **10 k**, an existing BOM line (C17414, no new feeder): 2.2 mA / 48 mW at 24 V, 60 mW at 26.4 V. The amber LEDs dim about 2×, which is fine for a state indicator. This is a value change only, with no copper change |
-| A4 | **The documented SSR's input may not be rated for the terminal's top voltage.** The enclosure BOM lists the Omron G3NA-240B as "DC input 5–24 V". The terminal is `VIN_P`, up to 26.4 V at +10 % trim | Rated range from the repo's own table; operating range not checked (datasheet unreachable) | Before wiring, confirm the chosen SSR's *operating* input range covers 26.4 V (Crydom D2440-class inputs are 3–32 V), or leave the PSU trim at nominal. Added to the bench prerequisites |
+| A3 | **R10/R21 run at the edge of their 1/8 W rating.** C17673 is a UNI-ROYAL `0805W8F…` part, 125 mW per its LCSC listing. The 4.7 k indicator resistors sit across 24 V | (24.0 − 2.0)² / 4.7 k = **103 mW (82 %)**. At the HDR-15-24's +10 % trim, 26.4 V: **127 mW (101 %)**. Thick film derates from 70 °C, and this is a kiln enclosure | **10 k**, an existing BOM line (C17414, no new feeder): 2.2 mA / 48 mW at 24 V, 60 mW at 26.4 V. The amber LEDs dim about 2×, which is fine for a state indicator. This is a value change only, with no copper change |
+| A4 | **The documented SSR's input may not be rated for the terminal's top voltage.** The enclosure BOM lists the Omron G3NA-240B as "DC input 5–24 V". The terminal is `VIN_P`, up to 26.4 V at +10 % trim | Rated range from the repo's own table; the Omron datasheet was not fetched, so the operating range is not checked | Before wiring, confirm the chosen SSR's *operating* input range covers 26.4 V (Crydom D2440-class inputs are 3–32 V), or leave the PSU trim at nominal. Added to the bench prerequisites |
+| A5 | **R7/R20's gate hold-down has no margin at 85 °C.** `design.py` put the opto's hot dark current at "~10 µA, 5×". That figure is the TLP291's 25 °C I_C(off) spec, not a hot one. The datasheet's I_CEO is 0.08 µA max at 25 °C and **50 µA max at 85 °C** (both at V_CE = 48 V; this collector sees 5 V) | 50 µA × 10 k = **0.5 V, which equals the CJ2310's minimum V_GS(th)** (0.5–2 V at 250 µA), and a MOSFET's threshold falls as it warms. Interpolated, ~1 µA and 10 mV at 50 °C: the margin only runs out at the top of the range. That is inside the TLP291's rating (T_opr to 110 °C), but not where this board is meant to sit | **4.7 k** (C17673, already on the BOM): 0.24 V at the 85 °C corner, 2× margin restored. The gate then needs 1 mA of the ≥ 5.6 mA the opto can pass (CTR ≥ 100 % at I_F ≥ 5.6 mA), so it still saturates. Value change only; the comment in `design.py` is corrected either way |
+| A6 | **U12 has no input capacitor on either input, and its datasheet asks for them.** SLVSFG1A §9: "using an input capacitance (CIN) of 1 μF is sufficient". §10.1: "the input and output capacitors must be placed close to the device". VIN2 (`VBUS`) has no capacitor anywhere on the board. The nearest cap on VIN1 (`BUCK_5V`) is C44, 85 mm away at the buck. The nearest on VOUT is C1 at 11.7 mm | The switchover is break-before-make (§7.6.1). Suppose U12 is carrying ~0.5 A from USB through ~1 µH of cable when 24 V arrives. The channel opens in µs, and that current then has only the pin's own capacitance and U4's clamp to go into, on a pin with a 6 V absolute maximum. 1 µF at the pin bounds the step to about I·√(L/C) ≈ 0.5 V. The same event occurs on VIN1 when the 24 V goes away, through the 85 mm of track from C44. It is a bench-only event, since USB is attached only on the bench, but the bench checklist asks for exactly this switchover | **Add 1 µF at U12 pins 3 and 6** (C28323, 50 V X7R 0805, already on the BOM for C5/C37, so no new feeder), before ordering. On VBUS stay ≤ 10 µF, the USB device limit. This is a placement change in the crowded USB corner, so it needs the full `make pcb-build` and a check that the USB pair still passes. It subsumes the 09-18 round's "VBUS has no local capacitor" item and this round's former C1. If it is deferred, scope VBUS at U4 during the switchover bench step and look for overshoot past 6 V |
 
 ### B. Bench checks on board 1 (added to `docs/bench-smoke-test.md`)
 
-- **U12's USB-only behaviour, the one datasheet claim this round could not
-  read.** With the buck absent, MODE and PR1 (both off `BUCK_5V`) are at
-  0 V, and the board relies on the TPS2116 then selecting VIN2. The
-  topology is TI's priority configuration and matches an independent
-  design, but it is the claim every flashing session depends on. The check
-  is: USB-C alone, J2 disconnected. The board boots, `+5V` ≈ VBUS, and
+- **U12's USB-only behaviour.** With the buck absent, MODE and PR1 (both off
+  `BUCK_5V`) are at 0 V. The datasheet settles what happens then: MODE
+  ≤ 0.35 V is manual mode, PR1 is low, and §7.6.1 passes "the higher voltage
+  supply between VIN1 and VIN2", which is USB. It is still the claim every
+  flashing session depends on, so board 1 confirms it: USB-C alone, J2
+  disconnected. The board boots, `+5V` ≈ VBUS, and
   `BUCK_5V` (at C44) stays near 0 V. The last part is C1 closed in hardware.
 - **The switchover dip.** With USB attached, switch the 24 V off and back on.
   The board must not reset, and `+5V` should bottom out no lower than
-  ~3.7 V. Priority is set by the 30k/10k divider: the switchover is designed
-  at 3.68–4.32 V, which assumes the VREF of 0.92–1.08 V that `design.py`
-  quotes and this round could not re-read.
+  ~3.7 V **in both directions**. The 30k/10k divider puts the switchover at
+  3.68–4.32 V (VREF 0.92–1.08 V, confirmed). On the way back up, U12 holds
+  both channels open until `+5V` has discharged to `BUCK_5V` + V_RCB
+  (§7.6.1), so the 24 V returning dips the rail to the same threshold.
+  `design.py` had described this the other way round; corrected.
 - **Q8 is enhanced, not conducting through its body diode.** `VIN_P` (J4
   pin 1) should read within ~50 mV of J2's `+`. A ~0.6 V deficit means the
   gate is not being pulled (R62/D11).
@@ -125,16 +134,7 @@ Everything else is a bench check on board 1 or a rev-C item.
 
 ### C. Rev C
 
-- **C1 — U12 has no local capacitance on either input** (low-medium). VIN2
-  (`VBUS`) has none anywhere on the board. The nearest cap on VIN1
-  (`BUCK_5V`) is C44, 85 mm away at the buck; the nearest on VOUT is C1 at
-  11.7 mm. This is mitigated because the selected input sees C1 through the
-  ~40 mΩ switch, which is also why the ~8 µs break-before-make droops only
-  ~100 mV (`design.py`'s arithmetic). The independent design above fits caps
-  at both inputs. Add ~1 µF at pins 3 and 6: VBUS may carry up to 10 µF at
-  a USB device. This subsumes the 09-18 round's "VBUS has no local
-  capacitor" item. A local ceramic on VIN2 also slows the edges a hot-plug
-  presents to a 6 V abs-max pin, which today only U4 clamps.
+- **C1 — promoted to A6** once the TPS2116 datasheet was read.
 - **C2 — the healthy channel's gate is over-stressed after a first fault**
   (low). Q5 failed short with the window expired pulls `SSR_RTN` to
   24 × 100k/101.2k = 23.7 V through the SSR input and R22, so Q6 sees
@@ -154,13 +154,20 @@ Everything else is a bench check on board 1 or a rev-C item.
   its 8.2 V rating (≈ 7.5 V at the 165 µA it runs at), inside the
   AO3401A's ±12 V. R62 dissipates 2.5 mW and D11 1.4 mW.
   The "30 V is enough" argument holds: V_DS never exceeds a diode drop
-  forward, and D8 forward-clamps a reversed input.
+  forward, and D8 forward-clamps a reversed input. Against the datasheets:
+  AO3401A −30 V, ±12 V V_GS, V_GS(th) −0.5 to −1.3 V, < 60 mΩ at −4.5 V;
+  BZT52C8V2S 7.7–8.7 V at 5 mA, 200 mW, SOD-323.
 - **U8/U9 (TLP291, SOP-4):** 1 anode, 2 cathode, 3 emitter → gate,
   4 collector → `SSR_EN`. The emitter follower saturates at ≥ 6.8 mA of
   collector capability against the 0.47 mA R7 can take, so the gate lands at
   `SSR_EN` − V_CE(sat) ≈ 4.7 V, set by the rail as `design.py` argues. LED
-  current is 6.1–9.5 mA from 220 R.
-- **Q5/Q6/Q7 (CJ2310, SOT-23 G-S-D):** Q7's gate is on `SSR_EN`, source on
+  current is 5.6–9.5 mA from 220 R. Against the datasheet: pinout
+  1 A / 2 K / 3 E / 4 C; GB rank CTR 100–400 % at 5 mA / 5 V; V_CE(sat)
+  0.3 V max at 2.4 mA / 8 mA; V_F 1.1–1.4 V at 10 mA (`design.py` had
+  1.3 V max, corrected; the 5.6 mA worst case is still over the 5 mA CTR
+  point); V_CEO 80 V.
+- **Q5/Q6/Q7 (CJ2310, SOT-23 G-S-D; datasheet: 60 V, ±20 V V_GS,
+  V_GS(th) 0.5–2 V, 125 mΩ max at 4.5 V):** Q7's gate is on `SSR_EN`, source on
   GND, drain on `SSR_RTN`, shared by both channels. R18 10 k defines
   `SSR_EN` when Q4 is off and R22 100 k defines `SSR_RTN`. Either `SSR_EN`
   falling (optos unpowered) or Q7 opening is sufficient on its own, and both
@@ -170,8 +177,11 @@ Everything else is a bench check on board 1 or a rev-C item.
 - **LED3/R10 (and LED4/R21):** across the terminal, so they light only when
   the channel actually conducts (Q5 and Q7 both on).
 - **U12:** MODE and VIN1 are both `BUCK_5V` and PR1 is the 30k/10k tap
-  (1.25 V at 5.0 V). ST is unconnected, as designed. The pinout is confirmed
-  by two independent symbols (verification basis).
+  (1.25 V at 5.0 V). ST is unconnected, as designed. Against SLVSFG1A: the
+  pinout (Table 5-1) matches, and "MODE tied to VIN1" is TI's own
+  priority-mode configuration (§7.6.1). VREF 0.92–1.08 V, t_SW 8 µs at 5 V,
+  R_ON 37 typ / 46 max mΩ at 5 V and 25 °C, reverse-current blocking at
+  42–70 mV, 6 V absolute maximum on every pin.
 - **Track widths:** `VIN`/`VIN_F`/`VIN_P` 0.8 mm, `BUCK_5V`/`+5V` 0.7 mm,
   `SSR_RTN` 0.6 mm (Q7 carries both channels' ≤ 400 mA), `SSRn_OUT` 0.4 mm,
   `SSR_EN` 0.5 mm, gates 0.3 mm. All are ample for the budgets.
@@ -186,17 +196,15 @@ Everything else is a bench check on board 1 or a rev-C item.
 | `hardware/kicad/jlcpcb/README.md` | The SSR section gains the A1 wiring rule |
 | `design.py` (comment only, at R22) | The "third state" note had Q5 running as a source follower with the window expired, which it cannot do because its gate drive comes off `SSR_EN`. Replaced, and C2 recorded there |
 | This file | The 09-18 round's section F still confirms D1/D2 as fitted and its C1 row refers to D2. Both parts are gone, and this round supersedes those lines |
+| `design.py` (comments only, after the datasheet re-check) | U12: the 24 V-returning switchover waits for `+5V` to *fall* to `BUCK_5V`, not for `BUCK_5V` to rise, and MODE-low behaviour is now cited from §7.6.1. U8: V_F max 1.4 V, not 1.3 V (worst-case LED current 5.6 mA, not 6.1). R7/R20: the dark-current figure (A5). PARTS: B.2 added two feeders, not one, and the TLP291 is Extended, not Basic, as U8's own note and the README already said |
 
 ### Limits
 
-- **No datasheet was readable this round.** The TPS2116 figures (VREF
-  0.92–1.08 V, ~8 µs switchover, reverse-current blocking on the unselected
-  channel, and above all the MODE-low/VIN1-absent behaviour) are taken from
-  `design.py` and corroborated only by topology. The AO3401A, CJ2310 and
-  TLP291 figures are recalled, and they agree with `design.py`'s. The
-  ESP32-S3 reset state of GPIO 21 *was* read, from Espressif's datasheet
-  v2.2, the one host that was reachable. That is what downgraded A2. To re-run this with sources, allow `www.ti.com`
-  and `www.lcsc.com` in the environment's network settings.
+- **The datasheets were read on a same-day re-check, not the first pass.**
+  Every figure above is now cited, except the Omron G3NA's input operating
+  range (A4) and the MLCC DC-bias behind C1's effective capacitance. The
+  re-check changed three things: A2 went down, A5 and A6 were added, and four
+  `design.py` comments were corrected.
 - Courtyard overlap was not re-checked (see verification basis).
 - No SPICE and no scope. The switchover dip, window timing and U12's
   USB-only selection are bench items.
