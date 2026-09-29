@@ -1194,10 +1194,20 @@ COMPONENTS = {
     #
     # It is still stiff enough for the job it was added for: 3 x 1 uA of
     # I_DSS (CJ2310 datasheet, at 60 V) across 100k is 0.3 V, so Q5/Q6 see
-    # -0.3 V V_GS rather than -24 V. And in the third state - watchdog
-    # tripped, firmware still calling for heat - Q5 acts as a source
-    # follower and stops itself near V_GS(th), so SSR_RTN settles around
-    # 4 V and the SSR sees 40 uA.
+    # -0.3 V V_GS rather than -24 V. The third state - watchdog tripped,
+    # firmware still calling for heat - is simply the first one again:
+    # SSR_EN is down, so the opto has no collector rail and Q5's gate sits
+    # at R7's 0 V whatever the GPIO does. (An earlier note here had Q5
+    # running as a source follower in that state; it cannot, because its
+    # gate drive and Q7's come off the same rail.)
+    #
+    # What R22 does NOT cover is the fault it was sized for. With Q5 failed
+    # short and the window expired, SSR_RTN is pulled up through the SSR's
+    # own input to 24 x 100k/101.2k = 23.7 V, and the HEALTHY channel's
+    # MOSFET then sees V_GS = -23.7 V against the CJ2310's +-20 V. It is a
+    # second-order stress after a first fault, and the watchdog still holds
+    # the SSR off while it lasts - but it is outside a rating. 2026-09-29
+    # review, rev-C item C2.
     #
     # --- PARTS -------------------------------------------------------------
     # CJ2310 replaces the AO3400A on every switch that now stands off 24 V
