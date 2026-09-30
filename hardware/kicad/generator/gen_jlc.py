@@ -104,6 +104,7 @@ JLC_PLACEMENT = {
     # U8/U9. A 4-pad package whose pads are NOT symmetric about the origin
     # (1/2 one side, 3/4 the other), so the pin-numbered fit disambiguates
     # the half turn that a 2-pad land never can.
+    "C52923":   (  0,  0.000,  0.000),   # C47   C_0402_1005Metric                    resid 0.060 (2 pin#)
     "C55144":   (180,  0.000,  0.000),   # U8    SOP-4_4.4x2.6mm_P1.27mm              resid 0.312 (4 pin#)
     "C515890":  (270,  0.000,  0.000),   # U7    QFN-28-1EP_5x5mm_P0.5mm_EP3.1x3.1mm  resid 0.075 (29 pin#)
     "C48937499": (270, -0.287, -0.000),  # U2    SOT-223-3_TabPin2                    resid 0.000 (2 pin#)
@@ -212,6 +213,10 @@ LCSC = {
     # the one line on the board that buys a feeder fee for three cents of
     # part.
     "C46": ("C2977550", "RVT1C101M0505 100uF 16V D5x5.4 aluminium electrolytic", False, True),
+    # U12's input capacitors (review A6). 0402 because nothing larger fits
+    # beside the mux; see design.py at C47. Basic, so no feeder.
+    "C47": ("C52923", "CL05A105KA5NQNC 1uF 25V X5R 0402", True, True),
+    "C48": ("C52923", "CL05A105KA5NQNC 1uF 25V X5R 0402", True, True),
     "D3": ("C81598", "1N4148W SOD-123 - VLED drop diode, silicon on purpose", True, True),
     "D4": ("C81598", "1N4148W SOD-123", True, True),
     "D5": ("C7420376", "SRV05-4 TVS array SOT-23-6", True, True),
@@ -280,10 +285,10 @@ LCSC = {
     "R4": ("C27834", "5.1k 0805 1%", True, True),
     "R5": ("C27834", "5.1k 0805 1%", True, True),
     "R6": ("C17557", "220R 0805 1%", True, True),
-    "R7": ("C17414", "10k 0805 1%", True, True),
+    "R7": ("C17673", "4.7k 0805 1%", True, True),
     "R8": ("C17414", "10k 0805 1%", True, True),
     "R9": ("C17513", "1k 0805 1%", True, True),
-    "R10": ("C17673", "4.7k 0805 1%", True, True),
+    "R10": ("C17414", "10k 0805 1%", True, True),
     "R11": ("C17408", "100R 0805 1%", True, True),
     "R12": ("C17513", "1k 0805 1%", True, True),
     "R13": ("C17414", "10k 0805 1%", True, True),
@@ -293,8 +298,8 @@ LCSC = {
     "R17": ("C17408", "100R 0805 1%", True, True),
     "R18": ("C17414", "10k 0805 1%", True, True),
     "R19": ("C17557", "220R 0805 1%", True, True),
-    "R20": ("C17414", "10k 0805 1%", True, True),
-    "R21": ("C17673", "4.7k 0805 1%", True, True),
+    "R20": ("C17673", "4.7k 0805 1%", True, True),
+    "R21": ("C17414", "10k 0805 1%", True, True),
     "R22": ("C149504", "100k 0805 1%", True, True),
     "R23": ("C17414", "10k 0805 1%", True, True),
     "R24": ("C17414", "10k 0805 1%", True, True),

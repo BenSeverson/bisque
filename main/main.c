@@ -114,6 +114,27 @@ void app_main(void)
         ESP_LOGI(TAG, "Parked idle SPI chip select on GPIO %d", pin);
     }
 
+    /* Zone 2's SSR control has no driver until RB-5 (#310), and rev B.2 no
+     * longer pins that line on the board: R20 moved to the gate side of the
+     * U9 opto, so the GPIO's only load is the opto LED. The ESP32-S3 resets
+     * GPIO 21 with no pull (datasheet v2.2 pin overview), so channel 2 is off
+     * today by the datasheet alone. Hold it low explicitly, before
+     * safety_init_wdt() starts the kick, so the watchdog never goes live with
+     * the line undefined. RB-5 takes ownership of this pin. */
+    if (APP_PIN_SSR2 >= 0) {
+        gpio_set_level(APP_PIN_SSR2, 0);
+        gpio_config_t ssr2_cfg = {
+            .pin_bit_mask = 1ULL << APP_PIN_SSR2,
+            .mode = GPIO_MODE_OUTPUT,
+            .pull_up_en = GPIO_PULLUP_DISABLE,
+            .pull_down_en = GPIO_PULLDOWN_ENABLE,
+            .intr_type = GPIO_INTR_DISABLE,
+        };
+        ESP_ERROR_CHECK(gpio_config(&ssr2_cfg));
+        gpio_set_level(APP_PIN_SSR2, 0);
+        ESP_LOGI(TAG, "Parked zone 2 SSR control low on GPIO %d", APP_PIN_SSR2);
+    }
+
     /* ── Thermocouple Init ─────────────────────────── */
     ESP_ERROR_CHECK(thermocouple_init(APP_SPI_HOST, APP_PIN_TC1_CS));
 

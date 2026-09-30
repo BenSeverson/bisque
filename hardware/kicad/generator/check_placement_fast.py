@@ -7,7 +7,15 @@ placement can be iterated before paying for a route.
 """
 import re, sys, math, importlib.util, glob, os
 
-FPDIRS = ["/Applications/KiCad/KiCad.app/Contents/SharedSupport/footprints"]
+# The same search check_jlc_placement.find_footprint_dir() makes. This used to
+# name only the macOS bundle, so on Linux every courtyard came back missing and
+# the checker reported "0 parts checked, 0 problem(s)" - a pass by omission.
+FPDIRS = [d for d in [os.environ.get("KICAD_FOOTPRINT_DIR", ""),
+                      "/usr/share/kicad/footprints",
+                      "/usr/local/share/kicad/footprints",
+                      "/Applications/KiCad/KiCad.app/Contents/SharedSupport/footprints"]
+          + sorted(glob.glob("/usr/share/kicad*/footprints"), reverse=True)
+          if d and os.path.isdir(d)]
 
 def load_design():
     spec = importlib.util.spec_from_file_location("design", "generator/design.py")
@@ -86,6 +94,10 @@ def main():
     if missing:
         print("\nno F.CrtYd found (not checked): " + ", ".join("%s(%s)" % t for t in missing))
     print("\n%d parts checked, %d problem(s)" % (len(boxes), bad))
+    if not boxes:
+        print("no courtyards found at all - is KiCad's footprint library installed? "
+              "(set KICAD_FOOTPRINT_DIR)")
+        return 1
     return 1 if bad else 0
 
 sys.exit(main())

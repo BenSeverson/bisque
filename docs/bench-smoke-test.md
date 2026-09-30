@@ -53,12 +53,12 @@ None of them is a firmware bug.
       unwired terminal reads *lid open* and the kiln will not heat. Fit the
       lid switch, jumper J11 pin 1 to J11 pin 4 (GND), or build with
       `KILN_PIN_LID_SWITCH=-1`.
-- [ ] **Channel 2 is not driven by firmware yet.** GPIO 21 (SSR2) stays
-      unconfigured until zone 2 support lands
-      ([#310](https://github.com/BenSeverson/bisque/issues/310)), and rev
-      B.2 no longer pins that line on the board. Espressif's datasheet has
-      the pin resetting with no pull, so channel 2 should stay off. Confirm
-      it with the "SSR2 stays off" check below before relying on J9.
+- [ ] **Channel 2 is not driven by firmware yet.** Zone 2 support has not
+      landed ([#310](https://github.com/BenSeverson/bisque/issues/310)), and
+      rev B.2 no longer pins that line on the board. Firmware parks GPIO 21
+      (SSR2) low at boot instead; the boot log says "Parked zone 2 SSR
+      control low on GPIO 21". Confirm it with the "SSR2 stays off" check
+      below before relying on J9.
 
 ## First power-up on board 1 (once only)
 
@@ -110,9 +110,10 @@ output ahead of the mux, is not `+5V`; probe it at C44.
       The board must **not reset**: check that uptime (Settings → System, or
       `GET /api/v1/system`) carried on. If you have a scope on TP2, `+5V`
       should bottom out no lower than ~3.7 V **in both directions**; the
-      return of 24 V dips it too, by design. Unless U12 has had its input
-      capacitors added (review item A6), also put a probe on VBUS at U4
-      while the 24 V comes back, and stop if it overshoots 6 V.
+      return of 24 V dips it too, by design. If you can spare a second
+      channel, probe VBUS at C47 while the 24 V comes back: C47/C48 are U12's
+      input caps, and VBUS should not overshoot 6 V. On a board built before
+      they were added (fab review A6), treat any overshoot as a stop.
 - [ ] Bring the display up at a reduced SPI clock first if it is unstable.
       SCLK is a multi-drop net with two thermocouple stubs and ~150 mm of
       loom before the panel.
@@ -149,9 +150,8 @@ permission rail) is live without starting a profile.
       safety-path figure that is extrapolated rather than specified.
 - [ ] **SSR2 stays off.** With `SSR_EN` live, R20's non-ground pad
       (`SSR2_GATE`) reads **below 0.3 V**, and LED4 and the J9 dummy stay
-      dark. If the gate sits higher, something is lifting the floating
-      GPIO 21 line: disconnect J9 and report it, because the datasheet says
-      that pin resets with no pull.
+      dark. If the gate sits higher, something is lifting GPIO 21 despite
+      firmware parking it low: disconnect J9 and report it.
 
 ## Pre-flight
 
