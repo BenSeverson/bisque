@@ -97,8 +97,13 @@ LVGL_VERSION="${LVGL_VERSION%%~*}"
 # component manager's extract (no .git). Checking the source means a
 # manager-installed copy at the right version is accepted, and no second copy is
 # cloned for it.
+#
+# LVGL 9.6 moved the defines to include/lvgl/lv_version.h and left the old
+# top-level file as a one-line #include stub, so reading only the old path found
+# no version on every 9.6 copy and re-cloned LVGL on every session start.
 lvgl_cached_version() {
-    local h="$1/lv_version.h"
+    local h="$1/include/lvgl/lv_version.h"
+    [ -f "$h" ] || h="$1/lv_version.h"
     [ -f "$h" ] || return 1
     awk '/#define LVGL_VERSION_MAJOR/{maj=$3}
          /#define LVGL_VERSION_MINOR/{min=$3}
