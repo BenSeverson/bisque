@@ -521,17 +521,23 @@ COMPONENTS = {
     #
     # 0402s, the board's only ones, because nothing larger fits either spot,
     # and each spot is the product of a failed first attempt worth knowing:
-    #   C48 (BUCK_5V) sits in the 1 mm strip between R64's courtyard and the
-    #     pin-3 rail terminal (58.25, 34.75), its BUCK_5V pad directly over
-    #     the terminal and its GND pad EAST. The orientation is load-bearing.
-    #     plane_vias() drops each plane pad's via at the nearest legal node,
-    #     and with the GND pad west (or with the cap in the column east of
-    #     the terminal, where it was first put) that node landed 0.75-0.79 mm
-    #     from the terminal - inside the 0.85 mm a 0.7 mm track end needs -
-    #     and BUCK_5V failed with "0 goal node(s)" on every pass. A plane via
-    #     is placed before routing and never ripped up, so no promotion
-    #     rescues that; only the pad's side does. GND east puts it at
-    #     (59.75, 33.75), clear of both rails.
+    #   C48 (BUCK_5V) sits north of R63, on R63's BUCK_5V pad, in the empty
+    #     pocket between J1, C6 and R63 - ~5 mm of the rail from U12 pin 3,
+    #     against the 85 mm to C44. It was tried twice nearer the pin, and
+    #     the way each failed is worth knowing before trying a third:
+    #     - In the column east of the pin-3 rail terminal (58.25, 34.75),
+    #       and in the strip north of it with its GND pad west, plane_vias()
+    #       put the cap's GND via 0.75-0.79 mm from that terminal, inside
+    #       the 0.85 mm a 0.7 mm track end needs. BUCK_5V failed with
+    #       "0 goal node(s)" on every pass; a plane via is placed before
+    #       routing and never ripped up, so no promotion rescues it.
+    #     - With the GND pad east the terminal was clear, but the via
+    #       (59.75, 33.75) sat on the B.Cu lane the module's west-side nets
+    #       use. The board still routed, but only at pass 8 against the
+    #       6-pass limit (main closes at pass 4), with the failures
+    #       wandering between U1's escapes. Raising the limit would have
+    #       hidden that for every future build, so the cap moved instead.
+    #     Here the six-pass router closes at pass 4, on exactly main's path.
     #   C47 (VBUS) is at J1's VBUS entry, in the pocket between the VBUS
     #     seed, R4 and R63, about 6 mm of track from U12 pin 6. Its first spot,
     #     beside the VBUS terminal, split the only lane VBUS has between R4
@@ -550,7 +556,7 @@ COMPONENTS = {
                 pins={"1": "VBUS", "2": "GND"}),
     "C48": dict(lib="Device", sym="C", fp="Capacitor_SMD:C_0402_1005Metric",
                 fpf="C_0402_1005Metric.kicad_mod",
-                value="1uF", at=(58.52, 33.85, 0),
+                value="1uF", at=(55.8, 28.6, 180),
                 pins={"1": "BUCK_5V", "2": "GND"}),
     # --- 24 V -> 5 V buck (the +5V rail) ---------------------------------
     # XL1509-5.0E1: 40 V abs max in, FIXED 5 V out, 2 A, 150 kHz, SOIC-8,
