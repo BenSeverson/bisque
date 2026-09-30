@@ -1,9 +1,9 @@
 # JLCPCB Fabrication Readiness Review — Rev B
 
-Board: `bisque-controller` — **4-layer**, 100 × 100 mm, 1.6 mm, **143 components**
-(108 machine-placed SMD across 38 BOM lines + 13 hand-fitted THT/wafer parts +
+Board: `bisque-controller` — **4-layer**, 100 × 100 mm, 1.6 mm, **182 components**
+(147 machine-placed SMD across 49 BOM lines + 13 hand-fitted THT/wafer parts +
 4 mounting holes + 3 fiducials + 15 non-assembled features: 12 test pads,
-2 solder jumpers, 1 DNP header)
+2 solder jumpers, 1 DNP header), as of the 2026-09-30 fixes below
 
 Review lineage:
 - 2026-08-11 — first pass, against KiCad 10.0.5 and the Task 14 board build
@@ -73,6 +73,30 @@ design's figures and added two findings. Things to decide before the order:
 - **A4 is an installation check**, not a board item.
 
 Everything else is a bench check on board 1 or a rev-C item.
+
+### Status, 2026-09-30 — A2, A3, A5 and A6 fixed
+
+All four fixes are on the board and in the package; A1 and A4 remain
+decisions and installation checks as written.
+
+| Item | Change |
+|---|---|
+| A6 | **C47** (VBUS) at J1's VBUS entry and **C48** (BUCK_5V) on R63's BUCK_5V pad, ~5-6 mm of rail from U12 in each case against the ~1 µH cable and 85 mm of track they back. 1 µF 25 V X5R 0402, C52923, a Basic part: no feeder fee. Neither sits beside its pin, and that is the result of five placements tried, not taste: next to the pin-3 terminal the cap's GND plane via landed inside the terminal's clearance ("0 goal node(s)" on every pass), and with that fixed the via sat on U1's west B.Cu lane and the board only routed at pass 8 against a 6-pass limit. `design.py` at C47 records each attempt. The board's first 0402s also needed `gen_pcb.STRIP_FP_SILK`: KiCad's 0402 silk stubs sit 0.10 mm from the pads against JLC's 0.15 mm rule |
+| A3 | R10/R21 4.7 k → **10 k**: 48 mW at 24 V, 60 mW at 26.4 V |
+| A5 | R7/R20 10 k → **4.7 k**: 0.24 V at the 85 °C dark-current corner; the gate draws 1.0 mA of ≥ 5.6 mA |
+| A2 | `main.c` parks GPIO 21 output-low at boot, before the watchdog kick starts; the SSR Kconfig help no longer calls the drive "direct low-side MOSFET" |
+
+Rebuilt in full (`make pcb-build` → `pcb-fab` → `pcb-check` → `pcb-render`):
+
+| Gate | Result (2026-09-30) |
+|---|---|
+| Router | **0 nets unrouted at pass 4**, the same four-pass trajectory as `main` |
+| `kicad-cli pcb drc` | **0 violations, 0 unconnected pads, 0 footprint errors** |
+| Silk | 261 labels, 0 touching / 0 illegal / 0 on a part body / 0 adrift; `check_silk` clean |
+| `make pcb-check` (all, including `check_placement`, which the 09-29 pass could not run) | exit 0: 29 GPIOs agree, netlist 108 nets / 0 mismatches, 1955 schematic uuids / 0 minted, 147 parts / 46 LCSC patterns fitted, 0 courtyard overlaps, USB pair OK, `gerbers.zip` current |
+| BOM / feeders | 147 placements on 49 lines; 14 Extended lines, **$42**, unchanged |
+| Firmware | builds; `clang-tidy` 0 findings on CI's unfiltered count |
+| 3D renders | re-raytraced. KiCad's library models were fetched from `kicad-packages3D` master on GitLab, since this container ships none; the six vendored ones are unchanged |
 
 ### Verification basis
 
