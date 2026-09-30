@@ -506,36 +506,51 @@ COMPONENTS = {
     # capacitor anywhere on the board and BUCK_5V's nearest was C44, 85 mm
     # away at the buck.
     #
-    # What they are for is the switchover, which is break-before-make
-    # (s7.6.1). A channel carrying current opens in microseconds, and the
-    # inductance feeding it - a USB cable's ~1 uH on VIN2, 85 mm of BUCK_5V
-    # track on VIN1 - then has nowhere to put that current but the pin's own
-    # few picofarads, on a pin with a 6 V absolute maximum. 1 uF at the pin
-    # bounds the step to about I*sqrt(L/C), ~0.5 V for 0.5 A out of a
-    # 1 uH cable. It is a bench event (USB is only attached on the bench),
-    # and the bench checklist switches the 24 V with USB attached on purpose.
+    # What they are for is the switchover. With VOUT above 1 V a change of
+    # channel is NOT soft-started (s7.3.2): the incoming channel closes onto
+    # an output that sagged through the ~8 us break-before-make gap, and its
+    # input has to supply that step at once. Behind a USB cable's ~1 uH, or
+    # 85 mm of BUCK_5V track, the pin sags with it unless the charge is
+    # already at the pin - which is the reason s9 itself gives ("to prevent
+    # the supply voltage from dipping when the switch is turned on"). The
+    # outgoing channel's current has to go somewhere too, but it is opened
+    # over microseconds, not cut: ~1 uH x 0.5 A/us is ~0.5 V at a pin rated
+    # to 6 V, and the cap takes most of that as well. Both are bench events
+    # (USB is only attached on the bench), and the bench checklist switches
+    # the 24 V with USB attached on purpose.
     #
-    # 0402, the board's only one, because nothing larger fits either spot.
-    # Each sits beside its channel's MUX_TERMS terminal - the end of the
-    # short rail escape gen_pcb.MUX_SEEDS carries north out of the pad row -
-    # so the cap is where the net starts, not somewhere along it:
-    #   C47 (VBUS) west, in the 2.4 mm band between R4's courtyard (y 34.59)
-    #     and U12's +5V escape stub (y 36.45). An 0805 is 2.04 mm across its
-    #     courtyard and would have to sit ON that stub.
-    #   C48 (BUCK_5V) east, in the 1.4 mm column between the BUCK_5V escape
-    #     (x 58.25) and U1's courtyard (x 60.20), above the +5V stub's end.
+    # 0402s, the board's only ones, because nothing larger fits either spot,
+    # and each spot is the product of a failed first attempt worth knowing:
+    #   C48 (BUCK_5V) sits in the 1 mm strip between R64's courtyard and the
+    #     pin-3 rail terminal (58.25, 34.75), its BUCK_5V pad directly over
+    #     the terminal and its GND pad EAST. The orientation is load-bearing.
+    #     plane_vias() drops each plane pad's via at the nearest legal node,
+    #     and with the GND pad west (or with the cap in the column east of
+    #     the terminal, where it was first put) that node landed 0.75-0.79 mm
+    #     from the terminal - inside the 0.85 mm a 0.7 mm track end needs -
+    #     and BUCK_5V failed with "0 goal node(s)" on every pass. A plane via
+    #     is placed before routing and never ripped up, so no promotion
+    #     rescues that; only the pad's side does. GND east puts it at
+    #     (59.75, 33.75), clear of both rails.
+    #   C47 (VBUS) is at J1's VBUS entry, in the pocket between the VBUS
+    #     seed, R4 and R63, about 6 mm of track from U12 pin 6. Its first spot,
+    #     beside the VBUS terminal, split the only lane VBUS has between R4
+    #     and U12's +5V escape (0.69 mm above the pads and 0.76 mm below, for
+    #     a 0.5 mm track). 6 mm of 0.5 mm track is a few nH against the ~1 uH
+    #     of a USB cable, so the cap still does its job from there, and it is
+    #     where USB practice puts one anyway: at the receptacle.
     # C52923 is 25 V X5R, a Basic part (no feeder), and keeps roughly half
     # its capacitance at 5 V - the datasheet's 1 uF is a floor for the
-    # typical case, not a tolerance, and ~0.5 uF still holds the cable step
-    # well under the 0.5 V of headroom to 6 V. A 6.3 V part would read
+    # typical case, not a tolerance, and ~0.5 uF is still what the pin
+    # needs for a sub-amp step. A 6.3 V part would read
     # higher on paper and sit 1.1 V above a 5.25 V port at rated voltage.
     "C47": dict(lib="Device", sym="C", fp="Capacitor_SMD:C_0402_1005Metric",
                 fpf="C_0402_1005Metric.kicad_mod",
-                value="1uF", at=(51.7, 35.3, 180),
+                value="1uF", at=(52.3, 31.1, 270),
                 pins={"1": "VBUS", "2": "GND"}),
     "C48": dict(lib="Device", sym="C", fp="Capacitor_SMD:C_0402_1005Metric",
                 fpf="C_0402_1005Metric.kicad_mod",
-                value="1uF", at=(59.4, 34.7, 90),
+                value="1uF", at=(58.52, 33.85, 0),
                 pins={"1": "BUCK_5V", "2": "GND"}),
     # --- 24 V -> 5 V buck (the +5V rail) ---------------------------------
     # XL1509-5.0E1: 40 V abs max in, FIXED 5 V out, 2 A, 150 kHz, SOIC-8,
