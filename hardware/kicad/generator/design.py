@@ -407,9 +407,21 @@ COMPONENTS = {
     # The switchover is break-before-make and ~8 us, over which +5V's own
     # ceramics (C1 22 uF + C11 10 uF + C2, ~25 uF after DC bias) droop
     # 0.3 A x 8 us / 25 uF = ~100 mV - so the dip depth is set by the
-    # threshold and essentially nothing else. Coming back the other way U12 holds channel 1 open until
-    # BUCK_5V has risen past VOUT, so a 24 V power-up never back-drives the
-    # buck either.
+    # threshold and essentially nothing else.
+    #
+    # Coming back the other way dips too, and by the same amount. When 24 V
+    # returns with USB attached, PR1 crosses VREF while BUCK_5V is still at
+    # the 3.68-4.32 V threshold, below the ~5 V USB is holding +5V at. U12
+    # opens both channels and will not close channel 1 until +5V has
+    # discharged to BUCK_5V + V_RCB (42-70 mV) - TPS2116 SLVSFG1A s7.6.1 -
+    # so the rail falls to the threshold on the way UP as well, and the buck
+    # is never back-driven. (An earlier note here said U12 waits for BUCK_5V
+    # to rise past VOUT; the datasheet says it waits for VOUT to fall.)
+    #
+    # MODE with the buck absent is also settled by the datasheet rather than
+    # by the topology: MODE = BUCK_5V = 0 V reads as manual mode (<= 0.35 V),
+    # PR1 is low, and s7.6.1 passes "the higher voltage supply between VIN1
+    # and VIN2" - USB. That is what makes USB-only bench power work at all.
     #
     # ST (pin 8) IS DELIBERATELY UNCONNECTED, and it is the one thing here
     # worth reopening in a later rev. It is an open-drain "running on VIN2"
@@ -1113,7 +1125,9 @@ COMPONENTS = {
     # below it, and 330R at the guaranteed corner gives 4.7 mA - under the
     # floor, on the datasheet figure this board is supposed to use.
     #   I_F = (V_OH - V_F)/220: 9.5 mA at 3.3 V / 1.2 V, 6.5 mA at the
-    #   guaranteed 2.64 V, and 6.1 mA at 2.64 V with V_F at its 1.3 V max.
+    #   guaranteed 2.64 V, and 5.6 mA at 2.64 V with V_F at its 1.4 V max
+    #   (TLP291 datasheet: 1.1/1.25/1.4 V at I_F = 10 mA, so the max at
+    #   ~6 mA is lower still - 5.6 mA is the pessimistic bound).
     # Worst case is still over the floor, and the 9.5 mA best case is half
     # the ESP32's 20 mA recommended source current and a fifth of the LED's
     # 50 mA rating.
@@ -1136,8 +1150,15 @@ COMPONENTS = {
     # to where the 5 V rail already was for free.
     #
     # R7/R20 (10k) still hold the gate down, but against a different thing:
-    # the opto's dark current, not a high-impedance GPIO. Worst case ~10 uA
-    # hot x 10k = 100 mV against a 500 mV V_GS(th) floor, 5x. The GPIO can
+    # the opto's dark current, not a high-impedance GPIO. The datasheet
+    # bounds I_CEO at 0.08 uA max at 25 C and 50 uA max at 85 C (both at
+    # V_CE = 48 V; this collector sees 5 V). Interpolated, that is ~1 uA at
+    # 50 C (10 mV across 10k) - but AT 85 C the bound is 0.5 V, which is the
+    # CJ2310's V_GS(th) floor with no margin left. An earlier note here said
+    # "~10 uA hot, 5x"; that figure was the 25 C I_C(off) spec, not a hot
+    # one. 4.7k (an existing BOM line) would restore 2x at the corner and
+    # still needs only 1 mA of the >= 5.6 mA the opto can pass - 2026-09-29
+    # review, item A5. The GPIO can
     # no longer reach the gate at all, which is strictly better than what
     # they used to guard.
     #
@@ -1194,10 +1215,20 @@ COMPONENTS = {
     #
     # It is still stiff enough for the job it was added for: 3 x 1 uA of
     # I_DSS (CJ2310 datasheet, at 60 V) across 100k is 0.3 V, so Q5/Q6 see
-    # -0.3 V V_GS rather than -24 V. And in the third state - watchdog
-    # tripped, firmware still calling for heat - Q5 acts as a source
-    # follower and stops itself near V_GS(th), so SSR_RTN settles around
-    # 4 V and the SSR sees 40 uA.
+    # -0.3 V V_GS rather than -24 V. The third state - watchdog tripped,
+    # firmware still calling for heat - is simply the first one again:
+    # SSR_EN is down, so the opto has no collector rail and Q5's gate sits
+    # at R7's 0 V whatever the GPIO does. (An earlier note here had Q5
+    # running as a source follower in that state; it cannot, because its
+    # gate drive and Q7's come off the same rail.)
+    #
+    # What R22 does NOT cover is the fault it was sized for. With Q5 failed
+    # short and the window expired, SSR_RTN is pulled up through the SSR's
+    # own input to 24 x 100k/101.2k = 23.7 V, and the HEALTHY channel's
+    # MOSFET then sees V_GS = -23.7 V against the CJ2310's +-20 V. It is a
+    # second-order stress after a first fault, and the watchdog still holds
+    # the SSR off while it lasts - but it is outside a rating. 2026-09-29
+    # review, rev-C item C2.
     #
     # --- PARTS -------------------------------------------------------------
     # CJ2310 replaces the AO3400A on every switch that now stands off 24 V
@@ -1205,7 +1236,8 @@ COMPONENTS = {
     # 125 mOhm specified AT 4.5 V, which is the gate voltage these actually
     # get. The AO3400A is a 30 V part and would be inside its rating in
     # normal operation and outside it during the one event the TVS exists
-    # for. It is the board's one new feeder (+$3); the optos are Basic.
+    # for. It is one of this rev's two new feeders (+$3 each); the TLP291
+    # optos are the other - Extended, not Basic (see U8).
     "Q5": dict(lib="Transistor_FET", sym="2N7002", fp=SOT23[0], fpf=SOT23[1],
                value="CJ2310", at=(36.3, 76.46, 0),
                pins={"1": "SSR1_GATE", "2": "SSR_RTN", "3": "SSR1_OUT"}),

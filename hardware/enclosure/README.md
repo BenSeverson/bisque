@@ -236,9 +236,16 @@ maximum input is **40 V**. Two consequences worth knowing:
 2. **No lid switch fitted?** Jumper J11 pin 1 to J11 GND or set
    `KILN_PIN_LID_SWITCH=-1`, or the kiln will never heat — see
    `docs/pin-assignments.md` §1.
-3. Verify the SSR control polarity: J4/J9 pin 1 is `SSR_EN` (+5 V,
-   watchdog-gated) to the SSR's `+` input, pin 2 is the switched low
-   side to `−`. The amber board LEDs show true drive state.
+3. Verify the SSR control polarity: J4/J9 pin 1 (`24V`) is `VIN_P`, the
+   protected 24 V input and **always live**, to the SSR's `+` input. Pin 2
+   (`OUT`) is the switched low side, to `−`; the watchdog gates the shared
+   return behind it. Land each SSR's `−` on its own `OUT` and nowhere else.
+   A `−` that reaches ground by any other route (the PSU `−`, a shared
+   negative bus, a lead chafed onto this earthed box) turns that SSR on with
+   no way for the board to turn it off. Meter `OUT` to GND with firmware
+   idle: it should read close to 24 V. Check that the SSR's DC input
+   *operating* range reaches 26.4 V, the HDR-15-24 at full +10 % trim. The
+   amber board LEDs show true drive state.
 4. Megger/continuity-check the mains side with the SELV loom
    disconnected, prove the over-temp cutout drops the contactor, then
    fire the bench smoke test (`docs/bench-smoke-test.md`) before the

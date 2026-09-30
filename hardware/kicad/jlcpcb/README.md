@@ -132,3 +132,16 @@ input takes 3–32 V and is fine).
 The watchdog now gates the shared **return** (`Q7`) rather than the supply,
 so an expired window opens pin 2 and leaves pin 1 live. Budget **≤200 mA per
 channel**: `F1` holds at 750 mA and the buck takes ~250 mA of it.
+
+**The SSR's `−` goes to `OUT` and nowhere else.** Because pin 1 is always
+live, an SSR whose `−` reaches ground by any other route is ON, and neither
+firmware nor the watchdog can turn it off. That covers a `−` landed on J2's
+`-` or the PSU's `−`, a negative bus shared with anything else, and a lead
+chafed onto the backplate: board GND is bonded to the earthed door through
+the mounting holes, so the enclosure *is* ground. Do not common the two
+SSRs' negatives either; each `−` goes to its own channel's `OUT`. Before first
+heat, meter `OUT` to GND with firmware idle. It should read close to 24 V,
+and near 0 V means that lead has found ground. This is the 2026-09-29
+review's finding A1. It is the same exposure as an SSR failing short, and the
+same answer applies: the contactor dropped by the mechanical over-temp
+cutout.
