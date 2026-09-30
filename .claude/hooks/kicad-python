@@ -1,0 +1,75 @@
+#!/bin/bash
+# `KPY` for cloud sessions: runs a hardware/kicad generator script under the
+# interpreter KiCad's bindings were built for, with an X display to talk to.
+#
+#   $KPY hardware/kicad/generator/kicad_build.py hardware/kicad/bisque-controller.kicad_pcb
+#   make pcb-build            # the Makefile honours $KPY
+#
+# install-kicad.sh exports KPY=<this file> through $CLAUDE_ENV_FILE, so every
+# shell in a cloud session gets it; nothing sets it on a laptop, where the
+# Makefile's own interpreter search (KiCad.app's bundled Python on macOS) is
+# unchanged. Two things this does that a bare interpreter path cannot:
+#
+#  1. Picks the right Python. See toolchain_kicad_python: python3 here is a 3.11
+#     that imports pcbnew by accident and then cannot import wx.
+#
+#  2. Supplies a display. The generator calls wx.App(False) (pcbnew's settings
+#     manager needs a live wx app in standalone use), and GTK wx refuses to
+#     start without an X server — "Unable to access the X Display". This keeps
+#     ONE long-lived Xvfb on a fixed display number and points only this
+#     process at it, rather than exporting DISPLAY session-wide, where it would
+#     change what SDL (the LCD simulator) and anything else probing for a
+#     display decides to do. xvfb-run is deliberately not used: it runs its
+#     command as `"$@" 2>&1`, merging stderr into stdout for every caller.
+set -euo pipefail
+
+HOOKS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+py="${BISQUE_KICAD_PY:-}"
+if [ -z "$py" ] || [ ! -x "$py" ]; then
+    # shellcheck source=lib/toolchain.sh
+    . "$HOOKS/lib/toolchain.sh"
+    if ! py="$(toolchain_kicad_python)"; then
+        echo "kicad-python: no system python can 'import pcbnew' — is KiCad" >&2
+        echo "  installed? Re-run .claude/hooks/install-kicad.sh." >&2
+        exit 127
+    fi
+fi
+
+if [ -z "${DISPLAY:-}" ] && command -v Xvfb >/dev/null 2>&1; then
+    num="${BISQUE_XVFB_DISPLAY:-87}"
+    sock="/tmp/.X11-unix/X$num"
+    # Check-and-start is serialised. Without it two first calls in parallel
+    # (make -j, two agents) can both see no server, and the second one's
+    # stale-file cleanup below deletes the first server's live lock and
+    # socket: two servers, one unreachable, and a client that raced the
+    # unlink gets no display at all.
+    exec 9>"/tmp/.bisque-xvfb-$num.lock"
+    flock 9
+    if [ ! -S "$sock" ] || ! pgrep -f "^([^ ]*/)?Xvfb :$num( |\$)" >/dev/null 2>&1; then
+        # No live server owns :$num, so whatever a dead one left is stale. The
+        # socket would satisfy the wait below before the new server listens.
+        # The lock Xvfb is meant to clear itself, by probing the PID inside —
+        # but this container's PID 1 does not reap orphans, so a killed Xvfb
+        # lingers as a zombie, the probe calls it alive, and every later start
+        # dies with "Server is already active for display".
+        rm -f "$sock" "/tmp/.X$num-lock"
+        # Detached so it outlives this command and the next one reuses it.
+        # 9>&- so the server does not inherit, and forever hold, our flock.
+        setsid nohup Xvfb ":$num" -screen 0 1280x1024x24 -nolisten tcp \
+            >/dev/null 2>&1 </dev/null 9>&- &
+        for _ in $(seq 50); do
+            [ -S "$sock" ] && break
+            sleep 0.1
+        done
+    fi
+    exec 9>&-
+    if [ -S "$sock" ]; then
+        export DISPLAY=":$num"
+    else
+        echo "kicad-python: Xvfb did not start on :$num; continuing without a" >&2
+        echo "  display (wx.App will fail if the script needs one)." >&2
+    fi
+fi
+
+exec "$py" "$@"

@@ -94,6 +94,12 @@ have_cppcheck=no
 if command -v cppcheck >/dev/null 2>&1; then have_cppcheck=yes; fi
 have_kicad=no
 if toolchain_kicad_ready; then have_kicad=yes; fi
+# Renders need the stock model pack on top; without it pcb-render succeeds and
+# draws bare pads, so say so here rather than let it pass for a working render.
+have_kicad_3d=no
+if dpkg-query -W -f='${Status}' kicad-packages3d 2>/dev/null | grep -q 'install ok installed'; then
+    have_kicad_3d=yes
+fi
 # Both LVGL locations count — simulator/CMakeLists.txt resolves either. A clean
 # session that has never run a firmware build has only the standalone clone, and
 # probing just managed_components/ would report the simulator unavailable while
@@ -124,8 +130,11 @@ elif [ "$have_idf" = yes ]; then
 else
     echo "  firmware: UNAVAILABLE — see the installer output above"
 fi
-if [ "$have_kicad" = yes ]; then
-    echo "  pcb:      kicad-cli + pcbnew generator"
+if [ "$have_kicad" = yes ] && [ "$have_kicad_3d" = yes ]; then
+    echo "  pcb:      make pcb / pcb-build / pcb-check / pcb-render (\$KPY exported)"
+elif [ "$have_kicad" = yes ]; then
+    echo "  pcb:      make pcb-build / pcb-check (\$KPY exported); 3D models missing —"
+    echo "            pcb-render would draw bare pads, do not commit its output"
 else
     # Deliberately no cause named here. A blocked host is only one way this
     # fails, and the summary cannot tell which happened: a session with the

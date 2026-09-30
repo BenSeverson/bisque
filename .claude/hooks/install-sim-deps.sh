@@ -37,10 +37,17 @@ LVGL_STANDALONE="simulator/.lvgl"
 if ! pkg-config --exists sdl2 2>/dev/null && ! command -v sdl2-config >/dev/null 2>&1; then
     log "installing libsdl2-dev…"
     export DEBIAN_FRONTEND=noninteractive
-    apt-get install -y -qq libsdl2-dev >/dev/null 2>&1 || {
-        log "libsdl2-dev install failed — 'make sim' unavailable this session."
-        exit 0
-    }
+    # Retried once after `apt-get update`: a fresh container's package index
+    # can predate the mirror, and libsdl2-dev's ~100 dependencies make it the
+    # install most likely to need a .deb that has since been superseded (404).
+    # This hook runs before anything else here refreshes the index.
+    if ! apt-get install -y -qq libsdl2-dev >/dev/null 2>&1; then
+        apt-get update -qq >/dev/null 2>&1 || true
+        apt-get install -y -qq libsdl2-dev >/dev/null 2>&1 || {
+            log "libsdl2-dev install failed — 'make sim' unavailable this session."
+            exit 0
+        }
+    fi
 fi
 
 # ── LVGL ──────────────────────────────────────────────────────────────────
@@ -90,8 +97,13 @@ LVGL_VERSION="${LVGL_VERSION%%~*}"
 # component manager's extract (no .git). Checking the source means a
 # manager-installed copy at the right version is accepted, and no second copy is
 # cloned for it.
+#
+# LVGL 9.6 moved the defines to include/lvgl/lv_version.h and left the old
+# top-level file as a one-line #include stub, so reading only the old path found
+# no version on every 9.6 copy and re-cloned LVGL on every session start.
 lvgl_cached_version() {
-    local h="$1/lv_version.h"
+    local h="$1/include/lvgl/lv_version.h"
+    [ -f "$h" ] || h="$1/lv_version.h"
     [ -f "$h" ] || return 1
     awk '/#define LVGL_VERSION_MAJOR/{maj=$3}
          /#define LVGL_VERSION_MINOR/{min=$3}
