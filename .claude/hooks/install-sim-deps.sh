@@ -37,10 +37,17 @@ LVGL_STANDALONE="simulator/.lvgl"
 if ! pkg-config --exists sdl2 2>/dev/null && ! command -v sdl2-config >/dev/null 2>&1; then
     log "installing libsdl2-dev…"
     export DEBIAN_FRONTEND=noninteractive
-    apt-get install -y -qq libsdl2-dev >/dev/null 2>&1 || {
-        log "libsdl2-dev install failed — 'make sim' unavailable this session."
-        exit 0
-    }
+    # Retried once after `apt-get update`: a fresh container's package index
+    # can predate the mirror, and libsdl2-dev's ~100 dependencies make it the
+    # install most likely to need a .deb that has since been superseded (404).
+    # This hook runs before anything else here refreshes the index.
+    if ! apt-get install -y -qq libsdl2-dev >/dev/null 2>&1; then
+        apt-get update -qq >/dev/null 2>&1 || true
+        apt-get install -y -qq libsdl2-dev >/dev/null 2>&1 || {
+            log "libsdl2-dev install failed — 'make sim' unavailable this session."
+            exit 0
+        }
+    fi
 fi
 
 # ── LVGL ──────────────────────────────────────────────────────────────────

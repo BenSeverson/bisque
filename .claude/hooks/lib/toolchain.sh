@@ -58,6 +58,22 @@ toolchain_python_for() {
     return 1
 }
 
+# toolchain_kicad_python — echo the interpreter KiCad's Python bindings were
+# built for, or return 1 if none can import pcbnew.
+#
+# `import pcbnew` alone does not answer that. The PPA's _pcbnew.so carries no
+# ABI tag and links libpython3.12 directly, so the 3.11 that python3 resolves
+# to here imports it "successfully" — by loading a second Python runtime into
+# the process. Enough of pcbnew works that way to pass most checkers, and then
+# wx (which IS ABI-tagged, wx/_core.cpython-312-*.so) fails to import. The
+# generator imports wx inside try/except ImportError, but a *second* import of
+# a half-initialised wx package raises AttributeError instead, which is how
+# check_placement.py died. So prefer an interpreter that can import both, and
+# only fall back to pcbnew alone on a system with no wxPython at all.
+toolchain_kicad_python() {
+    toolchain_python_for 'pcbnew, wx' || toolchain_python_for pcbnew
+}
+
 # toolchain_kicad_ready — true if kicad-cli is new enough AND pcbnew imports.
 #
 # The generator drives pcbnew through a system interpreter, so a working
@@ -71,5 +87,5 @@ toolchain_kicad_ready() {
     '' | *[!0-9]*) return 1 ;;
     esac
     [ "$major" -ge "$KICAD_MIN_MAJOR" ] || return 1
-    toolchain_python_for pcbnew >/dev/null
+    toolchain_kicad_python >/dev/null
 }

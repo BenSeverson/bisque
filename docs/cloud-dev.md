@@ -80,7 +80,8 @@ session (registered in `.claude/settings.json`). It:
 5. Runs `install-esp-idf.sh`, which preflights the Espressif hosts and then
    installs ESP-IDF v6.1 + the esp32s3 tools + esp-clang (for clang-tidy).
 6. Runs `install-kicad.sh`, which preflights the Launchpad hosts and then
-   installs KiCad 10 with `pcbnew`.
+   installs KiCad 10 with `pcbnew`, the 3D model pack and Xvfb, and exports
+   `KPY` for the session (see below).
 7. Prints a summary of what this session can actually do.
 
 Both installers are no-ops on a warm container (state is cached between
@@ -109,16 +110,46 @@ produce the wrong artifact.
 | Docs & SVG diagrams | edit directly | ✅ | ✅ |
 | **Firmware build** | `idf.py build` | ❌ | ✅ |
 | clang-tidy | `make clang-tidy` | ❌ | ✅ |
-| **PCB regeneration** | `/usr/bin/python3 hardware/kicad/generator/kicad_build.py hardware/kicad/bisque-controller.kicad_pcb` | ❌ | ✅ |
+| **PCB regeneration + checks** | `make pcb-build`, `make pcb-cosmetic`, `make pcb-check` | ❌ | ✅ |
+| PCB fab outputs + 3D renders | `make pcb-fab`, `make pcb-render` | ❌ | ✅ |
 | **Firmware flash / monitor** | `idf.py flash monitor` | ❌ | ❌ (needs hardware) |
 
-The absolute `/usr/bin/python3` in the PCB row is not decoration. Sourcing
-ESP-IDF puts its virtualenv at the front of `PATH`, and that interpreter has no
-system site-packages — so `python3 -c "import pcbnew"` fails in exactly the
-sessions where KiCad is installed and working. It is the same collision as the
-`cmake` one the `Makefile` works around, and the same role `$KPY` plays in
-`hardware/kicad/README.md` on macOS. `install-kicad.sh` prints the interpreter
-to use when the one on `PATH` cannot import `pcbnew`.
+The PCB targets work only because `install-kicad.sh` exports **`KPY`** through
+`$CLAUDE_ENV_FILE`, pointing it at `.claude/hooks/kicad-python`. The Makefile
+already honours `KPY` (it is how macOS finds KiCad.app's bundled Python), so no
+target changes, and nothing sets it on a laptop. It exists because the obvious
+interpreters are all wrong here, in three different ways:
+
+- `python3` on `PATH` is the ESP-IDF virtualenv once IDF is activated — no
+  system site-packages, so no `pcbnew` at all.
+- `/usr/bin/python3` is **3.11** (the image's alternative), while the PPA builds
+  KiCad for noble's 3.12. It still *imports* `pcbnew`, because `_pcbnew.so` has
+  no ABI tag and drags `libpython3.12` into the process, so the Makefile's own
+  search picks it; most checkers then pass, and the first script that imports
+  `wx` (ABI-tagged, 3.12 only) dies. `check_placement.py` is the one that shows
+  it, with an `AttributeError` from a half-initialised `wx` package.
+- `python3.12` is right, but the generator calls `wx.App(False)`, which GTK
+  refuses without an X server: "Unable to access the X Display".
+
+The wrapper picks the interpreter that can import **both** `pcbnew` and `wx`
+(`toolchain_kicad_python` in `lib/toolchain.sh`) and runs it against one
+long-lived Xvfb on `:87`, set for that process only — a session-wide `DISPLAY`
+would change what SDL and anything else probing for a display does. It does
+not use `xvfb-run`, which merges stderr into stdout. Run a generator script by
+hand the same way: `$KPY hardware/kicad/generator/kicad_build.py
+hardware/kicad/bisque-controller.kicad_pcb`.
+
+`install-kicad.sh` also installs **`kicad-packages3d`** (424 MB download, 3.2 GB
+on disk, ~40 s; `KICAD_3D=0` skips it). Without it `make pcb-render` still exits
+0 but draws only the six models vendored in `hardware/kicad/3dmodels/` — every
+passive, IC and terminal block renders as bare pads. `check_3dmodels.py` cannot
+catch that either: when the stock model directory is absent it skips every
+`${KICAD10_3DMODEL_DIR}` reference rather than failing them. The session summary
+says which state you are in.
+
+Measured on a 4-core container, all byte-identical to the committed board:
+`pcb-check` ~20 s, `pcb-cosmetic` ~110 s, `pcb-build` ~13 min (the README's
+figures are from an Apple Silicon Mac, roughly 2-2.5x faster), `pcb-render` ~45 s.
 
 Nor is the explicit board path. `kicad_build.py` defaults its output to a bare
 `bisque-controller.kicad_pcb` resolved against the current directory, so run
@@ -162,6 +193,16 @@ finish. The installer repairs it automatically when the hosts are reachable.
 `export.sh` fails, usually a missing constraints file from a partially-allowed
 policy. Confirm every Espressif host above is allowed, then re-run
 `.claude/hooks/install-esp-idf.sh`.
+
+**`make pcb-*` fails with "Unable to access the X Display", or
+`check_placement.py` with `AttributeError: partially initialized module 'wx'`**
+— `KPY` is not set in this shell, so the Makefile fell back to a bare
+interpreter (see above). The session's env file sets it; a shell started some
+other way can `export KPY="$PWD/.claude/hooks/kicad-python"` from the repo root.
+
+**`make pcb-render` output shows bare pads where parts should be** — the 3D
+model pack is missing. Re-run `.claude/hooks/install-kicad.sh` (without
+`KICAD_3D=0`), and do not commit the render you have.
 
 **`make sim` reports "lvgl.h: No such file or directory"** — the LVGL clone is
 missing. Re-run `.claude/hooks/install-sim-deps.sh`; it re-clones the pinned
