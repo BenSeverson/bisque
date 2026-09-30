@@ -49,7 +49,8 @@ from gen_pcb import (all_seeds, route_all, ripup_retry, promoted_order, plane_vi
                      apply_stackup, SILK, SILK_GRAPHICS, MANUAL_VIAS,
                      EP_VIA_GRID, STITCH_VIAS, is_ep_pad, TP_LABEL_TEXTS, LEGEND_OWNER,
                      TP_LEGEND_OK,
-                     PLANE_LAYER, HIDE_REFS, sync_netclasses, netclass_table,
+                     PLANE_LAYER, HIDE_REFS, STRIP_FP_SILK, sync_netclasses,
+                     netclass_table,
                      USB_KEEPOUT_MARGIN, USB_DIFF_PAIR, route_usb_pair,
                      U2_POUR, COPPER_LAYER_TYPE, FID_KEEPOUT)
 
@@ -379,6 +380,13 @@ def build_board(existing=None):
         # four corners those labels were competing for.
         if ref in HIDE_REFS:
             t.SetVisible(False)
+        # Outline-only silk that cannot meet the pad-to-silk rule on this
+        # footprint at all; see gen_pcb.STRIP_FP_SILK.
+        if str(fp.GetFPID().GetLibItemName()) in STRIP_FP_SILK:
+            for it in list(fp.GraphicalItems()):
+                if it.GetLayer() == pcbnew.F_SilkS and not hasattr(it, "GetText"):
+                    fp.Remove(it)
+                    _REMOVED.append(it)   # never let swig collect it; see strip_derived()
     return board, nets, fps
 
 

@@ -96,8 +96,9 @@ GROUPS = [
      "PRIORITY via R63/R64 rather than letting the higher voltage win --\n"
      "a 5.25 V host would otherwise source the SSR terminals and the\n"
      "relay bank. U12 also blocks USB back-feeding the unpowered buck.\n"
+     "C47/C48 are its input caps, one per channel, at the pins.\n"
      "U2 drops +5V to +3V3",
-     ["J2", "F1", "D8", "Q8", "R62", "D11", "U12", "R63", "R64",
+     ["J2", "F1", "D8", "Q8", "R62", "D11", "U12", "R63", "R64", "C47", "C48",
       "U2", "C1", "C2", "C3", "C4", "LED2", "R9"]),
     ("24 V -> 5 V BUCK  XL1509-5.0, fixed output\n"
      "C41-C43 in, D7 catch, L1 47uH, C44/C45/C46 out. FB ties to the\n"

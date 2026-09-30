@@ -2227,6 +2227,20 @@ SILK = _TITLE_TEXTS + [
 # exists to avoid.
 HIDE_REFS = {"H1", "H2", "H3", "H4", "FID1", "FID2", "FID3"}
 
+# Footprints whose stock silk LINES are dropped when the board is built.
+# Keyed on the footprint, not the reference, so a new part of the same kind is
+# covered and a different one is not. Text is untouched - this is outline only.
+#
+# C_0402_1005Metric (C47/C48, review A6): KiCad draws two 0.215 mm stubs
+# between the pads at +-0.36 mm, which lands them 0.10 mm from the copper
+# against the `JLC: pad to silkscreen` rule's 0.15 mm - four DRC findings per
+# part. There is no legal place to move them on an 0402 (the body is 0.5 mm
+# tall), JLC clips silk off pads anyway, and the reference designator already
+# names the part. Editing generator/fp/ would not help: that directory feeds
+# only the generator's own geometry, and the board loads its footprints from
+# KiCad's library (kicad_build.load_footprint).
+STRIP_FP_SILK = {"C_0402_1005Metric"}
+
 # ------------------------------------------------ per-terminal pin legends
 # One legend per pin, beside that pin's own pad, for every connector a person
 # wires by hand.

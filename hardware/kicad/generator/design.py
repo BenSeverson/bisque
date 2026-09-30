@@ -499,6 +499,72 @@ COMPONENTS = {
     "R64": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
                 value="10k", at=(58.2, 31.6, 90),
                 pins={"1": "MUX_PR1", "2": "GND"}),
+    # U12's INPUT capacitors, one per channel, and the datasheet is the reason
+    # rather than taste. TPS2116 SLVSFG1A s9: "using an input capacitance
+    # (CIN) of 1 uF is sufficient"; s10.1: input capacitors "must be placed
+    # close to the device". Until review A6 (2026-09-29) VBUS had no
+    # capacitor anywhere on the board and BUCK_5V's nearest was C44, 85 mm
+    # away at the buck.
+    #
+    # What they are for is the switchover. With VOUT above 1 V a change of
+    # channel is NOT soft-started (s7.3.2): the incoming channel closes onto
+    # an output that sagged through the ~8 us break-before-make gap, and its
+    # input has to supply that step at once. Behind a USB cable's ~1 uH, or
+    # 85 mm of BUCK_5V track, the pin sags with it unless the charge is
+    # already at the pin - which is the reason s9 itself gives ("to prevent
+    # the supply voltage from dipping when the switch is turned on"). The
+    # outgoing channel's current has to go somewhere too, but it is opened
+    # over microseconds, not cut: ~1 uH x 0.5 A/us is ~0.5 V at a pin rated
+    # to 6 V, and the cap takes most of that as well. Both are bench events
+    # (USB is only attached on the bench), and the bench checklist switches
+    # the 24 V with USB attached on purpose.
+    #
+    # 0402s, the board's only ones, because nothing larger fits either spot,
+    # and each spot is the product of a failed first attempt worth knowing:
+    #   C48 (BUCK_5V) sits north of R63 against J1's courtyard, beside R63's
+    #     BUCK_5V pad - ~5 mm of the rail from U12 pin 3, against the 85 mm to
+    #     C44. It is at the WEST edge of the pocket between J1, C6 and R63 on
+    #     purpose: the pocket's middle is where R9's, C6's and LED2's
+    #     designators overflow to. With C48 centred there (55.8, 28.6) its own
+    #     label took that space, the greedy silk placer pushed LED2's onto
+    #     the `PWR` legend, and DRC failed on silk_overlap; vertical at the
+    #     west edge (54.0, 29.2) still left one label touching. Here the
+    #     silk report is 0/0/0/0. It was tried twice nearer the pin as well,
+    #     and the way each failed is worth knowing before trying again:
+    #     - In the column east of the pin-3 rail terminal (58.25, 34.75),
+    #       and in the strip north of it with its GND pad west, plane_vias()
+    #       put the cap's GND via 0.75-0.79 mm from that terminal, inside
+    #       the 0.85 mm a 0.7 mm track end needs. BUCK_5V failed with
+    #       "0 goal node(s)" on every pass; a plane via is placed before
+    #       routing and never ripped up, so no promotion rescues it.
+    #     - With the GND pad east the terminal was clear, but the via
+    #       (59.75, 33.75) sat on the B.Cu lane the module's west-side nets
+    #       use. The board still routed, but only at pass 8 against the
+    #       6-pass limit (main closes at pass 4), with the failures
+    #       wandering between U1's escapes. Raising the limit would have
+    #       hidden that for every future build, so the cap moved instead.
+    #     Here the six-pass router closes at pass 4, on exactly main's path,
+    #     with 0 DRC violations and 0 unconnected pads.
+    #   C47 (VBUS) is at J1's VBUS entry, in the pocket between the VBUS
+    #     seed, R4 and R63, about 6 mm of track from U12 pin 6. Its first spot,
+    #     beside the VBUS terminal, split the only lane VBUS has between R4
+    #     and U12's +5V escape (0.69 mm above the pads and 0.76 mm below, for
+    #     a 0.5 mm track). 6 mm of 0.5 mm track is a few nH against the ~1 uH
+    #     of a USB cable, so the cap still does its job from there, and it is
+    #     where USB practice puts one anyway: at the receptacle.
+    # C52923 is 25 V X5R, a Basic part (no feeder), and keeps roughly half
+    # its capacitance at 5 V - the datasheet's 1 uF is a floor for the
+    # typical case, not a tolerance, and ~0.5 uF is still what the pin
+    # needs for a sub-amp step. A 6.3 V part would read
+    # higher on paper and sit 1.1 V above a 5.25 V port at rated voltage.
+    "C47": dict(lib="Device", sym="C", fp="Capacitor_SMD:C_0402_1005Metric",
+                fpf="C_0402_1005Metric.kicad_mod",
+                value="1uF", at=(52.3, 31.1, 270),
+                pins={"1": "VBUS", "2": "GND"}),
+    "C48": dict(lib="Device", sym="C", fp="Capacitor_SMD:C_0402_1005Metric",
+                fpf="C_0402_1005Metric.kicad_mod",
+                value="1uF", at=(54.4, 29.05, 180),
+                pins={"1": "BUCK_5V", "2": "GND"}),
     # --- 24 V -> 5 V buck (the +5V rail) ---------------------------------
     # XL1509-5.0E1: 40 V abs max in, FIXED 5 V out, 2 A, 150 kHz, SOIC-8,
     # LCSC C61063 and a JLCPCB *Basic* part, so it costs no feeder fee. Two
@@ -1134,14 +1200,14 @@ COMPONENTS = {
     #
     # The GB rank (datasheet p.2: CTR 100-400% at I_F = 5 mA, V_CE = 5 V -
     # 100-400, not the 100-600 the LCSC listing claims) then gives
-    # I_C >= 6.8 mA against the 0.5 mA the gate node needs: 13x. That margin
-    # is also the aging budget - an LED driven this far inside its rating
-    # loses CTR slowly, and there is an order of magnitude to lose.
+    # I_C >= 5.6 mA (the worst-case I_F at CTR 100%) against the 1.0 mA the
+    # gate node needs through R7's 4.7k: 5.6x. That margin is also the aging
+    # budget - an LED driven this far inside its rating loses CTR slowly.
     #
     # THE COLLECTOR SITS ON SSR_EN, A 5 V RAIL, AND THAT IS LOAD-BEARING.
     # An emitter follower into R7 saturates, so the gate lands at
     # 5 V - V_CE(sat) ~= 4.7 V - a voltage set by the RAIL, not by CTR.
-    # (V_CE(sat) 0.3 V max at I_C = 2.4 mA / I_F = 8 mA; we ask for 0.5 mA
+    # (V_CE(sat) 0.3 V max at I_C = 2.4 mA / I_F = 8 mA; we ask for 1.0 mA
     # at ~7 mA, so 0.3 V is the pessimistic end.) That clears the CJ2310's
     # 4.5 V R_DS(on) spec point,
     # which is the whole reason this number has to come from a rail and not
@@ -1149,16 +1215,18 @@ COMPONENTS = {
     # ~24 V, over the MOSFET's +-20 V V_GS, and a zener is needed to get back
     # to where the 5 V rail already was for free.
     #
-    # R7/R20 (10k) still hold the gate down, but against a different thing:
+    # R7/R20 (4.7k) still hold the gate down, but against a different thing:
     # the opto's dark current, not a high-impedance GPIO. The datasheet
     # bounds I_CEO at 0.08 uA max at 25 C and 50 uA max at 85 C (both at
     # V_CE = 48 V; this collector sees 5 V). Interpolated, that is ~1 uA at
-    # 50 C (10 mV across 10k) - but AT 85 C the bound is 0.5 V, which is the
-    # CJ2310's V_GS(th) floor with no margin left. An earlier note here said
-    # "~10 uA hot, 5x"; that figure was the 25 C I_C(off) spec, not a hot
-    # one. 4.7k (an existing BOM line) would restore 2x at the corner and
-    # still needs only 1 mA of the >= 5.6 mA the opto can pass - 2026-09-29
-    # review, item A5. The GPIO can
+    # 50 C - but AT 85 C the bound is 50 uA, and across the 10k these were
+    # until review A5 (2026-09-29) that is 0.5 V: the CJ2310's V_GS(th)
+    # floor, with no margin left. (An earlier note here said "~10 uA hot,
+    # 5x"; that was the 25 C I_C(off) spec, not a hot one.) 4.7k, an existing
+    # BOM line, puts the 85 C corner at 0.24 V, 2x under the floor, and still
+    # asks only 1 mA of the >= 5.6 mA the opto can pass. Going lower buys
+    # little: 2.2k would need 2.1 mA, and the CTR margin is also the aging
+    # budget above. The GPIO can
     # no longer reach the gate at all, which is strictly better than what
     # they used to guard.
     #
@@ -1261,7 +1329,7 @@ COMPONENTS = {
                value="220R", at=(51.5, 80.5, 180),
                pins={"1": "SSR1_CTRL", "2": "SSR1_LED_A"}),
     "R7": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-               value="10k", at=(55.5, 80.5, 0),
+               value="4.7k", at=(55.5, 80.5, 0),
                pins={"1": "SSR1_GATE", "2": "GND"}),
     # Freewheel across the terminal pair, cathode on the supply. An SSR input
     # is resistive and needs none; a DC contactor coil - the load 24 V is
@@ -1276,7 +1344,11 @@ COMPONENTS = {
     # control test point on one y, with channel 2's row the same three parts
     # 8 mm south on the same three x. See SSR_IND_Y / SSR_TP_X.
     #
-    # 4.7k, not the 680R this was at 5 V: (24 - 2.0)/4.7k = 4.7 mA. The pair
+    # 10k, not the 680R this was at 5 V nor the 4.7k it was at first on 24 V:
+    # (24 - 2.0)/10k = 2.2 mA and 48 mW. At 4.7k the resistor burned 103 mW,
+    # 82% of an 0805's 125 mW, and 127 mW - over rating - at the HDR-15-24's
+    # +10% trim (26.4 V); at 10k that corner is 60 mW. An indicator LED is
+    # plainly visible at 2 mA. Review A3, 2026-09-29. The pair
     # still sits across the TERMINAL, so it reads the channel's actual
     # output state - lit only when Q5 AND Q7 are both conducting, which is
     # firmware asking and the watchdog agreeing.
@@ -1284,7 +1356,7 @@ COMPONENTS = {
                  value="amber", at=(SSR_IND_X, SSR1_IND_Y, 0),
                  pins={"1": "SSR1_IND_K", "2": "VIN_P"}),
     "R10": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="4.7k", at=(52.0, SSR1_IND_Y, 0),
+                value="10k", at=(52.0, SSR1_IND_Y, 0),
                 pins={"1": "SSR1_OUT", "2": "SSR1_IND_K"}),
     "J4": dict(lib="Connector", sym="Screw_Terminal_01x02",
                fp=TBLOCK[0], fpf=TBLOCK[1], value="SSR1", at=(26.0, 75.5, 270),
@@ -1303,7 +1375,7 @@ COMPONENTS = {
                 value="220R", at=(52.0, 92.5, 180),
                 pins={"1": "SSR2_CTRL", "2": "SSR2_LED_A"}),
     "R20": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="10k", at=(57.0, 92.5, 0),
+                value="4.7k", at=(57.0, 92.5, 0),
                 pins={"1": "SSR2_GATE", "2": "GND"}),
     "D10": dict(lib="Device", sym="D", fp="Diode_SMD:D_SOD-123",
                 fpf="D_SOD-123.kicad_mod", value="1N4148W", at=(36.3, 86.07, 90),
@@ -1312,7 +1384,7 @@ COMPONENTS = {
                  value="amber", at=(SSR_IND_X, SSR2_IND_Y, 0),
                  pins={"1": "SSR2_IND_K", "2": "VIN_P"}),
     "R21": dict(lib="Device", sym="R", fp=R0603[0], fpf=R0603[1],
-                value="4.7k", at=(52.0, SSR2_IND_Y, 0),
+                value="10k", at=(52.0, SSR2_IND_Y, 0),
                 pins={"1": "SSR2_OUT", "2": "SSR2_IND_K"}),
     "J9": dict(lib="Connector", sym="Screw_Terminal_01x02",
                fp=TBLOCK[0], fpf=TBLOCK[1], value="SSR2", at=(26.0, 88.0, 270),

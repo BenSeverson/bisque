@@ -48,9 +48,10 @@ menu "Bisque Configuration"
             default 17
             help
                 Trigger for the primary (zone 1) SSR output — the kiln's main
-                heat output. Direct low-side MOSFET drive on the rev B board
-                (Q5; the opto-isolated version was reverted), driven from the
-                100 ms SSR window.
+                heat output. On the rev B.2 board it lights optocoupler U8,
+                whose output drives low-side MOSFET Q5 (containment against a
+                24 V gate fault, not isolation). Driven from the 100 ms SSR
+                window.
 
                 Gated in hardware by the watchdog one-shot on
                 KILN_PIN_WDT_KICK (GPIO 36, see below): if that pin stops
@@ -264,13 +265,15 @@ menu "Bisque Configuration"
             int "SSR zone 2 output GPIO (-1 = disabled)"
             default 21
             help
-                Trigger for the second SSR zone, a direct low-side MOSFET
-                drive on the rev B board (Q6), watchdog-gated exactly like
-                zone 1. Driven from the 100 ms SSR window rather than the
+                Trigger for the second SSR zone: optocoupler U9 driving
+                low-side MOSFET Q6 on the rev B.2 board, watchdog-gated
+                exactly like zone 1. Driven from the 100 ms SSR window rather than the
                 1 Hz firing tick, because zone 2 modulates simultaneously
                 with zone 1.
 
-                NOTHING DRIVES THIS PIN YET. Set to -1 on a single-zone kiln.
+                ZONE 2 IS NOT DRIVEN YET: main.c only parks this pin low at
+                boot, because rev B.2 no longer pins the line on the board.
+                Set to -1 on a single-zone kiln.
 
         config KILN_PIN_IN_GASFLOW
             int "Gas-flow interlock input GPIO (-1 = disabled)"
