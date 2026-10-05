@@ -1,9 +1,9 @@
 # JLCPCB Fabrication Readiness Review — Rev B
 
-Board: `bisque-controller` — **4-layer**, 100 × 100 mm, 1.6 mm, **143 components**
-(108 machine-placed SMD across 38 BOM lines + 13 hand-fitted THT/wafer parts +
+Board: `bisque-controller` — **4-layer**, 100 × 100 mm, 1.6 mm, **182 components**
+(147 machine-placed SMD across 49 BOM lines + 13 hand-fitted THT/wafer parts +
 4 mounting holes + 3 fiducials + 15 non-assembled features: 12 test pads,
-2 solder jumpers, 1 DNP header)
+2 solder jumpers, 1 DNP header), as of the 2026-09-30 fixes below
 
 Review lineage:
 - 2026-08-11 — first pass, against KiCad 10.0.5 and the Task 14 board build
@@ -74,6 +74,30 @@ design's figures and added two findings. Things to decide before the order:
 
 Everything else is a bench check on board 1 or a rev-C item.
 
+### Status, 2026-09-30 — A2, A3, A5 and A6 fixed
+
+All four fixes are on the board and in the package; A1 and A4 remain
+decisions and installation checks as written.
+
+| Item | Change |
+|---|---|
+| A6 | **C47** (VBUS) at J1's VBUS entry and **C48** (BUCK_5V) on R63's BUCK_5V pad, ~5-6 mm of rail from U12 in each case against the ~1 µH cable and 85 mm of track they back. 1 µF 25 V X5R 0402, C52923, a Basic part: no feeder fee. Neither sits beside its pin, and that is the result of five placements tried, not taste: next to the pin-3 terminal the cap's GND plane via landed inside the terminal's clearance ("0 goal node(s)" on every pass), and with that fixed the via sat on U1's west B.Cu lane and the board only routed at pass 8 against a 6-pass limit. `design.py` at C47 records each attempt. The board's first 0402s also needed `gen_pcb.STRIP_FP_SILK`: KiCad's 0402 silk stubs sit 0.10 mm from the pads against JLC's 0.15 mm rule |
+| A3 | R10/R21 4.7 k → **10 k**: 48 mW at 24 V, 60 mW at 26.4 V |
+| A5 | R7/R20 10 k → **4.7 k**: 0.24 V at the 85 °C dark-current corner; the gate draws 1.0 mA of ≥ 5.6 mA |
+| A2 | `main.c` parks GPIO 21 output-low at boot, before the watchdog kick starts; the SSR Kconfig help no longer calls the drive "direct low-side MOSFET" |
+
+Rebuilt in full (`make pcb-build` → `pcb-fab` → `pcb-check` → `pcb-render`):
+
+| Gate | Result (2026-09-30) |
+|---|---|
+| Router | **0 nets unrouted at pass 4**, the same four-pass trajectory as `main` |
+| `kicad-cli pcb drc` | **0 violations, 0 unconnected pads, 0 footprint errors** |
+| Silk | 261 labels, 0 touching / 0 illegal / 0 on a part body / 0 adrift; `check_silk` clean |
+| `make pcb-check` (all, including `check_placement`, which the 09-29 pass could not run) | exit 0: 29 GPIOs agree, netlist 108 nets / 0 mismatches, 1955 schematic uuids / 0 minted, 147 parts / 46 LCSC patterns fitted, 0 courtyard overlaps, USB pair OK, `gerbers.zip` current |
+| BOM / feeders | 147 placements on 49 lines; 14 Extended lines, **$42**, unchanged |
+| Firmware | builds; `clang-tidy` 0 findings on CI's unfiltered count |
+| 3D renders | re-raytraced. KiCad's library models were fetched from `kicad-packages3D` master on GitLab, since this container ships none; the six vendored ones are unchanged |
+
 ### Verification basis
 
 | Gate | Result (2026-09-29, KiCad 10.0.6) |
@@ -96,7 +120,7 @@ Everything else is a bench check on board 1 or a rev-C item.
 | A3 | **R10/R21 run at the edge of their 1/8 W rating.** C17673 is a UNI-ROYAL `0805W8F…` part, 125 mW per its LCSC listing. The 4.7 k indicator resistors sit across 24 V | (24.0 − 2.0)² / 4.7 k = **103 mW (82 %)**. At the HDR-15-24's +10 % trim, 26.4 V: **127 mW (101 %)**. Thick film derates from 70 °C, and this is a kiln enclosure | **10 k**, an existing BOM line (C17414, no new feeder): 2.2 mA / 48 mW at 24 V, 60 mW at 26.4 V. The amber LEDs dim about 2×, which is fine for a state indicator. This is a value change only, with no copper change |
 | A4 | **The documented SSR's input may not be rated for the terminal's top voltage.** The enclosure BOM lists the Omron G3NA-240B as "DC input 5–24 V". The terminal is `VIN_P`, up to 26.4 V at +10 % trim | Rated range from the repo's own table; the Omron datasheet was not fetched, so the operating range is not checked | Before wiring, confirm the chosen SSR's *operating* input range covers 26.4 V (Crydom D2440-class inputs are 3–32 V), or leave the PSU trim at nominal. Added to the bench prerequisites |
 | A5 | **R7/R20's gate hold-down has no margin at 85 °C.** `design.py` put the opto's hot dark current at "~10 µA, 5×". That figure is the TLP291's 25 °C I_C(off) spec, not a hot one. The datasheet's I_CEO is 0.08 µA max at 25 °C and **50 µA max at 85 °C** (both at V_CE = 48 V; this collector sees 5 V) | 50 µA × 10 k = **0.5 V, which equals the CJ2310's minimum V_GS(th)** (0.5–2 V at 250 µA), and a MOSFET's threshold falls as it warms. Interpolated, ~1 µA and 10 mV at 50 °C: the margin only runs out at the top of the range. That is inside the TLP291's rating (T_opr to 110 °C), but not where this board is meant to sit | **4.7 k** (C17673, already on the BOM): 0.24 V at the 85 °C corner, 2× margin restored. The gate then needs 1 mA of the ≥ 5.6 mA the opto can pass (CTR ≥ 100 % at I_F ≥ 5.6 mA), so it still saturates. Value change only; the comment in `design.py` is corrected either way |
-| A6 | **U12 has no input capacitor on either input, and its datasheet asks for them.** SLVSFG1A §9: "using an input capacitance (CIN) of 1 μF is sufficient". §10.1: "the input and output capacitors must be placed close to the device". VIN2 (`VBUS`) has no capacitor anywhere on the board. The nearest cap on VIN1 (`BUCK_5V`) is C44, 85 mm away at the buck. The nearest on VOUT is C1 at 11.7 mm | The switchover is break-before-make (§7.6.1). Suppose U12 is carrying ~0.5 A from USB through ~1 µH of cable when 24 V arrives. The channel opens in µs, and that current then has only the pin's own capacitance and U4's clamp to go into, on a pin with a 6 V absolute maximum. 1 µF at the pin bounds the step to about I·√(L/C) ≈ 0.5 V. The same event occurs on VIN1 when the 24 V goes away, through the 85 mm of track from C44. It is a bench-only event, since USB is attached only on the bench, but the bench checklist asks for exactly this switchover | **Add 1 µF at U12 pins 3 and 6** (C28323, 50 V X7R 0805, already on the BOM for C5/C37, so no new feeder), before ordering. On VBUS stay ≤ 10 µF, the USB device limit. This is a placement change in the crowded USB corner, so it needs the full `make pcb-build` and a check that the USB pair still passes. It subsumes the 09-18 round's "VBUS has no local capacitor" item and this round's former C1. If it is deferred, scope VBUS at U4 during the switchover bench step and look for overshoot past 6 V |
+| A6 | **U12 has no input capacitor on either input, and its datasheet asks for them.** SLVSFG1A §9: "using an input capacitance (CIN) of 1 μF is sufficient". §10.1: "the input and output capacitors must be placed close to the device". VIN2 (`VBUS`) has no capacitor anywhere on the board. The nearest cap on VIN1 (`BUCK_5V`) is C44, 85 mm away at the buck. The nearest on VOUT is C1 at 11.7 mm | The switchover is break-before-make (§7.6.1), and with VOUT above 1 V the incoming channel closes *without* soft start (§7.3.2). Its input then has to supply the sagged output's step at once, through ~1 µH of USB cable or 85 mm of BUCK_5V track, and without charge at the pin the pin sags with it. That dip is the reason §9 gives for CIN. The outgoing channel is opened over microseconds, so its L·di/dt is ~0.5 V from 1 µH at 0.5 A/µs, not the I·√(L/C) this row first gave; a pin cap takes most of that too. It is a bench-only event, since USB is attached only on the bench, but the bench checklist asks for exactly this switchover | **Add 1 µF at U12 pins 3 and 6** (C28323, 50 V X7R 0805, already on the BOM for C5/C37, so no new feeder), before ordering. On VBUS stay ≤ 10 µF, the USB device limit. This is a placement change in the crowded USB corner, so it needs the full `make pcb-build` and a check that the USB pair still passes. It subsumes the 09-18 round's "VBUS has no local capacitor" item and this round's former C1. If it is deferred, scope VBUS at U4 during the switchover bench step and look for overshoot past 6 V |
 
 ### B. Bench checks on board 1 (added to `docs/bench-smoke-test.md`)
 
@@ -158,8 +182,8 @@ Everything else is a bench check on board 1 or a rev-C item.
   AO3401A −30 V, ±12 V V_GS, V_GS(th) −0.5 to −1.3 V, < 60 mΩ at −4.5 V;
   BZT52C8V2S 7.7–8.7 V at 5 mA, 200 mW, SOD-323.
 - **U8/U9 (TLP291, SOP-4):** 1 anode, 2 cathode, 3 emitter → gate,
-  4 collector → `SSR_EN`. The emitter follower saturates at ≥ 6.8 mA of
-  collector capability against the 0.47 mA R7 can take, so the gate lands at
+  4 collector → `SSR_EN`. The emitter follower saturates at ≥ 5.6 mA of
+  collector capability against the 1.0 mA R7 (4.7 k since A5) can take, so the gate lands at
   `SSR_EN` − V_CE(sat) ≈ 4.7 V, set by the rail as `design.py` argues. LED
   current is 5.6–9.5 mA from 220 R. Against the datasheet: pinout
   1 A / 2 K / 3 E / 4 C; GB rank CTR 100–400 % at 5 mA / 5 V; V_CE(sat)
