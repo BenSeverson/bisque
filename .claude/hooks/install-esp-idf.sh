@@ -94,10 +94,17 @@ if [ "$persist_only" = "0" ]; then
     log "OS prerequisites ready."
 
     # ── ESP-IDF ───────────────────────────────────────────────────────────
+    # --depth 1 alone makes only the top-level repo shallow: the 28 submodules
+    # still clone with full history (1.7 GB of .git/modules, esp_wifi/lib's
+    # binary blobs alone 951 MB), which took 3m22s and was the single largest
+    # step of a cold session start. --shallow-submodules brings that to 87 MB
+    # and, with --jobs, ~70 s. The checked-out tree is identical — only history
+    # nobody here reads is dropped.
     if [ ! -d "$IDF_DIR/.git" ]; then
         log "cloning esp-idf $IDF_VERSION (shallow, recursive)…"
         rm -rf "$IDF_DIR"
         git clone --depth 1 -b "$IDF_VERSION" --recursive \
+            --shallow-submodules --jobs 8 \
             https://github.com/espressif/esp-idf.git "$IDF_DIR"
     fi
 
