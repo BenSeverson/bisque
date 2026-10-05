@@ -3,7 +3,7 @@
 Board: `bisque-controller` — **4-layer**, 100 × 100 mm, 1.6 mm, **182 components**
 (147 machine-placed SMD across 49 BOM lines + 13 hand-fitted THT/wafer parts +
 4 mounting holes + 3 fiducials + 15 non-assembled features: 12 test pads,
-2 solder jumpers, 1 DNP header), as of the 2026-09-30 fixes below
+2 solder jumpers, 1 DNP header), as of the 2026-10-04 DFM fixes below
 
 Review lineage:
 - 2026-08-11 — first pass, against KiCad 10.0.5 and the Task 14 board build
@@ -31,17 +31,75 @@ Review lineage:
   differential CT, exposed-pad via grids): one reviewer plus measurement
   scripts and live sourcing data, after the planned multi-agent pass was
   lost to a usage limit.
-- **2026-09-29 — current.** Targeted review of what landed after the
+- 2026-09-29 — targeted review of what landed after the
   2026-09-18 round and had never been reviewed: rev B.2's 24 V SSR output
   stage (`45fa571`) and the diode-free power path, Q8 + U12 (`f1cf1e6`),
   on the board as committed at `95de30c`. Everything from "## Verdict"
-  onward below is the 2026-08-17 round, preserved as written; the three
-  later rounds are the sections that follow this list, newest first.
+  onward below is the 2026-08-17 round, preserved as written; the later
+  rounds are the sections that follow this list, newest first.
+- **2026-10-04 — current.** JLCPCB's own DFM report on the `gerbers.zip`
+  built from `ddb6ef8`, triaged item by item against the board. Two silk
+  fixes landed; copper is unchanged.
 
 Rev B is a respin, not a variant: the thermocouple front-end, module variant,
 output bank, and layer count all changed, and no attempt was made to keep rev A
 hardware compatible with rev B firmware defaults. The one item that carries
 forward unchanged is `CERT-001`, below.
+
+## 2026-10-04 round — JLCPCB DFM report
+
+**Input:** JLCDFM's analysis of `jlcpcb/gerbers.zip` (PCB DFM + SMT DFM),
+generated 2026-10-04 against the package at `ddb6ef8`. Every Danger and
+Warning was located on the board and measured with `pcbnew`; the per-item
+detail JLC's summary page does not show (which refs) came from JLC's viewer.
+
+### Verdict
+
+**Nothing in the report blocks the order.** Two items were real and are
+fixed (silk only, copper byte-identical); one is an order-form decision; the
+rest are JLC's generic thresholds or its 3D models laid over our pads.
+
+### Fixed
+
+| Item | Was | Now |
+|---|---|---|
+| Silkscreen to pad, Danger | C44's designator printed **0.21 mm inside FID3's 2.0 mm mask window**. `silk.py` and `check_silk.py` both tested silk against pad *copper*, and a fiducial is the one pad here whose mask opening is larger than its copper (0.5 mm expansion), so both reported clean | Both now test against the **mask opening** (copper + `GetSolderMaskExpansion`). The unchanged checker run on the old board reports exactly this one hit; the rebuilt board places C44 0.18 mm clear of the window |
+| Silkscreen line width, 50 warnings (capped) | all **675** footprint silk outlines at KiCad's stock 0.12 mm, under JLC's 0.153 mm floor - including C46's polarity outline and `+`, the board's only printed polarity mark | `kicad_build.widen_fp_silk()` clamps every outline to `SILK_MIN_STROKE` (0.16 mm) at build time. An outline whose widened gap would drop below min(its old gap, 0.15 mm) is moved by the half-width instead (ring radius or an 8-way slide), so the two by-name `.kicad_dru` exceptions do not tighten: U1's pin-1 marker holds 0.130 mm, TP1-TP12's rings 0.140 mm. The build fails naming any outline no move can satisfy |
+
+Rebuilt with `make pcb-cosmetic` → `pcb-fab` → `pcb-check` → `pcb-render`:
+DRC 0 / 0 / 0; `check_silk` clean; all `pcb-check` checkers pass; 13 of 259
+labels moved (J11's designator from its east end to its west end, C44 off
+FID3, J6/J7 within their shared gap, nine by 0.01-0.02 mm). Every
+coordinate in the copper, mask, paste, outline and drill outputs is identical
+to `ddb6ef8`; only the silkscreen layer changed.
+
+### Order-form decision
+
+- **Lead to hole distance, Danger 15.** All **17** exposed-pad vias sit
+  under a paste aperture: U7 4 of 4, U1 9 of 9, U2 4 of 4. U7's 3×3 window
+  gaps are 0.2 mm, narrower than a 0.3 mm drill; U1's vias sit ~0.1 mm off
+  its window centres. Each 0.3 mm × 1.6 mm barrel holds ~0.11 mm³; U7's four
+  hold ~0.45 mm³ against ~0.37 mm³ of solder metal from its nine windows, so
+  in the worst case they could draw off most of the EP joint (the bottom-side
+  tent limits it in practice). The 2026-08-17 round's "windowpane paste is
+  correct, leave it alone" checked the paste pattern but not where the vias
+  then landed. **Options:** JLC's epoxy-filled & capped via-in-pad on the
+  order form (no design change, board-wide, extra cost on 4 layers); accept
+  for board 1 and inspect U7; or, rev C, move the vias into window gaps /
+  redraw the paste around them (a copper change, full `pcb-build`).
+
+### No action
+
+| Report item | What it is |
+|---|---|
+| Slot width 0.6 mm, Danger 4 | J1's four plated shield-tab slots (0.6 × 1.2 / 0.6 × 1.7 mm), the HRO TYPE-C-31-M-12's own land pattern |
+| Lead area overlapping pad, Danger 1 (U7) | U7's EP land is 3.10 mm; the ADE7953's exposed pad is 3.04 / **3.14** / 3.24 mm (CP-28-10, p.68). A land at or just under the package EP is normal; growing it would cut the 0.35 mm gap to the signal pads for nothing |
+| Pin left/right/inner/outer edge, Danger 24/13/5/6 (U7, U1) | Model leads exactly as wide as our pads. U7: 0.25 mm pads against b = 0.20 / **0.25** / 0.30 mm; length fully covered (L ≤ 0.58 mm, 0.35 mm toe). U1: 0.9 mm castellations on 0.9 mm pads. CPL fits are pin-numbered: U7 29 pins, 0.075 mm radial (LCSC's centres sit outward on all sides, no shift); U1 40 pins, 0.022 mm |
+| Silkscreen to pad, remaining (U1 pin 1, TP rings, LED1) | Library geometry: U1 0.130 mm and TP1-TP12 0.140 mm are the `.kicad_dru` by-name exceptions; LED1 0.22 mm passes JLC's 0.15 mm |
+| THT to SMD 1.46 mm, Danger 3 | J13 pad 2 to R33. J13 is DNP and all THT is hand-fitted, so a wave-solder clearance does not apply |
+| Silkscreen to hole, Danger 50 (capped) | Text over tented vias (67 labels' boxes cover a drill). Prints over the via dimple; teaching `silk.py` to avoid vias is rev-C tidiness |
+| Sharp trace corner, 2 (under R4 and R64) | VBUS (53.25, 36.00) at **88.4°** and BUCK_5V (58.25, 36.00) at **88.3°**. U12's pads sit at y = 35.95 / 36.45, 0.05 mm off the 0.25 mm grid, and `MUX_SEEDS` end on-grid, so each 2.6 mm escape slopes 1.6° into its turn. Not an acid trap; rev C: end the seeds at the pad's true y |
+| Annular ring 0.15 mm, pad spacing 0.15 mm, mask-segment / negative-expansion / exposed-trace warnings, fiducial "null" | Above JLC's minimums; the mask warnings are the EP sub-pad pattern; all three fiducials were found |
 
 ## 2026-09-29 round — rev B.2 SSR stage and the Q8/U12 power path
 

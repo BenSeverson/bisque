@@ -94,13 +94,16 @@ MM = pcbnew.FromMM
 # it, and it was free - the placer seats all 204 labels with 0 silk-on-silk at
 # either value, so there was no trade to make.
 #
-# Both silk TEXT sites clamp here; see the two uses. Footprint OUTLINES are a
-# separate population and are deliberately NOT clamped: they arrive at 0.12 mm
-# from KiCad's own stock libraries (all 37 of ours), which is what every KiCad
-# board ships and what JLCPCB prints daily. Raising them would mean rewriting
-# the vendored .kicad_mod files and would grow every obstacle box the placer
-# works against, to thicken a part outline nobody reads during assembly. The
-# text is what gets read, so the text is what is held to the floor.
+# Both silk TEXT sites clamp here, and so - since JLC's DFM report on the
+# 2026-10-04 package - do footprint OUTLINES (`widen_fp_silk`). They arrive at
+# 0.12 mm from KiCad's stock libraries and used to be left there on the
+# argument that nobody reads a part outline during assembly. Two things broke
+# that: JLC's DFM flags every one of them under its line-width floor, and some
+# outlines ARE read - C46's chamfered outline and `+` are the board's only
+# printed polarity mark on a 100 uF electrolytic, and LED1's corner and U1's
+# pin-1 marker orient parts by eye. The cost the old note feared is real but
+# small: the placer's outline obstacles grow by 0.02 mm a side. It is done at
+# build time, as STRIP_FP_SILK is, so no .kicad_mod is edited.
 SILK_MIN_STROKE = 0.16
 
 _major = int(pcbnew.Version().split(".")[0])
@@ -387,7 +390,101 @@ def build_board(existing=None):
                 if it.GetLayer() == pcbnew.F_SilkS and not hasattr(it, "GetText"):
                     fp.Remove(it)
                     _REMOVED.append(it)   # never let swig collect it; see strip_derived()
+        widen_fp_silk(fp)
     return board, nets, fps
+
+
+# Pad-to-silk clearance, mm - the `JLC: pad to silkscreen` rule in the .dru.
+PAD_SILK_CLEAR = 0.15
+
+
+def _pad_gap(sh, pads):
+    """Edge-to-edge distance from silk shape `sh` to the nearest mask opening.
+
+    A mask opening is the pad's copper grown by its solder-mask expansion -
+    zero on every pad here except the fiducials. Bisected on Collide() rather
+    than computed, because pcbnew's SHAPE API answers "within c?" and not
+    "how far?"; 20 halvings of 1 mm is under a nanometre.
+    """
+    lim = MM(1.0)
+    best = lim
+    bb = sh.BBox()
+    for psh, exp in pads:
+        pb = psh.BBox()
+        if (pb.GetLeft() - exp - lim > bb.GetRight() or bb.GetLeft() > pb.GetRight() + exp + lim
+                or pb.GetTop() - exp - lim > bb.GetBottom() or bb.GetTop() > pb.GetBottom() + exp + lim):
+            continue
+        if sh.Collide(psh, exp):
+            return 0
+        if not sh.Collide(psh, exp + best):
+            continue
+        lo, hi = 0, best
+        for _ in range(20):
+            mid = (lo + hi) // 2
+            if sh.Collide(psh, exp + mid):
+                hi = mid
+            else:
+                lo = mid
+        best = hi
+    return best
+
+
+def widen_fp_silk(fp):
+    """Clamp a footprint's silk OUTLINES to SILK_MIN_STROKE, growing away from its pads.
+
+    A stroke widened in place moves both edges out, and on the outlines that
+    already sit closest to their own copper - TP1-TP12's ring (0.141 mm) and
+    U1's pin-1 corner (0.130 mm), both under the pad-to-silk rule by name in
+    the .dru - that would eat the very clearance the exception budgets. So an
+    outline whose widened gap falls below min(original gap, the 0.15 mm rule)
+    is moved by the half-width it gained, in whichever direction gives it the
+    most room: grown in radius (a ring around its pad), or slid along one of
+    eight directions (a line or a marker beside one). If no move gets back to
+    that floor the build fails naming the outline, rather than shipping one
+    that a DRC exception would have to absorb.
+    """
+    floor = MM(SILK_MIN_STROKE)
+    pads = [(p.GetEffectiveShape(pcbnew.F_Cu), max(0, p.GetSolderMaskExpansion(pcbnew.F_Mask)))
+            for p in fp.Pads()
+            if p.IsOnLayer(pcbnew.F_Cu) and p.IsOnLayer(pcbnew.F_Mask)]
+    for it in fp.GraphicalItems():
+        if it.GetLayer() != pcbnew.F_SilkS or hasattr(it, "GetText"):
+            continue
+        w = it.GetWidth()
+        if w >= floor:
+            continue
+        before = _pad_gap(it.GetEffectiveShape(), pads)
+        it.SetWidth(floor)
+        need = min(before, MM(PAD_SILK_CLEAR))
+        if _pad_gap(it.GetEffectiveShape(), pads) >= need:
+            continue
+        d = (floor - w + 1) // 2
+        moves = [("move", pcbnew.VECTOR2I(round(d * math.cos(a)), round(d * math.sin(a))))
+                 for a in (k * math.pi / 4 for k in range(8))]
+        if it.GetShape() == pcbnew.SHAPE_T_CIRCLE:
+            moves.append(("radius", d))
+        best = None
+        for kind, arg in moves:
+            if kind == "move":
+                it.Move(arg)
+            else:
+                it.SetRadius(it.GetRadius() + arg)
+            gap = _pad_gap(it.GetEffectiveShape(), pads)
+            if kind == "move":
+                it.Move(pcbnew.VECTOR2I(-arg.x, -arg.y))
+            else:
+                it.SetRadius(it.GetRadius() - arg)
+            if best is None or gap > best[0]:
+                best = (gap, kind, arg)
+        if best[0] < need:
+            raise SystemExit("widen_fp_silk: %s %s outline cannot reach %.3f mm of its pads "
+                             "at a %.2f mm stroke (best %.3f mm)"
+                             % (fp.GetReference(), it.GetShapeStr(), pcbnew.ToMM(need),
+                                SILK_MIN_STROKE, pcbnew.ToMM(best[0])))
+        if best[1] == "move":
+            it.Move(best[2])
+        else:
+            it.SetRadius(it.GetRadius() + best[2])
 
 
 def ep_via_positions(fps):
