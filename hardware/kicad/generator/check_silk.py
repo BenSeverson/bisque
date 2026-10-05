@@ -164,16 +164,21 @@ def collect(board):
 
 
 def exposed_pads(board):
-    """Pads with a front mask opening - the copper silk must never touch."""
+    """Pads with a front mask opening - the opening silk must never touch."""
     out = []
     for fp in board.GetFootprints():
         for pad in fp.Pads():
             ls = pad.GetLayerSet()
             if not (ls.Contains(pcbnew.F_Mask) and ls.Contains(pcbnew.F_Cu)):
                 continue
+            # The mask opening, i.e. copper grown by the pad's solder-mask
+            # expansion: nonzero only on the fiducials (1 mm copper in a 2 mm
+            # window), and the copper-only test is how C44's designator sat
+            # 0.21 mm inside FID3's window with this check reporting 0.
             out.append(("%s pad %s" % (fp.GetReference(), pad.GetNumber()),
                         pad.GetEffectiveShape(pcbnew.F_Cu),
-                        pad.GetBoundingBox()))
+                        pad.GetBoundingBox(),
+                        max(0, pad.GetSolderMaskExpansion(pcbnew.F_Mask))))
     out.sort(key=lambda t: t[0])
     return out
 
@@ -274,11 +279,11 @@ def main(pcb):
     over, off, onsilk = [], [], []
 
     for label, owner, sh, bb, _t in silk:
-        for pname, psh, pbb in pads:
-            if not _bb_hit(bb, (pbb.GetLeft(), pbb.GetTop(),
-                                pbb.GetRight(), pbb.GetBottom())):
+        for pname, psh, pbb, exp in pads:
+            if not _bb_hit(bb, (pbb.GetLeft() - exp, pbb.GetTop() - exp,
+                                pbb.GetRight() + exp, pbb.GetBottom() + exp)):
                 continue
-            if sh.Collide(psh, 0):
+            if sh.Collide(psh, exp):
                 over.append((label, pname, bb))
         inside = (bbox_board is not None
                   and bb[0] >= bbox_board[0] and bb[1] >= bbox_board[1]

@@ -357,8 +357,18 @@ class _Obstacles:
             for pad in fp.Pads():
                 ls = pad.GetLayerSet()
                 if ls.Contains(pcbnew.F_Mask) and ls.Contains(pcbnew.F_Cu):
-                    bb = _bbt(pad.GetBoundingBox())
-                    self.pads.add((bb, pad.GetEffectiveShape(pcbnew.F_Cu)), bb)
+                    # The obstacle is the MASK OPENING, not the copper: silk
+                    # inside an opening is clipped off by the fab. They differ
+                    # only where a pad carries a solder-mask expansion - the
+                    # three fiducials, 1 mm copper in a 2 mm window - and that
+                    # difference is how C44's designator came to print 0.21 mm
+                    # into FID3's window with every check here green (JLC DFM,
+                    # 2026-10-04). The window also has to stay clear for the
+                    # assembly camera, which is what it is for.
+                    exp = max(0, pad.GetSolderMaskExpansion(pcbnew.F_Mask))
+                    b0 = _bbt(pad.GetBoundingBox())
+                    bb = (b0[0] - exp, b0[1] - exp, b0[2] + exp, b0[3] + exp)
+                    self.pads.add((bb, pad.GetEffectiveShape(pcbnew.F_Cu), exp), bb)
         self.edges = [d.GetEffectiveShape() for d in board.GetDrawings()
                       if d.GetLayer() == pcbnew.Edge_Cuts]
         # "Does not cross the edge" is NOT "is on the board". A label placed
@@ -424,8 +434,8 @@ class _Obstacles:
             self.bodies.add((ref, box), box)
 
     def on_copper(self, bb, sh):
-        for pbb, psh in self.pads.near(bb):
-            if _hit(bb, pbb, _C_COPPER) and sh.Collide(psh, _C_COPPER):
+        for pbb, psh, exp in self.pads.near(bb):
+            if _hit(bb, pbb, _C_COPPER) and sh.Collide(psh, _C_COPPER + exp):
                 return True
         return False
 
