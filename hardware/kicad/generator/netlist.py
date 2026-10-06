@@ -23,9 +23,10 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from sexp import parse, find, find_all
 
-# KiCad 10 renamed the USB-C receptacle's shield pin in the symbol library;
-# the footprint still calls it S1.
-PIN_RENAME = {("J1", "SH"): "S1"}
+# Pin names are the SYMBOL's, exactly as exported: the footprint's pads carry
+# the same names (J1's shield is "SH" on both), so the sync matches them
+# verbatim. No aliasing here - an alias would have to be undone by every
+# consumer that touches a pad.
 
 
 class Netlist:
@@ -79,7 +80,6 @@ def load(path):
             if ref not in nl.comps:
                 continue
             pin = str(find(node, "pin")[1])
-            pin = PIN_RENAME.get((ref, pin), pin)
             nl.nets.setdefault(name, set()).add((ref, pin))
             nl.comps[ref]["pins"][pin] = name
     nl.nets = {k: v for k, v in nl.nets.items() if v}

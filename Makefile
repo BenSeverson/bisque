@@ -33,7 +33,7 @@ IDF         := . ./scripts/idf-env.sh &&
         clang-tidy cppcheck \
         size size-firmware size-spiffs \
         ci ci-firmware clean \
-        pcb pcb-build pcb-cosmetic pcb-cosmetic-verify pcb-fab pcb-render \
+        pcb pcb-sync pcb-fab pcb-render \
         pcb-netlist pcb-check pcb-check-portable datasheets-manifest
 
 help:  ## List available targets
@@ -286,6 +286,7 @@ pcb-check: pcb-check-portable  ## Run every PCB checker (no KiCad rebuild)
 	  && "$$KPY" generator/check_via_in_pad.py bisque-controller.kicad_pcb \
 	  && "$$KPY" generator/check_silk.py bisque-controller.kicad_pcb \
 	  && "$$KPY" generator/check_placement.py \
+	  && "$$KPY" generator/check_sync_idempotent.py bisque-controller.kicad_pcb \
 	  && python3 generator/gen_datasheet_manifest.py --check
 
 # The datasheet cache is gitignored, so this is a local housekeeping tool
@@ -296,44 +297,24 @@ datasheets-manifest:  ## Re-index hardware/kicad/datasheets/ into its manifest.j
 # pcb-check runs BEFORE pcb-render on purpose: the raytrace is the most
 # expensive step here and the least informative one to look at if a checker
 # has already said the board is wrong. Fail first, then spend the minutes.
-pcb: pcb-build pcb-fab  ## Regenerate schematic + board + fab outputs + 3D renders
+pcb: pcb-sync pcb-fab  ## Sync the board to the schematic, regenerate fab outputs + 3D renders, check
 	$(MAKE) pcb-check
 	$(MAKE) pcb-render
 
-# The schematic's exported connectivity, committed so the portable checkers
-# (and CI) can read it without kicad-cli, and stamped against the sheet files
-# so a stale export fails check_netlist_fresh.py instead of passing.
-pcb-netlist:  ## Export + stamp hardware/kicad/bisque-controller.net from the schematic
-	cd $(KICAD_DIR) && python3 generator/netlist.py bisque-controller.kicad_sch bisque-controller.net
-
-pcb-build:  ## Regenerate schematic + board only (no fab outputs)
+# The schematic owns connectivity and the board owns placement and copper;
+# this is the one-way bridge between them. Exports the netlist, then applies
+# it to the live board the way "Update PCB from Schematic" does - footprints
+# added (parked east of the outline), removed, swapped in place, re-netted -
+# and re-derives only the silk the generator owns (the `generated` group),
+# honouring every locked item. Copper is never touched; tracks left on a net
+# the schematic dropped are reported. Ends with KiCad's own zone fill + DRC
+# and KiCad's own item order, so a GUI save afterwards is a no-op.
+pcb-sync: pcb-netlist  ## Apply the schematic's netlist to the board; regenerate owned silk/zones/stack-up
 	@$(find_kpy); \
-	cd $(KICAD_DIR) && python3 generator/gen_sch.py bisque-controller.kicad_sch \
-	  && "$$KPY" generator/kicad_build.py bisque-controller.kicad_pcb \
+	cd $(KICAD_DIR) && "$$KPY" generator/sync_board.py bisque-controller.kicad_pcb \
 	  && "$$KPY" generator/check_via_in_pad.py bisque-controller.kicad_pcb
 
-# The fast path. Routing 93 nets across 141 parts is ~144 s of pcb-build's
-# ~158 s, and silkscreen placement, 3D-model offsets, the title block and
-# reference-designator text metrics cannot move copper at all — so those
-# re-derive off the existing routing in ~8 s. Byte-identical to pcb-build
-# by construction and by test (pcb-cosmetic-verify); kicad_build.py refuses
-# --no-route outright if design.py's parts, placement or nets have drifted
-# from the board on disk. ANYTHING touching placement, connectivity, net
-# classes or router parameters needs `make pcb-build`.
-pcb-cosmetic:  ## Re-derive silk/3D models/title block only, reusing the existing routing (fast)
-	@$(find_kpy); \
-	cd $(KICAD_DIR) && python3 generator/gen_sch.py bisque-controller.kicad_sch \
-	  && "$$KPY" generator/kicad_build.py --no-route bisque-controller.kicad_pcb \
-	  && "$$KPY" generator/check_via_in_pad.py bisque-controller.kicad_pcb
-
-# Costs a full rebuild, so it is deliberately not in pcb-check. Run it when
-# kicad_build.py, silk.py or design.py's placement machinery changes.
-pcb-cosmetic-verify:  ## Prove --no-route is byte-identical to a full rebuild (slow)
-	@$(find_kpy); \
-	cd $(KICAD_DIR) && "$$KPY" generator/check_fast_path.py \
-	  bisque-controller.kicad_pcb
-
-# Everything a fab order reads. Runs AFTER pcb-build: kicad_build.py ends
+# Everything a fab order reads. Runs AFTER pcb-sync: sync_board.py ends
 # with a `kicad-cli pcb drc --refill-zones` pass, and exporting before that
 # bakes a stale pour into gerbers/. Stale gerbers are deleted rather than
 # overwritten so a layer that stops being exported cannot linger in the zip.

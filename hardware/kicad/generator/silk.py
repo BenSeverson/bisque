@@ -409,6 +409,20 @@ class _Obstacles:
             if it.GetLayer() == pcbnew.F_SilkS and not hasattr(it, "GetText"):
                 gbb = _bbt(it.GetBoundingBox())
                 self.graphics.add((None, gbb, it.GetEffectiveShape()), gbb)
+        # Silk a person has pinned: a locked board text, and the designator
+        # of a locked footprint. `collect_labels` leaves both where they are,
+        # so they have to be in the obstacle set or the placer would print
+        # another label straight through them.
+        for it in board.GetDrawings():
+            if (it.GetLayer() == pcbnew.F_SilkS and hasattr(it, "GetText")
+                    and it.IsLocked()):
+                gbb = _bbt(it.GetBoundingBox())
+                self.graphics.add((None, gbb, it.GetEffectiveShape()), gbb)
+        for fp in board.GetFootprints():
+            t = fp.Reference()
+            if fp.IsLocked() and t.GetLayer() == pcbnew.F_SilkS and t.IsVisible():
+                gbb = _bbt(t.GetBoundingBox())
+                self.graphics.add((fp.GetReference(), gbb, t.GetEffectiveShape()), gbb)
         # Part bodies, for the reference rule above. F.Fab is the outline of
         # the component itself, which is the question being asked - "will the
         # fitted part sit on this label" - and it is not the courtyard: Y1's
@@ -786,6 +800,12 @@ def collect_labels(board, text_anchors):
         t = fp.Reference()
         if t.GetLayer() != pcbnew.F_SilkS or not t.IsVisible():
             continue
+        # A locked footprint is one whose placement a person has signed off,
+        # designator included: KiCad has no lock for a footprint field on its
+        # own, so the footprint's lock is the signal. Its reference is an
+        # obstacle (see _Obstacles) and never a label.
+        if fp.IsLocked():
+            continue
         ref = fp.GetReference()
         p = fp.GetPosition()
         labels.append(_Label(("2ref", _refkey(ref)), ref, t, (p.x, p.y),
@@ -796,6 +816,8 @@ def collect_labels(board, text_anchors):
                 labels.append(_Label(("3fptext", (_refkey(ref), it.GetText())),
                                      ref, it, (ip.x, ip.y), None, "text"))
     for i, (item, ax, ay, lock) in enumerate(text_anchors):
+        if item.IsLocked():
+            continue              # pinned by hand: an obstacle, not a label
         labels.append(_Label(("1text", i), None, item, (MM(ax), MM(ay)),
                              None, "text", board=True, lock=lock))
     labels.sort(key=lambda l: l.key)
