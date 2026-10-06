@@ -1,8 +1,8 @@
 """Placement gate: courtyard/pad overlaps and off-board parts.
 
-KiCad's own DRC reports courtyard overlaps, but only after a 15-minute route
-and fill; this answers the same question from design.py in a second, which is
-what makes iterating on floorplan.py practical. Exit code is 0 only when
+KiCad's own DRC reports courtyard overlaps too; this answers the same
+question from the board file in a second, with every part's real courtyard,
+and fails on a part left parked outside the outline by `make pcb-sync`. Exit code is 0 only when
 there are zero overlaps and zero off-board parts; nonzero (1) otherwise, so
 `make pcb-check` actually fails on a placement regression instead of always
 "passing". Needs KiCad's python for the footprint courtyards.
@@ -13,17 +13,18 @@ try:
     import wx; _a = wx.App(False)
 except ImportError: pass
 import pcbnew
-from design import COMPONENTS, BX0, BY0, BX1, BY1
-import kicad_build as KB
+import board as B
+
+BOARD = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir,
+                     "bisque-controller.kicad_pcb")
+_bd = B.load(BOARD)
+BX0, BY0, BX1, BY1 = _bd.edge
 
 def boxes():
     out = {}
-    for ref, c in COMPONENTS.items():
-        lib, name = c["fp"].split(":", 1)
-        fp = KB.load_footprint(lib, name)
-        assert fp, c["fp"]
-        fp.SetPosition(KB.V(*c["at"][:2]))
-        fp.SetOrientationDegrees(c["at"][2])
+    b = pcbnew.LoadBoard(BOARD)
+    for fp in b.GetFootprints():
+        ref = fp.GetReference()
         xs, ys = [], []
         for it in list(fp.GraphicalItems()):
             if it.GetLayer() in (pcbnew.F_CrtYd, pcbnew.B_CrtYd):

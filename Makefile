@@ -271,7 +271,6 @@ pcb-check-portable:  ## PCB checkers that need no KiCad install (the CI subset)
 	  && python3 generator/check_mpn.py bisque-controller.kicad_sch \
 	  && python3 generator/check_pcb.py bisque-controller.kicad_pcb \
 	  && python3 generator/check_drill_clearance.py bisque-controller.kicad_pcb \
-	  && python3 generator/check_canonical.py bisque-controller.kicad_pcb \
 	  && python3 generator/check_3dmodels.py bisque-controller.kicad_pcb \
 	  && python3 generator/check_usb_pair.py bisque-controller.kicad_pcb \
 	  && python3 generator/gen_gerber_zip.py --check

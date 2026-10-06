@@ -1,4 +1,4 @@
-"""Generate JLCPCB assembly files (BOM.csv + CPL.csv) from design.py.
+"""Generate JLCPCB assembly files (BOM.csv + CPL.csv) from the netlist and the board.
 
 Every LCSC part number below was verified live against the LCSC catalog
 (package, value and stock) — see VERIFIED_ON. The most recent sweep re-checked
@@ -30,7 +30,40 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
-from design import COMPONENTS
+import board as B
+import netlist as NL
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+KICAD_DIR = os.path.join(HERE, os.pardir)
+
+
+def _components():
+    """design.py's COMPONENTS shape - value, fp, fpf, pins, at - from the
+    netlist (identity, connectivity) and the board (placement)."""
+    nl = NL.load(os.path.join(KICAD_DIR, "bisque-controller.net"))
+    bd = B.load(os.path.join(KICAD_DIR, "bisque-controller.kicad_pcb"))
+    out = {}
+
+    def natural(ref):
+        m = re.match(r"^([A-Za-z#]+)(\d*)", ref)
+        return (m.group(1), int(m.group(2) or 0), ref)
+
+    # Designator order, natural (C2 before C10): design.py's insertion order
+    # is gone, and the netlist's own order is KiCad's, which is not promised.
+    for ref in sorted(nl.comps, key=natural):
+        c = nl.comps[ref]
+        f = bd.fps.get(ref)
+        if f is None:
+            raise SystemExit("%s is in the schematic but not on the board - "
+                             "run `make pcb-sync`" % ref)
+        out[ref] = {"value": c["value"], "fp": c["footprint"],
+                    "fpf": c["footprint"].split(":", 1)[-1] + ".kicad_mod",
+                    "pins": {k: v for k, v in c["pins"].items()},
+                    "at": (f["x"], f["y"], f["rot"]), "dnp": c["dnp"]}
+    return out
+
+
+COMPONENTS = _components()
 
 VERIFIED_ON = "2026-09-09"    # C75882, C55144 and C17557 added 2026-09-21
 
