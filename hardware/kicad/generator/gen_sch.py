@@ -260,6 +260,58 @@ GROUPS = [(title, [k for r in refs for k in ITEMS_OF.get(r, [r])])
           for title, refs in GROUPS]
 
 
+def _home_flags(groups):
+    """Move each PWR_FLAG into the group that holds its net.
+
+    A flag's stub ends in a global label when the rail has no power port
+    (VIN, VLED). On one flat sheet that label merged with the fused block's
+    local label by name; across sheets a local label is sheet-scoped, so the
+    flag would float alone and ERC reports the rail undriven. Putting the
+    flag beside the parts it flags is also simply where a reader expects it.
+    """
+    out = [(t, list(refs)) for t, refs in groups]
+    for ref in FLAG_REFS:
+        net = FLAG_NET[ref]
+        home = next((i for i, (_t, refs) in enumerate(out)
+                     if any(net in PARTS[r]["pins"].values()
+                            for r in refs if r in PARTS)), None)
+        if home is None:
+            continue
+        for _t, refs in out:
+            if ref in refs:
+                refs.remove(ref)
+        out[home][1].append(ref)
+    return out
+
+
+GROUPS = _home_flags(GROUPS)
+
+# --- sheets -----------------------------------------------------------------
+# The LAST thing this generator does: a hierarchical schematic, one sub-sheet
+# per functional area, seeded from GROUPS and then hand-owned. Each entry is
+# (file stem, sheet title, GROUPS indices). Nets cross sheets as global
+# labels, exactly as they crossed blocks on the flat sheet, so no sheet pins.
+SHEETS = [
+    ("power", "Power input and 24 V -> 5 V buck", [0, 1]),
+    ("mcu", "ESP32-S3, USB, reset, status LED, headers, bus damping",
+     [2, 3, 4, 5, 6, 15]),
+    ("thermocouples", "Thermocouple front-ends (MAX31856 x2)", [7, 8]),
+    ("ssr", "SSR drive and hardware watchdog", [9, 10]),
+    ("io", "Aux outputs, buzzer, protected inputs", [11, 12, 13]),
+    ("ct", "CT current sensing (ADE7953)", [14]),
+    ("test", "Test points, mounting, fiducials, power flags", [16, 17]),
+]
+assert sorted(i for _, _, ix in SHEETS for i in ix) == list(range(len(GROUPS))), \
+    "SHEETS must partition GROUPS"
+SHEET_DIR = "sheets"
+# Landscape papers tried in order for a sub-sheet, with the usable box each
+# gives the packer (10 mm ruled border, 25 mm label reach on the far sides -
+# the same reservation check_sch_bounds.py enforces).
+SHEET_PAPERS = [("A3", (22.0, 26.0, 385.0, 262.0)),
+                ("A2", (22.0, 26.0, 559.0, 385.0)),
+                ("A1", (22.0, 26.0, 792.0, 548.0))]
+
+
 # --- layout engine ----------------------------------------------------------
 # A1 landscape (841 x 594 mm). The usable box keeps every anchor well inside
 # KiCad's ruled border and clear of the bottom-right title block; the same
@@ -1401,7 +1453,7 @@ def cell_extent(cell, symcache):
     return (-box[0], box[2], -box[1], box[3])
 
 
-def build_layout(symcache):
+def build_layout(symcache, groups, box, ncols):
     """Deterministic two-level packer.
 
     Level 1 shelf-packs a group's symbols into rows no wider than a page
@@ -1412,6 +1464,8 @@ def build_layout(symcache):
 
     Returns (at, headers, notes_title_at, notes_body_at).
     """
+    X0, Y0, X1, Y1 = box
+    N_COLS = ncols
     listed = [r for _, refs in GROUPS for r in refs]
     assert len(listed) == len(set(listed)), "a ref is in two GROUPS entries"
     missing = [r for r in PARTS if r not in set(listed)]
@@ -1422,7 +1476,7 @@ def build_layout(symcache):
     # A cell's members are all in one GROUPS entry by construction, since
     # fuse_pairs() only fuses within a block.
     ext, units = {}, []
-    for _title, refs in GROUPS:
+    for _title, refs in groups:
         out, done = [], set()
         for ref in refs:
             if ref in done:
@@ -1448,20 +1502,9 @@ def build_layout(symcache):
             out.append((key, members))
         units.append(out)
 
-    notes_w, notes_h = text_extent(NOTES, FONT_NOTE)
-    nt_w, nt_h = text_extent(NOTES_TITLE, FONT_HDR)
-    notes_w = max(notes_w, nt_w)
-    notes_block_h = nt_h + HDR_GAP + notes_h
-
-    # The notes column is a hard reservation: its width comes from the real
-    # longest line and its height from the real line count, and the packer is
-    # only ever handed the space left of it (plus, below the block, the
-    # column's own leftovers).
-    notes_x = X1 - notes_w
-    avail = notes_x - GUT_COL - X0
+    avail = X1 - X0
     colw = (avail - (N_COLS - 1) * GUT_COL) / N_COLS
     cols = [(X0 + i * (colw + GUT_COL), colw, Y0) for i in range(N_COLS)]
-    cols.append((notes_x, notes_w, Y0 + notes_block_h + GUT_GROUP))
 
     def shelf(cells, maxw):
         """Row-pack a group's cells left to right, wrapping at maxw.
@@ -1489,7 +1532,7 @@ def build_layout(symcache):
     # and leave the third a quarter used - legal, but it reads as if the
     # circuit ran out halfway.
     blocks = []
-    for (title, _refs), cells in zip(GROUPS, units):
+    for (title, _refs), cells in zip(groups, units):
         hh = text_extent(title, FONT_HDR)[1]
         blocks.append((title, cells, hh, hh + HDR_GAP + shelf(cells, colw)[2]))
     target = (sum(b[3] for b in blocks)
@@ -1509,7 +1552,7 @@ def build_layout(symcache):
                 break
             ci += 1
             if ci >= len(cols):
-                sys.exit("schematic layout: out of sheet - enlarge the paper")
+                return None                   # out of sheet: try a bigger paper
             cy = cols[ci][2]
         placed.append((ci, cy, title, hh, pos, bh))
         cy += hh + HDR_GAP + bh + GUT_GROUP
@@ -1528,6 +1571,9 @@ def build_layout(symcache):
         for k, i in enumerate(rows):
             shift[i] = k * step
 
+    for (c, y, title, hh, pos, bh) in placed:
+        if y + hh + HDR_GAP + bh > Y1:
+            return None                   # a block taller than the column
     at, headers = {}, []
     for i, (c, y, title, hh, pos, bh) in enumerate(placed):
         cx0 = cols[c][0]
@@ -1537,8 +1583,7 @@ def build_layout(symcache):
         for ref, dx, dy in pos:
             at[ref] = (cx0 + dx, by + dy)
 
-    return (at, headers, (notes_x, Y0 + nt_h / 2.0),
-            (notes_x, Y0 + nt_h + HDR_GAP + notes_h / 2.0))
+    return at, headers
 
 
 def esc(s):
@@ -1583,8 +1628,7 @@ def label_angle(vec):
     return 270, "right"
 
 
-def main():
-    # collect needed symbols
+def all_symbols():
     symcache = {}
     for ref, c in COMPONENTS.items():
         key = (c["lib"], c["sym"])
@@ -1593,8 +1637,27 @@ def main():
     symcache[("power", "PWR_FLAG")] = flatten("power", "PWR_FLAG")
     for net, sym in PWR.items():
         symcache[("power", net)] = sym
+    return symcache
 
-    AT, HEADERS, NOTES_TITLE_AT, NOTES_AT = build_layout(symcache)
+
+PWR_SEQ = [0]        # #PWRnnnn numbering runs across sheets, never restarts
+
+
+def emit_sheet(groups, PATH, symcache):
+    """Body items for one sub-sheet holding `groups`, plus (paper, used keys).
+
+    PATH is the sheet's instance path ("/<root uuid>/<sheet symbol uuid>"),
+    which every symbol instance on the sheet records.
+    """
+    refs_here = {r for _t, refs in groups for r in refs}
+    for paper, box in SHEET_PAPERS:
+        laid = build_layout(symcache, groups, box, N_COLS)
+        if laid is not None:
+            break
+    else:
+        sys.exit("schematic layout: %s does not fit A1" % groups[0][0][:30])
+    AT, HEADERS = laid
+    used = set()
 
     body = []
 
@@ -1606,7 +1669,7 @@ def main():
     # rebuild is byte-identical. check_netlist.py skips every "#" reference,
     # and nothing on the board side reads the schematic, so these exist on
     # this sheet only.
-    pwr_seq = [0]
+    pwr_seq = PWR_SEQ
 
     def emit_terminal(net, lx, ly, outv, key):
         """Terminate a stub: a power port for a rail, a global label else."""
@@ -1637,15 +1700,18 @@ def main():
              '\t\t(property "Datasheet" "" (at %s %s 0)\n'
              '\t\t\t(effects (font (size 1.27 1.27)) hide)\n\t\t)\n'
              '\t\t(pin "1" (uuid %s))\n'
-             '\t\t(instances (project "%s" (path "/%s" (reference "%s") (unit 1))))\n'
+             '\t\t(instances (project "%s" (path "%s" (reference "%s") (unit 1))))\n'
              '\t)' % (esc(net), f(lx), f(ly), ang, uid("pwr", *key), ref,
                       f(lx), f(ly), esc(net), f(lx + vx), f(ly + vy),
                       f(lx), f(ly), f(lx), f(ly), uid("pwrpin", *key),
-                      PROJECT, ROOT, ref))
+                      PROJECT, PATH, ref))
+        used.add(("power", net))
 
     # place components
     placed = {}
     for ref, c in PARTS.items():
+        if ref not in refs_here:
+            continue
         sx, sy = AT[ref]
         sx, sy = snap(sx), snap(sy)
         key = (c["lib"], c["sym"])
@@ -1715,11 +1781,12 @@ def main():
         emit('\t(symbol (lib_id "%s") (at %s %s 0) (unit %d)\n'
              '\t\t(in_bom yes) (on_board yes) (dnp %s)\n'
              '\t\t(uuid %s)\n%s\n%s'
-             '\t\t(instances (project "%s" (path "/%s" (reference "%s") (unit %d))))\n'
+             '\t\t(instances (project "%s" (path "%s" (reference "%s") (unit %d))))\n'
              '\t)' % (lib_id, f(sx), f(sy), c["_unit"],
                       "yes" if c["_ref"] in DNP else "no",
                       u, "\n".join(prop),
-                      pin_uuid_lines, PROJECT, ROOT, c["_ref"], c["_unit"]))
+                      pin_uuid_lines, PROJECT, PATH, c["_ref"], c["_unit"]))
+        used.add(key)
         # stubs + terminators / no-connects. stub_pins() collapses stacked
         # pins (module GND 1/40/41, USB VBUS) onto one stub and hands back the
         # same lengths the packer reserved space for.
@@ -1750,6 +1817,8 @@ def main():
     # plausible one - and the offsets are whole 1.27 mm steps precisely so
     # that snapping each part independently cannot drift them.
     for cell in CELLS:
+        if not set(cell["refs"]) & refs_here:
+            continue
         for net, _pts, (ra, pa), (rb, pb), opt in cell["wires"]:
             sa, sb = sym_of(ra), sym_of(rb)
             apx, apy = pin_xy(sa, pa)
@@ -1816,6 +1885,8 @@ def main():
 
     # PWR_FLAG instances
     for ref in FLAG_REFS:
+        if ref not in refs_here:
+            continue
         net = FLAG_NET[ref]
         sx, sy = AT[ref]
         sx, sy = snap(sx), snap(sy)
@@ -1832,10 +1903,11 @@ def main():
              '\t\t(property "Datasheet" "~" (at %s %s 0)\n'
              '\t\t\t(effects (font (size 1.27 1.27)) hide)\n\t\t)\n'
              '\t\t(pin "1" (uuid %s))\n'
-             '\t\t(instances (project "%s" (path "/%s" (reference "%s") (unit 1))))\n'
+             '\t\t(instances (project "%s" (path "%s" (reference "%s") (unit 1))))\n'
              '\t)' % (f(sx), f(sy), u, ref, f(sx), f(sy - 4), f(sx), f(sy - 6),
                       f(sx), f(sy), f(sx), f(sy), uid("pin", ref, "1"),
-                      PROJECT, ROOT, ref))
+                      PROJECT, PATH, ref))
+        used.add(("power", "PWR_FLAG"))
         # The flag's pin is at its own origin and points down, so a rail
         # flag - +5V, VBUS - is the "exactly wrong" case and its wire has to
         # come back up past the flag. This has to walk power_path() like any
@@ -1862,41 +1934,92 @@ def main():
 
     for txt, x, y in HEADERS:
         emit_text(txt, x, y, FONT_HDR, True, txt)
-    emit_text(NOTES_TITLE, NOTES_TITLE_AT[0], NOTES_TITLE_AT[1],
-              FONT_HDR, True, "notes-title")
-    emit_text(NOTES, NOTES_AT[0], NOTES_AT[1], FONT_NOTE, False, "notes")
+    return body, paper, used
 
-    libsyms = out_lib_symbols(symcache)
 
+def emit_text_item(txt, x, y, size, bold, key):
+    return ('\t(text "%s" (at %s %s 0)\n'
+            '\t\t(effects (font (size %s %s)%s) (justify left))\n'
+            '\t\t(uuid %s)\n\t)'
+            % (esc_text(txt), f(x), f(y), f(size), f(size),
+               " bold" if bold else "", uid("txt", key)))
+
+
+def sheet_file(uuid_, paper, title, libsyms, body, root):
     out = []
     out.append('(kicad_sch (version 20260306) (generator "eeschema") (generator_version "10.0")')
-    out.append('\t(uuid %s)' % ROOT)
-    # A1 (841 x 594 mm), not A3, and the layout engine's X0/Y0/X1/Y1 above
-    # are the usable box inside it. The packed content is ~715 x 546 mm: the
-    # three symbol columns plus the reserved notes column do not fit A3's
-    # 420 x 297, and A2's 594 x 420 is short in both axes. On A3 the exported
-    # PDF silently clipped about 40% of the circuit while every connectivity
-    # checker stayed green; check_sch_bounds.py now fails on any item outside
-    # whatever this line declares, and check_sch_layout.py on any overlap.
-    # Growing the sheet means growing X1/Y1 and PAPER's entry to match.
-    out.append('\t(paper "A1")')
-    out.append('\t(title_block\n\t\t(title "Bisque Kiln Controller")\n'
+    out.append('\t(uuid %s)' % uuid_)
+    out.append('\t(paper "%s")' % paper)
+    out.append('\t(title_block\n\t\t(title "%s")\n'
                '\t\t(date "2026-09-21")\n\t\t(rev "B.2")\n'
                '\t\t(company "Bisque project")\n'
                '\t\t(comment 1 "ESP32-S3-WROOM-1U-N16R2 + 2x MAX31856 + dual SSR + ADE7953")\n'
-               '\t\t(comment 2 "4-layer, 100 x 100 mm, JLCPCB standard process")\n\t)')
-    out.append('\t(lib_symbols\n\t\t' + "\n\t\t".join(libsyms) + '\n\t)')
+               '\t\t(comment 2 "4-layer, 100 x 100 mm, JLCPCB standard process")\n\t)'
+               % esc(title))
+    out.append('\t(lib_symbols' + ('\n\t\t' + "\n\t\t".join(libsyms) if libsyms else '') + '\n\t)')
     out.extend(body)
-    out.append('\t(sheet_instances (path "/" (page "1")))')
+    if root:
+        out.append('\t(sheet_instances (path "/" (page "1")))')
     out.append(')')
     return "\n".join(out) + "\n"
 
 
+# Root sheet geometry: sheet symbols in two columns, the notes block beside.
+ROOT_PAPER = "A3"
+ROOT_X0, ROOT_Y0 = 22.0, 26.0
+SHEET_W, SHEET_H = 76.2, 22.86        # 60 x 18 grid units
+SHEET_GAP_X, SHEET_GAP_Y = 12.7, 12.7
+
+
+def main():
+    """{relative path: text} for the root and every sub-sheet."""
+    symcache = all_symbols()
+    files, sheets_body = {}, []
+    for page, (stem, title, idx) in enumerate(SHEETS, start=2):
+        groups = [GROUPS[i] for i in idx]
+        sheet_uuid = uid("sheetsym", stem)          # the sheet SYMBOL on the root
+        file_uuid = uid("sheetfile", stem)          # the sub-sheet file itself
+        path = "/%s/%s" % (ROOT, sheet_uuid)
+        body, paper, used = emit_sheet(groups, path, symcache)
+        libsyms = out_lib_symbols({k: symcache[k] for k in symcache if k in used})
+        rel = "%s/%s.kicad_sch" % (SHEET_DIR, stem)
+        files[rel] = sheet_file(file_uuid, paper, "Bisque Kiln Controller - " + title,
+                                libsyms, body, root=False)
+        col, row = (page - 2) % 2, (page - 2) // 2
+        sx = ROOT_X0 + col * (SHEET_W + SHEET_GAP_X)
+        sy = ROOT_Y0 + row * (SHEET_H + SHEET_GAP_Y)
+        sheets_body.append(
+            '\t(sheet (at %s %s) (size %s %s)\n'
+            '\t\t(exclude_from_sim no) (in_bom yes) (on_board yes) (dnp no)\n'
+            '\t\t(stroke (width 0.1524) (type solid))\n'
+            '\t\t(fill (color 0 0 0 0.0000))\n'
+            '\t\t(uuid %s)\n'
+            '\t\t(property "Sheetname" "%s" (at %s %s 0)\n'
+            '\t\t\t(effects (font (size 1.27 1.27)) (justify left bottom))\n\t\t)\n'
+            '\t\t(property "Sheetfile" "%s" (at %s %s 0)\n'
+            '\t\t\t(effects (font (size 1.27 1.27)) (justify left top))\n\t\t)\n'
+            '\t\t(instances (project "%s" (path "/%s" (page "%d"))))\n'
+            '\t)' % (f(sx), f(sy), f(SHEET_W), f(SHEET_H), sheet_uuid,
+                      stem, f(sx), f(sy - 0.7116),
+                      rel, f(sx), f(sy + SHEET_H + 0.5846),
+                      PROJECT, ROOT, page))
+    nrows = (len(SHEETS) + 1) // 2
+    notes_x = ROOT_X0 + 2 * (SHEET_W + SHEET_GAP_X)
+    nt_w, nt_h = text_extent(NOTES_TITLE, FONT_HDR)
+    notes_w, notes_h = text_extent(NOTES, FONT_NOTE)
+    sheets_body.append(emit_text_item(NOTES_TITLE, notes_x, ROOT_Y0 + nt_h / 2.0,
+                                      FONT_HDR, True, "notes-title"))
+    sheets_body.append(emit_text_item(NOTES, notes_x, ROOT_Y0 + nt_h + HDR_GAP + notes_h / 2.0,
+                                      FONT_NOTE, False, "notes"))
+    assert notes_x + notes_w <= 385.0, "notes block runs off the root sheet"
+    assert ROOT_Y0 + nrows * (SHEET_H + SHEET_GAP_Y) <= 262.0
+    files["bisque-controller.kicad_sch"] = sheet_file(
+        ROOT, ROOT_PAPER, "Bisque Kiln Controller", [], sheets_body, root=True)
+    return files
+
+
 if __name__ == "__main__":
     dst = sys.argv[1] if len(sys.argv) > 1 else "bisque-controller.kicad_sch"
-    # Never let a demotion be silent: a pair that could not be seated falls
-    # back to a pair of global labels, which is correct but is not what the
-    # fusing was for.
     print("fused %d nets into wires across %d cells (%d with a junction tap)"
           % (len({it[0] for it in FUSED}),
              sum(1 for c in CELLS if len(c["refs"]) > 1),
@@ -1904,33 +2027,20 @@ if __name__ == "__main__":
     if FUSE_DROPPED:
         print("  NOT fused (no clear placement found, left as labels): %s"
               % ", ".join(FUSE_DROPPED))
-    text = main()
-    # Intermediate snapshots into hardware/kicad/stages/, on every run. Only
-    # 0* is cleared: kicad_build.py owns the numbered board stages in the same
-    # directory, and `make pcb-build` runs it afterwards as its own process.
-    stages.reset(dst, "0*")
-    stages.write(text, dst, "01-sch-generated.kicad_sch")
-    with open(dst, "w") as fh:
-        fh.write(text)
-    print("wrote %s (%d bytes)" % (dst, len(text)))
+    files = main()
+    base = os.path.dirname(os.path.abspath(dst))
+    os.makedirs(os.path.join(base, SHEET_DIR), exist_ok=True)
+    for rel, text in files.items():
+        path = dst if rel == "bisque-controller.kicad_sch" else os.path.join(base, rel)
+        with open(path, "w") as fh:
+            fh.write(text)
+        # Hand each file to KiCad's own writer so what lands in git is a file
+        # KiCad wrote: opening and saving it is then a no-op. Reproducible
+        # because every uuid is content-derived (check_sch_uuids.py).
+        subprocess.run(["kicad-cli", "sch", "upgrade", "--force", path],
+                       check=True, capture_output=True)
+        print("wrote %s (%d bytes after kicad-cli reformat)" % (rel, os.path.getsize(path)))
     changed = sync_project(dst)
     if changed is not None:
         print("  root sheet in .kicad_pro: %s"
               % ("updated" if changed else "already in step"))
-    # Hand the file straight back to KiCad's own writer. Two things come of
-    # that, and only the second is obvious. The obvious one: what lands in git
-    # is a file KiCad actually wrote, not one this module hand-formatted, so
-    # opening the schematic and saving it is a no-op instead of a 25k-line
-    # reflow. The other: KiCad ORDERS the items it writes, and the order is a
-    # function of the uuids - which are all derived here - so letting it sort
-    # is what makes the generator's order and the GUI's order the same order.
-    # Reproducible because every uuid is content-derived (check_sch_uuids.py
-    # proves KiCad adds none of its own) and `upgrade --force` is idempotent;
-    # two independent runs of gen_sch + upgrade are byte-identical. It leaves
-    # the .kicad_pro alone, so this stays after sync_project rather than
-    # racing it.
-    subprocess.run(["kicad-cli", "sch", "upgrade", "--force", dst],
-                   check=True, capture_output=True)
-    print("  reformatted by kicad-cli (%d bytes)" % os.path.getsize(dst))
-    stages.copy(dst, dst, "02-sch-upgraded.kicad_sch")
-    print("  stages -> %s/01-sch-generated, 02-sch-upgraded" % stages.DIRNAME)

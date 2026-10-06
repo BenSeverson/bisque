@@ -63,7 +63,10 @@ def main(argv):
         print("FAIL: %s not found" % path)
         return 1
 
-    placed = symbol_props(path)
+    import netlist
+    placed = {}
+    for f in netlist.sheet_files(path):
+        placed.update(symbol_props(f))
     errors = []
 
     # every sourced ref carries the table's number, on both properties
