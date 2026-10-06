@@ -34,7 +34,7 @@ IDF         := . ./scripts/idf-env.sh &&
         size size-firmware size-spiffs \
         ci ci-firmware clean \
         pcb pcb-build pcb-cosmetic pcb-cosmetic-verify pcb-fab pcb-render \
-        pcb-check pcb-check-portable datasheets-manifest
+        pcb-netlist pcb-check pcb-check-portable datasheets-manifest
 
 help:  ## List available targets
 	@awk 'BEGIN{FS=":.*## "} /^[a-z][a-zA-Z0-9_-]*:.*## / {printf "  \033[1m%-20s\033[0m %s\n",$$1,$$2}' $(MAKEFILE_LIST)
@@ -264,7 +264,8 @@ GERBER_LAYERS := F.Cu,In1.Cu,In2.Cu,B.Cu,F.Paste,B.Paste,F.Silkscreen,B.Silkscre
 # Every dev machine satisfies all three, so a green local run proves
 # nothing about this list. Check all three, and let CI be the arbiter.
 pcb-check-portable:  ## PCB checkers that need no KiCad install (the CI subset)
-	@cd $(KICAD_DIR) && python3 generator/check_pinmap.py \
+	@cd $(KICAD_DIR) && python3 generator/check_netlist_fresh.py bisque-controller.kicad_sch bisque-controller.net \
+	  && python3 generator/check_pinmap.py \
 	  && python3 generator/check_sch_bounds.py bisque-controller.kicad_sch \
 	  && python3 generator/check_sch_layout.py bisque-controller.kicad_sch \
 	  && python3 generator/check_mpn.py bisque-controller.kicad_sch \
@@ -298,6 +299,12 @@ datasheets-manifest:  ## Re-index hardware/kicad/datasheets/ into its manifest.j
 pcb: pcb-build pcb-fab  ## Regenerate schematic + board + fab outputs + 3D renders
 	$(MAKE) pcb-check
 	$(MAKE) pcb-render
+
+# The schematic's exported connectivity, committed so the portable checkers
+# (and CI) can read it without kicad-cli, and stamped against the sheet files
+# so a stale export fails check_netlist_fresh.py instead of passing.
+pcb-netlist:  ## Export + stamp hardware/kicad/bisque-controller.net from the schematic
+	cd $(KICAD_DIR) && python3 generator/netlist.py bisque-controller.kicad_sch bisque-controller.net
 
 pcb-build:  ## Regenerate schematic + board only (no fab outputs)
 	@$(find_kpy); \
