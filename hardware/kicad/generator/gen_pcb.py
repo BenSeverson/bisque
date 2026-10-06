@@ -118,7 +118,7 @@ def pad_centres(ref):
     """
     out = {}
     for (name, _k, gx, gy, _w, _h, _c, _l, _hole) in \
-            pad_geometry(COMPONENTS[ref]):
+            pad_geometry(COMPS[ref]):
         out.setdefault(name, (gx, gy))
     return out
 
@@ -1827,7 +1827,7 @@ def largest_empty_rect(min_w, min_h, margin=TITLE_MARGIN, edge=TITLE_EDGE,
     block(BX0, BY1 - edge, BX1, BY1)
     block(BX0, BY0, BX0 + edge, BY1)
     block(BX1 - edge, BY0, BX1, BY1)
-    for comp in COMPONENTS.values():
+    for comp in COMPS.values():
         box = _keepout_box(comp, margin)
         if box:
             block(*box)
@@ -1906,18 +1906,6 @@ def _title_block():
     return rows, logo_at, logo_h, k
 
 
-_TITLE_TEXTS, TITLE_LOGO_AT, TITLE_LOGO_SIZE, TITLE_SCALE = _title_block()
-if TITLE_SCALE < 1.0:
-    print("nameplate scaled to %.0f%% to fit the free space at (%.1f, %.1f)"
-          % (TITLE_SCALE * 100, TITLE_LOGO_AT[0], TITLE_LOGO_AT[1]))
-
-# Free-standing silk GRAPHICS, as [(closed polyline in mm, stroke width mm)].
-# Unlike the texts below these are not anchors: `silk.py` does not move a
-# graphic, it routes labels around one, so what is written here is where it
-# prints. The flame is the project's own mark, carried as an SVG path in
-# `logo.py` rather than traced into a point table here.
-SILK_GRAPHICS = [logo.flame(TITLE_LOGO_AT[0], TITLE_LOGO_AT[1],
-                            TITLE_LOGO_SIZE)]
 
 # ------------------------------------------ connector block legends
 # The NAME of each user-wired connector block, printed beside that block.
@@ -2010,7 +1998,6 @@ BLOCK_LEGEND_NAME = {
     # keyed, so there is nothing for a reader to get wrong.
     "J14": "QWIIC  I2C",
 }
-_BLOCK_EMITTED = set()
 
 
 def _free_span(ref, side):
@@ -2020,9 +2007,9 @@ def _free_span(ref, side):
     label's own width, since a part off to one side is not what the name
     would collide with. Returns None when nothing is on that side.
     """
-    x0, y0, x1, y1 = fp_body_box(COMPONENTS[ref])
+    x0, y0, x1, y1 = fp_body_box(COMPS[ref])
     best = None
-    for other, comp in COMPONENTS.items():
+    for other, comp in COMPS.items():
         if other == ref:
             continue
         b = fp_body_box(comp)
@@ -2044,8 +2031,8 @@ def _free_span(ref, side):
 def block_legend(ref):
     """(text, x, y, rot, size) for one connector's own name."""
     side, size, shift, gap = BLOCK_LEGENDS[ref]
-    txt = BLOCK_LEGEND_NAME.get(ref, COMPONENTS[ref]["value"].replace("_", " "))
-    x0, y0, x1, y1 = fp_body_box(COMPONENTS[ref])
+    txt = BLOCK_LEGEND_NAME.get(ref, COMPS[ref]["value"].replace("_", " "))
+    x0, y0, x1, y1 = fp_body_box(COMPS[ref])
     # The standoff yields to the neighbour, never the other way round: a
     # wider gap keeps the name at the standoff (centring it in 18 mm of open
     # board would put it nowhere near the block it names), and only a gap too
@@ -2070,143 +2057,6 @@ def block_legend(ref):
 # authoritative generator) runs that placer, and `check_silk.py` proves the
 # result. Only the hand-authored *intent* - what the label says and roughly
 # where it belongs - lives here now.
-SILK = _TITLE_TEXTS + [
-    ("USB", 40.5, 22.0, 0, 0.9),
-    # The two button legends, south of their buttons and level with each
-    # other, because the buttons are now a pair (design.py SW1) instead of
-    # being 55 mm apart. Both spent revisions printed across the button they
-    # name - the one place a legend is guaranteed to be unreadable on a
-    # finished board - because each was anchored in the 1.2-2.0 mm strip
-    # between the switch and the board edge, and only SW2's strip was big
-    # enough to hold anything.
-    #
-    # South, not north, even though north is a wider gap: north is where
-    # `SW1`/`SW2` sit, and a board text cannot evict a seated reference. The
-    # placer runs greedily over a live index, so a designator is an obstacle
-    # from pass 1 and only moves if something makes IT move; `BOOT` spent two
-    # rebuilds pinned to its button waiting for `SW2` to give way. Aim a
-    # legend somewhere the designator is not.
-    ("RESET", 91.0, 28.9, 0, 0.9),
-    ("BOOT", 100.0, 28.9, 0, 0.9),
-    # LED2 is the +3V3 power-on indicator (green, LEDP_K through R9 to GND).
-    # It went unlabelled through rev B, which on a board with three other
-    # LEDs is a guess. East rather than north: LED2's own silk starts 1.08 mm
-    # below the edge clearance line and nothing legible fits there, but
-    # removing `U.FL ANT ->` (an arrow pointing at a connector that is
-    # already the only thing it could point at) freed the strip beside it.
-    ("PWR", 58.0, 20.9, 0, 0.8),
-    # Block NAMES only. What is on each individual screw is no longer spelled
-    # out here as a "/"-separated list, because a horizontal list beside a
-    # vertical stack of screws does not say which screw is which - it was the
-    # largest single defect on the board's silk (analysis/silkscreen-review.md
-    # §E). Every terminal now carries its own mark, generated beside its own
-    # pad from PIN_LEGENDS below.
-    #
-    # Every one of them is generated: the name is the connector's own Value
-    # and the anchor is its own drawn body. What each block asks for beyond
-    # that lives in BLOCK_LEGENDS above, not here.
-    block_legend("J2"),
-    block_legend("J10"),
-    block_legend("J4"),
-    block_legend("J9"),
-    # The two amber channel indicators. Each sits across its own terminal
-    # pair through a 4.7k, so it lights only when that channel is actually
-    # CONDUCTING - which is exactly the thing a person standing at the kiln
-    # wants to read off the board.
-    #
-    # Since rev B.2 that pairs with the test point 4 mm east into a real
-    # diagnostic rather than two views of one signal. TPn reads what firmware
-    # COMMANDS (it is on SSRn_CTRL, the GPIO side of the optocoupler); the
-    # LED reads what the output STAGE did. High test point with a dark LED
-    # now means the fault is between them - opto, MOSFET, or the watchdog
-    # having dropped SSR_EN - and that is three parts, not thirty.
-    #
-    # Above each LED, and the two anchors differ only in y now that LED3 and
-    # LED4 share a column (design.py SSR_IND_X). `ON` rather than a bare
-    # `SSR1`: that channel's test point is 4 mm east and its own generated
-    # label already says `SSR1`, so the row reads `SSR1 ON` over the LED,
-    # `SSR1` under the pad, and the two are about one thing.
-    ("SSR1 ON", 57.0, 75.7, 0, 0.8),
-    ("SSR2 ON", 57.0, 83.7, 0, 0.8),
-    # The two thermocouple blocks, named in the gap OUTSIDE each block
-    # rather than in the passive field west of it. (104, 31) and
-    # (104, 58.5) put both names 5-9 mm from the terminal they belong to
-    # and level with R14/R15 and R16/R17 instead, so `TC1` read as a
-    # legend for whichever of the seven parts around it the reader
-    # guessed - and `TC2` sat nearer C37/R37/R38 than J8. The north/south
-    # split that fixes it is declared in BLOCK_LEGENDS above.
-    block_legend("J3"),
-    block_legend("J8"),
-    # In the free band above J12 and centred on the block, which is what a
-    # derived anchor gives for free. The hand-typed one was (96, 76): 6.5 mm
-    # west of J12 with `AC SENSE - DNP` already in the same 1 mm of board, so
-    # the placer took the far end of its ring - all 14 mm of it - and printed
-    # the CT legend directly under `TC2  K+/K-`, 12.98 mm from the block it
-    # names and 8.38 mm from the one it does not. J8's bottom is 55.59 and
-    # J12's top is 74.17, so there is an 18 mm strip here and nothing else
-    # wants it.
-    block_legend("J12"),
-    # J13's legend, and it has to be centred ON J13 to say so. At (100, 76)
-    # it printed 1.30 mm from J13 but 0.37 mm from C35 and 0.77 mm from the
-    # ADE7953, straight across that chip's own value text, so the one part it
-    # was not obviously describing was the header. What it says, and why it
-    # is not just the Value, is in BLOCK_LEGEND_NAME above.
-    block_legend("J13"),
-    # LED1's legend, and it follows LED1 (design.py). North of the LED: south
-    # is D3, and further south is J5's pin-name row, where a stray word reads
-    # as a fifteenth display pin - the mistake `SSR2` made from TP10 before
-    # that test point moved.
-    ("STATUS", 74.0, 84.0, 0, 0.9),
-    # There is deliberately no `I2C` zone label. One used to sit over R44/R45
-    # - correctly, after a move; it started life 6.1 mm from the parts it
-    # named - and it was still the wrong label, because naming two pull-up
-    # resistors tells a reader nothing they can act on. What it looked like
-    # instead was a caption on the nameplate 3 mm above it. The bus is named
-    # where a person actually meets it: `SDA`/`SCL` on J7's pin row and
-    # `QWIIC  I2C` on J14.
-    # J14's own label. Every other user-facing connector on an edge says what
-    # it is - `24V IN`, `SSR1`, `TC1`, `IN1..GND` - and the Qwiic port arrived
-    # at the bottom edge next to the input terminal with nothing but a
-    # designator. See BLOCK_LEGENDS above for what it says and why it sits
-    # further off its block than any other name here.
-    block_legend("J14"),
-    # SJ1's legend, and now it is actually at SJ1 (44.30..47.70, 48.20..50.80)
-    # rather than 17 mm away beside J10, where it read as a note about the AUX
-    # terminal and left the jumper itself with nothing but a designator. SJ1
-    # links +5V to AUX_VP, the ULN2003's COM rail, for plain 5 V relay coils;
-    # it is open by default because AUX_VP is an externally supplied rail
-    # (J10 pin 1) and a 12/24 V solenoid supply meeting +5V would be a short.
-    # It is NOT the watchdog jumper - that is SJ2, `WDT DEFEAT`, 8 mm south.
-    # North of SJ1 rather than south: R25's designator leaves 1.37 mm below
-    # it for a 1.36 mm text box, and a 0.01 mm margin is not a placement.
-    # `AUX=5V` rather than the net's own `AUX_VP=5V`, which is 7.01 mm wide
-    # in a 7.14 mm window and was landing 0.52 mm off C2 - close enough to
-    # read as C2's label. The shorter form leaves ~1 mm either side, and the
-    # rail it names is already spelled out on J10 as `AUX OUT`.
-    ("AUX=5V", 47.3, 46.3, 0, 0.8),
-    # SJ2 must be LEFT OPEN, and this comment used to say the opposite -
-    # "SJ2 must be FITTED on this rev, nothing kicks the watchdog GPIO yet".
-    # That was true before the kick task landed and has been false since:
-    # main.c calls safety_init_wdt(APP_PIN_WDT_KICK) and safety.c drives it
-    # at 5 Hz, so U10 holds the SSR gate-drive rail up whenever firmware is
-    # alive.
-    # Bridging SJ2 defeats the only interlock on this board that survives
-    # firmware death. jlcpcb/README.md and docs/pin-assignments.md already
-    # said so; this file was the one place still contradicting them.
-    #
-    # The silk itself stays a bare name rather than "REMOVE": the jumper is
-    # legitimately fitted on a pre-one-shot rev B board (BAT54S charge pump
-    # where U10 now sits), so an imperative on the copper would be wrong for
-    # one build or the other. The instruction lives where a builder reads it.
-    # Directly below SJ2 (55.30..58.70, 56.20..58.80), in the gap before
-    # BZ1's outline starts at y=62.90. The old anchor at (50, 61.5) was
-    # already 7 mm from the jumper and hard against that outline, so the
-    # placer slid it 10 mm - the whole label ended up centred inside the
-    # buzzer, which is both invisible once BZ1 is fitted and, before it is,
-    # reads as the buzzer's own name. x=58.0 rather than SJ2's own 57.0
-    # keeps the left end clear of TP12 at 53.04.
-    ("WDT DEFEAT", 58.0, 60.8, 0, 0.9),
-]
 # Parts whose reference designator is not printed. A designator earns its ink
 # by answering a question, and "which screw hole is this" is not one anybody
 # asks: H1-H4 are M3 mounting holes, interchangeable, and identified by being
@@ -2331,7 +2181,6 @@ _LEGEND_LOCK = {"E": "y", "W": "y", "N": "x", "S": "x"}
 # column spanning the whole board. Recorded here, where the association is
 # still in hand, and keyed on the ANCHOR because the text alone is not unique
 # (`GND` names a terminal on three different blocks).
-LEGEND_OWNER = {}
 
 
 def _pin_legends():
@@ -2340,7 +2189,7 @@ def _pin_legends():
     for ref in sorted(PIN_LEGENDS, key=lambda r: (r[0], int(r[1:]))):
         side, size, names = PIN_LEGENDS[ref]
         pads = pad_centres(ref)
-        x0, y0, x1, y1 = fp_body_box(COMPONENTS[ref])
+        x0, y0, x1, y1 = fp_body_box(COMPS[ref])
         for k, txt in enumerate(names):
             px, py = pads[str(k + 1)]
             if side == "E":
@@ -2433,29 +2282,216 @@ TP_LABEL_TEXTS = set()
 # west, or drop TP11 entirely and probe CTA_P at R32's pad.
 TP_LEGEND_OK = {("CT A+", "J12")}
 
-for _tp in sorted((r for r in COMPONENTS
-                   if r.startswith("TP") and r[2:].isdigit()), key=_tp_num):
-    _x, _y, _r = COMPONENTS[_tp]["at"]
-    # Anchored just below the pad: the reference designator sits above it by
-    # library default, so the two share the test point without a fight.
-    _at = TP_LABEL_AT.get(_tp, (_x, _y + 1.7))
-    _txt = tp_label(COMPONENTS[_tp]["pins"]["1"])
-    TP_LABEL_TEXTS.add(_txt)
-    SILK.append((_txt, _at[0], _at[1], 0, 0.8))
 
-SILK += _pin_legends()
-# Every entry is (text, x, y, rot, size, lock) from here on. `lock` is None
-# for the hand-authored legends above - a zone label may be moved wherever it
-# reads best - and an axis name for the generated per-terminal ones, which
-# may not. Normalising here rather than writing None into ninety tuples keeps
-# the table above about intent.
-SILK = [e if len(e) == 6 else (e + (None,)) for e in SILK]
-# A block legend declared and never printed is a name nobody sees, and the
-# table above is the only place it would be visible. Fail rather than ship a
-# connector whose name exists only in a dict.
-assert _BLOCK_EMITTED == set(BLOCK_LEGENDS), (
-    "connector block legends declared but not in SILK: %s"
-    % sorted(set(BLOCK_LEGENDS) - _BLOCK_EMITTED))
+
+COMPS = {}          # ref -> {"fpf", "at", "value", "pins"}: the placement the legends derive from
+SILK, SILK_GRAPHICS, LEGEND_OWNER, TP_LABEL_TEXTS = [], [], {}, set()
+_TITLE_TEXTS, TITLE_LOGO_AT, TITLE_LOGO_SIZE, TITLE_SCALE = [], (0.0, 0.0), 0.0, 1.0
+_BLOCK_EMITTED = set()
+
+
+def view_of_board(bd):
+    """design.py-shaped component view of a board.Board, for the legend code."""
+    return {ref: {"fpf": f["fpname"] + ".kicad_mod", "at": (f["x"], f["y"], f["rot"]),
+                  "value": f["value"], "pins": dict(f["pads"])}
+            for ref, f in bd.fps.items()}
+
+
+def bind(comps, edge):
+    """Derive every silk table from a placement: `comps` is a design.py-shaped
+    dict (see view_of_board) and `edge` the board outline (x0, y0, x1, y1).
+
+    The legends, the nameplate pocket and the test-point labels all follow
+    the parts, so they are a function of where the parts ARE - on the board -
+    not of a table. Rebinds the module globals SILK, SILK_GRAPHICS,
+    LEGEND_OWNER and TP_LABEL_TEXTS; read them through the module.
+    """
+    global COMPS, BX0, BY0, BX1, BY1, SILK, SILK_GRAPHICS, LEGEND_OWNER
+    global TP_LABEL_TEXTS, _TITLE_TEXTS, TITLE_LOGO_AT, TITLE_LOGO_SIZE
+    global TITLE_SCALE, _BLOCK_EMITTED
+    COMPS = comps
+    BX0, BY0, BX1, BY1 = edge
+    LEGEND_OWNER = {}
+    TP_LABEL_TEXTS = set()
+    _BLOCK_EMITTED = set()
+    _TITLE_TEXTS, TITLE_LOGO_AT, TITLE_LOGO_SIZE, TITLE_SCALE = _title_block()
+    if TITLE_SCALE < 1.0:
+        print("nameplate scaled to %.0f%% to fit the free space at (%.1f, %.1f)"
+              % (TITLE_SCALE * 100, TITLE_LOGO_AT[0], TITLE_LOGO_AT[1]))
+
+    # Free-standing silk GRAPHICS, as [(closed polyline in mm, stroke width mm)].
+    # Unlike the texts below these are not anchors: `silk.py` does not move a
+    # graphic, it routes labels around one, so what is written here is where it
+    # prints. The flame is the project's own mark, carried as an SVG path in
+    # `logo.py` rather than traced into a point table here.
+    SILK_GRAPHICS = [logo.flame(TITLE_LOGO_AT[0], TITLE_LOGO_AT[1],
+                                TITLE_LOGO_SIZE)]
+    SILK = _TITLE_TEXTS + [
+        ("USB", 40.5, 22.0, 0, 0.9),
+        # The two button legends, south of their buttons and level with each
+        # other, because the buttons are now a pair (design.py SW1) instead of
+        # being 55 mm apart. Both spent revisions printed across the button they
+        # name - the one place a legend is guaranteed to be unreadable on a
+        # finished board - because each was anchored in the 1.2-2.0 mm strip
+        # between the switch and the board edge, and only SW2's strip was big
+        # enough to hold anything.
+        #
+        # South, not north, even though north is a wider gap: north is where
+        # `SW1`/`SW2` sit, and a board text cannot evict a seated reference. The
+        # placer runs greedily over a live index, so a designator is an obstacle
+        # from pass 1 and only moves if something makes IT move; `BOOT` spent two
+        # rebuilds pinned to its button waiting for `SW2` to give way. Aim a
+        # legend somewhere the designator is not.
+        ("RESET", 91.0, 28.9, 0, 0.9),
+        ("BOOT", 100.0, 28.9, 0, 0.9),
+        # LED2 is the +3V3 power-on indicator (green, LEDP_K through R9 to GND).
+        # It went unlabelled through rev B, which on a board with three other
+        # LEDs is a guess. East rather than north: LED2's own silk starts 1.08 mm
+        # below the edge clearance line and nothing legible fits there, but
+        # removing `U.FL ANT ->` (an arrow pointing at a connector that is
+        # already the only thing it could point at) freed the strip beside it.
+        ("PWR", 58.0, 20.9, 0, 0.8),
+        # Block NAMES only. What is on each individual screw is no longer spelled
+        # out here as a "/"-separated list, because a horizontal list beside a
+        # vertical stack of screws does not say which screw is which - it was the
+        # largest single defect on the board's silk (analysis/silkscreen-review.md
+        # §E). Every terminal now carries its own mark, generated beside its own
+        # pad from PIN_LEGENDS below.
+        #
+        # Every one of them is generated: the name is the connector's own Value
+        # and the anchor is its own drawn body. What each block asks for beyond
+        # that lives in BLOCK_LEGENDS above, not here.
+        block_legend("J2"),
+        block_legend("J10"),
+        block_legend("J4"),
+        block_legend("J9"),
+        # The two amber channel indicators. Each sits across its own terminal
+        # pair through a 4.7k, so it lights only when that channel is actually
+        # CONDUCTING - which is exactly the thing a person standing at the kiln
+        # wants to read off the board.
+        #
+        # Since rev B.2 that pairs with the test point 4 mm east into a real
+        # diagnostic rather than two views of one signal. TPn reads what firmware
+        # COMMANDS (it is on SSRn_CTRL, the GPIO side of the optocoupler); the
+        # LED reads what the output STAGE did. High test point with a dark LED
+        # now means the fault is between them - opto, MOSFET, or the watchdog
+        # having dropped SSR_EN - and that is three parts, not thirty.
+        #
+        # Above each LED, and the two anchors differ only in y now that LED3 and
+        # LED4 share a column (design.py SSR_IND_X). `ON` rather than a bare
+        # `SSR1`: that channel's test point is 4 mm east and its own generated
+        # label already says `SSR1`, so the row reads `SSR1 ON` over the LED,
+        # `SSR1` under the pad, and the two are about one thing.
+        ("SSR1 ON", 57.0, 75.7, 0, 0.8),
+        ("SSR2 ON", 57.0, 83.7, 0, 0.8),
+        # The two thermocouple blocks, named in the gap OUTSIDE each block
+        # rather than in the passive field west of it. (104, 31) and
+        # (104, 58.5) put both names 5-9 mm from the terminal they belong to
+        # and level with R14/R15 and R16/R17 instead, so `TC1` read as a
+        # legend for whichever of the seven parts around it the reader
+        # guessed - and `TC2` sat nearer C37/R37/R38 than J8. The north/south
+        # split that fixes it is declared in BLOCK_LEGENDS above.
+        block_legend("J3"),
+        block_legend("J8"),
+        # In the free band above J12 and centred on the block, which is what a
+        # derived anchor gives for free. The hand-typed one was (96, 76): 6.5 mm
+        # west of J12 with `AC SENSE - DNP` already in the same 1 mm of board, so
+        # the placer took the far end of its ring - all 14 mm of it - and printed
+        # the CT legend directly under `TC2  K+/K-`, 12.98 mm from the block it
+        # names and 8.38 mm from the one it does not. J8's bottom is 55.59 and
+        # J12's top is 74.17, so there is an 18 mm strip here and nothing else
+        # wants it.
+        block_legend("J12"),
+        # J13's legend, and it has to be centred ON J13 to say so. At (100, 76)
+        # it printed 1.30 mm from J13 but 0.37 mm from C35 and 0.77 mm from the
+        # ADE7953, straight across that chip's own value text, so the one part it
+        # was not obviously describing was the header. What it says, and why it
+        # is not just the Value, is in BLOCK_LEGEND_NAME above.
+        block_legend("J13"),
+        # LED1's legend, and it follows LED1 (design.py). North of the LED: south
+        # is D3, and further south is J5's pin-name row, where a stray word reads
+        # as a fifteenth display pin - the mistake `SSR2` made from TP10 before
+        # that test point moved.
+        ("STATUS", 74.0, 84.0, 0, 0.9),
+        # There is deliberately no `I2C` zone label. One used to sit over R44/R45
+        # - correctly, after a move; it started life 6.1 mm from the parts it
+        # named - and it was still the wrong label, because naming two pull-up
+        # resistors tells a reader nothing they can act on. What it looked like
+        # instead was a caption on the nameplate 3 mm above it. The bus is named
+        # where a person actually meets it: `SDA`/`SCL` on J7's pin row and
+        # `QWIIC  I2C` on J14.
+        # J14's own label. Every other user-facing connector on an edge says what
+        # it is - `24V IN`, `SSR1`, `TC1`, `IN1..GND` - and the Qwiic port arrived
+        # at the bottom edge next to the input terminal with nothing but a
+        # designator. See BLOCK_LEGENDS above for what it says and why it sits
+        # further off its block than any other name here.
+        block_legend("J14"),
+        # SJ1's legend, and now it is actually at SJ1 (44.30..47.70, 48.20..50.80)
+        # rather than 17 mm away beside J10, where it read as a note about the AUX
+        # terminal and left the jumper itself with nothing but a designator. SJ1
+        # links +5V to AUX_VP, the ULN2003's COM rail, for plain 5 V relay coils;
+        # it is open by default because AUX_VP is an externally supplied rail
+        # (J10 pin 1) and a 12/24 V solenoid supply meeting +5V would be a short.
+        # It is NOT the watchdog jumper - that is SJ2, `WDT DEFEAT`, 8 mm south.
+        # North of SJ1 rather than south: R25's designator leaves 1.37 mm below
+        # it for a 1.36 mm text box, and a 0.01 mm margin is not a placement.
+        # `AUX=5V` rather than the net's own `AUX_VP=5V`, which is 7.01 mm wide
+        # in a 7.14 mm window and was landing 0.52 mm off C2 - close enough to
+        # read as C2's label. The shorter form leaves ~1 mm either side, and the
+        # rail it names is already spelled out on J10 as `AUX OUT`.
+        ("AUX=5V", 47.3, 46.3, 0, 0.8),
+        # SJ2 must be LEFT OPEN, and this comment used to say the opposite -
+        # "SJ2 must be FITTED on this rev, nothing kicks the watchdog GPIO yet".
+        # That was true before the kick task landed and has been false since:
+        # main.c calls safety_init_wdt(APP_PIN_WDT_KICK) and safety.c drives it
+        # at 5 Hz, so U10 holds the SSR gate-drive rail up whenever firmware is
+        # alive.
+        # Bridging SJ2 defeats the only interlock on this board that survives
+        # firmware death. jlcpcb/README.md and docs/pin-assignments.md already
+        # said so; this file was the one place still contradicting them.
+        #
+        # The silk itself stays a bare name rather than "REMOVE": the jumper is
+        # legitimately fitted on a pre-one-shot rev B board (BAT54S charge pump
+        # where U10 now sits), so an imperative on the copper would be wrong for
+        # one build or the other. The instruction lives where a builder reads it.
+        # Directly below SJ2 (55.30..58.70, 56.20..58.80), in the gap before
+        # BZ1's outline starts at y=62.90. The old anchor at (50, 61.5) was
+        # already 7 mm from the jumper and hard against that outline, so the
+        # placer slid it 10 mm - the whole label ended up centred inside the
+        # buzzer, which is both invisible once BZ1 is fitted and, before it is,
+        # reads as the buzzer's own name. x=58.0 rather than SJ2's own 57.0
+        # keeps the left end clear of TP12 at 53.04.
+        ("WDT DEFEAT", 58.0, 60.8, 0, 0.9),
+    ]
+    for _tp in sorted((r for r in COMPS
+                       if r.startswith("TP") and r[2:].isdigit()), key=_tp_num):
+        _x, _y, _r = COMPS[_tp]["at"]
+        # Anchored just below the pad: the reference designator sits above it by
+        # library default, so the two share the test point without a fight.
+        _at = TP_LABEL_AT.get(_tp, (_x, _y + 1.7))
+        _txt = tp_label(COMPS[_tp]["pins"]["1"])
+        TP_LABEL_TEXTS.add(_txt)
+        SILK.append((_txt, _at[0], _at[1], 0, 0.8))
+
+    SILK += _pin_legends()
+    # Every entry is (text, x, y, rot, size, lock) from here on. `lock` is None
+    # for the hand-authored legends above - a zone label may be moved wherever it
+    # reads best - and an axis name for the generated per-terminal ones, which
+    # may not. Normalising here rather than writing None into ninety tuples keeps
+    # the table above about intent.
+    SILK = [e if len(e) == 6 else (e + (None,)) for e in SILK]
+    # A block legend declared and never printed is a name nobody sees, and the
+    # table above is the only place it would be visible. Fail rather than ship a
+    # connector whose name exists only in a dict.
+    assert _BLOCK_EMITTED == set(BLOCK_LEGENDS), (
+        "connector block legends declared but not in SILK: %s"
+        % sorted(set(BLOCK_LEGENDS) - _BLOCK_EMITTED))
+    return SILK
+
+
+# Transitional: bind from design.py at import, exactly the tables the old
+# module-level code produced, until sync_board.py binds from the board.
+bind(COMPONENTS, (BX0, BY0, BX1, BY1))
 
 
 def main(dst):
