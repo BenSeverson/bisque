@@ -11,7 +11,7 @@ a reader trusts it.
 
 So it is derived instead. Two inputs, both authoritative:
 
-  * `design.COMPONENTS` - what the board actually fits, keyed by value, which
+  * `gen_jlc.COMPONENTS` (the netlist + board) - what the board fits, keyed by value, which
     is what makes a retired part impossible to leave behind: nothing maps to it.
   * the `.pdf` files actually present in datasheets/ - checked by listing the
     directory, never by trusting a previous manifest.
@@ -43,14 +43,13 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
-from design import COMPONENTS
-from gen_jlc import LCSC
+from gen_jlc import COMPONENTS, LCSC
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DS_DIR = os.path.join(HERE, "..", "datasheets")
 SCHEMATIC = "bisque-controller.kicad_sch"
 
-# datasheet filename -> the design.COMPONENTS *value* it documents.
+# datasheet filename -> the component *value* (schematic Value field) it documents.
 #
 # None means the file documents no single BOM line: supporting material kept on
 # purpose (the SoC manual behind the module) rather than an orphan.

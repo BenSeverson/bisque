@@ -248,8 +248,8 @@ GERBER_LAYERS := F.Cu,In1.Cu,In2.Cu,B.Cu,F.Paste,B.Paste,F.Silkscreen,B.Silkscre
 # costs minutes and ~1 GB, which is not worth paying to learn that a pin
 # default drifted.
 #
-# check_pinmap is the reason this target exists. `design.py` and
-# `main/Kconfig.projbuild` must agree on every GPIO and have drifted apart
+# check_pinmap is the reason this target exists. The schematic (read via
+# `bisque-controller.net`) and `main/Kconfig.projbuild` must agree on every GPIO and have drifted apart
 # before; until this ran in CI, the only thing standing between a drift and
 # `main` was someone remembering to type `make pcb-check`.
 #
