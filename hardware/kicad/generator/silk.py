@@ -22,7 +22,7 @@ candidate placements:
 Geometry is KiCad's own: every candidate is tested with the effective shapes
 DRC collides, so the placer and `check_silk.py` agree by construction.
 
-Deterministic by construction, which `check_canonical.py` requires: candidate
+Deterministic by construction, so a sync is a fixed point of its output: candidate
 order is fixed, items are placed in a sorted order, and the refinement passes
 only ever accept a strict improvement, so the loop cannot oscillate.
 
@@ -351,7 +351,10 @@ class _Obstacles:
     the other labels - is indexed separately, in `place()`.
     """
 
-    def __init__(self, board):
+    def __init__(self, board, movable=()):
+        """`movable` is the set of uuids of the board texts the placer owns;
+        every other F.SilkS board text - a user's note, a locked legend - is
+        an obstacle whether it is locked or not."""
         self.pads = _Grid(_C_COPPER)
         for fp in board.GetFootprints():
             for pad in fp.Pads():
@@ -415,7 +418,7 @@ class _Obstacles:
         # another label straight through them.
         for it in board.GetDrawings():
             if (it.GetLayer() == pcbnew.F_SilkS and hasattr(it, "GetText")
-                    and it.IsLocked()):
+                    and (it.IsLocked() or it.m_Uuid.AsString() not in movable)):
                 gbb = _bbt(it.GetBoundingBox())
                 self.graphics.add((None, gbb, it.GetEffectiveShape()), gbb)
         for fp in board.GetFootprints():
@@ -833,8 +836,20 @@ def _refkey(ref):
 
 def place(board, text_anchors, verbose=True):
     """Position every movable F.Silkscreen label."""
-    obs = _Obstacles(board)
+    movable = {item.m_Uuid.AsString() for (item, _x, _y, _l) in text_anchors
+               if not item.IsLocked()}
+    obs = _Obstacles(board, movable)
     labels = collect_labels(board, text_anchors)
+    # A part parked outside the outline (sync_board.py's parking row for a
+    # part the schematic just gained) has no legal placement and is not
+    # placed; its designator stays at the library default until the part
+    # is placed on the board.
+    if obs.box is not None:
+        bx0, by0, bx1, by1 = obs.box
+        pos = {fp.GetReference(): fp.GetPosition() for fp in board.GetFootprints()}
+        labels = [l for l in labels
+                  if l.owner is None or l.owner not in pos
+                  or (bx0 <= pos[l.owner].x <= bx1 and by0 <= pos[l.owner].y <= by1)]
 
     # Seed: everything at its anchor / library default, so pass 1 already sees
     # a complete board rather than an empty one.

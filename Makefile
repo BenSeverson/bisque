@@ -265,6 +265,7 @@ GERBER_LAYERS := F.Cu,In1.Cu,In2.Cu,B.Cu,F.Paste,B.Paste,F.Silkscreen,B.Silkscre
 # nothing about this list. Check all three, and let CI be the arbiter.
 pcb-check-portable:  ## PCB checkers that need no KiCad install (the CI subset)
 	@cd $(KICAD_DIR) && python3 generator/check_netlist_fresh.py bisque-controller.kicad_sch bisque-controller.net \
+	  && python3 generator/check_netlist.py bisque-controller.net bisque-controller.kicad_pcb \
 	  && python3 generator/check_pinmap.py \
 	  && python3 generator/check_sch_bounds.py bisque-controller.kicad_sch \
 	  && python3 generator/check_sch_layout.py bisque-controller.kicad_sch \
@@ -279,8 +280,7 @@ pcb-check-portable:  ## PCB checkers that need no KiCad install (the CI subset)
 # the portable set first — a cheap failure beats an expensive one.
 pcb-check: pcb-check-portable  ## Run every PCB checker (no KiCad rebuild)
 	@$(find_kpy); \
-	cd $(KICAD_DIR) && python3 generator/check_netlist.py bisque-controller.kicad_sch \
-	  && python3 generator/check_sch_uuids.py bisque-controller.kicad_sch \
+	cd $(KICAD_DIR) && python3 generator/check_sch_uuids.py bisque-controller.kicad_sch \
 	  && python3 generator/check_jlc_placement.py \
 	  && "$$KPY" generator/check_via_in_pad.py bisque-controller.kicad_pcb \
 	  && "$$KPY" generator/check_silk.py bisque-controller.kicad_pcb \
@@ -308,6 +308,9 @@ pcb: pcb-sync pcb-fab  ## Sync the board to the schematic, regenerate fab output
 # honouring every locked item. Copper is never touched; tracks left on a net
 # the schematic dropped are reported. Ends with KiCad's own zone fill + DRC
 # and KiCad's own item order, so a GUI save afterwards is a no-op.
+pcb-netlist:  ## Export + stamp hardware/kicad/bisque-controller.net from the schematic
+	cd $(KICAD_DIR) && python3 generator/netlist.py bisque-controller.kicad_sch bisque-controller.net
+
 pcb-sync: pcb-netlist  ## Apply the schematic's netlist to the board; regenerate owned silk/zones/stack-up
 	@$(find_kpy); \
 	cd $(KICAD_DIR) && "$$KPY" generator/sync_board.py bisque-controller.kicad_pcb \

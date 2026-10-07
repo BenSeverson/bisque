@@ -63,7 +63,58 @@ def _components():
     return out
 
 
-COMPONENTS = _components()
+class _LazyComponents(dict):
+    """COMPONENTS, read from the netlist and the board on first use.
+
+    Not at import: sync_board.py imports this module for its tables, and a
+    schematic that has just gained a part is exactly the moment the netlist
+    and the board disagree - loading here would make the sync refuse to run
+    on the one input it exists to handle.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._loaded = False
+
+    def _load(self):
+        if not self._loaded:
+            self._loaded = True
+            super().update(_components())
+
+    def __getitem__(self, k):
+        self._load()
+        return super().__getitem__(k)
+
+    def __contains__(self, k):
+        self._load()
+        return super().__contains__(k)
+
+    def __iter__(self):
+        self._load()
+        return super().__iter__()
+
+    def __len__(self):
+        self._load()
+        return super().__len__()
+
+    def get(self, k, default=None):
+        self._load()
+        return super().get(k, default)
+
+    def items(self):
+        self._load()
+        return super().items()
+
+    def keys(self):
+        self._load()
+        return super().keys()
+
+    def values(self):
+        self._load()
+        return super().values()
+
+
+COMPONENTS = _LazyComponents()
 
 VERIFIED_ON = "2026-09-09"    # C75882, C55144 and C17557 added 2026-09-21
 
@@ -247,7 +298,7 @@ LCSC = {
     # part.
     "C46": ("C2977550", "RVT1C101M0505 100uF 16V D5x5.4 aluminium electrolytic", False, True),
     # U12's input capacitors (review A6). 0402 because nothing larger fits
-    # beside the mux; see design.py at C47. Basic, so no feeder.
+    # beside the mux; see DESIGN-NOTES.md at C47. Basic, so no feeder.
     "C47": ("C52923", "CL05A105KA5NQNC 1uF 25V X5R 0402", True, True),
     "C48": ("C52923", "CL05A105KA5NQNC 1uF 25V X5R 0402", True, True),
     "D3": ("C81598", "1N4148W SOD-123 - VLED drop diode, silicon on purpose", True, True),
@@ -272,7 +323,7 @@ LCSC = {
     # before a production run, and fall back to C908776 if it is gone.
     "D8": ("C19077547", "SMAJ30A 30V 400W unidirectional TVS SMA", True, True),
     # Freewheel across each SSR terminal pair. Same part as D3/D4, so no
-    # new line - see design.py for why 150 mA/450 mA peak is the right
+    # new line - see DESIGN-NOTES.md for why 150 mA/450 mA peak is the right
     # size against F1's budget rather than an SMA Schottky.
     "D9": ("C81598", "1N4148W SOD-123 - SSR1 terminal freewheel", True, True),
     "D10": ("C81598", "1N4148W SOD-123 - SSR2 terminal freewheel", True, True),
@@ -308,7 +359,7 @@ LCSC = {
     "Q7": ("C75882", "CJ2310 60V 3A N-channel SOT-23 - watchdog return gate", False, True),
     # Reverse-polarity switch, replacing the SS34 that used to be D1. Same
     # part as Q4 and already Basic, so the swap adds no feeder fee - and the
-    # 30V rating is sufficient here for reasons design.py derives at Q8 (the
+    # 30V rating is sufficient here for reasons DESIGN-NOTES.md derives at Q8 (the
     # body diode clamps V_DS forward, D8 clamps it reverse), which is NOT the
     # argument that applies to Q5/Q6/Q7's 60V CJ2310s.
     "Q8": ("C15127", "AO3401A P-channel SOT-23 - reverse polarity", True, True),
@@ -375,13 +426,13 @@ LCSC = {
     "R61": ("C17513", "1k 0805 1%", True, True),
     "R62": ("C149504", "100k 0805 1%", True, True),
     # 30k is the one new passive value this board gained. Basic, so fee-free;
-    # with R64 it sets U12's buck-priority threshold at 4.0V - see design.py
+    # with R64 it sets U12's buck-priority threshold at 4.0V - see DESIGN-NOTES.md
     # at U12 for why that number is pinned from both ends rather than rounded.
     "R63": ("C17621", "30k 0805 1%", True, True),
     "R64": ("C17414", "10k 0805 1%", True, True),
     "SW1": ("C318884", "TS-1187A-B-A-B 5.1x5.1mm SMD tactile switch", True, True),
     "SW2": ("C318884", "TS-1187A-B-A-B 5.1x5.1mm SMD tactile switch", True, True),
-    # Containment, not isolation - see design.py's SSR block. SOP-4 rather
+    # Containment, not isolation - see DESIGN-NOTES.md's SSR block. SOP-4 rather
     # than the LTV-817S's SMD-DIP4 this replaced, and that is a LAYOUT
     # decision: 8.50 mm of courtyard against 12.04 mm is what lets the four
     # per-terminal legends share the corridor beside J4/J9. It costs a
@@ -421,9 +472,9 @@ LCSC = {
 # TP1-TP12: 1 mm bring-up test pads (Task 13) - bare copper, nothing to
 # place or buy. SJ1/SJ2: open solder-jumper footprints (AUX_VP<-+5V link and
 # the WDT bring-up defeat) - populated with solder, not a component. SJ3/SJ4
-# went with the optocouplers (see design.py's SSR block). J13: a
+# went with the optocouplers (see DESIGN-NOTES.md's SSR block). J13: a
 # fitted-but-DNP 2-pin header for a future SELV AC-sense accessory (Task 10)
-# - "NO MAINS ON THIS BOARD" per design.py, so this build does not stuff it.
+# - "NO MAINS ON THIS BOARD" per DESIGN-NOTES.md, so this build does not stuff it.
 # FID1-3: optical alignment targets, bare copper on no net. They must be
 # listed HERE and not left to the H-prefix rule assembly_refs() uses for the
 # mounting holes - a designator that is neither H-prefixed nor in this set

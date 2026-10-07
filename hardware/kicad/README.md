@@ -25,7 +25,7 @@ table — 92 nets, 0 mismatches). The 3D renders in `3d/` are raytraced by
 | File | What it is |
 |---|---|
 | `bisque-controller.kicad_pro` | Project. Hand-maintained **except** two blocks, both derived and both written *after* the board is saved because `pcbnew.SaveBoard()` blanks them: `schematic.top_level_sheets` (`project_sync.py::sync_project()`) and `net_settings` (`gen_pcb.py::sync_netclasses()`, from `ROUTE_ORDER`) — see below |
-| `bisque-controller.kicad_sch` | Schematic (A1, netlist-style: functional groups, global labels for signals, real power ports for rails, and real wires for two-pin nets local to one block). Laid out programmatically by `generator/gen_sch.py` — a `GROUPS` taxonomy plus a deterministic column packer, with a reserved right-hand column for the notes block. A1, not A3: an A3 declaration silently clipped ~40% of the circuit out of the exported PDF while every connectivity checker stayed green (`generator/check_sch_bounds.py` now fails on any off-sheet item), and containment is not readability, so `generator/check_sch_layout.py` additionally fails on any symbol/symbol, text/symbol, text/text or wire/wire collision (wires: a T or a collinear overlap — a plain crossing is allowed) |
+| `bisque-controller.kicad_sch` | Root of the hierarchical schematic: a sheet symbol per functional area (`sheets/power`, `mcu`, `thermocouples`, `ssr`, `io`, `ct`, `test`) plus the notes block. Netlist-style within each sheet: global labels for signals, real power ports for rails, real wires with a local label for two-pin block-local nets. Hand-owned; `make pcb-netlist` exports its connectivity. |
 | `bisque-controller.kicad_pcb` | Board: placed, fully routed, 4 layers (F.Cu/B.Cu signals, In1.Cu GND plane, In2.Cu +3V3 plane), on JLCPCB's `JLC04161H-7628` 1.6 mm stack-up — see "The physical stack-up" |
 | `bisque-controller.kicad_dru` | JLCPCB's standard 4-layer process as KiCad custom rules — **not generated**, and not a statement of design intent: every limit in it is JLC's *absolute minimum*, so a violation means something slipped off the design's own floor (0.3 mm track, 0.2 mm clearance, 0.6/0.3 vias, all from `net_settings`) far enough to hit the fab's. KiCad reads it by project name, so it survives regeneration untouched and the existing `kicad-cli pcb drc` pass picks it up for free — see "Fabrication & assembly at JLCPCB" |
 | `3d/board-3d-*.png` | Raytraced renders, kicad-cli — straight orthographic **top** and **bottom** only. The angled iso/front views were dropped: they look better than they read, and these images get used to check placement and silk, not to advertise |
@@ -1000,8 +1000,23 @@ it, and they are how a person's work survives:
 * a **locked footprint** keeps its reference designator where it is - KiCad
   has no lock for a footprint field on its own, so the footprint's lock is
   the signal - and the placer routes every other label around it;
-* any text **outside** the group is yours and is never touched, whatever it
-  says.
+* any text **outside** the group is yours: never touched, whatever it says,
+  and the placer keeps every label it does own clear of it.
+
+Two consequences of the group being the ownership signal: do not draw silk
+while you have *entered* the group in KiCad (the new item becomes a member
+and is regenerated away), and do not **Ungroup** it - a board with no
+`generated` group is refused, because the sync can no longer tell its silk
+from yours. Undo the ungroup, or, for a board that never had one, run
+`sync_board.py --adopt-legacy` once: that adopts EVERY unlocked silkscreen
+board text and graphic as generated, so lock anything you want kept first.
+
+A part the schematic gained is parked east of the outline; it gets no
+generated legend and its designator stays at the library default until you
+place it and sync again. A schematic pin the board's footprint has no pad
+for stops the sync by name before anything is written. Copper on a net the
+schematic dropped is listed, with a position, after the save - copper that
+merely followed a renamed pad is not dead and is not listed.
 
 Zones are created only if missing (the USB keepout follows the pair's
 tracks, so it is re-derived each run); the stack-up, copper layer types,
@@ -1025,7 +1040,10 @@ any fine-pitch escape stub rather than to the pad - those stubs (parts in
 `gen_pcb.FANOUT`) survive a rip-up, because a 0.25 mm grid cannot reach a
 0.5 mm-pitch pad any other way. Signal nets only: a GND pad is joined by the
 outer pours' thermal spokes, and a new +3V3 pad wants one via to the In2.Cu
-plane, which is quicker to place in the GUI than to script.
+plane, which is quicker to place in the GUI than to script - with no `NETS=`
+those two nets are skipped with a note rather than aborting the run. A net
+that does not route is not saved: the board on disk keeps whatever copper
+it had, and the command exits 1.
 
 `ROUTER=freerouting` is an experimental backend: it exports a DSN with every
 non-target net in a class Freerouting is told to ignore and lifts only the
@@ -1041,13 +1059,14 @@ and no tool here will take it.
 ### Checking
 
 `make pcb-check-portable` is the CI subset (standard library only, no
-KiCad): the netlist is fresh, the U1 pin map agrees with Kconfig, the
+KiCad): the netlist is fresh, the schematic's connectivity is on the board
+(`check_netlist.py`: every ref, footprint, value, DNP flag and pad net, and
+no schematic pin without a pad), the U1 pin map agrees with Kconfig, the
 schematic fits its sheets with nothing overlapping, sourcing fields match
 `gen_jlc.LCSC`, the board passes its geometry checks, every 3D model
 resolves, the USB pair meets its numbers and the gerber zip matches
-`gerbers/`. `make pcb-check` adds the checkers that need KiCad: the
-schematic's connectivity is on the board (`check_netlist.py`, fresh export
-against every pad net), KiCad mints no uuids on a schematic round trip, the
+`gerbers/`. `make pcb-check` adds the checkers that need KiCad: KiCad
+mints no uuids on a schematic round trip, the
 CPL rotations fit LCSC's land patterns, no via sits in an SMD pad, the silk
 is printable and associated, no courtyards overlap, and the sync is
 idempotent.

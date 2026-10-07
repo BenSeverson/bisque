@@ -35,11 +35,6 @@ import tempfile
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-try:
-    import wx
-    _app = wx.App(False)
-except ImportError:
-    pass
 import pcbnew
 
 import router as R
@@ -70,8 +65,10 @@ def unconnected_nets(board_path):
             if os.path.exists(src):
                 shutil.copy(src, os.path.join(tmp, base + ext))
         rpt = os.path.join(tmp, "drc.rpt")
-        subprocess.run(["kicad-cli", "pcb", "drc", "--severity-all", "-o", rpt,
-                        os.path.join(tmp, base + ".kicad_pcb")],
+        # --refill-zones on the scratch copy: a GND pad the outer pours join
+        # is connected, and must not be reported as a net to route.
+        subprocess.run(["kicad-cli", "pcb", "drc", "--refill-zones", "--severity-all",
+                        "-o", rpt, os.path.join(tmp, base + ".kicad_pcb")],
                        check=True, capture_output=True)
         text = open(rpt).read()
     nets = set()
@@ -431,6 +428,13 @@ def main(argv):
         targets = list(nets)
     else:
         targets = unconnected_nets(out)
+        if router == "inhouse":
+            planes = [n for n in targets if n in PLANE_NETS]
+            if planes:
+                print("skipping plane net(s) %s: a GND pad is joined by the outer "
+                      "pours, a +3V3 pad wants one via to In2.Cu - place it in the "
+                      "GUI" % ", ".join(planes))
+                targets = [n for n in targets if n not in PLANE_NETS]
         if not targets:
             print("nothing to route: no unconnected items")
             return
@@ -445,6 +449,11 @@ def main(argv):
         sys.exit("unknown router %r" % router)
     after = sum(1 for _ in board.GetTracks())
     print("added %d track(s)/via(s)" % (after - before))
+    if failed:
+        # Nothing is written: the file on disk still has whatever copper the
+        # failed nets had before the rip-up.
+        sys.exit("not saved - %s did not route; the board on disk is unchanged"
+                 % ", ".join(failed))
     project_before = read_project(out)
     board.SetFileName(out)
     pcbnew.SaveBoard(out, board)

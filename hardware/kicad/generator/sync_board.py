@@ -29,17 +29,11 @@ order, so opening the result in the GUI and saving is a no-op.
 Usage: <kicad-python> sync_board.py [--netlist X.net] board.kicad_pcb
 """
 import os
-import shutil
 import subprocess
 import sys
 import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-try:
-    import wx
-    _app = wx.App(False)
-except ImportError:
-    pass
 import pcbnew
 
 import gen_pcb as G
@@ -59,7 +53,9 @@ NS = uuid.UUID("5a1c6d1e-7b3f-4c8a-9e2d-0b1f2a3c4d5e")   # sync-owned uuids
 PARK_GAP = 8.0        # mm east of the board edge where new parts are parked
 PARK_PITCH = 5.0
 
-_REMOVED = []         # proxies of removed items; see kicad_build.strip_derived
+_REMOVED = []         # proxies of removed items: a BOARD_ITEM the board no longer
+                      # owns has no destructor swig can find; collecting one
+                      # corrupts pcbnew's type table, so they are parked here
 
 
 def kiid(*key):
@@ -138,9 +134,9 @@ def reset_reference(fp, lib, name):
     """
     tmp = load_footprint(lib, name)
     tmp.SetPosition(fp.GetPosition())
-    tmp.SetOrientation(fp.GetOrientation())
     if fp.GetLayer() != tmp.GetLayer():
-        tmp.Flip(fp.GetPosition(), False)
+        tmp.Flip(fp.GetPosition(), False)      # flip, THEN rotate: a flip mirrors the angle
+    tmp.SetOrientation(fp.GetOrientation())
     r, lr = fp.Reference(), tmp.Reference()
     r.SetPosition(lr.GetPosition())
     r.SetTextAngle(lr.GetTextAngle())
@@ -153,9 +149,9 @@ def swap_footprint(board, fp, lib, name):
     new = load_footprint(lib, name)
     assert new is not None, "%s:%s not in KiCad's footprint libraries" % (lib, name)
     new.SetPosition(fp.GetPosition())
-    new.SetOrientation(fp.GetOrientation())
     if fp.GetLayer() != new.GetLayer():
-        new.Flip(fp.GetPosition(), False)
+        new.Flip(fp.GetPosition(), False)      # flip, THEN rotate: a flip mirrors the angle
+    new.SetOrientation(fp.GetOrientation())
     new.SetLocked(fp.IsLocked())
     new.SetUuid(fp.m_Uuid)
     new.SetReference(fp.GetReference())
@@ -204,6 +200,9 @@ def sync_footprints(board, nl, rep):
             rep["added"].append(ref)
         have[ref] = fp
         fp.SetValue(c["value"])
+        pad_nums = {str(p.GetNumber()) for p in fp.Pads() if str(p.GetNumber())}
+        for num in sorted(set(c["pins"]) - pad_nums):
+            rep["no_pad"].append((ref, num, c["pins"][num]))
         for pad in fp.Pads():
             num = str(pad.GetNumber())
             if pad.GetAttribute() == pcbnew.PAD_ATTRIB_NPTH or not num:
@@ -216,13 +215,24 @@ def sync_footprints(board, nl, rep):
         style_footprint(fp, ref, c["dnp"])
         if not fp.IsLocked():
             reset_reference(fp, lib, name)
+    return have, net
+
+
+def dead_copper(board, nl):
+    """Tracks and vias on a net the schematic no longer has.
+
+    Judged on the board AFTER KiCad's save + DRC pass, not before: that pass
+    propagates a re-netted pad's new net onto the copper attached to it, so
+    copper that merely followed a rename is not dead and must not be
+    reported as if it were.
+    """
     live = set(nl.nets)
+    out = []
     for t in board.GetTracks():
         n = t.GetNetname()
         if n and n not in live:
-            rep["dead_copper"].append((n, pcbnew.ToMM(t.GetStart().x),
-                                       pcbnew.ToMM(t.GetStart().y)))
-    return have, net
+            out.append((n, pcbnew.ToMM(t.GetStart().x), pcbnew.ToMM(t.GetStart().y)))
+    return out
 
 
 # ------------------------------------------------------- generated group
@@ -233,11 +243,19 @@ def find_group(board):
     return None
 
 
-def regenerate_group(board, fps):
-    """Delete the unlocked members, re-derive, re-place. Returns the silk
-    anchors silk.place() needs, and the list of placed labels."""
+def regenerate_group(board, fps, adopt_legacy=False):
+    """Delete the unlocked members, re-derive, re-place. Returns the list
+    of placed labels."""
     g = find_group(board)
     legacy = g is None
+    if legacy and not adopt_legacy:
+        sys.exit("this board has no `%s` group, so the sync cannot tell its "
+                 "own silk from yours. If it was ungrouped by accident, undo "
+                 "that in KiCad. If this board never had one (it predates the "
+                 "sync), run once with --adopt-legacy: that adopts EVERY "
+                 "unlocked F.Silkscreen board text and graphic as generated and "
+                 "regenerates them - lock anything you want kept first."
+                 % GENERATED_GROUP)
     if legacy:
         g = pcbnew.PCB_GROUP(board)
         g.SetName(GENERATED_GROUP)
@@ -248,6 +266,12 @@ def regenerate_group(board, fps):
         # (the old pipeline emitted all of them). Adopt them, once.
         members = [d for d in board.GetDrawings()
                    if d.GetLayer() == pcbnew.F_SilkS]
+        # ...and the old pipeline's USB keepout, which carried a random uuid.
+        for z in board.Zones():
+            if z.GetIsRuleArea() and z.GetDoNotAllowZoneFills() and \
+                    z.GetLayerSet().Contains(pcbnew.F_Cu) and not z.IsLocked():
+                board.Remove(z)
+                _REMOVED.append(z)
     else:
         members = list(g.GetItems())
     kept = []
@@ -287,9 +311,14 @@ def regenerate_group(board, fps):
             sh.SetUuid(kiid("edge", k))
             board.Add(sh)
             g.AddItem(sh)
+    bx0, by0, bx1, by1 = G.BX0, G.BY0, G.BX1, G.BY1
     anchors = []
     for (txt, x, y, rot, size, lock) in G.SILK:
         if pinned(txt, x, y):
+            continue
+        # A legend anchored off the board belongs to a parked part. It is
+        # emitted once the part is placed and synced, not before.
+        if not (bx0 <= x <= bx1 and by0 <= y <= by1):
             continue
         t = pcbnew.PCB_TEXT(board)
         t.SetText(txt)
@@ -379,15 +408,21 @@ def ensure_zones(board, net, group):
         board.Add(z)
         made.append("+3V3 flood under U2")
     # The USB keepout follows the pair's tracks, so it is re-derived every
-    # run unless someone locked it. Legacy boards carry it outside the group.
+    # run unless someone locked it. It is known by its derived uuid and by
+    # nothing else: any other rule area on the board is the user's.
+    usb_id = kiid("zone", "usb-keepout").AsString()
+    kept_locked = False
     for z in zones:
-        if z.GetIsRuleArea() and z.GetDoNotAllowZoneFills() and \
-                z.GetLayerSet().Contains(pcbnew.F_Cu) and not z.IsLocked():
-            if z.GetParentGroup() is not None:
-                z.GetParentGroup().RemoveItem(z)
-            board.Remove(z)
-            _REMOVED.append(z)
-    if not any(z.GetIsRuleArea() and z.IsLocked() for z in zones):
+        if z.m_Uuid.AsString() != usb_id:
+            continue
+        if z.IsLocked():
+            kept_locked = True
+            continue
+        if z.GetParentGroup() is not None:
+            z.GetParentGroup().RemoveItem(z)
+        board.Remove(z)
+        _REMOVED.append(z)
+    if not kept_locked:
         ka = pcbnew.ZONE(board)
         ls = pcbnew.LSET()
         ls.addLayer(pcbnew.F_Cu)
@@ -456,12 +491,12 @@ def board_edge(board):
             xs += [pcbnew.ToMM(bb.GetLeft() + h), pcbnew.ToMM(bb.GetRight() - h)]
             ys += [pcbnew.ToMM(bb.GetTop() + h), pcbnew.ToMM(bb.GetBottom() - h)]
     if not xs:
-        return (G.BX0, G.BY0, G.BX1, G.BY1)
+        sys.exit("the board has no Edge.Cuts outline; draw one before syncing")
     return (min(xs), min(ys), max(xs), max(ys))
 
 
 # ------------------------------------------------------------------- main
-def sync(out, net_path):
+def sync(out, net_path, adopt_legacy=False):
     nl = NL.load(net_path)
     board = pcbnew.LoadBoard(out)
     board.SetCopperLayerCount(COPPER_LAYERS)
@@ -470,12 +505,12 @@ def sync(out, net_path):
     bds.m_ViasMinSize = MM(0.5)
     bds.m_MinThroughDrill = MM(0.3)
     bds.m_CopperEdgeClearance = MM(0.3)
-    rep = {k: [] for k in ("added", "removed", "swapped", "renetted", "dead_copper")}
+    rep = {k: [] for k in ("added", "removed", "swapped", "renetted", "dead_copper", "no_pad")}
     fps, net = sync_footprints(board, nl, rep)
     # Every silk table follows the parts as they now stand, parked ones
     # included - a parked part is outside the outline and blocks nothing.
     G.bind(view_of_pcbnew(board), board_edge(board))
-    labels = regenerate_group(board, fps)
+    labels = regenerate_group(board, fps, adopt_legacy)
     made = ensure_zones(board, net, find_group(board))
     apply_layer_types(board)
     set_title_block(board)
@@ -484,13 +519,16 @@ def sync(out, net_path):
 
 def main(argv):
     net_path = None
+    adopt_legacy = False
     paths = []
     it = iter(argv)
     for a in it:
         if a == "--netlist":
             net_path = next(it)
+        elif a == "--adopt-legacy":
+            adopt_legacy = True
         elif a.startswith("-"):
-            sys.exit("usage: sync_board.py [--netlist X.net] board.kicad_pcb")
+            sys.exit("usage: sync_board.py [--netlist X.net] [--adopt-legacy] board.kicad_pcb")
         else:
             paths.append(a)
     out = os.path.abspath(paths[0] if paths else "bisque-controller.kicad_pcb")
@@ -503,7 +541,13 @@ def main(argv):
             sys.exit("%s is stale against the schematic; run: make pcb-netlist"
                      % os.path.basename(net_path))
     project_before = read_project(out)
-    board, rep, labels, made = sync(out, net_path)
+    board, rep, labels, made = sync(out, net_path, adopt_legacy=adopt_legacy)
+    if rep["no_pad"]:
+        for ref, num, n in rep["no_pad"]:
+            print("FAIL: %s pin %s (net %s) in the schematic has no pad %s on the "
+                  "board's footprint - the symbol and footprint disagree; nothing "
+                  "written" % (ref, num, n, num))
+        sys.exit(1)
     strayed, slid = silk.adrift(labels), silk.offaxis(labels)
     intruding = silk.in_legend_column(labels, G.TP_LABEL_TEXTS, G.LEGEND_OWNER)
     board.SetFileName(out)
@@ -535,8 +579,10 @@ def main(argv):
         print("  %s.%s: %s -> %s" % (ref, num, got or "<none>", want or "<none>"))
     if len(rep["renetted"]) > 40:
         print("  ... and %d more" % (len(rep["renetted"]) - 40))
+    nl = NL.load(net_path)
+    final = pcbnew.LoadBoard(out)
     dead = {}
-    for n, x, y in rep["dead_copper"]:
+    for n, x, y in dead_copper(final, nl):
         dead.setdefault(n, []).append((x, y))
     for n, pts in sorted(dead.items()):
         print("  !! %d track(s)/via(s) on net %s, which the schematic no longer "
@@ -544,7 +590,6 @@ def main(argv):
               % (len(pts), n, pts[0][0], pts[0][1]))
     for z in made:
         print("  zone created: %s" % z)
-    final = pcbnew.LoadBoard(out)
     for (lname, area, cx, cy) in plane_islands(final):
         print("  !! %s plane island of %.1f mm2 stranded at (%.1f, %.1f)"
               % (lname, area, cx, cy))

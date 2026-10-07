@@ -26,8 +26,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SYNC = os.path.join(HERE, "sync_board.py")
 
 
-def run_sync(cwd, board):
-    p = subprocess.run([sys.executable, SYNC, board], cwd=cwd,
+def run_sync(cwd, board, extra=()):
+    p = subprocess.run([sys.executable, SYNC] + list(extra) + [board], cwd=cwd,
                        capture_output=True, text=True)
     if p.returncode != 0:
         sys.stdout.write(p.stdout)
@@ -124,6 +124,134 @@ def main(board_path):
                                                        after["locked"], after["x"], after["y"]))
         print("  3. locked %s swapped %s -> %s in place, still locked"
               % (ref, old_fp, new_fp))
+    import re
+    import pcbnew
+    base_net = os.path.join(src_dir, base + ".net")
+
+    def comp_block(text, ref):
+        i = text.index('(ref "%s")' % ref)
+        j = text.rfind("\n\t\t(comp", 0, i)
+        depth, k = 0, j + 1
+        while True:
+            c = text[k]
+            if c == "(":
+                depth += 1
+            elif c == ")":
+                depth -= 1
+                if depth == 0:
+                    break
+            k += 1
+        return j + 1, k + 1
+
+    # 4. a part added in the schematic is added to the board, parked east of
+    #    the outline, and the sync still succeeds.
+    with tempfile.TemporaryDirectory() as tmp:
+        b = scratch(src_dir, base, tmp, synced=True)
+        net = os.path.join(tmp, base + ".net")
+        t = open(net).read()
+        i, j = comp_block(t, "C30")
+        blk = t[i:j].replace('(ref "C30")', '(ref "C999")')
+        t = t[:j] + "\n" + blk + t[j:]
+        open(net, "w").write(t)
+        out = run_sync(tmp, b)
+        bd = B.load(b)
+        if "C999" not in bd.fps or bd.fps["C999"]["x"] <= bd.edge[2]:
+            sys.exit("SYNC IDEMPOTENT: FAIL - added part C999 is not parked east of the board")
+        if "+ C999" not in out:
+            sys.exit("SYNC IDEMPOTENT: FAIL - the sync did not report adding C999")
+        print("  4. added C999 is parked east of the outline (%.1f, %.1f)"
+              % (bd.fps["C999"]["x"], bd.fps["C999"]["y"]))
+
+    # 5. a renamed net re-nets its pads, keeps its copper and reports no
+    #    copper as dead (the DRC pass propagates the new net onto it).
+    with tempfile.TemporaryDirectory() as tmp:
+        b = scratch(src_dir, base, tmp, synced=True)
+        net = os.path.join(tmp, base + ".net")
+        t = open(net).read().replace('(name "/ct/ADE_CS")', '(name "/ct/ADE_CSX")')
+        open(net, "w").write(t)
+        before = sum(1 for x in B.load(b).tracks + B.load(b).vias if x["net"] == "ADE_CS")
+        out = run_sync(tmp, b)
+        bd = B.load(b)
+        after = sum(1 for x in bd.tracks + bd.vias if x["net"] == "ADE_CSX")
+        pads = [r for r, f in bd.fps.items() if "ADE_CSX" in f["pads"].values()]
+        if not pads or after != before or "ADE_CS" in bd.nets:
+            sys.exit("SYNC IDEMPOTENT: FAIL - renamed net: pads %s, copper %d -> %d"
+                     % (pads, before, after))
+        if "!!" in out and "ADE_CS" in out:
+            sys.exit("SYNC IDEMPOTENT: FAIL - copper that followed the rename was reported dead")
+        print("  5. ADE_CS -> ADE_CSX: %d pad(s) re-netted, %d copper item(s) followed, none reported dead"
+              % (len(pads), after))
+
+    # 6. a netlist pin the footprint has no pad for is a loud failure, not
+    #    a connection that silently never reaches the board.
+    with tempfile.TemporaryDirectory() as tmp:
+        b = scratch(src_dir, base, tmp, synced=True)
+        net = os.path.join(tmp, base + ".net")
+        t = open(net).read()
+        i = t.index('(name "GND")')
+        k = t.index("(node", i)
+        t = t[:k] + '(node\n\t\t\t\t(ref "R44")\n\t\t\t\t(pin "7")\n\t\t\t)\n\t\t\t' + t[k:]
+        open(net, "w").write(t)
+        p = subprocess.run([sys.executable, SYNC, b], cwd=tmp, capture_output=True, text=True)
+        if p.returncode == 0 or "R44" not in (p.stdout + p.stderr) or "7" not in (p.stdout + p.stderr):
+            sys.exit("SYNC IDEMPOTENT: FAIL - R44 pin 7 (no such pad) did not fail the sync")
+        print("  6. a netlist pin with no pad (R44.7) fails the sync by name")
+
+    # 7. a board with no `generated` group is refused unless the one-time
+    #    adoption is asked for explicitly: adopting means deleting every
+    #    unlocked silk text, which must never happen by accident.
+    with tempfile.TemporaryDirectory() as tmp:
+        b = scratch(src_dir, base, tmp, synced=True)
+        board = pcbnew.LoadBoard(b)
+        for g in list(board.Groups()):
+            if g.GetName() == "generated":
+                board.Remove(g)
+        pcbnew.SaveBoard(b, board, True)
+        p = subprocess.run([sys.executable, SYNC, b], cwd=tmp, capture_output=True, text=True)
+        if p.returncode == 0 or "adopt" not in (p.stdout + p.stderr):
+            sys.exit("SYNC IDEMPOTENT: FAIL - a board without the generated group was synced "
+                     "without --adopt-legacy")
+        run_sync(tmp, b, extra=["--adopt-legacy"])
+        print("  7. no generated group: refused; --adopt-legacy re-creates it")
+
+    # 8. a rule area the user drew is not the USB keepout and survives.
+    with tempfile.TemporaryDirectory() as tmp:
+        b = scratch(src_dir, base, tmp, synced=True)
+        board = pcbnew.LoadBoard(b)
+        ka = pcbnew.ZONE(board)
+        ls = pcbnew.LSET()
+        ls.addLayer(pcbnew.F_Cu)
+        ka.SetLayerSet(ls)
+        ka.SetIsRuleArea(True)
+        ka.SetDoNotAllowZoneFills(True)
+        ol = ka.Outline()
+        ol.NewOutline()
+        for (x, y) in [(30, 30), (34, 30), (34, 34), (30, 34)]:
+            ol.Append(pcbnew.FromMM(x), pcbnew.FromMM(y))
+        ka.SetUuid(pcbnew.KIID("00000000-0000-4000-8000-00000000beef"))
+        board.Add(ka)
+        pcbnew.SaveBoard(b, board, True)
+        run_sync(tmp, b)
+        if "00000000-0000-4000-8000-00000000beef" not in open(b).read():
+            sys.exit("SYNC IDEMPOTENT: FAIL - a user-drawn rule area was deleted by the sync")
+        print("  8. a user-drawn rule area survives the sync")
+
+    # 9. two sheet-local nets with the same short name are two nets; the
+    #    netlist reader must refuse rather than merge them onto one board net.
+    with tempfile.TemporaryDirectory() as tmp:
+        import netlist as NL
+        t = open(base_net).read()
+        t = t.replace('(name "/ct/ADE_CS")', '(name "/ct/FB")', 1).replace('(name "SPI_MISO")', '(name "/power/FB")', 1)
+        pth = os.path.join(tmp, "x.net")
+        open(pth, "w").write(t)
+        try:
+            NL.load(pth)
+            merged = True
+        except SystemExit as e:
+            merged = "FB" not in str(e)
+        if merged:
+            sys.exit("SYNC IDEMPOTENT: FAIL - /ct/FB and /power/FB were merged into one net")
+        print("  9. sheet-local nets sharing a short name are refused by netlist.load()")
     print("SYNC IDEMPOTENT: PASS")
 
 

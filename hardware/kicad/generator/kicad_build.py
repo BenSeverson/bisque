@@ -17,16 +17,7 @@ import sys
 import tempfile
 
 sys.path.insert(0, os.path.dirname(__file__))
-try:
-    # macOS: pcbnew's settings manager needs a live wx app in standalone use
-    import wx
-    _wx_app = wx.App(False)
-    if hasattr(wx, "DisableAsserts"):
-        wx.DisableAsserts()
-except ImportError:
-    pass
 import pcbnew
-from project_sync import sync_project
 from gen_pcb import (COPPER_LAYER_TYPE, USB_KEEPOUT_MARGIN, USB_DIFF_PAIR, U2_POUR)
 
 # Copper stack-up. Rev B is 4-layer (spec 6.1): signals on the outside, an
@@ -54,7 +45,6 @@ def _find_fp_base():
     sys.exit("KiCad footprint libraries not found - set KICAD_FOOTPRINT_DIR")
 
 
-import glob
 FPBASE = _find_fp_base()
 
 
@@ -86,7 +76,7 @@ if _major < 10:
     sys.exit("kicad_build.py requires KiCad 10+ (found %s)" % pcbnew.Version())
 
 # The footprint reader, resolved once. Belt-and-braces against the swig
-# type-table corruption `strip_derived()` documents: while a live pcbnew
+# type-table corruption sync_board._REMOVED documents: while a live pcbnew
 # session is in that state, PCB_IO_MGR.FindPlugin() is one of the calls that
 # hands back an untyped pointer - here, one with no FootprintLoad on it. A
 # handle taken before any board is loaded keeps working.
@@ -418,7 +408,7 @@ def read_project(out):
     back out from the PCB side alone, dropping whatever it never loaded. The
     known casualty used to be `schematic.top_level_sheets`, which sync_project()
     puts back - but it is not the only one: a full build also took out the whole
-    `erc` block and `sch_revision`, because build_board() starts from a bare
+    `erc` block and `sch_revision`, because the old full build started from a bare
     pcbnew.BOARD() with an empty project attached. Nothing noticed, since the
     two repairs downstream only rebuild the blocks THEY own.
 
@@ -448,7 +438,7 @@ def resort_to_kicad_order(path):
     """Leave the board in the order KiCad's own writer produces.
 
     KiCad orders board items by uuid - footprints outright, tracks and vias as
-    the tie-break after position - so with every uuid derived (canonicalize.py)
+    the tie-break after position - so with the uuids the file carries
     that order is a function of the design, and putting the file in it is what
     makes opening the board in the GUI and saving it a no-op instead of a
     61,654-line reorder.

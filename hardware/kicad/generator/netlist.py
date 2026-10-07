@@ -71,10 +71,22 @@ def load(path):
             "dnp": dnp,
             "pins": {},
         }
+    full_of = {}
     for n in find_all(find(doc, "nets"), "net"):
-        name = str(find(n, "name")[1]).split("/")[-1]
+        full = str(find(n, "name")[1])
+        name = full.split("/")[-1]
         if name.startswith("unconnected-"):
             continue
+        # A sheet-local label is "/sheet/NAME"; the board sees NAME. Two
+        # different sheets using the same local name are two nets in KiCad
+        # and would silently become one on the board, which is a short that
+        # every gate here would wave through. Refuse.
+        if full_of.setdefault(name, full) != full:
+            raise SystemExit("netlist: %r and %r are different nets that would "
+                             "share the board net name %r - rename one of the "
+                             "labels (a sheet-local name reused on another sheet, "
+                             "or a local label shadowing a global one)"
+                             % (full_of[name], full, name))
         for node in find_all(n, "node"):
             ref = str(find(node, "ref")[1])
             if ref not in nl.comps:

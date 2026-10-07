@@ -1,30 +1,25 @@
 """Schematic-vs-board drift check: the schematic's connectivity must be on
-the board. KiCad exports the netlist fresh from the schematic (so this does
-not trust the committed .net), and every ref, footprint and pad net on the
-board is compared against it. A schematic edit that has not been synced -
-or a board edit that re-netted a pad by hand - fails here.
+the board. Reads the committed netlist (bisque-controller.net - its
+freshness against the schematic is check_netlist_fresh.py's job, so this
+stays portable and runs in CI) and compares every ref, footprint, value,
+DNP flag and pad net on the board against it. A schematic edit that has
+not been synced - or a board edit that re-netted a pad by hand - fails
+here. A netlist pin the board's footprint has no pad for fails too: that
+connection would otherwise never reach copper.
 
-Usage: python3 check_netlist.py <schematic.kicad_sch> [board.kicad_pcb]
+Usage: python3 check_netlist.py <netlist.net> [board.kicad_pcb]
 """
 import os
-import subprocess
 import sys
-import tempfile
 
 sys.path.insert(0, os.path.dirname(__file__))
 import board as B
 import netlist as NL
 
 
-def main(sch, pcb=None):
-    pcb = pcb or os.path.splitext(sch)[0] + ".kicad_pcb"
-    with tempfile.NamedTemporaryFile(suffix=".net", delete=False) as tf:
-        netfile = tf.name
-    subprocess.run(["kicad-cli", "sch", "export", "netlist",
-                    "--format", "kicadsexpr", "-o", netfile, sch], check=True,
-                   capture_output=True)
-    nl = NL.load(netfile)
-    os.unlink(netfile)
+def main(net, pcb=None):
+    pcb = pcb or os.path.splitext(net)[0] + ".kicad_pcb"
+    nl = NL.load(net)
     bd = B.load(pcb)
     bad = []
     for ref in sorted(set(nl.comps) - set(bd.fps)):
@@ -44,14 +39,17 @@ def main(sch, pcb=None):
         if f["dnp"] != c["dnp"]:
             bad.append("%s: DNP %s on the board, %s in the schematic"
                        % (ref, f["dnp"], c["dnp"]))
-        for num, net in f["pads"].items():
+        for num, netname in f["pads"].items():
             if not num:
                 continue
             pads += 1
             want = c["pins"].get(num)
-            if (net or None) != want:
+            if (netname or None) != want:
                 bad.append("%s pad %s: net %s on the board, %s in the schematic"
-                           % (ref, num, net or "<none>", want or "<none>"))
+                           % (ref, num, netname or "<none>", want or "<none>"))
+        for num in sorted(set(c["pins"]) - {k for k in f["pads"] if k}):
+            bad.append("%s pin %s (net %s) in the schematic has no pad on the "
+                       "board's footprint" % (ref, num, c["pins"][num]))
     for line in bad[:40]:
         print("MISMATCH " + line)
     if len(bad) > 40:

@@ -17,7 +17,7 @@ import sys
 import uuid
 
 sys.path.insert(0, os.path.dirname(__file__))
-from sexp import parse, find, find_all, Sym, num, dump
+from sexp import parse, find, find_all, num
 import logo
 
 NS = uuid.UUID("8d0c2f6e-5b5c-4e2b-8d44-234567890abc")
@@ -423,7 +423,7 @@ def stackup_sexp(indent="\t\t"):
     kicad-cli leaves the file exactly as apply_stackup wrote it. Emit a
     compact block here and the two paths differ by ~66 lines of whitespace
     while agreeing on every value, which is precisely the byte-identity
-    check_fast_path.py exists to catch.
+    the sync's idempotence check exists to catch.
     """
     def n(v):
         # Not f(): that rounds to 4 places, and the soldermask is 0.01524 mm.
@@ -492,7 +492,7 @@ def apply_stackup(path):
 
     pcbnew's Python bindings expose no way to set the stack-up — KiCad 10 does
     not wrap BOARD_STACKUP at all — so this is applied to the saved file, the
-    same escape hatch canonicalize.py uses for the uuids it also cannot reach.
+    the same text-patch escape hatch the retired canonicaliser used.
     It runs BEFORE the kicad-cli DRC pass, so on a full build the block is
     parsed and written back out by KiCad itself and a stack-up KiCad rejected
     would fail the build rather than reach the fab. The fast path saves
@@ -833,7 +833,7 @@ def sync_netclasses(pro_path):
     ordering, which is the part KiCad actually resolves against.
     """
     if not os.path.exists(pro_path):
-        return False              # scratch builds (check_fast_path) have none
+        return False              # scratch builds have none
     with open(pro_path) as fh:
         doc = json.load(fh)
     ns = doc.setdefault("net_settings", {})
@@ -968,7 +968,7 @@ def largest_empty_rect(min_w, min_h, margin=TITLE_MARGIN, edge=TITLE_EDGE,
     standard largest-rectangle-in-histogram sweep, considering only
     rectangles at least min_w x min_h. Ties break on area, then on the
     topmost then leftmost corner, so the answer is a function of the
-    placement and nothing else - `check_canonical.py` requires that much.
+    placement and nothing else - the sync's idempotence requires that much.
 
     Copper is deliberately NOT an obstacle. Silkscreen over a track is
     covered by soldermask and prints perfectly; only exposed pads matter, and
@@ -1393,6 +1393,8 @@ TP_LABEL_SPECIAL = {"CTA_P": "CT A+", "CTA_N": "CT A-",
 
 def tp_label(net):
     """Short bench label for a net name. Pure function of the net."""
+    if net is None:
+        return ""
     if net in TP_LABEL_SPECIAL:
         return TP_LABEL_SPECIAL[net]
     if net.startswith("+") or net == "GND":
@@ -1460,6 +1462,14 @@ def view_of_board(bd):
             for ref, f in bd.fps.items()}
 
 
+def _rel(txt, ref, dx, dy, size):
+    """A hand-authored legend anchored RELATIVE to the part it names, so it
+    follows the part when a person moves it. (dx, dy) is the offset from the
+    footprint origin, in mm, at the placement the legend was authored on."""
+    x, y, _r = COMPS[ref]["at"]
+    return (txt, round(x + dx, 3), round(y + dy, 3), 0, size)
+
+
 def bind(comps, edge):
     """Derive every silk table from a placement: `comps` is a design.py-shaped
     dict (see view_of_board) and `edge` the board outline (x0, y0, x1, y1).
@@ -1490,7 +1500,7 @@ def bind(comps, edge):
     SILK_GRAPHICS = [logo.flame(TITLE_LOGO_AT[0], TITLE_LOGO_AT[1],
                                 TITLE_LOGO_SIZE)]
     SILK = _TITLE_TEXTS + [
-        ("USB", 40.5, 22.0, 0, 0.9),
+        _rel("USB", "J1", -7.5, -2.4, 0.9),
         # The two button legends, south of their buttons and level with each
         # other, because the buttons are now a pair (design.py SW1) instead of
         # being 55 mm apart. Both spent revisions printed across the button they
@@ -1505,15 +1515,15 @@ def bind(comps, edge):
         # from pass 1 and only moves if something makes IT move; `BOOT` spent two
         # rebuilds pinned to its button waiting for `SW2` to give way. Aim a
         # legend somewhere the designator is not.
-        ("RESET", 91.0, 28.9, 0, 0.9),
-        ("BOOT", 100.0, 28.9, 0, 0.9),
+        _rel("RESET", "SW1", 0.0, 3.9, 0.9),
+        _rel("BOOT", "SW2", 0.0, 3.9, 0.9),
         # LED2 is the +3V3 power-on indicator (green, LEDP_K through R9 to GND).
         # It went unlabelled through rev B, which on a board with three other
         # LEDs is a guess. East rather than north: LED2's own silk starts 1.08 mm
         # below the edge clearance line and nothing legible fits there, but
         # removing `U.FL ANT ->` (an arrow pointing at a connector that is
         # already the only thing it could point at) freed the strip beside it.
-        ("PWR", 58.0, 20.9, 0, 0.8),
+        _rel("PWR", "LED2", 2.5, -1.4, 0.8),
         # Block NAMES only. What is on each individual screw is no longer spelled
         # out here as a "/"-separated list, because a horizontal list beside a
         # vertical stack of screws does not say which screw is which - it was the
@@ -1545,8 +1555,8 @@ def bind(comps, edge):
         # `SSR1`: that channel's test point is 4 mm east and its own generated
         # label already says `SSR1`, so the row reads `SSR1 ON` over the LED,
         # `SSR1` under the pad, and the two are about one thing.
-        ("SSR1 ON", 57.0, 75.7, 0, 0.8),
-        ("SSR2 ON", 57.0, 83.7, 0, 0.8),
+        _rel("SSR1 ON", "LED3", 0.0, -2.3, 0.8),
+        _rel("SSR2 ON", "LED4", 0.0, -2.3, 0.8),
         # The two thermocouple blocks, named in the gap OUTSIDE each block
         # rather than in the passive field west of it. (104, 31) and
         # (104, 58.5) put both names 5-9 mm from the terminal they belong to
@@ -1575,7 +1585,7 @@ def bind(comps, edge):
         # is D3, and further south is J5's pin-name row, where a stray word reads
         # as a fifteenth display pin - the mistake `SSR2` made from TP10 before
         # that test point moved.
-        ("STATUS", 74.0, 84.0, 0, 0.9),
+        _rel("STATUS", "LED1", 0.0, -4.0, 0.9),
         # There is deliberately no `I2C` zone label. One used to sit over R44/R45
         # - correctly, after a move; it started life 6.1 mm from the parts it
         # named - and it was still the wrong label, because naming two pull-up
@@ -1602,7 +1612,7 @@ def bind(comps, edge):
         # in a 7.14 mm window and was landing 0.52 mm off C2 - close enough to
         # read as C2's label. The shorter form leaves ~1 mm either side, and the
         # rail it names is already spelled out on J10 as `AUX OUT`.
-        ("AUX=5V", 47.3, 46.3, 0, 0.8),
+        _rel("AUX=5V", "SJ1", 1.3, -3.2, 0.8),
         # SJ2 must be LEFT OPEN, and this comment used to say the opposite -
         # "SJ2 must be FITTED on this rev, nothing kicks the watchdog GPIO yet".
         # That was true before the kick task landed and has been false since:
@@ -1624,7 +1634,7 @@ def bind(comps, edge):
         # buzzer, which is both invisible once BZ1 is fitted and, before it is,
         # reads as the buzzer's own name. x=58.0 rather than SJ2's own 57.0
         # keeps the left end clear of TP12 at 53.04.
-        ("WDT DEFEAT", 58.0, 60.8, 0, 0.9),
+        _rel("WDT DEFEAT", "SJ2", 1.0, 3.3, 0.9),
     ]
     for _tp in sorted((r for r in COMPS
                        if r.startswith("TP") and r[2:].isdigit()), key=_tp_num):
@@ -1632,7 +1642,9 @@ def bind(comps, edge):
         # Anchored just below the pad: the reference designator sits above it by
         # library default, so the two share the test point without a fight.
         _at = TP_LABEL_AT.get(_tp, (_x, _y + 1.7))
-        _txt = tp_label(COMPS[_tp]["pins"]["1"])
+        _txt = tp_label(COMPS[_tp]["pins"].get("1"))
+        if not _txt:
+            continue                      # a test point on no net has nothing to say
         TP_LABEL_TEXTS.add(_txt)
         SILK.append((_txt, _at[0], _at[1], 0, 0.8))
 

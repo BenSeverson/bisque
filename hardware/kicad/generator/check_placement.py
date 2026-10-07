@@ -9,9 +9,6 @@ there are zero overlaps and zero off-board parts; nonzero (1) otherwise, so
 """
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-try:
-    import wx; _a = wx.App(False)
-except ImportError: pass
 import pcbnew
 import board as B
 
