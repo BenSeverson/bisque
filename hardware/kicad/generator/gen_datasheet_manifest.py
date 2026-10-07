@@ -11,7 +11,7 @@ a reader trusts it.
 
 So it is derived instead. Two inputs, both authoritative:
 
-  * `design.COMPONENTS` - what the board actually fits, keyed by value, which
+  * `gen_jlc.COMPONENTS` (the netlist + board) - what the board fits, keyed by value, which
     is what makes a retired part impossible to leave behind: nothing maps to it.
   * the `.pdf` files actually present in datasheets/ - checked by listing the
     directory, never by trusting a previous manifest.
@@ -43,14 +43,13 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
-from design import COMPONENTS
-from gen_jlc import LCSC
+from gen_jlc import COMPONENTS, LCSC
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DS_DIR = os.path.join(HERE, "..", "datasheets")
 SCHEMATIC = "bisque-controller.kicad_sch"
 
-# datasheet filename -> the design.COMPONENTS *value* it documents.
+# datasheet filename -> the component *value* (schematic Value field) it documents.
 #
 # None means the file documents no single BOM line: supporting material kept on
 # purpose (the SoC manual behind the module) rather than an orphan.
@@ -77,6 +76,26 @@ DOC_FOR = {
         "ESP32-S3-WROOM-1U-N16R2",
     # Supporting material, not a BOM line.
     "ESP32-S3_Series_Datasheet_v2.2.pdf": None,
+    # Fetched 2026-10-05 from LCSC's product API (wmsc.lcsc.com `pdfUrl`) for
+    # the 2026-10-05 schematic review, which had read half the BOM from
+    # distributor pages because these were missing. Filenames carry the
+    # LCSC code so a part swap is visible in the directory listing. The two
+    # Samsung caps and the two UNI-ROYAL resistors are each one family
+    # sheet downloaded twice - DOC_FOR is one file per value, and the
+    # directory is gitignored, so the duplicate costs nothing.
+    "SMAJ30A_C19077547.pdf": "SMAJ30A",
+    "XL1509-5.0E1_C61063.pdf": "XL1509-5.0E1",
+    "SRV05-4_C7420376.pdf": "SRV05-4",
+    "JK-mSMD075-33_PPTC_C369169.pdf": "750mA/33V",
+    "SS34_C8678.pdf": "SS34",
+    "BZT52C8V2S_C22375294.pdf": "BZT52C8V2",
+    "CL31A226KAHNNNE_22uF_C12891.pdf": "22uF",
+    "CL31A106KBHNNNE_10uF_50V_C13585.pdf": "10uF/50V",
+    "FXL0650-470-M_C475527.pdf": "47uH/2A",
+    "RVT1C101M0505_C2977550.pdf": "100uF/16V",
+    "1N4148W_C81598.pdf": "1N4148W",
+    "0805W8F2200T5E_220R_C17557.pdf": "220R",
+    "0805W8F3002T5E_30k_C17621.pdf": "30k",
 }
 
 # Datasheets for parts this board USED to fit. Kept rather than deleted - they

@@ -17,13 +17,6 @@ i.e. "no copper overlap"), 1 otherwise.
 import os
 import sys
 
-try:
-    import wx
-    _wx_app = wx.App(False)
-    if hasattr(wx, "DisableAsserts"):
-        wx.DisableAsserts()
-except ImportError:
-    pass
 import pcbnew
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

@@ -51,13 +51,6 @@ import sys
 
 import logo
 
-try:
-    import wx
-    _app = wx.App(False)
-    if hasattr(wx, "DisableAsserts"):
-        wx.DisableAsserts()
-except ImportError:
-    pass
 import pcbnew
 
 # What the current generator achieves. Lower it whenever the placer improves;
