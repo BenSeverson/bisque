@@ -24,7 +24,7 @@ table — 92 nets, 0 mismatches). The 3D renders in `3d/` are raytraced by
 
 | File | What it is |
 |---|---|
-| `bisque-controller.kicad_pro` | Project. Hand-maintained **except** two blocks, both derived and both written *after* the board is saved because `pcbnew.SaveBoard()` blanks them: `schematic.top_level_sheets` (`gen_sch.py::sync_project()`) and `net_settings` (`gen_pcb.py::sync_netclasses()`, from `ROUTE_ORDER`) — see below |
+| `bisque-controller.kicad_pro` | Project. Hand-maintained **except** two blocks, both derived and both written *after* the board is saved because `pcbnew.SaveBoard()` blanks them: `schematic.top_level_sheets` (`project_sync.py::sync_project()`) and `net_settings` (`gen_pcb.py::sync_netclasses()`, from `ROUTE_ORDER`) — see below |
 | `bisque-controller.kicad_sch` | Schematic (A1, netlist-style: functional groups, global labels for signals, real power ports for rails, and real wires for two-pin nets local to one block). Laid out programmatically by `generator/gen_sch.py` — a `GROUPS` taxonomy plus a deterministic column packer, with a reserved right-hand column for the notes block. A1, not A3: an A3 declaration silently clipped ~40% of the circuit out of the exported PDF while every connectivity checker stayed green (`generator/check_sch_bounds.py` now fails on any off-sheet item), and containment is not readability, so `generator/check_sch_layout.py` additionally fails on any symbol/symbol, text/symbol, text/text or wire/wire collision (wires: a T or a collinear overlap — a plain crossing is allowed) |
 | `bisque-controller.kicad_pcb` | Board: placed, fully routed, 4 layers (F.Cu/B.Cu signals, In1.Cu GND plane, In2.Cu +3V3 plane), on JLCPCB's `JLC04161H-7628` 1.6 mm stack-up — see "The physical stack-up" |
 | `bisque-controller.kicad_dru` | JLCPCB's standard 4-layer process as KiCad custom rules — **not generated**, and not a statement of design intent: every limit in it is JLC's *absolute minimum*, so a violation means something slipped off the design's own floor (0.3 mm track, 0.2 mm clearance, 0.6/0.3 vias, all from `net_settings`) far enough to hit the fab's. KiCad reads it by project name, so it survives regeneration untouched and the existing `kicad-cli pcb drc` pass picks it up for free — see "Fabrication & assembly at JLCPCB" |
@@ -52,9 +52,9 @@ fills all-zeros, because the PCB tooling never loads a schematic and has no
 uuid to record. So the file grew an unexplained diff after a regen and could
 flip between two values depending on which tool ran last.
 
-`project_sync.py::sync_project()` (shared by `gen_sch.py` and `kicad_build.py`) now derives the entry from the same `ROOT`
+`project_sync.py::sync_project()` (used by `sync_board.py`) now derives the entry from the same `ROOT`
 constant the schematic's own `(uuid ...)` comes from, and runs on every
-`pcb-build` / `pcb-cosmetic`. Whoever opens the project next finds it already
+`pcb-sync`. Whoever opens the project next finds it already
 correct and leaves it alone — kicad-cli only ever *adds* the block when it is
 missing and preserves a populated one, which is what makes deriving it
 sufficient rather than a tug-of-war. The rewrite is a whole-file json
@@ -109,7 +109,7 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   blocks USB back-feeding the unpowered buck, which closes fab-review
   finding **C1** (5 V on U11's FB and switch pins during every USB-only
   flashing session). Its ST pin is left unconnected on purpose — see
-  `design.py` at U12 for why that GPIO is not worth the route.
+  `DESIGN-NOTES.md` at U12 for why that GPIO is not worth the route.
 
   `BUCK_5V` and `+5V` are deliberately separate nets: C44/C45/**C46** are the
   buck's compensation (C46 is the electrolytic supplying the ESR zero) and
@@ -315,7 +315,7 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   `CTB_N`): two current-transformer inputs into an **ADE7953** energy
   metering IC (U7, LFCSP-28, current-only — the voltage channel is unused),
   on the I2C bus with its own 3.579545 MHz crystal (Y1). Burden resistors
-  (R31/R34, 5.1 Ω — full scale ~139 A rms, see `design.py`), anti-alias RC
+  (R31/R34, 5.1 Ω — full scale ~139 A rms, see `DESIGN-NOTES.md`), anti-alias RC
   and an SRV05-4 TVS array (D5/D6) per
   channel protect the externally-exposed CT leads. One channel per SSR
   zone, so each element bank gets an independent current reading; with no
@@ -424,7 +424,7 @@ its own turn:
   connector 1.5 mm apart, jog onto U4's outer pad columns 1.9 mm apart, run
   straight through both pads of each column — the SRV05-4 is placed as a
   **flow-through**, each line on two of its independent channels (see U4 in
-  `design.py` for why a stub-connected TVS cannot be reached by a coupled
+  `DESIGN-NOTES.md` for why a stub-connected TVS cannot be reached by a coupled
   pair at all) — and only then converge to the coupled pitch. The funnel is
   shaped so the two vias the TVS's middle column needs (pin 2's plane via
   north of the part, VBUS to pin 5 south of it) each have a slot.
@@ -616,7 +616,7 @@ the answer after the gerbers exist.
 `bisque-controller.kicad_dru` closes that gap by stating JLC's process as KiCad
 custom rules, so `kicad-cli pcb drc` answers the question on every build. KiCad
 picks the file up by project name, so it is a sidecar the generator never
-touches — a full `make pcb-cosmetic` with it in place leaves the board and
+touches — a `make pcb-sync` with it in place leaves the board and
 schematic **byte-identical**.
 
 **It encodes JLC's absolute minimums, not its recommendations, and on
@@ -673,7 +673,7 @@ Everything on the copper side passes with room to spare, which is the expected
 answer: the netclasses sit far above the fab floor, and the rules are there to
 catch a slip, not to express intent.
 
-Note that `kicad_build.py`'s DRC pass does **not** pass
+Note that `sync_board.py`'s DRC pass does **not** pass
 `--exit-code-violations`, so what these rules find is reported in
 `bisque-controller-drc.rpt` and does not fail the build.
 
@@ -720,7 +720,7 @@ CJ2310s arrived with the 24 V SSR rework, and U12 with the power-mux swap
 that deleted D2. U12 is the only one of the fourteen with no fee-free
 alternative *of any kind* — the Basic and Preferred libraries hold no power
 mux and no ideal-diode controller at any voltage, so unlike the LDO (where
-the argument is headroom, see `design.py` at U2) there is nothing to
+the argument is headroom, see `DESIGN-NOTES.md` at U2) there is nothing to
 re-litigate here.
 `gen_jlc.py` prints that list and total on every `make pcb-fab`, so it is
 checkable rather than remembered.
@@ -740,11 +740,11 @@ oscillator at 3.579545 MHz, no retriggerable monostable, no inductor
 fit for a 2 A rail, and **no aluminium electrolytic in any package** — which
 is what makes C46 the one line here that pays $3 for a three-cent part, and
 it is paid because the alternative is an unstable 5 V rail (see C46 in
-`design.py`); and the module, both thermocouple front-ends and the
+`DESIGN-NOTES.md`); and the module, both thermocouple front-ends and the
 metering IC have no fee-free equivalent either. **U2 is the one that looks
 free and is not** — the AMS1117-3.3 is Basic, drops into the same SOT-223
 with the same pinout, and would drop out of regulation on a USB-only 4.35 V
-rail; the argument is written out at `U2` in `design.py`. $33 is the floor
+rail; the argument is written out at `U2` in `DESIGN-NOTES.md`. $33 is the floor
 for this board short of hand-soldering F1, L1, C46 and J14 as well.
 
 Substitutions that bought fee-free lines without giving anything up:
@@ -952,362 +952,126 @@ in some form — get an exact quote (and re-check whether process rails are
 needed) from JLCPCB's own order preview rather than trusting stale numbers
 here.
 
-## Regenerating the files
+## Working on the files
 
-Everything derives from `generator/design.py` — a single table of
-components, pin→net connectivity and placements — so schematic and board
-can never disagree. Requires **KiCad 10+** (pcbnew Python module +
-kicad-cli + standard libraries) — the project's `.devcontainer/` (see
-`docs/devcontainer.md`) bakes this in, as an alternative to installing
-KiCad natively. The Makefile finds KiCad's Python itself: it tries `python3`
-first (which is where the devcontainer has `pcbnew`), then the macOS
-`KiCad.app` bundle, and takes the first interpreter that can `import pcbnew`.
-Set `KPY=/path/to/python3` to override it; if none is found the error names
-every path it tried.
+The two KiCad files are the design. `bisque-controller.kicad_sch` (plus the
+sub-sheets in `sheets/`) owns connectivity, values, footprints and sourcing
+fields; `bisque-controller.kicad_pcb` owns placement and copper. Edit either
+one in KiCad, through Konnect, or with a script - nothing regenerates them
+from a table any more, and nothing you do in the GUI is overwritten.
 
-The top-level `Makefile` wraps the common cases — `make pcb` regenerates
-everything and re-runs every checker; `make pcb-check` runs just the
-checkers against what's already committed, without touching KiCad:
+What the generator still owns is derived from those files, and it is
+re-derived in one direction only:
 
 ```bash
-make pcb          # regenerate schematic + board + fab outputs + renders, then check
-make pcb-build    # schematic + board only (no fab outputs) — the full path, ~221 s
-make pcb-cosmetic # silk / 3D models / title block only, reusing the routing — ~8 s
-make pcb-fab      # gerbers, drill, BOM/CPL, PDFs — after pcb-build
-make pcb-check    # check only: pinmap, sheet bounds, netlist, connectivity, silkscreen, reproducibility
-make pcb-render   # 3d/board-3d-*.png raytrace — ~13 s, skipped when no input changed
-make pcb-render FORCE=1    # re-raytrace even when the stamp says it is current
-make pcb-cosmetic-verify   # prove pcb-cosmetic == pcb-build, byte for byte — SLOW
+make pcb-netlist   # export + stamp bisque-controller.net from the schematic
+make pcb-sync      # apply the netlist to the board; re-derive owned silk, zones, stack-up; fill + DRC
+make pcb-route     # route every unconnected net over the live board (NETS=a,b rips those up first)
+make pcb-check     # every checker, nothing rebuilt
+make pcb-fab       # gerbers, drill, gerbers.zip, BOM/CPL, PDFs
+make pcb           # sync + fab + check + render
 ```
 
-`make pcb` = `pcb-build` + `pcb-fab` + `pcb-check` + `pcb-render`, in that
-order, so a board change and everything derived from it move together.
-Nothing derived is left for you to remember. It used to be worse — `make
-pcb` ran *no* export step at all, so it could succeed while leaving the
-committed gerbers, BOM, CPL and PDFs describing the previous board.
+### The sync
 
-`pcb-check` runs before `pcb-render` deliberately: the raytrace is the
-slowest step and the least useful output to stare at once a checker has
-already said the board is wrong.
+`generator/sync_board.py` is KiCad's "Update PCB from Schematic", by
+reference, as a script. It reads `bisque-controller.net` - the netlist
+`kicad-cli` exported from the schematic, committed and stamped against every
+sheet file so a stale copy fails `check_netlist_fresh.py` - and applies it to
+the board:
 
-**The renders are content-addressed, and they have to be.** `kicad-cli`'s
-raytracer is not reproducible — two runs over a byte-identical board differ
-in 5.6% of their channel bytes (mean delta 89 of 255; sampling noise, not
-rounding). Re-rendering unconditionally on every `make pcb` would therefore
-put a ~900 KB binary diff in `git status` for a board nobody touched, and
-the thing you learn from that is to discard `3d/` without looking — right up
-until the day the change was real. So `render-3d.sh` hashes everything that
-can change a pixel (the board file, `3dmodels/`, and its own render flags)
-into `3d/.render-stamp` and skips when it matches: ~0.2 s instead of ~13 s,
-and no diff. This is the same trick as the fixture manifest in `tests/host/`,
-and it works here for the same reason — the board build is reproducible, so
-an unchanged design hashes identically on any machine. The stamp is
-committed so a clean clone skips too. `make pcb-render FORCE=1` overrides.
+* a ref in the schematic and not on the board is **added**, parked just east
+  of the outline for a person to place;
+* a ref on the board and not in the schematic is **removed**; copper left
+  on a net the schematic dropped is reported, never deleted;
+* a changed Footprint field **swaps the footprint in place** - same position,
+  rotation, layer and lock;
+* every pad takes its net from the netlist; value and DNP follow the symbol.
 
-### Seeing what each stage produced: `stages/`
+It never moves a footprint and never touches a track or via. The silk it
+owns - per-terminal legends, connector names, test-point labels, the
+nameplate and its flame - lives in a PCB group called **`generated`**, and
+each run deletes the group's members and re-derives them from where the
+parts now are, then runs `silk.py`'s placer. Three things are off limits to
+it, and they are how a person's work survives:
 
-Every run of `gen_sch.py` and `kicad_build.py` drops the file it is holding
-at each stage into `stages/` (gitignored, overwritten each run). Nothing
-reads them. They exist because the finished board is the *last* of ten
-states and six of them have written over the evidence by the time you look:
-"the silk placer put that legend somewhere daft" and "the router left this
-net open" are both questions about a board that no longer exists on disk.
-Each stage board gets a `.kicad_pro` and `.kicad_dru` copy under its own
-basename, so opening one in KiCad gives it the real net classes and DRC
-rules rather than the defaults — a board with no project reports violations
-the real one does not, which is the opposite of a debugging aid.
+* a **locked member** of the group is kept and the entry it stands for is
+  not re-emitted (lock a legend to pin it);
+* a **locked footprint** keeps its reference designator where it is - KiCad
+  has no lock for a footprint field on its own, so the footprint's lock is
+  the signal - and the placer routes every other label around it;
+* any text **outside** the group is yours and is never touched, whatever it
+  says.
 
-| File | State |
-|---|---|
-| `01-sch-generated.kicad_sch` | `gen_sch.py`'s own text, before KiCad sees it |
-| `02-sch-upgraded.kicad_sch` | after `kicad-cli sch upgrade --force` — the 20k → 45k line reflow |
-| `10-reused.kicad_pcb` | `--no-route` only: the board as loaded, canonicalised, derived items stripped |
-| `20-placed.kicad_pcb` | after `build_board()` — footprints and nets, no copper |
-| `30-routed.kicad_pcb` | full path only: after `route_board()` + `add_copper()` |
-| `40-outline.kicad_pcb` | after `add_outline_and_silk()` — silk exists, unplaced |
-| `50-silk.kicad_pcb` | after `silk.place()` |
-| `60-zones.kicad_pcb` | full path only: after `add_zones()`, unfilled |
-| `70-stackup.kicad_pcb` | after the pcbnew save and `apply_stackup()` |
-| `80-filled.kicad_pcb` | after `kicad-cli pcb drc --refill-zones --save-board` |
-| `90-final.kicad_pcb` | after the last `canonicalize` + `resort_to_kicad_order()` |
+Zones are created only if missing (the USB keepout follows the pair's
+tracks, so it is re-derived each run); the stack-up, copper layer types,
+net classes, title block and 3D-model fixups are applied idempotently. The
+run ends with `kicad-cli pcb drc --refill-zones` and `kicad-cli pcb
+upgrade`, so the file is left in KiCad's own item order: open it in the GUI
+and save, and the diff is empty. `check_sync_idempotent.py` (in
+`pcb-check`) proves a second sync is byte-identical, a user's `GND` text
+outside the group survives, and a locked footprint swaps in place.
 
-Missing numbers are how you tell which path ran: no `30`/`60` means
-`--no-route`, no `10` means a full build.
+### Routing
 
-This is unconditional, and it is safe to have on the byte-identity path for
-one specific reason. `10`–`60` go through `pcbnew.SaveBoard(...,
-aSkipSettings=True)`, and the skip is load-bearing rather than an
-optimisation: without it, saving attaches and writes the board's PROJECT —
-the exact side effect `kicad_build.main()` already has to undo once with
-`read_project`/`restore_project`, and which silently emptied the `erc` block
-and `sch_revision` for a while. With it, a stage snapshot writes a
-`.kicad_pcb` and touches nothing else. `70`–`90` are plain file copies of a
-board already on disk, so they cannot perturb anything at all. `make
-pcb-build` and `make pcb-cosmetic` both still produce a board byte-identical
-to the committed one.
+`generator/route.py` routes what you ask for and nothing else. With no
+arguments it routes every net KiCad's DRC reports unconnected; with
+`NETS=a,b` it first rips up those nets' unlocked copper. Every other track
+and via, and every locked item, is fixed for the run. The in-house A* in
+`router.py` is the default and takes about ten seconds a net; it builds its
+model from the board (pads with their nets, all copper as fixed obstacles),
+treats existing same-net copper as a source, and routes to the far end of
+any fine-pitch escape stub rather than to the pad - those stubs (parts in
+`gen_pcb.FANOUT`) survive a rip-up, because a 0.25 mm grid cannot reach a
+0.5 mm-pitch pad any other way. Signal nets only: a GND pad is joined by the
+outer pours' thermal spokes, and a new +3V3 pad wants one via to the In2.Cu
+plane, which is quicker to place in the GUI than to script.
 
-Each writer clears only its own numbers (`gen_sch.py` owns `0*`,
-`kicad_build.py` owns `[1-9]*`): `make pcb-build` runs them as two processes
-into one directory, and a writer that wiped the whole directory would take
-the other's output with it. Clearing at all matters because a stale stage is
-worse than an absent one — a `--no-route` run that left the previous full
-build's `30-routed.kicad_pcb` sitting in sequence would look current.
+`ROUTER=freerouting` is an experimental backend: it exports a DSN with every
+non-target net in a class Freerouting is told to ignore and lifts only the
+targets' copper back off the session. On this board Freerouting 2.3.0 reads
+the fixed copper as hundreds of violations and did not converge in 18
+minutes on one net, so it is not the default.
 
-### Which path does your change need?
+The copper the old pipeline could only produce from hand seeds - the USB
+pair, the ADE7953 I2C escapes, the U12 escapes, the manual and stitch vias
+- is **locked** on the board. Lock anything else you have routed by hand
+and no tool here will take it.
 
-Routing 92 nets across 141 parts is essentially all of `pcb-build`'s
-runtime, and several kinds of change cannot move a single track. Those get
-`make pcb-cosmetic`, which is `kicad_build.py --no-route`: it reads the
-tracks, vias and filled zones back off the existing board and re-derives
-everything else with the same code the full build runs.
+### Checking
 
-| Change | Path | Measured |
-|---|---|---|
-| Silkscreen placement (`generator/silk.py`, the `SILK` table, reference text size/thickness) | `make pcb-cosmetic` | **8 s** |
-| The nameplate — `TITLE_*` / `TITLE_ROWS`, `SILK_GRAPHICS`, `generator/logo.py` | `make pcb-cosmetic` | **8 s** |
-| 3D models (`MODEL_FIXUP` in `kicad_build.py`, files in `3dmodels/`) | `make pcb-cosmetic` | **8 s** |
-| Board title block | `make pcb-cosmetic` | **8 s** |
-| **Anything else** — placement, connectivity, footprint choice, net classes, `MANUAL_VIAS`, router parameters (`router.py`, `gen_pcb.py`) | `make pcb-build` | **221 s** |
+`make pcb-check-portable` is the CI subset (standard library only, no
+KiCad): the netlist is fresh, the U1 pin map agrees with Kconfig, the
+schematic fits its sheets with nothing overlapping, sourcing fields match
+`gen_jlc.LCSC`, the board passes its geometry checks, every 3D model
+resolves, the USB pair meets its numbers and the gerber zip matches
+`gerbers/`. `make pcb-check` adds the checkers that need KiCad: the
+schematic's connectivity is on the board (`check_netlist.py`, fresh export
+against every pad net), KiCad mints no uuids on a schematic round trip, the
+CPL rotations fit LCSC's land patterns, no via sits in an SMD pad, the silk
+is printable and associated, no courtyards overlap, and the sync is
+idempotent.
 
-**That number is for a design the router can close, and a placement change
-is exactly what stops it being one.** The router is greedy with a
-rip-up-and-retry fallback and iterates until the failure set stops shrinking;
-this board's current placement takes three passes and **221 s**
-(`make pcb-cosmetic-verify` measures it), but a placement it *cannot* close
-spends all its time in rip-up. The revisions of this change set that stranded
-a net ran **10–40 minutes each**, and one of them nine minutes on a single
-net. Read the per-pass `N net(s) unrouted` lines rather than waiting in
-silence — a count that is not shrinking means stop and look at the placement,
-and note the run keeps the best pass, not the last one.
+### The schematic
 
-Two traps in diagnosing a net that will not route, both of which cost a full
-rebuild here to learn:
+It is hierarchical: a root sheet with the notes block and one sheet symbol
+per functional area - `power`, `mcu`, `thermocouples`, `ssr`, `io`, `ct`,
+`test` - each a file under `sheets/`. Nets cross sheets as global labels,
+rails are power ports, block-local two-pin nets are drawn as wires with a
+local label. It was seeded by the retired generator from its functional
+grouping and is hand-owned from here; tidy a sheet in the GUI and nothing
+puts it back.
 
-* **Measure congestion against a FULLY ROUTED board.** Measuring the board
-  from the failed build is circular: the nets that failed are the ones that
-  are missing, so the region they wanted reads as empty. `git show
-  HEAD:…kicad_pcb` is the reference.
-* **Clip each track to the window; do not test its endpoints.** A corridor is
-  by definition traces passing straight *through* a region, and an
-  endpoint-in-rectangle test scores it zero. Two "completely empty" bands
-  found that way — the escape south of U1 and the lane at the middle of the
-  board — carry 336 mm and 220 mm of track respectively, and putting parts in
-  either one stranded nets.
+The engineering reasoning that used to sit beside the connectivity table
+is in [`DESIGN-NOTES.md`](DESIGN-NOTES.md), one section per block, headed by
+the reference designator it was written about.
 
-And when a net fails **even after being promoted to route first**, ordering is
-not the problem: at that point only fixed geometry exists (hand seeds, fanout
-stubs, plane vias), so the lane it needs is genuinely blocked. That is what
-`ADE_I2C_SEEDS` is for — see below.
-
-Both numbers used to be far worse — 421 s and 104 s — and the fast one was
-not dominated by anything the fast path exists to skip. It was the
-silkscreen placer, which is the *only* substantial work `--no-route` still
-does, running a linear scan over all 492 pads and every other label for each
-of ~200,000 candidate placements, and re-entering SWIG 171 million times to
-re-answer `pcbnew.FromMM(0.05)`. Indexing those obstacles into a bucket grid
-(the one `router.py` already uses for copper) and hoisting the clearance
-constants took the placer from 95.2 s to 3.8 s. The placed silk is
-byte-identical, which is the only acceptable outcome for a lookup
-optimisation; `make pcb-cosmetic-verify` checks it against a full rebuild.
-
-The full path was 318 s until the same lesson was applied to `router.py`.
-Profiling it found the cost in the same place and not where the code
-structure suggests: A* node expansion was 20% of the run, and 71% went into
-`_clear_of`, which answered "is this cell clear?" by calling the exact
-point-to-shape `dist()` on every obstacle within 3 mm — 381 million times.
-Three changes, all of them lookup, none of them routing:
-
-- Each `Shape`/`Seg` caches its bounding box, and `_clear_of` rejects on four
-  float compares before calling `dist()`. An obstacle further than `need`
-  from the box in x or y is further than `need`, full stop, so this cannot
-  change an answer. It removes 79% of the `Seg.dist()` calls and 98% of the
-  `Shape.dist()` ones.
-- `_near()` returns a cached flat list of the 3×3 bucket block rather than
-  being a generator over nine dict lookups, which was costing 833 million
-  frame resumptions.
-- `via_ok()` made three separate passes over the neighbourhood — copper
-  clearance, via-in-pad, hole-to-hole — and ANDed them. They are now
-  interleaved into one walk. It is asked at nearly every node A* pops
-  (4.3 million times a build) and its memo barely hits, because a node is
-  popped once.
-
-Routing went 310 s → 144 s and the board is byte-identical, which is again
-the only acceptable outcome. **`GRID` was measured, not left alone on
-faith**: at 0.4 mm 14 nets fail to route and at 0.3 mm five do, in both
-cases on the ADE7953 and the two MAX31856s — the fanout and plane-via stubs
-snap their ends to `GRID`, so a coarser grid walks the escape off the pad
-centreline exactly as the note beside `GRID` says. 0.3 mm is also *slower*
-than 0.25 mm (463 s), because a net that cannot be routed exhausts the whole
-grid before it says so, several times per pass.
-
-When in doubt, use the full path. `--no-route` is not a judgement call it
-leaves to you: before it reuses anything it compares the loaded board
-against `design.py` — every reference, footprint, placement, orientation,
-pad→net assignment, the net set, and every `MANUAL_VIAS` entry — and exits
-naming the mismatches rather than emitting a plausible-but-wrong board.
-What it cannot see is a change to the router's own parameters, since those
-leave no trace on the board; that one is on you.
-
-**`--no-route` output is byte-identical to a full rebuild**, and that is
-tested rather than asserted. `make pcb-cosmetic-verify`
-(`generator/check_fast_path.py`) does a full rebuild in a scratch
-directory, then runs `--no-route` twice over copies of it — once as-is, and
-once over a copy whose cosmetics have all been deliberately wrecked (every
-designator moved and resized, every board text moved, the title block
-overwritten, U1's 3D model flung off the board) — and requires all three
-files to match to the byte. The vandalised run is the one that matters: it
-shows the loaded board's cosmetic state cannot leak into the result, which
-is why `--no-route` deletes and re-adds every footprint and board graphic
-instead of editing them back to a default. A silk placer re-run over its
-own previous output is not solving the problem a fresh build hands it.
-
-Two things that path had to get right, both of which bit during
-development and both of which are guarded now:
-
-* **Zones are inherited, not refilled.** `--no-route` runs
-  `kicad-cli pcb drc` *without* `--refill-zones`, which is not merely 0.8 s
-  cheaper — it is required. KiCad's filler is idempotent once a zone is
-  filled, but filling an empty zone and refilling a full one do not agree:
-  refilling this board's +3V3 pour rewrites ~180 lines of its
-  `filled_polygon`. The full path fills from empty, so the fast path has to
-  leave that fill alone or lose byte-identity on the pour.
-* **The board is canonicalised on the way in, not just out.** Tracks and
-  vias keep the uuids the file gave them, and KiCad's writer breaks
-  position ties between items with the uuid — so copper the GUI *added*,
-  carrying a random uuid, would tie against derived ones and land wherever
-  chance put it. Re-deriving on load makes every tie a function of the
-  design again.
-* **KiCad has the last word on item order.** Both paths end with
-  `resort_to_kicad_order()`, which runs `kicad-cli pcb upgrade --force`
-  until the bytes settle. KiCad sorts items by uuid — footprints
-  outright, tracks and vias as the tie-break after position — so with
-  every uuid derived from content that order is a function of the design,
-  and storing the board in it makes a GUI save a no-op instead of the
-  61,654-line reorder it used to be (against 58,737 lines, for 7 real
-  edits). `gen_sch.py` ends the same way, with
-  `kicad-cli sch upgrade --force`.
-
-  Two traps worth knowing before you re-verify any of this.
-  `kicad-cli pcb drc --save-board` does **not** sort — it writes items
-  back in the order it read them, so it happily preserves content order
-  and reports byte-identical output. It is useless as a stand-in for a
-  GUI save; use `pcb upgrade --force`. And one pass is not enough: the
-  sort leaves ties in load order, so a file arriving in a foreign order
-  needs several (three, on this board; pass 1 and pass 2 differ by 16,860
-  lines). Hence the loop, and the hard failure if it never settles.
-* **The board is canonicalised after the fill, not only before.** A uuid
-  derives from the item's serialised content, and a zone's content is its
-  `filled_polygon` — which the full path has not written yet when it
-  canonicalises before the DRC, but which the fast path inherits. Derive
-  only before the fill and the five pours get one uuid on `pcb-build` and
-  a different one on `pcb-cosmetic`: a `pcb-cosmetic-verify` failure on
-  the only five items in the file whose bytes KiCad writes rather than
-  pcbnew.
-
-Equivalently, by hand:
-
-```bash
-cd hardware/kicad
-python3 generator/gen_sch.py bisque-controller.kicad_sch        # schematic
-python3 generator/check_netlist.py bisque-controller.kicad_sch  # KiCad netlist round-trip: must PASS
-python3 generator/check_sch_uuids.py bisque-controller.kicad_sch  # KiCad invents no uuids: must PASS
-"$KPY" generator/kicad_build.py bisque-controller.kicad_pcb     # board via pcbnew API:
-                                                                #   (add --no-route to reuse the routing
-                                                                #    already on disk — see "Which path
-                                                                #    does your change need?")
-                                                                #   system-library footprints, octilinear
-                                                                #   45-degree autoroute (2 signal layers),
-                                                                #   In1.Cu/In2.Cu plane fills, GND stubs,
-                                                                #   pour-island healing, KiCad DRC report
-python3 generator/check_pinmap.py                                # design.py <-> Kconfig agreement: PASS
-python3 generator/check_sch_bounds.py bisque-controller.kicad_sch  # nothing off the declared sheet: PASS
-python3 generator/check_sch_layout.py bisque-controller.kicad_sch  # nothing drawn on top of anything: PASS
-                                                                #   (every other checker validates connectivity,
-                                                                #    which is complete no matter where a symbol
-                                                                #    sits — this is the one that notices the
-                                                                #    exported PDF is missing half the circuit)
-python3 generator/check_pcb.py bisque-controller.kicad_pcb      # independent checker: ALL CHECKS PASS
-"$KPY" generator/check_via_in_pad.py bisque-controller.kicad_pcb  # no via inside an SMD pad: PASS
-python3 generator/check_drill_clearance.py bisque-controller.kicad_pcb  # hole-to-hole >= 0.30 mm: OK
-                                                                #   (net-independent: a drill bit does not
-                                                                #    care that a slot and the via beside it
-                                                                #    are both GND, and every net-aware check
-                                                                #    we own missed a 0.078 mm web because
-                                                                #    of it — see FAB-READINESS-REVIEW-REVB)
-"$KPY" generator/check_silk.py bisque-controller.kicad_pcb      # silkscreen printable AND associated: PASS
-                                                                #   (hard-fails on silk over an exposed pad
-                                                                #    or clipped by Edge.Cuts; silk-on-silk
-                                                                #    is budgeted, and the budget is 0;
-                                                                #    a board text under a part big enough
-                                                                #    to hide it is budgeted BY NAME in
-                                                                #    ON_PART_OK — a new burial fails, and
-                                                                #    so does a stale entry. The other half
-                                                                #    of that check, "did the label end up
-                                                                #    near what it names", is in
-                                                                #    kicad_build.py: it needs each anchor,
-                                                                #    and the board file does not record
-                                                                #    one)
-python3 generator/check_canonical.py bisque-controller.kicad_pcb  # reproducibility guard: ALL CHECKS PASS
-                                                                #   (KiCad DRC can't see this - a via and
-                                                                #    the pad it sits in share a net, and
-                                                                #    clearance rules skip same-net copper)
-python3 generator/check_jlc_placement.py                        # CPL placement: OK
-                                                                #   (fits LCSC's own land pattern onto each
-                                                                #    footprint; the package-family rotation
-                                                                #    table it replaced was wrong for six
-                                                                #    parts, four of them visibly so in
-                                                                #    JLCPCB's assembly preview)
-
-# Fab outputs — regenerate these together, after the board file is final.
-# The --layers list is what JLCPCB needs; without it kicad-cli also emits
-# Fab/Courtyard/User layers that don't belong in a fab package. Note the
-# two inner layers, In1.Cu (GND plane) and In2.Cu (+3V3 plane) — new on rev B.
-kicad-cli pcb export gerbers -o gerbers/ \
-  --layers "F.Cu,In1.Cu,In2.Cu,B.Cu,F.Paste,B.Paste,F.Silkscreen,B.Silkscreen,F.Mask,B.Mask,Edge.Cuts" \
-  bisque-controller.kicad_pcb
-kicad-cli pcb export drill -o gerbers/ --format excellon --excellon-units mm \
-  --excellon-zeros-format decimal --generate-map --map-format gerberx2 \
-  --gerber-precision 5 bisque-controller.kicad_pcb
-python3 generator/gen_jlc.py jlcpcb          # BOM.csv + CPL.csv (prints placement fixes + feeder-fee count)
-python3 generator/lcsc_pads.py --refresh     # only when a part number changes: re-fetch LCSC's land patterns
-kicad-cli sch export pdf -o pdf/bisque-controller-schematic.pdf bisque-controller.kicad_sch
-kicad-cli pcb export pdf --mode-single -l "F.Cu,In1.Cu,In2.Cu,B.Cu,F.Silkscreen,Edge.Cuts" \
-  -o pdf/bisque-controller-board.pdf bisque-controller.kicad_pcb
-./generator/render-3d.sh                     # 3d/board-3d-*.png (raytraced; a no-op
-                                             #   unless the board, 3dmodels/ or this
-                                             #   script changed — pass --force to insist)
-```
-
-**The board build is reproducible.** Rebuilding an unchanged `design.py`
-produces a byte-identical `bisque-controller.kicad_pcb`, so regenerating
-and diffing is a real check that the committed board still matches the
-design beside it. That does not come for free: pcbnew hands every item it
-creates a random uuid and then *orders the saved file by it*, so an
-identical design used to serialise differently every run — a huge diff over
-tens of thousands of lines, which made any regenerated board unreviewable
-(#234). `kicad_build.py` therefore routes every write through
-`generator/canonicalize.py`, which replaces each uuid with one derived
-from that item's own content and sorts items on the same key. The zone
-fill settles too, since KiCad's filler is deterministic once its input
-is. `check_canonical.py` guards this by re-shuffling and re-minting a
-real board and asserting the canonical form doesn't move; it needs
-neither KiCad nor pcbnew.
-
-One other source of run-to-run drift lived in `kicad_build.py` itself
-until the fast path flushed it out. `MODEL_FIXUP` rebuilds a footprint's
-3D-model entry, because `fp.Models()` hands back copies that cannot be
-mutated in place — and it used to carry the old entry's scale and
-rotation as `VECTOR3D` *references into those copies*. Once the copy was
-collected the reference dangled, so U1's model scale saved as `(1 1 1)`
-or `(0 0 0)` depending on when Python happened to run the collector. A
-model scaled to zero renders nothing. The values are unpacked to plain
-floats now.
 
 **Rails terminate in power ports, signals in global labels.** A boxed
 global label reading `GND` and one reading `SPI_MOSI` are the same shape, so
 telling ground from a signal meant reading 3 mm of 1.27 mm text — 155 times,
 since rails were 38% of every label on the sheet (`GND` alone appeared 86
-times). `gen_sch.py` now ends a rail's stub with the real `power:` symbol
+times). The schematic ends a rail's stub with the real `power:` symbol
 instead: a ground triangle and a rail arrow are recognised by silhouette.
 140 terminations converted; global labels dropped 406 → 266.
 
@@ -1318,8 +1082,8 @@ and keep their labels). That is also what makes it safe — KiCad takes a
 `(power global)` symbol's net name from its Value field, so an exact name
 match is the guarantee the net name survives, and `check_netlist.py`
 round-trips through KiCad to prove it did (92 nets, 0 mismatches, unchanged).
-The ports are schematic-only: `design.py` is untouched, so the board, the
-gerbers, the BOM and the CPL are bit-for-bit what they were.
+The ports are schematic-only, so the board, the gerbers, the BOM and the
+CPL are unaffected.
 
 **Ports are never rotated; the wire bends to meet them.** A ground triangle
 hangs below its wire and a rail bar sits above it — that is the whole reason
@@ -1415,7 +1179,7 @@ around two corners is not an improvement.
 
 The wire still carries its name, as a plain local label rather than a boxed
 global one. That is not decoration: `check_netlist.py` diffs KiCad's
-exported net names against `design.py`, so an unnamed wire comes back as
+exported net names against the board, so an unnamed wire comes back as
 `Net-(LED2-Pad1)` and fails. One light text replaces two heavy boxes.
 
 Geometry is derived, never tabulated. A pair is placed one leg out along A's
@@ -1463,8 +1227,8 @@ fails on any two wires sharing a point that is not a shared endpoint.
 
 **Silkscreen is placed by a packer, not by a table.** Where every
 reference designator and board label lands is derived, the same way
-`gen_sch.py`'s column packer replaced the schematic's hand-maintained
-`SCH_AT` table. It had the same history: `gen_pcb.SILK` held 51 absolute
+the retired schematic generator's column packer replaced a hand-maintained
+`SCH_AT` table (the schematic is hand-owned again now, seeded from that packer). It had the same history: `gen_pcb.SILK` held 51 absolute
 coordinates authored when the board had 52 parts, and `kicad_build.py`
 carried a list of 18 designators hand-nudged out of collisions. At 141
 parts a patch list cannot keep up, and it didn't — KiCad reported **109
@@ -1491,7 +1255,7 @@ the wrong terminal.
 **A connector's own name is not written in `SILK` at all any more.**
 `gen_pcb.BLOCK_LEGENDS` declares only the intent a derivation cannot know —
 which way out of the body the name goes and how big it is. The text comes
-from that part's `value` in `design.py` (`BLOCK_LEGEND_NAME` overrides the
+from that part's Value in the schematic (`BLOCK_LEGEND_NAME` overrides the
 four that legitimately say something else, each with its reason), and the
 anchor from its real drawn body, so a block name has one source, cannot
 drift from what the schematic calls it, and cannot be left behind when the
@@ -1610,7 +1374,7 @@ one a person acts on with a screwdriver. The blocks keep a short name
 
 **A legend declares which axis carries its meaning, and may not leave it.**
 `x` for a pin name over a pin, `y` for a mark beside a screw; `silk.py`
-refuses any candidate off that axis, `kicad_build.py` fails the build if one
+refuses any candidate off that axis, `sync_board.py` fails the sync if one
 ends up off it anyway, and the perpendicular axis stays free — sliding along
 the standoff is how these labels actually find room. J11's four marks face
 the J5/J6/J7 row across a 1.69 mm gap and centre themselves in it.
@@ -1639,7 +1403,7 @@ is now **empty**, and every entry it ever held was retired the same way.
 **Test points name their net.** `TP1`–`TP12` print what they probe
 (`+3V3`, `+5V`, `GND`, `MOSI`, `SCLK`, `MISO`, `SDA`, `SCL`, `SSR1`,
 `SSR2`, `CT A+`, `WDT RC`) so the board documents itself at the bench. The
-label is derived from `design.py`'s own net for pin 1 — never a second
+label is derived from the net on the test point's pad — never a second
 hand-typed table — and shortened by rule: rails print verbatim, a bus
 prefix is dropped (`SPI_MOSI` → `MOSI`), a function suffix is dropped
 (`SSR1_CTRL` → `SSR1`). `gen_pcb.TP_LABEL_SPECIAL` is the single escape
@@ -1647,14 +1411,11 @@ hatch, next to the rule it excepts — `WDT_CT_P` takes it, since `CT` is not
 a bus prefix and `P` is not a function suffix, and teaching the rule either
 would collide with the current-transformer nets.
 
-**Zone fills feed the gerbers.** `kicad_build.py` finishes with a
+**Zone fills feed the gerbers.** `sync_board.py` finishes with a
 `kicad-cli pcb drc --refill-zones` pass that rewrites the board file
 (filling In1.Cu and In2.Cu along with any surface zones), so export
 gerbers *after* that step — exporting first bakes stale pours into
 `gerbers/`.
-
-(`gen_pcb.py` remains as a KiCad-free fallback generator that writes the
-board file textually; `kicad_build.py` is the authoritative path.)
 
 3D renders: `./generator/render-3d.sh` drives `kicad-cli pcb render`
 (raytraced, official component models). `render_3d.py` remains as a
@@ -1724,12 +1485,12 @@ range. Switching would lose that, force a re-route for 0.15 mm, invalidate
 the `generator/fp/` snapshot and the CPL, and add a `${KICAD8_3RD_PARTY}`
 path dependency.
 
-If pin assignments change in `main/Kconfig.projbuild`, update
-`generator/design.py` to match and regenerate; `make pcb-check`'s
+If pin assignments change in `main/Kconfig.projbuild`, change the net on
+U1's pin in the schematic to match and `make pcb-sync`; `make pcb-check`'s
 `check_pinmap.py` step fails the build if the two drift apart again.
-(`generator/fp/` keeps a snapshot of older KiCad library footprints for the
-fallback generator; `kicad_build.py` uses the installed system libraries
-instead.)
+(`generator/fp/` holds the footprint files `gen_pcb.py` reads pad and body
+geometry from; `sync_board.py` loads footprints from the installed KiCad
+libraries.)
 
 ## Safety
 
