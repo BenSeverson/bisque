@@ -33,7 +33,7 @@ IDF         := . ./scripts/idf-env.sh &&
         clang-tidy cppcheck \
         size size-firmware size-spiffs \
         ci ci-firmware clean \
-        pcb pcb-sync pcb-fab pcb-render \
+        pcb pcb-sync pcb-route pcb-fab pcb-render \
         pcb-netlist pcb-check pcb-check-portable datasheets-manifest
 
 help:  ## List available targets
@@ -312,6 +312,21 @@ pcb-sync: pcb-netlist  ## Apply the schematic's netlist to the board; regenerate
 	@$(find_kpy); \
 	cd $(KICAD_DIR) && "$$KPY" generator/sync_board.py bisque-controller.kicad_pcb \
 	  && "$$KPY" generator/check_via_in_pad.py bisque-controller.kicad_pcb
+
+# Routing on demand, over the live board. With no NETS= it routes every net
+# KiCad's DRC reports unconnected; with NETS=a,b it first rips up those nets'
+# UNLOCKED copper. Everything else - every other net, every locked item - is
+# fixed for the run. ROUTER=inhouse (default) is router.py's A* over the
+# board, ~10 s a net, signal nets only; ROUTER=freerouting is experimental -
+# it exports a DSN with the other nets in a class Freerouting ignores and
+# lifts only the targets' copper back off the session, but on this board
+# Freerouting has not converged (see route.py). Fine-pitch escape stubs
+# (gen_pcb.FANOUT parts) survive a rip-up: they are the only way onto those
+# pads.
+pcb-route:  ## Route unconnected nets (or NETS=a,b, ripped up first); ROUTER=inhouse|freerouting
+	@$(find_kpy); \
+	cd $(KICAD_DIR) && "$$KPY" generator/route.py $(if $(NETS),--nets $(NETS),) \
+	  $(if $(ROUTER),--router $(ROUTER),) bisque-controller.kicad_pcb
 
 # Everything a fab order reads. Runs AFTER pcb-sync: sync_board.py ends
 # with a `kicad-cli pcb drc --refill-zones` pass, and exporting before that
