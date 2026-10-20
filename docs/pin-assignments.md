@@ -45,9 +45,9 @@ is active). "Module pin" is U1's pin number in `design.py`.
 | 11 | 19 | ADC2_0 | `SPI_MOSI` | SPI2 shared bus | `KILN_PIN_SPI_MOSI` | active |
 | 12 | 20 | ADC2_1 | `SPI_SCLK` | SPI2 shared bus | `KILN_PIN_SPI_SCLK` | active |
 | 13 | 21 | ADC2_2 | `SPI_MISO` | SPI2 shared bus | `KILN_PIN_SPI_MISO` | active |
-| 14 | 22 | ADC2_3 | `AUX1` | Vent relay, via ULN2003 (U6) → J10.2 | `KILN_PIN_VENT` | **active** (default `14`, matches the PCB) |
+| 14 | 22 | ADC2_3 | `AUX3` | Aux channel 3, via U6 → J10.4 | `KILN_PIN_AUX3` | routed, default `-1`, **no driver** |
 | 15 | 8 | ADC2_4 | `AUX2` | Aux channel 2, via U6 → J10.3 | `KILN_PIN_AUX2` | routed, default `-1`, **no driver** |
-| 16 | 9 | ADC2_5 | `AUX3` | Aux channel 3, via U6 → J10.4 | `KILN_PIN_AUX3` | routed, default `-1`, **no driver** |
+| 16 | 9 | ADC2_5 | `AUX1` | Vent relay, via ULN2003 (U6) → J10.2 | `KILN_PIN_VENT` | **active** (default `16`, matches the PCB) |
 | 17 | 10 | ADC2_6 | `SSR1_CTRL` | SSR zone 1 opto LED (U8) → Q5 gate | `KILN_PIN_SSR1` | active |
 | 18 | 11 | ADC2_7 | `I2C_SDA` | I2C data | `KILN_PIN_I2C_SDA` | routed, default `18`, **no driver** |
 | 19 | 13 | ADC2_8 | `USB_DN` | USB-C D− | — | fixed function |
@@ -88,7 +88,7 @@ so they default off to avoid implying a feature that isn't there.
 
 The three pins that fail differently when unpopulated are worth separating.
 
-**`VENT` is cosmetic.** With no relay wired, GPIO 14 drives the ULN2003 input
+**`VENT` is cosmetic.** With no relay wired, GPIO 16 drives the ULN2003 input
 for a channel with nothing on the far side of the terminal — harmless. The
 only effect is that the device reports `ventActive` and shows a VENT marker
 on the LCD during firing below 700 °C whether or not a relay exists. Set

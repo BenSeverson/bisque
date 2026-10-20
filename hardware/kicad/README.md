@@ -523,7 +523,7 @@ connector's and the parts' geometry, and `check_usb_pair.py` budgets them.
 | 11/13/12 | SPI MOSI/MISO/SCLK | | 38/39/40/41/42 | NAV up/down/left/right/select |
 | 10 / 35 | TC1 / TC2 CS (MAX31856) | | 48 | WS2812B data |
 | 8/9/46/3 | LCD CS/DC/RST/BL | | 7 | Alarm buzzer |
-| 17 / 21 | SSR1 / SSR2 MOSFET gate | | 14/15/16 | AUX1 (vent) / AUX2 / AUX3 (ULN2003, J10) |
+| 17 / 21 | SSR1 / SSR2 MOSFET gate | | 16/15/14 | AUX1 (vent) / AUX2 / AUX3 (ULN2003, J10) |
 | 19/20 | USB D−/D+ | | 43/44 | UART0 TX/RX (J7) |
 | 4/2/1 | Protected inputs IN1 (lid) / IN2 (gas flow) / IN3 (spare), J11 | | 18/47 | I2C SDA/SCL |
 | 5/6 | Touch T_CS / T_IRQ | | 36 | Watchdog kick (`SJ2` defeats it) |

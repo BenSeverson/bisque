@@ -31,7 +31,7 @@ the full as-built table with module pin numbers and net names:
   SPI: MOSI=11 MISO=13 SCLK=12 | TC1 CS=10 TC2 CS=35 | SSR1=17 SSR2=21
   LCD: CS=8 DC=9 RST=46 BL=3   | WS2812=48 | ALARM=7
   BTN: UP=38 DOWN=39 SEL=42 LEFT=40 RIGHT=41 (moved off ADC1 in Task 3)
-  AUX bank (U6, ULN2003): AUX1(vent)=14 AUX2=15 AUX3=16, on terminal J10
+  AUX bank (U6, ULN2003): AUX1(vent)=16 AUX2=15 AUX3=14, on terminal J10
     with the external AUX_VP coil rail (SJ1 links it to +5V).
   Touch (Task 11): T_CS=5 T_IRQ=6 — dedicated GPIOs; T_CLK/T_DIN/T_DO are the
     shared SPI2 bus (SPI_SCLK/SPI_MOSI/SPI_MISO) through series resistors.
@@ -1355,6 +1355,19 @@ and a JLCPCB *Basic* part - so it replaces ~19 discrete parts at zero
 feeder fee. Pin order (SOIC-16, confirmed against KiCad 10's own
 Transistor_Array:ULN2003A symbol): I1..I7 = 1..7, GND = 8, COM = 9,
 O7..O1 = 10..16 (note O1 is pin 16, so the outputs run backwards).
+
+Channel order follows the copper, not the AUX numbering: AUX1 (vent) is
+channel 3 (I3/O3, pins 3/14), AUX2 channel 2, AUX3 channel 1 (pins 1/16).
+U6's outputs face J10 at the same y as their inputs, so O3 (top) lands on
+J10.2 (top) and the three output traces fan straight across with no via;
+numbering them AUX1=channel 1 put O1 at the bottom of U6 feeding J10.2 at
+the top, and every output crossed. The GPIOs follow the same rule from the
+other end: GPIO16 (U1 pin 9) reaches U6's top input by the B.Cu lane north,
+GPIO14 (U1 pin 22, the module's bottom edge) reaches the bottom input by the
+route south of LCD_CS, so vent is GPIO16 and AUX3 is GPIO14. Both are just
+GPIOs to firmware; reassigning them cost nothing, while uncrossing the
+copper the other way would have cost vias the B.Cu side has no room for.
+R23 (AUX1) sits beside U6's top input and R25 (AUX3) beside the bottom one.
 
 COM goes to AUX_VP, its own screw terminal, NOT the board's +5V: a gas
 purge solenoid is realistically 12V or 24V DC and the ULN is rated 50V /

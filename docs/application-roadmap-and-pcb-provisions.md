@@ -73,8 +73,8 @@ Assigned today (Kconfig defaults, `main/Kconfig.projbuild`, rev B):
   sit here moved to 38–42 in the re-map (§3.1)
 - SPI bus: MOSI 11, SCLK 12, MISO 13; SSR1 17; I2C SDA 18; LCD RST 46; WS2812B 48
 - SSR2 21; TC2 CS 35; watchdog kick 36; GPIO 37 spare; I2C SCL 47
-- Aux terminal J10 (via the ULN2003 bank, U6): vent relay `AUX1` 14 (driven by
-  default, matching the PCB), `AUX2` 15 and `AUX3` 16 (routed, declared, not
+- Aux terminal J10 (via the ULN2003 bank, U6): vent relay `AUX1` 16 (driven by
+  default, matching the PCB), `AUX2` 15 and `AUX3` 14 (routed, declared, not
   yet driven)
 
 **Module: ESP32-S3-WROOM-1U-N16R2**, not the WROOM-1-N16R8 earlier drafts of

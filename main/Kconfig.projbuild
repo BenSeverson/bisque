@@ -94,14 +94,14 @@ menu "Bisque Configuration"
 
         config KILN_PIN_VENT
             int "Vent relay GPIO (-1 = disabled)"
-            default 14
+            default 16
             help
                 GPIO for downdraft vent relay. Active during early firing stages
                 below 700°C to exhaust combustion gases.
 
                 On the Bisque PCB this net is AUX1, driven through the
                 ULN2003 aux bank (U6) and brought out on aux terminal J10
-                pin 2 (GPIO14), with the external coil rail AUX_VP and the
+                pin 2 (GPIO16), with the external coil rail AUX_VP and the
                 other two aux channels on pins 1, 3 and 4. The default
                 matches that board.
 
@@ -136,11 +136,11 @@ menu "Bisque Configuration"
 
         config KILN_PIN_AUX3
             int "Aux output channel 3 GPIO (-1 = disabled)"
-            default 16
+            default 14
             help
                 Third general-purpose auxiliary output. On the Bisque PCB this
                 net is AUX3, driven through the same ULN2003 aux bank (U6)
-                and brought out on aux terminal J10 pin 4 (GPIO16).
+                and brought out on aux terminal J10 pin 4 (GPIO14).
 
                 See KILN_PIN_AUX2. NOTHING DRIVES THIS PIN YET either.
 

@@ -14,7 +14,7 @@
  * reporting on hardware that isn't there. Consumers omit the reading entirely
  * in that case.
  *
- * Note that CONFIG_KILN_PIN_VENT now defaults to GPIO 14 to match the PCB, so
+ * Note that CONFIG_KILN_PIN_VENT now defaults to GPIO 16 to match the PCB, so
  * NOT_FITTED only appears on builds that explicitly set it back to -1. A build
  * with no vent relay fitted should do exactly that.
  */
