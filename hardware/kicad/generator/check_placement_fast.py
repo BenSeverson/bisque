@@ -1,9 +1,9 @@
-"""Analytic courtyard-overlap check straight from design.py, no board build.
+"""Analytic courtyard-overlap check straight from the board file, no pcbnew.
 
-kicad_build.py is the only thing that can place parts, and it routes as it
-goes (~340 s). This reads design.py's COMPONENTS table, pulls each part's
-F.CrtYd extent from its .kicad_mod, and reports overlaps in seconds - so a
-placement can be iterated before paying for a route.
+Reads every footprint's position off bisque-controller.kicad_pcb, pulls its
+F.CrtYd extent from the library .kicad_mod, and reports overlaps and parts
+off the outline in seconds. Portable (standard library) apart from needing
+KiCad's footprint libraries on disk.
 """
 import re, sys, math, importlib.util, glob, os
 
@@ -18,8 +18,18 @@ FPDIRS = [d for d in [os.environ.get("KICAD_FOOTPRINT_DIR", ""),
           if d and os.path.isdir(d)]
 
 def load_design():
-    spec = importlib.util.spec_from_file_location("design", "generator/design.py")
-    m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+    """The board, in the {ref: {"fp", "at"}} shape the rest of this reads."""
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import board as B, netlist as NL
+    here = os.path.dirname(os.path.abspath(__file__))
+    bd = B.load(os.path.join(here, os.pardir, "bisque-controller.kicad_pcb"))
+    nl = NL.load(os.path.join(here, os.pardir, "bisque-controller.net"))
+    class M: pass
+    m = M()
+    m.BX0, m.BY0, m.BX1, m.BY1 = bd.edge
+    m.COMPONENTS = {ref: {"fp": nl.comps[ref]["footprint"] if ref in nl.comps
+                          else "?:" + f["fpname"], "at": (f["x"], f["y"], f["rot"])}
+                    for ref, f in bd.fps.items()}
     return m
 
 _cache = {}

@@ -41,7 +41,7 @@ from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import lcsc_pads
-from design import COMPONENTS
+from gen_jlc import COMPONENTS
 from gen_jlc import JLC_PLACEMENT, LCSC, HAND_SOLDER, NOT_ASSEMBLED, jlc_placement
 
 # LCSC pad number -> our pad number, where the two libraries number the same

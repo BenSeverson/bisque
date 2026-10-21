@@ -63,7 +63,10 @@ def main(argv):
         print("FAIL: %s not found" % path)
         return 1
 
-    placed = symbol_props(path)
+    import netlist
+    placed = {}
+    for f in netlist.sheet_files(path):
+        placed.update(symbol_props(f))
     errors = []
 
     # every sourced ref carries the table's number, on both properties
@@ -77,8 +80,8 @@ def main(argv):
         for pname in SOURCING_PROPS:
             got = props.get(pname)
             if got is None:
-                errors.append("%s has no %s property - regenerate the schematic "
-                              "(make pcb-build)" % (ref, pname))
+                errors.append("%s has no %s property - add it to the symbol in "
+                              "the schematic" % (ref, pname))
             elif got != want:
                 errors.append("%s %s is %r, gen_jlc.LCSC says %r"
                               % (ref, pname, got, want))

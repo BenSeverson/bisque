@@ -64,7 +64,7 @@ jobs:
       - name: Host unit tests
         run: make test-host
 
-  # `hardware/kicad/generator/design.py` and `main/Kconfig.projbuild` must
+  # the schematic's U1 pin map (via `bisque-controller.net`) and `main/Kconfig.projbuild` must
   # agree on every GPIO. check_pinmap.py is what proves it and those two files
   # have drifted apart before — but until this job existed nothing in CI ran
   # it, so the only guard was someone remembering `make pcb-check` locally.

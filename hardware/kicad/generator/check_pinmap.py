@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Assert design.py's U1 pin map agrees with main/Kconfig.projbuild defaults.
+"""Assert the schematic's U1 pin map agrees with main/Kconfig.projbuild defaults.
 
 The GPIO assignment lives in three files that must agree and have drifted apart
 before (see docs/pin-assignments.md). Kconfig is the firmware's source of truth;
-design.py is the board's. This checks them against each other so a re-map that
+the schematic (via the committed netlist, bisque-controller.net) is the
+board's. This checks them against each other so a re-map that
 updates one and forgets the other fails loudly instead of reaching a fab house.
 
 Module pin number -> GPIO for ESP32-S3-WROOM-1 / -1U (identical pinout).
@@ -13,7 +14,10 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
-from design import COMPONENTS
+import netlist as NL
+
+NETLIST = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir,
+                       "bisque-controller.net")
 
 REPO = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 KCONFIG = os.path.join(REPO, "main", "Kconfig.projbuild")
@@ -84,7 +88,7 @@ def kconfig_defaults(path):
 def board_gpios():
     """{net: gpio} for every U1 pin that carries a mapped signal."""
     out = {}
-    for pin, net in COMPONENTS["U1"]["pins"].items():
+    for pin, net in NL.load(NETLIST).comps["U1"]["pins"].items():
         if net is None:
             continue
         gpio = MODULE_PIN_GPIO.get(int(pin))
@@ -102,11 +106,11 @@ def main():
         on_board = board.get(net)
         in_kconfig = defaults.get(sym)
         if on_board is None:
-            errors.append("net %s is in NET_KCONFIG but not on U1 in design.py" % net)
+            errors.append("net %s is in NET_KCONFIG but not on U1 in the schematic" % net)
         elif in_kconfig is None:
             errors.append("%s has no integer default in Kconfig.projbuild" % sym)
         elif on_board != in_kconfig:
-            errors.append("%s: Kconfig says GPIO %d, design.py wires net %s to GPIO %d"
+            errors.append("%s: Kconfig says GPIO %d, the schematic wires net %s to GPIO %d"
                           % (sym, in_kconfig, net, on_board))
 
     unmapped = sorted(set(board) - set(NET_KCONFIG) - NO_KCONFIG_SYMBOL)
@@ -117,7 +121,7 @@ def main():
         for e in errors:
             print("FAIL: %s" % e)
         return 1
-    print("check_pinmap: %d GPIO assignments agree between Kconfig and design.py"
+    print("check_pinmap: %d GPIO assignments agree between Kconfig and the schematic"
           % len(NET_KCONFIG))
     return 0
 

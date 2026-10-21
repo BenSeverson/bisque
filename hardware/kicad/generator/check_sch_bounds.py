@@ -131,5 +131,8 @@ def main(sch):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1] if len(sys.argv) > 1
-                  else "bisque-controller.kicad_sch"))
+    import netlist
+    root = sys.argv[1] if len(sys.argv) > 1 else "bisque-controller.kicad_sch"
+    # The root and every sub-sheet reachable from it, each against its own
+    # declared paper.
+    sys.exit(max(main(f) for f in netlist.sheet_files(root)))
