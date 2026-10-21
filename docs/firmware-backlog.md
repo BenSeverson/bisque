@@ -25,7 +25,7 @@ Every item is tracked as a GitHub issue ([#306–#342](https://github.com/BenSev
 
 | ID | Task | GPIO | Why it blocks |
 |---|---|---|---|
-| **[RB-1](https://github.com/BenSeverson/bisque/issues/306)** — *driver done, [bench pending](https://github.com/BenSeverson/bisque/issues/343)* | **MAX31856 driver**, replacing the MAX31855 one | TC1_CS 10 | The board reads **no temperature at all**. The MAX31855 driver does one read-only 32-bit frame; the MAX31856 needs config-register writes on init and a fault-register decode. |
+| **[RB-1](https://github.com/BenSeverson/bisque/issues/306)** — *driver done, [bench pending](https://github.com/BenSeverson/bisque/issues/343)* | **MAX31856 driver**, replacing the MAX31855 one | TC1_CS 1 | The board reads **no temperature at all**. The MAX31855 driver does one read-only 32-bit frame; the MAX31856 needs config-register writes on init and a fault-register decode. |
 | **[RB-2](https://github.com/BenSeverson/bisque/issues/307)** | **Watchdog kick** — *firmware done, board respun* | WDT_KICK 36 | A one-shot gates **both** SSR channels. Until something kicks it, every board needs the SJ2 "WDT DEFEAT" jumper fitted or **it will not heat**. |
 
 **RB-1 notes.** A straight replacement, not a second backend — the runtime-probe
@@ -78,9 +78,9 @@ firing tick, because it tracks the main SSR's duty simultaneously by definition.
 
 | ID | Task | GPIO | Notes |
 |---|---|---|---|
-| **[RB-6](https://github.com/BenSeverson/bisque/issues/311)** | **Aux output bank** — AUX2/AUX3 through the ULN2003 (U6), driven by *role* rather than hardcoded | 15, 16 | Vent (AUX1) is the only one implemented, in `safety.c`. Electrically the three channels are identical, so role assignment is firmware policy. |
+| **[RB-6](https://github.com/BenSeverson/bisque/issues/311)** | **Aux output bank** — AUX2/AUX3 through the ULN2003 (U6), driven by *role* rather than hardcoded | 15, 14 | Vent (AUX1) is the only one implemented, in `safety.c`. Electrically the three channels are identical, so role assignment is firmware policy. |
 | **[RB-7](https://github.com/BenSeverson/bisque/issues/312)** | **Gas-flow interlock input** | IN2 2 | Same conditioning and fail-safe polarity as the lid switch: open contact reads HIGH, so a broken wire reads "no flow". Prerequisite for the purge relay (RM-B2). |
-| **[RB-8](https://github.com/BenSeverson/bisque/issues/313)** | **Spare protected input** | IN3 1 | Unassigned. Do last, or drop it — there is no consumer. |
+| **[RB-8](https://github.com/BenSeverson/bisque/issues/313)** | **Spare protected input** | IN3 10 | Unassigned. Do last, or drop it — there is no consumer. |
 | **[RB-14](https://github.com/BenSeverson/bisque/issues/342)** — *firmware done, bench pending* | **Alarm buzzer drive** — a DC level, not a 4 kHz tone | ALARM 7 | BZ1 is an *active* buzzer (TMB12A05, `C96093`, built-in oscillator), and `safety.c` drove it the way rev A drove its passive piezo: LEDC, 4 kHz, 50% duty — ~2.3 V average against the part's 4 V minimum, chopped faster than its own 2.4 kHz resonance. `safety.c` now writes a plain `gpio_set_level()`, and the LEDC timer/channel and the `esp_driver_ledc` dependency are gone. No board change; the discrete Q2/D4 driver was always correct. Unverified against a fitted buzzer. |
 
 **RB-6 is a contract change, not just a driver.** `ventActive` is currently a

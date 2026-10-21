@@ -897,6 +897,16 @@ grounded-junction probes in one kiln chamber would form a ground loop
 through the kiln body (documentation obligation, Task 16 - not a board
 change).
 
+TC1_CS follows the copper: it sits on U1 pin 39, high on the module's
+east side facing U3, and runs to ~CS (pin 9) and on to its pull-up R50
+through 3 vias. It used to keep rev A's TC_CS pad through the rename -
+pin 18, on the module's bottom edge - which sent it back up under U1 on
+B.Cu while IN3 left pin 39 the other way for its filter block at the
+bottom left. The two crossed and each ran the long way round; swapping
+the pins took the pair from 197 mm / 11 vias to 167 mm / 5. It is just
+a GPIO to firmware, so the cost was a Kconfig default. IN3 keeps an
+ADC1-capable GPIO on pin 18 (see R12).
+
 ## C13 (design.py line 1006)
 
 AVDD/DVDD decoupling. The datasheet requirement is "independent 100nF
@@ -1483,6 +1493,18 @@ so one SRV05-4 array (D5) now covers all three raw inputs upstream of
 the series resistors. NOT extended to the thermocouple inputs
 (TC1_P/N, TC2_P/N, Task 6) - array leakage into a ~40 uV/C source is
 an accuracy error, not protection.
+
+D5's channels follow the copper, as U6's do: the SRV05-4's four IO pins
+are identical steering-diode pairs, so IN1_RAW takes IO1 (pin 1),
+IN2_RAW IO4 (pin 6) and IN3_RAW IO2 (pin 3), leaving IO3 (pin 4) idle.
+On pin 4, the east side facing J11, IN3_RAW had to cross IN2_RAW to
+reach R28 west of D5 and spent 3 vias doing it; on pin 3 it stays on
+F.Cu with none.
+
+All three inputs stay on ADC1-capable GPIOs, which keeps a
+resistance-monitored interlock loop possible without a respin (see
+docs/application-roadmap-and-pcb-provisions.md). IN3's is on U1 pin 18,
+on the bottom edge facing this block; see U3 for why TC1_CS gave it up.
 
 Designator note: the brief that originated this block called for
 R23-R26; R23-R25 were already consumed by Task 8's ULN2003 pulldowns

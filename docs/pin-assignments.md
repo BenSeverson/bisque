@@ -36,7 +36,7 @@ configurable pin's Kconfig default is the GPIO in the first column.
 | GPIO | Module pin | ADC | Net | Function | Kconfig | State |
 |---|---|---|---|---|---|---|
 | 0 | 27 | — | `IO0` | BOOT button (SW2) | — | strapping |
-| 1 | 39 | ADC1_0 | `IN3` | Protected input 3 (spare) | `KILN_PIN_IN_SPARE` | routed, **no driver** |
+| 1 | 39 | ADC1_0 | `TC1_CS` | Thermocouple 1 (MAX31856) CS | `KILN_PIN_TC1_CS` | active |
 | 2 | 38 | ADC1_1 | `IN2` | Protected input 2 (gas flow) | `KILN_PIN_IN_GASFLOW` | routed, **no driver** |
 | 3 | 15 | ADC1_2 | `LCD_BL` | Display backlight | `KILN_PIN_LCD_BL` | active, strapping |
 | 4 | 4 | ADC1_3 | `IN1` | Protected input 1 (lid) | `KILN_PIN_LID_SWITCH` | **active** — [needs a switch or a jumper](#if-you-do-not-fit-a-lid-switch) |
@@ -45,7 +45,7 @@ configurable pin's Kconfig default is the GPIO in the first column.
 | 7 | 7 | ADC1_6 | `ALARM` | Buzzer BZ1 | `KILN_PIN_ALARM` | active — plain DC level; BZ1 is an *active* buzzer (TMB12A05) and makes its own tone |
 | 8 | 12 | ADC1_7 | `LCD_CS` | Display CS | `KILN_PIN_LCD_CS` | active |
 | 9 | 17 | ADC1_8 | `LCD_DC` | Display D/C | `KILN_PIN_LCD_DC` | active |
-| 10 | 18 | ADC1_9 | `TC1_CS` | Thermocouple 1 (MAX31856) CS | `KILN_PIN_TC1_CS` | active |
+| 10 | 18 | ADC1_9 | `IN3` | Protected input 3 (spare) | `KILN_PIN_IN_SPARE` | routed, **no driver** |
 | 11 | 19 | ADC2_0 | `SPI_MOSI` | SPI2 shared bus | `KILN_PIN_SPI_MOSI` | active |
 | 12 | 20 | ADC2_1 | `SPI_SCLK` | SPI2 shared bus | `KILN_PIN_SPI_SCLK` | active |
 | 13 | 21 | ADC2_2 | `SPI_MISO` | SPI2 shared bus | `KILN_PIN_SPI_MISO` | active |
