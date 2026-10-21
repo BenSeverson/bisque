@@ -103,7 +103,7 @@ static void json_add_progress_fields(cJSON *target, const firing_progress_t *pro
     cJSON_AddNumberToObject(target, "dutyPercent", (double)lroundf(duty * 100.0f));
     /* Downdraft vent relay (#184). The key is omitted entirely — rather than
        sent false — on a kiln with no vent GPIO configured (CONFIG_KILN_PIN_VENT
-       = -1; the default is GPIO 16, matching the PCB, so this is the opt-out
+       = -1; the default is the PCB's vent GPIO, so this is the opt-out
        for a build with no relay). "Vent: off" and "this kiln has no vent" are
        different facts, and only the firmware knows which one applies; a client
        that saw `false` either way would have to render a dead indicator on

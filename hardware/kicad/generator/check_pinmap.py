@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Assert the schematic's U1 pin map agrees with main/Kconfig.projbuild defaults.
+"""Assert the GPIO map agrees across the three places allowed to state it.
 
-The GPIO assignment lives in three files that must agree and have drifted apart
-before (see docs/pin-assignments.md). Kconfig is the firmware's source of truth;
-the schematic (via the committed netlist, bisque-controller.net) is the
-board's. This checks them against each other so a re-map that
-updates one and forgets the other fails loudly instead of reaching a fab house.
+The schematic (via the committed netlist, bisque-controller.net) owns which
+GPIO the board wires to each net; main/Kconfig.projbuild owns each pin's
+firmware default; docs/pin-assignments.md §1 is the one table written for
+people. Nothing else in the repo restates a GPIO number. This checks all three
+against each other, so a re-map that updates one and forgets another fails
+loudly instead of reaching a fab house - or a reader.
 
 Module pin number -> GPIO for ESP32-S3-WROOM-1 / -1U (identical pinout).
 """
@@ -21,6 +22,7 @@ NETLIST = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir,
 
 REPO = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 KCONFIG = os.path.join(REPO, "main", "Kconfig.projbuild")
+PIN_DOC = os.path.join(REPO, "docs", "pin-assignments.md")
 
 # U1 module pin -> GPIO number. From the ESP32-S3-WROOM-1 datasheet pad list;
 # the 1U is identical. Pins carrying power, EN or GND are absent.
@@ -85,16 +87,64 @@ def kconfig_defaults(path):
     return out
 
 
+def u1_pins():
+    """{module pin: net or None} for U1, from the committed netlist."""
+    return {int(pin): net for pin, net in NL.load(NETLIST).comps["U1"]["pins"].items()}
+
+
 def board_gpios():
     """{net: gpio} for every U1 pin that carries a mapped signal."""
     out = {}
-    for pin, net in NL.load(NETLIST).comps["U1"]["pins"].items():
-        if net is None:
-            continue
-        gpio = MODULE_PIN_GPIO.get(int(pin))
-        if gpio is not None:
+    for pin, net in u1_pins().items():
+        gpio = MODULE_PIN_GPIO.get(pin)
+        if net is not None and gpio is not None:
             out[net] = gpio
     return out
+
+
+def doc_rows(path):
+    """[(gpio, module pin, net or None, kconfig symbol or None, line)] from the
+    first table in docs/pin-assignments.md whose header starts `| GPIO | Module pin |`."""
+    rows, in_table = [], False
+    for line in open(path, encoding="utf-8"):
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if not in_table:
+            in_table = cells[:2] == ["GPIO", "Module pin"]
+            continue
+        if not line.startswith("|"):
+            break
+        if set(cells[0]) <= set("-: "):
+            continue
+        dash = lambda c: None if c in ("—", "-", "") else c.strip("`")
+        rows.append((int(cells[0]), int(cells[1]), dash(cells[3]), dash(cells[5]),
+                     line.rstrip()))
+    return rows
+
+
+def check_doc(path, pins):
+    """Errors where docs/pin-assignments.md §1 disagrees with the netlist or NET_KCONFIG."""
+    errors, seen = [], set()
+    rows = doc_rows(path)
+    if not rows:
+        return ["%s: no `| GPIO | Module pin |` table found" % path]
+    for gpio, mpin, net, sym, line in rows:
+        where = "%s GPIO %d" % (os.path.basename(path), gpio)
+        if MODULE_PIN_GPIO.get(mpin) != gpio:
+            errors.append("%s: module pin %d is GPIO %s, not %d"
+                          % (where, mpin, MODULE_PIN_GPIO.get(mpin), gpio))
+        if pins.get(mpin) != net:
+            errors.append("%s: table says net %s, the schematic wires U1 pin %d to %s"
+                          % (where, net, mpin, pins.get(mpin)))
+        want = NET_KCONFIG.get(net)
+        if sym != want:
+            errors.append("%s: table names Kconfig %s for net %s, expected %s"
+                          % (where, sym, net, want))
+        seen.add(mpin)
+    missing = sorted(p for p, g in MODULE_PIN_GPIO.items() if p not in seen)
+    if missing:
+        errors.append("%s: no row for U1 pin(s) %s"
+                      % (os.path.basename(path), ", ".join(map(str, missing))))
+    return errors
 
 
 def main():
@@ -117,12 +167,14 @@ def main():
     if unmapped:
         errors.append("U1 nets with no Kconfig symbol: %s" % ", ".join(unmapped))
 
+    errors += check_doc(PIN_DOC, u1_pins())
+
     if errors:
         for e in errors:
             print("FAIL: %s" % e)
         return 1
-    print("check_pinmap: %d GPIO assignments agree between Kconfig and the schematic"
-          % len(NET_KCONFIG))
+    print("check_pinmap: %d GPIO assignments agree between Kconfig, the schematic "
+          "and docs/pin-assignments.md" % len(NET_KCONFIG))
     return 0
 
 

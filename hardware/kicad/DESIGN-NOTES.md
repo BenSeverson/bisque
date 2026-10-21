@@ -25,25 +25,25 @@ Components, pin->net connectivity, and PCB placement. Both the schematic and
 board generators derive everything from these tables, so the two files can
 never disagree on connectivity.
 
-Pin GPIO mapping mirrors main/Kconfig.projbuild defaults (the firmware's
-source of truth). This is the rev B map — see docs/pin-assignments.md §1 for
-the full as-built table with module pin numbers and net names:
-  SPI: MOSI=11 MISO=13 SCLK=12 | TC1 CS=10 TC2 CS=35 | SSR1=17 SSR2=21
-  LCD: CS=8 DC=9 RST=46 BL=3   | WS2812=48 | ALARM=7
-  BTN: UP=38 DOWN=39 SEL=42 LEFT=40 RIGHT=41 (moved off ADC1 in Task 3)
-  AUX bank (U6, ULN2003): AUX1(vent)=16 AUX2=15 AUX3=14, on terminal J10
-    with the external AUX_VP coil rail (SJ1 links it to +5V).
-  Touch (Task 11): T_CS=5 T_IRQ=6 — dedicated GPIOs; T_CLK/T_DIN/T_DO are the
+Which GPIO each net lands on is NOT written down here: U1's labels in the
+schematic own it, main/Kconfig.projbuild owns the firmware defaults, and
+docs/pin-assignments.md §1 is the one table for reading (check_pinmap.py holds
+all three together). What the nets do:
+  BTN: the five nav buttons sit on contiguous module pads (moved off ADC1 in
+    Task 3).
+  AUX bank (U6, ULN2003): AUX1 (vent) / AUX2 / AUX3 on terminal J10 with the
+    external AUX_VP coil rail (SJ1 links it to +5V).
+  Touch (Task 11): T_CS / T_IRQ are dedicated GPIOs; T_CLK/T_DIN/T_DO are the
     shared SPI2 bus (SPI_SCLK/SPI_MOSI/SPI_MISO) through series resistors.
-  I2C: SDA=18 SCL=47 — shared bus, pulled up on-board, broken out on
+  I2C: I2C_SDA / I2C_SCL — shared bus, pulled up on-board, broken out on
     both J7 (0.1") and J14 (Qwiic/STEMMA QT).
-  Watchdog: WDT_KICK=36 retriggers the U10 one-shot; its Q holds Q3 on, Q3
+  Watchdog: WDT_KICK retriggers the U10 one-shot; its Q holds Q3 on, Q3
     holds SSR_PG down, which turns on the high-side switch Q4 supplying
     SSR_EN. SSR_EN is a +5V GATE-DRIVE rail, not the terminal supply: it
     feeds both opto collectors and Q7's gate, so losing it opens both
     channels two independent ways. SJ2 ("WDT DEFEAT") shorts SSR_PG to GND,
     defeating the watchdog - leave it open on boards that carry U10.
-  J11: IN1(lid)=4 IN2(gas flow)=2 IN3(spare)=1
+  J11: IN1 (lid), IN2 (gas flow), IN3 (spare).
   SSR drive: 24 V terminals fed from VIN_P (always live), switched on the low
     side by a CJ2310 per channel (Q5/Q6) whose gate is driven through an
     optocoupler (U8/U9), with Q7 in the shared return as the watchdog gate.
@@ -421,7 +421,7 @@ and VIN2" - USB. That is what makes USB-only bench power work at all.
 ST (pin 8) IS DELIBERATELY UNCONNECTED, and it is the one thing here
 worth reopening in a later rev. It is an open-drain "running on VIN2"
 flag, and a kiln controller that refuses to start a firing on bench
-power is a real feature. The only free GPIO is module pin 30 (GPIO37)
+power is a real feature. The only free GPIO is on module pin 30
 at x 78.75 - the far side of U1 - so the net would have to cross the
 castellated escape band at x 60..88, the band that cost SPI_MOSI and
 SPI_SCLK their test points the last time anything was routed through
@@ -1362,10 +1362,10 @@ U6's outputs face J10 at the same y as their inputs, so O3 (top) lands on
 J10.2 (top) and the three output traces fan straight across with no via;
 numbering them AUX1=channel 1 put O1 at the bottom of U6 feeding J10.2 at
 the top, and every output crossed. The GPIOs follow the same rule from the
-other end: GPIO16 (U1 pin 9) reaches U6's top input by the B.Cu lane north,
-GPIO14 (U1 pin 22, the module's bottom edge) reaches the bottom input by the
-route south of LCD_CS, so vent is GPIO16 and AUX3 is GPIO14. Both are just
-GPIOs to firmware; reassigning them cost nothing, while uncrossing the
+other end: U1 pin 9 reaches U6's top input by the B.Cu lane north, U1 pin
+22 (the module's bottom edge) reaches the bottom input by the route south of
+LCD_CS, so AUX1 (vent) is on pin 9 and AUX3 on pin 22. They are just GPIOs to
+firmware; reassigning them cost a Kconfig default, while uncrossing the
 copper the other way would have cost vias the B.Cu side has no room for.
 R23 (AUX1) sits beside U6's top input and R25 (AUX3) beside the bottom one.
 
@@ -1380,7 +1380,7 @@ boot - a floating Darlington input must not energize a solenoid. Per
 REV-B-NOTES.md SS6, 10k is sufficient: worst case (ignoring the ULN's
 own nominal-only internal pulldowns) V_in(max) = 50nA x 10k = 0.5mV,
 ~1000x margin under any threshold that would turn a channel on, and
-GPIO 14/15/16 carry no pull-up at reset.
+the three AUX GPIOs carry no pull-up at reset.
 
 Designators: the task brief called these R20-R22, but Task 7 (SSR
 optocoupler channels) already consumed R20-R22 - verified against the
@@ -1437,7 +1437,7 @@ So it lands one lane west and one band north of where it was: x 66..82,
 y 85..95, which is toward the centre of the board (the old spot was
 22 mm east and 27 mm south of it), in front of the panel rather than
 behind a connector housing, and clear of every pin-name band. The
-800 kHz single-wire protocol does not care about the run from IO48.
+800 kHz single-wire protocol does not care about the run from LED_DATA's GPIO.
 
 ## D3 (design.py line 1704)
 
@@ -1464,8 +1464,8 @@ identical channels, all on J11, plus one SRV05-4 TVS array covering
 them. 1k series, 10k pull-up to +3V3, 100nF to GND per channel. Open
 contact reads HIGH = "open/inactive", so a broken wire, a pulled
 connector or a failed-open switch all read "open" and fail safe.
-IN1 = lid (IO4), IN2 = gas-flow interlock (IO2), IN3 = spare (IO1) -
-see docs/pin-assignments.md. Wire a dry contact between each channel
+IN1 = lid, IN2 = gas-flow interlock, IN3 = spare - see
+docs/pin-assignments.md. Wire a dry contact between each channel
 and J11.4 (GND).
 
 R13 replaces the ESP32's weak ~45k internal pull-up with a stiff 10k,
@@ -1777,8 +1777,8 @@ multi-drops four devices at 40 MHz.
 ## R50 (design.py line 2175)
 
 --- Chip-select pull-ups (review A4) ---------------------------------
-None of the four SPI chip selects had a pull-up, and GPIO 5/8/10/35 have
-no pull at reset (ESP32-S3 DS Table 2-1), so every slave sees a floating
+None of the four SPI chip selects had a pull-up, and none of their GPIOs
+has a pull at reset (ESP32-S3 DS Table 2-1), so every slave sees a floating
 CS from power-on until firmware configures the pin - and firmware only
 ever drove two of them. On a bus that multi-drops four devices at 40 MHz
 that is bus contention during the display's first bursts, with two

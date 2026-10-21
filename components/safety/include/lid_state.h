@@ -14,8 +14,8 @@
  * on hardware that isn't there. Consumers omit the reading entirely in that
  * case.
  *
- * Note that CONFIG_KILN_PIN_LID_SWITCH now defaults to GPIO 4 to match the
- * PCB (J11 pin 1, the rev B protected-input terminal), so NOT_FITTED only
+ * Note that CONFIG_KILN_PIN_LID_SWITCH defaults to the GPIO the PCB wires to
+ * J11 pin 1 (the rev B protected-input terminal), so NOT_FITTED only
  * appears on builds that explicitly set it back to -1.
  * A build with no switch fitted must do that, or jumper the input to GND —
  * otherwise the pulled-up pin reads OPEN and the interlock holds the SSR off.

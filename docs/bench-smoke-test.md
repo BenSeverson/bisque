@@ -44,7 +44,7 @@ None of them is a firmware bug.
       SSRs, or a lead touching the enclosure, which is bonded to board GND.
       `+` to `24V`, `−` to `OUT`, one pair per SSR.
 - [ ] **`SJ2` ("WDT DEFEAT") is open.** The SSR stage is gated by the U10
-      one-shot, which firmware retriggers on GPIO 36 at 5 Hz. Open is the
+      one-shot, which firmware retriggers on `WDT_KICK` at 5 Hz. Open is the
       supervised (correct) state — see "Bring-up: leave SJ2 open" in
       [`hardware/kicad/jlcpcb/README.md`](../hardware/kicad/jlcpcb/README.md).
 - [ ] **`SJ1` ("AUX=5V") is open** if anything is landed on J10 pin 1.
@@ -55,9 +55,9 @@ None of them is a firmware bug.
       `KILN_PIN_LID_SWITCH=-1`.
 - [ ] **Channel 2 is not driven by firmware yet.** Zone 2 support has not
       landed ([#310](https://github.com/BenSeverson/bisque/issues/310)), and
-      rev B.2 no longer pins that line on the board. Firmware parks GPIO 21
-      (SSR2) low at boot instead; the boot log says "Parked zone 2 SSR
-      control low on GPIO 21". Confirm it with the "SSR2 stays off" check
+      rev B.2 no longer pins that line on the board. Firmware parks the SSR2
+      pin low at boot instead; the boot log says "Parked zone 2 SSR
+      control low on GPIO …". Confirm it with the "SSR2 stays off" check
       below before relying on J9.
 
 ## First power-up on board 1 (once only)
@@ -150,7 +150,7 @@ permission rail) is live without starting a profile.
       safety-path figure that is extrapolated rather than specified.
 - [ ] **SSR2 stays off.** With `SSR_EN` live, R20's non-ground pad
       (`SSR2_GATE`) reads **below 0.3 V**, and LED4 and the J9 dummy stay
-      dark. If the gate sits higher, something is lifting GPIO 21 despite
+      dark. If the gate sits higher, something is lifting `SSR2_CTRL` despite
       firmware parking it low: disconnect J9 and report it.
 
 ## Pre-flight

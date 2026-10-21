@@ -64,15 +64,15 @@ jobs:
       - name: Host unit tests
         run: make test-host
 
-  # the schematic's U1 pin map (via `bisque-controller.net`) and `main/Kconfig.projbuild` must
-  # agree on every GPIO. check_pinmap.py is what proves it and those two files
-  # have drifted apart before — but until this job existed nothing in CI ran
+  # the schematic's U1 pin map (via `bisque-controller.net`), `main/Kconfig.projbuild` and
+  # the table in docs/pin-assignments.md must agree on every GPIO. check_pinmap.py
+  # is what proves it and those files have drifted apart before — but until this job existed nothing in CI ran
   # it, so the only guard was someone remembering `make pcb-check` locally.
   #
   # Deliberately NOT path-filtered. The subset costs ~3 s, less than the
   # checkout that feeds it, and the drift a filter on `hardware/kicad/**`
   # would miss is exactly the likely one: a firmware-only PR that edits a
-  # Kconfig pin default and never touches the board.
+  # Kconfig pin default and never touches the board, or a docs-only one.
   #
   # Runs the KiCad-free subset only. The other five need a KiCad 10 install
   # from the PPA — minutes and ~1 GB per run, see .devcontainer/Dockerfile —
