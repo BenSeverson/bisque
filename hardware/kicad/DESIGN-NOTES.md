@@ -1324,6 +1324,20 @@ the two timing nets had to cross the other's pad and the router could
 not seat it. Perpendicular, pin 6 (CT_N) fans south to pad 1 and pin 7
 (CT_P) fans north to pad 2, and the two runs diverge instead of meeting.
 
+Route order matters here as much as the rotation. WDT_OK leaves pin 5,
+just below pin 6, and has to reach both Q3 (south-west) and its pull-down
+R49 (north-east). Routed before the timing nets, it took the short way to
+R49 - east between C38's two pads - and walled pin 6 off from pad 1:
+WDT_CT_N went round by x=40 and back, 55 mm and 8 vias for a 3 mm
+connection, with WDT_CT_P at 24 mm / 4. Routed WDT_CT_N, then WDT_CT_P,
+then WDT_OK (`make pcb-route NETS=WDT_CT_N,WDT_CT_P,WDT_OK` - the router
+takes nets in the order given), both timing nets seat on F.Cu with no via
+(5 mm and 13 mm) and WDT_OK passes under C38 on B.Cu to R49 instead
+(19 mm, 3 vias). Re-route this group in that order. route.py keeps U10's
+pad-escape stubs through a rip-up, and the new WDT_OK joins its stub
+part-way along, so trim the stub back to that joint or DRC reports it
+dangling.
+
 ## C39 (design.py line 1529)
 
 Rail on pin 1, not pin 2: KiCad's R symbol runs its pins
