@@ -216,7 +216,7 @@ static void test_status_reports_out_of_range_distinctly(void)
 }
 
 /* A kiln built without a vent relay sets CONFIG_KILN_PIN_VENT = -1 (the default
- * is GPIO 14, matching the PCB) and has no vent to report on. Sending
+ * is the PCB's vent GPIO) and has no vent to report on. Sending
  * `ventActive: false` for those would
  * be indistinguishable from a fitted vent that happens to be off, and every such
  * kiln would render a permanently dark indicator for hardware it doesn't have.
@@ -238,7 +238,7 @@ static void test_status_omits_vent_when_not_fitted(void)
 }
 
 /* A kiln built without a lid switch sets CONFIG_KILN_PIN_LID_SWITCH = -1 (the
- * default is GPIO 4, matching the PCB) and has no switch to report on.
+ * default is the PCB's lid input) and has no switch to report on.
  * `lidOpen: false` for those would be indistinguishable from a fitted switch
  * that happens to be closed, and every such kiln would render an indicator
  * for hardware it doesn't have. Omit the

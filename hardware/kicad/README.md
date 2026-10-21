@@ -123,7 +123,7 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
 - **Thermocouples ×2**: **MAX31856MUD+** (U3 channel 1 / U5 channel 2,
   TSSOP-14), K-type on screw terminals **J3** (channel 1) / **J8** (channel
   2), each with its datasheet-specified differential + common-mode input
-  filter, sharing the SPI bus (MISO + its own CS: GPIO 10 / GPIO 35). This
+  filter, sharing the SPI bus (MISO + its own CS: `TC1_CS` / `TC2_CS`). This
   replaces rev A's single MAX31855KASA+ entirely — the two parts are not
   pin-compatible, and no attempt was made to support both on one board.
 
@@ -201,7 +201,7 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   +5 V **gate-drive** rail rather than the terminal supply — is supplied by
   Q4, a P-channel high-side MOSFET (AO3401A) whose gate node `SSR_PG` is held
   down by Q3, itself held on by **U10**, an SN74LVC1G123 retriggerable
-  monostable driven from GPIO 36 (`WDT_KICK`); R47 (100 kΩ) pulls `SSR_PG` up
+  monostable driven from `WDT_KICK`; R47 (100 kΩ) pulls `SSR_PG` up
   as the fail-safe. `SSR_EN` feeds both opto collectors *and* Q7's gate, so
   when it collapses the channels open **two independent ways**: the optos lose
   their collector rail and Q7 loses its gate. **R18** (10 kΩ) is what makes
@@ -256,7 +256,7 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   energised 75–95 % of the time under dead firmware. They exist to reboot
   MCUs; gating a rail needs a level.
 
-  On power-up, and on any board where nothing kicks GPIO 36, `SSR_EN`
+  On power-up, and on any board where nothing kicks `WDT_KICK`, `SSR_EN`
   collapses and **both SSR channels stay off regardless of what the firmware
   commands them to do.** The silkscreened `SJ2` solder jumper shorts `SSR_PG`
   to GND, holding Q4 on and restoring un-gated behaviour for bring-up and for
@@ -276,16 +276,16 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   lines (pins 10–14). `T_CLK`/`T_DIN`/`T_DO` are electrically the shared
   SPI2 bus through 33 Ω series damping resistors (R39/R41/R42 — the bus now
   multi-drops the LCD at 40 MHz plus two MAX31856s and the touch controller
-  at lower clocks); only `T_CS` (GPIO 5) and `T_IRQ` (GPIO 6) cost new
+  at lower clocks); only `T_CS` and `T_IRQ` cost new
   dedicated GPIOs. The XPT2046 touch controller itself lives on the display
   module, not this PCB. VCC runs from +5V rather than +3V3, per the
   module's own manual and reference wiring diagrams, with no level shifter
   needed on CS/RESET/DC/MOSI/SCK.
 - **Nav switch**: 6-pin KK-254 friction-lock header **J6** for the
   panel-mounted 5-way switch (`UP DN LT RT OK GND`, active-low, ESP32
-  internal pull-ups) — now on GPIO 38–42, contiguous module pads, moved
-  from the split GPIO 1/2/4/5/6 rev A used (routing simplification, see the
-  hardware-design spec §3.1).
+  internal pull-ups) — now on five contiguous module pads, moved from the
+  split pins rev A used (routing simplification, see the hardware-design
+  spec §3.1).
 - **Aux header J7** (8-pin KK-254): `3V3 GND TX RX SDA SCL 3V3 GND` — UART0
   plus a 0.1" I2C tap (pins 5–8), alongside the Qwiic/STEMMA-QT connector
   **J14**. Rev A's `VENT`/`LID_SW`/`AUX_A`/`AUX_B` nets are gone from this
@@ -306,7 +306,7 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
 - **Protected inputs — J11** (4-pin terminal): `IN1`/`IN2`/`IN3` (lid, gas
   flow, spare) plus GND, each with the same conditioning rev A used for its
   single lid input — 1 kΩ series, 10 kΩ pull-up to 3V3, 100 nF to ground,
-  dry-contact to GND — generalized to three channels. `IN1` (GPIO 4) is the
+  dry-contact to GND — generalized to three channels. `IN1` is the
   lid switch and defaults to enabled, matching this board; see
   `docs/pin-assignments.md` §1 for the fail-safe wiring requirement if no
   switch is fitted. `IN2` (gas flow) and `IN3` (spare) are routed but have
@@ -326,14 +326,14 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   off-board isolated-AC accessory — not fitted, no mains anywhere on this
   PCB.
 - **I2C expansion — J7 pins 5–8 and J14 (Qwiic/STEMMA-QT)**: `I2C_SDA`
-  (GPIO 18) / `I2C_SCL` (GPIO 47), on-board pull-ups (R44/R45, 4.7 kΩ).
+  / `I2C_SCL`, on-board pull-ups (R44/R45, 4.7 kΩ).
   Carries the on-board ADE7953 today; open for an RTC breakout, an SHT4x RH
   sensor, or an external ADC without board changes. No I2C driver exists in
   firmware yet.
 - **USB-C (J1)** for native-USB flashing: 5.1 kΩ CC resistors, SRV05-4 (U4)
   ESD protection, VBUS ORed into +5 V. RESET (SW1) and BOOT (SW2)
   buttons.
-- **Status LED**: WS2812B on IO48; its VDD comes through a 1N4148W drop
+- **Status LED**: WS2812B on `LED_DATA`; its VDD comes through a 1N4148W drop
   diode (D3), putting VLED at ≈4.15 V so V_IH = 0.7·VLED ≈ 2.9 V stays
   comfortably under the 3.3 V data level. The diode is *silicon*, not the
   SS14 Schottky it replaced, and the reason is the buck: on a regulated
@@ -341,7 +341,7 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   a 10 mV margin. The old rail sagged enough to hide that. What the
   regulator removes is the trade, not the drop: VLED no longer moves with
   the PSU, so a fixed drop is now a real fix rather than a hedge.
-- **Alarm**: 12 mm active 5 V buzzer (BZ1) on IO7, its own discrete AO3400A
+- **Alarm**: 12 mm active 5 V buzzer (BZ1) on `ALARM`, its own discrete AO3400A
   (Q2) low-side driver with flyback diode — kept separate from the ULN2003
   aux bank on purpose, so a 5 V buzzer and a 24 V solenoid never share a
   COM rail.
@@ -516,21 +516,13 @@ first"); the stretches that are not — J1's 0.5 mm pad pitch, the
 flow-through under U4, the fan into the module's 1.27 mm pitch — are the
 connector's and the parts' geometry, and `check_usb_pair.py` budgets them.
 
-### GPIO map (mirrors `main/Kconfig.projbuild` defaults)
+### GPIO map
 
-| GPIO | Function | | GPIO | Function |
-|---|---|---|---|---|
-| 11/13/12 | SPI MOSI/MISO/SCLK | | 38/39/40/41/42 | NAV up/down/left/right/select |
-| 10 / 35 | TC1 / TC2 CS (MAX31856) | | 48 | WS2812B data |
-| 8/9/46/3 | LCD CS/DC/RST/BL | | 7 | Alarm buzzer |
-| 17 / 21 | SSR1 / SSR2 MOSFET gate | | 14/15/16 | AUX1 (vent) / AUX2 / AUX3 (ULN2003, J10) |
-| 19/20 | USB D−/D+ | | 43/44 | UART0 TX/RX (J7) |
-| 4/2/1 | Protected inputs IN1 (lid) / IN2 (gas flow) / IN3 (spare), J11 | | 18/47 | I2C SDA/SCL |
-| 5/6 | Touch T_CS / T_IRQ | | 36 | Watchdog kick (`SJ2` defeats it) |
-| 37 | spare | | | |
-
-Full table with module pin numbers, nets and per-pin notes:
-[`docs/pin-assignments.md`](../../docs/pin-assignments.md) §1.
+The schematic (U1's labels on `sheets/mcu.kicad_sch`) owns which GPIO each
+net lands on, and `main/Kconfig.projbuild` owns the firmware defaults. The one
+table for reading is [`docs/pin-assignments.md`](../../docs/pin-assignments.md)
+§1, and `check_pinmap.py` (`make pcb-check-portable`, in CI) fails if any of
+the three disagree. Nothing else restates a GPIO number, this README included.
 
 ## Bill of materials
 

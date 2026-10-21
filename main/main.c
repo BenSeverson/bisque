@@ -117,8 +117,8 @@ void app_main(void)
     /* Zone 2's SSR control has no driver until RB-5 (#310), and rev B.2 no
      * longer pins that line on the board: R20 moved to the gate side of the
      * U9 opto, so the GPIO's only load is the opto LED. The ESP32-S3 resets
-     * GPIO 21 with no pull (datasheet v2.2 pin overview), so channel 2 is off
-     * today by the datasheet alone. Hold it low explicitly, before
+     * the PCB's SSR2 GPIO with no pull (datasheet v2.2 pin overview), so
+     * channel 2 is off today by the datasheet alone. Hold it low explicitly, before
      * safety_init_wdt() starts the kick, so the watchdog never goes live with
      * the line undefined. RB-5 takes ownership of this pin. */
     if (APP_PIN_SSR2 >= 0) {

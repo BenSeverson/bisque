@@ -228,7 +228,7 @@ maximum input is **40 V**. Two consequences worth knowing:
 
 1. **First power-on with unflashed firmware: both SSR channels are dead
    by design.** The hardware watchdog holds `SSR_EN` down until firmware
-   kicks GPIO 36. Before concluding an SSR or wiring fault, read the
+   kicks `WDT_KICK`. Before concluding an SSR or wiring fault, read the
    `SJ2` / "WDT DEFEAT" section of `hardware/kicad/jlcpcb/README.md`.
    **Leave `SJ2` open in a finished install** — bridging it defeats the
    only heat cutoff that survives firmware death. It is a bench-debug
@@ -265,7 +265,7 @@ Drill from **`door-template-touch.svg`**, not `door-template.svg`.
 `J5` already carries the complete XPT2046 pin set: pins 10–14 are
 `T_CLK`/`T_CS`/`T_DIN`/`T_DO`/`T_IRQ`, with the touch controller on the
 display module itself and `T_CLK`/`T_DIN`/`T_DO` sharing SPI2 through the
-33 Ω damping resistors. Only `T_CS` (GPIO 5) and `T_IRQ` (GPIO 6) are
+33 Ω damping resistors. Only `T_CS` and `T_IRQ` are
 dedicated. So rev 2 is a **panel and firmware change on the existing rev B
 board** — `J6` is simply left unpopulated and its loom deleted. Nothing to
 depopulate, no net left floating that wasn't already pulled up: the five
@@ -348,7 +348,7 @@ mechanical over-temperature cutout in the same loop.
 ### Firmware prerequisites (not yet implemented)
 
 Rev 2's door is useless until the firmware grows touch support. As of this
-writing there is **no touch driver** — GPIO 5/6 are declared and routed,
+writing there is **no touch driver** — `T_CS`/`T_IRQ` are declared and routed,
 nothing drives them. What is needed:
 
 1. An **XPT2046 driver** on the shared SPI2 bus (lower clock than the

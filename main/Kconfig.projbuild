@@ -54,7 +54,7 @@ menu "Bisque Configuration"
                 window.
 
                 Gated in hardware by the watchdog one-shot on
-                KILN_PIN_WDT_KICK (GPIO 36, see below): if that pin stops
+                KILN_PIN_WDT_KICK (see below): if that pin stops
                 toggling, SSR_EN collapses and this output de-energizes
                 regardless of what firmware commands. Firmware kicks the pin
                 at 5 Hz; the SJ2 "WDT DEFEAT" jumper bypasses the watchdog
@@ -94,14 +94,14 @@ menu "Bisque Configuration"
 
         config KILN_PIN_VENT
             int "Vent relay GPIO (-1 = disabled)"
-            default 14
+            default 16
             help
                 GPIO for downdraft vent relay. Active during early firing stages
                 below 700°C to exhaust combustion gases.
 
                 On the Bisque PCB this net is AUX1, driven through the
                 ULN2003 aux bank (U6) and brought out on aux terminal J10
-                pin 2 (GPIO14), with the external coil rail AUX_VP and the
+                pin 2, with the external coil rail AUX_VP and the
                 other two aux channels on pins 1, 3 and 4. The default
                 matches that board.
 
@@ -120,7 +120,7 @@ menu "Bisque Configuration"
                 General-purpose auxiliary output. On the Bisque PCB this net is
                 AUX2, driven through the ULN2003 aux bank (U6, the same
                 Darlington array as AUX1/VENT) and brought out on aux
-                terminal J10 pin 3 (GPIO15), sharing J10's AUX_VP coil rail
+                terminal J10 pin 3, sharing J10's AUX_VP coil rail
                 and GND with the other aux channels.
 
                 Reserved for the auxiliary output bank in docs/application-
@@ -136,11 +136,11 @@ menu "Bisque Configuration"
 
         config KILN_PIN_AUX3
             int "Aux output channel 3 GPIO (-1 = disabled)"
-            default 16
+            default 14
             help
                 Third general-purpose auxiliary output. On the Bisque PCB this
                 net is AUX3, driven through the same ULN2003 aux bank (U6)
-                and brought out on aux terminal J10 pin 4 (GPIO16).
+                and brought out on aux terminal J10 pin 4.
 
                 See KILN_PIN_AUX2. NOTHING DRIVES THIS PIN YET either.
 
@@ -152,7 +152,7 @@ menu "Bisque Configuration"
             help
                 GPIO input for a lid/door interlock switch. On the Bisque PCB
                 this net is IN1, one of three protected dry-contact inputs
-                brought out on terminal J11 pin 1 (GPIO4), with +3V3 and GND
+                brought out on terminal J11 pin 1, with +3V3 and GND
                 on the same connector. The default matches that board.
 
                 IF YOU DO NOT FIT A LID SWITCH, YOU MUST DO ONE OF THESE:

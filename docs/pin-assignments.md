@@ -6,38 +6,42 @@ which proposes the expansion this doc allocates pins for, and to
 [`docs/superpowers/specs/2026-08-10-pcb-rev-b-hardware-design.md`](superpowers/specs/2026-08-10-pcb-rev-b-hardware-design.md),
 the design record for the rev B respin this doc now describes as-built.
 
-This is the one place the *whole* pin map is written down. It exists because the
-assignment is spread across three files that must agree and have already drifted
-apart once:
+This is the one place the pin map is written down for people. Two files own
+it, and nothing else in the repo should restate a GPIO number — refer to a pin
+by its net (`AUX1`) or its Kconfig symbol (`KILN_PIN_VENT`) and link here:
 
 | File | Owns |
 |---|---|
-| `main/Kconfig.projbuild` | **Source of truth.** Defaults for every configurable pin |
-| `components/app_config/include/app_config.h` | Exposes them as `APP_PIN_*` macros |
-| `hardware/kicad/generator/design.py` | The PCB net list; mirrors the Kconfig defaults |
+| `hardware/kicad/sheets/mcu.kicad_sch` | Which GPIO the **board** wires to each net (U1's labels) |
+| `main/Kconfig.projbuild` | Each pin's **firmware default** — and every one is reconfigurable, so a given build may differ |
 
-Change a pin in Kconfig and you must update `design.py`, both SVGs in this
-directory, the pin table in `hardware/kicad/README.md`, and this doc.
-`hardware/kicad/generator/check_pinmap.py` (run via `make pcb-check`) asserts
-`design.py`'s net-to-module-pin table matches the Kconfig defaults, so a
-drift between those two specific files fails loudly; the SVGs and this doc
-are not machine-checked and rely on being kept in sync by hand.
+`hardware/kicad/generator/check_pinmap.py` (`make pcb-check-portable`, in CI)
+asserts all three agree: every `KILN_PIN_*` default equals the GPIO the
+schematic wires its net to, and every row of the table in §1 below — GPIO,
+module pin, net and Kconfig symbol — matches the committed netlist. Changing a
+pin means editing the schematic, the Kconfig default and §1, and the checker
+fails until all three say the same thing.
+
+Elsewhere, a GPIO number is only appropriate for a property of the silicon
+(strapping pins, the USB pair, the pins octal PSRAM would consume) — never
+for which function sits on it.
 
 ## 1. Current assignment (as-built, rev B)
 
 Board: ESP32-S3-**WROOM-1U-N16R2** (16 MB flash, **quad** PSRAM, U.FL external
 antenna). ADC1 = GPIO 1–10, ADC2 = GPIO 11–20 (ADC2 is unreliable while Wi-Fi
-is active). "Module pin" is U1's pin number in `design.py`.
+is active). "Module pin" is U1's pin number in the schematic. Every
+configurable pin's Kconfig default is the GPIO in the first column.
 
 | GPIO | Module pin | ADC | Net | Function | Kconfig | State |
 |---|---|---|---|---|---|---|
 | 0 | 27 | — | `IO0` | BOOT button (SW2) | — | strapping |
-| 1 | 39 | ADC1_0 | `IN3` | Protected input 3 (spare) | `KILN_PIN_IN_SPARE` | routed, default `-1`, **no driver** |
-| 2 | 38 | ADC1_1 | `IN2` | Protected input 2 (gas flow) | `KILN_PIN_IN_GASFLOW` | routed, default `-1`, **no driver** |
+| 1 | 39 | ADC1_0 | `IN3` | Protected input 3 (spare) | `KILN_PIN_IN_SPARE` | routed, **no driver** |
+| 2 | 38 | ADC1_1 | `IN2` | Protected input 2 (gas flow) | `KILN_PIN_IN_GASFLOW` | routed, **no driver** |
 | 3 | 15 | ADC1_2 | `LCD_BL` | Display backlight | `KILN_PIN_LCD_BL` | active, strapping |
-| 4 | 4 | ADC1_3 | `IN1` | Protected input 1 (lid) | `KILN_PIN_LID_SWITCH` | **active** (default `4`, matches the PCB) — [needs a switch or a jumper](#if-you-do-not-fit-a-lid-switch) |
-| 5 | 5 | ADC1_4 | `T_CS` | Touch controller CS | `KILN_PIN_TOUCH_CS` | routed, default `5`, **no driver** |
-| 6 | 6 | ADC1_5 | `T_IRQ` | Touch pen-down interrupt | `KILN_PIN_TOUCH_IRQ` | routed, default `6`, **no driver** |
+| 4 | 4 | ADC1_3 | `IN1` | Protected input 1 (lid) | `KILN_PIN_LID_SWITCH` | **active** — [needs a switch or a jumper](#if-you-do-not-fit-a-lid-switch) |
+| 5 | 5 | ADC1_4 | `T_CS` | Touch controller CS | `KILN_PIN_TOUCH_CS` | routed, **no driver** |
+| 6 | 6 | ADC1_5 | `T_IRQ` | Touch pen-down interrupt | `KILN_PIN_TOUCH_IRQ` | routed, **no driver** |
 | 7 | 7 | ADC1_6 | `ALARM` | Buzzer BZ1 | `KILN_PIN_ALARM` | active — plain DC level; BZ1 is an *active* buzzer (TMB12A05) and makes its own tone |
 | 8 | 12 | ADC1_7 | `LCD_CS` | Display CS | `KILN_PIN_LCD_CS` | active |
 | 9 | 17 | ADC1_8 | `LCD_DC` | Display D/C | `KILN_PIN_LCD_DC` | active |
@@ -45,15 +49,15 @@ is active). "Module pin" is U1's pin number in `design.py`.
 | 11 | 19 | ADC2_0 | `SPI_MOSI` | SPI2 shared bus | `KILN_PIN_SPI_MOSI` | active |
 | 12 | 20 | ADC2_1 | `SPI_SCLK` | SPI2 shared bus | `KILN_PIN_SPI_SCLK` | active |
 | 13 | 21 | ADC2_2 | `SPI_MISO` | SPI2 shared bus | `KILN_PIN_SPI_MISO` | active |
-| 14 | 22 | ADC2_3 | `AUX1` | Vent relay, via ULN2003 (U6) → J10.2 | `KILN_PIN_VENT` | **active** (default `14`, matches the PCB) |
-| 15 | 8 | ADC2_4 | `AUX2` | Aux channel 2, via U6 → J10.3 | `KILN_PIN_AUX2` | routed, default `-1`, **no driver** |
-| 16 | 9 | ADC2_5 | `AUX3` | Aux channel 3, via U6 → J10.4 | `KILN_PIN_AUX3` | routed, default `-1`, **no driver** |
+| 14 | 22 | ADC2_3 | `AUX3` | Aux channel 3, via U6 → J10.4 | `KILN_PIN_AUX3` | routed, **no driver** |
+| 15 | 8 | ADC2_4 | `AUX2` | Aux channel 2, via U6 → J10.3 | `KILN_PIN_AUX2` | routed, **no driver** |
+| 16 | 9 | ADC2_5 | `AUX1` | Vent relay, via ULN2003 (U6) → J10.2 | `KILN_PIN_VENT` | **active** |
 | 17 | 10 | ADC2_6 | `SSR1_CTRL` | SSR zone 1 opto LED (U8) → Q5 gate | `KILN_PIN_SSR1` | active |
-| 18 | 11 | ADC2_7 | `I2C_SDA` | I2C data | `KILN_PIN_I2C_SDA` | routed, default `18`, **no driver** |
+| 18 | 11 | ADC2_7 | `I2C_SDA` | I2C data | `KILN_PIN_I2C_SDA` | routed, **no driver** |
 | 19 | 13 | ADC2_8 | `USB_DN` | USB-C D− | — | fixed function |
 | 20 | 14 | ADC2_9 | `USB_DP` | USB-C D+ | — | fixed function |
-| 21 | 23 | — | `SSR2_CTRL` | SSR zone 2 opto LED (U9) → Q6 gate | `KILN_PIN_SSR2` | routed, default `21`, **no driver** |
-| 35 | 28 | — | `TC2_CS` | Thermocouple 2 (MAX31856) CS | `KILN_PIN_TC2_CS` | routed, default `35`, **no driver** |
+| 21 | 23 | — | `SSR2_CTRL` | SSR zone 2 opto LED (U9) → Q6 gate | `KILN_PIN_SSR2` | routed, **no driver** |
+| 35 | 28 | — | `TC2_CS` | Thermocouple 2 (MAX31856) CS | `KILN_PIN_TC2_CS` | routed, **no driver** |
 | 36 | 29 | — | `WDT_KICK` | Hardware watchdog kick | `KILN_PIN_WDT_KICK` | firmware kicks at 5 Hz; **hardware not yet resized — see [WDT DEFEAT](#the-watchdog-jumper)** |
 | 37 | 30 | — | — | **spare** | — | free (freed by the quad-PSRAM module) |
 | 38 | 31 | — | `BTN_UP` | Nav Up | `KILN_PIN_BTN_UP` | active |
@@ -65,30 +69,26 @@ is active). "Module pin" is U1's pin number in `design.py`.
 | 44 | 36 | — | `RXD0` | Console → J7.4 | — | UART0 |
 | 45 | 26 | — | — | not connected | — | strapping |
 | 46 | 16 | — | `LCD_RST` | Display reset | `KILN_PIN_LCD_RST` | active, strapping |
-| 47 | 24 | — | `I2C_SCL` | I2C clock | `KILN_PIN_I2C_SCL` | routed, default `47`, **no driver** |
+| 47 | 24 | — | `I2C_SCL` | I2C clock | `KILN_PIN_I2C_SCL` | routed, **no driver** |
 | 48 | 25 | — | `LED_DATA` | WS2812B status LED | `KILN_PIN_STATUS_LED` | active |
 
-**29 of 30 usable GPIOs assigned; GPIO 37 is the only spare.** (Quad PSRAM
-frees GPIO 35/36/37 versus the octal-PSRAM module rev A's original plan
-assumed — see §2 below.)
+**29 of 30 usable GPIOs assigned; one spare** (the row with no net). Quad
+PSRAM frees GPIO 35/36/37 versus the octal-PSRAM module rev A's original plan
+assumed — see §2 below.
 
 ### Defaults now match the board
 
-`VENT` (14) and `LID_SWITCH` (4) both default to their PCB GPIOs, so a board
-build works without hand-configuration. `AUX2`, `AUX3`, `SSR2`, `TC2_CS`,
-`I2C_SDA/SCL`, `TOUCH_CS/IRQ` and `WDT_KICK` are all routed and default to a
-real GPIO (not `-1`, unlike rev A's `AUX_A`/`AUX_B`), but **nothing in
-firmware drives or reads any of them yet** — each is declared so the board
-and the firmware agree on what is routed, per the individual Kconfig help
-text. `IN2` (gas flow) and `IN3` (spare) default to `-1` because the wiring
-convention for an unused *protected input* is different from an unused
-*output*: leaving an input enabled with nothing connected is harmless (it
-just reads its idle level), but there is no firmware consumer for either yet,
-so they default off to avoid implying a feature that isn't there.
+Every `KILN_PIN_*` defaults to the GPIO the PCB wires its net to
+(`check_pinmap.py` enforces it), so a board build works without
+hand-configuration. `AUX2`, `AUX3`, `SSR2`, `TC2_CS`, `IN2`/`IN3`,
+`I2C_SDA/SCL` and `TOUCH_CS/IRQ` are routed and default to a real GPIO (not
+`-1`, unlike rev A's `AUX_A`/`AUX_B`), but **nothing in firmware drives or
+reads any of them yet** — each is declared so the board and the firmware agree
+on what is routed, per the individual Kconfig help text.
 
 The three pins that fail differently when unpopulated are worth separating.
 
-**`VENT` is cosmetic.** With no relay wired, GPIO 14 drives the ULN2003 input
+**`VENT` is cosmetic.** With no relay wired, the `AUX1` pin drives the ULN2003 input
 for a channel with nothing on the far side of the terminal — harmless. The
 only effect is that the device reports `ventActive` and shows a VENT marker
 on the LCD during firing below 700 °C whether or not a relay exists. Set
@@ -138,8 +138,8 @@ if the firmware crashes or the controller loses power. The real protection is a
 mechanical microswitch in series with the element contactor.
 
 <a id="the-watchdog-jumper"></a>
-**`WDT_KICK` (36): firmware kicks a retriggerable one-shot.**
-GPIO 36 drives the B input of `U10`, an SN74LVC1G123 retriggerable monostable
+**`WDT_KICK`: firmware kicks a retriggerable one-shot.**
+The `WDT_KICK` pin drives the B input of `U10`, an SN74LVC1G123 retriggerable monostable
 ([#307](https://github.com/BenSeverson/bisque/issues/307),
 `hardware/kicad/README.md` §"Hardware watchdog") gating the +5 V **gate-drive**
 rail (`SSR_EN`). `SSR_EN` feeds both opto collectors and Q7's gate, so losing
@@ -164,7 +164,7 @@ DEFEAT` jumper (`SJ2`) open**: fitting it shorts the one-shot out and removes
 the only interlock on this board that survives firmware death. Fit `SJ2` only
 on a board assembled from a pre-one-shot package (charge pump where `U10` now
 sits), where the SSRs cannot energize without it. Either way, a "kiln won't
-heat" report on a fresh board means check the kick (scope GPIO 36, or `TP12`
+heat" report on a fresh board means check the kick (scope `WDT_KICK` at U10's B input, or `TP12`
 for the timing node) before blaming the SSRs or the lid interlock.
 
 ## 2. Constraints that shape the map
@@ -172,20 +172,19 @@ for the timing node) before blaming the SSRs or the lid interlock.
 1. **GPIO 1–10 (ADC1) carry mostly digital functions on rev B**, same as rev A —
    buttons moved off this range in the re-map (see §3.1 below), but three
    protected inputs, touch CS/IRQ, LCD BL/CS/DC and TC1 CS now occupy it
-   instead. The board's one current-sense input (the ADE7953 CT front-end,
+   instead (§1). The board's one current-sense input (the ADE7953 CT front-end,
    §3.6 of the roadmap) is a **digital I2C part**, not an ADC1 consumer, so
    this row of GPIO 1–10 no longer doubles as an analog-input rescue plan the
    way the pre-rev-B roadmap draft assumed.
-2. **Strapping pins**: 0, 3, 45, 46. GPIO 3 and 46 are already spent on LCD
-   backlight and reset. Do not add new functions to 0 or 45.
+2. **Strapping pins**: 0, 3, 45, 46. Two of them already carry nets (§1);
+   do not add new functions to the others.
 3. **USB**: 19/20 are the native USB peripheral — leave them alone.
 4. **PSRAM**: the WROOM-1U-N16R2 uses **quad** PSRAM, which frees GPIO 35, 36
-   and 37 for TC2 CS, the watchdog kick, and one spare pin respectively. The
-   octal-PSRAM WROOM-1-N16R8 module rev A's original roadmap draft assumed
+   and 37 for board use (§1 has what took them). The octal-PSRAM WROOM-1-N16R8 module rev A's original roadmap draft assumed
    would have consumed all three internally instead.
 5. **GPIO 33 and 34 are not broken out on ESP32-S3-WROOM-1/1U at all.** The
-   module's 36 signal pins are fully enumerated in `design.py`'s `U1` table
-   and neither appears.
+   module's signal pins are enumerated in `check_pinmap.py`'s
+   `MODULE_PIN_GPIO` and neither appears.
 
 ## 3. Aux header J7 (as built)
 
@@ -195,16 +194,16 @@ respin, since nothing on the board ever sourced `AUX_A`/`AUX_B` on J7 — the
 real aux outputs are `AUX1`/`AUX2`/`AUX3` on the ULN2003 bank's own terminal,
 J10 (§5).
 
-| J7 pin | Net | GPIO | Notes |
-|---|---|---|---|
-| 1 | `+3V3` | — | |
-| 2 | `GND` | — | |
-| 3 | `TXD0` | 43 | UART0 console |
-| 4 | `RXD0` | 44 | UART0 console |
-| 5 | `I2C_SDA` | 18 | 0.1" I2C header, alongside Qwiic/STEMMA-QT connector J14 |
-| 6 | `I2C_SCL` | 47 | |
-| 7 | `+3V3` | — | |
-| 8 | `GND` | — | |
+| J7 pin | Net | Notes |
+|---|---|---|
+| 1 | `+3V3` | |
+| 2 | `GND` | |
+| 3 | `TXD0` | UART0 console |
+| 4 | `RXD0` | UART0 console |
+| 5 | `I2C_SDA` | 0.1" I2C header, alongside Qwiic/STEMMA-QT connector J14 |
+| 6 | `I2C_SCL` | |
+| 7 | `+3V3` | |
+| 8 | `GND` | |
 
 The lid switch that used to occupy J7.6 in earlier drafts of this plan now
 has its own terminal — J11 — along with the other two protected inputs;
@@ -212,18 +211,18 @@ see §5.4 of the hardware-design spec and the table below.
 
 ### J11 — protected inputs
 
-| J11 pin | Net | GPIO | Role |
-|---|---|---|---|
-| 1 | `IN1` | 4 | Lid/door switch |
-| 2 | `IN2` | 2 | Gas-flow interlock |
-| 3 | `IN3` | 1 | Spare |
-| 4 | `GND` | — | |
+| J11 pin | Net | Role |
+|---|---|---|
+| 1 | `IN1` | Lid/door switch |
+| 2 | `IN2` | Gas-flow interlock |
+| 3 | `IN3` | Spare |
+| 4 | `GND` | |
 
 ## 4. (deleted — the re-map has happened)
 
 This section used to lay out a "planned" pin re-map. That plan is now the
 as-built map in §1: rev B shipped it, with `check_pinmap.py` (`make
-pcb-check`) asserting `design.py` and `main/Kconfig.projbuild` agree on every
+pcb-check`) asserting the schematic and `main/Kconfig.projbuild` agree on every
 GPIO. There is nothing left to plan here — see §1 for the current map, and
 `docs/superpowers/specs/2026-08-10-pcb-rev-b-hardware-design.md` §3 for the
 design record of how it was chosen, including §3.1's explanation of *why*
@@ -277,8 +276,8 @@ channels are addressed rather than chip-selected:
 
 | Change | Effect |
 |---|---|
-| TC1 CS (GPIO 10) released | +1 pin |
-| TC2 CS (GPIO 35) never needed | +1 pin |
+| `TC1_CS` released | +1 pin |
+| `TC2_CS` never needed | +1 pin |
 | Both channels on the shared I2C bus | 0 pins per channel, scales to 8 devices |
 
 Against that: I2C puts the primary safety sensor on a bus with a stuck-low
