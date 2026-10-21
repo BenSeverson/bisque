@@ -17,16 +17,18 @@ Two parts:
 
 Every item is tracked as a GitHub issue ([#306–#342](https://github.com/BenSeverson/bisque/issues?q=is%3Aissue+is%3Aopen+label%3Arev-b%2Croadmap)), linked from its ID below. Nothing here is scheduled. Ordering within Part 1 is by what blocks bring-up.
 
+The Net column names each item's pins by net, not GPIO number: [`pin-assignments.md`](pin-assignments.md) §1 is the one table that maps nets to GPIOs, and the only one `check_pinmap.py` keeps honest.
+
 ---
 
 ## Part 1 — Bring firmware in line with rev B hardware
 
 ### Blocking: the board does not work without these
 
-| ID | Task | GPIO | Why it blocks |
+| ID | Task | Net | Why it blocks |
 |---|---|---|---|
-| **[RB-1](https://github.com/BenSeverson/bisque/issues/306)** — *driver done, [bench pending](https://github.com/BenSeverson/bisque/issues/343)* | **MAX31856 driver**, replacing the MAX31855 one | TC1_CS 1 | The board reads **no temperature at all**. The MAX31855 driver does one read-only 32-bit frame; the MAX31856 needs config-register writes on init and a fault-register decode. |
-| **[RB-2](https://github.com/BenSeverson/bisque/issues/307)** | **Watchdog kick** — *firmware done, board respun* | WDT_KICK 36 | A one-shot gates **both** SSR channels. Until something kicks it, every board needs the SJ2 "WDT DEFEAT" jumper fitted or **it will not heat**. |
+| **[RB-1](https://github.com/BenSeverson/bisque/issues/306)** — *driver done, [bench pending](https://github.com/BenSeverson/bisque/issues/343)* | **MAX31856 driver**, replacing the MAX31855 one | `TC1_CS` | The board reads **no temperature at all**. The MAX31855 driver does one read-only 32-bit frame; the MAX31856 needs config-register writes on init and a fault-register decode. |
+| **[RB-2](https://github.com/BenSeverson/bisque/issues/307)** | **Watchdog kick** — *firmware done, board respun* | `WDT_KICK` | A one-shot gates **both** SSR channels. Until something kicks it, every board needs the SJ2 "WDT DEFEAT" jumper fitted or **it will not heat**. |
 
 **RB-1 notes.** A straight replacement, not a second backend — the runtime-probe
 requirement died with the rev A freeze. Host tests stub the driver
@@ -58,11 +60,11 @@ fit SJ2 on any board built before that respin.** See `hardware/kicad/README.md`
 
 ### Second channel and second zone
 
-| ID | Task | GPIO | Depends on |
+| ID | Task | Net | Depends on |
 |---|---|---|---|
 | **[RB-3](https://github.com/BenSeverson/bisque/issues/308)** | **Multi-channel thermocouple API** — indexed accessor or (better) an atomic multi-channel snapshot, keeping a single-channel wrapper so existing call sites and the host harness are unchanged | — | RB-1 |
-| **[RB-4](https://github.com/BenSeverson/bisque/issues/309)** | **Second thermocouple** wired through RB-3 | TC2_CS 35 | RB-3 |
-| **[RB-5](https://github.com/BenSeverson/bisque/issues/310)** | **SSR zone 2** — second PID instance or master/slave offset | SSR2 21 | RB-1 |
+| **[RB-4](https://github.com/BenSeverson/bisque/issues/309)** | **Second thermocouple** wired through RB-3 | `TC2_CS` | RB-3 |
+| **[RB-5](https://github.com/BenSeverson/bisque/issues/310)** | **SSR zone 2** — second PID instance or master/slave offset | `SSR2_CTRL` | RB-1 |
 
 **RB-3 is the API break.** Today the component is single-sensor top to bottom:
 `thermocouple_init(host, cs_pin)` takes one CS and `thermocouple_get_latest()`
@@ -76,12 +78,12 @@ firing tick, because it tracks the main SSR's duty simultaneously by definition.
 
 ### Outputs and inputs
 
-| ID | Task | GPIO | Notes |
+| ID | Task | Net | Notes |
 |---|---|---|---|
-| **[RB-6](https://github.com/BenSeverson/bisque/issues/311)** | **Aux output bank** — AUX2/AUX3 through the ULN2003 (U6), driven by *role* rather than hardcoded | 15, 14 | Vent (AUX1) is the only one implemented, in `safety.c`. Electrically the three channels are identical, so role assignment is firmware policy. |
-| **[RB-7](https://github.com/BenSeverson/bisque/issues/312)** | **Gas-flow interlock input** | IN2 2 | Same conditioning and fail-safe polarity as the lid switch: open contact reads HIGH, so a broken wire reads "no flow". Prerequisite for the purge relay (RM-B2). |
-| **[RB-8](https://github.com/BenSeverson/bisque/issues/313)** | **Spare protected input** | IN3 10 | Unassigned. Do last, or drop it — there is no consumer. |
-| **[RB-14](https://github.com/BenSeverson/bisque/issues/342)** — *firmware done, bench pending* | **Alarm buzzer drive** — a DC level, not a 4 kHz tone | ALARM 7 | BZ1 is an *active* buzzer (TMB12A05, `C96093`, built-in oscillator), and `safety.c` drove it the way rev A drove its passive piezo: LEDC, 4 kHz, 50% duty — ~2.3 V average against the part's 4 V minimum, chopped faster than its own 2.4 kHz resonance. `safety.c` now writes a plain `gpio_set_level()`, and the LEDC timer/channel and the `esp_driver_ledc` dependency are gone. No board change; the discrete Q2/D4 driver was always correct. Unverified against a fitted buzzer. |
+| **[RB-6](https://github.com/BenSeverson/bisque/issues/311)** | **Aux output bank** — AUX2/AUX3 through the ULN2003 (U6), driven by *role* rather than hardcoded | `AUX2`, `AUX3` | Vent (AUX1) is the only one implemented, in `safety.c`. Electrically the three channels are identical, so role assignment is firmware policy. |
+| **[RB-7](https://github.com/BenSeverson/bisque/issues/312)** | **Gas-flow interlock input** | `IN2` | Same conditioning and fail-safe polarity as the lid switch: open contact reads HIGH, so a broken wire reads "no flow". Prerequisite for the purge relay (RM-B2). |
+| **[RB-8](https://github.com/BenSeverson/bisque/issues/313)** | **Spare protected input** | `IN3` | Unassigned. Do last, or drop it — there is no consumer. |
+| **[RB-14](https://github.com/BenSeverson/bisque/issues/342)** — *firmware done, bench pending* | **Alarm buzzer drive** — a DC level, not a 4 kHz tone | `ALARM` | BZ1 is an *active* buzzer (TMB12A05, `C96093`, built-in oscillator), and `safety.c` drove it the way rev A drove its passive piezo: LEDC, 4 kHz, 50% duty — ~2.3 V average against the part's 4 V minimum, chopped faster than its own 2.4 kHz resonance. `safety.c` now writes a plain `gpio_set_level()`, and the LEDC timer/channel and the `esp_driver_ledc` dependency are gone. No board change; the discrete Q2/D4 driver was always correct. Unverified against a fitted buzzer. |
 
 **RB-6 is a contract change, not just a driver.** `ventActive` is currently a
 hardcoded field in `build_status_json()`, omitted when no vent is fitted. Report
@@ -91,11 +93,11 @@ and `make fixtures`.
 
 ### I2C and touch
 
-| ID | Task | GPIO | Notes |
+| ID | Task | Net | Notes |
 |---|---|---|---|
-| **[RB-9](https://github.com/BenSeverson/bisque/issues/314)** | **I2C bus driver** | SDA 18, SCL 47 | Nothing exists yet. Carries the on-board ADE7953 *and* the Qwiic/STEMMA-QT expansion header, so this unlocks RB-10, RM-B5 and RM-B6 together. |
+| **[RB-9](https://github.com/BenSeverson/bisque/issues/314)** | **I2C bus driver** | `I2C_SDA`, `I2C_SCL` | Nothing exists yet. Carries the on-board ADE7953 *and* the Qwiic/STEMMA-QT expansion header, so this unlocks RB-10, RM-B5 and RM-B6 together. |
 | **[RB-10](https://github.com/BenSeverson/bisque/issues/315)** | **ADE7953 current metering** | (I2C) | RB-9. Unlocks element-health monitoring and verifies `element_watts` for cost estimates. |
-| **[RB-11](https://github.com/BenSeverson/bisque/issues/316)** | **XPT2046 touch driver** + LVGL input device | T_CS 5, T_IRQ 6 | The controller is on the LCD module, not the Bisque PCB; clock/data are the shared SPI bus. IRQ lets you skip polling. **Interaction risk:** the display UI is built entirely around the 5-way encoder model (focus/activate, Cancel buttons rather than a back gesture). Touch is not a drop-in — decide whether it supplements or replaces that model before writing the driver. |
+| **[RB-11](https://github.com/BenSeverson/bisque/issues/316)** | **XPT2046 touch driver** + LVGL input device | `T_CS`, `T_IRQ` | The controller is on the LCD module, not the Bisque PCB; clock/data are the shared SPI bus. IRQ lets you skip polling. **Interaction risk:** the display UI is built entirely around the 5-way encoder model (focus/activate, Cancel buttons rather than a back gesture). Touch is not a drop-in — decide whether it supplements or replaces that model before writing the driver. |
 
 ### Housekeeping
 
