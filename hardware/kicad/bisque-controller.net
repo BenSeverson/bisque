@@ -15458,8 +15458,8 @@
 			(class "Default")
 			(node
 				(ref "D5")
-				(pin "3")
-				(pinfunction "IO2_3")
+				(pin "6")
+				(pinfunction "IO4_6")
 				(pintype "passive")
 			)
 			(node
@@ -17311,8 +17311,8 @@
 			)
 			(node
 				(ref "U1")
-				(pin "39")
-				(pinfunction "IO1_39")
+				(pin "18")
+				(pinfunction "IO10_18")
 				(pintype "bidirectional")
 			)
 		)
@@ -17322,8 +17322,8 @@
 			(class "Default")
 			(node
 				(ref "D5")
-				(pin "4")
-				(pinfunction "IO3_4")
+				(pin "3")
+				(pinfunction "IO2_3")
 				(pintype "passive")
 			)
 			(node
@@ -17776,8 +17776,8 @@
 			)
 			(node
 				(ref "U1")
-				(pin "18")
-				(pinfunction "IO10_18")
+				(pin "39")
+				(pinfunction "IO1_39")
 				(pintype "bidirectional")
 			)
 			(node
@@ -18263,12 +18263,12 @@
 		)
 		(net
 			(code "109")
-			(name "unconnected-(D5-IO4-Pad6)")
+			(name "unconnected-(D5-IO3-Pad4)")
 			(class "Default")
 			(node
 				(ref "D5")
-				(pin "6")
-				(pinfunction "IO4_6")
+				(pin "4")
+				(pinfunction "IO3_4")
 				(pintype "passive+no_connect")
 			)
 		)

@@ -41,7 +41,7 @@ menu "Bisque Configuration"
 
         config KILN_PIN_TC1_CS
             int "Thermocouple CS GPIO"
-            default 10
+            default 1
 
         config KILN_PIN_SSR1
             int "SSR Output GPIO"
@@ -288,7 +288,7 @@ menu "Bisque Configuration"
 
         config KILN_PIN_IN_SPARE
             int "Spare protected input GPIO (-1 = disabled)"
-            default 1
+            default 10
             help
                 Third dry-contact input, unassigned. Same conditioning as the
                 lid and gas-flow inputs.
