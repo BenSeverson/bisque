@@ -3757,16 +3757,6 @@
 	)
 	(wire
 		(pts
-			(xy 22.86 247.65) (xy 22.86 250.19)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "78c55b30-5fc6-5696-8fd5-d3632853512e")
-	)
-	(wire
-		(pts
 			(xy 49.53 111.76) (xy 49.53 121.92)
 		)
 		(stroke
@@ -3827,16 +3817,6 @@
 	)
 	(wire
 		(pts
-			(xy 26.67 250.19) (xy 26.67 243.84)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "967973e3-3f1c-5d51-9452-2816ab71abe3")
-	)
-	(wire
-		(pts
 			(xy 24.13 171.45) (xy 50.8 171.45)
 		)
 		(stroke
@@ -3854,16 +3834,6 @@
 			(type default)
 		)
 		(uuid "9dbc36d7-b8d7-50ca-975e-f76e372e62ef")
-	)
-	(wire
-		(pts
-			(xy 22.86 250.19) (xy 26.67 250.19)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "a169e937-c66c-55b1-8b66-71908d4dc28a")
 	)
 	(wire
 		(pts
@@ -3964,6 +3934,16 @@
 			(type default)
 		)
 		(uuid "bdc8779e-6810-5ae0-8c70-5eb561eef659")
+	)
+	(wire
+		(pts
+			(xy 69.85 241.3) (xy 69.85 243.84)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "bf18291b-d77b-4a2f-b98d-df3f685d867c")
 	)
 	(wire
 		(pts
@@ -4094,6 +4074,16 @@
 			(type default)
 		)
 		(uuid "df96f2e1-c934-57b2-bb98-79ffbfcf1aea")
+	)
+	(wire
+		(pts
+			(xy 85.09 241.3) (xy 85.09 243.84)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e391ac66-bdb2-40ab-99f8-47b8f35c7425")
 	)
 	(wire
 		(pts
@@ -4337,6 +4327,28 @@
 	)
 	(global_label "VIN_P"
 		(shape passive)
+		(at 85.09 243.84 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "5b30a15f-19f1-4cf2-bb29-9daf7608a340")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 85.09 243.84 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
+	(global_label "VIN_P"
+		(shape passive)
 		(at 161.29 80.01 180)
 		(effects
 			(font
@@ -4413,6 +4425,28 @@
 		(uuid "a082fea1-af80-54e7-8b1d-d25669e99575")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 29.21 111.76 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
+	(global_label "BUCK_5V"
+		(shape passive)
+		(at 69.85 243.84 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "a6e408e0-76f6-4151-9ee8-a65dcc0596ea")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 69.85 243.84 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6365,6 +6399,83 @@
 		)
 	)
 	(symbol
+		(lib_id "power:PWR_FLAG")
+		(at 69.85 241.3 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "5fd26cb0-37f4-48a2-ab63-cd28dd602638")
+		(property "Reference" "#FLG05"
+			(at 69.85 239.395 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "PWR_FLAG"
+			(at 69.85 237.49 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 69.85 241.3 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 69.85 241.3 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Special symbol for telling ERC where power comes from"
+			(at 69.85 241.3 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "2768d55d-77e3-422e-b959-b2245d74a3c0")
+		)
+		(instances
+			(project "bisque-controller"
+				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/c3ce2838-e44f-5ef5-9340-801a744d4591"
+					(reference "#FLG05")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "power:+5V")
 		(at 41.91 205.74 0)
 		(unit 1)
@@ -7406,82 +7517,6 @@
 			(project "bisque-controller"
 				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/c3ce2838-e44f-5ef5-9340-801a744d4591"
 					(reference "#FLG03")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:+5V")
-		(at 26.67 243.84 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "8b8bc02a-ebc5-54e8-8eb8-1d7b1d389b68")
-		(property "Reference" "#PWR0034"
-			(at 26.67 243.84 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+5V"
-			(at 26.67 240.0205 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 26.67 243.84 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 26.67 243.84 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 26.67 243.84 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "66a8a92d-d969-5300-937a-7361687204ed")
-		)
-		(instances
-			(project "bisque-controller"
-				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/c3ce2838-e44f-5ef5-9340-801a744d4591"
-					(reference "#PWR0034")
 					(unit 1)
 				)
 			)
@@ -9492,83 +9527,6 @@
 		)
 	)
 	(symbol
-		(lib_id "power:PWR_FLAG")
-		(at 22.86 247.65 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "e7389ef7-67e7-52b5-b5c8-e252627d023f")
-		(property "Reference" "#FLG02"
-			(at 22.86 243.65 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "PWR_FLAG"
-			(at 22.86 241.65 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 22.86 247.65 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" "~"
-			(at 22.86 247.65 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 22.86 247.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "d3035933-d81e-53ce-9706-c0ded57f1620")
-		)
-		(instances
-			(project "bisque-controller"
-				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/c3ce2838-e44f-5ef5-9340-801a744d4591"
-					(reference "#FLG02")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "Device:C")
 		(at 149.86 116.84 0)
 		(unit 1)
@@ -10363,6 +10321,83 @@
 			(project "bisque-controller"
 				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/c3ce2838-e44f-5ef5-9340-801a744d4591"
 					(reference "C2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:PWR_FLAG")
+		(at 85.09 241.3 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "f6b12ddf-11f5-48a0-a4c9-64615bd8a8d0")
+		(property "Reference" "#FLG06"
+			(at 85.09 239.395 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "PWR_FLAG"
+			(at 85.09 237.49 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 85.09 241.3 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 85.09 241.3 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Special symbol for telling ERC where power comes from"
+			(at 85.09 241.3 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "6f1debb7-30ac-41bf-b474-681c94de7e2a")
+		)
+		(instances
+			(project "bisque-controller"
+				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/c3ce2838-e44f-5ef5-9340-801a744d4591"
+					(reference "#FLG06")
 					(unit 1)
 				)
 			)
