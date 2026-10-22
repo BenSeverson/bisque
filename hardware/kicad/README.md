@@ -1076,7 +1076,15 @@ label is local, rails are power ports, and there are no global labels at
 all. KiCad names every net after a label on the sheet that owns it
 (`/mcu/SPI_MOSI`, `/mcu/USB_DN`: a local label outranks the sheet pin on
 the root); `netlist.py` strips the path, so the board's net names did not
-change, and it still refuses two sheets reusing one local name. It was seeded by the retired generator from its functional
+change, and it still refuses two sheets reusing one local name.
+
+`bisque.kicad_sym` (registered in the project `sym-lib-table` as `bisque`)
+holds the symbols that differ from KiCad's library on purpose. Today that
+is one: `bisque:MAX31856`, a copy of `Sensor_Temperature:MAX31856` with
+SDO typed **tri-state**, because U3 and U5 share `SPI_MISO` and the part
+really does float SDO while its CS is high. That is what lets ERC run
+with no exclusions - run it with `make erc` before committing a schematic
+change (it is not a CI gate; the netlist/board parity checks are). It was seeded by the retired generator from its functional
 grouping and is hand-owned from here; tidy a sheet in the GUI and nothing
 puts it back.
 

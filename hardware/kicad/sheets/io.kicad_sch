@@ -6793,7 +6793,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "100R"
+		(property "Value" "100R 1%"
 			(at 150.506 47.94 0)
 			(show_name no)
 			(do_not_autoplace no)

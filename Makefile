@@ -311,6 +311,16 @@ pcb: pcb-sync pcb-fab  ## Sync the board to the schematic, regenerate fab output
 pcb-netlist:  ## Export + stamp hardware/kicad/bisque-controller.net from the schematic
 	cd $(KICAD_DIR) && python3 generator/netlist.py bisque-controller.kicad_sch bisque-controller.net
 
+# Deliberately not part of pcb-check or CI: ERC needs kicad-cli, and the
+# schematic is gated by the netlist/board parity checks instead. Run it
+# before committing a schematic change; the project's severities promote
+# the classes that are clean today (library mismatch, off-grid, duplicate
+# local/global name) to errors, so a regression fails here, not in a pile
+# of warnings. The one exclusion (U3/U5 SDO) is documented in the project.
+erc:  ## Schematic ERC via kicad-cli (all severities; exit non-zero on any violation)
+	cd $(KICAD_DIR) && kicad-cli sch erc --severity-all --exit-code-violations \
+	  -o bisque-controller-erc.rpt bisque-controller.kicad_sch && rm -f bisque-controller-erc.rpt
+
 pcb-sync: pcb-netlist  ## Apply the schematic's netlist to the board; regenerate owned silk/zones/stack-up
 	@$(find_kpy); \
 	cd $(KICAD_DIR) && "$$KPY" generator/sync_board.py bisque-controller.kicad_pcb \

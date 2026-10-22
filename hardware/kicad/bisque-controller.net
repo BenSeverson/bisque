@@ -852,7 +852,7 @@
 		)
 		(comp
 			(ref "C44")
-			(value "22uF")
+			(value "22uF/25V")
 			(footprint "Capacitor_SMD:C_1206_3216Metric")
 			(description "Unpolarized capacitor")
 			(fields
@@ -918,7 +918,7 @@
 		)
 		(comp
 			(ref "C45")
-			(value "22uF")
+			(value "22uF/25V")
 			(footprint "Capacitor_SMD:C_1206_3216Metric")
 			(description "Unpolarized capacitor")
 			(fields
@@ -4642,7 +4642,7 @@
 		)
 		(comp
 			(ref "TP4")
-			(value "TP")
+			(value "SPI_MOSI")
 			(footprint "TestPoint:TestPoint_Pad_D1.0mm")
 			(description "test point")
 			(fields
@@ -4693,7 +4693,7 @@
 		)
 		(comp
 			(ref "TP5")
-			(value "TP")
+			(value "SPI_SCLK")
 			(footprint "TestPoint:TestPoint_Pad_D1.0mm")
 			(description "test point")
 			(fields
@@ -4744,7 +4744,7 @@
 		)
 		(comp
 			(ref "TP6")
-			(value "TP")
+			(value "SPI_MISO")
 			(footprint "TestPoint:TestPoint_Pad_D1.0mm")
 			(description "test point")
 			(fields
@@ -4795,7 +4795,7 @@
 		)
 		(comp
 			(ref "TP7")
-			(value "TP")
+			(value "I2C_SDA")
 			(footprint "TestPoint:TestPoint_Pad_D1.0mm")
 			(description "test point")
 			(fields
@@ -4846,7 +4846,7 @@
 		)
 		(comp
 			(ref "TP8")
-			(value "TP")
+			(value "I2C_SCL")
 			(footprint "TestPoint:TestPoint_Pad_D1.0mm")
 			(description "test point")
 			(fields
@@ -4897,7 +4897,7 @@
 		)
 		(comp
 			(ref "TP9")
-			(value "TP")
+			(value "SSR1_CTRL")
 			(footprint "TestPoint:TestPoint_Pad_D1.0mm")
 			(description "test point")
 			(fields
@@ -4948,7 +4948,7 @@
 		)
 		(comp
 			(ref "TP10")
-			(value "TP")
+			(value "SSR2_CTRL")
 			(footprint "TestPoint:TestPoint_Pad_D1.0mm")
 			(description "test point")
 			(fields
@@ -6333,9 +6333,9 @@
 					(name "Description") "Precision Thermocouple to Digital Converter with Linearization, TSSOP-14")
 			)
 			(libsource
-				(lib "Sensor_Temperature")
+				(lib "bisque")
 				(part "MAX31856")
-				(description "Precision Thermocouple to Digital Converter with Linearization, TSSOP-14")
+				(description "[bisque] SDO typed tri-state (Hi-Z while CS high, shared SPI_MISO). Precision Thermocouple to Digital Converter with Linearization, TSSOP-14")
 			)
 			(property
 				(name "MPN")
@@ -6435,9 +6435,9 @@
 					(name "Description") "Precision Thermocouple to Digital Converter with Linearization, TSSOP-14")
 			)
 			(libsource
-				(lib "Sensor_Temperature")
+				(lib "bisque")
 				(part "MAX31856")
-				(description "Precision Thermocouple to Digital Converter with Linearization, TSSOP-14")
+				(description "[bisque] SDO typed tri-state (Hi-Z while CS high, shared SPI_MISO). Precision Thermocouple to Digital Converter with Linearization, TSSOP-14")
 			)
 			(property
 				(name "MPN")
@@ -6520,7 +6520,7 @@
 		)
 		(comp
 			(ref "C38")
-			(value "22uF")
+			(value "22uF/25V")
 			(footprint "Capacitor_SMD:C_1206_3216Metric")
 			(description "Unpolarized capacitor")
 			(fields
@@ -8239,7 +8239,7 @@
 		)
 		(comp
 			(ref "TP12")
-			(value "TP")
+			(value "WDT_CT_P")
 			(footprint "TestPoint:TestPoint_Pad_D1.0mm")
 			(description "test point")
 			(fields
@@ -9210,7 +9210,7 @@
 		)
 		(comp
 			(ref "R11")
-			(value "100R")
+			(value "100R 1%")
 			(footprint "Resistor_SMD:R_0805_2012Metric")
 			(description "Resistor")
 			(fields
@@ -11889,7 +11889,7 @@
 		)
 		(comp
 			(ref "TP11")
-			(value "TP")
+			(value "CTA_P")
 			(footprint "TestPoint:TestPoint_Pad_D1.0mm")
 			(description "test point")
 			(fields
@@ -12504,7 +12504,7 @@
 		)
 		(comp
 			(ref "TP1")
-			(value "TP")
+			(value "+3V3")
 			(footprint "TestPoint:TestPoint_Pad_D1.0mm")
 			(description "test point")
 			(fields
@@ -12555,7 +12555,7 @@
 		)
 		(comp
 			(ref "TP2")
-			(value "TP")
+			(value "+5V")
 			(footprint "TestPoint:TestPoint_Pad_D1.0mm")
 			(description "test point")
 			(fields
@@ -12606,7 +12606,7 @@
 		)
 		(comp
 			(ref "TP3")
-			(value "TP")
+			(value "GND")
 			(footprint "TestPoint:TestPoint_Pad_D1.0mm")
 			(description "test point")
 			(fields
@@ -14466,99 +14466,6 @@
 			)
 		)
 		(libpart
-			(lib "Sensor_Temperature")
-			(part "MAX31856")
-			(description "Precision Thermocouple to Digital Converter with Linearization, TSSOP-14")
-			(docs "https://datasheets.maximintegrated.com/en/ds/MAX31856.pdf")
-			(footprints
-				(fp "TSSOP*14*4.4x5mm*P0.65mm*")
-			)
-			(fields
-				(field
-					(name "Reference") "U")
-				(field
-					(name "Value") "MAX31856")
-				(field
-					(name "Footprint") "Package_SO:TSSOP-14_4.4x5mm_P0.65mm")
-				(field
-					(name "Datasheet") "https://datasheets.maximintegrated.com/en/ds/MAX31856.pdf")
-				(field
-					(name "Description") "Precision Thermocouple to Digital Converter with Linearization, TSSOP-14")
-			)
-			(pins
-				(pin
-					(num "1")
-					(name "AGND")
-					(type "power_in")
-				)
-				(pin
-					(num "2")
-					(name "BIAS")
-					(type "input")
-				)
-				(pin
-					(num "3")
-					(name "T-")
-					(type "input")
-				)
-				(pin
-					(num "4")
-					(name "T+")
-					(type "input")
-				)
-				(pin
-					(num "5")
-					(name "AVDD")
-					(type "power_in")
-				)
-				(pin
-					(num "6")
-					(name "DNC")
-					(type "no_connect")
-				)
-				(pin
-					(num "7")
-					(name "~{DRDY}")
-					(type "output")
-				)
-				(pin
-					(num "8")
-					(name "DVDD")
-					(type "power_in")
-				)
-				(pin
-					(num "9")
-					(name "~{CS}")
-					(type "input")
-				)
-				(pin
-					(num "10")
-					(name "SCK")
-					(type "input")
-				)
-				(pin
-					(num "11")
-					(name "SDO")
-					(type "output")
-				)
-				(pin
-					(num "12")
-					(name "SDI")
-					(type "input")
-				)
-				(pin
-					(num "13")
-					(name "~{FAULT}")
-					(type "output")
-				)
-				(pin
-					(num "14")
-					(name "DGND")
-					(type "power_in")
-				)
-			)
-		)
-		(libpart
 			(lib "Switch")
 			(part "SW_Push")
 			(description "Push button switch, generic, two pins")
@@ -14811,6 +14718,99 @@
 				)
 			)
 		)
+		(libpart
+			(lib "bisque")
+			(part "MAX31856")
+			(description "[bisque] SDO typed tri-state (Hi-Z while CS high, shared SPI_MISO). Precision Thermocouple to Digital Converter with Linearization, TSSOP-14")
+			(docs "https://datasheets.maximintegrated.com/en/ds/MAX31856.pdf")
+			(footprints
+				(fp "TSSOP*14*4.4x5mm*P0.65mm*")
+			)
+			(fields
+				(field
+					(name "Reference") "U")
+				(field
+					(name "Value") "MAX31856")
+				(field
+					(name "Footprint") "Package_SO:TSSOP-14_4.4x5mm_P0.65mm")
+				(field
+					(name "Datasheet") "https://datasheets.maximintegrated.com/en/ds/MAX31856.pdf")
+				(field
+					(name "Description") "[bisque] SDO typed tri-state (Hi-Z while CS high, shared SPI_MISO). Precision Thermocouple to Digital Converter with Linearization, TSSOP-14")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "AGND")
+					(type "power_in")
+				)
+				(pin
+					(num "2")
+					(name "BIAS")
+					(type "input")
+				)
+				(pin
+					(num "3")
+					(name "T-")
+					(type "input")
+				)
+				(pin
+					(num "4")
+					(name "T+")
+					(type "input")
+				)
+				(pin
+					(num "5")
+					(name "AVDD")
+					(type "power_in")
+				)
+				(pin
+					(num "6")
+					(name "DNC")
+					(type "no_connect")
+				)
+				(pin
+					(num "7")
+					(name "~{DRDY}")
+					(type "output")
+				)
+				(pin
+					(num "8")
+					(name "DVDD")
+					(type "power_in")
+				)
+				(pin
+					(num "9")
+					(name "~{CS}")
+					(type "input")
+				)
+				(pin
+					(num "10")
+					(name "SCK")
+					(type "input")
+				)
+				(pin
+					(num "11")
+					(name "SDO")
+					(type "tri_state")
+				)
+				(pin
+					(num "12")
+					(name "SDI")
+					(type "input")
+				)
+				(pin
+					(num "13")
+					(name "~{FAULT}")
+					(type "output")
+				)
+				(pin
+					(num "14")
+					(name "DGND")
+					(type "power_in")
+				)
+			)
+		)
 	)
 	(libraries
 		(library
@@ -14878,10 +14878,6 @@
 			(uri "${KICAD10_SYMBOL_DIR}/Sensor.kicad_sym")
 		)
 		(library
-			(logical "Sensor_Temperature")
-			(uri "${KICAD10_SYMBOL_DIR}/Sensor_Temperature.kicad_sym")
-		)
-		(library
 			(logical "Switch")
 			(uri "${KICAD10_SYMBOL_DIR}/Switch.kicad_sym")
 		)
@@ -14892,6 +14888,10 @@
 		(library
 			(logical "Transistor_FET")
 			(uri "${KICAD10_SYMBOL_DIR}/Transistor_FET.kicad_sym")
+		)
+		(library
+			(logical "bisque")
+			(uri "${KIPRJMOD}/bisque.kicad_sym")
 		)
 	)
 	(nets
@@ -16397,13 +16397,13 @@
 				(ref "U3")
 				(pin "11")
 				(pinfunction "SDO_11")
-				(pintype "output")
+				(pintype "tri_state")
 			)
 			(node
 				(ref "U5")
 				(pin "11")
 				(pinfunction "SDO_11")
-				(pintype "output")
+				(pintype "tri_state")
 			)
 		)
 		(net

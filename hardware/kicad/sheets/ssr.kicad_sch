@@ -3377,16 +3377,6 @@
 	)
 	(wire
 		(pts
-			(xy 242.57 92.71) (xy 242.57 90.17)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "278a0a21-0690-5910-b848-e0ec13265174")
-	)
-	(wire
-		(pts
 			(xy 227.33 97.79) (xy 234.95 97.79)
 		)
 		(stroke
@@ -3717,16 +3707,6 @@
 	)
 	(wire
 		(pts
-			(xy 242.57 102.87) (xy 242.57 105.41)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "952cddc7-0ffe-5207-9048-09f9603cabbd")
-	)
-	(wire
-		(pts
 			(xy 148.59 110.49) (xy 148.59 100.33)
 		)
 		(stroke
@@ -3887,16 +3867,6 @@
 	)
 	(wire
 		(pts
-			(xy 242.57 105.41) (xy 246.38 105.41)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "d1fb574b-e206-5986-9c22-dd55225988e1")
-	)
-	(wire
-		(pts
 			(xy 177.8 157.48) (xy 177.8 160.02)
 		)
 		(stroke
@@ -3904,16 +3874,6 @@
 			(type default)
 		)
 		(uuid "d3536441-2eb2-55c4-8998-f5cf7e0bcd08")
-	)
-	(wire
-		(pts
-			(xy 246.38 105.41) (xy 246.38 99.06)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "d432c2c3-f51d-560d-bdb7-2813f4b3362e")
 	)
 	(wire
 		(pts
@@ -3934,6 +3894,16 @@
 			(type default)
 		)
 		(uuid "e4008de9-4d62-5da5-8d5d-f8218cd535be")
+	)
+	(wire
+		(pts
+			(xy 242.57 92.71) (xy 242.57 90.17)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e44a0a3c-c2ba-419e-bc56-59bdc4533115")
 	)
 	(wire
 		(pts
@@ -3964,6 +3934,16 @@
 			(type default)
 		)
 		(uuid "eb2b06f5-5acd-5afd-ab87-705b9cb41fc5")
+	)
+	(wire
+		(pts
+			(xy 242.57 102.87) (xy 242.57 105.41)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f8a99bee-1a9b-4e8a-a6fc-455e6567f3dd")
 	)
 	(label "SSR2_IND_K"
 		(at 85.09 182.88 0)
@@ -4034,6 +4014,16 @@
 			(justify left bottom)
 		)
 		(uuid "335b2f2d-cb09-5031-8c9c-cf47e916f862")
+	)
+	(label "SSR_EN"
+		(at 242.57 105.41 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "38af7464-af1f-4696-9907-c0560306054c")
 	)
 	(label "WDT_KICK"
 		(at 191.77 152.4 90)
@@ -4194,16 +4184,6 @@
 			(justify left bottom)
 		)
 		(uuid "ba9b8415-fde6-54b8-82c8-0bf7f3ffb1bf")
-	)
-	(label "SSR_EN"
-		(at 242.57 90.17 90)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "bebe5bdc-0fc9-54bf-b3dd-1053fe27eca1")
 	)
 	(label "SSR_EN"
 		(at 52.07 92.71 0)
@@ -4520,7 +4500,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "22uF"
+		(property "Value" "22uF/25V"
 			(at 171.842 97.47 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5950,7 +5930,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "TP"
+		(property "Value" "WDT_CT_P"
 			(at 150.252 101.28 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6981,82 +6961,6 @@
 		)
 	)
 	(symbol
-		(lib_id "power:+5V")
-		(at 246.38 99.06 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "9c9dd826-3198-531c-97b4-ae63a40780fa")
-		(property "Reference" "#PWR0112"
-			(at 246.38 99.06 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+5V"
-			(at 246.38 95.2405 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 246.38 99.06 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 246.38 99.06 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 246.38 99.06 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "c6c9d498-aff5-509d-8c42-feb8748f3db3")
-		)
-		(instances
-			(project "bisque-controller"
-				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/9f5358df-46db-5b0b-b8f6-c2f90039d70a"
-					(reference "#PWR0112")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "Device:R")
 		(at 22.86 77.47 0)
 		(unit 1)
@@ -7794,6 +7698,83 @@
 			(project "bisque-controller"
 				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/9f5358df-46db-5b0b-b8f6-c2f90039d70a"
 					(reference "R47")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:+5V")
+		(at 242.57 90.17 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "b55a3322-1890-4b4b-9aac-e433dd8bcaed")
+		(property "Reference" "#PWR001"
+			(at 242.57 93.98 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+5V"
+			(at 242.57 86.614 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 242.57 90.17 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 242.57 90.17 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"+5V\""
+			(at 242.57 90.17 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "3d2cb9d3-e35f-49ac-8a9b-0616d0840875")
+		)
+		(instances
+			(project ""
+				(path "/e73561cc-8fa6-5958-924f-c86ad55d4cb9"
+					(reference "#PWR001")
 					(unit 1)
 				)
 			)
@@ -8806,6 +8787,7 @@
 	(symbol
 		(lib_id "Transistor_FET:AO3401A")
 		(at 240.03 97.79 0)
+		(mirror x)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)

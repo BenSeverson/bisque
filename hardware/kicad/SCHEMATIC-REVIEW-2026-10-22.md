@@ -4,8 +4,17 @@
 > 0 errors / 0 warnings), 4 (hierarchical labels, sheet pins, root block
 > diagram; no global labels remain), 9, 10, the `single_global_label`
 > half of 19, and the test-point half of 16 (TP4–TP11 now sit beside
-> their nets on `mcu` / `ct`). Findings 5–8, 11–15, 17, 18, the ERC-in-CI
-> half of 19 and the electrical items E1–E5 are still open.
+> their nets on `mcu` / `ct`).
+>
+> **Second batch, same day:** 5 (every PWR_FLAG now sits where its rail
+> is created: J2.1, J2.2, Q8 source, L1 output, J1 VBUS), 7 (U3/U5 use a
+> project `bisque:MAX31856` with SDO typed tri-state; the ERC exclusion is
+> gone), 14 (Q4 flipped source-up), 15 (one Value string per LCSC part),
+> the rest of 16 (every test point's Value is its net name), and a
+> standalone `make erc` target with `lib_symbol_mismatch`,
+> `endpoint_off_grid` and `same_local_global_label` promoted to errors.
+> ERC is deliberately **not** in CI. Still open: 6, 8, 11, 12, 13, 17, 18
+> and the electrical items E1–E5.
 
 Reviewed the Rev B.2 schematic on branch `hw/erc-sdo-exclusion` at `e5dcc7a`
 (root `bisque-controller.kicad_sch` + the seven sheets under `sheets/`), the

@@ -905,7 +905,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "TP"
+		(property "Value" "GND"
 			(at 47.382 37.78 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1290,7 +1290,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "TP"
+		(property "Value" "+3V3"
 			(at 24.522 42.86 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1826,7 +1826,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "TP"
+		(property "Value" "+5V"
 			(at 35.952 42.86 0)
 			(show_name no)
 			(do_not_autoplace no)

@@ -5696,7 +5696,7 @@
 				)
 			)
 		)
-		(property "Value" "TP"
+		(property "Value" "CTA_P"
 			(at 190.5 184.15 0)
 			(show_name no)
 			(do_not_autoplace no)

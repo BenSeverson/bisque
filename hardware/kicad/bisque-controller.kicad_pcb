@@ -6061,7 +6061,7 @@
 				)
 			)
 		)
-		(property "Value" "TP"
+		(property "Value" "WDT_CT_P"
 			(at 0 1.55 0)
 			(layer "F.Fab")
 			(uuid "4775240e-bbe0-5db8-ac80-27f33e7a4fdf")
@@ -6159,7 +6159,7 @@
 				)
 			)
 		)
-		(property "Value" "22uF"
+		(property "Value" "22uF/25V"
 			(at 0 1.85 90)
 			(layer "F.Fab")
 			(uuid "aaf7a3ac-455a-5bdf-9b2f-fdb4f44d2c17")
@@ -8067,7 +8067,7 @@
 				)
 			)
 		)
-		(property "Value" "TP"
+		(property "Value" "SSR2_CTRL"
 			(at 0 1.55 0)
 			(layer "F.Fab")
 			(uuid "c42f31db-c5eb-566a-b688-1fddde187828")
@@ -8895,7 +8895,7 @@
 				)
 			)
 		)
-		(property "Value" "TP"
+		(property "Value" "GND"
 			(at 0 1.55 0)
 			(layer "F.Fab")
 			(uuid "5b0d56fe-4bd3-5268-8efa-d1b6231c2a0d")
@@ -11197,7 +11197,7 @@
 				)
 			)
 		)
-		(property "Value" "TP"
+		(property "Value" "SSR1_CTRL"
 			(at 0 1.55 0)
 			(layer "F.Fab")
 			(uuid "b6456da1-c118-55b5-b1cd-c0fbb3d25d16")
@@ -12242,7 +12242,7 @@
 				)
 			)
 		)
-		(property "Value" "TP"
+		(property "Value" "SPI_MOSI"
 			(at 0 1.55 0)
 			(layer "F.Fab")
 			(uuid "b3d6c1c9-6681-53f3-bd30-a4f0d72d2fb9")
@@ -14794,7 +14794,7 @@
 				)
 			)
 		)
-		(property "Value" "TP"
+		(property "Value" "+3V3"
 			(at 0 1.55 0)
 			(layer "F.Fab")
 			(uuid "80f01dc4-0dd1-5998-850e-6e1f39e183ee")
@@ -16128,7 +16128,7 @@
 				)
 			)
 		)
-		(property "Value" "100R"
+		(property "Value" "100R 1%"
 			(at 0 1.65 0)
 			(layer "F.Fab")
 			(uuid "7331e223-2321-55d0-8e98-fbb3735381ab")
@@ -20298,7 +20298,7 @@
 				)
 			)
 		)
-		(property "Value" "TP"
+		(property "Value" "I2C_SDA"
 			(at 0 1.55 0)
 			(layer "F.Fab")
 			(uuid "dcd19402-0f85-53f3-be9e-68ad8817efe5")
@@ -22282,7 +22282,7 @@
 				)
 			)
 		)
-		(property "Value" "TP"
+		(property "Value" "SPI_MISO"
 			(at 0 1.55 0)
 			(layer "F.Fab")
 			(uuid "d81abc6c-50c3-5280-aadf-a46cef50fb59")
@@ -24331,7 +24331,7 @@
 				)
 			)
 		)
-		(property "Value" "TP"
+		(property "Value" "CTA_P"
 			(at 0 1.55 0)
 			(layer "F.Fab")
 			(uuid "375324ef-6d6a-5ee3-aa37-e9b6f6aefbbc")
@@ -25305,7 +25305,7 @@
 				)
 			)
 		)
-		(property "Value" "TP"
+		(property "Value" "I2C_SCL"
 			(at 0 1.55 0)
 			(layer "F.Fab")
 			(uuid "1541ee18-3123-568c-85ac-686e05586d9b")
@@ -29395,7 +29395,7 @@
 				)
 			)
 		)
-		(property "Value" "22uF"
+		(property "Value" "22uF/25V"
 			(at 0 1.85 90)
 			(layer "F.Fab")
 			(uuid "d298d8f5-95aa-568f-876f-3ce54b98a26d")
@@ -31797,7 +31797,7 @@
 				)
 			)
 		)
-		(property "Value" "TP"
+		(property "Value" "+5V"
 			(at 0 1.55 0)
 			(layer "F.Fab")
 			(uuid "51549edf-52c5-548a-a96c-e7761db98878")
@@ -32437,7 +32437,7 @@
 				)
 			)
 		)
-		(property "Value" "22uF"
+		(property "Value" "22uF/25V"
 			(at 0 1.85 0)
 			(layer "F.Fab")
 			(uuid "46b900de-747c-5cd8-a6a0-af6a3ef96af8")
@@ -33271,7 +33271,7 @@
 				)
 			)
 		)
-		(property "Value" "TP"
+		(property "Value" "SPI_SCLK"
 			(at 0 1.55 0)
 			(layer "F.Fab")
 			(uuid "3fc4affe-055b-5498-b12a-79a5e91f357c")

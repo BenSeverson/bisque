@@ -5363,6 +5363,12 @@
 		(uuid "ee991e83-2d54-5379-805e-ad4f800a036b")
 	)
 	(junction
+		(at 55.88 44.45)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "23c4f688-a430-4698-9247-ac1e51ed552e")
+	)
+	(junction
 		(at 173.99 193.04)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -9252,7 +9258,7 @@
 				)
 			)
 		)
-		(property "Value" "TP"
+		(property "Value" "I2C_SCL"
 			(at 76.2 222.25 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10084,7 +10090,7 @@
 				)
 			)
 		)
-		(property "Value" "TP"
+		(property "Value" "SPI_MOSI"
 			(at 25.4 222.25 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11028,7 +11034,7 @@
 				)
 			)
 		)
-		(property "Value" "TP"
+		(property "Value" "SPI_SCLK"
 			(at 38.1 222.25 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11650,7 +11656,7 @@
 				)
 			)
 		)
-		(property "Value" "TP"
+		(property "Value" "SSR1_CTRL"
 			(at 88.9 222.25 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11726,7 +11732,7 @@
 				)
 			)
 		)
-		(property "Value" "TP"
+		(property "Value" "I2C_SDA"
 			(at 63.5 222.25 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13531,7 +13537,7 @@
 				)
 			)
 		)
-		(property "Value" "TP"
+		(property "Value" "SPI_MISO"
 			(at 50.8 222.25 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14620,7 +14626,7 @@
 				)
 			)
 		)
-		(property "Value" "TP"
+		(property "Value" "SSR2_CTRL"
 			(at 101.6 222.25 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15528,6 +15534,83 @@
 			(project "bisque-controller"
 				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/0b4ed2f0-cfc7-58f4-8f05-750454c503bf"
 					(reference "#PWR0074")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:PWR_FLAG")
+		(at 55.88 44.45 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "f3cc61a6-6fac-4b6a-8719-7c30b2769c6e")
+		(property "Reference" "#FLG06"
+			(at 55.88 42.545 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "PWR_FLAG"
+			(at 55.88 40.64 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 55.88 44.45 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 55.88 44.45 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Special symbol for telling ERC where power comes from"
+			(at 55.88 44.45 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "3afcb7f9-5bd3-4f05-8e07-a9866bbdd2a9")
+		)
+		(instances
+			(project ""
+				(path "/1a47868a-bd78-50f4-b188-eb0464f4a928"
+					(reference "#FLG06")
 					(unit 1)
 				)
 			)

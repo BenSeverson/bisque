@@ -260,12 +260,7 @@
     "equivalence_files": []
   },
   "erc": {
-    "erc_exclusions": [
-      [
-        "pin_to_pin|736600|850900|ac1c21f5-55aa-56c4-bc5f-adf4f6c8076b|fec7bf16-848d-509b-80f6-45cc0106cec6|/f24e0cd2-71c5-510c-9d15-562ab64c4388/ae1b9f1b-4d7e-5e57-a80a-c6979642993b|/f24e0cd2-71c5-510c-9d15-562ab64c4388/ae1b9f1b-4d7e-5e57-a80a-c6979642993b|/f24e0cd2-71c5-510c-9d15-562ab64c4388/ae1b9f1b-4d7e-5e57-a80a-c6979642993b",
-        "MAX31856 SDO is high-impedance while its CS is high, so U3 and U5 share SPI_MISO by design; the library symbol types the pin as a plain Output."
-      ]
-    ],
+    "erc_exclusions": [],
     "meta": {
       "version": 0
     },
@@ -448,7 +443,7 @@
       "different_unit_net": "error",
       "duplicate_reference": "error",
       "duplicate_sheet_names": "error",
-      "endpoint_off_grid": "warning",
+      "endpoint_off_grid": "error",
       "extra_units": "error",
       "field_name_whitespace": "warning",
       "footprint_filter": "ignore",
@@ -460,7 +455,7 @@
       "label_dangling": "error",
       "label_multiple_wires": "warning",
       "lib_symbol_issues": "warning",
-      "lib_symbol_mismatch": "warning",
+      "lib_symbol_mismatch": "error",
       "missing_bidi_pin": "warning",
       "missing_input_pin": "warning",
       "missing_power_pin": "error",
@@ -473,7 +468,7 @@
       "pin_not_driven": "error",
       "pin_to_pin": "warning",
       "power_pin_not_driven": "error",
-      "same_local_global_label": "warning",
+      "same_local_global_label": "error",
       "similar_label_and_power": "warning",
       "similar_labels": "warning",
       "similar_power": "warning",

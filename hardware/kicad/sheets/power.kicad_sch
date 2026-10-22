@@ -3427,13 +3427,13 @@
 	)
 	(wire
 		(pts
-			(xy 39.37 247.65) (xy 39.37 250.19)
+			(xy 67.31 116.84) (xy 72.39 116.84)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "0a8a44dd-c9a2-5a83-99f2-082d38231189")
+		(uuid "0969b203-1e98-4135-b5c6-e527cfcf9d40")
 	)
 	(wire
 		(pts
@@ -3444,16 +3444,6 @@
 			(type default)
 		)
 		(uuid "0e27f774-5920-52cb-b683-8240775d365f")
-	)
-	(wire
-		(pts
-			(xy 39.37 250.19) (xy 43.18 250.19)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "0e3697ce-a9bb-54db-bb4b-c1e160916fca")
 	)
 	(wire
 		(pts
@@ -3557,6 +3547,16 @@
 	)
 	(wire
 		(pts
+			(xy 198.12 115.57) (xy 198.12 113.03)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3c7c8466-965d-441e-8130-be151fe20a9e")
+	)
+	(wire
+		(pts
 			(xy 24.13 187.96) (xy 24.13 190.5)
 		)
 		(stroke
@@ -3607,13 +3607,13 @@
 	)
 	(wire
 		(pts
-			(xy 193.04 115.57) (xy 193.04 113.03)
+			(xy 69.85 76.2) (xy 69.85 82.55)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "51dabe0f-aadf-5c47-82fa-4aff37d1c8f5")
+		(uuid "56318006-886e-4783-baea-60ad102fecd0")
 	)
 	(wire
 		(pts
@@ -3917,6 +3917,16 @@
 	)
 	(wire
 		(pts
+			(xy 198.12 123.19) (xy 198.12 125.73)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b9f0e4e7-40b7-4652-8adc-e1c2968ba7a2")
+	)
+	(wire
+		(pts
 			(xy 67.31 100.33) (xy 67.31 93.98)
 		)
 		(stroke
@@ -3927,16 +3937,6 @@
 	)
 	(wire
 		(pts
-			(xy 69.85 241.3) (xy 69.85 243.84)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "bf18291b-d77b-4a2f-b98d-df3f685d867c")
-	)
-	(wire
-		(pts
 			(xy 212.09 80.01) (xy 214.63 80.01)
 		)
 		(stroke
@@ -3944,16 +3944,6 @@
 			(type default)
 		)
 		(uuid "c120f847-8e21-51b1-863d-f04a7a647271")
-	)
-	(wire
-		(pts
-			(xy 115.57 203.2) (xy 115.57 205.74)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c3421742-0f5f-5485-b639-ac0e80a47567")
 	)
 	(wire
 		(pts
@@ -4027,16 +4017,6 @@
 	)
 	(wire
 		(pts
-			(xy 43.18 250.19) (xy 43.18 243.84)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "d17ae021-224d-51c3-a92a-64f267b69a92")
-	)
-	(wire
-		(pts
 			(xy 223.52 63.5) (xy 223.52 60.96)
 		)
 		(stroke
@@ -4044,16 +4024,6 @@
 			(type default)
 		)
 		(uuid "d44d5431-a5e4-5afb-90a8-8f3e906900e9")
-	)
-	(wire
-		(pts
-			(xy 193.04 123.19) (xy 193.04 125.73)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "d5115f37-4fbe-5412-a0b3-5b2de1766788")
 	)
 	(wire
 		(pts
@@ -4067,16 +4037,6 @@
 	)
 	(wire
 		(pts
-			(xy 85.09 241.3) (xy 85.09 243.84)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "e391ac66-bdb2-40ab-99f8-47b8f35c7425")
-	)
-	(wire
-		(pts
 			(xy 60.96 184.15) (xy 60.96 186.69)
 		)
 		(stroke
@@ -4084,16 +4044,6 @@
 			(type default)
 		)
 		(uuid "e832eb74-6237-5ad9-bb8c-48c75b1d5e42")
-	)
-	(wire
-		(pts
-			(xy 69.85 76.2) (xy 69.85 80.01)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "edc4c662-2d65-55ad-b2f7-e573d8669eb3")
 	)
 	(wire
 		(pts
@@ -4145,6 +4095,16 @@
 		)
 		(uuid "fb13f953-5138-5947-a4e3-f24d98071d4b")
 	)
+	(wire
+		(pts
+			(xy 198.12 66.04) (xy 203.2 66.04)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "fc4227d0-bba0-4d21-8329-d481958a19c7")
+	)
 	(label "BUCK_5V"
 		(at 95.25 152.4 90)
 		(effects
@@ -4174,16 +4134,6 @@
 			(justify left bottom)
 		)
 		(uuid "1fd1a4b9-5518-5659-84b7-e0e115dcdec7")
-	)
-	(label "BUCK_5V"
-		(at 193.04 113.03 90)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "27b1aa1d-7e5c-5ac6-94a5-494cfa9786fd")
 	)
 	(label "VIN"
 		(at 67.31 80.01 90)
@@ -4216,16 +4166,6 @@
 		(uuid "36b70e61-af3c-5497-9d4e-cf0f7b840c36")
 	)
 	(label "VIN_P"
-		(at 85.09 243.84 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "5b30a15f-19f1-4cf2-bb29-9daf7608a340")
-	)
-	(label "VIN_P"
 		(at 161.29 80.01 180)
 		(effects
 			(font
@@ -4234,6 +4174,16 @@
 			(justify right bottom)
 		)
 		(uuid "5c891e51-6046-5623-a518-6b24eb28e5d0")
+	)
+	(label "BUCK_5V"
+		(at 198.12 113.03 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "5ecd7e45-277c-47c6-901a-5a1237a13a2a")
 	)
 	(label "VIN_GATE"
 		(at 49.53 111.76 180)
@@ -4274,16 +4224,6 @@
 			(justify left bottom)
 		)
 		(uuid "a21447e4-790f-5ffc-a264-ee42884c8811")
-	)
-	(label "BUCK_5V"
-		(at 69.85 243.84 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "a6e408e0-76f6-4151-9ee8-a65dcc0596ea")
 	)
 	(label "MUX_PR1"
 		(at 24.13 171.45 90)
@@ -4709,83 +4649,6 @@
 		)
 	)
 	(symbol
-		(lib_id "power:PWR_FLAG")
-		(at 115.57 203.2 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "0e3c9ff5-97a3-599e-892a-2699caee3991")
-		(property "Reference" "#FLG01"
-			(at 115.57 199.2 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "PWR_FLAG"
-			(at 115.57 197.2 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 115.57 203.2 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" "~"
-			(at 115.57 203.2 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 115.57 203.2 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "ad9658b3-63b9-5de1-a126-753a90987790")
-		)
-		(instances
-			(project "bisque-controller"
-				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/c3ce2838-e44f-5ef5-9340-801a744d4591"
-					(reference "#FLG01")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "Connector:Screw_Terminal_01x02")
 		(at 77.47 73.66 0)
 		(unit 1)
@@ -5013,7 +4876,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "22uF"
+		(property "Value" "22uF/25V"
 			(at 166.762 120.33 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5400,7 +5263,7 @@
 	)
 	(symbol
 		(lib_id "Device:C_Polarized")
-		(at 193.04 119.38 0)
+		(at 198.12 119.38 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -5410,7 +5273,7 @@
 		(dnp no)
 		(uuid "2c807056-d8a0-5e2d-a8d4-a1e18bef909e")
 		(property "Reference" "C46"
-			(at 196.226 118.43 0)
+			(at 201.306 118.43 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -5421,7 +5284,7 @@
 			)
 		)
 		(property "Value" "100uF/16V"
-			(at 196.226 120.33 0)
+			(at 201.306 120.33 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -5432,7 +5295,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:CP_Elec_5x5.4"
-			(at 193.04 119.38 0)
+			(at 198.12 119.38 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5443,7 +5306,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 193.04 119.38 0)
+			(at 198.12 119.38 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5454,7 +5317,7 @@
 			)
 		)
 		(property "Description" "Polarized capacitor"
-			(at 193.04 119.38 0)
+			(at 198.12 119.38 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5465,7 +5328,7 @@
 			)
 		)
 		(property "MPN" "C2977550"
-			(at 193.04 119.38 0)
+			(at 198.12 119.38 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5476,7 +5339,7 @@
 			)
 		)
 		(property "LCSC" "C2977550"
-			(at 193.04 119.38 0)
+			(at 198.12 119.38 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5730,8 +5593,8 @@
 		)
 	)
 	(symbol
-		(lib_id "power:GND")
-		(at 115.57 205.74 0)
+		(lib_id "power:PWR_FLAG")
+		(at 69.85 82.55 270)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -5739,9 +5602,9 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(uuid "4e068819-32c5-5f9a-b426-a436e2dcacf2")
-		(property "Reference" "#PWR0033"
-			(at 115.57 205.74 0)
+		(uuid "4f0c0d87-d9b4-494e-9976-faf8c79ffa41")
+		(property "Reference" "#FLG05"
+			(at 71.755 82.55 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5751,8 +5614,8 @@
 				)
 			)
 		)
-		(property "Value" "GND"
-			(at 115.57 209.5595 0)
+		(property "Value" "PWR_FLAG"
+			(at 73.66 82.55 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -5762,7 +5625,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 115.57 205.74 0)
+			(at 69.85 82.55 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5773,7 +5636,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 115.57 205.74 0)
+			(at 69.85 82.55 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5783,8 +5646,9 @@
 				)
 			)
 		)
-		(property "Description" ""
-			(at 115.57 205.74 0)
+		(property "Description" "Special symbol for telling ERC where power comes from"
+			(at 69.85 82.55 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -5794,12 +5658,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "c32f0b0c-f430-5157-8fe4-ea47be0d8dd0")
+			(uuid "d3d47006-4ee6-4a6e-9e02-6f2e71202a98")
 		)
 		(instances
-			(project "bisque-controller"
-				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/c3ce2838-e44f-5ef5-9340-801a744d4591"
-					(reference "#PWR0033")
+			(project ""
+				(path "/7d618d6e-cdd6-57df-9cb1-e438e0016f8b"
+					(reference "#FLG05")
 					(unit 1)
 				)
 			)
@@ -6158,83 +6022,6 @@
 			(project "bisque-controller"
 				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/c3ce2838-e44f-5ef5-9340-801a744d4591"
 					(reference "C42")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:PWR_FLAG")
-		(at 69.85 241.3 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "5fd26cb0-37f4-48a2-ab63-cd28dd602638")
-		(property "Reference" "#FLG05"
-			(at 69.85 239.395 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "PWR_FLAG"
-			(at 69.85 237.49 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 69.85 241.3 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 69.85 241.3 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Special symbol for telling ERC where power comes from"
-			(at 69.85 241.3 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "2768d55d-77e3-422e-b959-b2245d74a3c0")
-		)
-		(instances
-			(project "bisque-controller"
-				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/c3ce2838-e44f-5ef5-9340-801a744d4591"
-					(reference "#FLG05")
 					(unit 1)
 				)
 			)
@@ -6826,8 +6613,8 @@
 		)
 	)
 	(symbol
-		(lib_id "power:VBUS")
-		(at 43.18 243.84 0)
+		(lib_id "power:PWR_FLAG")
+		(at 203.2 66.04 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -6835,9 +6622,9 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(uuid "7cf0469d-d300-57d2-8738-e26cad290d0d")
-		(property "Reference" "#PWR0035"
-			(at 43.18 243.84 0)
+		(uuid "7d340c3a-8985-46c0-a4db-4d3156ddea04")
+		(property "Reference" "#FLG01"
+			(at 203.2 64.135 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6847,8 +6634,8 @@
 				)
 			)
 		)
-		(property "Value" "VBUS"
-			(at 43.18 240.0205 0)
+		(property "Value" "PWR_FLAG"
+			(at 203.2 62.23 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -6858,7 +6645,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 43.18 243.84 0)
+			(at 203.2 66.04 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6869,7 +6656,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 43.18 243.84 0)
+			(at 203.2 66.04 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6879,8 +6666,9 @@
 				)
 			)
 		)
-		(property "Description" ""
-			(at 43.18 243.84 0)
+		(property "Description" "Special symbol for telling ERC where power comes from"
+			(at 203.2 66.04 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -6890,12 +6678,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "c824b070-1f54-503f-ba56-ad03bcc90b46")
+			(uuid "20daf889-6b4c-4c8f-8235-be432c4ef0bb")
 		)
 		(instances
-			(project "bisque-controller"
-				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/c3ce2838-e44f-5ef5-9340-801a744d4591"
-					(reference "#PWR0035")
+			(project ""
+				(path "/7d618d6e-cdd6-57df-9cb1-e438e0016f8b"
+					(reference "#FLG01")
 					(unit 1)
 				)
 			)
@@ -6923,7 +6711,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "22uF"
+		(property "Value" "22uF/25V"
 			(at 182.002 120.33 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6999,6 +6787,83 @@
 			(project "bisque-controller"
 				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/c3ce2838-e44f-5ef5-9340-801a744d4591"
 					(reference "C45")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:PWR_FLAG")
+		(at 72.39 116.84 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "81887bb7-f642-43ed-81b2-a7f6d0bb00ab")
+		(property "Reference" "#FLG03"
+			(at 72.39 114.935 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "PWR_FLAG"
+			(at 72.39 113.03 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 72.39 116.84 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 72.39 116.84 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Special symbol for telling ERC where power comes from"
+			(at 72.39 116.84 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "0c02b3a7-b1d4-4ec7-b248-2fd54c9371c2")
+		)
+		(instances
+			(project ""
+				(path "/7d618d6e-cdd6-57df-9cb1-e438e0016f8b"
+					(reference "#FLG03")
 					(unit 1)
 				)
 			)
@@ -7211,85 +7076,8 @@
 		)
 	)
 	(symbol
-		(lib_id "power:PWR_FLAG")
-		(at 39.37 247.65 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "89c0efe5-1a4a-59c6-a5cc-4885a0dfa1ca")
-		(property "Reference" "#FLG03"
-			(at 39.37 243.65 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "PWR_FLAG"
-			(at 39.37 241.65 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 39.37 247.65 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" "~"
-			(at 39.37 247.65 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 39.37 247.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "904da1cd-e0ee-5b57-9c12-70de76c9c261")
-		)
-		(instances
-			(project "bisque-controller"
-				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/c3ce2838-e44f-5ef5-9340-801a744d4591"
-					(reference "#FLG03")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "power:GND")
-		(at 69.85 80.01 0)
+		(at 69.85 82.55 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -7299,7 +7087,7 @@
 		(dnp no)
 		(uuid "982399e2-a017-534b-9893-e7a83b31105d")
 		(property "Reference" "#PWR0001"
-			(at 69.85 80.01 0)
+			(at 69.85 82.55 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7310,7 +7098,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 69.85 83.8295 0)
+			(at 69.85 86.3695 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -7320,7 +7108,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 69.85 80.01 0)
+			(at 69.85 82.55 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7331,7 +7119,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 69.85 80.01 0)
+			(at 69.85 82.55 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7342,7 +7130,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 69.85 80.01 0)
+			(at 69.85 82.55 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9020,7 +8808,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 193.04 125.73 0)
+		(at 198.12 125.73 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -9030,7 +8818,7 @@
 		(dnp no)
 		(uuid "e3928375-c6c2-5060-a562-d255fc545ba4")
 		(property "Reference" "#PWR0019"
-			(at 193.04 125.73 0)
+			(at 198.12 125.73 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9041,7 +8829,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 193.04 129.5495 0)
+			(at 198.12 129.5495 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9051,7 +8839,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 193.04 125.73 0)
+			(at 198.12 125.73 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9062,7 +8850,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 193.04 125.73 0)
+			(at 198.12 125.73 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9073,7 +8861,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 193.04 125.73 0)
+			(at 198.12 125.73 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -10086,83 +9874,6 @@
 			(project "bisque-controller"
 				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/c3ce2838-e44f-5ef5-9340-801a744d4591"
 					(reference "C2")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:PWR_FLAG")
-		(at 85.09 241.3 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "f6b12ddf-11f5-48a0-a4c9-64615bd8a8d0")
-		(property "Reference" "#FLG06"
-			(at 85.09 239.395 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "PWR_FLAG"
-			(at 85.09 237.49 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 85.09 241.3 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 85.09 241.3 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Special symbol for telling ERC where power comes from"
-			(at 85.09 241.3 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "6f1debb7-30ac-41bf-b474-681c94de7e2a")
-		)
-		(instances
-			(project "bisque-controller"
-				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/c3ce2838-e44f-5ef5-9340-801a744d4591"
-					(reference "#FLG06")
 					(unit 1)
 				)
 			)
