@@ -6,8 +6,8 @@
 	(paper "A3")
 	(title_block
 		(title "Bisque Kiln Controller")
-		(date "2026-09-21")
-		(rev "B.2")
+		(date "2026-10-22")
+		(rev "B.3")
 		(company "Bisque project")
 		(comment 1 "ESP32-S3-WROOM-1U-N16R2 + 2x MAX31856 + dual SSR + ADE7953")
 		(comment 2 "4-layer, 100 x 100 mm, JLCPCB standard process")
@@ -25,9 +25,9 @@
 		)
 		(uuid "7fa6e2b1-7863-5c9b-98a3-5c4ef47553a8")
 	)
-	(text "SSR terminals J4/J9: pin1 = VIN_P (24 V, fused and TVS-clamped,\n  ALWAYS LIVE), pin2 = the switched low side. The watchdog gates\n  the shared return (Q7), not the supply, so a tripped watchdog\n  leaves 24 V on pin 1 and opens pin 2. Boot-safe: R7/R20 hold\n  each gate down while the optos are dark.\n  The optos are NOT an isolation barrier - both sides share GND.\n  Rev B's opto-ISOLATED design was reverted and stays reverted;\n  U8/U9 are here to keep a 24 V gate fault off the GPIO.\n  Per channel <=200 mA: F1 holds at 750 mA and U11 takes ~250.\n\nTC1 terminal J3 / TC2 terminal J8: pin1 = K+, pin2 = K- - both\n  float, biased near AGND only through each MAX31856's internal\n  BIAS network. Ungrounded-junction probes required: two\n  grounded-junction probes in one kiln would loop through it.\n\nNav switch J6 is panel-mounted; inputs use ESP32 pull-ups.\n\nJ11: IN1/IN2/IN3 (lid/gas-flow/spare) + GND - dry contact each\n  channel to GND.\n\nDisplay J5 (14-pin, ST7796S + XPT2046 touch module, LCDWIKI\n  MSP4021): 1=+5V 2=GND 3=CS 4=RST 5=DC 6=SDI/MOSI 7=SCK 8=BL\n  9=SDO/MISO 10=T_CLK 11=T_CS 12=T_DIN 13=T_DO 14=T_IRQ.\n  PIN 1 IS +5V, NOT 3V3 - the module regulates on board; do not\n  wire a 3.3V-only panel to it. Logic is 3.3V; touch shares SPI2\n  with the LCD and both MAX31856s (R39-R43 damping).\n\nJ12: CT current inputs, CTA_P/CTA_N/CTB_P/CTB_N - one CT clamp\n  per SSR zone.\n\nJ13: DNP SELV voltage sense header. NOT mains-rated, not fitted\n  - do not wire to AC mains. Y1/C25/C26 load caps are an ASSUMED\n  value (unverified C_L), see design.py comment. ADE7953 I2C\n  address 0x38 collides with PCF8574A."
+	(text "SSR terminals J4/J9: pin1 = VIN_P (24 V, fused and TVS-clamped,\n  ALWAYS LIVE), pin2 = the switched low side. The watchdog gates\n  the shared return (Q7), not the supply, so a tripped watchdog\n  leaves 24 V on pin 1 and opens pin 2. Boot-safe: R7/R20 hold\n  each gate down while the optos are dark.\n  The optos are NOT an isolation barrier - both sides share GND.\n  Rev B's opto-ISOLATED design was reverted and stays reverted;\n  U8/U9 are here to keep a 24 V gate fault off the GPIO.\n  Per channel <=200 mA: F1 holds at 750 mA and U11 takes ~250.\n\nTC1 terminal J3 / TC2 terminal J8: pin1 = K+, pin2 = K- - both\n  float, biased near AGND only through each MAX31856's internal\n  BIAS network. Ungrounded-junction probes required: two\n  grounded-junction probes in one kiln would loop through it.\n\nNav switch J6 is panel-mounted; inputs use ESP32 pull-ups.\n\nJ11: IN1/IN2/IN3 (lid/gas-flow/spare) + GND - dry contact each\n  channel to GND.\n\nDisplay J5 (14-pin, ST7796S + XPT2046 touch module, LCDWIKI\n  MSP4021): 1=+5V 2=GND 3=CS 4=RST 5=DC 6=SDI/MOSI 7=SCK 8=BL\n  9=SDO/MISO 10=T_CLK 11=T_CS 12=T_DIN 13=T_DO 14=T_IRQ.\n  PIN 1 IS +5V, NOT 3V3 - the module regulates on board; do not\n  wire a 3.3V-only panel to it. Logic is 3.3V; touch shares SPI2\n  with the LCD and both MAX31856s (R39-R43 damping).\n\nJ12: CT current inputs, CTA_P/CTA_N/CTB_P/CTB_N - one CT clamp\n  per SSR zone.\n\nJ13: DNP SELV voltage sense header. NOT mains-rated, not fitted\n  - do not wire to AC mains. Y1 is a packaged 3.579545 MHz\n  oscillator (no load caps; C25 is its bypass) - see\n  DESIGN-NOTES.md, Y1. ADE7953 I2C address 0x38 would collide\n  with a PCF8574A added on J7/J14.\n\nDesign reasoning per block: hardware/kicad/DESIGN-NOTES.md."
 		(exclude_from_sim no)
-		(at 199.8 76.25 0)
+		(at 199.8 78.74 0)
 		(effects
 			(font
 				(size 1.5 1.5)
@@ -36,9 +36,219 @@
 		)
 		(uuid "dbadb58a-df2e-53a3-9b2b-6492fe215714")
 	)
+	(wire
+		(pts
+			(xy 139.7 33.02) (xy 154.94 33.02)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "12cfa085-3b51-562c-a408-a4543b37e9f0")
+	)
+	(wire
+		(pts
+			(xy 58.42 63.5) (xy 93.98 63.5)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "24abebab-13a3-5459-968f-12b46f4f684d")
+	)
+	(wire
+		(pts
+			(xy 66.04 15.24) (xy 165.1 15.24)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2f308afc-4170-5de0-b9c9-3579191f4eaa")
+	)
+	(wire
+		(pts
+			(xy 58.42 71.12) (xy 93.98 71.12)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4dd3c830-3a2d-5380-a74a-5a9ff387d742")
+	)
+	(wire
+		(pts
+			(xy 58.42 106.68) (xy 93.98 106.68)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5101253b-d19c-5385-8935-0ff2ed273a8e")
+	)
+	(wire
+		(pts
+			(xy 139.7 68.58) (xy 154.94 68.58)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5ea0d47b-4e07-5a3b-a1fd-ad977d6856a7")
+	)
+	(wire
+		(pts
+			(xy 139.7 35.56) (xy 154.94 35.56)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6c7d52b6-411d-5a39-a89c-f3058cbfc527")
+	)
+	(wire
+		(pts
+			(xy 66.04 30.48) (xy 66.04 15.24)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6c8c55cd-58f5-5f78-b758-84295cd2acd4")
+	)
+	(wire
+		(pts
+			(xy 58.42 60.96) (xy 93.98 60.96)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6d9c9b15-c977-5c9f-ad08-fc6a8218b000")
+	)
+	(wire
+		(pts
+			(xy 139.7 76.2) (xy 154.94 76.2)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7d3818ad-f2e4-5b99-8461-c583373da438")
+	)
+	(wire
+		(pts
+			(xy 58.42 66.04) (xy 93.98 66.04)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9780a32b-3d9c-596e-b37f-7ce2e99fbb30")
+	)
+	(wire
+		(pts
+			(xy 139.7 73.66) (xy 154.94 73.66)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "98901d98-e49f-530f-ab57-ada6daf19306")
+	)
+	(wire
+		(pts
+			(xy 139.7 78.74) (xy 154.94 78.74)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a3f2240a-8c5b-545f-83c1-c2ff94717434")
+	)
+	(wire
+		(pts
+			(xy 139.7 66.04) (xy 154.94 66.04)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a6837cbc-e021-5007-b964-707473e38da9")
+	)
+	(wire
+		(pts
+			(xy 139.7 30.48) (xy 154.94 30.48)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b5dd4ae6-a939-579a-bf76-6eceea2150d6")
+	)
+	(wire
+		(pts
+			(xy 58.42 73.66) (xy 93.98 73.66)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c9c3881b-1b5c-5cb1-9143-624e964c5bd8")
+	)
+	(wire
+		(pts
+			(xy 139.7 63.5) (xy 154.94 63.5)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "cc662b6e-aeed-5f55-98cf-6138ffcc88e6")
+	)
+	(wire
+		(pts
+			(xy 165.1 15.24) (xy 165.1 20.32)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ce9d66c2-3a39-5ae2-981f-a5e219c96c02")
+	)
+	(wire
+		(pts
+			(xy 58.42 109.22) (xy 93.98 109.22)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d7f3e32e-a0e7-5e5c-874f-c6651b6f8483")
+	)
+	(wire
+		(pts
+			(xy 58.42 30.48) (xy 66.04 30.48)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "db0e7ada-4bc0-5f35-8b26-07f20dfb6f73")
+	)
+	(wire
+		(pts
+			(xy 139.7 60.96) (xy 154.94 60.96)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e0b94451-eea1-510d-99f9-5af1ee01b0d6")
+	)
 	(sheet
-		(at 110.9 26)
-		(size 76.2 22.86)
+		(at 93.98 20.32)
+		(size 45.72 114.3)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
@@ -52,7 +262,7 @@
 		)
 		(uuid "0b4ed2f0-cfc7-58f4-8f05-750454c503bf")
 		(property "Sheetname" "mcu"
-			(at 110.9 25.2884 0)
+			(at 93.98 19.6084 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -63,7 +273,7 @@
 			)
 		)
 		(property "Sheetfile" "sheets/mcu.kicad_sch"
-			(at 110.9 49.4446 0)
+			(at 93.98 135.2046 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -71,6 +281,176 @@
 					(size 1.27 1.27)
 				)
 				(justify left top)
+			)
+		)
+		(pin "SPI_MOSI" output
+			(at 93.98 60.96 180)
+			(uuid "f7c46b58-b8a6-56ec-8963-0dc57d82c079")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "SPI_SCLK" output
+			(at 93.98 63.5 180)
+			(uuid "9f6b142b-41f9-5d38-8b45-938859f1d48f")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "SPI_MISO" input
+			(at 93.98 66.04 180)
+			(uuid "4aa97efd-722f-513a-b336-1058eaba7fe2")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "TC1_CS" output
+			(at 93.98 71.12 180)
+			(uuid "4120c36b-766a-5bbd-be3b-096b5af6f0cb")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "TC2_CS" output
+			(at 93.98 73.66 180)
+			(uuid "0804d66b-c5d6-50f2-a914-f31a32d5418b")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "I2C_SDA" bidirectional
+			(at 93.98 106.68 180)
+			(uuid "7cd8af82-29ac-5737-9dcb-f4a42458631c")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "I2C_SCL" bidirectional
+			(at 93.98 109.22 180)
+			(uuid "54e7ea67-b3e8-5c24-84ac-03e8e6863927")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "SSR1_CTRL" output
+			(at 139.7 30.48 0)
+			(uuid "53c58257-ea7c-5386-8883-593455493955")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "SSR2_CTRL" output
+			(at 139.7 33.02 0)
+			(uuid "bf47246d-b3a9-5a70-8bca-639a638e48a0")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "WDT_KICK" output
+			(at 139.7 35.56 0)
+			(uuid "4ec5338c-e9d9-59d6-b206-0a7cb8d905ab")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "AUX1" output
+			(at 139.7 60.96 0)
+			(uuid "e42238d6-1f25-52a9-9aaf-55de2377301f")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "AUX2" output
+			(at 139.7 63.5 0)
+			(uuid "9ea7da2d-ab79-50a7-a6f2-dee5fc89ff7a")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "AUX3" output
+			(at 139.7 66.04 0)
+			(uuid "a85a28a5-5fcf-577f-ba20-7036e9fa478f")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "ALARM" output
+			(at 139.7 68.58 0)
+			(uuid "b7a96426-7157-5452-ad98-009107201097")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "IN1" input
+			(at 139.7 73.66 0)
+			(uuid "4d84a3b0-77b4-58c1-9f4b-e764f5029677")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "IN2" input
+			(at 139.7 76.2 0)
+			(uuid "2534aab5-8809-556b-b6f6-31a39f240556")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "IN3" input
+			(at 139.7 78.74 0)
+			(uuid "231b8230-4936-5d9b-9948-71805170b8d9")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
 			)
 		)
 		(instances
@@ -82,8 +462,8 @@
 		)
 	)
 	(sheet
-		(at 22 132.68)
-		(size 76.2 22.86)
+		(at 17.78 139.7)
+		(size 40.64 20.32)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
@@ -97,7 +477,7 @@
 		)
 		(uuid "1e8311a4-ab35-58fd-a6a5-4a366294f20f")
 		(property "Sheetname" "test"
-			(at 22 131.9684 0)
+			(at 17.78 138.9884 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -108,7 +488,7 @@
 			)
 		)
 		(property "Sheetfile" "sheets/test.kicad_sch"
-			(at 22 156.1246 0)
+			(at 17.78 160.6046 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -127,8 +507,8 @@
 		)
 	)
 	(sheet
-		(at 110.9 97.12)
-		(size 76.2 22.86)
+		(at 17.78 101.6)
+		(size 40.64 22.86)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
@@ -142,7 +522,7 @@
 		)
 		(uuid "6c704e24-0c23-5bb2-a84e-a8ccbf5f5ca5")
 		(property "Sheetname" "ct"
-			(at 110.9 96.4084 0)
+			(at 17.78 100.8884 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -153,7 +533,7 @@
 			)
 		)
 		(property "Sheetfile" "sheets/ct.kicad_sch"
-			(at 110.9 120.5646 0)
+			(at 17.78 125.0446 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -161,6 +541,26 @@
 					(size 1.27 1.27)
 				)
 				(justify left top)
+			)
+		)
+		(pin "I2C_SDA" bidirectional
+			(at 58.42 106.68 0)
+			(uuid "ba3443ac-e5c0-53b3-923f-c2d157920fbf")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "I2C_SCL" bidirectional
+			(at 58.42 109.22 0)
+			(uuid "450c10e4-7e1e-5ad7-a0a9-bfe49958731c")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
 			)
 		)
 		(instances
@@ -172,8 +572,8 @@
 		)
 	)
 	(sheet
-		(at 110.9 61.56)
-		(size 76.2 22.86)
+		(at 154.94 20.32)
+		(size 40.64 25.4)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
@@ -187,7 +587,7 @@
 		)
 		(uuid "9f5358df-46db-5b0b-b8f6-c2f90039d70a")
 		(property "Sheetname" "ssr"
-			(at 110.9 60.8484 0)
+			(at 154.94 19.6084 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -198,7 +598,7 @@
 			)
 		)
 		(property "Sheetfile" "sheets/ssr.kicad_sch"
-			(at 110.9 85.0046 0)
+			(at 154.94 46.3046 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -206,6 +606,46 @@
 					(size 1.27 1.27)
 				)
 				(justify left top)
+			)
+		)
+		(pin "SSR1_CTRL" input
+			(at 154.94 30.48 180)
+			(uuid "207883e8-6b63-5548-91d8-f8d9c3df38cd")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "SSR2_CTRL" input
+			(at 154.94 33.02 180)
+			(uuid "61167951-7315-5e44-991e-db74671e0e73")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "WDT_KICK" input
+			(at 154.94 35.56 180)
+			(uuid "0b57fb4f-5ec8-5ecc-8b18-3202f779b995")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "VIN_P" passive
+			(at 165.1 20.32 90)
+			(uuid "387a61f3-9e25-50a3-b386-f8de85fe2840")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
 			)
 		)
 		(instances
@@ -217,8 +657,8 @@
 		)
 	)
 	(sheet
-		(at 22 61.56)
-		(size 76.2 22.86)
+		(at 17.78 55.88)
+		(size 40.64 30.48)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
@@ -232,7 +672,7 @@
 		)
 		(uuid "ae1b9f1b-4d7e-5e57-a80a-c6979642993b")
 		(property "Sheetname" "thermocouples"
-			(at 22 60.8484 0)
+			(at 17.78 55.1684 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -243,7 +683,7 @@
 			)
 		)
 		(property "Sheetfile" "sheets/thermocouples.kicad_sch"
-			(at 22 85.0046 0)
+			(at 17.78 86.9446 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -251,6 +691,56 @@
 					(size 1.27 1.27)
 				)
 				(justify left top)
+			)
+		)
+		(pin "SPI_MOSI" input
+			(at 58.42 60.96 0)
+			(uuid "177c00ee-b1da-5392-a2dc-1cd0ef3818a2")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "SPI_SCLK" input
+			(at 58.42 63.5 0)
+			(uuid "6ac08f62-29f5-5398-9f7e-744ed800b325")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "SPI_MISO" output
+			(at 58.42 66.04 0)
+			(uuid "e35ce993-44b5-55e5-9899-af31a3d22eab")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "TC1_CS" input
+			(at 58.42 71.12 0)
+			(uuid "146bfe66-d88f-582c-bb6c-c51fb81b3a84")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "TC2_CS" input
+			(at 58.42 73.66 0)
+			(uuid "e0fd1acf-2e70-5e0e-8f36-59d3b5aa99c0")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
 			)
 		)
 		(instances
@@ -262,8 +752,8 @@
 		)
 	)
 	(sheet
-		(at 22 26)
-		(size 76.2 22.86)
+		(at 17.78 20.32)
+		(size 40.64 20.32)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
@@ -277,7 +767,7 @@
 		)
 		(uuid "c3ce2838-e44f-5ef5-9340-801a744d4591")
 		(property "Sheetname" "power"
-			(at 22 25.2884 0)
+			(at 17.78 19.6084 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -288,7 +778,7 @@
 			)
 		)
 		(property "Sheetfile" "sheets/power.kicad_sch"
-			(at 22 49.4446 0)
+			(at 17.78 41.2246 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -296,6 +786,16 @@
 					(size 1.27 1.27)
 				)
 				(justify left top)
+			)
+		)
+		(pin "VIN_P" passive
+			(at 58.42 30.48 0)
+			(uuid "f2559e47-d892-530f-89a3-f0dcbd35ed7a")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
 			)
 		)
 		(instances
@@ -307,8 +807,8 @@
 		)
 	)
 	(sheet
-		(at 22 97.12)
-		(size 76.2 22.86)
+		(at 154.94 55.88)
+		(size 40.64 35.56)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
@@ -322,7 +822,7 @@
 		)
 		(uuid "e1ee3407-47a9-5cbf-8d5f-32505726bf00")
 		(property "Sheetname" "io"
-			(at 22 96.4084 0)
+			(at 154.94 55.1684 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -333,7 +833,7 @@
 			)
 		)
 		(property "Sheetfile" "sheets/io.kicad_sch"
-			(at 22 120.5646 0)
+			(at 154.94 92.0246 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -341,6 +841,76 @@
 					(size 1.27 1.27)
 				)
 				(justify left top)
+			)
+		)
+		(pin "AUX1" input
+			(at 154.94 60.96 180)
+			(uuid "37f68c60-28bb-5c65-9db1-76e7358d9313")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "AUX2" input
+			(at 154.94 63.5 180)
+			(uuid "db7ba4b6-593f-575b-925c-4281f0831181")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "AUX3" input
+			(at 154.94 66.04 180)
+			(uuid "dd03182f-fd3f-5591-b104-07c33b4f7047")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "ALARM" input
+			(at 154.94 68.58 180)
+			(uuid "d9f643f2-819f-524e-84c2-40496a6d16e9")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "IN1" output
+			(at 154.94 73.66 180)
+			(uuid "ecb0c4fe-230e-50ea-9d50-a04c72bd417d")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "IN2" output
+			(at 154.94 76.2 180)
+			(uuid "73a6882c-b420-5d3b-91fd-d99c6253073d")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "IN3" output
+			(at 154.94 78.74 180)
+			(uuid "1301dc70-9269-54bb-b23c-daa4cdc58cae")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
 			)
 		)
 		(instances

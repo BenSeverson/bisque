@@ -241,7 +241,17 @@ def main(board_path):
     with tempfile.TemporaryDirectory() as tmp:
         import netlist as NL
         t = open(base_net).read()
-        t = t.replace('(name "/ct/ADE_CS")', '(name "/ct/FB")', 1).replace('(name "SPI_MISO")', '(name "/power/FB")', 1)
+        # Two nets that exist in the real export, each renamed to a different
+        # sheet path with the same short name. Since rev B.3 every signal is
+        # a sheet-local or hierarchical label, and KiCad names the net after
+        # the local label on the sheet (so SPI_MISO is "/mcu/SPI_MISO", the
+        # sheet pins on the root notwithstanding) - a bare "SPI_MISO" no
+        # longer exists, which is exactly the case this test guards.
+        victims = ('(name "/ct/ADE_CS")', '(name "/mcu/SPI_MISO")')
+        for v in victims:
+            if v not in t:
+                sys.exit("SYNC IDEMPOTENT: fixture net %s is not in %s - update victims" % (v, base_net))
+        t = t.replace(victims[0], '(name "/ct/FB")', 1).replace(victims[1], '(name "/power/FB")', 1)
         pth = os.path.join(tmp, "x.net")
         open(pth, "w").write(t)
         try:

@@ -25,7 +25,7 @@ table — 92 nets, 0 mismatches). The 3D renders in `3d/` are raytraced by
 | File | What it is |
 |---|---|
 | `bisque-controller.kicad_pro` | Project. Hand-maintained **except** two blocks, both derived and both written *after* the board is saved because `pcbnew.SaveBoard()` blanks them: `schematic.top_level_sheets` (`project_sync.py::sync_project()`) and `net_settings` (`gen_pcb.py::sync_netclasses()`, from `ROUTE_ORDER`) — see below |
-| `bisque-controller.kicad_sch` | Root of the hierarchical schematic: a sheet symbol per functional area (`sheets/power`, `mcu`, `thermocouples`, `ssr`, `io`, `ct`, `test`) plus the notes block. Netlist-style within each sheet: global labels for signals, real power ports for rails, real wires with a local label for two-pin block-local nets. Hand-owned; `make pcb-netlist` exports its connectivity. |
+| `bisque-controller.kicad_sch` | Root of the hierarchical schematic: a sheet symbol per functional area (`sheets/power`, `mcu`, `thermocouples`, `ssr`, `io`, `ct`, `test`) plus the notes block, wired as a block diagram: each sheet symbol carries a pin per net that crosses sheets. Within a sheet: one hierarchical label per crossing net, local labels for everything else, real power ports for rails; no global labels. Hand-owned; `make pcb-netlist` exports its connectivity. |
 | `bisque-controller.kicad_pcb` | Board: placed, fully routed, 4 layers (F.Cu/B.Cu signals, In1.Cu GND plane, In2.Cu +3V3 plane), on JLCPCB's `JLC04161H-7628` 1.6 mm stack-up — see "The physical stack-up" |
 | `bisque-controller.kicad_dru` | JLCPCB's standard 4-layer process as KiCad custom rules — **not generated**, and not a statement of design intent: every limit in it is JLC's *absolute minimum*, so a violation means something slipped off the design's own floor (0.3 mm track, 0.2 mm clearance, 0.6/0.3 vias, all from `net_settings`) far enough to hit the fab's. KiCad reads it by project name, so it survives regeneration untouched and the existing `kicad-cli pcb drc` pass picks it up for free — see "Fabrication & assembly at JLCPCB" |
 | `3d/board-3d-*.png` | Raytraced renders, kicad-cli — straight orthographic **top** and **bottom** only. The angled iso/front views were dropped: they look better than they read, and these images get used to check placement and silk, not to advertise |
@@ -1067,9 +1067,16 @@ idempotent.
 
 It is hierarchical: a root sheet with the notes block and one sheet symbol
 per functional area - `power`, `mcu`, `thermocouples`, `ssr`, `io`, `ct`,
-`test` - each a file under `sheets/`. Nets cross sheets as global labels,
-rails are power ports, block-local two-pin nets are drawn as wires with a
-local label. It was seeded by the retired generator from its functional
+`test` - each a file under `sheets/`. Since rev B.3 (2026-10-22) nets cross
+sheets as hierarchical labels: each sheet symbol on the root carries a pin
+per crossing net and the root wires those pins, so the root page reads as
+a block diagram. Inside a sheet exactly one label per crossing net is the
+hierarchical one (the instance nearest the block's main IC); every other
+label is local, rails are power ports, and there are no global labels at
+all. KiCad names every net after a label on the sheet that owns it
+(`/mcu/SPI_MOSI`, `/mcu/USB_DN`: a local label outranks the sheet pin on
+the root); `netlist.py` strips the path, so the board's net names did not
+change, and it still refuses two sheets reusing one local name. It was seeded by the retired generator from its functional
 grouping and is hand-owned from here; tidy a sheet in the GUI and nothing
 puts it back.
 
@@ -1078,7 +1085,8 @@ is in [`DESIGN-NOTES.md`](DESIGN-NOTES.md), one section per block, headed by
 the reference designator it was written about.
 
 
-**Rails terminate in power ports, signals in global labels.** A boxed
+**Rails terminate in power ports, signals in labels.** (History from the
+generator era, when signals were global labels.) A boxed
 global label reading `GND` and one reading `SPI_MOSI` are the same shape, so
 telling ground from a signal meant reading 3 mm of 1.27 mm text — 155 times,
 since rails were 38% of every label on the sheet (`GND` alone appeared 86
