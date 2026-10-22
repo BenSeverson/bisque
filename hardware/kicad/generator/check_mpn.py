@@ -32,11 +32,14 @@ sys.path.insert(0, os.path.dirname(__file__))
 from sexp import parse, find_all
 from gen_jlc import LCSC
 
-# Properties gen_sch.py writes, both carrying the LCSC part number. MPN holds
-# it because the C-number is this board's orderable identity and 49 of the 121
-# lines have no manufacturer part number to hold instead; see the comment at
-# the emission site in gen_sch.py.
-SOURCING_PROPS = ("MPN", "LCSC")
+# Three sourcing properties on every assembled symbol. LCSC carries the
+# distributor SKU and must match the table; MPN carries the manufacturer's own
+# part number (since rev B.3 - before that it duplicated the C-number, which
+# left nothing for a second source or a datasheet lookup to key on) and
+# Manufacturer names who makes it. Both of the latter come from LCSC's product
+# record for the C-number and are checked for presence and shape, not value.
+SOURCING_PROPS = ("MPN", "LCSC", "Manufacturer")
+C_NUMBER = __import__("re").compile(r"^C\d+$")
 
 
 def symbol_props(path):
@@ -79,12 +82,15 @@ def main(argv):
             continue
         for pname in SOURCING_PROPS:
             got = props.get(pname)
-            if got is None:
+            if not got:
                 errors.append("%s has no %s property - add it to the symbol in "
                               "the schematic" % (ref, pname))
-            elif got != want:
-                errors.append("%s %s is %r, gen_jlc.LCSC says %r"
-                              % (ref, pname, got, want))
+            elif pname == "LCSC" and got != want:
+                errors.append("%s LCSC is %r, gen_jlc.LCSC says %r"
+                              % (ref, got, want))
+            elif pname == "MPN" and C_NUMBER.match(got):
+                errors.append("%s MPN is the distributor number %r - it must be "
+                              "the manufacturer's part number" % (ref, got))
 
     # nothing carries a sourcing property it is no longer entitled to
     for ref, props in sorted(placed.items()):
@@ -100,8 +106,8 @@ def main(argv):
         for e in errors:
             print("FAIL: %s" % e)
         return 1
-    print("check_mpn: %d sourced parts carry matching MPN/LCSC properties "
-          "(%d placed symbols, %d unsourced)"
+    print("check_mpn: %d sourced parts carry LCSC (matching gen_jlc), MPN and "
+          "Manufacturer properties (%d placed symbols, %d unsourced)"
           % (len(LCSC), len(placed), len(placed) - len(LCSC)))
     return 0
 

@@ -13,8 +13,16 @@
 > the rest of 16 (every test point's Value is its net name), and a
 > standalone `make erc` target with `lib_symbol_mismatch`,
 > `endpoint_off_grid` and `same_local_global_label` promoted to errors.
-> ERC is deliberately **not** in CI. Still open: 6, 8, 11, 12, 13, 17, 18
-> and the electrical items E1–E5.
+> ERC is deliberately **not** in CI.
+>
+> **Third batch, same day:** 6 (D8, Q5–Q7 and U2 use `bisque:SMAJ30A`,
+> `bisque:CJ2310`, `bisque:TLV1117LV33`), 8 (MPN is the manufacturer's
+> number, plus `Manufacturer` and a `Datasheet` URL on all 160 sourced
+> parts, from LCSC's product records; `check_mpn.py` now checks shape, not
+> equality), 11 (J11 labels read along their wires), 17 (designator gaps
+> noted on the root sheet), 18 (U6 I4–I7 grounded), E2 (module-variant
+> note beside U1). Still open: 12, 13 (the front-end and decoupling
+> redraws) and E1, E3–E5.
 
 Reviewed the Rev B.2 schematic on branch `hw/erc-sdo-exclusion` at `e5dcc7a`
 (root `bisque-controller.kicad_sch` + the seven sheets under `sheets/`), the

@@ -4178,7 +4178,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678"
 			(at 54.61 163.83 0)
 			(hide yes)
 			(show_name no)
@@ -4200,7 +4200,7 @@
 				)
 			)
 		)
-		(property "MPN" "C49678"
+		(property "MPN" "CC0805KRX7R9BB104"
 			(at 54.61 163.83 0)
 			(hide yes)
 			(show_name no)
@@ -4212,6 +4212,17 @@
 			)
 		)
 		(property "LCSC" "C49678"
+			(at 54.61 163.83 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "YAGEO"
 			(at 54.61 163.83 0)
 			(hide yes)
 			(show_name no)
@@ -4281,7 +4292,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17414"
 			(at 24.13 50.8 0)
 			(hide yes)
 			(show_name no)
@@ -4303,7 +4314,7 @@
 				)
 			)
 		)
-		(property "MPN" "C17414"
+		(property "MPN" "0805W8F1002T5E"
 			(at 24.13 50.8 0)
 			(hide yes)
 			(show_name no)
@@ -4315,6 +4326,17 @@
 			)
 		)
 		(property "LCSC" "C17414"
+			(at 24.13 50.8 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "UNI-ROYAL"
 			(at 24.13 50.8 0)
 			(hide yes)
 			(show_name no)
@@ -4536,7 +4558,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17513"
 			(at 107.95 160.02 0)
 			(hide yes)
 			(show_name no)
@@ -4558,7 +4580,7 @@
 				)
 			)
 		)
-		(property "MPN" "C17513"
+		(property "MPN" "0805W8F1001T5E"
 			(at 107.95 160.02 0)
 			(hide yes)
 			(show_name no)
@@ -4570,6 +4592,17 @@
 			)
 		)
 		(property "LCSC" "C17513"
+			(at 107.95 160.02 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "UNI-ROYAL"
 			(at 107.95 160.02 0)
 			(hide yes)
 			(show_name no)
@@ -4639,7 +4672,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678"
 			(at 83.82 157.48 0)
 			(hide yes)
 			(show_name no)
@@ -4661,7 +4694,7 @@
 				)
 			)
 		)
-		(property "MPN" "C49678"
+		(property "MPN" "CC0805KRX7R9BB104"
 			(at 83.82 157.48 0)
 			(hide yes)
 			(show_name no)
@@ -4673,6 +4706,17 @@
 			)
 		)
 		(property "LCSC" "C49678"
+			(at 83.82 157.48 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "YAGEO"
 			(at 83.82 157.48 0)
 			(hide yes)
 			(show_name no)
@@ -4818,7 +4862,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17513"
 			(at 119.38 160.02 0)
 			(hide yes)
 			(show_name no)
@@ -4840,7 +4884,7 @@
 				)
 			)
 		)
-		(property "MPN" "C17513"
+		(property "MPN" "0805W8F1001T5E"
 			(at 119.38 160.02 0)
 			(hide yes)
 			(show_name no)
@@ -4852,6 +4896,17 @@
 			)
 		)
 		(property "LCSC" "C17513"
+			(at 119.38 160.02 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "UNI-ROYAL"
 			(at 119.38 160.02 0)
 			(hide yes)
 			(show_name no)
@@ -4921,7 +4976,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/5a3d038c44f6e3872ef57456c5bdf975.pdf?productCode=C42377749"
 			(at 90.17 204.47 0)
 			(hide yes)
 			(show_name no)
@@ -4943,7 +4998,7 @@
 				)
 			)
 		)
-		(property "MPN" "C42377749"
+		(property "MPN" "WJ500V-5.08-04P-14-00A"
 			(at 90.17 204.47 0)
 			(hide yes)
 			(show_name no)
@@ -4955,6 +5010,17 @@
 			)
 		)
 		(property "LCSC" "C42377749"
+			(at 90.17 204.47 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "KANGNEX"
 			(at 90.17 204.47 0)
 			(hide yes)
 			(show_name no)
@@ -5106,7 +5172,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/02336ea48ea44ca18c72517dd3cb7b47.pdf?productCode=C1779"
 			(at 39.37 163.83 0)
 			(hide yes)
 			(show_name no)
@@ -5128,7 +5194,7 @@
 				)
 			)
 		)
-		(property "MPN" "C1779"
+		(property "MPN" "CL21A475KAQNNNE"
 			(at 39.37 163.83 0)
 			(hide yes)
 			(show_name no)
@@ -5140,6 +5206,17 @@
 			)
 		)
 		(property "LCSC" "C1779"
+			(at 39.37 163.83 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Samsung Electro-Mechanics"
 			(at 39.37 163.83 0)
 			(hide yes)
 			(show_name no)
@@ -5361,7 +5438,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/09fe2daf22580a99fa7fea93ccb20fb7.pdf?productCode=C1739"
 			(at 110.49 195.58 0)
 			(hide yes)
 			(show_name no)
@@ -5383,7 +5460,7 @@
 				)
 			)
 		)
-		(property "MPN" "C1739"
+		(property "MPN" "0805B333K500NT"
 			(at 110.49 195.58 0)
 			(hide yes)
 			(show_name no)
@@ -5395,6 +5472,17 @@
 			)
 		)
 		(property "LCSC" "C1739"
+			(at 110.49 195.58 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "FH"
 			(at 110.49 195.58 0)
 			(hide yes)
 			(show_name no)
@@ -5464,7 +5552,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17414"
 			(at 101.6 64.77 0)
 			(hide yes)
 			(show_name no)
@@ -5486,7 +5574,7 @@
 				)
 			)
 		)
-		(property "MPN" "C17414"
+		(property "MPN" "0805W8F1002T5E"
 			(at 101.6 64.77 0)
 			(hide yes)
 			(show_name no)
@@ -5498,6 +5586,17 @@
 			)
 		)
 		(property "LCSC" "C17414"
+			(at 101.6 64.77 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "UNI-ROYAL"
 			(at 101.6 64.77 0)
 			(hide yes)
 			(show_name no)
@@ -6256,7 +6355,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678"
 			(at 156.21 46.99 0)
 			(hide yes)
 			(show_name no)
@@ -6278,7 +6377,7 @@
 				)
 			)
 		)
-		(property "MPN" "C49678"
+		(property "MPN" "CC0805KRX7R9BB104"
 			(at 156.21 46.99 0)
 			(hide yes)
 			(show_name no)
@@ -6290,6 +6389,17 @@
 			)
 		)
 		(property "LCSC" "C49678"
+			(at 156.21 46.99 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "YAGEO"
 			(at 156.21 46.99 0)
 			(hide yes)
 			(show_name no)
@@ -6359,7 +6469,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/02336ea48ea44ca18c72517dd3cb7b47.pdf?productCode=C1779"
 			(at 170.18 54.61 0)
 			(hide yes)
 			(show_name no)
@@ -6381,7 +6491,7 @@
 				)
 			)
 		)
-		(property "MPN" "C1779"
+		(property "MPN" "CL21A475KAQNNNE"
 			(at 170.18 54.61 0)
 			(hide yes)
 			(show_name no)
@@ -6393,6 +6503,17 @@
 			)
 		)
 		(property "LCSC" "C1779"
+			(at 170.18 54.61 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Samsung Electro-Mechanics"
 			(at 170.18 54.61 0)
 			(hide yes)
 			(show_name no)
@@ -6462,7 +6583,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://www.analog.com/media/en/technical-documentation/data-sheets/ADE7953.pdf"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0c903b84c79cf46488302c85f67a198a.pdf?productCode=C515890"
 			(at 71.12 86.36 0)
 			(hide yes)
 			(show_name no)
@@ -6484,7 +6605,7 @@
 				)
 			)
 		)
-		(property "MPN" "C515890"
+		(property "MPN" "ADE7953ACPZ-RL"
 			(at 71.12 86.36 0)
 			(hide yes)
 			(show_name no)
@@ -6496,6 +6617,17 @@
 			)
 		)
 		(property "LCSC" "C515890"
+			(at 71.12 86.36 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "ADI"
 			(at 71.12 86.36 0)
 			(hide yes)
 			(show_name no)
@@ -6722,7 +6854,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "http://www.onsemi.com/pub/Collateral/SRV05-4-D.PDF"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/c94a8eedc13753364c00c764db36d52a.pdf?productCode=C7420376"
 			(at 44.45 207.01 0)
 			(hide yes)
 			(show_name no)
@@ -6744,7 +6876,7 @@
 				)
 			)
 		)
-		(property "MPN" "C7420376"
+		(property "MPN" "SRV05-4"
 			(at 44.45 207.01 0)
 			(hide yes)
 			(show_name no)
@@ -6756,6 +6888,17 @@
 			)
 		)
 		(property "LCSC" "C7420376"
+			(at 44.45 207.01 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "R+O"
 			(at 44.45 207.01 0)
 			(hide yes)
 			(show_name no)
@@ -6837,7 +6980,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17513"
 			(at 97.79 195.58 0)
 			(hide yes)
 			(show_name no)
@@ -6859,7 +7002,7 @@
 				)
 			)
 		)
-		(property "MPN" "C17513"
+		(property "MPN" "0805W8F1001T5E"
 			(at 97.79 195.58 0)
 			(hide yes)
 			(show_name no)
@@ -6871,6 +7014,17 @@
 			)
 		)
 		(property "LCSC" "C17513"
+			(at 97.79 195.58 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "UNI-ROYAL"
 			(at 97.79 195.58 0)
 			(hide yes)
 			(show_name no)
@@ -7092,7 +7246,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17513"
 			(at 181.61 161.29 0)
 			(hide yes)
 			(show_name no)
@@ -7114,7 +7268,7 @@
 				)
 			)
 		)
-		(property "MPN" "C17513"
+		(property "MPN" "0805W8F1001T5E"
 			(at 181.61 161.29 0)
 			(hide yes)
 			(show_name no)
@@ -7126,6 +7280,17 @@
 			)
 		)
 		(property "LCSC" "C17513"
+			(at 181.61 161.29 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "UNI-ROYAL"
 			(at 181.61 161.29 0)
 			(hide yes)
 			(show_name no)
@@ -7271,7 +7436,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "http://www.abracon.com/Oscillators/ASV.pdf"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/e6c8ab5a68c99a6c35b598908fe8c63e.pdf?productCode=C2838127"
 			(at 127 55.88 0)
 			(hide yes)
 			(show_name no)
@@ -7293,7 +7458,7 @@
 				)
 			)
 		)
-		(property "MPN" "C2838127"
+		(property "MPN" "TFOM3.579545M4RHKCNT2T"
 			(at 127 55.88 0)
 			(hide yes)
 			(show_name no)
@@ -7305,6 +7470,17 @@
 			)
 		)
 		(property "LCSC" "C2838127"
+			(at 127 55.88 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Yajingxin"
 			(at 127 55.88 0)
 			(hide yes)
 			(show_name no)
@@ -7456,7 +7632,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17513"
 			(at 170.18 161.29 0)
 			(hide yes)
 			(show_name no)
@@ -7478,7 +7654,7 @@
 				)
 			)
 		)
-		(property "MPN" "C17513"
+		(property "MPN" "0805W8F1001T5E"
 			(at 170.18 161.29 0)
 			(hide yes)
 			(show_name no)
@@ -7490,6 +7666,17 @@
 			)
 		)
 		(property "LCSC" "C17513"
+			(at 170.18 161.29 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "UNI-ROYAL"
 			(at 170.18 161.29 0)
 			(hide yes)
 			(show_name no)
@@ -7635,7 +7822,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/02336ea48ea44ca18c72517dd3cb7b47.pdf?productCode=C1779"
 			(at 100.33 111.76 0)
 			(hide yes)
 			(show_name no)
@@ -7657,7 +7844,7 @@
 				)
 			)
 		)
-		(property "MPN" "C1779"
+		(property "MPN" "CL21A475KAQNNNE"
 			(at 100.33 111.76 0)
 			(hide yes)
 			(show_name no)
@@ -7669,6 +7856,17 @@
 			)
 		)
 		(property "LCSC" "C1779"
+			(at 100.33 111.76 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Samsung Electro-Mechanics"
 			(at 100.33 111.76 0)
 			(hide yes)
 			(show_name no)
@@ -7814,7 +8012,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/09fe2daf22580a99fa7fea93ccb20fb7.pdf?productCode=C1739"
 			(at 157.48 161.29 0)
 			(hide yes)
 			(show_name no)
@@ -7836,7 +8034,7 @@
 				)
 			)
 		)
-		(property "MPN" "C1739"
+		(property "MPN" "0805B333K500NT"
 			(at 157.48 161.29 0)
 			(hide yes)
 			(show_name no)
@@ -7848,6 +8046,17 @@
 			)
 		)
 		(property "LCSC" "C1739"
+			(at 157.48 161.29 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "FH"
 			(at 157.48 161.29 0)
 			(hide yes)
 			(show_name no)
@@ -7917,7 +8126,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17513"
 			(at 144.78 160.02 0)
 			(hide yes)
 			(show_name no)
@@ -7939,7 +8148,7 @@
 				)
 			)
 		)
-		(property "MPN" "C17513"
+		(property "MPN" "0805W8F1001T5E"
 			(at 144.78 160.02 0)
 			(hide yes)
 			(show_name no)
@@ -7951,6 +8160,17 @@
 			)
 		)
 		(property "LCSC" "C17513"
+			(at 144.78 160.02 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "UNI-ROYAL"
 			(at 144.78 160.02 0)
 			(hide yes)
 			(show_name no)
@@ -8324,7 +8544,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17513"
 			(at 71.12 219.71 0)
 			(hide yes)
 			(show_name no)
@@ -8346,7 +8566,7 @@
 				)
 			)
 		)
-		(property "MPN" "C17513"
+		(property "MPN" "0805W8F1001T5E"
 			(at 71.12 219.71 0)
 			(hide yes)
 			(show_name no)
@@ -8358,6 +8578,17 @@
 			)
 		)
 		(property "LCSC" "C17513"
+			(at 71.12 219.71 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "UNI-ROYAL"
 			(at 71.12 219.71 0)
 			(hide yes)
 			(show_name no)
@@ -8503,7 +8734,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17724"
 			(at 68.58 199.39 0)
 			(hide yes)
 			(show_name no)
@@ -8525,7 +8756,7 @@
 				)
 			)
 		)
-		(property "MPN" "C17724"
+		(property "MPN" "0805W8F510KT5E"
 			(at 68.58 199.39 0)
 			(hide yes)
 			(show_name no)
@@ -8537,6 +8768,17 @@
 			)
 		)
 		(property "LCSC" "C17724"
+			(at 68.58 199.39 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "UNI-ROYAL"
 			(at 68.58 199.39 0)
 			(hide yes)
 			(show_name no)
@@ -8606,7 +8848,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17414"
 			(at 109.22 69.85 0)
 			(hide yes)
 			(show_name no)
@@ -8628,7 +8870,7 @@
 				)
 			)
 		)
-		(property "MPN" "C17414"
+		(property "MPN" "0805W8F1002T5E"
 			(at 109.22 69.85 0)
 			(hide yes)
 			(show_name no)
@@ -8640,6 +8882,17 @@
 			)
 		)
 		(property "LCSC" "C17414"
+			(at 109.22 69.85 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "UNI-ROYAL"
 			(at 109.22 69.85 0)
 			(hide yes)
 			(show_name no)
@@ -8785,7 +9038,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/09fe2daf22580a99fa7fea93ccb20fb7.pdf?productCode=C1739"
 			(at 132.08 160.02 0)
 			(hide yes)
 			(show_name no)
@@ -8807,7 +9060,7 @@
 				)
 			)
 		)
-		(property "MPN" "C1739"
+		(property "MPN" "0805B333K500NT"
 			(at 132.08 160.02 0)
 			(hide yes)
 			(show_name no)
@@ -8819,6 +9072,17 @@
 			)
 		)
 		(property "LCSC" "C1739"
+			(at 132.08 160.02 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "FH"
 			(at 132.08 160.02 0)
 			(hide yes)
 			(show_name no)
@@ -8888,7 +9152,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678"
 			(at 24.13 163.83 0)
 			(hide yes)
 			(show_name no)
@@ -8910,7 +9174,7 @@
 				)
 			)
 		)
-		(property "MPN" "C49678"
+		(property "MPN" "CC0805KRX7R9BB104"
 			(at 24.13 163.83 0)
 			(hide yes)
 			(show_name no)
@@ -8922,6 +9186,17 @@
 			)
 		)
 		(property "LCSC" "C49678"
+			(at 24.13 163.83 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "YAGEO"
 			(at 24.13 163.83 0)
 			(hide yes)
 			(show_name no)
@@ -9295,7 +9570,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/02336ea48ea44ca18c72517dd3cb7b47.pdf?productCode=C28323"
 			(at 24.13 81.28 0)
 			(hide yes)
 			(show_name no)
@@ -9317,7 +9592,7 @@
 				)
 			)
 		)
-		(property "MPN" "C28323"
+		(property "MPN" "CL21B105KBFNNNE"
 			(at 24.13 81.28 0)
 			(hide yes)
 			(show_name no)
@@ -9329,6 +9604,17 @@
 			)
 		)
 		(property "LCSC" "C28323"
+			(at 24.13 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Samsung Electro-Mechanics"
 			(at 24.13 81.28 0)
 			(hide yes)
 			(show_name no)
@@ -9398,7 +9684,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678"
 			(at 92.71 129.54 0)
 			(hide yes)
 			(show_name no)
@@ -9420,7 +9706,7 @@
 				)
 			)
 		)
-		(property "MPN" "C49678"
+		(property "MPN" "CC0805KRX7R9BB104"
 			(at 92.71 129.54 0)
 			(hide yes)
 			(show_name no)
@@ -9432,6 +9718,17 @@
 			)
 		)
 		(property "LCSC" "C49678"
+			(at 92.71 129.54 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "YAGEO"
 			(at 92.71 129.54 0)
 			(hide yes)
 			(show_name no)
@@ -9653,7 +9950,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/02336ea48ea44ca18c72517dd3cb7b47.pdf?productCode=C15850"
 			(at 68.58 157.48 0)
 			(hide yes)
 			(show_name no)
@@ -9675,7 +9972,7 @@
 				)
 			)
 		)
-		(property "MPN" "C15850"
+		(property "MPN" "CL21A106KAYNNNE"
 			(at 68.58 157.48 0)
 			(hide yes)
 			(show_name no)
@@ -9687,6 +9984,17 @@
 			)
 		)
 		(property "LCSC" "C15850"
+			(at 68.58 157.48 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Samsung Electro-Mechanics"
 			(at 68.58 157.48 0)
 			(hide yes)
 			(show_name no)
@@ -9756,7 +10064,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17724"
 			(at 97.79 160.02 0)
 			(hide yes)
 			(show_name no)
@@ -9778,7 +10086,7 @@
 				)
 			)
 		)
-		(property "MPN" "C17724"
+		(property "MPN" "0805W8F510KT5E"
 			(at 97.79 160.02 0)
 			(hide yes)
 			(show_name no)
@@ -9790,6 +10098,17 @@
 			)
 		)
 		(property "LCSC" "C17724"
+			(at 97.79 160.02 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "UNI-ROYAL"
 			(at 97.79 160.02 0)
 			(hide yes)
 			(show_name no)

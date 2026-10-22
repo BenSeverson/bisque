@@ -1777,321 +1777,6 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "Transistor_FET:2N7002"
-			(pin_names
-				(offset 0)
-				(hide yes)
-			)
-			(exclude_from_sim no)
-			(in_bom yes)
-			(on_board yes)
-			(in_pos_files yes)
-			(duplicate_pin_numbers_are_jumpers no)
-			(property "Reference" "Q"
-				(at 5.08 1.905 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify left)
-				)
-			)
-			(property "Value" "2N7002"
-				(at 5.08 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify left)
-				)
-			)
-			(property "Footprint" "Package_TO_SOT_SMD:SOT-23"
-				(at 5.08 -1.905 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-						(italic yes)
-					)
-					(justify left)
-				)
-			)
-			(property "Datasheet" "https://www.onsemi.com/pub/Collateral/NDS7002A-D.PDF"
-				(at 5.08 -3.81 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify left)
-				)
-			)
-			(property "Description" "0.115A Id, 60V Vds, N-Channel MOSFET, SOT-23"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "ki_keywords" "N-Channel Switching MOSFET"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "ki_fp_filters" "SOT?23*"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(symbol "2N7002_0_1"
-				(polyline
-					(pts
-						(xy 0.254 1.905) (xy 0.254 -1.905)
-					)
-					(stroke
-						(width 0.254)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy 0.254 0) (xy -2.54 0)
-					)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy 0.762 2.286) (xy 0.762 1.27)
-					)
-					(stroke
-						(width 0.254)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy 0.762 0.508) (xy 0.762 -0.508)
-					)
-					(stroke
-						(width 0.254)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy 0.762 -1.27) (xy 0.762 -2.286)
-					)
-					(stroke
-						(width 0.254)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy 0.762 -1.778) (xy 3.302 -1.778) (xy 3.302 1.778) (xy 0.762 1.778)
-					)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy 1.016 0) (xy 2.032 0.381) (xy 2.032 -0.381) (xy 1.016 0)
-					)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type outline)
-					)
-				)
-				(circle
-					(center 1.651 0)
-					(radius 2.794)
-					(stroke
-						(width 0.254)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy 2.54 2.54) (xy 2.54 1.778)
-					)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(circle
-					(center 2.54 1.778)
-					(radius 0.254)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type outline)
-					)
-				)
-				(circle
-					(center 2.54 -1.778)
-					(radius 0.254)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type outline)
-					)
-				)
-				(polyline
-					(pts
-						(xy 2.54 -2.54) (xy 2.54 0) (xy 0.762 0)
-					)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy 2.921 0.381) (xy 3.683 0.381)
-					)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy 3.302 0.381) (xy 2.921 -0.254) (xy 3.683 -0.254) (xy 3.302 0.381)
-					)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-			)
-			(symbol "2N7002_1_1"
-				(pin input line
-					(at -5.08 0 0)
-					(length 2.54)
-					(name "G"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "1"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 2.54 -5.08 90)
-					(length 2.54)
-					(name "S"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "2"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 2.54 5.08 270)
-					(length 2.54)
-					(name "D"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "3"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-			)
-			(embedded_fonts no)
-		)
 		(symbol "Transistor_FET:AO3400A"
 			(pin_names
 				(offset 0)
@@ -2664,6 +2349,321 @@
 				)
 			)
 			(symbol "AO3401A_1_1"
+				(pin input line
+					(at -5.08 0 0)
+					(length 2.54)
+					(name "G"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 2.54 -5.08 90)
+					(length 2.54)
+					(name "S"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 2.54 5.08 270)
+					(length 2.54)
+					(name "D"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "bisque:CJ2310"
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "Q"
+				(at 5.08 1.905 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Value" "CJ2310"
+				(at 5.08 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Footprint" "Package_TO_SOT_SMD:SOT-23"
+				(at 5.08 -1.905 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+						(italic yes)
+					)
+					(justify left)
+				)
+			)
+			(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/047c2d04a777425c9f562b3b0285a623.pdf?productCode=C75882"
+				(at 5.08 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Description" "3 A Id, 60 V Vds, N-channel MOSFET, SOT-23, G-S-D (same pinout as 2N7002). Fitted part C75882."
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "N-Channel MOSFET 60V"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "SOT?23*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "CJ2310_0_1"
+				(polyline
+					(pts
+						(xy 0.254 1.905) (xy 0.254 -1.905)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.254 0) (xy -2.54 0)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.762 2.286) (xy 0.762 1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.762 0.508) (xy 0.762 -0.508)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.762 -1.27) (xy 0.762 -2.286)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.762 -1.778) (xy 3.302 -1.778) (xy 3.302 1.778) (xy 0.762 1.778)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.016 0) (xy 2.032 0.381) (xy 2.032 -0.381) (xy 1.016 0)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type outline)
+					)
+				)
+				(circle
+					(center 1.651 0)
+					(radius 2.794)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 2.54 2.54) (xy 2.54 1.778)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(circle
+					(center 2.54 1.778)
+					(radius 0.254)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type outline)
+					)
+				)
+				(circle
+					(center 2.54 -1.778)
+					(radius 0.254)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type outline)
+					)
+				)
+				(polyline
+					(pts
+						(xy 2.54 -2.54) (xy 2.54 0) (xy 0.762 0)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 2.921 0.381) (xy 3.683 0.381)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 3.302 0.381) (xy 2.921 -0.254) (xy 3.683 -0.254) (xy 3.302 0.381)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "CJ2310_1_1"
 				(pin input line
 					(at -5.08 0 0)
 					(length 2.54)
@@ -4270,7 +4270,7 @@
 		(uuid "d94716c5-83a1-5f9a-a9d9-c20867b8d575")
 	)
 	(symbol
-		(lib_id "Transistor_FET:2N7002")
+		(lib_id "bisque:CJ2310")
 		(at 77.47 168.91 0)
 		(unit 1)
 		(body_style 1)
@@ -4313,7 +4313,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://www.onsemi.com/pub/Collateral/NDS7002A-D.PDF"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/047c2d04a777425c9f562b3b0285a623.pdf?productCode=C75882"
 			(at 77.47 168.91 0)
 			(hide yes)
 			(show_name no)
@@ -4335,7 +4335,7 @@
 				)
 			)
 		)
-		(property "MPN" "C75882"
+		(property "MPN" "CJ2310"
 			(at 77.47 168.91 0)
 			(hide yes)
 			(show_name no)
@@ -4347,6 +4347,17 @@
 			)
 		)
 		(property "LCSC" "C75882"
+			(at 77.47 168.91 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "JSCJ"
 			(at 77.47 168.91 0)
 			(hide yes)
 			(show_name no)
@@ -4419,7 +4430,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C149504"
 			(at 191.77 158.75 0)
 			(hide yes)
 			(show_name no)
@@ -4441,7 +4452,7 @@
 				)
 			)
 		)
-		(property "MPN" "C149504"
+		(property "MPN" "0805W8F1003T5E"
 			(at 191.77 158.75 0)
 			(hide yes)
 			(show_name no)
@@ -4453,6 +4464,17 @@
 			)
 		)
 		(property "LCSC" "C149504"
+			(at 191.77 158.75 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "UNI-ROYAL"
 			(at 191.77 158.75 0)
 			(hide yes)
 			(show_name no)
@@ -4522,7 +4544,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/02336ea48ea44ca18c72517dd3cb7b47.pdf?productCode=C12891"
 			(at 168.91 96.52 0)
 			(hide yes)
 			(show_name no)
@@ -4544,7 +4566,7 @@
 				)
 			)
 		)
-		(property "MPN" "C12891"
+		(property "MPN" "CL31A226KAHNNNE"
 			(at 168.91 96.52 0)
 			(hide yes)
 			(show_name no)
@@ -4556,6 +4578,17 @@
 			)
 		)
 		(property "LCSC" "C12891"
+			(at 168.91 96.52 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Samsung Electro-Mechanics"
 			(at 168.91 96.52 0)
 			(hide yes)
 			(show_name no)
@@ -4625,7 +4658,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17557"
 			(at 22.86 148.59 0)
 			(hide yes)
 			(show_name no)
@@ -4647,7 +4680,7 @@
 				)
 			)
 		)
-		(property "MPN" "C17557"
+		(property "MPN" "0805W8F2200T5E"
 			(at 22.86 148.59 0)
 			(hide yes)
 			(show_name no)
@@ -4659,6 +4692,17 @@
 			)
 		)
 		(property "LCSC" "C17557"
+			(at 22.86 148.59 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "UNI-ROYAL"
 			(at 22.86 148.59 0)
 			(hide yes)
 			(show_name no)
@@ -4804,7 +4848,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "http://www.ti.com/lit/ds/symlink/sn74lvc1g123.pdf"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/88a979c474641330b6dc175f93646f37.pdf?productCode=C123302"
 			(at 152.4 162.56 0)
 			(hide yes)
 			(show_name no)
@@ -4826,7 +4870,7 @@
 				)
 			)
 		)
-		(property "MPN" "C123302"
+		(property "MPN" "SN74LVC1G123DCTR"
 			(at 152.4 162.56 0)
 			(hide yes)
 			(show_name no)
@@ -4838,6 +4882,17 @@
 			)
 		)
 		(property "LCSC" "C123302"
+			(at 152.4 162.56 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "TI"
 			(at 152.4 162.56 0)
 			(hide yes)
 			(show_name no)
@@ -5034,7 +5089,7 @@
 		)
 	)
 	(symbol
-		(lib_id "Transistor_FET:2N7002")
+		(lib_id "bisque:CJ2310")
 		(at 38.1 223.52 0)
 		(unit 1)
 		(body_style 1)
@@ -5077,7 +5132,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://www.onsemi.com/pub/Collateral/NDS7002A-D.PDF"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/047c2d04a777425c9f562b3b0285a623.pdf?productCode=C75882"
 			(at 38.1 223.52 0)
 			(hide yes)
 			(show_name no)
@@ -5099,7 +5154,7 @@
 				)
 			)
 		)
-		(property "MPN" "C75882"
+		(property "MPN" "CJ2310"
 			(at 38.1 223.52 0)
 			(hide yes)
 			(show_name no)
@@ -5111,6 +5166,17 @@
 			)
 		)
 		(property "LCSC" "C75882"
+			(at 38.1 223.52 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "JSCJ"
 			(at 38.1 223.52 0)
 			(hide yes)
 			(show_name no)
@@ -5183,7 +5249,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17414"
 			(at 85.09 167.64 0)
 			(hide yes)
 			(show_name no)
@@ -5205,7 +5271,7 @@
 				)
 			)
 		)
-		(property "MPN" "C17414"
+		(property "MPN" "0805W8F1002T5E"
 			(at 85.09 167.64 0)
 			(hide yes)
 			(show_name no)
@@ -5217,6 +5283,17 @@
 			)
 		)
 		(property "LCSC" "C17414"
+			(at 85.09 167.64 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "UNI-ROYAL"
 			(at 85.09 167.64 0)
 			(hide yes)
 			(show_name no)
@@ -5367,7 +5444,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "http://www.ti.com/lit/ds/symlink/sn74lvc1g123.pdf"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/88a979c474641330b6dc175f93646f37.pdf?productCode=C123302"
 			(at 191.77 115.57 0)
 			(hide yes)
 			(show_name no)
@@ -5389,7 +5466,7 @@
 				)
 			)
 		)
-		(property "MPN" "C123302"
+		(property "MPN" "SN74LVC1G123DCTR"
 			(at 191.77 115.57 0)
 			(hide yes)
 			(show_name no)
@@ -5401,6 +5478,17 @@
 			)
 		)
 		(property "LCSC" "C123302"
+			(at 191.77 115.57 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "TI"
 			(at 191.77 115.57 0)
 			(hide yes)
 			(show_name no)
@@ -5488,7 +5576,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C149504"
 			(at 212.09 121.92 0)
 			(hide yes)
 			(show_name no)
@@ -5510,7 +5598,7 @@
 				)
 			)
 		)
-		(property "MPN" "C149504"
+		(property "MPN" "0805W8F1003T5E"
 			(at 212.09 121.92 0)
 			(hide yes)
 			(show_name no)
@@ -5522,6 +5610,17 @@
 			)
 		)
 		(property "LCSC" "C149504"
+			(at 212.09 121.92 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "UNI-ROYAL"
 			(at 212.09 121.92 0)
 			(hide yes)
 			(show_name no)
@@ -5667,7 +5766,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/3f6a14f9ea2fc39f6e05d2ab0fa53e2b.pdf?productCode=C2296"
 			(at 100.33 111.76 0)
 			(hide yes)
 			(show_name no)
@@ -5689,7 +5788,7 @@
 				)
 			)
 		)
-		(property "MPN" "C2296"
+		(property "MPN" "KT-0805Y"
 			(at 100.33 111.76 0)
 			(hide yes)
 			(show_name no)
@@ -5701,6 +5800,17 @@
 			)
 		)
 		(property "LCSC" "C2296"
+			(at 100.33 111.76 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Hubei KENTO Elec"
 			(at 100.33 111.76 0)
 			(hide yes)
 			(show_name no)
@@ -5846,7 +5956,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "http://www.aosmd.com/pdfs/datasheet/AO3400A.pdf"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/130876b936da464599428c58fd8de8f6.pdf?productCode=C20917"
 			(at 224.79 110.49 0)
 			(hide yes)
 			(show_name no)
@@ -5868,7 +5978,7 @@
 				)
 			)
 		)
-		(property "MPN" "C20917"
+		(property "MPN" "AO3400A"
 			(at 224.79 110.49 0)
 			(hide yes)
 			(show_name no)
@@ -5880,6 +5990,17 @@
 			)
 		)
 		(property "LCSC" "C20917"
+			(at 224.79 110.49 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "AOS"
 			(at 224.79 110.49 0)
 			(hide yes)
 			(show_name no)
@@ -5931,7 +6052,7 @@
 			)
 		)
 		(property "Value" "WDT_CT_P"
-			(at 150.252 101.28 0)
+			(at 139.7 101.28 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -5987,7 +6108,7 @@
 		)
 	)
 	(symbol
-		(lib_id "Transistor_FET:2N7002")
+		(lib_id "bisque:CJ2310")
 		(at 77.47 97.79 0)
 		(unit 1)
 		(body_style 1)
@@ -6030,7 +6151,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://www.onsemi.com/pub/Collateral/NDS7002A-D.PDF"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/047c2d04a777425c9f562b3b0285a623.pdf?productCode=C75882"
 			(at 77.47 97.79 0)
 			(hide yes)
 			(show_name no)
@@ -6052,7 +6173,7 @@
 				)
 			)
 		)
-		(property "MPN" "C75882"
+		(property "MPN" "CJ2310"
 			(at 77.47 97.79 0)
 			(hide yes)
 			(show_name no)
@@ -6064,6 +6185,17 @@
 			)
 		)
 		(property "LCSC" "C75882"
+			(at 77.47 97.79 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "JSCJ"
 			(at 77.47 97.79 0)
 			(hide yes)
 			(show_name no)
@@ -6212,7 +6344,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/5a3d038c44f6e3872ef57456c5bdf975.pdf?productCode=C8465"
 			(at 102.87 151.13 0)
 			(hide yes)
 			(show_name no)
@@ -6234,7 +6366,7 @@
 				)
 			)
 		)
-		(property "MPN" "C8465"
+		(property "MPN" "WJ500V-5.08-2P"
 			(at 102.87 151.13 0)
 			(hide yes)
 			(show_name no)
@@ -6246,6 +6378,17 @@
 			)
 		)
 		(property "LCSC" "C8465"
+			(at 102.87 151.13 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "KANGNEX"
 			(at 102.87 151.13 0)
 			(hide yes)
 			(show_name no)
@@ -6315,7 +6458,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17414"
 			(at 85.09 96.52 0)
 			(hide yes)
 			(show_name no)
@@ -6337,7 +6480,7 @@
 				)
 			)
 		)
-		(property "MPN" "C17414"
+		(property "MPN" "0805W8F1002T5E"
 			(at 85.09 96.52 0)
 			(hide yes)
 			(show_name no)
@@ -6349,6 +6492,17 @@
 			)
 		)
 		(property "LCSC" "C17414"
+			(at 85.09 96.52 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "UNI-ROYAL"
 			(at 85.09 96.52 0)
 			(hide yes)
 			(show_name no)
@@ -6570,7 +6724,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17673"
 			(at 60.96 113.03 0)
 			(hide yes)
 			(show_name no)
@@ -6592,7 +6746,7 @@
 				)
 			)
 		)
-		(property "MPN" "C17673"
+		(property "MPN" "0805W8F4701T5E"
 			(at 60.96 113.03 0)
 			(hide yes)
 			(show_name no)
@@ -6604,6 +6758,17 @@
 			)
 		)
 		(property "LCSC" "C17673"
+			(at 60.96 113.03 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "UNI-ROYAL"
 			(at 60.96 113.03 0)
 			(hide yes)
 			(show_name no)
@@ -6901,7 +7066,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17414"
 			(at 49.53 217.17 0)
 			(hide yes)
 			(show_name no)
@@ -6923,7 +7088,7 @@
 				)
 			)
 		)
-		(property "MPN" "C17414"
+		(property "MPN" "0805W8F1002T5E"
 			(at 49.53 217.17 0)
 			(hide yes)
 			(show_name no)
@@ -6935,6 +7100,17 @@
 			)
 		)
 		(property "LCSC" "C17414"
+			(at 49.53 217.17 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "UNI-ROYAL"
 			(at 49.53 217.17 0)
 			(hide yes)
 			(show_name no)
@@ -7004,7 +7180,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17557"
 			(at 22.86 77.47 0)
 			(hide yes)
 			(show_name no)
@@ -7026,7 +7202,7 @@
 				)
 			)
 		)
-		(property "MPN" "C17557"
+		(property "MPN" "0805W8F2200T5E"
 			(at 22.86 77.47 0)
 			(hide yes)
 			(show_name no)
@@ -7038,6 +7214,17 @@
 			)
 		)
 		(property "LCSC" "C17557"
+			(at 22.86 77.47 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "UNI-ROYAL"
 			(at 22.86 77.47 0)
 			(hide yes)
 			(show_name no)
@@ -7183,7 +7370,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C149504"
 			(at 158.75 96.52 0)
 			(hide yes)
 			(show_name no)
@@ -7205,7 +7392,7 @@
 				)
 			)
 		)
-		(property "MPN" "C149504"
+		(property "MPN" "0805W8F1003T5E"
 			(at 158.75 96.52 0)
 			(hide yes)
 			(show_name no)
@@ -7217,6 +7404,17 @@
 			)
 		)
 		(property "LCSC" "C149504"
+			(at 158.75 96.52 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "UNI-ROYAL"
 			(at 158.75 96.52 0)
 			(hide yes)
 			(show_name no)
@@ -7362,7 +7560,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678"
 			(at 177.8 153.67 0)
 			(hide yes)
 			(show_name no)
@@ -7384,7 +7582,7 @@
 				)
 			)
 		)
-		(property "MPN" "C49678"
+		(property "MPN" "CC0805KRX7R9BB104"
 			(at 177.8 153.67 0)
 			(hide yes)
 			(show_name no)
@@ -7396,6 +7594,17 @@
 			)
 		)
 		(property "LCSC" "C49678"
+			(at 177.8 153.67 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "YAGEO"
 			(at 177.8 153.67 0)
 			(hide yes)
 			(show_name no)
@@ -7541,7 +7750,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/5a3d038c44f6e3872ef57456c5bdf975.pdf?productCode=C8465"
 			(at 102.87 80.01 0)
 			(hide yes)
 			(show_name no)
@@ -7563,7 +7772,7 @@
 				)
 			)
 		)
-		(property "MPN" "C8465"
+		(property "MPN" "WJ500V-5.08-2P"
 			(at 102.87 80.01 0)
 			(hide yes)
 			(show_name no)
@@ -7575,6 +7784,17 @@
 			)
 		)
 		(property "LCSC" "C8465"
+			(at 102.87 80.01 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "KANGNEX"
 			(at 102.87 80.01 0)
 			(hide yes)
 			(show_name no)
@@ -7644,7 +7864,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C149504"
 			(at 227.33 68.58 0)
 			(hide yes)
 			(show_name no)
@@ -7666,7 +7886,7 @@
 				)
 			)
 		)
-		(property "MPN" "C149504"
+		(property "MPN" "0805W8F1003T5E"
 			(at 227.33 68.58 0)
 			(hide yes)
 			(show_name no)
@@ -7678,6 +7898,17 @@
 			)
 		)
 		(property "LCSC" "C149504"
+			(at 227.33 68.58 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "UNI-ROYAL"
 			(at 227.33 68.58 0)
 			(hide yes)
 			(show_name no)
@@ -7714,7 +7945,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "b55a3322-1890-4b4b-9aac-e433dd8bcaed")
-		(property "Reference" "#PWR001"
+		(property "Reference" "#PWR0175"
 			(at 242.57 93.98 0)
 			(hide yes)
 			(show_name no)
@@ -7726,7 +7957,7 @@
 			)
 		)
 		(property "Value" "+5V"
-			(at 242.57 86.614 0)
+			(at 242.57 85.09 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -7774,7 +8005,7 @@
 		(instances
 			(project ""
 				(path "/e73561cc-8fa6-5958-924f-c86ad55d4cb9"
-					(reference "#PWR001")
+					(reference "#PWR0175")
 					(unit 1)
 				)
 			)
@@ -7824,7 +8055,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://toshiba.semicon-storage.com/info/docget.jsp?did=12884&prodName=TLP291"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/d4838a0698084997b4d18b634dc5fc08.pdf?productCode=C55144"
 			(at 41.91 95.25 0)
 			(hide yes)
 			(show_name no)
@@ -7846,7 +8077,7 @@
 				)
 			)
 		)
-		(property "MPN" "C55144"
+		(property "MPN" "TLP291(GB-TP,SE"
 			(at 41.91 95.25 0)
 			(hide yes)
 			(show_name no)
@@ -7858,6 +8089,17 @@
 			)
 		)
 		(property "LCSC" "C55144"
+			(at 41.91 95.25 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "TOSHIBA"
 			(at 41.91 95.25 0)
 			(hide yes)
 			(show_name no)
@@ -7933,7 +8175,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/3f6a14f9ea2fc39f6e05d2ab0fa53e2b.pdf?productCode=C2296"
 			(at 100.33 182.88 0)
 			(hide yes)
 			(show_name no)
@@ -7955,7 +8197,7 @@
 				)
 			)
 		)
-		(property "MPN" "C2296"
+		(property "MPN" "KT-0805Y"
 			(at 100.33 182.88 0)
 			(hide yes)
 			(show_name no)
@@ -7967,6 +8209,17 @@
 			)
 		)
 		(property "LCSC" "C2296"
+			(at 100.33 182.88 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Hubei KENTO Elec"
 			(at 100.33 182.88 0)
 			(hide yes)
 			(show_name no)
@@ -8036,7 +8289,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/8abd7fc00ebe41ffb03ad1383c10753b.pdf?productCode=C81598"
 			(at 66.04 153.67 0)
 			(hide yes)
 			(show_name no)
@@ -8058,7 +8311,7 @@
 				)
 			)
 		)
-		(property "MPN" "C81598"
+		(property "MPN" "1N4148W"
 			(at 66.04 153.67 0)
 			(hide yes)
 			(show_name no)
@@ -8070,6 +8323,17 @@
 			)
 		)
 		(property "LCSC" "C81598"
+			(at 66.04 153.67 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "ST(Semtech)"
 			(at 66.04 153.67 0)
 			(hide yes)
 			(show_name no)
@@ -8367,7 +8631,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C149504"
 			(at 60.96 217.17 0)
 			(hide yes)
 			(show_name no)
@@ -8389,7 +8653,7 @@
 				)
 			)
 		)
-		(property "MPN" "C149504"
+		(property "MPN" "0805W8F1003T5E"
 			(at 60.96 217.17 0)
 			(hide yes)
 			(show_name no)
@@ -8401,6 +8665,17 @@
 			)
 		)
 		(property "LCSC" "C149504"
+			(at 60.96 217.17 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "UNI-ROYAL"
 			(at 60.96 217.17 0)
 			(hide yes)
 			(show_name no)
@@ -8470,7 +8745,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17673"
 			(at 60.96 184.15 0)
 			(hide yes)
 			(show_name no)
@@ -8492,7 +8767,7 @@
 				)
 			)
 		)
-		(property "MPN" "C17673"
+		(property "MPN" "0805W8F4701T5E"
 			(at 60.96 184.15 0)
 			(hide yes)
 			(show_name no)
@@ -8504,6 +8779,17 @@
 			)
 		)
 		(property "LCSC" "C17673"
+			(at 60.96 184.15 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "UNI-ROYAL"
 			(at 60.96 184.15 0)
 			(hide yes)
 			(show_name no)
@@ -8649,7 +8935,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/8abd7fc00ebe41ffb03ad1383c10753b.pdf?productCode=C81598"
 			(at 66.04 82.55 0)
 			(hide yes)
 			(show_name no)
@@ -8671,7 +8957,7 @@
 				)
 			)
 		)
-		(property "MPN" "C81598"
+		(property "MPN" "1N4148W"
 			(at 66.04 82.55 0)
 			(hide yes)
 			(show_name no)
@@ -8683,6 +8969,17 @@
 			)
 		)
 		(property "LCSC" "C81598"
+			(at 66.04 82.55 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "ST(Semtech)"
 			(at 66.04 82.55 0)
 			(hide yes)
 			(show_name no)
@@ -8829,7 +9126,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "http://www.aosmd.com/pdfs/datasheet/AO3401A.pdf"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/fee353dd1e9e0bc90b295f14f381aa4c.pdf?productCode=C15127"
 			(at 240.03 97.79 0)
 			(hide yes)
 			(show_name no)
@@ -8851,7 +9148,7 @@
 				)
 			)
 		)
-		(property "MPN" "C15127"
+		(property "MPN" "AO3401A"
 			(at 240.03 97.79 0)
 			(hide yes)
 			(show_name no)
@@ -8863,6 +9160,17 @@
 			)
 		)
 		(property "LCSC" "C15127"
+			(at 240.03 97.79 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "AOS"
 			(at 240.03 97.79 0)
 			(hide yes)
 			(show_name no)
@@ -8935,7 +9243,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://toshiba.semicon-storage.com/info/docget.jsp?did=12884&prodName=TLP291"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/d4838a0698084997b4d18b634dc5fc08.pdf?productCode=C55144"
 			(at 41.91 166.37 0)
 			(hide yes)
 			(show_name no)
@@ -8957,7 +9265,7 @@
 				)
 			)
 		)
-		(property "MPN" "C55144"
+		(property "MPN" "TLP291(GB-TP,SE"
 			(at 41.91 166.37 0)
 			(hide yes)
 			(show_name no)
@@ -8969,6 +9277,17 @@
 			)
 		)
 		(property "LCSC" "C55144"
+			(at 41.91 166.37 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "TOSHIBA"
 			(at 41.91 166.37 0)
 			(hide yes)
 			(show_name no)

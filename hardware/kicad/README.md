@@ -1079,12 +1079,26 @@ the root); `netlist.py` strips the path, so the board's net names did not
 change, and it still refuses two sheets reusing one local name.
 
 `bisque.kicad_sym` (registered in the project `sym-lib-table` as `bisque`)
-holds the symbols that differ from KiCad's library on purpose. Today that
-is one: `bisque:MAX31856`, a copy of `Sensor_Temperature:MAX31856` with
-SDO typed **tri-state**, because U3 and U5 share `SPI_MISO` and the part
-really does float SDO while its CS is high. That is what lets ERC run
-with no exclusions - run it with `make erc` before committing a schematic
-change (it is not a CI gate; the netlist/board parity checks are). It was seeded by the retired generator from its functional
+holds the symbols that differ from KiCad's library on purpose, each a
+flattened copy of the stock symbol so the pins and wires did not move:
+`bisque:MAX31856` (SDO typed **tri-state**, because U3 and U5 share
+`SPI_MISO` and the part really does float SDO while its CS is high - that
+is what lets ERC run with no exclusions), `bisque:SMAJ30A` (the fitted TVS
+is unidirectional, so it is drawn as a zener with its cathode on the rail,
+not with the bidirectional `D_TVS` glyph), `bisque:CJ2310` (Q5-Q7 were
+drawn as 2N7002, which happens to share the G-S-D pinout but not the
+datasheet) and `bisque:TLV1117LV33` (the 5.5 V-input LV part, not the
+15 V TLV1117 the stock symbol links to). Run `make erc` before committing
+a schematic change (it is not a CI gate; the netlist/board parity checks
+are).
+
+Every assembled symbol carries four hidden sourcing properties: `LCSC`
+(the distributor SKU, which must match `gen_jlc.LCSC` - `check_mpn.py`
+enforces that in CI), `MPN` (the manufacturer's part number), `Manufacturer`
+and `Datasheet` (LCSC's hosted PDF for that SKU). The last three were
+filled from LCSC's product record for each C-number on 2026-10-22;
+`check_mpn.py` requires MPN and Manufacturer to be present and MPN not to
+be a bare C-number, but does not re-fetch them. It was seeded by the retired generator from its functional
 grouping and is hand-owned from here; tidy a sheet in the GUI and nothing
 puts it back.
 

@@ -89,7 +89,7 @@ DOC_FOR = {
     "JK-mSMD075-33_PPTC_C369169.pdf": "750mA/33V",
     "SS34_C8678.pdf": "SS34",
     "BZT52C8V2S_C22375294.pdf": "BZT52C8V2",
-    "CL31A226KAHNNNE_22uF_C12891.pdf": "22uF",
+    "CL31A226KAHNNNE_22uF_C12891.pdf": "22uF/25V",
     "CL31A106KBHNNNE_10uF_50V_C13585.pdf": "10uF/50V",
     "FXL0650-470-M_C475527.pdf": "47uH/2A",
     "RVT1C101M0505_C2977550.pdf": "100uF/16V",
@@ -120,11 +120,14 @@ RETIRED = {
 # connector/feature labels rather than part numbers.
 NO_DATASHEET_EXPECTED = {
     "100R", "100R 1%", "100k", "100nF", "10k", "10nF", "10uF", "1M", "1k",
-    "1uF", "22uF/25V", "33", "330R", "33nF", "4.7k", "4.7uF", "5.1k", "5R1",
+    "1uF", "33", "330R", "33nF", "4.7k", "4.7uF", "5.1k", "5R1",
     # labels on connectors, jumpers, test points and mechanical parts
     "24V_IN", "AC_SENSE_DNP", "AUX", "AUX_VP=5V", "BOOT", "CT", "DISPLAY",
     "FIDUCIAL", "INPUTS", "M3", "NAV_SW", "QWIIC", "RESET", "SSR1", "SSR2",
-    "TC1_K", "TC2_K", "TP", "USB-C", "WDT_DEFEAT", "amber", "green",
+    "TC1_K", "TC2_K", "USB-C", "WDT_DEFEAT", "amber", "green",
+    # test points: each one's Value is the net it probes (rev B.3)
+    "+3V3", "+5V", "GND", "SPI_MOSI", "SPI_SCLK", "SPI_MISO", "I2C_SDA",
+    "I2C_SCL", "SSR1_CTRL", "SSR2_CTRL", "CTA_P", "WDT_CT_P",
     "active 5V",
 }
 
