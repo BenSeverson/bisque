@@ -122,7 +122,7 @@ NO_DATASHEET_EXPECTED = {
     "100R", "100R 1%", "100k", "100nF", "10k", "10nF", "10uF", "1M", "1k",
     "1uF", "33", "330R", "33nF", "4.7k", "4.7uF", "5.1k", "5R1",
     # labels on connectors, jumpers, test points and mechanical parts
-    "24V_IN", "AC_SENSE_DNP", "AUX", "AUX_VP=5V", "BOOT", "CT", "DISPLAY",
+    "24V_IN", "AUX", "AUX_VP=5V", "BOOT", "CT", "DISPLAY",
     "FIDUCIAL", "INPUTS", "M3", "NAV_SW", "QWIIC", "RESET", "SSR1", "SSR2",
     "TC1_K", "TC2_K", "USB-C", "WDT_DEFEAT", "amber", "green",
     # test points: each one's Value is the net it probes (rev B.3)

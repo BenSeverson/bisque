@@ -11813,63 +11813,6 @@
 			)
 		)
 		(comp
-			(ref "J13")
-			(value "AC_SENSE_DNP")
-			(footprint "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical")
-			(description "Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
-			(fields
-				(field
-					(name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical")
-				(field
-					(name "Datasheet")
-				)
-				(field
-					(name "Description") "Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
-			)
-			(libsource
-				(lib "Connector_Generic")
-				(part "Conn_01x02")
-				(description "Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
-			)
-			(property
-				(name "Sheetname")
-				(value "ct")
-			)
-			(property
-				(name "Sheetfile")
-				(value "sheets/ct.kicad_sch")
-			)
-			(property
-				(name "dnp")
-			)
-			(property
-				(name "ki_keywords")
-				(value "connector")
-			)
-			(property
-				(name "ki_fp_filters")
-				(value "Connector*:*_1x??_*")
-			)
-			(sheetpath
-				(names "/ct/")
-				(tstamps "/6c704e24-0c23-5bb2-a84e-a8ccbf5f5ca5/")
-			)
-			(tstamps "8b6022c1-2520-53b5-90cb-dec3470a1029")
-			(units
-				(unit
-					(name "A")
-					(pins
-						(pin
-							(num "1")
-						)
-						(pin
-							(num "2")
-						)
-					)
-				)
-			)
-		)
-		(comp
 			(ref "R30")
 			(value "10k")
 			(footprint "Resistor_SMD:R_0805_2012Metric")
@@ -13642,40 +13585,6 @@
 				(pin
 					(num "SH")
 					(name "SHIELD")
-					(type "passive")
-				)
-			)
-		)
-		(libpart
-			(lib "Connector_Generic")
-			(part "Conn_01x02")
-			(description "Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
-			(footprints
-				(fp "Connector*:*_1x??_*")
-			)
-			(fields
-				(field
-					(name "Reference") "J")
-				(field
-					(name "Value") "Conn_01x02")
-				(field
-					(name "Footprint")
-				)
-				(field
-					(name "Datasheet")
-				)
-				(field
-					(name "Description") "Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
-			)
-			(pins
-				(pin
-					(num "1")
-					(name "Pin_1")
-					(type "passive")
-				)
-				(pin
-					(num "2")
-					(name "Pin_2")
 					(type "passive")
 				)
 			)
@@ -16056,12 +15965,6 @@
 			(name "/ct/ADE_VN")
 			(class "Default")
 			(node
-				(ref "J13")
-				(pin "2")
-				(pinfunction "Pin_2_2")
-				(pintype "passive")
-			)
-			(node
 				(ref "R61")
 				(pin "1")
 				(pintype "passive")
@@ -16077,12 +15980,6 @@
 			(code "11")
 			(name "/ct/ADE_VP")
 			(class "Default")
-			(node
-				(ref "J13")
-				(pin "1")
-				(pinfunction "Pin_1_1")
-				(pintype "passive")
-			)
 			(node
 				(ref "R60")
 				(pin "1")

@@ -1129,8 +1129,6 @@ BLOCK_LEGENDS = {
     "J9": _bl("N", 0.9),
     "J10": _bl("N", 0.9),
     "J12": _bl("N", 0.9),
-    # 0.8: `AC SENSE DNP` is the longest name here on the smallest block.
-    "J13": _bl("N", 0.8),
     # The one entry that asks for more than the standoff. J14's own
     # designator wants the gap directly above the connector, and this label
     # has the whole 5 mm band between J7 and J14 to sit in, so it gives way
@@ -1149,12 +1147,6 @@ BLOCK_LEGEND_NAME = {
     # The rail is AUX_VP and the block is an output bank. `AUX` beside a
     # terminal somebody wires does not say which way the current goes.
     "J10": "AUX OUT",
-    # DNP = do not populate: the ADE7953's voltage channel (VP/VN),
-    # deliberately unfitted because no mains touches this board. The header
-    # exists so a future isolated AC accessory is a firmware change rather
-    # than a respin. The dash of `AC SENSE - DNP` is dropped for the 1.6 mm
-    # that keeps the name clear of C31's designator.
-    "J13": "AC SENSE DNP",
     # The one connector whose name does not say what it speaks, at the bottom
     # edge beside the input terminal - the one place a wrong guess costs a
     # 3.3 V part. It is also the one connector with NO per-terminal legend
@@ -1278,9 +1270,8 @@ STRIP_FP_SILK = {"C_0402_1005Metric"}
 # (pad_centres) and the standoff from the real drawn body (fp_body_box), so
 # nothing here is a coordinate anyone has to maintain when a part moves.
 #
-# J13 and J14 deliberately have none. J13 is a DNP 0.1" pair, and J14 is a
-# keyed 1 mm Qwiic housing - a pitch that takes no readable text and a
-# connector a user cannot insert wrongly.
+# J14 deliberately has none: a keyed 1 mm Qwiic housing is a pitch that takes
+# no readable text and a connector a user cannot insert wrongly.
 J5_PINS = ("5V", "GND", "CS", "RST", "DC", "SDI", "SCK", "BL",
            "SDO", "TCK", "TCS", "TDI", "TDO", "IRQ")
 J6_PINS = ("UP", "DN", "LT", "RT", "OK", "G")
@@ -1567,12 +1558,6 @@ def bind(comps, edge):
         # J12's top is 74.17, so there is an 18 mm strip here and nothing else
         # wants it.
         block_legend("J12"),
-        # J13's legend, and it has to be centred ON J13 to say so. At (100, 76)
-        # it printed 1.30 mm from J13 but 0.37 mm from C35 and 0.77 mm from the
-        # ADE7953, straight across that chip's own value text, so the one part it
-        # was not obviously describing was the header. What it says, and why it
-        # is not just the Value, is in BLOCK_LEGEND_NAME above.
-        block_legend("J13"),
         # LED1's legend, and it follows LED1 (design.py). North of the LED: south
         # is D3, and further south is J5's pin-name row, where a stray word reads
         # as a fifteenth display pin - the mistake `SSR2` made from TP10 before

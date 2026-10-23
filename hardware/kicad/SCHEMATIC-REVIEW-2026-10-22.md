@@ -43,6 +43,13 @@
 > courtyard), so none was moved. The copper that fed the five dropped pads
 > (eight segments and one via, 15.5 mm, mostly +5V's spur from U2.3) is
 > gone and DRC is at 0/0.
+>
+> **J13 (2026-10-23):** the DNP SELV header on the ADE7953's voltage
+> channel is gone; true power measurement is not a planned feature, so
+> the provision for an off-board AC-sense accessory went with it. VP/VN
+> stay held at GND by R60/R61. On the board the header's two through-hole
+> pads were also the layer change in each net's route, so a via now sits
+> where each pad was. `gen_jlc.DNP` is empty.
 
 Reviewed the Rev B.2 schematic on branch `hw/erc-sdo-exclusion` at `e5dcc7a`
 (root `bisque-controller.kicad_sch` + the seven sheets under `sheets/`), the

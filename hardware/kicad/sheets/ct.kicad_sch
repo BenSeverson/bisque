@@ -2602,7 +2602,7 @@
 			(embedded_fonts no)
 		)
 	)
-	(text "CT CURRENT SENSING  ADE7953, I2C, current-only\nno mains - VP/VN to DNP J13"
+	(text "CT CURRENT SENSING  ADE7953, I2C, current-only\nno mains - VP/VN held at GND by R60/R61"
 		(exclude_from_sim no)
 		(at 22 29.4 0)
 		(effects
@@ -2797,16 +2797,6 @@
 			(type default)
 		)
 		(uuid "16cb7132-7f84-5fc1-9247-ae9f4f4c531c")
-	)
-	(wire
-		(pts
-			(xy 133.35 187.96) (xy 130.81 187.96)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "19cf878f-4a90-58e8-9ec6-163e42c82dbb")
 	)
 	(wire
 		(pts
@@ -3510,16 +3500,6 @@
 	)
 	(wire
 		(pts
-			(xy 133.35 190.5) (xy 130.81 190.5)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "d74950b2-df21-5b5f-b910-f45c906376cd")
-	)
-	(wire
-		(pts
 			(xy 58.42 93.98) (xy 36.83 93.98)
 		)
 		(stroke
@@ -3778,16 +3758,6 @@
 		)
 		(uuid "17680c7c-39f5-5091-8ccb-ea5034ad56e8")
 	)
-	(label "ADE_VP"
-		(at 130.81 187.96 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "48c34533-76e4-5324-a1f1-f261d49f6ee4")
-	)
 	(label "ADE_REF"
 		(at 100.33 99.06 180)
 		(effects
@@ -3937,16 +3907,6 @@
 			(justify left bottom)
 		)
 		(uuid "c0392e59-9609-517f-a8e5-6a2ab1b6ebb5")
-	)
-	(label "ADE_VN"
-		(at 130.81 190.5 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "c9061293-b37d-5567-99ec-76dd3f8fb8d7")
 	)
 	(label "CTA_F"
 		(at 63.5 187.96 0)
@@ -6174,87 +6134,6 @@
 			(project "bisque-controller"
 				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/6c704e24-0c23-5bb2-a84e-a8ccbf5f5ca5"
 					(reference "#PWR0210")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Connector_Generic:Conn_01x02")
-		(at 138.43 187.96 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp yes)
-		(uuid "8b6022c1-2520-53b5-90cb-dec3470a1029")
-		(property "Reference" "J13"
-			(at 133.35 182.88 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "AC_SENSE_DNP"
-			(at 133.35 184.78 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical"
-			(at 138.43 187.96 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 138.43 187.96 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)"
-			(at 138.43 187.96 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "4dc5e7e1-442a-5631-9e92-8a4f68680303")
-		)
-		(pin "2"
-			(uuid "b183b047-f254-5578-b49a-7b6e7a179785")
-		)
-		(instances
-			(project "bisque-controller"
-				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/6c704e24-0c23-5bb2-a84e-a8ccbf5f5ca5"
-					(reference "J13")
 					(unit 1)
 				)
 			)

@@ -322,9 +322,9 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   mains voltage sensing on this board, power is estimated as
   `Irms × configured nominal mains voltage` (±3–5%), adequate for
   element-health diagnosis and cost estimation. The voltage-channel pins
-  are routed to a **DNP** 2-pin SELV header (**J13**) for a possible future
-  off-board isolated-AC accessory — not fitted, no mains anywhere on this
-  PCB.
+  (VP/VN) are held at GND by R60/R61 and go nowhere else: no mains anywhere
+  on this PCB, and no provision for an AC-sense accessory (rev B.3 dropped
+  the DNP header that used to bring them out).
 - **I2C expansion — J7 pins 5–8 and J14 (Qwiic/STEMMA-QT)**: `I2C_SDA`
   / `I2C_SCL`, on-board pull-ups (R44/R45, 4.7 kΩ).
   Carries the on-board ADE7953 today; open for an RTC breakout, an SHT4x RH
@@ -552,7 +552,6 @@ lines covering 109 machine-placed parts) plus `jlcpcb/hand-solder-parts.csv`
 | J5 | Molex KK-254 friction-lock header 1×14 | 2.54 mm THT |
 | J6 | Molex KK-254 friction-lock header 1×6 | 2.54 mm THT |
 | J7 | Molex KK-254 friction-lock header 1×8 | 2.54 mm THT |
-| J13 | 2-pin header, **DNP** (AC-sense SELV, not fitted) | 2.54 mm THT |
 | J14 | JST SH SM04B-SRSS-TB | Qwiic/STEMMA-QT, 1 mm SMD, **side entry** — pinned to the bottom edge so the cavity faces off-board |
 | BZ1 | active buzzer 5 V | 12 mm THT, 7.6 mm pitch |
 | SW1, SW2 | XKB TS-1187A tactile switch | 5.1 × 5.1 mm SMD |
@@ -825,8 +824,8 @@ cannot wire up, and that is the line you notice missing a week later.
 | Molex KK 254 crimp housing, 6 ckt (2695-06RP) | **22-01-3067** | 1 | J6 NAV_SW |
 | Molex KK 254 female crimp terminal, 30-22 AWG, tin (series 2759) | **08-50-0114** | 28 | one per circuit |
 
-Only the KK-254 wafers need them. The screw terminals clamp bare wire, `J13`
-is DNP, and `J14` is a JST SH Qwiic socket you buy a ready-made cable for.
+Only the KK-254 wafers need them. The screw terminals clamp bare wire, and
+`J14` is a JST SH Qwiic socket you buy a ready-made cable for.
 
 The quantities are **derived from the board, not typed**: `mating_rows()` in
 `gen_jlc.py` reads each header's own pin map, so 14 + 6 + 8 = 28 terminals

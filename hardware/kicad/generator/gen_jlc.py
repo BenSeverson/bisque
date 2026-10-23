@@ -18,8 +18,8 @@ hand-solder-parts.csv instead — see that table for why. JLCPCB's PCBA upload
 rejects a CPL carrying designators the BOM doesn't have, so a part must drop
 out of both or neither.
 
-Designators in NOT_ASSEMBLED (test points, solder jumpers, the DNP AC-sense
-header) are excluded even earlier, before HAND_SOLDER is consulted — they
+Designators in NOT_ASSEMBLED (test points, solder jumpers, fiducials) are
+excluded even earlier, before HAND_SOLDER is consulted — they
 have no manufactured part at all, so they must not appear in the shopping
 list either.
 """
@@ -472,10 +472,7 @@ LCSC = {
 # TP3-TP6/TP9/TP10/TP12: 1 mm bring-up test pads (Task 13) - bare copper, nothing to
 # place or buy. SJ1/SJ2: open solder-jumper footprints (AUX_VP<-+5V link and
 # the WDT bring-up defeat) - populated with solder, not a component. SJ3/SJ4
-# went with the optocouplers (see DESIGN-NOTES.md's SSR block). J13: a
-# fitted-but-DNP 2-pin header for a future SELV AC-sense accessory (Task 10)
-# - "NO MAINS ON THIS BOARD" per DESIGN-NOTES.md, so this build does not stuff it.
-# FID1-3: optical alignment targets, bare copper on no net. They must be
+# went with the optocouplers (see DESIGN-NOTES.md's SSR block). FID1-3: optical alignment targets, bare copper on no net. They must be
 # listed HERE and not left to the H-prefix rule assembly_refs() uses for the
 # mounting holes - a designator that is neither H-prefixed nor in this set
 # reaches the BOM as a blank-LCSC row, i.e. a part to "buy" that is not a
@@ -483,33 +480,21 @@ LCSC = {
 NOT_ASSEMBLED = {
     "TP3", "TP4", "TP5", "TP6", "TP9", "TP10", "TP12",
     "SJ1", "SJ2",
-    "J13",
     "FID1", "FID2", "FID3",
 }
 
 # Parts that ARE parts, and are deliberately not fitted. Distinct from
-# NOT_ASSEMBLED above, and the distinction is the whole point: the eighteen
-# refs up there are mostly not parts at all. A test point is a bare pad, a
-# solder jumper is copper, a fiducial is bare copper - there is nothing to
-# populate, so calling them "do not populate" asserts something false.
+# NOT_ASSEMBLED above, and the distinction is the whole point: the refs up
+# there are mostly not parts at all. A test point is a bare pad, a solder
+# jumper is copper, a fiducial is bare copper - there is nothing to populate,
+# so calling them "do not populate" asserts something false.
 #
-# J13 is the real case. It is a 2-pin header that could be fitted and is not:
-# the board ships with the ADE7953's voltage channel unconnected (which is why
-# R60/R61 exist, to stop VP/VN floating), and fitting J13 is how someone opts
-# into mains voltage sensing later.
-#
-# Consumed on BOTH sides - gen_sch.py writes `(dnp yes)` and kicad_build.py
-# sets the footprint attribute - so the schematic and the board agree by
-# construction and `--schematic-parity` has nothing to disagree about.
-#
-# What this buys, measured rather than assumed: KiCad greys the symbol and
-# draws a red X through it in the exported schematic. Before it, the only
-# thing in the schematic saying J13 is unfitted was its value string,
-# `AC_SENSE_DNP` - and the schematic PDF is what someone opens when they are
-# deciding whether to wire the voltage channel. The netlist is unaffected:
-# setting it adds one property and leaves the component and both its pins in
-# their nets, so check_netlist.py sees no change.
-DNP = {"J13"}
+# Empty since rev B.3. J13, the DNP header for the ADE7953's voltage channel,
+# was the one real case until the voltage-sense option was dropped for good;
+# VP/VN are held at GND by R60/R61 and go nowhere else. A ref here is
+# consumed on BOTH sides - `(dnp yes)` in the schematic and the footprint
+# attribute on the board - so the two agree by construction.
+DNP = set()
 
 # Parts fitted by hand rather than by JLCPCB.
 #
@@ -598,8 +583,8 @@ MOUSER_ALT = {
 # tell them from the parts that get soldered down.
 #
 # Only the KK-254 wafers need them. The screw terminals (J2-J4, J8-J12) clamp
-# bare wire, J13 is a DNP header (NOT_ASSEMBLED), and J14 is a JST SH Qwiic
-# socket wired with a ready-made cable rather than a crimped one.
+# bare wire, and J14 is a JST SH Qwiic socket wired with a ready-made cable
+# rather than a crimped one.
 #
 # The chain of fact, because this file's own rule is not to pattern-match the
 # digits - the KK family has four different 14-circuit vertical friction-lock
@@ -676,8 +661,7 @@ def assembly_refs():
     """Refs that go to assembly, in design order.
 
     Excludes mounting holes (H-prefixed) and NOT_ASSEMBLED (board features
-    with no manufactured part - test points, solder jumpers, the DNP
-    AC-sense header).
+    with no manufactured part - test points, solder jumpers, fiducials).
     """
     return [ref for ref in COMPONENTS
             if not ref.startswith("H") and ref not in NOT_ASSEMBLED]

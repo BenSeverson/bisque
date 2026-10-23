@@ -1551,12 +1551,13 @@ Two current channels, one per SSR zone. I2C rather than SPI: the bus
 exists for the expansion header anyway (Task 11), so the chip costs
 zero extra GPIOs.
 
-NO MAINS ON THIS BOARD. The voltage channel (VP/VN) is unpopulated and
-goes to J13, a DNP SELV header, so a future off-board isolated AC
-accessory upgrades this to true power in firmware alone. IRMS is
-reported against a configured nominal mains voltage until then
-(REV-B-NOTES.md SS1: IRMSA/IRMSB are computed entirely within the
-current signal path and do not depend on VP/VN).
+NO MAINS ON THIS BOARD. The voltage channel (VP/VN) is unused: held at
+GND by R60/R61 and brought out to nothing. Rev B.3 dropped J13, the DNP
+SELV header that kept an off-board isolated AC accessory possible, as
+true power measurement is not a planned feature. IRMS is reported
+against a configured nominal mains voltage (REV-B-NOTES.md SS1:
+IRMSA/IRMSB are computed entirely within the current signal path and do
+not depend on VP/VN).
 
 Every value below is taken from hardware/kicad/datasheets/REV-B-NOTES.md
 (ADE7953 Rev. C), which OVERRIDES the task brief's guessed values.
@@ -1760,10 +1761,10 @@ the 3.58 mm of clear row between the `A-` and `A+` marks.
 
 ## R60 (design.py line 2076)
 
-ADE7953 voltage-channel inputs. J13 is DNP, so without these VP and VN
-are floating PGA inputs and the datasheet gives no guidance for that
-state. 1k to GND on each defines them and matches the current channels'
-series resistance, so fitting J13 later needs no other change.
+ADE7953 voltage-channel inputs. Nothing drives them, so without these
+VP and VN are floating PGA inputs and the datasheet gives no guidance
+for that state. 1k to GND on each defines them (REV-B-NOTES.md SS1,
+"Handling of the unused voltage inputs").
 
 ## D6 (design.py line 2099)
 
@@ -1771,16 +1772,6 @@ Spec SS5.5's second SRV05-4 (the first, D5, covers the dry-contact
 inputs). NOT on the thermocouple inputs - array leakage into a
 ~40uV/degC source is an accuracy error, not protection. SRV05-4
 pinout matches D5's: 1 IO1, 2 GND, 3 IO2, 4 IO3, 5 VP(+3V3), 6 IO4.
-
-## J13 (design.py line 2113)
-
-DNP: SELV AC voltage input for a future true-power upgrade. Not
-fitted - NO MAINS ON THIS BOARD. REV-B-NOTES.md SS1 ("Handling of the
-unused voltage inputs"): the datasheet gives no explicit guidance for
-leaving VP/VN floating (COULD NOT VERIFY #4); this DNP header is the
-engineering recommendation - it keeps the high-impedance PGA inputs
-off a floating net on a board that also carries SSR switching, while
-leaving the pins genuinely unpopulated absent the header being fitted.
 
 ## general (design.py line 2130)
 
