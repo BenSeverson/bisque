@@ -50,6 +50,17 @@
 > stay held at GND by R60/R61. On the board the header's two through-hole
 > pads were also the layer change in each net's route, so a via now sits
 > where each pad was. `gen_jlc.DNP` is empty.
+>
+> **E5 (2026-10-23):** the watchdog timing pair is R46 1 MΩ (C17514,
+> JLCPCB Basic, same UNI-ROYAL family as the 100k) with C38 ∥ C49, two
+> 1 µF 50 V X7R 0805 from the line C5/C37 already use, so no feeder fee
+> was added: a single 2.2 µF X7R 0805 and every ≥10 µF 1206 X7R at LCSC
+> are Extended. Window 2.0–2.2 s nominal, 1.3–3.1 s worst case with
+> every term a datasheet or purchase figure (including the one-shot's
+> ±0.25 µA timing-pin leakage, which 1 MΩ makes an 11 % term); the
+> firmware's heartbeat-timeout assertion moved from 1650 to 1280 ms.
+> C49 sits east of C38; SSR1_CTRL and LCD_BL were re-run by hand to make
+> the room, and the two timing nets re-routed.
 
 Reviewed the Rev B.2 schematic on branch `hw/erc-sdo-exclusion` at `e5dcc7a`
 (root `bisque-controller.kicad_sch` + the seven sheets under `sheets/`), the

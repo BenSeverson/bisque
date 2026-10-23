@@ -234,11 +234,11 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   Every **rising edge** on `WDT_KICK` restarts U10's window, so `Q` stays high
   only while firmware keeps kicking; a pin wedged at either level delivers no
   edge and expires the window exactly like a pin that stopped, which is the
-  whole point. R46 (100 kΩ) and C38 (22 µF) set the window to **1.65–2.71 s**
-  worst-case over −40…125 °C, every term of that bound a datasheet or
-  purchase-tolerance figure. Firmware kicks at 5 Hz from the existing 100 ms
-  SSR timer, gated on `safety_task`'s heartbeat
-  (`components/safety/wdt_kick.h`) — 8.3× margin at the minimum window. R48
+  whole point. R46 (1 MΩ) and C38 ∥ C49 (2 × 1 µF X7R) set the window to
+  **1.3–3.1 s** worst-case over −40…125 °C (2.0–2.2 s nominal), every term of
+  that bound a datasheet or purchase-tolerance figure. Firmware kicks at 5 Hz
+  from the existing 100 ms SSR timer, gated on `safety_task`'s heartbeat
+  (`components/safety/wdt_kick.h`) — 6.4× margin at the minimum window. R48
   (100 kΩ) holds `B` low whenever the MCU drives nothing, so a floating CMOS
   input cannot self-trigger the one-shot during boot ROM, flashing or reset.
 

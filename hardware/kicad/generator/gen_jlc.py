@@ -158,6 +158,7 @@ JLC_PLACEMENT = {
     "C17414":   (  0,  0.000,  0.000),   # R1    R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17621":   (  0,  0.000,  0.000),   # R63   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17513":   (  0,  0.000,  0.000),   # R9    R_0805_2012Metric                    resid 0.088 (2 pin#)
+    "C17514":   (  0,  0.000,  0.000),   # R46   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17557":   (  0,  0.000,  0.000),   # R6    R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17630":   (  0,  0.000,  0.000),   # R3    R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17634":   (  0,  0.000,  0.000),   # R39   R_0805_2012Metric                    resid 0.088 (2 pin#)
@@ -284,7 +285,7 @@ LCSC = {
     "C35": ("C15850", "CL21A106KAYNNNE 10uF 25V X5R 0805", True, True),
     "C36": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
     "C37": ("C28323", "CL21B105KBFNNNE 1uF 50V X7R 0805", True, True),
-    "C38": ("C12891", "CL31A226KAHNNNE 22uF 25V X5R 1206", True, True),
+    "C38": ("C28323", "CL21B105KBFNNNE 1uF 50V X7R 0805", True, True),
     "C39": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
     "C40": ("C1739", "0805B333K500NT 33nF 50V X7R 0805", True, True),
     "C41": ("C13585", "CL31A106KBHNNNE 10uF 50V X5R 1206", True, True),
@@ -301,6 +302,7 @@ LCSC = {
     # beside the mux; see DESIGN-NOTES.md at C47. Basic, so no feeder.
     "C47": ("C52923", "CL05A105KA5NQNC 1uF 25V X5R 0402", True, True),
     "C48": ("C52923", "CL05A105KA5NQNC 1uF 25V X5R 0402", True, True),
+    "C49": ("C28323", "CL21B105KBFNNNE 1uF 50V X7R 0805", True, True),
     "D3": ("C81598", "1N4148W SOD-123 - VLED drop diode, silicon on purpose", True, True),
     "D4": ("C81598", "1N4148W SOD-123", True, True),
     "D5": ("C7420376", "SRV05-4 TVS array SOT-23-6", True, True),
@@ -408,7 +410,7 @@ LCSC = {
     "R43": ("C17634", "33R 0805 1%", True, True),
     "R44": ("C17673", "4.7k 0805 1%", True, True),
     "R45": ("C17673", "4.7k 0805 1%", True, True),
-    "R46": ("C149504", "100k 0805 1%", True, True),
+    "R46": ("C17514", "1M 0805 1%", True, True),
     "R47": ("C149504", "100k 0805 1%", True, True),
     "R48": ("C149504", "100k 0805 1%", True, True),
     "R49": ("C149504", "100k 0805 1%", True, True),

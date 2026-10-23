@@ -6910,21 +6910,21 @@
 		)
 		(comp
 			(ref "C38")
-			(value "22uF/25V")
-			(footprint "Capacitor_SMD:C_1206_3216Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/02336ea48ea44ca18c72517dd3cb7b47.pdf?productCode=C12891")
+			(value "1uF")
+			(footprint "Capacitor_SMD:C_0805_2012Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/02336ea48ea44ca18c72517dd3cb7b47.pdf?productCode=C28323")
 			(description "Unpolarized capacitor")
 			(fields
 				(field
-					(name "MPN") "CL31A226KAHNNNE")
+					(name "MPN") "CL21B105KBFNNNE")
 				(field
-					(name "LCSC") "C12891")
+					(name "LCSC") "C28323")
 				(field
 					(name "Manufacturer") "Samsung Electro-Mechanics")
 				(field
-					(name "Footprint") "Capacitor_SMD:C_1206_3216Metric")
+					(name "Footprint") "Capacitor_SMD:C_0805_2012Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/02336ea48ea44ca18c72517dd3cb7b47.pdf?productCode=C12891")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/02336ea48ea44ca18c72517dd3cb7b47.pdf?productCode=C28323")
 				(field
 					(name "Description") "Unpolarized capacitor")
 			)
@@ -6935,11 +6935,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "CL31A226KAHNNNE")
+				(value "CL21B105KBFNNNE")
 			)
 			(property
 				(name "LCSC")
-				(value "C12891")
+				(value "C28323")
 			)
 			(property
 				(name "Manufacturer")
@@ -7038,6 +7038,78 @@
 				(tstamps "/9f5358df-46db-5b0b-b8f6-c2f90039d70a/")
 			)
 			(tstamps "aed21e2b-59f9-5316-a4ec-4f19dd657bcf")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C49")
+			(value "1uF")
+			(footprint "Capacitor_SMD:C_0805_2012Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/02336ea48ea44ca18c72517dd3cb7b47.pdf?productCode=C28323")
+			(description "Unpolarized capacitor")
+			(fields
+				(field
+					(name "MPN") "CL21B105KBFNNNE")
+				(field
+					(name "LCSC") "C28323")
+				(field
+					(name "Manufacturer") "Samsung Electro-Mechanics")
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0805_2012Metric")
+				(field
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/02336ea48ea44ca18c72517dd3cb7b47.pdf?productCode=C28323")
+				(field
+					(name "Description") "Unpolarized capacitor")
+			)
+			(libsource
+				(lib "Device")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "MPN")
+				(value "CL21B105KBFNNNE")
+			)
+			(property
+				(name "LCSC")
+				(value "C28323")
+			)
+			(property
+				(name "Manufacturer")
+				(value "Samsung Electro-Mechanics")
+			)
+			(property
+				(name "Sheetname")
+				(value "ssr")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheets/ssr.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/ssr/")
+				(tstamps "/9f5358df-46db-5b0b-b8f6-c2f90039d70a/")
+			)
+			(tstamps "a2ff77ba-917c-5ec2-aa0b-fd657a68b9c4")
 			(units
 				(unit
 					(name "A")
@@ -8437,21 +8509,21 @@
 		)
 		(comp
 			(ref "R46")
-			(value "100k")
+			(value "1M")
 			(footprint "Resistor_SMD:R_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C149504")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17514")
 			(description "Resistor")
 			(fields
 				(field
-					(name "MPN") "0805W8F1003T5E")
+					(name "MPN") "0805W8F1004T5E")
 				(field
-					(name "LCSC") "C149504")
+					(name "LCSC") "C17514")
 				(field
 					(name "Manufacturer") "UNI-ROYAL")
 				(field
 					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C149504")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17514")
 				(field
 					(name "Description") "Resistor")
 			)
@@ -8462,11 +8534,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "0805W8F1003T5E")
+				(value "0805W8F1004T5E")
 			)
 			(property
 				(name "LCSC")
-				(value "C149504")
+				(value "C17514")
 			)
 			(property
 				(name "Manufacturer")
@@ -17883,6 +17955,11 @@
 				(pintype "passive")
 			)
 			(node
+				(ref "C49")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
 				(ref "U10")
 				(pin "6")
 				(pinfunction "Cext_6")
@@ -17895,6 +17972,11 @@
 			(class "Default")
 			(node
 				(ref "C38")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C49")
 				(pin "2")
 				(pintype "passive")
 			)

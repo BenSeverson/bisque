@@ -147,8 +147,9 @@ permission rail) is live without starting a profile.
 - [ ] **Watchdog window.** Scope TP12 and `SSR_EN`. `SSR_EN` is R18's
       non-ground pad, which reads ~5 V while firmware runs. Press and hold
       RESET. The time from TP12's last retrigger to `SSR_EN`
-      falling should be **1.65–2.71 s**. Record the number; it is the one
-      safety-path figure that is extrapolated rather than specified.
+      falling should be **1.3–3.1 s** (2.0–2.2 s nominal). Record the
+      number; it is the one safety-path figure that is extrapolated rather
+      than specified.
 - [ ] **SSR2 stays off.** With `SSR_EN` live, R20's non-ground pad
       (`SSR2_GATE`) reads **below 0.3 V**, and LED4 and the J9 dummy stay
       dark. If the gate sits higher, something is lifting `SSR2_CTRL` despite

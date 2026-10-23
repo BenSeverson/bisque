@@ -50,7 +50,7 @@ void safety_init_io(int alarm_gpio, int vent_gpio, int lid_gpio);
  *
  * The pin retriggers a monostable whose output gates BOTH SSR opto channels: if
  * it stops transitioning, or wedges at either level, both SSRs de-energize
- * within the monostable's window (~1.7-2.7 s) regardless of what firmware
+ * within the monostable's window (~1.3-3.1 s) regardless of what firmware
  * commands. The kick itself is emitted by the existing 100 ms SSR timer and is
  * gated on safety_task's heartbeat, so it stops when supervision stops.
  *

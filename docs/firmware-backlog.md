@@ -54,7 +54,7 @@ The board changed with it. The rev B diode charge pump did not work — 0.63 V o
 gate drive at 5 Hz against a 1.45 V threshold, and 0.84 V even typical — and
 could not be rescued by a faster kick, because Schottky reverse leakage sits in
 its timing path and roughly doubles per 10 °C. It is now an SN74LVC1G123
-retriggerable monostable (U10) with a 1.65–2.71 s worst-case window. **Still
+retriggerable monostable (U10) with a 1.3–3.1 s worst-case window. **Still
 fit SJ2 on any board built before that respin.** See `hardware/kicad/README.md`
 §"Hardware watchdog".
 

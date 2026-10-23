@@ -4269,6 +4269,38 @@
 		)
 		(uuid "d94716c5-83a1-5f9a-a9d9-c20867b8d575")
 	)
+	(wire
+		(pts
+			(xy 168.91 92.71) (xy 179.07 92.71)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f2a6f34f-ee09-5cf7-a32b-b67f8307e010")
+	)
+	(wire
+		(pts
+			(xy 168.91 100.33) (xy 179.07 100.33)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6ae5c783-2be1-5087-8fe7-f0c27620f27e")
+	)
+	(junction
+		(at 168.91 92.71)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "d6a8469c-6a06-5ebc-a9d1-1c07781f1dd5")
+	)
+	(junction
+		(at 168.91 100.33)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "21360be2-a919-5f85-977e-a65d24483ca8")
+	)
 	(symbol
 		(lib_id "bisque:CJ2310")
 		(at 77.47 168.91 0)
@@ -4522,7 +4554,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "22uF/25V"
+		(property "Value" "1uF"
 			(at 171.842 97.47 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4533,7 +4565,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric"
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
 			(at 168.91 96.52 0)
 			(hide yes)
 			(show_name no)
@@ -4544,7 +4576,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/02336ea48ea44ca18c72517dd3cb7b47.pdf?productCode=C12891"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/02336ea48ea44ca18c72517dd3cb7b47.pdf?productCode=C28323"
 			(at 168.91 96.52 0)
 			(hide yes)
 			(show_name no)
@@ -4566,7 +4598,7 @@
 				)
 			)
 		)
-		(property "MPN" "CL31A226KAHNNNE"
+		(property "MPN" "CL21B105KBFNNNE"
 			(at 168.91 96.52 0)
 			(hide yes)
 			(show_name no)
@@ -4577,7 +4609,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C12891"
+		(property "LCSC" "C28323"
 			(at 168.91 96.52 0)
 			(hide yes)
 			(show_name no)
@@ -4609,6 +4641,120 @@
 			(project "bisque-controller"
 				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/9f5358df-46db-5b0b-b8f6-c2f90039d70a"
 					(reference "C38")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 179.07 96.52 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "a2ff77ba-917c-5ec2-aa0b-fd657a68b9c4")
+		(property "Reference" "C49"
+			(at 182.002 95.57 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "1uF"
+			(at 182.002 97.47 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+			(at 179.07 96.52 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/02336ea48ea44ca18c72517dd3cb7b47.pdf?productCode=C28323"
+			(at 179.07 96.52 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Unpolarized capacitor"
+			(at 179.07 96.52 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "CL21B105KBFNNNE"
+			(at 179.07 96.52 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C28323"
+			(at 179.07 96.52 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Samsung Electro-Mechanics"
+			(at 179.07 96.52 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "148b5c59-d30e-5cec-b6b1-40d7546d17e4")
+		)
+		(pin "2"
+			(uuid "4aa9ed83-21b8-5bd2-969f-3d5aa93f0765")
+		)
+		(instances
+			(project "bisque-controller"
+				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/9f5358df-46db-5b0b-b8f6-c2f90039d70a"
+					(reference "C49")
 					(unit 1)
 				)
 			)
@@ -7348,7 +7494,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "100k"
+		(property "Value" "1M"
 			(at 160.666 97.47 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7370,7 +7516,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C149504"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17514"
 			(at 158.75 96.52 0)
 			(hide yes)
 			(show_name no)
@@ -7392,7 +7538,7 @@
 				)
 			)
 		)
-		(property "MPN" "0805W8F1003T5E"
+		(property "MPN" "0805W8F1004T5E"
 			(at 158.75 96.52 0)
 			(hide yes)
 			(show_name no)
@@ -7403,7 +7549,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C149504"
+		(property "LCSC" "C17514"
 			(at 158.75 96.52 0)
 			(hide yes)
 			(show_name no)

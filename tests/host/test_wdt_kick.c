@@ -6,9 +6,10 @@
 #include "unity.h"
 #include "wdt_kick.h"
 
-/* Worst-case monostable window, 100k x 22uF over -40..125 C with tolerance and
- * derating. Mirrors the figure in design.py's watchdog block. */
-#define WDT_WINDOW_MIN_MS 1650u
+/* Worst-case minimum monostable window, 1M x (2 x 1uF X7R) over -40..125 C with
+ * tolerance, aging and the one-shot's timing-pin leakage. Mirrors the figure in
+ * DESIGN-NOTES.md's one-shot block (and the "Hardware watchdog" README section). */
+#define WDT_WINDOW_MIN_MS 1280u
 
 void setUp(void)
 {

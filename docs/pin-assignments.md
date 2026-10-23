@@ -148,11 +148,11 @@ fed from `VIN_P` (24 V) and stay live; it is the switched low side that opens.
 
 Firmware toggles the pin at **5 Hz** — a rising edge every 200 ms — gated on
 `safety_task`'s heartbeat (`components/safety/wdt_kick.h`), against a
-worst-case one-shot window of 1.65–2.71 s (R46 100 kΩ × C38 22 µF): 8.3×
-margin at the minimum window. Every rising edge restarts the window, and a
+worst-case one-shot window of 1.3–3.1 s (R46 1 MΩ × C38 ∥ C49, 2 × 1 µF
+X7R): 6.4× margin at the minimum window. Every rising edge restarts the window, and a
 pin wedged high or low delivers no edge, so it fails exactly like a pin that
 stopped. When the kick stops — firmware death, a wedged core, supervision
-lost — the window expires and both SSR outputs de-energize within 2.71 s,
+lost — the window expires and both SSR outputs de-energize within 3.1 s,
 regardless of what the firmware's outputs command.
 
 The one-shot replaced rev B's BAT54S diode charge pump, which could not hold

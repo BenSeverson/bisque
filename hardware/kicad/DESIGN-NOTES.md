@@ -1222,7 +1222,7 @@ WDT_KICK (U1.29, a firmware square wave) retriggers U10, a one-shot
 whose Q output keeps Q3 enhanced, Q3 holds SSR_PG (the gate of the
 high-side switch Q4) down, and Q4 supplies SSR_EN - the +5V rail that
 feeds both opto collectors (U8/U9) and Q7's gate. Stop
-kicking and the window (1.65-2.71s worst case, R46*C38, see
+kicking and the window (1.3-3.1s worst case, R46*(C38+C49), see
 arithmetic below) expires, Q falls, R47 pulls SSR_PG to +5V, Q4 turns
 off, R18 pulls SSR_EN down, and both channels open - the optos lose
 their collector rail and Q7 loses its gate, either of which is
@@ -1275,21 +1275,30 @@ defeat jumper are unchanged - only what holds Q3's gate up has changed.
 
 Window: tw ~= K*R*C with K = 1.0-1.1, the datasheet's own spec'd bound
 at its 10k x 0.1uF anchor, and the same limits at 125C as at 85C.
-R46 100k 1% and C38 22uF 25V 1206, with 10% purchase tolerance and a
-15% bias/temp derating allowance, give a worst-case window of
-1.65-2.71s. Firmware kicks at 5 Hz (a rising edge every 200 ms), so the
-margin is 8.3x at the minimum window. A wedged controller loses the rail
-within 2.71s - 0.22 C of overshoot on a 60 kJ/K kiln at 5 kW, against a
-runaway timescale of ~16 minutes.
+R46 1M 1% and C38 || C49, two 1uF 50V X7R 0805 (rev B.3, schematic
+review E5 - the 22uF X5R 1206 they replace is unspecified above 85C,
+loses capacitance to DC bias, and ages faster), give 2.0-2.2s nominal.
+Worst case, every term a datasheet or purchase figure: C +-10%
+tolerance, +-15% over -40..125C (X7R's whole range), -5% bias and
+aging; R +-1%; and the one-shot's Rext/Cext I/O leakage, +-0.25uA
+against a ~2.3uA mean charge current through 1M, +-11%. That is
+1.3-3.1s. Firmware kicks at 5 Hz (a rising edge every 200 ms), so the
+margin is 6.4x at the minimum window, and wdt_kick.h's 900 ms heartbeat
+timeout plus one kick period (1100 ms) still lands inside the 1.28s
+minimum - tests/host/test_wdt_kick.c asserts it, with 180 ms to spare.
+A wedged controller loses the rail within 3.1s - 0.26 C of overshoot on
+a 60 kJ/K kiln at 5 kW, against a runaway timescale of ~16 minutes.
 
-Both values are already on this BOM (R46 -> C149504, C38 -> C12891), so
-neither adds a feeder. U10 does: it is Extended and not Preferred, +$3.
-Note the BAT54S it replaces was Extended-but-PREFERRED, i.e. fee-free -
-removing it saves nothing. See gen_jlc.LCSC's note on that distinction.
-
-Leakage now lives where it is specified: the Rext/Cext I/O leakage is
-+-0.25uA against a 33uA charge current, 0.8%, over the full -40..125C
-range. That is the whole reason this is an IC and not an RC.
+The leakage term is the price of 1M: at the old 100k it was 0.8%. The
+way to buy it back is a smaller R with a bigger X7R cap, and every 1206
+X7R of 10uF or more at LCSC is Extended (+$3 feeder) - as is a single
+2.2uF X7R 0805, which is why two 1uF from the line C5/C37 already use
+sit in parallel instead. R46 moves from C149504 (100k) to C17514 (1M),
+same UNI-ROYAL 0805 family and JLCPCB Basic, so the swap adds no fee;
+C49 is a second placement from an existing line. U10 remains the one
+Extended-and-not-Preferred part in this block, +$3. Note the BAT54S it
+replaced was Extended-but-PREFERRED, i.e. fee-free - removing it saved
+nothing. See gen_jlc.LCSC's note on that distinction.
 
 Q3's gate drive becomes Q's VOH, ~3.2V, which finally clears the 2.5V
 point where the AO3400A guarantees ANY Rds(on) - the corner the pump

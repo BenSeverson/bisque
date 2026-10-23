@@ -96,6 +96,7 @@ DOC_FOR = {
     "1N4148W_C81598.pdf": "1N4148W",
     "0805W8F2200T5E_220R_C17557.pdf": "220R",
     "0805W8F3002T5E_30k_C17621.pdf": "30k",
+    "0805W8F1004T5E_1M_C17514.pdf": "1M",
 }
 
 # Datasheets for parts this board USED to fit. Kept rather than deleted - they
@@ -119,7 +120,7 @@ RETIRED = {
 # passives ordered by value and tolerance, and the "values" that are really
 # connector/feature labels rather than part numbers.
 NO_DATASHEET_EXPECTED = {
-    "100R", "100R 1%", "100k", "100nF", "10k", "10nF", "10uF", "1M", "1k",
+    "100R", "100R 1%", "100k", "100nF", "10k", "10nF", "10uF", "1k",
     "1uF", "33", "330R", "33nF", "4.7k", "4.7uF", "5.1k", "5R1",
     # labels on connectors, jumpers, test points and mechanical parts
     "24V_IN", "AUX", "AUX_VP=5V", "BOOT", "CT", "DISPLAY",

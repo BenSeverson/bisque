@@ -19,10 +19,12 @@
  * missed means a supervision pass did not complete, which is the condition the
  * watchdog exists to report.
  *
- * The budget it has to fit inside is the monostable's worst-case window
- * (1.65 s): this timeout plus one kick period must expire the window later than
- * the firmware notices, or the hardware cuts power before the firmware can say
- * why. 900 + 200 = 1100 ms leaves 550 ms of headroom — asserted in the tests. */
+ * The budget it has to fit inside is the monostable's worst-case minimum window
+ * (1.28 s, 1 MΩ x 2 x 1 µF X7R over -40..125 C with tolerance, aging and the
+ * one-shot's timing-pin leakage): this timeout plus one kick period must expire
+ * the window later than the firmware notices, or the hardware cuts power before
+ * the firmware can say why. 900 + 200 = 1100 ms leaves 180 ms of headroom —
+ * asserted in the tests. */
 #define WDT_HEARTBEAT_TIMEOUT_MS 900u
 
 /* Rising edge every 200 ms (the 100 ms SSR timer toggles the pin each call). */
