@@ -3069,6 +3069,24 @@
 		(uuid "86d7f405-a850-57fc-8874-9613422bf217")
 	)
 	(junction
+		(at 322.58 114.3)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "8b0d9c8f-3f29-5f8c-a50a-3d5303b8522e")
+	)
+	(junction
+		(at 322.58 53.34)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "94b68c70-41ad-5fab-9894-fa5a512c2cf0")
+	)
+	(junction
+		(at 322.58 83.82)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "abae06aa-af4b-592d-951e-cdf24e0eef9f")
+	)
+	(junction
 		(at 27.94 63.5)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -3081,24 +3099,36 @@
 		(uuid "d740bec3-f653-5317-8d73-29ef23b1d084")
 	)
 	(junction
+		(at 314.96 83.82)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "de985f9a-389d-54b3-810f-fba5955007e2")
+	)
+	(junction
+		(at 314.96 53.34)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "e2d554dd-7940-514c-8953-c7f8ee2fdc07")
+	)
+	(junction
+		(at 314.96 114.3)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "e8b8952a-667e-5292-97d8-09524738218a")
+	)
+	(junction
 		(at 175.26 49.53)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "f2975a53-c244-5068-a41c-0d9ec8faf85b")
 	)
-	(junction
-		(at 289.56 59.69)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "f2a047bb-4051-5e81-a6f5-38c90ef1de46")
+	(no_connect
+		(at 323.85 144.78)
+		(uuid "36fec20c-63f5-5325-8d18-c7f52b015e75")
 	)
 	(no_connect
 		(at 50.8 60.96)
 		(uuid "4f523692-75f4-5df3-9bef-8703663826c7")
-	)
-	(no_connect
-		(at 323.85 59.69)
-		(uuid "81cd7e73-7f82-4e89-8496-ee9030b37f34")
 	)
 	(no_connect
 		(at 50.8 63.5)
@@ -3114,23 +3144,13 @@
 	)
 	(wire
 		(pts
-			(xy 281.94 44.45) (xy 290.83 44.45)
+			(xy 323.85 149.86) (xy 326.39 149.86)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "0398dfd8-c71c-5b0a-b5db-f20c0faaf9ce")
-	)
-	(wire
-		(pts
-			(xy 312.42 111.76) (xy 312.42 114.3)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "07cae23d-ea65-5f4a-8d1e-f2e1a6d01411")
+		(uuid "0715d8aa-7e49-5b2c-995a-11da2e0b7767")
 	)
 	(wire
 		(pts
@@ -3144,6 +3164,26 @@
 	)
 	(wire
 		(pts
+			(xy 322.58 114.3) (xy 322.58 116.84)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0c48e508-0c6a-5fb1-a553-22c7ed8ad47e")
+	)
+	(wire
+		(pts
+			(xy 322.58 83.82) (xy 330.2 83.82)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "111ca868-c45d-5fed-92ac-8ad2fe16b0fc")
+	)
+	(wire
+		(pts
 			(xy 30.48 60.96) (xy 27.94 60.96)
 		)
 		(stroke
@@ -3154,13 +3194,13 @@
 	)
 	(wire
 		(pts
-			(xy 311.15 49.53) (xy 311.15 46.99)
+			(xy 311.15 160.02) (xy 311.15 162.56)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "1529ae10-2cd7-5784-8d9c-ea8e1f1a5c16")
+		(uuid "1540b3cd-ef3c-58bf-9b9e-3335c7a947b4")
 	)
 	(wire
 		(pts
@@ -3214,6 +3254,26 @@
 	)
 	(wire
 		(pts
+			(xy 284.48 114.3) (xy 293.37 114.3)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "21bbacda-6bc0-52ad-bfe8-0faf330fc9ff")
+	)
+	(wire
+		(pts
+			(xy 314.96 83.82) (xy 322.58 83.82)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "239c2df2-7ce9-5aa8-a3d5-872cde227676")
+	)
+	(wire
+		(pts
 			(xy 30.48 63.5) (xy 27.94 63.5)
 		)
 		(stroke
@@ -3221,16 +3281,6 @@
 			(type default)
 		)
 		(uuid "2693eb09-6522-5e8f-837c-9aac6596a65c")
-	)
-	(wire
-		(pts
-			(xy 311.15 74.93) (xy 311.15 77.47)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "26f4cde1-0d6c-50e0-9eca-dccd23890da8")
 	)
 	(wire
 		(pts
@@ -3254,6 +3304,16 @@
 	)
 	(wire
 		(pts
+			(xy 298.45 144.78) (xy 295.91 144.78)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2b560db5-18da-5c0a-8339-2a503ad60aee")
+	)
+	(wire
+		(pts
 			(xy 27.94 63.5) (xy 27.94 66.04)
 		)
 		(stroke
@@ -3264,23 +3324,13 @@
 	)
 	(wire
 		(pts
-			(xy 273.05 49.53) (xy 273.05 53.34)
+			(xy 314.96 53.34) (xy 322.58 53.34)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "2c2ea439-872f-4bcf-b317-8ac2f7f0599b")
-	)
-	(wire
-		(pts
-			(xy 274.32 104.14) (xy 274.32 101.6)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "3632f34d-153a-5179-8313-939504e80cce")
+		(uuid "3363b50d-be1f-5545-b82d-110816338db5")
 	)
 	(wire
 		(pts
@@ -3294,16 +3344,6 @@
 	)
 	(wire
 		(pts
-			(xy 289.56 59.69) (xy 298.45 59.69)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "3fc2d2d4-bcfd-5533-ade4-c2fa439efbc7")
-	)
-	(wire
-		(pts
 			(xy 99.06 53.34) (xy 99.06 55.88)
 		)
 		(stroke
@@ -3311,16 +3351,6 @@
 			(type default)
 		)
 		(uuid "431c4565-9159-5eec-a00c-2e78554103cd")
-	)
-	(wire
-		(pts
-			(xy 281.94 81.28) (xy 281.94 83.82)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "433d193c-6746-55b7-a03f-46d82685a3a3")
 	)
 	(wire
 		(pts
@@ -3344,13 +3374,13 @@
 	)
 	(wire
 		(pts
-			(xy 274.32 111.76) (xy 274.32 114.3)
+			(xy 300.99 114.3) (xy 314.96 114.3)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "482c188a-0ed9-5095-b038-41efb403e45c")
+		(uuid "4da584b3-cc47-5348-b633-8433c8763611")
 	)
 	(wire
 		(pts
@@ -3364,16 +3394,6 @@
 	)
 	(wire
 		(pts
-			(xy 355.6 44.45) (xy 355.6 41.91)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "544ef201-54f0-5e2f-acf3-f8a977677c8d")
-	)
-	(wire
-		(pts
 			(xy 99.06 45.72) (xy 99.06 43.18)
 		)
 		(stroke
@@ -3384,6 +3404,16 @@
 	)
 	(wire
 		(pts
+			(xy 281.94 60.96) (xy 281.94 66.04)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "56286ca7-82b5-58d4-953d-713ac92cc5f2")
+	)
+	(wire
+		(pts
 			(xy 110.49 53.34) (xy 110.49 55.88)
 		)
 		(stroke
@@ -3391,16 +3421,6 @@
 			(type default)
 		)
 		(uuid "584eba76-c983-5b75-93f7-4286ae056f0d")
-	)
-	(wire
-		(pts
-			(xy 344.17 43.18) (xy 344.17 40.64)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "5976997d-d151-54bb-8e74-0c8622e3e6bf")
 	)
 	(wire
 		(pts
@@ -3424,6 +3444,16 @@
 	)
 	(wire
 		(pts
+			(xy 314.96 111.76) (xy 314.96 114.3)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6f11ca23-fc81-553e-9afa-ff4e5e01357d")
+	)
+	(wire
+		(pts
 			(xy 27.94 60.96) (xy 27.94 63.5)
 		)
 		(stroke
@@ -3434,33 +3464,13 @@
 	)
 	(wire
 		(pts
-			(xy 312.42 104.14) (xy 312.42 101.6)
+			(xy 281.94 55.88) (xy 287.02 55.88)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "7202fdd4-b366-5a24-907c-e9b2efcb3e9d")
-	)
-	(wire
-		(pts
-			(xy 298.45 64.77) (xy 295.91 64.77)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "793ad2f2-eeaa-4f03-b66b-38e083e07411")
-	)
-	(wire
-		(pts
-			(xy 290.83 46.99) (xy 288.29 46.99)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "7dde6189-3d1f-587c-bdc4-9927796915c1")
+		(uuid "7fda206a-4762-53cd-9524-b9f74d936118")
 	)
 	(wire
 		(pts
@@ -3474,26 +3484,6 @@
 	)
 	(wire
 		(pts
-			(xy 370.84 50.8) (xy 370.84 53.34)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "83522383-9984-5cd7-8390-ee77c7df7357")
-	)
-	(wire
-		(pts
-			(xy 370.84 43.18) (xy 370.84 40.64)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "83583fbc-93f0-5007-8092-fee542f0f2b6")
-	)
-	(wire
-		(pts
 			(xy 26.67 91.44) (xy 24.13 91.44)
 		)
 		(stroke
@@ -3501,16 +3491,6 @@
 			(type default)
 		)
 		(uuid "84032122-a85c-5e2b-a8f0-7ffdcb22954a")
-	)
-	(wire
-		(pts
-			(xy 300.99 102.87) (xy 300.99 100.33)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "84a50349-dfd7-59fd-994f-8f38a6eb39e8")
 	)
 	(wire
 		(pts
@@ -3524,23 +3504,33 @@
 	)
 	(wire
 		(pts
-			(xy 288.29 115.57) (xy 288.29 118.11)
+			(xy 314.96 50.8) (xy 314.96 53.34)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "8b72baa1-4429-54b0-be60-83aa6f496b3c")
+		(uuid "89a20599-f0ec-5df4-9261-09a7c59b4598")
 	)
 	(wire
 		(pts
-			(xy 289.56 76.2) (xy 289.56 78.74)
+			(xy 287.02 83.82) (xy 293.37 83.82)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "965f4819-b6d0-54e2-9cd8-6cf69db102ed")
+		(uuid "8bf41352-81bb-5e5f-ada7-5c61d23e69e5")
+	)
+	(wire
+		(pts
+			(xy 311.15 134.62) (xy 311.15 132.08)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9118072f-3775-584a-8301-002f34e19a2c")
 	)
 	(wire
 		(pts
@@ -3564,23 +3554,43 @@
 	)
 	(wire
 		(pts
-			(xy 289.56 41.91) (xy 290.83 41.91)
+			(xy 322.58 114.3) (xy 330.2 114.3)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "996ad30f-bcad-5831-85f2-4a26bfb9e472")
+		(uuid "9931ceb2-40c9-5ea0-a9e1-ee2dbf9c17a8")
 	)
 	(wire
 		(pts
-			(xy 290.83 49.53) (xy 273.05 49.53)
+			(xy 322.58 53.34) (xy 322.58 55.88)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "9ca676dd-c07d-4b53-81eb-48a0b7ee5f5b")
+		(uuid "9cc06856-5aa1-5d28-af95-07aa0a3df137")
+	)
+	(wire
+		(pts
+			(xy 322.58 53.34) (xy 330.2 53.34)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9d4cce07-28ac-5ceb-a813-9ce5af6ff2f9")
+	)
+	(wire
+		(pts
+			(xy 298.45 149.86) (xy 295.91 149.86)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9e0609ff-d866-5dbd-a1c4-09e9fe1cc260")
 	)
 	(wire
 		(pts
@@ -3594,13 +3604,13 @@
 	)
 	(wire
 		(pts
-			(xy 344.17 50.8) (xy 344.17 53.34)
+			(xy 314.96 114.3) (xy 322.58 114.3)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "a3ff2565-2d0a-5c2e-90ef-40d325200873")
+		(uuid "a6d5ec12-ee14-587e-b9ff-6858572fc3a9")
 	)
 	(wire
 		(pts
@@ -3611,16 +3621,6 @@
 			(type default)
 		)
 		(uuid "ab8df79b-190b-51b0-96c9-d30fe3f8a3ac")
-	)
-	(wire
-		(pts
-			(xy 289.56 68.58) (xy 289.56 41.91)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "aceb4242-08a0-53f9-8265-746f5e6be74e")
 	)
 	(wire
 		(pts
@@ -3644,16 +3644,6 @@
 	)
 	(wire
 		(pts
-			(xy 355.6 52.07) (xy 355.6 54.61)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "b21b95e8-a40b-51b1-af56-f68f0c509c46")
-	)
-	(wire
-		(pts
 			(xy 73.66 45.72) (xy 71.12 45.72)
 		)
 		(stroke
@@ -3661,6 +3651,16 @@
 			(type default)
 		)
 		(uuid "b6370eec-8d2c-533a-9891-5f80c1b84db2")
+	)
+	(wire
+		(pts
+			(xy 287.02 55.88) (xy 287.02 83.82)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b749cd70-8346-5d25-8bd7-6969c927fbab")
 	)
 	(wire
 		(pts
@@ -3674,6 +3674,16 @@
 	)
 	(wire
 		(pts
+			(xy 314.96 81.28) (xy 314.96 83.82)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d41e0d64-01d6-5bfb-b1ed-4deef68267d1")
+	)
+	(wire
+		(pts
 			(xy 175.26 49.53) (xy 175.26 57.15)
 		)
 		(stroke
@@ -3684,13 +3694,23 @@
 	)
 	(wire
 		(pts
-			(xy 281.94 73.66) (xy 281.94 44.45)
+			(xy 281.94 53.34) (xy 293.37 53.34)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "e39a0926-c1c4-5ea4-824e-53d27dd9e20c")
+		(uuid "e12636e1-9e07-59ad-95bf-f9ca3fc6f534")
+	)
+	(wire
+		(pts
+			(xy 284.48 58.42) (xy 284.48 114.3)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e4accda5-9b65-5109-86e9-8c9abbc35424")
 	)
 	(wire
 		(pts
@@ -3704,33 +3724,33 @@
 	)
 	(wire
 		(pts
-			(xy 323.85 64.77) (xy 326.39 64.77)
+			(xy 281.94 58.42) (xy 284.48 58.42)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "eee9bf21-5c7f-4069-8062-1a8058a989a6")
+		(uuid "eaf2b63e-6e22-56d0-8539-adc40545228b")
 	)
 	(wire
 		(pts
-			(xy 300.99 110.49) (xy 300.99 113.03)
+			(xy 300.99 83.82) (xy 314.96 83.82)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "efb4a2a4-dbfc-54f2-af9e-f3fc88403e84")
+		(uuid "ef1c0307-9bef-56ad-ae86-4a07a02ff693")
 	)
 	(wire
 		(pts
-			(xy 288.29 107.95) (xy 288.29 105.41)
+			(xy 322.58 83.82) (xy 322.58 86.36)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "f205ec7b-5e7d-5bbc-96bb-1926de2cd5d3")
+		(uuid "ef613621-e51e-591f-ac2b-d9229f5d6e12")
 	)
 	(wire
 		(pts
@@ -3752,15 +3772,15 @@
 		)
 		(uuid "fc1dab93-5963-562e-a3d9-5fd8e8c6eb3c")
 	)
-	(label "IN3_RAW"
-		(at 295.91 64.77 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
+	(wire
+		(pts
+			(xy 300.99 53.34) (xy 314.96 53.34)
 		)
-		(uuid "0b93ca5a-2f92-4a4c-9b64-8ccb315c9050")
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "fed44e05-dc78-5d85-9f7c-4c4ca0260c6d")
 	)
 	(label "AUX1"
 		(at 87.63 43.18 90)
@@ -3773,44 +3793,14 @@
 		(uuid "2af78c5d-72d2-5a32-9509-fef9cfe01b25")
 	)
 	(label "IN1_RAW"
-		(at 289.56 41.91 180)
+		(at 295.91 144.78 180)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify right bottom)
 		)
-		(uuid "388aa4e4-bfd3-5e0f-90e2-90e126a7488a")
-	)
-	(label "IN2_RAW"
-		(at 326.39 64.77 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "4a5ee2ee-9ad9-4227-9966-c18f608f7f8a")
-	)
-	(label "IN2_RAW"
-		(at 281.94 44.45 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "5e2dce63-2eff-54b2-9be4-d1506ec2b68a")
-	)
-	(label "IN3"
-		(at 300.99 113.03 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "6481e9df-fdf8-586b-830b-0b8689038c36")
+		(uuid "35748bcb-d589-5c7d-aa8a-b19177a3905a")
 	)
 	(label "AUX3_OUT"
 		(at 73.66 53.34 180)
@@ -3822,15 +3812,15 @@
 		)
 		(uuid "7126ad51-04d1-44f6-896a-e8b546cbe000")
 	)
-	(label "IN1"
-		(at 355.6 41.91 90)
+	(label "IN3_RAW"
+		(at 284.48 114.3 0)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left bottom)
 		)
-		(uuid "769a886b-834e-56a5-83d5-0c6a10ce9f57")
+		(uuid "73fabebb-f7b4-55b1-a72d-a529c3bc41e3")
 	)
 	(label "AUX1_OUT"
 		(at 73.66 48.26 180)
@@ -3842,15 +3832,15 @@
 		)
 		(uuid "79d0e9d7-cab7-4914-af47-a4046acebe50")
 	)
-	(label "IN2"
-		(at 281.94 83.82 270)
+	(label "IN3_RAW"
+		(at 295.91 149.86 180)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify right bottom)
 		)
-		(uuid "7ca7c032-358d-5d87-843c-bed4a50b2a9f")
+		(uuid "84e875d0-7c0e-5fe3-8053-ad208e35e29d")
 	)
 	(label "AUX3_OUT"
 		(at 50.8 48.26 0)
@@ -3862,6 +3852,16 @@
 		)
 		(uuid "879cca6c-84e7-4dc0-9b6c-d754fce87e19")
 	)
+	(label "IN2_RAW"
+		(at 326.39 149.86 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "99b7d7be-7e13-522f-9b38-c04ee19a29f4")
+	)
 	(label "AUX_VP"
 		(at 39.37 91.44 0)
 		(effects
@@ -3871,6 +3871,16 @@
 			(justify left bottom)
 		)
 		(uuid "9b3c6d0f-6a23-5950-96a9-95ee4c9302e3")
+	)
+	(label "IN1_RAW"
+		(at 284.48 53.34 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "b14dc839-d906-579e-b303-02f0fd6a8c50")
 	)
 	(label "AUX3"
 		(at 110.49 43.18 90)
@@ -3892,6 +3902,16 @@
 		)
 		(uuid "c0ca26b6-6268-5fd6-8185-7e8308801438")
 	)
+	(label "IN2_RAW"
+		(at 287.02 83.82 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "c0daad76-9e28-5361-9d0b-5b20bd21c56a")
+	)
 	(label "AUX2"
 		(at 99.06 43.18 90)
 		(effects
@@ -3902,26 +3922,6 @@
 		)
 		(uuid "c3287278-a79a-5b7f-8391-eb0e0f573fea")
 	)
-	(label "IN1"
-		(at 344.17 53.34 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "c411fd20-9079-51ab-bfd8-24e5d6f7e1ec")
-	)
-	(label "IN3_RAW"
-		(at 288.29 46.99 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "c4f4b971-5d77-5f00-86b5-6d4200d11955")
-	)
 	(label "AUX_VP"
 		(at 53.34 43.18 0)
 		(effects
@@ -3931,16 +3931,6 @@
 			(justify left bottom)
 		)
 		(uuid "c6540be1-8b4f-5aaf-8c20-0657000910d6")
-	)
-	(label "IN3"
-		(at 312.42 101.6 90)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "cf74c730-dd4e-5f9f-9676-7f74f6c9412a")
 	)
 	(label "AUX2_OUT"
 		(at 62.23 50.8 180)
@@ -3962,16 +3952,6 @@
 		)
 		(uuid "d7a2a2c3-a4f6-5aba-8206-a6de43c29400")
 	)
-	(label "IN3_RAW"
-		(at 288.29 105.41 90)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "dc5c81e4-53bd-50a8-b27d-d328cb409377")
-	)
 	(label "AUX1_OUT"
 		(at 50.8 53.34 0)
 		(effects
@@ -3992,27 +3972,6 @@
 		)
 		(uuid "dfb91ab6-022b-57e1-8938-177928dfa2cc")
 	)
-	(label "IN2"
-		(at 370.84 53.34 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "fd718f07-6350-5bff-9a63-5c71bb302061")
-	)
-	(hierarchical_label "IN1"
-		(shape output)
-		(at 289.56 78.74 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "0497e9cb-471d-5bcb-88b7-8dd5651e6c37")
-	)
 	(hierarchical_label "AUX3"
 		(shape input)
 		(at 27.94 48.26 180)
@@ -4023,6 +3982,17 @@
 			(justify right)
 		)
 		(uuid "22ba5c55-e2cc-4765-9b97-d7681910002e")
+	)
+	(hierarchical_label "IN1"
+		(shape output)
+		(at 330.2 53.34 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "255eb352-945d-59e2-89a3-4c23a5e1488e")
 	)
 	(hierarchical_label "AUX1"
 		(shape input)
@@ -4059,29 +4029,29 @@
 	)
 	(hierarchical_label "IN2"
 		(shape output)
-		(at 274.32 101.6 90)
+		(at 330.2 83.82 0)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left)
 		)
-		(uuid "95337e6c-83d9-5a9b-a31b-4b4fcf9ed5f2")
+		(uuid "7f46706f-db7f-5158-b356-241cef76853b")
 	)
 	(hierarchical_label "IN3"
 		(shape output)
-		(at 288.29 118.11 270)
+		(at 330.2 114.3 0)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-			(justify right)
+			(justify left)
 		)
-		(uuid "f56f7055-9228-5bc6-ba0c-9c0b6ee6f3ac")
+		(uuid "c884d974-af6f-57ed-ac14-83a334d864be")
 	)
 	(symbol
-		(lib_id "power:+3V3")
-		(at 300.99 100.33 0)
+		(lib_id "power:GND")
+		(at 322.58 63.5 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -4089,9 +4059,9 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(uuid "06b43ca7-3654-5c80-9490-78f88f4b9b78")
-		(property "Reference" "#PWR0128"
-			(at 300.99 100.33 0)
+		(uuid "060f6dc0-95ae-5bdb-9e1f-f4ef70066e67")
+		(property "Reference" "#PWR0202"
+			(at 322.58 63.5 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4101,8 +4071,8 @@
 				)
 			)
 		)
-		(property "Value" "+3V3"
-			(at 300.99 96.5105 0)
+		(property "Value" "GND"
+			(at 322.58 67.3195 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -4112,7 +4082,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 300.99 100.33 0)
+			(at 322.58 63.5 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4123,7 +4093,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 300.99 100.33 0)
+			(at 322.58 63.5 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4134,7 +4104,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 300.99 100.33 0)
+			(at 322.58 63.5 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -4144,88 +4114,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "b8747c79-1b04-5c6c-acac-12e532d6fbd7")
+			(uuid "fd916683-25ae-5e54-b113-0e757d63fe92")
 		)
 		(instances
 			(project "bisque-controller"
 				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
-					(reference "#PWR0128")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:+3V3")
-		(at 344.17 40.64 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "08963606-1c6a-5ed9-9777-52e5849f15a2")
-		(property "Reference" "#PWR0124"
-			(at 344.17 40.64 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+3V3"
-			(at 344.17 36.8205 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 344.17 40.64 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 344.17 40.64 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 344.17 40.64 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "95e5f558-f00b-5be3-9edb-3fb76ef27356")
-		)
-		(instances
-			(project "bisque-controller"
-				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
-					(reference "#PWR0124")
+					(reference "#PWR0202")
 					(unit 1)
 				)
 			)
@@ -4352,6 +4246,82 @@
 		)
 	)
 	(symbol
+		(lib_id "power:+3V3")
+		(at 314.96 73.66 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "0f896e14-b3f4-5333-86e4-9f9b1db1b34a")
+		(property "Reference" "#PWR0203"
+			(at 314.96 73.66 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+3V3"
+			(at 314.96 69.8405 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 314.96 73.66 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 314.96 73.66 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 314.96 73.66 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "476f9b1c-e9b5-5a62-9dc1-dc1c2168456f")
+		)
+		(instances
+			(project "bisque-controller"
+				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
+					(reference "#PWR0203")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "power:GND")
 		(at 175.26 69.85 0)
 		(unit 1)
@@ -4428,8 +4398,84 @@
 		)
 	)
 	(symbol
+		(lib_id "power:GND")
+		(at 322.58 93.98 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "19d52490-207e-50f5-89dd-6801b9da9373")
+		(property "Reference" "#PWR0204"
+			(at 322.58 93.98 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 322.58 97.7995 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 322.58 93.98 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 322.58 93.98 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 322.58 93.98 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "1c04ded6-a5ca-5c59-ade5-5e00741ae932")
+		)
+		(instances
+			(project "bisque-controller"
+				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
+					(reference "#PWR0204")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Device:R")
-		(at 300.99 106.68 0)
+		(at 314.96 107.95 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -4439,7 +4485,7 @@
 		(dnp no)
 		(uuid "21864964-d18e-543d-a3fb-b96a60e97022")
 		(property "Reference" "R29"
-			(at 302.906 105.73 0)
+			(at 317.5 106.68 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -4450,7 +4496,7 @@
 			)
 		)
 		(property "Value" "10k"
-			(at 302.906 107.63 0)
+			(at 317.5 109.22 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -4461,7 +4507,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
-			(at 300.99 106.68 0)
+			(at 314.96 107.95 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4472,7 +4518,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17414"
-			(at 300.99 106.68 0)
+			(at 314.96 107.95 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4483,7 +4529,7 @@
 			)
 		)
 		(property "Description" "Resistor"
-			(at 300.99 106.68 0)
+			(at 314.96 107.95 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4494,7 +4540,7 @@
 			)
 		)
 		(property "MPN" "0805W8F1002T5E"
-			(at 300.99 106.68 0)
+			(at 314.96 107.95 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4505,7 +4551,7 @@
 			)
 		)
 		(property "LCSC" "C17414"
-			(at 300.99 106.68 0)
+			(at 314.96 107.95 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4516,7 +4562,7 @@
 			)
 		)
 		(property "Manufacturer" "UNI-ROYAL"
-			(at 300.99 106.68 0)
+			(at 314.96 107.95 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4619,7 +4665,7 @@
 	)
 	(symbol
 		(lib_id "Device:C")
-		(at 355.6 48.26 0)
+		(at 322.58 59.69 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -4629,7 +4675,7 @@
 		(dnp no)
 		(uuid "2d7022e7-659a-5ced-b576-f2af82feff66")
 		(property "Reference" "C12"
-			(at 358.532 47.31 0)
+			(at 325.12 58.42 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -4640,7 +4686,7 @@
 			)
 		)
 		(property "Value" "100nF"
-			(at 358.532 49.21 0)
+			(at 325.12 60.96 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -4651,7 +4697,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
-			(at 355.6 48.26 0)
+			(at 322.58 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4662,7 +4708,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678"
-			(at 355.6 48.26 0)
+			(at 322.58 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4673,7 +4719,7 @@
 			)
 		)
 		(property "Description" "Unpolarized capacitor"
-			(at 355.6 48.26 0)
+			(at 322.58 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4684,7 +4730,7 @@
 			)
 		)
 		(property "MPN" "CC0805KRX7R9BB104"
-			(at 355.6 48.26 0)
+			(at 322.58 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4695,7 +4741,7 @@
 			)
 		)
 		(property "LCSC" "C49678"
-			(at 355.6 48.26 0)
+			(at 322.58 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4706,7 +4752,7 @@
 			)
 		)
 		(property "Manufacturer" "YAGEO"
-			(at 355.6 48.26 0)
+			(at 322.58 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4813,82 +4859,6 @@
 		)
 	)
 	(symbol
-		(lib_id "power:+3V3")
-		(at 370.84 40.64 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "39e36337-c122-54a9-90f3-ec31da8ff12f")
-		(property "Reference" "#PWR0126"
-			(at 370.84 40.64 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+3V3"
-			(at 370.84 36.8205 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 370.84 40.64 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 370.84 40.64 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 370.84 40.64 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "9969bb6f-b43e-50bb-b836-80258ee1a757")
-		)
-		(instances
-			(project "bisque-controller"
-				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
-					(reference "#PWR0126")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "power:GND")
 		(at 87.63 55.88 0)
 		(unit 1)
@@ -4959,6 +4929,82 @@
 			(project "bisque-controller"
 				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
 					(reference "#PWR0116")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:+3V3")
+		(at 311.15 132.08 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "445c86c9-f57c-5957-9bf2-0e6985fb320a")
+		(property "Reference" "#PWR0207"
+			(at 311.15 132.08 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+3V3"
+			(at 311.15 128.2605 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 311.15 132.08 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 311.15 132.08 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 311.15 132.08 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "792456ee-e5ba-5b6f-bc90-e7415b951aca")
+		)
+		(instances
+			(project "bisque-controller"
+				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
+					(reference "#PWR0207")
 					(unit 1)
 				)
 			)
@@ -5384,7 +5430,7 @@
 	)
 	(symbol
 		(lib_id "Device:R")
-		(at 281.94 77.47 0)
+		(at 297.18 83.82 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -5394,29 +5440,27 @@
 		(dnp no)
 		(uuid "57920c64-2d50-543e-aa82-7541bf6c1868")
 		(property "Reference" "R26"
-			(at 283.856 76.52 0)
+			(at 297.18 78.74 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "1k"
-			(at 283.856 78.42 0)
+			(at 297.18 81.28 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
-			(at 281.94 77.47 0)
+			(at 297.18 83.82 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5427,7 +5471,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17513"
-			(at 281.94 77.47 0)
+			(at 297.18 83.82 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5438,7 +5482,7 @@
 			)
 		)
 		(property "Description" "Resistor"
-			(at 281.94 77.47 0)
+			(at 297.18 83.82 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5449,7 +5493,7 @@
 			)
 		)
 		(property "MPN" "0805W8F1001T5E"
-			(at 281.94 77.47 0)
+			(at 297.18 83.82 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5460,7 +5504,7 @@
 			)
 		)
 		(property "LCSC" "C17513"
-			(at 281.94 77.47 0)
+			(at 297.18 83.82 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5471,7 +5515,7 @@
 			)
 		)
 		(property "Manufacturer" "UNI-ROYAL"
-			(at 281.94 77.47 0)
+			(at 297.18 83.82 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5498,7 +5542,7 @@
 	)
 	(symbol
 		(lib_id "Device:R")
-		(at 370.84 46.99 0)
+		(at 314.96 77.47 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -5508,7 +5552,7 @@
 		(dnp no)
 		(uuid "5ff39adc-0a49-5549-bc67-a77134792446")
 		(property "Reference" "R27"
-			(at 372.756 46.04 0)
+			(at 317.5 76.2 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -5519,7 +5563,7 @@
 			)
 		)
 		(property "Value" "10k"
-			(at 372.756 47.94 0)
+			(at 317.5 78.74 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -5530,7 +5574,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
-			(at 370.84 46.99 0)
+			(at 314.96 77.47 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5541,7 +5585,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17414"
-			(at 370.84 46.99 0)
+			(at 314.96 77.47 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5552,7 +5596,7 @@
 			)
 		)
 		(property "Description" "Resistor"
-			(at 370.84 46.99 0)
+			(at 314.96 77.47 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5563,7 +5607,7 @@
 			)
 		)
 		(property "MPN" "0805W8F1002T5E"
-			(at 370.84 46.99 0)
+			(at 314.96 77.47 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5574,7 +5618,7 @@
 			)
 		)
 		(property "LCSC" "C17414"
-			(at 370.84 46.99 0)
+			(at 314.96 77.47 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5585,7 +5629,7 @@
 			)
 		)
 		(property "Manufacturer" "UNI-ROYAL"
-			(at 370.84 46.99 0)
+			(at 314.96 77.47 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5918,8 +5962,8 @@
 		)
 	)
 	(symbol
-		(lib_id "power:GND")
-		(at 311.15 77.47 0)
+		(lib_id "power:+3V3")
+		(at 314.96 43.18 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -5927,9 +5971,9 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(uuid "8ca9aee7-bbbe-5d6e-8374-77cd84e5ae38")
-		(property "Reference" "#PWR0130"
-			(at 311.15 77.47 0)
+		(uuid "7380c88a-d262-5fe8-8474-d07f80e6bbd1")
+		(property "Reference" "#PWR0201"
+			(at 314.96 43.18 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5939,8 +5983,8 @@
 				)
 			)
 		)
-		(property "Value" "GND"
-			(at 311.15 81.2895 0)
+		(property "Value" "+3V3"
+			(at 314.96 39.3605 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -5950,7 +5994,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 311.15 77.47 0)
+			(at 314.96 43.18 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5961,7 +6005,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 311.15 77.47 0)
+			(at 314.96 43.18 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5972,7 +6016,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 311.15 77.47 0)
+			(at 314.96 43.18 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -5982,12 +6026,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "7f503ae4-928c-5782-adb3-257a3a8aa8fc")
+			(uuid "19884ea2-896a-5611-95dd-e2ba9efe2a87")
 		)
 		(instances
 			(project "bisque-controller"
 				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
-					(reference "#PWR0130")
+					(reference "#PWR0201")
 					(unit 1)
 				)
 			)
@@ -5995,7 +6039,8 @@
 	)
 	(symbol
 		(lib_id "Connector:Screw_Terminal_01x04")
-		(at 295.91 44.45 0)
+		(at 276.86 55.88 0)
+		(mirror y)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -6005,29 +6050,27 @@
 		(dnp no)
 		(uuid "8f1a512e-008f-5110-83aa-6c9f2b4fb2cb")
 		(property "Reference" "J11"
-			(at 290.83 36.83 0)
+			(at 276.86 47.63 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "INPUTS"
-			(at 290.83 38.73 0)
+			(at 276.86 49.53 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
 			)
 		)
 		(property "Footprint" "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-4-5.08_1x04_P5.08mm_Horizontal"
-			(at 295.91 44.45 0)
+			(at 276.86 55.88 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6038,7 +6081,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/5a3d038c44f6e3872ef57456c5bdf975.pdf?productCode=C42377749"
-			(at 295.91 44.45 0)
+			(at 276.86 55.88 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6049,7 +6092,7 @@
 			)
 		)
 		(property "Description" "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)"
-			(at 295.91 44.45 0)
+			(at 276.86 55.88 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6060,7 +6103,7 @@
 			)
 		)
 		(property "MPN" "WJ500V-5.08-04P-14-00A"
-			(at 295.91 44.45 0)
+			(at 276.86 55.88 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6071,7 +6114,7 @@
 			)
 		)
 		(property "LCSC" "C42377749"
-			(at 295.91 44.45 0)
+			(at 276.86 55.88 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6082,7 +6125,7 @@
 			)
 		)
 		(property "Manufacturer" "KANGNEX"
-			(at 295.91 44.45 0)
+			(at 276.86 55.88 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6115,7 +6158,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 355.6 54.61 0)
+		(at 322.58 124.46 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -6123,9 +6166,9 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(uuid "958ca5b2-0d6d-51d0-bdf6-187fcdaca2d0")
-		(property "Reference" "#PWR0125"
-			(at 355.6 54.61 0)
+		(uuid "8ffcb8ae-cf6a-52c8-b697-45e9c6894967")
+		(property "Reference" "#PWR0206"
+			(at 322.58 124.46 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6136,7 +6179,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 355.6 58.4295 0)
+			(at 322.58 128.2795 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -6146,7 +6189,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 355.6 54.61 0)
+			(at 322.58 124.46 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6157,7 +6200,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 355.6 54.61 0)
+			(at 322.58 124.46 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6168,7 +6211,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 355.6 54.61 0)
+			(at 322.58 124.46 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -6178,12 +6221,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "7427404c-66fa-5466-9b9b-f64a519cc720")
+			(uuid "e198cf2a-6ee6-5d74-8598-c71b3dc99cf9")
 		)
 		(instances
 			(project "bisque-controller"
 				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
-					(reference "#PWR0125")
+					(reference "#PWR0206")
 					(unit 1)
 				)
 			)
@@ -6423,7 +6466,7 @@
 	)
 	(symbol
 		(lib_id "Device:C")
-		(at 274.32 107.95 0)
+		(at 322.58 90.17 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -6433,7 +6476,7 @@
 		(dnp no)
 		(uuid "a34d15e7-c8f7-590a-a4ee-3e2158cd61cb")
 		(property "Reference" "C23"
-			(at 277.252 107 0)
+			(at 325.12 88.9 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -6444,7 +6487,7 @@
 			)
 		)
 		(property "Value" "100nF"
-			(at 277.252 108.9 0)
+			(at 325.12 91.44 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -6455,7 +6498,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
-			(at 274.32 107.95 0)
+			(at 322.58 90.17 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6466,7 +6509,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678"
-			(at 274.32 107.95 0)
+			(at 322.58 90.17 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6477,7 +6520,7 @@
 			)
 		)
 		(property "Description" "Unpolarized capacitor"
-			(at 274.32 107.95 0)
+			(at 322.58 90.17 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6488,7 +6531,7 @@
 			)
 		)
 		(property "MPN" "CC0805KRX7R9BB104"
-			(at 274.32 107.95 0)
+			(at 322.58 90.17 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6499,7 +6542,7 @@
 			)
 		)
 		(property "LCSC" "C49678"
-			(at 274.32 107.95 0)
+			(at 322.58 90.17 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6510,7 +6553,7 @@
 			)
 		)
 		(property "Manufacturer" "YAGEO"
-			(at 274.32 107.95 0)
+			(at 322.58 90.17 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6530,6 +6573,82 @@
 			(project "bisque-controller"
 				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
 					(reference "C23")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 311.15 162.56 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "ab68d6c8-b978-5a5a-a097-79e7cd5d9149")
+		(property "Reference" "#PWR0208"
+			(at 311.15 162.56 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 311.15 166.3795 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 311.15 162.56 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 311.15 162.56 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 311.15 162.56 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "f1677f4c-eac4-53e7-b598-83e3f0ebc36e")
+		)
+		(instances
+			(project "bisque-controller"
+				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
+					(reference "#PWR0208")
 					(unit 1)
 				)
 			)
@@ -6650,84 +6769,8 @@
 		)
 	)
 	(symbol
-		(lib_id "power:GND")
-		(at 274.32 114.3 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "b5769693-6d00-5902-8bb5-cf453d74c18b")
-		(property "Reference" "#PWR0127"
-			(at 274.32 114.3 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 274.32 118.1195 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 274.32 114.3 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 274.32 114.3 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 274.32 114.3 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "deeab517-04b5-546a-b492-51b628734e88")
-		)
-		(instances
-			(project "bisque-controller"
-				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
-					(reference "#PWR0127")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "Device:R")
-		(at 288.29 111.76 0)
+		(at 297.18 114.3 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -6737,29 +6780,27 @@
 		(dnp no)
 		(uuid "b5df2788-17a7-5939-9759-192106d62364")
 		(property "Reference" "R28"
-			(at 290.206 110.81 0)
+			(at 297.18 109.22 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "1k"
-			(at 290.206 112.71 0)
+			(at 297.18 111.76 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
-			(at 288.29 111.76 0)
+			(at 297.18 114.3 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6770,7 +6811,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17513"
-			(at 288.29 111.76 0)
+			(at 297.18 114.3 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6781,7 +6822,7 @@
 			)
 		)
 		(property "Description" "Resistor"
-			(at 288.29 111.76 0)
+			(at 297.18 114.3 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6792,7 +6833,7 @@
 			)
 		)
 		(property "MPN" "0805W8F1001T5E"
-			(at 288.29 111.76 0)
+			(at 297.18 114.3 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6803,7 +6844,7 @@
 			)
 		)
 		(property "LCSC" "C17513"
-			(at 288.29 111.76 0)
+			(at 297.18 114.3 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6814,7 +6855,7 @@
 			)
 		)
 		(property "Manufacturer" "UNI-ROYAL"
-			(at 288.29 111.76 0)
+			(at 297.18 114.3 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6841,7 +6882,7 @@
 	)
 	(symbol
 		(lib_id "Device:R")
-		(at 344.17 46.99 0)
+		(at 314.96 46.99 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -6851,7 +6892,7 @@
 		(dnp no)
 		(uuid "c06b97d1-5261-5257-aa9e-96479e62cbf2")
 		(property "Reference" "R13"
-			(at 346.086 46.04 0)
+			(at 317.5 45.72 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -6862,7 +6903,7 @@
 			)
 		)
 		(property "Value" "10k"
-			(at 346.086 47.94 0)
+			(at 317.5 48.26 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -6873,7 +6914,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
-			(at 344.17 46.99 0)
+			(at 314.96 46.99 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6884,7 +6925,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17414"
-			(at 344.17 46.99 0)
+			(at 314.96 46.99 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6895,7 +6936,7 @@
 			)
 		)
 		(property "Description" "Resistor"
-			(at 344.17 46.99 0)
+			(at 314.96 46.99 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6906,7 +6947,7 @@
 			)
 		)
 		(property "MPN" "0805W8F1002T5E"
-			(at 344.17 46.99 0)
+			(at 314.96 46.99 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6917,7 +6958,7 @@
 			)
 		)
 		(property "LCSC" "C17414"
-			(at 344.17 46.99 0)
+			(at 314.96 46.99 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6928,7 +6969,7 @@
 			)
 		)
 		(property "Manufacturer" "UNI-ROYAL"
-			(at 344.17 46.99 0)
+			(at 314.96 46.99 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6948,82 +6989,6 @@
 			(project "bisque-controller"
 				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
 					(reference "R13")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:GND")
-		(at 273.05 53.34 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "c0ac2b55-5b1f-5aa4-bc5d-da660960d2c8")
-		(property "Reference" "#PWR0132"
-			(at 273.05 53.34 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 273.05 57.1595 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 273.05 53.34 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 273.05 53.34 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 273.05 53.34 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "39680996-07ca-5ccf-8c4d-c7ecc2007645")
-		)
-		(instances
-			(project "bisque-controller"
-				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
-					(reference "#PWR0132")
 					(unit 1)
 				)
 			)
@@ -7145,7 +7110,7 @@
 	)
 	(symbol
 		(lib_id "Device:C")
-		(at 312.42 107.95 0)
+		(at 322.58 120.65 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -7155,7 +7120,7 @@
 		(dnp no)
 		(uuid "c61400da-4d49-5bf5-8f88-f029b67f25e6")
 		(property "Reference" "C24"
-			(at 315.352 107 0)
+			(at 325.12 119.38 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -7166,7 +7131,7 @@
 			)
 		)
 		(property "Value" "100nF"
-			(at 315.352 108.9 0)
+			(at 325.12 121.92 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -7177,7 +7142,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
-			(at 312.42 107.95 0)
+			(at 322.58 120.65 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7188,7 +7153,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678"
-			(at 312.42 107.95 0)
+			(at 322.58 120.65 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7199,7 +7164,7 @@
 			)
 		)
 		(property "Description" "Unpolarized capacitor"
-			(at 312.42 107.95 0)
+			(at 322.58 120.65 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7210,7 +7175,7 @@
 			)
 		)
 		(property "MPN" "CC0805KRX7R9BB104"
-			(at 312.42 107.95 0)
+			(at 322.58 120.65 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7221,7 +7186,7 @@
 			)
 		)
 		(property "LCSC" "C49678"
-			(at 312.42 107.95 0)
+			(at 322.58 120.65 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7232,7 +7197,7 @@
 			)
 		)
 		(property "Manufacturer" "YAGEO"
-			(at 312.42 107.95 0)
+			(at 322.58 120.65 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7524,84 +7489,8 @@
 		)
 	)
 	(symbol
-		(lib_id "power:+3V3")
-		(at 311.15 46.99 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "d1ae907d-8732-5d84-9c87-eecb604cb8d2")
-		(property "Reference" "#PWR0131"
-			(at 311.15 46.99 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+3V3"
-			(at 311.15 43.1705 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 311.15 46.99 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 311.15 46.99 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 311.15 46.99 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "f12f50b9-f57a-56f9-9e95-663ed2d05291")
-		)
-		(instances
-			(project "bisque-controller"
-				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
-					(reference "#PWR0131")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "Power_Protection:SRV05-4")
-		(at 311.15 62.23 0)
+		(at 311.15 147.32 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -7611,7 +7500,7 @@
 		(dnp no)
 		(uuid "e2028674-99fc-54fb-9238-cf80229e957a")
 		(property "Reference" "D5"
-			(at 298.45 38.281 0)
+			(at 326.39 139.7 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -7622,7 +7511,7 @@
 			)
 		)
 		(property "Value" "SRV05-4"
-			(at 298.45 40.181 0)
+			(at 326.39 141.61 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -7633,7 +7522,7 @@
 			)
 		)
 		(property "Footprint" "Package_TO_SOT_SMD:SOT-23-6"
-			(at 311.15 62.23 0)
+			(at 311.15 147.32 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7644,7 +7533,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/c94a8eedc13753364c00c764db36d52a.pdf?productCode=C7420376"
-			(at 311.15 62.23 0)
+			(at 311.15 147.32 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7655,7 +7544,7 @@
 			)
 		)
 		(property "Description" "ESD Protection Diodes with Low Clamping Voltage, SOT-23-6"
-			(at 311.15 62.23 0)
+			(at 311.15 147.32 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7666,7 +7555,7 @@
 			)
 		)
 		(property "MPN" "SRV05-4"
-			(at 311.15 62.23 0)
+			(at 311.15 147.32 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7677,7 +7566,7 @@
 			)
 		)
 		(property "LCSC" "C7420376"
-			(at 311.15 62.23 0)
+			(at 311.15 147.32 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7688,7 +7577,7 @@
 			)
 		)
 		(property "Manufacturer" "R+O"
-			(at 311.15 62.23 0)
+			(at 311.15 147.32 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7720,82 +7609,6 @@
 			(project "bisque-controller"
 				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
 					(reference "D5")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:GND")
-		(at 312.42 114.3 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "e49bf5a3-ca1d-54bf-b6a1-46cb7c9f8ee3")
-		(property "Reference" "#PWR0129"
-			(at 312.42 114.3 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 312.42 118.1195 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 312.42 114.3 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 312.42 114.3 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 312.42 114.3 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "b2381602-7859-5477-9e95-61df80f89ba0")
-		)
-		(instances
-			(project "bisque-controller"
-				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
-					(reference "#PWR0129")
 					(unit 1)
 				)
 			)
@@ -7879,7 +7692,7 @@
 	)
 	(symbol
 		(lib_id "Device:R")
-		(at 289.56 72.39 0)
+		(at 297.18 53.34 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -7889,29 +7702,27 @@
 		(dnp no)
 		(uuid "efeba222-0cb5-5fa4-9f6f-a6b841cc4892")
 		(property "Reference" "R12"
-			(at 291.476 71.44 0)
+			(at 297.18 48.26 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "1k"
-			(at 291.476 73.34 0)
+			(at 297.18 50.8 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
-			(at 289.56 72.39 0)
+			(at 297.18 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7922,7 +7733,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17513"
-			(at 289.56 72.39 0)
+			(at 297.18 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7933,7 +7744,7 @@
 			)
 		)
 		(property "Description" "Resistor"
-			(at 289.56 72.39 0)
+			(at 297.18 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7944,7 +7755,7 @@
 			)
 		)
 		(property "MPN" "0805W8F1001T5E"
-			(at 289.56 72.39 0)
+			(at 297.18 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7955,7 +7766,7 @@
 			)
 		)
 		(property "LCSC" "C17513"
-			(at 289.56 72.39 0)
+			(at 297.18 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7966,7 +7777,7 @@
 			)
 		)
 		(property "Manufacturer" "UNI-ROYAL"
-			(at 289.56 72.39 0)
+			(at 297.18 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7986,6 +7797,158 @@
 			(project "bisque-controller"
 				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
 					(reference "R12")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 281.94 66.04 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "f327a23b-c7b8-578a-96d9-c002ab489483")
+		(property "Reference" "#PWR0200"
+			(at 281.94 66.04 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 281.94 69.8595 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 281.94 66.04 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 281.94 66.04 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 281.94 66.04 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "2420e3eb-82f8-5609-a5fc-67c83a594f15")
+		)
+		(instances
+			(project "bisque-controller"
+				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
+					(reference "#PWR0200")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:+3V3")
+		(at 314.96 104.14 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "f3c98f6a-4c8d-55e5-ad87-6c6081e10eba")
+		(property "Reference" "#PWR0205"
+			(at 314.96 104.14 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+3V3"
+			(at 314.96 100.3205 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 314.96 104.14 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 314.96 104.14 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 314.96 104.14 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "d1495dd5-d045-5ed0-a5a3-ed0683b48f85")
+		)
+		(instances
+			(project "bisque-controller"
+				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
+					(reference "#PWR0205")
 					(unit 1)
 				)
 			)

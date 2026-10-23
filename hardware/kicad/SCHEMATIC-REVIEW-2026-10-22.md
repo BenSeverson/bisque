@@ -21,8 +21,18 @@
 > parts, from LCSC's product records; `check_mpn.py` now checks shape, not
 > equality), 11 (J11 labels read along their wires), 17 (designator gaps
 > noted on the root sheet), 18 (U6 I4–I7 grounded), E2 (module-variant
-> note beside U1). Still open: 12, 13 (the front-end and decoupling
-> redraws) and E1, E3–E5.
+> note beside U1).
+>
+> **Fourth batch (2026-10-23):** 12 and 13. The two thermocouple
+> front-ends, the CT front-end and the three protected inputs are drawn
+> as inline chains (connector on the left, series parts in the signal
+> path, caps hanging off the nodes, one label per filtered node into the
+> IC); the clamp arrays D5/D6 keep a label-fed block beside each chain.
+> Decoupling now hangs from short rails at the pins it serves: U1's 3V3,
+> U3/U5's AVDD/DVDD, U7's VDD/VINTD/VINTA, and U2 is drawn as an inline
+> 5 V → 3.3 V chain with C1/C2 on its input and C3/C4 on its output.
+> E1 was closed in the third batch (no pull-up on the module's RESET).
+> Still open: E3–E5, which are design decisions, not drawing fixes.
 
 Reviewed the Rev B.2 schematic on branch `hw/erc-sdo-exclusion` at `e5dcc7a`
 (root `bisque-controller.kicad_sch` + the seven sheets under `sheets/`), the
