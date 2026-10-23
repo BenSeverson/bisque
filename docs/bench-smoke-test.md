@@ -67,17 +67,18 @@ USB/buck power mux (U12) have never been built. Work through this section
 with **J4/J9/J10 empty** and a current-limited bench supply at 24 V, with the
 limit set around 300 mA.
 
-**Test points:** TP1 `+3V3`, TP2 `+5V`, TP3 GND, TP9 `SSR1_CTRL`,
-TP10 `SSR2_CTRL`, TP12 the watchdog timing node. `BUCK_5V`, the buck's own
-output ahead of the mux, is not `+5V`; probe it at C44.
+**Test points:** TP3 GND, TP9 `SSR1_CTRL`, TP10 `SSR2_CTRL`, TP12 the
+watchdog timing node. The rails have no test points: probe `+5V` at C2 (the
+LDO's input cap) and `+3V3` at J7 pin 1 (the AUX header) or C4. `BUCK_5V`,
+the buck's own output ahead of the mux, is not `+5V`; probe it at C44.
 
 ### Power stage
 
 - [ ] **Idle draw.** Once booted with the display lit, expect roughly
       50–150 mA at 24 V. A supply sitting in current limit with nothing
       connected means stop and look.
-- [ ] **Rails:** TP2 (`+5V`) 4.9–5.1 V, TP1 (`+3V3`) 3.2–3.4 V, C44
-      (`BUCK_5V`) the same as TP2 to within a few tens of mV.
+- [ ] **Rails:** `+5V` (C2) 4.9–5.1 V, `+3V3` (J7 pin 1) 3.2–3.4 V, C44
+      (`BUCK_5V`) the same as `+5V` to within a few tens of mV.
 - [ ] **Q8 is switched on, not conducting through its body diode.** J4
       pin 1 (`VIN_P`) reads within ~50 mV of J2's `+`. If it is ~0.6 V
       below, the gate is not being pulled: check R62, and D11's orientation
@@ -96,19 +97,19 @@ output ahead of the mux, is not `+5V`; probe it at C44.
 
 ### USB/buck source selection (U12)
 
-- [ ] **USB-C alone, J2 disconnected.** The board boots and enumerates, TP2
-      reads close to the port's VBUS, and **C44 (`BUCK_5V`) stays near 0 V**.
+- [ ] **USB-C alone, J2 disconnected.** The board boots and enumerates, `+5V`
+      (C2) reads close to the port's VBUS, and **C44 (`BUCK_5V`) stays near 0 V**.
       With the buck absent, MODE and PR1 are both at 0 V, and the TPS2116
       datasheet has the mux pass the higher input, which is USB. This check
       confirms that on hardware, and also proves the buck is not being
       back-fed. If the board is dead on USB alone, check U12 before anything
       else.
 - [ ] **Both connected: the buck wins.** With 24 V and USB both present,
-      TP2 reads the buck's 5.0 V, not the port's (often 5.1–5.2 V).
+      `+5V` reads the buck's 5.0 V, not the port's (often 5.1–5.2 V).
       Unplugging USB should not move it.
 - [ ] **Switchover.** With USB attached, switch the 24 V off, then on again.
       The board must **not reset**: check that uptime (Settings → System, or
-      `GET /api/v1/system`) carried on. If you have a scope on TP2, `+5V`
+      `GET /api/v1/system`) carried on. If you have a scope on `+5V` (C2), it
       should bottom out no lower than ~3.7 V **in both directions**; the
       return of 24 V dips it too, by design. If you can spare a second
       channel, probe VBUS at C47 while the 24 V comes back: C47/C48 are U12's
@@ -137,7 +138,7 @@ permission rail) is live without starting a profile.
       `SJ2` is bridged or `OUT` is grounded. Both indicators sit across the
       terminal, so they report what the channel is actually doing.
 - [ ] **Watchdog cutoff with the MCU dead.** Hold RESET (SW1) and, while
-      holding it, connect TP9 (`SSR1_CTRL`) to TP1 (`+3V3`) through 1 kΩ.
+      holding it, connect TP9 (`SSR1_CTRL`) to `+3V3` (J7 pin 1) through 1 kΩ.
       That lights channel 1's opto as if firmware had asked for heat, so the
       expired watchdog is the only thing holding the channel off. **The SSR
       and LED3 must stay off.** Remove the resistor before releasing RESET.

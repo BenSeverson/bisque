@@ -187,7 +187,7 @@ def widen_fp_silk(fp):
     """Clamp a footprint's silk OUTLINES to SILK_MIN_STROKE, growing away from its pads.
 
     A stroke widened in place moves both edges out, and on the outlines that
-    already sit closest to their own copper - TP1-TP12's ring (0.141 mm) and
+    already sit closest to their own copper - the test points' ring (0.141 mm) and
     U1's pin-1 corner (0.130 mm), both under the pad-to-silk rule by name in
     the .dru - that would eat the very clearance the exception budgets. So an
     outline whose widened gap falls below min(original gap, the 0.15 mm rule)

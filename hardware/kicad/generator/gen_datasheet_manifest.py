@@ -126,8 +126,8 @@ NO_DATASHEET_EXPECTED = {
     "FIDUCIAL", "INPUTS", "M3", "NAV_SW", "QWIIC", "RESET", "SSR1", "SSR2",
     "TC1_K", "TC2_K", "USB-C", "WDT_DEFEAT", "amber", "green",
     # test points: each one's Value is the net it probes (rev B.3)
-    "+3V3", "+5V", "GND", "SPI_MOSI", "SPI_SCLK", "SPI_MISO", "I2C_SDA",
-    "I2C_SCL", "SSR1_CTRL", "SSR2_CTRL", "CTA_P", "WDT_CT_P",
+    "GND", "SPI_MOSI", "SPI_SCLK", "SPI_MISO",
+    "SSR1_CTRL", "SSR2_CTRL", "WDT_CT_P",
     "active 5V",
 }
 

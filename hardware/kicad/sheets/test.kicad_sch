@@ -805,53 +805,13 @@
 	)
 	(wire
 		(pts
-			(xy 22.86 41.91) (xy 22.86 44.45)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "26f9d392-a932-5ca9-8b89-8572909ca72a")
-	)
-	(wire
-		(pts
-			(xy 45.72 36.83) (xy 45.72 39.37)
+			(xy 22.86 36.83) (xy 22.86 39.37)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
 		(uuid "3e53a517-dea4-518a-b611-02919c4a537a")
-	)
-	(wire
-		(pts
-			(xy 38.1 44.45) (xy 38.1 38.1)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "6aa5ca46-f705-5793-93bb-52eb601d8f3b")
-	)
-	(wire
-		(pts
-			(xy 22.86 44.45) (xy 26.67 44.45)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "8f2a57c1-0aca-5224-b45c-4b8f5a82e6c1")
-	)
-	(wire
-		(pts
-			(xy 34.29 44.45) (xy 38.1 44.45)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "a63ddfe4-03d4-5f36-9feb-52958e8842a9")
 	)
 	(wire
 		(pts
@@ -863,29 +823,9 @@
 		)
 		(uuid "c61435bf-a8c7-5de0-bdb6-26151716dc5f")
 	)
-	(wire
-		(pts
-			(xy 26.67 44.45) (xy 26.67 38.1)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "d5c2ed8a-f511-5eb5-8213-71ec63dab010")
-	)
-	(wire
-		(pts
-			(xy 34.29 41.91) (xy 34.29 44.45)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "f942a267-4710-579c-9ee8-9ab61fac39b8")
-	)
 	(symbol
 		(lib_id "Connector:TestPoint")
-		(at 45.72 36.83 0)
+		(at 22.86 36.83 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -895,7 +835,7 @@
 		(dnp no)
 		(uuid "0c4c9bb9-dc65-59a0-9069-7921b173f318")
 		(property "Reference" "TP3"
-			(at 47.382 35.88 0)
+			(at 24.522 35.88 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -906,7 +846,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 47.382 37.78 0)
+			(at 24.522 37.78 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -917,7 +857,7 @@
 			)
 		)
 		(property "Footprint" "TestPoint:TestPoint_Pad_D1.0mm"
-			(at 45.72 36.83 0)
+			(at 22.86 36.83 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -928,7 +868,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 45.72 36.83 0)
+			(at 22.86 36.83 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -939,7 +879,7 @@
 			)
 		)
 		(property "Description" "test point"
-			(at 45.72 36.83 0)
+			(at 22.86 36.83 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1193,160 +1133,6 @@
 		)
 	)
 	(symbol
-		(lib_id "power:+3V3")
-		(at 26.67 38.1 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "3c6c9ebf-e5ec-5b1e-a6f4-123f3dc5ae7e")
-		(property "Reference" "#PWR0171"
-			(at 26.67 38.1 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+3V3"
-			(at 26.67 34.2805 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 26.67 38.1 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 26.67 38.1 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 26.67 38.1 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "703df811-5a5b-5a0a-9319-230ebad66e88")
-		)
-		(instances
-			(project "bisque-controller"
-				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/1e8311a4-ab35-58fd-a6a5-4a366294f20f"
-					(reference "#PWR0171")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Connector:TestPoint")
-		(at 22.86 41.91 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "41623fa4-342b-5f05-8172-59ea51954f58")
-		(property "Reference" "TP1"
-			(at 24.522 40.96 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "+3V3"
-			(at 24.522 42.86 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_Pad_D1.0mm"
-			(at 22.86 41.91 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 22.86 41.91 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "test point"
-			(at 22.86 41.91 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "794ed988-c03d-5474-8c9e-6374c1da53d9")
-		)
-		(instances
-			(project "bisque-controller"
-				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/1e8311a4-ab35-58fd-a6a5-4a366294f20f"
-					(reference "TP1")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "Mechanical:Fiducial")
 		(at 191.77 41.91 0)
 		(unit 1)
@@ -1492,82 +1278,6 @@
 			(project "bisque-controller"
 				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/1e8311a4-ab35-58fd-a6a5-4a366294f20f"
 					(reference "#PWR0167")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:+5V")
-		(at 38.1 38.1 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "6d7b17cf-d0a2-5dad-9973-f8c3a0d215f4")
-		(property "Reference" "#PWR0172"
-			(at 38.1 38.1 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+5V"
-			(at 38.1 34.2805 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 38.1 38.1 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 38.1 38.1 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 38.1 38.1 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "64e6e9ee-634b-5bb3-ba64-9adc2d5a0287")
-		)
-		(instances
-			(project "bisque-controller"
-				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/1e8311a4-ab35-58fd-a6a5-4a366294f20f"
-					(reference "#PWR0172")
 					(unit 1)
 				)
 			)
@@ -1805,86 +1515,8 @@
 		)
 	)
 	(symbol
-		(lib_id "Connector:TestPoint")
-		(at 34.29 41.91 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "9e6df015-cd4c-5b44-955b-852083ca6b1d")
-		(property "Reference" "TP2"
-			(at 35.952 40.96 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "+5V"
-			(at 35.952 42.86 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_Pad_D1.0mm"
-			(at 34.29 41.91 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 34.29 41.91 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "test point"
-			(at 34.29 41.91 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "e81f60dd-3c14-5662-9a0b-851bb5f4e02f")
-		)
-		(instances
-			(project "bisque-controller"
-				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/1e8311a4-ab35-58fd-a6a5-4a366294f20f"
-					(reference "TP2")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "power:GND")
-		(at 45.72 39.37 0)
+		(at 22.86 39.37 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -1894,7 +1526,7 @@
 		(dnp no)
 		(uuid "a74576c9-b2d9-5e2a-81a2-5f183d53bc5f")
 		(property "Reference" "#PWR0173"
-			(at 45.72 39.37 0)
+			(at 22.86 39.37 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1905,7 +1537,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 45.72 43.1895 0)
+			(at 22.86 43.1895 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -1915,7 +1547,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 45.72 39.37 0)
+			(at 22.86 39.37 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1926,7 +1558,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 45.72 39.37 0)
+			(at 22.86 39.37 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1937,7 +1569,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 45.72 39.37 0)
+			(at 22.86 39.37 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects

@@ -33,6 +33,16 @@
 > 5 V → 3.3 V chain with C1/C2 on its input and C3/C4 on its output.
 > E1 was closed in the third batch (no pull-up on the module's RESET).
 > Still open: E3–E5, which are design decisions, not drawing fixes.
+>
+> **Test points (2026-10-23):** TP1, TP2, TP7, TP8 and TP11 were dropped;
+> each sat on a net a connector pin already exposes (`+3V3` and I2C on
+> J7/J14, `+5V` on J5, `CTA_P` on J12 pin 1). The seven that remain
+> (TP3–TP6, TP9, TP10, TP12) are on nets nothing else reaches, and on the
+> board every one of them already sits inline on its net's route (the
+> longest dedicated stub is TP12's 3.3 mm from R46, pinned there by SJ2's
+> courtyard), so none was moved. The copper that fed the five dropped pads
+> (eight segments and one via, 15.5 mm, mostly +5V's spur from U2.3) is
+> gone and DRC is at 0/0.
 
 Reviewed the Rev B.2 schematic on branch `hw/erc-sdo-exclusion` at `e5dcc7a`
 (root `bisque-controller.kicad_sch` + the seven sheets under `sheets/`), the

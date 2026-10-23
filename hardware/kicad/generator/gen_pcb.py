@@ -1433,20 +1433,12 @@ TP_LABEL_TEXTS = set()
 # the goal, exactly as check_silk.ON_PART_OK's is, and an entry here is a debt
 # rather than a decision.
 #
-# `CT A+` / J12 is review A2, and it is NOT fixed. The label is TP11's, and it
-# prints in the strip J12's four screw legends own, 0.4 mm above `A-` - so the
-# CTA_N screw carries two names and a reader could wire a CT backwards on the
-# strength of the wrong one. The fix is to move the test point, and there is
-# nowhere for it to go: see the three attempts recorded at TP11 in design.py,
-# each of which left a different net in the ADE/CT block unroutable, including
-# one that failed while promoted to route first.
-#
-# What would actually clear it is space in that block, and the block only got
-# tighter this rev (R59/C40 for the differential CT return, R60/R61 for the
-# VP/VN bias). Two candidates for the next spin, neither cheap enough to do
-# behind a silk fix: give J12 its own column by moving the burden/filter row
-# west, or drop TP11 entirely and probe CTA_P at R32's pad.
-TP_LEGEND_OK = {("CT A+", "J12")}
+# `CT A+` / J12 was review A2: TP11's label printed in the strip J12's four
+# screw legends own, 0.4 mm above `A-`, and three attempts to move the test
+# point each left a different net in the ADE/CT block unroutable. Rev B.3
+# took the other way out and dropped TP11 - CTA_P is probed at J12 pin 1 -
+# so the set is empty again.
+TP_LEGEND_OK = set()
 
 
 COMPS = {}          # ref -> {"fpf", "at", "value", "pins"}: the placement the legends derive from

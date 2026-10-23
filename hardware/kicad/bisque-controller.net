@@ -5166,108 +5166,6 @@
 			)
 		)
 		(comp
-			(ref "TP7")
-			(value "I2C_SDA")
-			(footprint "TestPoint:TestPoint_Pad_D1.0mm")
-			(description "test point")
-			(fields
-				(field
-					(name "Footprint") "TestPoint:TestPoint_Pad_D1.0mm")
-				(field
-					(name "Datasheet")
-				)
-				(field
-					(name "Description") "test point")
-			)
-			(libsource
-				(lib "Connector")
-				(part "TestPoint")
-				(description "test point")
-			)
-			(property
-				(name "Sheetname")
-				(value "mcu")
-			)
-			(property
-				(name "Sheetfile")
-				(value "sheets/mcu.kicad_sch")
-			)
-			(property
-				(name "ki_keywords")
-				(value "test point tp")
-			)
-			(property
-				(name "ki_fp_filters")
-				(value "Pin* Test*")
-			)
-			(sheetpath
-				(names "/mcu/")
-				(tstamps "/0b4ed2f0-cfc7-58f4-8f05-750454c503bf/")
-			)
-			(tstamps "78af134c-ce1d-4567-a649-cecabc009699")
-			(units
-				(unit
-					(name "A")
-					(pins
-						(pin
-							(num "1")
-						)
-					)
-				)
-			)
-		)
-		(comp
-			(ref "TP8")
-			(value "I2C_SCL")
-			(footprint "TestPoint:TestPoint_Pad_D1.0mm")
-			(description "test point")
-			(fields
-				(field
-					(name "Footprint") "TestPoint:TestPoint_Pad_D1.0mm")
-				(field
-					(name "Datasheet")
-				)
-				(field
-					(name "Description") "test point")
-			)
-			(libsource
-				(lib "Connector")
-				(part "TestPoint")
-				(description "test point")
-			)
-			(property
-				(name "Sheetname")
-				(value "mcu")
-			)
-			(property
-				(name "Sheetfile")
-				(value "sheets/mcu.kicad_sch")
-			)
-			(property
-				(name "ki_keywords")
-				(value "test point tp")
-			)
-			(property
-				(name "ki_fp_filters")
-				(value "Pin* Test*")
-			)
-			(sheetpath
-				(names "/mcu/")
-				(tstamps "/0b4ed2f0-cfc7-58f4-8f05-750454c503bf/")
-			)
-			(tstamps "1fb2b5f1-f896-4e25-b690-eaf8a27ab615")
-			(units
-				(unit
-					(name "A")
-					(pins
-						(pin
-							(num "1")
-						)
-					)
-				)
-			)
-		)
-		(comp
 			(ref "TP9")
 			(value "SSR1_CTRL")
 			(footprint "TestPoint:TestPoint_Pad_D1.0mm")
@@ -12836,57 +12734,6 @@
 			)
 		)
 		(comp
-			(ref "TP11")
-			(value "CTA_P")
-			(footprint "TestPoint:TestPoint_Pad_D1.0mm")
-			(description "test point")
-			(fields
-				(field
-					(name "Footprint") "TestPoint:TestPoint_Pad_D1.0mm")
-				(field
-					(name "Datasheet")
-				)
-				(field
-					(name "Description") "test point")
-			)
-			(libsource
-				(lib "Connector")
-				(part "TestPoint")
-				(description "test point")
-			)
-			(property
-				(name "Sheetname")
-				(value "ct")
-			)
-			(property
-				(name "Sheetfile")
-				(value "sheets/ct.kicad_sch")
-			)
-			(property
-				(name "ki_keywords")
-				(value "test point tp")
-			)
-			(property
-				(name "ki_fp_filters")
-				(value "Pin* Test*")
-			)
-			(sheetpath
-				(names "/ct/")
-				(tstamps "/6c704e24-0c23-5bb2-a84e-a8ccbf5f5ca5/")
-			)
-			(tstamps "67b40291-74a0-4d95-af59-c952810cf274")
-			(units
-				(unit
-					(name "A")
-					(pins
-						(pin
-							(num "1")
-						)
-					)
-				)
-			)
-		)
-		(comp
 			(ref "U7")
 			(value "ADE7953ACPZ")
 			(footprint "Package_DFN_QFN:QFN-28-1EP_5x5mm_P0.5mm_EP3.1x3.1mm")
@@ -13451,108 +13298,6 @@
 				(tstamps "/1e8311a4-ab35-58fd-a6a5-4a366294f20f/")
 			)
 			(tstamps "7476c0bd-c595-52f5-994d-46362a6699b6")
-			(units
-				(unit
-					(name "A")
-					(pins
-						(pin
-							(num "1")
-						)
-					)
-				)
-			)
-		)
-		(comp
-			(ref "TP1")
-			(value "+3V3")
-			(footprint "TestPoint:TestPoint_Pad_D1.0mm")
-			(description "test point")
-			(fields
-				(field
-					(name "Footprint") "TestPoint:TestPoint_Pad_D1.0mm")
-				(field
-					(name "Datasheet")
-				)
-				(field
-					(name "Description") "test point")
-			)
-			(libsource
-				(lib "Connector")
-				(part "TestPoint")
-				(description "test point")
-			)
-			(property
-				(name "Sheetname")
-				(value "test")
-			)
-			(property
-				(name "Sheetfile")
-				(value "sheets/test.kicad_sch")
-			)
-			(property
-				(name "ki_keywords")
-				(value "test point tp")
-			)
-			(property
-				(name "ki_fp_filters")
-				(value "Pin* Test*")
-			)
-			(sheetpath
-				(names "/test/")
-				(tstamps "/1e8311a4-ab35-58fd-a6a5-4a366294f20f/")
-			)
-			(tstamps "41623fa4-342b-5f05-8172-59ea51954f58")
-			(units
-				(unit
-					(name "A")
-					(pins
-						(pin
-							(num "1")
-						)
-					)
-				)
-			)
-		)
-		(comp
-			(ref "TP2")
-			(value "+5V")
-			(footprint "TestPoint:TestPoint_Pad_D1.0mm")
-			(description "test point")
-			(fields
-				(field
-					(name "Footprint") "TestPoint:TestPoint_Pad_D1.0mm")
-				(field
-					(name "Datasheet")
-				)
-				(field
-					(name "Description") "test point")
-			)
-			(libsource
-				(lib "Connector")
-				(part "TestPoint")
-				(description "test point")
-			)
-			(property
-				(name "Sheetname")
-				(value "test")
-			)
-			(property
-				(name "Sheetfile")
-				(value "sheets/test.kicad_sch")
-			)
-			(property
-				(name "ki_keywords")
-				(value "test point tp")
-			)
-			(property
-				(name "ki_fp_filters")
-				(value "Pin* Test*")
-			)
-			(sheetpath
-				(names "/test/")
-				(tstamps "/1e8311a4-ab35-58fd-a6a5-4a366294f20f/")
-			)
-			(tstamps "9e6df015-cd4c-5b44-955b-852083ca6b1d")
 			(units
 				(unit
 					(name "A")
@@ -16022,12 +15767,6 @@
 				(pintype "passive")
 			)
 			(node
-				(ref "TP1")
-				(pin "1")
-				(pinfunction "1_1")
-				(pintype "passive")
-			)
-			(node
 				(ref "U1")
 				(pin "2")
 				(pinfunction "3V3_2")
@@ -16158,12 +15897,6 @@
 				(ref "SJ1")
 				(pin "1")
 				(pinfunction "A_1")
-				(pintype "passive")
-			)
-			(node
-				(ref "TP2")
-				(pin "1")
-				(pinfunction "1_1")
 				(pintype "passive")
 			)
 			(node
@@ -16460,12 +16193,6 @@
 			(node
 				(ref "R32")
 				(pin "1")
-				(pintype "passive")
-			)
-			(node
-				(ref "TP11")
-				(pin "1")
-				(pinfunction "1_1")
 				(pintype "passive")
 			)
 		)
@@ -17054,12 +16781,6 @@
 				(pintype "passive")
 			)
 			(node
-				(ref "TP8")
-				(pin "1")
-				(pinfunction "1_1")
-				(pintype "passive")
-			)
-			(node
 				(ref "U1")
 				(pin "24")
 				(pinfunction "IO47_24")
@@ -17091,12 +16812,6 @@
 			(node
 				(ref "R44")
 				(pin "2")
-				(pintype "passive")
-			)
-			(node
-				(ref "TP7")
-				(pin "1")
-				(pinfunction "1_1")
 				(pintype "passive")
 			)
 			(node

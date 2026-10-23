@@ -469,7 +469,7 @@ LCSC = {
 # these before either bucket sees them, the same way mounting holes already
 # are.
 #
-# TP1-TP12: 1 mm bring-up test pads (Task 13) - bare copper, nothing to
+# TP3-TP6/TP9/TP10/TP12: 1 mm bring-up test pads (Task 13) - bare copper, nothing to
 # place or buy. SJ1/SJ2: open solder-jumper footprints (AUX_VP<-+5V link and
 # the WDT bring-up defeat) - populated with solder, not a component. SJ3/SJ4
 # went with the optocouplers (see DESIGN-NOTES.md's SSR block). J13: a
@@ -481,8 +481,7 @@ LCSC = {
 # reaches the BOM as a blank-LCSC row, i.e. a part to "buy" that is not a
 # part, and JLCPCB's PCBA upload rejects the pair.
 NOT_ASSEMBLED = {
-    "TP1", "TP2", "TP3", "TP4", "TP5", "TP6",
-    "TP7", "TP8", "TP9", "TP10", "TP11", "TP12",
+    "TP3", "TP4", "TP5", "TP6", "TP9", "TP10", "TP12",
     "SJ1", "SJ2",
     "J13",
     "FID1", "FID2", "FID3",

@@ -7006,16 +7006,6 @@
 		)
 		(uuid "01fd514b-542e-54aa-a762-94e60abd1d95")
 	)
-	(label "I2C_SDA"
-		(at 63.5 228.6 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "04668c96-3e1f-461e-95bd-f4d95a7b743c")
-	)
 	(label "LED_DATA"
 		(at 193.04 99.06 0)
 		(effects
@@ -7187,7 +7177,7 @@
 		(uuid "3269954a-fbeb-5b27-af31-f54ef406db3f")
 	)
 	(label "SSR1_CTRL"
-		(at 88.9 228.6 0)
+		(at 63.5 228.6 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7636,16 +7626,6 @@
 		)
 		(uuid "a5683a21-6904-546d-b706-93dca93e75d4")
 	)
-	(label "I2C_SCL"
-		(at 76.2 228.6 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "a970a420-c721-454c-bbef-29a3b820bc4a")
-	)
 	(label "T_CLK_R"
 		(at 335.28 189.23 270)
 		(effects
@@ -7907,7 +7887,7 @@
 		(uuid "fdfafc07-bd25-51d6-bfe1-5153b0b99911")
 	)
 	(label "SSR2_CTRL"
-		(at 101.6 228.6 0)
+		(at 76.2 228.6 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -9397,82 +9377,6 @@
 			(project "bisque-controller"
 				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/0b4ed2f0-cfc7-58f4-8f05-750454c503bf"
 					(reference "J1")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Connector:TestPoint")
-		(at 76.2 228.6 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "1fb2b5f1-f896-4e25-b690-eaf8a27ab615")
-		(property "Reference" "TP8"
-			(at 76.2 221.742 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "I2C_SCL"
-			(at 76.2 222.25 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_Pad_D1.0mm"
-			(at 76.2 228.6 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 76.2 228.6 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "test point"
-			(at 76.2 228.6 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "a7def4da-b296-4e20-ad43-5a7d2d3a489b")
-		)
-		(instances
-			(project ""
-				(path "/1a47868a-bd78-50f4-b188-eb0464f4a928"
-					(reference "TP8")
 					(unit 1)
 				)
 			)
@@ -11901,7 +11805,7 @@
 	)
 	(symbol
 		(lib_id "Connector:TestPoint")
-		(at 88.9 228.6 0)
+		(at 63.5 228.6 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -11911,82 +11815,6 @@
 		(dnp no)
 		(uuid "763bae23-0ccf-4d96-8a2a-dc65e25c531c")
 		(property "Reference" "TP9"
-			(at 88.9 221.742 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "SSR1_CTRL"
-			(at 88.9 222.25 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_Pad_D1.0mm"
-			(at 88.9 228.6 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 88.9 228.6 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "test point"
-			(at 88.9 228.6 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "8f791db7-bd5c-4565-830e-a8ef59cc8958")
-		)
-		(instances
-			(project ""
-				(path "/1a47868a-bd78-50f4-b188-eb0464f4a928"
-					(reference "TP9")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Connector:TestPoint")
-		(at 63.5 228.6 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "78af134c-ce1d-4567-a649-cecabc009699")
-		(property "Reference" "TP7"
 			(at 63.5 221.742 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11996,7 +11824,7 @@
 				)
 			)
 		)
-		(property "Value" "I2C_SDA"
+		(property "Value" "SSR1_CTRL"
 			(at 63.5 222.25 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12040,12 +11868,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "df3b5978-d7c1-47e0-8319-11f53978e68b")
+			(uuid "8f791db7-bd5c-4565-830e-a8ef59cc8958")
 		)
 		(instances
 			(project ""
 				(path "/1a47868a-bd78-50f4-b188-eb0464f4a928"
-					(reference "TP7")
+					(reference "TP9")
 					(unit 1)
 				)
 			)
@@ -14797,7 +14625,7 @@
 	)
 	(symbol
 		(lib_id "Connector:TestPoint")
-		(at 101.6 228.6 0)
+		(at 76.2 228.6 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -14807,7 +14635,7 @@
 		(dnp no)
 		(uuid "d7182196-3ac1-4b24-b5e7-9b7cca1484d4")
 		(property "Reference" "TP10"
-			(at 101.6 221.742 0)
+			(at 76.2 221.742 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -14817,7 +14645,7 @@
 			)
 		)
 		(property "Value" "SSR2_CTRL"
-			(at 101.6 222.25 0)
+			(at 76.2 222.25 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -14827,7 +14655,7 @@
 			)
 		)
 		(property "Footprint" "TestPoint:TestPoint_Pad_D1.0mm"
-			(at 101.6 228.6 0)
+			(at 76.2 228.6 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14838,7 +14666,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 101.6 228.6 0)
+			(at 76.2 228.6 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14849,7 +14677,7 @@
 			)
 		)
 		(property "Description" "test point"
-			(at 101.6 228.6 0)
+			(at 76.2 228.6 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)

@@ -2705,12 +2705,6 @@
 		(uuid "b8556f89-9f24-5bc5-8f67-0efffd7606e1")
 	)
 	(junction
-		(at 30.48 187.96)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "b8a74e31-c358-58ef-b63d-6226e0841c20")
-	)
-	(junction
 		(at 101.6 38.1)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -5724,82 +5718,6 @@
 			(project "bisque-controller"
 				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/6c704e24-0c23-5bb2-a84e-a8ccbf5f5ca5"
 					(reference "#PWR0147")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Connector:TestPoint")
-		(at 30.48 187.96 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "67b40291-74a0-4d95-af59-c952810cf274")
-		(property "Reference" "TP11"
-			(at 30.48 179.07 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "CTA_P"
-			(at 30.48 181.61 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_Pad_D1.0mm"
-			(at 30.48 187.96 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 30.48 187.96 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "test point"
-			(at 30.48 187.96 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "a9ee97c7-6f13-4be8-95c3-a7b46e8288d6")
-		)
-		(instances
-			(project ""
-				(path "/9f5a642e-6117-5c0b-a848-1913aa103515"
-					(reference "TP11")
 					(unit 1)
 				)
 			)

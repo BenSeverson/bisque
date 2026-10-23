@@ -345,9 +345,12 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   (Q2) low-side driver with flyback diode — kept separate from the ULN2003
   aux bank on purpose, so a 5 V buzzer and a 24 V solenoid never share a
   COM rail.
-- **Test points**: twelve 1 mm bring-up pads (TP1–TP12, no BOM/assembly
-  cost) on +3V3, +5V, GND, the SPI bus, I2C SDA/SCL, both SSR gate nets,
-  the CT burden node, and the watchdog hold node. Rev A shipped with none,
+- **Test points**: seven 1 mm bring-up pads (TP3–TP6, TP9, TP10 and TP12,
+  no BOM/assembly cost) on GND, the SPI bus, both SSR gate nets and the
+  watchdog hold node: the nets no connector reaches. The rails, I2C and the
+  CT burden node are probed at connector pins instead (J7/J14 for `+3V3` and
+  I2C, J5 pin 1 or C2 for `+5V`, J12 pin 1 for `CTA_P`); TP1, TP2, TP7, TP8
+  and TP11 duplicated those and went in rev B.3. Rev A shipped with none,
   which its fab review flagged as awkward for bring-up; at ~141 components
   and eleven subsystems, they stopped being optional.
 - 4× M3 grounded mounting holes, one per corner, centers on a **90 × 90 mm
@@ -555,7 +558,7 @@ lines covering 109 machine-placed parts) plus `jlcpcb/hand-solder-parts.csv`
 | SW1, SW2 | XKB TS-1187A tactile switch | 5.1 × 5.1 mm SMD |
 | H1–H4 | M3 mounting hole, grounded, 90 × 90 mm grid | — |
 | SJ1, SJ2 | Open solder jumpers (`AUX_VP←+5V`, `WDT DEFEAT`) | populated with solder, not a part |
-| TP1–TP12 | 1 mm bring-up test pads | bare copper, no BOM cost |
+| TP3–TP6, TP9, TP10, TP12 | 1 mm bring-up test pads | bare copper, no BOM cost |
 
 **Off-BOM accessories (not in `jlcpcb/`, buy separately):** a U.FL → SMA
 bulkhead pigtail and a 2.4 GHz antenna for U1 (~$3–5), plus an enclosure
@@ -631,7 +634,7 @@ it is not enforced here.
 The only other thing the board misses is JLC's 0.15 mm pad-to-silk clearance,
 in 13 places, **every one of them geometry inherited from a KiCad library
 footprint** rather than anything the generator placed: the TestPoint footprint
-prints its own ring 0.14 mm from its own pad (TP1–TP12) and the
+prints its own ring 0.14 mm from its own pad (TP1–TP12 at the time) and the
 ESP32-S3-WROOM-1U outline passes 0.13 mm from U1 pad 1. JLC clips silk off mask
 openings in prep, so a part's own marking encroaching by 0.01–0.02 mm is not a
 defect. Those are budgeted **by name** via `memberOfFootprint()` rather than by
@@ -1441,9 +1444,9 @@ bulk-cap row east of it are 1.0–1.5 mm further east and the column is 2.63 mm.
 `check_silk.ON_PART_OK`, the list of legends allowed to print under a part,
 is now **empty**, and every entry it ever held was retired the same way.
 
-**Test points name their net.** `TP1`–`TP12` print what they probe
-(`+3V3`, `+5V`, `GND`, `MOSI`, `SCLK`, `MISO`, `SDA`, `SCL`, `SSR1`,
-`SSR2`, `CT A+`, `WDT RC`) so the board documents itself at the bench. The
+**Test points name their net.** `TP3`–`TP12` print what they probe
+(`GND`, `MOSI`, `SCLK`, `MISO`, `SSR1`, `SSR2`, `WDT RC`) so the board
+documents itself at the bench. The
 label is derived from the net on the test point's pad — never a second
 hand-typed table — and shortened by rule: rails print verbatim, a bus
 prefix is dropped (`SPI_MOSI` → `MOSI`), a function suffix is dropped
