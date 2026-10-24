@@ -1,0 +1,76 @@
+{
+  "date": "2026-10-05",
+  "board_sha256": "34244b4e1de67e028f5b7c51f59e57a39f6fffe08fcbecc3f4462f8844b54222",
+  "pdf_sha256": {
+    "SMAJ30A_C19077547.pdf": "3ff5a7b8618e9ea109acec3fdfefba71442e321ac3cd4461702f08964d205947",
+    "XL1509-5.0E1_C61063.pdf": "8b10b01cdcb052767549f29a014c0cb9983ef957b89b95c325cbea5d1316a660",
+    "SRV05-4_C7420376.pdf": "90157fa267715fddf9668b3e21a1b0d7c74898ad5bf8b6bf5635539e31d65f82",
+    "JK-mSMD075-33_PPTC_C369169.pdf": "d4e36eeede2559ddbc57102c3560cab21c7ae979a6dda53636680c0a7c7d273b",
+    "SS34_C8678.pdf": "fb4970875779696914d235bcf954240569302fb325399838f2861d474cbf9760",
+    "BZT52C8V2S_C22375294.pdf": "3d9882637a5b80be777b6d42817035de230997ffe42e6afd07792b32f5dcf617",
+    "CL31A226KAHNNNE_22uF_C12891.pdf": "96baebe4bd0ce363e87be28b5b003f511f1502e084a6fc4f02333ded56c808f6",
+    "CL31A106KBHNNNE_10uF_50V_C13585.pdf": "96baebe4bd0ce363e87be28b5b003f511f1502e084a6fc4f02333ded56c808f6",
+    "FXL0650-470-M_C475527.pdf": "410fe908791f205dfb57ed1483eda13e16624fb52214693550c33cae0537882f",
+    "RVT1C101M0505_C2977550.pdf": "f1d2436b835db1d66a9009a93d3f0a4479807aa9824bf054a8e18d7e858e8fdb",
+    "1N4148W_C81598.pdf": "54de8e4089bb8221cf6cf191ee3acc2bdb20c9933cf59e7b5de3ef4ee291ce3f",
+    "0805W8F2200T5E_220R_C17557.pdf": "11cd644d5d8a34a6d12775afb80bf58d8fc11f0c3b700dbd0f7a59942ceaa5ef",
+    "0805W8F3002T5E_30k_C17621.pdf": "11cd644d5d8a34a6d12775afb80bf58d8fc11f0c3b700dbd0f7a59942ceaa5ef"
+  },
+  "samsung_interpolation": {
+    "CL31A226KAHNNN": {
+      "conditions": {
+        "vdc": 0.0,
+        "adc": 0.0,
+        "degC": 25.0,
+        "graphType": "DCBias",
+        "dsDcFre": 120,
+        "dsDcSign": 0.5,
+        "partsName": "CL31A226KAHNNN"
+      },
+      "linear_interpolation": [
+        {
+          "bias_v": 3.3,
+          "delta_pct": -20.52255070748373,
+          "effective_uf": 17.48503884435358
+        },
+        {
+          "bias_v": 5,
+          "delta_pct": -37.96291314718172,
+          "effective_uf": 13.648159107620021
+        }
+      ]
+    },
+    "CL31A106KBHNNN": {
+      "conditions": {
+        "vdc": 0.0,
+        "adc": 0.0,
+        "degC": 25.0,
+        "graphType": "DCBias",
+        "dsDcFre": 1000,
+        "dsDcSign": 1.0,
+        "partsName": "CL31A106KBHNNN"
+      },
+      "linear_interpolation": [
+        {
+          "bias_v": 24,
+          "delta_pct": -86.48294943061576,
+          "effective_uf": 1.3517050569384237
+        },
+        {
+          "bias_v": 26.4,
+          "delta_pct": -88.32214069013584,
+          "effective_uf": 1.1677859309864158
+        }
+      ]
+    }
+  },
+  "inductor_screen_at_26_4v": {
+    "nominal_l_uh": 47,
+    "screen_l_uh": 37.6,
+    "screen_frequency_khz": 127,
+    "ideal_delta_i_a": 0.8487666072688689,
+    "note": "Ideal CCM screening without switch/diode losses or additional inductance loss under DC current; not a guaranteed peak."
+  },
+  "c46_nominal_esr_upper_120hz_ohm": 2.6525823848649224,
+  "note": "C46 dissipation-factor conversion at nominal capacitance is not a specified ESR range at switching frequency."
+}
