@@ -506,39 +506,24 @@ to 6 V, and the cap takes most of that as well. Both are bench events
 (USB is only attached on the bench), and the bench checklist switches
 the 24 V with USB attached on purpose.
 
-0402s, the board's only ones, because nothing larger fits either spot,
-and each spot is the product of a failed first attempt worth knowing:
-C48 (BUCK_5V) sits north of R63 against J1's courtyard, beside R63's
-BUCK_5V pad - ~5 mm of the rail from U12 pin 3, against the 85 mm to
-C44. It is at the WEST edge of the pocket between J1, C6 and R63 on
-purpose: the pocket's middle is where R9's, C6's and LED2's
-designators overflow to. With C48 centred there (55.8, 28.6) its own
-label took that space, the greedy silk placer pushed LED2's onto
-the `PWR` legend, and DRC failed on silk_overlap; vertical at the
-west edge (54.0, 29.2) still left one label touching. Here the
-silk report is 0/0/0/0. It was tried twice nearer the pin as well,
-and the way each failed is worth knowing before trying again:
-- In the column east of the pin-3 rail terminal (58.25, 34.75),
-and in the strip north of it with its GND pad west, plane_vias()
-put the cap's GND via 0.75-0.79 mm from that terminal, inside
-the 0.85 mm a 0.7 mm track end needs. BUCK_5V failed with
-"0 goal node(s)" on every pass; a plane via is placed before
-routing and never ripped up, so no promotion rescues it.
-- With the GND pad east the terminal was clear, but the via
-(59.75, 33.75) sat on the B.Cu lane the module's west-side nets
-use. The board still routed, but only at pass 8 against the
-6-pass limit (main closes at pass 4), with the failures
-wandering between U1's escapes. Raising the limit would have
-hidden that for every future build, so the cap moved instead.
-Here the six-pass router closes at pass 4, on exactly main's path,
-with 0 DRC violations and 0 unconnected pads.
-C47 (VBUS) is at J1's VBUS entry, in the pocket between the VBUS
-seed, R4 and R63, about 6 mm of track from U12 pin 6. Its first spot,
-beside the VBUS terminal, split the only lane VBUS has between R4
-and U12's +5V escape (0.69 mm above the pads and 0.76 mm below, for
-a 0.5 mm track). 6 mm of 0.5 mm track is a few nH against the ~1 uH
-of a USB cable, so the cap still does its job from there, and it is
-where USB practice puts one anyway: at the receptacle.
+0402s, the board's only ones, because nothing larger fits beside a
+SOT-583. Since 2026-10-23 (PCB review 2026-10-05, item 6) both sit on
+the pins themselves: C48 across the pocket between U12 pin 3 (VIN1) and
+U1's courtyard, 0.7 mm of 0.25 mm track from the pad, and C47 in the
+pocket west of pin 6 (VIN2), 0.5 mm from it, with the VBUS feed passing
+over the top of its GND pad. Three nets had to give way, and each is
+worth knowing before anything else moves here: the +5V link between
+pins 2 and 7 is on B.Cu (pin 7 leaves west on F.Cu under C47 to the via
+at (50, 36.5); pin 2 leaves east to its own via and comes back under the
+part), the BUCK_5V trunk now loops round the north of U12 on B.Cu to
+pin 5's via with C48's via sitting on that run, and AUX1 - which used to
+cross under U12 on B.Cu at y 35.75 - now drops from U1 pin 9's via down
+U1's west edge and runs diagonally beside LCD_CS. Both caps were tried
+at the pins before (notes below) and failed on the auto-router's
+plane-via placement; the 2026-10-23 layout is hand-routed, which is why
+every via here is where it is. The earlier spots, for the record: C48
+north of R63 against J1's courtyard (~5 mm of rail from pin 3), C47 at
+J1's VBUS entry (~6 mm from pin 6).
 C52923 is 25 V X5R, a Basic part (no feeder), and keeps roughly half
 its capacitance at 5 V - the datasheet's 1 uF is a floor for the
 typical case, not a tolerance, and ~0.5 uF is still what the pin
@@ -584,6 +569,12 @@ SS34 is already a BOM line and its 40 V / 3 A covers a 24 V input at
 24 -> 5 V it gives dI = 5 x 0.792 / (47u x 150k) = 0.56 A, so 56%
 ripple on a 1 A load and a 1.28 A peak. Going smaller makes that worse,
 not the part - inductor volume goes as L x I^2.
+
+L1 was 0.08 mm inside an 8 mm washer's footprint on H4 (PCB review
+2026-10-05, item 8). On 2026-10-23 the buck's input caps (C41/C42/C43),
+D7 and L1 all moved 1.5 mm north together - the caps up to the CT
+terminal's courtyard, the VIN_P bus re-run below them at y 98.6 - and
+L1's courtyard now clears the washer by 1.4 mm.
 
 ## C44 (design.py line 619)
 
@@ -1696,6 +1687,13 @@ extra four are allocated sequentially from C33 as the task instructions
 direct. The ceramic (100nF) of each pair is the one to place closest to
 the IC per the datasheet's own layout guidance (Rev. C p.68); exact
 placement is Task 14's job.
+Placed on 2026-10-23 (PCB review 2026-10-05, items 1 and 2): C36 is
+1.0 mm from VDD pin 17 and C35 1.9 mm below it, east of U7; the CT
+filter caps C31/C40 stand on end against IAP/IAN (1.3 / 1.4 mm) and C32
+against IBP (0.6 mm); VINTD's pair stands on end 4.4 mm west of pin 3,
+fed straight across between C31's pads and under I2C_SDA on B.Cu; REF's
+pair sits south at ~6 mm. RXD0/TXD0 used to run past U7's west side and
+were re-routed to make the room.
 
 ## R31 (design.py line 1993)
 
