@@ -502,7 +502,7 @@ refutation pass the 2026-09-02 round had. See "Not performed".
 | A10 CT channel A | **fixed** — U7.6 (IAN) = CTA_FN through R59 1 k with C40 33 nF; both channels ±500 mV, 139 A rms at 5.1 Ω / 2000:1, as the enclosure README now states |
 | A11 `.kicad_dru` | loads; JLC-rule DRC 0 violations |
 | C: F1 + D8, R54–R58, R60/R61, R49, D3 silicon | all present on the measured nets |
-| C: `+5V` single power vias | **open** — 5 transitions, one 0.6/0.3 via each: (40.0, 72.0) (41.0, 60.5) (44.25, 52.25) (90.0, 95.75) (91.25, 97.0). Rev C |
+| C: `+5V` single power vias | **fixed 2026-10-26** — every `+5V` layer transition (7 on the B.3 board) has a second 0.6/0.3 via 0.85 mm away with a stub on each layer; two in the USB corner use 0.3 mm stubs |
 | C: stitching vias | **open** — 15 of 285 signal vias have a GND via within 1.5 mm (31 within 2 mm); 118 GND vias + 58 GND THT pads on the board. SPI_SCLK 0/8, SPI_MOSI 1/10, SPI_MISO 1/9, USB_DP 2/8, USB_DN 0/5, I2C 0/14. Mitigated by the 4-layer stack (F.Cu references the In1 GND plane directly; B.Cu references the +3V3 plane) — a rev-C EMI item, not a function item |
 | C: SSR outputs no clamp; nav loom J6 no series R / ESD; display loom J5 no ESD | **open**, rev C. J1/J11/J12 carry SRV05-4s (pin 2 GND, pin 5 VCC verified against the SRV05-4 datasheet: U4 VCC = VBUS, D5/D6 VCC = +3V3) |
 | D silk block names | the render shows `24V IN`, `AUX OUT`, `SSR1`, `SSR2`, `TC1`, `TC2`, `CT` above their blocks; per-terminal marks on every screw; `WDT DEFEAT`, `AUX=5V`, `AC SENSE DNP`, `STATUS`, `PWR`, `USB`, `RESET`/`BOOT`, nameplate with rev. Text is upside-down in the enclosure's orientation (struck as unfixable last round) |
@@ -708,7 +708,7 @@ SSR drive and the relay coil no longer move with the installer's trim pot.
 | C: 5 V relays under-driven | **moot** - 24 V coils |
 | C: WS2812B margin | **fixed** - D3 is silicon now, not an SS14; a *regulated* 5.0 V rail made the old Schottky a 10 mV margin |
 | C: return/stitching vias | one added under J7; the broad 220-of-232 item is open |
-| C: `+5V` single power vias (Track 3 #7) | **attempted, not landed** - see below |
+| C: `+5V` single power vias (Track 3 #7) | **fixed 2026-10-26** - a post-routing pass that adds the companion via AND its two stubs (the missing piece noted below); 7 of 7 placed |
 
 **Why `+5V` still transitions layers on single vias.** A post-routing pass was
 written and measured: **0 added, 13 had no room.** Two things kill the cheap

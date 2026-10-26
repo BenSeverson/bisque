@@ -197,6 +197,7 @@ JLC_PLACEMENT = {
     "C7512":    (270,  0.000,  0.000),   # U6    SOIC-16_3.9x9.9mm_P1.27mm            resid 0.261 (16 pin#)
     "C75882":   (180,  0.000,  0.000),   # Q5    SOT-23                               resid 0.397 (3 pin#)
     "C81598":   (  0,  0.000,  0.000),   # D4    D_SOD-123                            resid 0.085 (2 pin#)
+    "C8598":    (  0,  0.000,  0.000),   # D9    D_SOD-123                            resid 0.050 (2 pin#)
     "C13585":   (  0,  0.000,  0.000),   # C41   C_1206_3216Metric                    resid 0.118 (2 pin#)
     # U12. A QUARTER TURN, and the one row here that could not have been
     # guessed from the package name: LCSC runs the SOT-583's 0.5 mm pitch
@@ -327,8 +328,8 @@ LCSC = {
     # Freewheel across each SSR terminal pair. Same part as D3/D4, so no
     # new line - see DESIGN-NOTES.md for why 150 mA/450 mA peak is the right
     # size against F1's budget rather than an SMA Schottky.
-    "D9": ("C81598", "1N4148W SOD-123 - SSR1 terminal freewheel", True, True),
-    "D10": ("C81598", "1N4148W SOD-123 - SSR2 terminal freewheel", True, True),
+    "D9": ("C8598", "B5819W 40V 1A Schottky SOD-123 - SSR1 terminal freewheel", True, True),
+    "D10": ("C8598", "B5819W 40V 1A Schottky SOD-123 - SSR2 terminal freewheel", True, True),
     "F1": ("C369169", "JK-mSMD075-33 PPTC 750mA hold / 1.5A trip, 33V, 1812", False, True),
     "L1": ("C475527", "FXL0650-470-M 47uH 2A 2.6A-sat 230mohm 7x6.6mm", False, True),
     "J1": ("C165948", "HRO TYPE-C-31-M-12 USB-C 16P", False, True),
@@ -432,6 +433,10 @@ LCSC = {
     # at U12 for why that number is pinned from both ends rather than rounded.
     "R63": ("C17621", "30k 0805 1%", True, True),
     "R64": ("C17414", "10k 0805 1%", True, True),
+    "R65": ("C17513", "1k 0805 1%", True, True),
+    "R66": ("C149504", "100k 0805 1%", True, True),
+    "R67": ("C149504", "100k 0805 1%", True, True),
+    "R68": ("C17621", "30k 0805 1%", True, True),
     "SW1": ("C318884", "TS-1187A-B-A-B 5.1x5.1mm SMD tactile switch", True, True),
     "SW2": ("C318884", "TS-1187A-B-A-B 5.1x5.1mm SMD tactile switch", True, True),
     # Containment, not isolation - see DESIGN-NOTES.md's SSR block. SOP-4 rather

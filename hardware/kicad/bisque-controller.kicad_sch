@@ -13,8 +13,252 @@
 		(comment 2 "4-layer, 100 x 100 mm, JLCPCB standard process")
 	)
 	(lib_symbols)
+	(wire
+		(pts
+			(xy 139.7 33.02)
+			(xy 154.94 33.02)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "12cfa085-3b51-562c-a408-a4543b37e9f0")
+	)
+	(wire
+		(pts
+			(xy 58.42 63.5)
+			(xy 93.98 63.5)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "24abebab-13a3-5459-968f-12b46f4f684d")
+	)
+	(wire
+		(pts
+			(xy 66.04 15.24)
+			(xy 165.1 15.24)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2f308afc-4170-5de0-b9c9-3579191f4eaa")
+	)
+	(wire
+		(pts
+			(xy 58.42 71.12)
+			(xy 93.98 71.12)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4dd3c830-3a2d-5380-a74a-5a9ff387d742")
+	)
+	(wire
+		(pts
+			(xy 58.42 106.68)
+			(xy 93.98 106.68)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5101253b-d19c-5385-8935-0ff2ed273a8e")
+	)
+	(wire
+		(pts
+			(xy 139.7 68.58)
+			(xy 154.94 68.58)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5ea0d47b-4e07-5a3b-a1fd-ad977d6856a7")
+	)
+	(wire
+		(pts
+			(xy 139.7 35.56)
+			(xy 154.94 35.56)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6c7d52b6-411d-5a39-a89c-f3058cbfc527")
+	)
+	(wire
+		(pts
+			(xy 66.04 30.48)
+			(xy 66.04 15.24)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6c8c55cd-58f5-5f78-b758-84295cd2acd4")
+	)
+	(wire
+		(pts
+			(xy 58.42 60.96)
+			(xy 93.98 60.96)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6d9c9b15-c977-5c9f-ad08-fc6a8218b000")
+	)
+	(wire
+		(pts
+			(xy 139.7 76.2)
+			(xy 154.94 76.2)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7d3818ad-f2e4-5b99-8461-c583373da438")
+	)
+	(wire
+		(pts
+			(xy 58.42 66.04)
+			(xy 93.98 66.04)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9780a32b-3d9c-596e-b37f-7ce2e99fbb30")
+	)
+	(wire
+		(pts
+			(xy 139.7 73.66)
+			(xy 154.94 73.66)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "98901d98-e49f-530f-ab57-ada6daf19306")
+	)
+	(wire
+		(pts
+			(xy 139.7 78.74)
+			(xy 154.94 78.74)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a3f2240a-8c5b-545f-83c1-c2ff94717434")
+	)
+	(wire
+		(pts
+			(xy 139.7 66.04)
+			(xy 154.94 66.04)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a6837cbc-e021-5007-b964-707473e38da9")
+	)
+	(wire
+		(pts
+			(xy 139.7 30.48)
+			(xy 154.94 30.48)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b5dd4ae6-a939-579a-bf76-6eceea2150d6")
+	)
+	(wire
+		(pts
+			(xy 58.42 73.66)
+			(xy 93.98 73.66)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c9c3881b-1b5c-5cb1-9143-624e964c5bd8")
+	)
+	(wire
+		(pts
+			(xy 139.7 63.5)
+			(xy 154.94 63.5)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "cc662b6e-aeed-5f55-98cf-6138ffcc88e6")
+	)
+	(wire
+		(pts
+			(xy 165.1 15.24)
+			(xy 165.1 20.32)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ce9d66c2-3a39-5ae2-981f-a5e219c96c02")
+	)
+	(wire
+		(pts
+			(xy 58.42 109.22)
+			(xy 93.98 109.22)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d7f3e32e-a0e7-5e5c-874f-c6651b6f8483")
+	)
+	(wire
+		(pts
+			(xy 58.42 30.48)
+			(xy 66.04 30.48)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "db0e7ada-4bc0-5f35-8b26-07f20dfb6f73")
+	)
+	(wire
+		(pts
+			(xy 139.7 60.96)
+			(xy 154.94 60.96)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e0b94451-eea1-510d-99f9-5af1ee01b0d6")
+	)
+	(wire
+		(pts
+			(xy 58.42 111.76)
+			(xy 93.98 111.76)
+		)
+		(uuid "a7155356-be98-4ab8-a113-af6c6a66c573")
+	)
+	(wire
+		(pts
+			(xy 58.42 35.56)
+			(xy 93.98 35.56)
+		)
+		(uuid "5a4d0848-5ae1-4fca-89d4-4b805f83bfd7")
+	)
 	(text "NOTES  -  Bisque kiln controller, rev B"
-		(exclude_from_sim no)
 		(at 199.8 27.7 0)
 		(effects
 			(font
@@ -26,7 +270,6 @@
 		(uuid "7fa6e2b1-7863-5c9b-98a3-5c4ef47553a8")
 	)
 	(text "SSR terminals J4/J9: pin1 = VIN_P (24 V, fused and TVS-clamped,\n  ALWAYS LIVE), pin2 = the switched low side. The watchdog gates\n  the shared return (Q7), not the supply, so a tripped watchdog\n  leaves 24 V on pin 1 and opens pin 2. Boot-safe: R7/R20 hold\n  each gate down while the optos are dark.\n  The optos are NOT an isolation barrier - both sides share GND.\n  Rev B's opto-ISOLATED design was reverted and stays reverted;\n  U8/U9 are here to keep a 24 V gate fault off the GPIO.\n  Per channel <=200 mA: F1 holds at 750 mA and U11 takes ~250.\n\nTC1 terminal J3 / TC2 terminal J8: pin1 = K+, pin2 = K- - both\n  float, biased near AGND only through each MAX31856's internal\n  BIAS network. Ungrounded-junction probes required: two\n  grounded-junction probes in one kiln would loop through it.\n\nNav switch J6 is panel-mounted; inputs use ESP32 pull-ups.\n\nJ11: IN1/IN2/IN3 (lid/gas-flow/spare) + GND - dry contact each\n  channel to GND.\n\nDisplay J5 (14-pin, ST7796S + XPT2046 touch module, LCDWIKI\n  MSP4021): 1=+5V 2=GND 3=CS 4=RST 5=DC 6=SDI/MOSI 7=SCK 8=BL\n  9=SDO/MISO 10=T_CLK 11=T_CS 12=T_DIN 13=T_DO 14=T_IRQ.\n  PIN 1 IS +5V, NOT 3V3 - the module regulates on board; do not\n  wire a 3.3V-only panel to it. Logic is 3.3V; touch shares SPI2\n  with the LCD and both MAX31856s (R39-R43 damping). LCD_RST is\n  GPIO46, a boot-strapping pin: the MSP4021 has NO pull-up on its\n  RESET line (QDtech schematic, 2019-09-27), so download mode is\n  unaffected - check that before substituting another module.\n\nJ12: CT current inputs, CTA_P/CTA_N/CTB_P/CTB_N - one CT clamp\n  per SSR zone.\n\nJ13: DNP SELV voltage sense header. NOT mains-rated, not fitted\n  - do not wire to AC mains. Y1 is a packaged 3.579545 MHz\n  oscillator (no load caps; C25 is its bypass) - see\n  DESIGN-NOTES.md, Y1. ADE7953 I2C address 0x38 would collide\n  with a PCF8574A added on J7/J14.\n\nDesign reasoning per block: hardware/kicad/DESIGN-NOTES.md.\nDesignators C8, C9, C26, D1, D2 and Q1 are retired, not missing:\n  they are kept free so the notes and reviews still read."
-		(exclude_from_sim no)
 		(at 199.8 86.36 0)
 		(effects
 			(font
@@ -35,216 +278,6 @@
 			(justify left)
 		)
 		(uuid "dbadb58a-df2e-53a3-9b2b-6492fe215714")
-	)
-	(wire
-		(pts
-			(xy 139.7 33.02) (xy 154.94 33.02)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "12cfa085-3b51-562c-a408-a4543b37e9f0")
-	)
-	(wire
-		(pts
-			(xy 58.42 63.5) (xy 93.98 63.5)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "24abebab-13a3-5459-968f-12b46f4f684d")
-	)
-	(wire
-		(pts
-			(xy 66.04 15.24) (xy 165.1 15.24)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "2f308afc-4170-5de0-b9c9-3579191f4eaa")
-	)
-	(wire
-		(pts
-			(xy 58.42 71.12) (xy 93.98 71.12)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "4dd3c830-3a2d-5380-a74a-5a9ff387d742")
-	)
-	(wire
-		(pts
-			(xy 58.42 106.68) (xy 93.98 106.68)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "5101253b-d19c-5385-8935-0ff2ed273a8e")
-	)
-	(wire
-		(pts
-			(xy 139.7 68.58) (xy 154.94 68.58)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "5ea0d47b-4e07-5a3b-a1fd-ad977d6856a7")
-	)
-	(wire
-		(pts
-			(xy 139.7 35.56) (xy 154.94 35.56)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "6c7d52b6-411d-5a39-a89c-f3058cbfc527")
-	)
-	(wire
-		(pts
-			(xy 66.04 30.48) (xy 66.04 15.24)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "6c8c55cd-58f5-5f78-b758-84295cd2acd4")
-	)
-	(wire
-		(pts
-			(xy 58.42 60.96) (xy 93.98 60.96)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "6d9c9b15-c977-5c9f-ad08-fc6a8218b000")
-	)
-	(wire
-		(pts
-			(xy 139.7 76.2) (xy 154.94 76.2)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "7d3818ad-f2e4-5b99-8461-c583373da438")
-	)
-	(wire
-		(pts
-			(xy 58.42 66.04) (xy 93.98 66.04)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "9780a32b-3d9c-596e-b37f-7ce2e99fbb30")
-	)
-	(wire
-		(pts
-			(xy 139.7 73.66) (xy 154.94 73.66)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "98901d98-e49f-530f-ab57-ada6daf19306")
-	)
-	(wire
-		(pts
-			(xy 139.7 78.74) (xy 154.94 78.74)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "a3f2240a-8c5b-545f-83c1-c2ff94717434")
-	)
-	(wire
-		(pts
-			(xy 139.7 66.04) (xy 154.94 66.04)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "a6837cbc-e021-5007-b964-707473e38da9")
-	)
-	(wire
-		(pts
-			(xy 139.7 30.48) (xy 154.94 30.48)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "b5dd4ae6-a939-579a-bf76-6eceea2150d6")
-	)
-	(wire
-		(pts
-			(xy 58.42 73.66) (xy 93.98 73.66)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c9c3881b-1b5c-5cb1-9143-624e964c5bd8")
-	)
-	(wire
-		(pts
-			(xy 139.7 63.5) (xy 154.94 63.5)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "cc662b6e-aeed-5f55-98cf-6138ffcc88e6")
-	)
-	(wire
-		(pts
-			(xy 165.1 15.24) (xy 165.1 20.32)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "ce9d66c2-3a39-5ae2-981f-a5e219c96c02")
-	)
-	(wire
-		(pts
-			(xy 58.42 109.22) (xy 93.98 109.22)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "d7f3e32e-a0e7-5e5c-874f-c6651b6f8483")
-	)
-	(wire
-		(pts
-			(xy 58.42 30.48) (xy 66.04 30.48)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "db0e7ada-4bc0-5f35-8b26-07f20dfb6f73")
-	)
-	(wire
-		(pts
-			(xy 139.7 60.96) (xy 154.94 60.96)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "e0b94451-eea1-510d-99f9-5af1ee01b0d6")
 	)
 	(sheet
 		(at 93.98 20.32)
@@ -285,173 +318,193 @@
 		)
 		(pin "SPI_MOSI" output
 			(at 93.98 60.96 180)
-			(uuid "f7c46b58-b8a6-56ec-8963-0dc57d82c079")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
+			(uuid "f7c46b58-b8a6-56ec-8963-0dc57d82c079")
 		)
 		(pin "SPI_SCLK" output
 			(at 93.98 63.5 180)
-			(uuid "9f6b142b-41f9-5d38-8b45-938859f1d48f")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
+			(uuid "9f6b142b-41f9-5d38-8b45-938859f1d48f")
 		)
 		(pin "SPI_MISO" input
 			(at 93.98 66.04 180)
-			(uuid "4aa97efd-722f-513a-b336-1058eaba7fe2")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
+			(uuid "4aa97efd-722f-513a-b336-1058eaba7fe2")
 		)
 		(pin "TC1_CS" output
 			(at 93.98 71.12 180)
-			(uuid "4120c36b-766a-5bbd-be3b-096b5af6f0cb")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
+			(uuid "4120c36b-766a-5bbd-be3b-096b5af6f0cb")
 		)
 		(pin "TC2_CS" output
 			(at 93.98 73.66 180)
-			(uuid "0804d66b-c5d6-50f2-a914-f31a32d5418b")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
+			(uuid "0804d66b-c5d6-50f2-a914-f31a32d5418b")
 		)
 		(pin "I2C_SDA" bidirectional
 			(at 93.98 106.68 180)
-			(uuid "7cd8af82-29ac-5737-9dcb-f4a42458631c")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
+			(uuid "7cd8af82-29ac-5737-9dcb-f4a42458631c")
 		)
 		(pin "I2C_SCL" bidirectional
 			(at 93.98 109.22 180)
-			(uuid "54e7ea67-b3e8-5c24-84ac-03e8e6863927")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
+			(uuid "54e7ea67-b3e8-5c24-84ac-03e8e6863927")
 		)
 		(pin "SSR1_CTRL" output
 			(at 139.7 30.48 0)
-			(uuid "53c58257-ea7c-5386-8883-593455493955")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
+			(uuid "53c58257-ea7c-5386-8883-593455493955")
 		)
 		(pin "SSR2_CTRL" output
 			(at 139.7 33.02 0)
-			(uuid "bf47246d-b3a9-5a70-8bca-639a638e48a0")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
+			(uuid "bf47246d-b3a9-5a70-8bca-639a638e48a0")
 		)
 		(pin "WDT_KICK" output
 			(at 139.7 35.56 0)
-			(uuid "4ec5338c-e9d9-59d6-b206-0a7cb8d905ab")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
+			(uuid "4ec5338c-e9d9-59d6-b206-0a7cb8d905ab")
 		)
 		(pin "AUX1" output
 			(at 139.7 60.96 0)
-			(uuid "e42238d6-1f25-52a9-9aaf-55de2377301f")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
+			(uuid "e42238d6-1f25-52a9-9aaf-55de2377301f")
 		)
 		(pin "AUX2" output
 			(at 139.7 63.5 0)
-			(uuid "9ea7da2d-ab79-50a7-a6f2-dee5fc89ff7a")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
+			(uuid "9ea7da2d-ab79-50a7-a6f2-dee5fc89ff7a")
 		)
 		(pin "AUX3" output
 			(at 139.7 66.04 0)
-			(uuid "a85a28a5-5fcf-577f-ba20-7036e9fa478f")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
+			(uuid "a85a28a5-5fcf-577f-ba20-7036e9fa478f")
 		)
 		(pin "ALARM" output
 			(at 139.7 68.58 0)
-			(uuid "b7a96426-7157-5452-ad98-009107201097")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
+			(uuid "b7a96426-7157-5452-ad98-009107201097")
 		)
 		(pin "IN1" input
 			(at 139.7 73.66 0)
-			(uuid "4d84a3b0-77b4-58c1-9f4b-e764f5029677")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
+			(uuid "4d84a3b0-77b4-58c1-9f4b-e764f5029677")
 		)
 		(pin "IN2" input
 			(at 139.7 76.2 0)
-			(uuid "2534aab5-8809-556b-b6f6-31a39f240556")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
+			(uuid "2534aab5-8809-556b-b6f6-31a39f240556")
 		)
 		(pin "IN3" input
 			(at 139.7 78.74 0)
-			(uuid "231b8230-4936-5d9b-9948-71805170b8d9")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
+			(uuid "231b8230-4936-5d9b-9948-71805170b8d9")
+		)
+		(pin "ADE_RESET" output
+			(at 93.98 111.76 180)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+			(uuid "30238756-9389-49c9-b3bb-c75998fb9b5b")
+		)
+		(pin "PWR_STATUS" input
+			(at 93.98 35.56 180)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+			(uuid "78a131ee-5496-42be-b9b3-411cca4223ae")
 		)
 		(instances
 			(project "bisque-controller"
@@ -545,23 +598,33 @@
 		)
 		(pin "I2C_SDA" bidirectional
 			(at 58.42 106.68 0)
-			(uuid "ba3443ac-e5c0-53b3-923f-c2d157920fbf")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
+			(uuid "ba3443ac-e5c0-53b3-923f-c2d157920fbf")
 		)
 		(pin "I2C_SCL" bidirectional
 			(at 58.42 109.22 0)
-			(uuid "450c10e4-7e1e-5ad7-a0a9-bfe49958731c")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
+			(uuid "450c10e4-7e1e-5ad7-a0a9-bfe49958731c")
+		)
+		(pin "ADE_RESET" input
+			(at 58.42 111.76 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+			(uuid "ab1d0bd3-8217-4c24-8b52-11852248b3c0")
 		)
 		(instances
 			(project "bisque-controller"
@@ -610,43 +673,43 @@
 		)
 		(pin "SSR1_CTRL" input
 			(at 154.94 30.48 180)
-			(uuid "207883e8-6b63-5548-91d8-f8d9c3df38cd")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
+			(uuid "207883e8-6b63-5548-91d8-f8d9c3df38cd")
 		)
 		(pin "SSR2_CTRL" input
 			(at 154.94 33.02 180)
-			(uuid "61167951-7315-5e44-991e-db74671e0e73")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
+			(uuid "61167951-7315-5e44-991e-db74671e0e73")
 		)
 		(pin "WDT_KICK" input
 			(at 154.94 35.56 180)
-			(uuid "0b57fb4f-5ec8-5ecc-8b18-3202f779b995")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
+			(uuid "0b57fb4f-5ec8-5ecc-8b18-3202f779b995")
 		)
 		(pin "VIN_P" passive
 			(at 165.1 20.32 90)
-			(uuid "387a61f3-9e25-50a3-b386-f8de85fe2840")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
+			(uuid "387a61f3-9e25-50a3-b386-f8de85fe2840")
 		)
 		(instances
 			(project "bisque-controller"
@@ -695,53 +758,53 @@
 		)
 		(pin "SPI_MOSI" input
 			(at 58.42 60.96 0)
-			(uuid "177c00ee-b1da-5392-a2dc-1cd0ef3818a2")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
+			(uuid "177c00ee-b1da-5392-a2dc-1cd0ef3818a2")
 		)
 		(pin "SPI_SCLK" input
 			(at 58.42 63.5 0)
-			(uuid "6ac08f62-29f5-5398-9f7e-744ed800b325")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
+			(uuid "6ac08f62-29f5-5398-9f7e-744ed800b325")
 		)
 		(pin "SPI_MISO" output
 			(at 58.42 66.04 0)
-			(uuid "e35ce993-44b5-55e5-9899-af31a3d22eab")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
+			(uuid "e35ce993-44b5-55e5-9899-af31a3d22eab")
 		)
 		(pin "TC1_CS" input
 			(at 58.42 71.12 0)
-			(uuid "146bfe66-d88f-582c-bb6c-c51fb81b3a84")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
+			(uuid "146bfe66-d88f-582c-bb6c-c51fb81b3a84")
 		)
 		(pin "TC2_CS" input
 			(at 58.42 73.66 0)
-			(uuid "e0fd1acf-2e70-5e0e-8f36-59d3b5aa99c0")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
+			(uuid "e0fd1acf-2e70-5e0e-8f36-59d3b5aa99c0")
 		)
 		(instances
 			(project "bisque-controller"
@@ -790,13 +853,23 @@
 		)
 		(pin "VIN_P" passive
 			(at 58.42 30.48 0)
-			(uuid "f2559e47-d892-530f-89a3-f0dcbd35ed7a")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
+			(uuid "f2559e47-d892-530f-89a3-f0dcbd35ed7a")
+		)
+		(pin "PWR_STATUS" output
+			(at 58.42 35.56 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+			(uuid "49414fbe-431e-4798-9562-cc976f46bbf0")
 		)
 		(instances
 			(project "bisque-controller"
@@ -845,73 +918,73 @@
 		)
 		(pin "AUX1" input
 			(at 154.94 60.96 180)
-			(uuid "37f68c60-28bb-5c65-9db1-76e7358d9313")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
+			(uuid "37f68c60-28bb-5c65-9db1-76e7358d9313")
 		)
 		(pin "AUX2" input
 			(at 154.94 63.5 180)
-			(uuid "db7ba4b6-593f-575b-925c-4281f0831181")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
+			(uuid "db7ba4b6-593f-575b-925c-4281f0831181")
 		)
 		(pin "AUX3" input
 			(at 154.94 66.04 180)
-			(uuid "dd03182f-fd3f-5591-b104-07c33b4f7047")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
+			(uuid "dd03182f-fd3f-5591-b104-07c33b4f7047")
 		)
 		(pin "ALARM" input
 			(at 154.94 68.58 180)
-			(uuid "d9f643f2-819f-524e-84c2-40496a6d16e9")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
+			(uuid "d9f643f2-819f-524e-84c2-40496a6d16e9")
 		)
 		(pin "IN1" output
 			(at 154.94 73.66 180)
-			(uuid "ecb0c4fe-230e-50ea-9d50-a04c72bd417d")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
+			(uuid "ecb0c4fe-230e-50ea-9d50-a04c72bd417d")
 		)
 		(pin "IN2" output
 			(at 154.94 76.2 180)
-			(uuid "73a6882c-b420-5d3b-91fd-d99c6253073d")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
+			(uuid "73a6882c-b420-5d3b-91fd-d99c6253073d")
 		)
 		(pin "IN3" output
 			(at 154.94 78.74 180)
-			(uuid "1301dc70-9269-54bb-b23c-daa4cdc58cae")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
+			(uuid "1301dc70-9269-54bb-b23c-daa4cdc58cae")
 		)
 		(instances
 			(project "bisque-controller"

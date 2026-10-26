@@ -119,6 +119,8 @@ calibration and must be sourced and verified. Check gain settings and both
 channels with a known current; do not repair clipping with a software scale
 factor.
 
+> **Status 2026-10-26:** balanced reference implemented. R65 (1 k, CTA_P to GND) mirrors R33, so the floating secondary sits at ±V/2 on IAP/IAN and the ±250 mV pin limit is reached at the same 139 A nominal as channel B. Burden unchanged; the calibration constant is unchanged. Bench check with a known current is still on the first-article list.
+
 ### 3. P1 — A grounded SSR return bypasses the watchdog; cutoff documentation conflicts
 
 **Confirmed architecture limitation, already noted in the September review.**

@@ -593,6 +593,8 @@ stress. D3's LED supply and D4's buzzer must be checked at their actual
 currents; this sheet alone introduces no demonstrated normal-use failure
 for those two parts.
 
+> **Status 2026-10-26:** D9/D10 are B5819W (JSCJ C8598, Basic: 1 A average, 9 A surge, 40 V) in the same SOD-123 land, so no copper moved. The SS34 was tried first and does not fit the SSR column (DESIGN-NOTES §D9). D3/D4 stay 1N4148W at their LED/buzzer currents.
+
 ## Manufacturing, mechanical, and verification checks
 
 | Check | Result / interpretation |

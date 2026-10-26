@@ -359,6 +359,47 @@ menu "Bisque Configuration"
                 working watchdog hardware will not heat.
 
                 Set to -1 on hardware without the watchdog circuit.
+        config KILN_PIN_ADE_RESET
+            int "ADE7953 reset GPIO (-1 = not wired)"
+            default 37
+            help
+                Drives the energy meter's active-low RESET through its
+                R30/C37 power-on RC. Leave the pin as an input (or driven
+                high) in normal operation; drive it low for >= 10 us only to
+                re-initialise U7 after an I2C fault, then release it. The RC
+                still handles the power-on reset on its own, so a build that
+                never touches this pin loses nothing.
+
+                NOTHING DRIVES THIS PIN YET. Wired on the rev B.3 board
+                (schematic review 2026-10-22, E3).
+
+                Set to -1 on hardware without the ADE7953 or the wire.
+
+        config KILN_PIN_PWR_STATUS
+            int "24 V power-present sense GPIO (-1 = not wired)"
+            default 45
+            help
+                Reads BUCK_5V, the 24 V buck's output ahead of the USB/buck
+                power mux, through a 100k / 130k divider (R66 over R67+R68,
+                ~2.8 V at 5.0 V): HIGH while the 24 V input is up and the
+                buck is running, LOW while the board runs from USB VBUS
+                alone. Lets the firmware refuse to start a firing - the SSR
+                terminals are unpowered - and warn in the web UI when only
+                USB is present. (The TPS2116's own ST pin says the same
+                thing, but its pad is boxed in by the USB pair on the rev B
+                layout and cannot be routed; the divider is the sense that
+                fits.)
+
+                GPIO45 is a strapping pin (VDD_SPI voltage select). On the
+                N16R2 module fitted, VDD_SPI is fixed by eFuse and the pin's
+                boot level is ignored (ESP32-S3-WROOM-1 datasheet, module
+                schematics note), so a HIGH at boot is safe. Do NOT keep
+                this default on a module without PSRAM.
+
+                NOTHING READS THIS PIN YET. Wired on the rev B.3 board
+                (schematic review 2026-10-22, E4).
+
+                Set to -1 on hardware without the divider.
     endmenu
 
     menu "PID Defaults"

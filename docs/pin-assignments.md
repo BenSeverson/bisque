@@ -59,7 +59,7 @@ configurable pin's Kconfig default is the GPIO in the first column.
 | 21 | 23 | — | `SSR2_CTRL` | SSR zone 2 opto LED (U9) → Q6 gate | `KILN_PIN_SSR2` | routed, **no driver** |
 | 35 | 28 | — | `TC2_CS` | Thermocouple 2 (MAX31856) CS | `KILN_PIN_TC2_CS` | routed, **no driver** |
 | 36 | 29 | — | `WDT_KICK` | Hardware watchdog kick | `KILN_PIN_WDT_KICK` | firmware kicks at 5 Hz; **hardware not yet resized — see [WDT DEFEAT](#the-watchdog-jumper)** |
-| 37 | 30 | — | — | **spare** | — | free (freed by the quad-PSRAM module) |
+| 37 | 30 | — | `ADE_RESET` | ADE7953 reset (U7, via the R30/C37 RC) | `KILN_PIN_ADE_RESET` | routed, **no driver** |
 | 38 | 31 | — | `BTN_UP` | Nav Up | `KILN_PIN_BTN_UP` | active |
 | 39 | 32 | — | `BTN_DOWN` | Nav Down | `KILN_PIN_BTN_DOWN` | active |
 | 40 | 33 | — | `BTN_LEFT` | Nav Left | `KILN_PIN_BTN_LEFT` | active |
@@ -67,14 +67,17 @@ configurable pin's Kconfig default is the GPIO in the first column.
 | 42 | 35 | — | `BTN_SEL` | Nav Select | `KILN_PIN_BTN_SELECT` | active |
 | 43 | 37 | — | `TXD0` | Console → J7.3 | — | UART0 |
 | 44 | 36 | — | `RXD0` | Console → J7.4 | — | UART0 |
-| 45 | 26 | — | — | not connected | — | strapping |
+| 45 | 26 | — | `PWR_STATUS` | 24 V present: `BUCK_5V` via R66/R67/R68 divider, high on buck, low on USB-only | `KILN_PIN_PWR_STATUS` | routed, **no driver**; strapping (ignored on PSRAM modules) |
 | 46 | 16 | — | `LCD_RST` | Display reset | `KILN_PIN_LCD_RST` | active, strapping |
 | 47 | 24 | — | `I2C_SCL` | I2C clock | `KILN_PIN_I2C_SCL` | routed, **no driver** |
 | 48 | 25 | — | `LED_DATA` | WS2812B status LED | `KILN_PIN_STATUS_LED` | active |
 
-**29 of 30 usable GPIOs assigned; one spare** (the row with no net). Quad
-PSRAM frees GPIO 35/36/37 versus the octal-PSRAM module rev A's original plan
-assumed — see §2 below.
+**All 30 usable GPIOs are assigned.** The last two went on 2026-10-26: GPIO37
+to `ADE_RESET` and GPIO45 to `PWR_STATUS`, so the next function needs an I²C
+expander or one of the two cheap-to-free pins: `T_IRQ` (`KILN_PIN_TOUCH_IRQ`
+accepts −1 and the touch controller is polled instead) or `IN3` (an
+unassigned input). Quad PSRAM frees GPIO 35/36/37 versus the
+octal-PSRAM module rev A's original plan assumed — see §2 below.
 
 ### Defaults now match the board
 

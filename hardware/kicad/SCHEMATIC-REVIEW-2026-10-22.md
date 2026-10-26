@@ -401,6 +401,8 @@ choice, not a fault — but if the ADE7953 ever wedges its I2C engine the
 only recovery is a power cycle of the whole board. If a GPIO is ever
 freed, this is a candidate for it.
 
+> **Status 2026-10-26:** done. `ADE_RESET` is a hierarchical net to U1 IO37 (the spare GPIO), `KILN_PIN_ADE_RESET` default 37; R30/C37 stay for the power-on stretch.
+
 ### E4. P3 — No VBUS sense
 
 The MCU cannot tell USB-only from 24 V power. It does not need to for
@@ -408,6 +410,8 @@ safety (the SSR terminals are fed from `VIN_P`, so USB-only cannot drive
 a load), but firmware could use a divided `VBUS` on a spare input to warn
 "no 24 V — SSRs will not fire" instead of silently timing out. One
 resistor pair and a GPIO.
+
+> **Status 2026-10-26:** done, as a divider on `BUCK_5V` rather than `VBUS`: R66 (100k) over R67+R68 (130k) to `PWR_STATUS` on U1 IO45 (`KILN_PIN_PWR_STATUS` default 45), 2.8 V when the buck runs, 0 V on USB only. The TPS2116 ST pin would have said the same thing but its pad is unroutable at the rev B placement (DESIGN-NOTES §U12).
 
 ### E5. P3 — Watchdog timing capacitor is a 22 µF X5R
 
@@ -448,12 +452,12 @@ narrows the spread (check the one-shot's Rext range first).
 | # | Finding | Status at e5dcc7a |
 |---|---|---|
 | 1 | TVS clamp (48 V) above XL1509/SS34/AO3401A ratings | **Open** — D8 still SMAJ30A, U11 XL1509, D7 SS34 |
-| 2 | CT channel A pseudo-differential (R33 to GND) | **Open** — R33 1 k to GND unchanged |
+| 2 | CT channel A pseudo-differential (R33 to GND) | **Fixed 2026-10-26** — R65 1 k from CTA_P to GND mirrors R33; pin swing is now ±V/2 each side |
 | 3 | Grounded SSR return bypasses Q7 | **Open** — architecture unchanged |
-| 4 | Watchdog timing not guaranteed at 100 k/22 µF | **Open** |
+| 4 | Watchdog timing not guaranteed at 100 k/22 µF | **Fixed** (d46b4c6, review E5) — X7R timing pair |
 | 5 | 17 EP vias in paste | PCB item, not re-checked |
 | 11 | Failed Q5 can over-stress Q6 gate | **Open** |
-| 12 | D8/U2 symbol honesty, MPN = C-number | **Open** — folded into findings 6 and 8 above |
+| 12 | D8/U2 symbol honesty, MPN = C-number | **Fixed** — folded into findings 6 and 8 above, both closed |
 | ERC | 4 errors | **Fixed** — 0 errors (U11/U12 power flags added, PWR_FLAG on VOUT removed, SDO excluded) |
 
 ## Suggested order of work

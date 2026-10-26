@@ -484,6 +484,23 @@ either.
 the Basic and Preferred libraries hold no power mux and no ideal-diode
 controller at any voltage.
 
+
+2026-10-26 (schematic review 2026-10-22, E4; fab-readiness C3): the
+"24 V present?" sense is a divider on BUCK_5V, not the ST pin. ST
+(pad 8, the south-west corner at rot 180) is the pin the paragraph
+above deliberately parked: it is 0.3 mm from the USB pair on the south,
+the 0.7 mm +5V escape from pad 7 runs along its row on the west, and
+pad 1 (GND) faces it across the 1.48 mm column gap on the east. There
+is no 0.15 mm track and no 0.6 mm via that clears 0.2 mm from all three,
+so ST stays unconnected on this layout - a rev C item that goes with
+re-laying the U12/USB corner. BUCK_5V answers the same question (the
+buck is alive iff the 24 V input is up; U12's reverse-current blocking
+keeps VBUS from back-feeding it), and R66 (100k) over R67+R68 (100k +
+30k, both already on the BOM) puts 2.8 V on `PWR_STATUS` -> IO45 at
+5.0 V, 2.7-3.0 V across the buck's tolerance, against the ESP32-S3's
+2.475 V VIH. 22 uA. IO45 is a strapping pin, ignored on PSRAM modules
+(eFuse-fixed VDD_SPI) - see `KILN_PIN_PWR_STATUS`'s help.
+
 ## C47 (design.py line 502)
 
 U12's INPUT capacitors, one per channel, and the datasheet is the reason
@@ -1173,6 +1190,23 @@ to the F1 budget above and not beyond it: the 1N4148W's 450 mA
 repetitive peak covers a coil interrupted at the ~200 mA per channel
 that budget allows, and it is already on the BOM (D3/D4).
 
+
+2026-10-26 (PCB review 2026-10-05, item 12): D9/D10 are B5819W now
+(JSCJ, C8598, Basic), a 1 A / 40 V Schottky in the SAME SOD-123
+footprint, not the 1N4148W. The ordered 1N4148W (Semtech, C81598) is
+rated 150 mA average with 0.5 A/1 s non-repetitive surge; the "450 mA
+repetitive peak" the paragraph above leaned on is not in its datasheet,
+so a 200 mA contactor coil chopped at the SSR timer's rate was never
+qualified. The B5819W is 1 A average, 9 A surge, 0.6 V at 1 A. The SS34
+(D7's part, 3 A) was the first choice and was tried: its SMA land is
+5.6 mm long and the x = 36.3 column (R22, D9, Q5, Q7, D10, Q6) is on a
+4.4 mm pitch, so it overlapped three courtyards and two vias per diode.
+1 A is 5x the coil budget; the footprint swap would have been a
+re-layout of the whole SSR column for nothing. Reverse voltage is 40 V
+against 24 V nominal and the 30 V TVS clamp; the 48 V clamp transient
+(review item 1) is a separate, still-open coordination item that this
+does not change.
+
 ## LED3 (design.py line 1343)
 
 The channel's readout row: the indicator resistor, the LED and the
@@ -1676,6 +1710,15 @@ it's application-dependent). Datasheet minimum low pulse is 10us; a
 software reset and the datasheet's own reset interrupt are both
 available if this network is omitted, but the stretch is cheap.
 
+
+2026-10-26 (schematic review 2026-10-22, E3): `ADE_RESET` is a
+hierarchical net now and reaches U1's IO37 (module pin 30, the one GPIO
+the quad-PSRAM module left spare; `KILN_PIN_ADE_RESET`). The RC stays
+and still does the power-on stretch by itself; the GPIO is an input
+until firmware needs to recover a wedged I2C engine, when it drives low
+for >= 10 us and lets go. Nothing is lost on a build that never touches
+it, which is why the RC was kept rather than replaced by the pin.
+
 ## C27 (design.py line 1960)
 
 VINTA/VINTD/REF/VDD decoupling - REV-B-NOTES.md SS4 (Table 5, cross-
@@ -1765,6 +1808,21 @@ mark is y-locked to its own screw at 92.00 and can only move in x, with
 J12's body immediately east of it. At y 91.0 this resistor took the only
 x the mark had and it printed under the block it names. y 89.0 sits in
 the 3.58 mm of clear row between the `A-` and `A+` marks.
+
+
+## R65
+
+Channel A's second ground reference (schematic review 2026-10-05, item
+2). R33 alone referenced the floating CT secondary from the CTA_N side,
+which put the whole burden voltage on IAP and only the filter leakage on
+IAN: at 50/60 Hz the 33 nF caps are open circuits next to 1 k, so the
+"differential" channel still clipped IAP's +-250 mV at about 69 A even
+with R59/C40 in place. A second 1 k from CTA_P to GND splits the burden
+voltage symmetrically, +-V/2 on each pin, and the pin limit becomes the
++-500 mV differential limit - 139 A nominal on a 2000:1 CT, the same as
+channel B. Two 1 k in series across a 5R1 burden is a 0.25 % load, far
+below the burden's own 1 %. Mirrors R33: same value, same LCSC part,
+hangs off CTA_P the way R33 hangs off CTA_N.
 
 ## R60 (design.py line 2076)
 
