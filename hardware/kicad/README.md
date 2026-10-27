@@ -684,10 +684,28 @@ against the catalog (package, value, stock) — there are no blanks and nothing
 to guess at in JLC's BOM matcher.
 
 **The board is deliberately split between the SMT line and a soldering
-iron**, same strategy as rev A: each unique **Extended** part costs a flat
-$3 feeder-loading fee no matter how many boards you build, and a single
+iron**, same strategy as rev A. On **Economic** PCBA each unique
+**Extended** part costs a flat feeder-loading fee ($3.07 at JLCPCB's
+2026-10-22 price list) no matter how many boards you build, and a single
 through-hole part forces the whole order onto **Standard** assembly
-(Economic is SMD, top-side only) with a per-joint charge on top.
+(Economic is SMD, top-side only), where *every* BOM line pays a feeder
+($1.53), Basic or not, and setup and stencil cost three times as much.
+
+**Correction 2026-10-27 — this order is Standard PCBA, not Economic.**
+Through-hole parts are not the only thing that forces Standard: each
+JLCPCB part page carries a *PCBA Type* field, and two lines on the SMT
+BOM read **"Standard Only"** — the module (U1, C3013945) and the buck's
+100 µF electrolytic (C46, C2977550). Every other machine-placed line was
+checked the same day and reads "Economic and Standard". One Standard-only
+part is enough, so the hand-solder split below never bought Economic, and
+the fee-free substitutions further down have been saving a fee the order
+does not pay. `gen_jlc.STANDARD_ONLY` now records the two, and the
+generator's summary names the tier the BOM actually lands on and the fixed
+bill for it (`assembly tier: Standard -> … $108.74 fixed per order`, against
+$52.69 on Economic). The way back to Economic is to hand-fit U1 and C46 as
+well — the electrolytic is trivial, the module's edge pads are routinely
+hand-soldered with the centre thermal pad left dry — and that is a decision
+for the next order, not something the generator makes for you.
 
 `HAND_SOLDER` in `gen_jlc.py` drops thirteen designators from both the BOM
 and the CPL — they must leave together, since JLCPCB's upload rejects a CPL
@@ -698,8 +716,8 @@ carrying designators the BOM does not have:
 | J2, J3, J4, J8, J9 (2-pos screw terminals), J10, J11, J12 (4-pos screw terminals), J5, J6, J7 (KK-254 wafers), BZ1 (buzzer) | 5.08 mm and 2.54 mm pitch — the easiest joints on the board, but the ones that would force Standard assembly |
 | LED1 (WS2812B, PLCC-4 5050) | No addressable RGB LED at LCSC is a Basic part (checked across WS2812/SK6812/XL-xxxx), so its $3 buys nothing an iron can't do to four edge-accessible pads |
 
-What's left goes down the SMT line: **129 of 147 placements carry no feeder
-fee**, and only **14 unique Extended parts** do — the module
+What's left goes down the SMT line. **14 unique Extended parts** would pay
+a feeder on Economic — the module
 (ESP32-S3-WROOM-1U-N16R2, C3013945), both MAX31856MUD+T (C2653162, one
 designator, two placements), the ADE7953 (C515890), its 3.579545 MHz
 oscillator (C2838127), the watchdog monostable (SN74LVC1G123, C123302), the
@@ -707,7 +725,10 @@ LDO (TLV1117LV33, C48937499), the buck's inductor (C475527), the input PPTC
 (C369169), the buck's bulk electrolytic (C46, C2977550), the two SSR
 optocouplers (TLP291, C55144), the three 60 V CJ2310s they drive (C75882),
 the **TPS2116 power mux** (U12, C3235557), the Qwiic connector (C160404) and
-the USB-C receptacle (C165948) — **$42 in feeder fees**.
+the USB-C receptacle (C165948) — **$42.98 in feeder fees** at $3.07 each.
+On Standard, where this BOM is (see the correction above), the count that
+matters is the **49 BOM lines at $1.53 = $74.97**, and the 129 fee-free
+placements are fee-free in name only.
 
 The last three of those are recent and worth attributing: the optos and the
 CJ2310s arrived with the 24 V SSR rework, and U12 with the power-mux swap
@@ -716,8 +737,8 @@ alternative *of any kind* — the Basic and Preferred libraries hold no power
 mux and no ideal-diode controller at any voltage, so unlike the LDO (where
 the argument is headroom, see `DESIGN-NOTES.md` at U2) there is nothing to
 re-litigate here.
-`gen_jlc.py` prints that list and total on every `make pcb-fab`, so it is
-checkable rather than remembered.
+`gen_jlc.py` prints that list, the tier and the fixed bill on every
+`make pcb-fab`, so it is checkable rather than remembered.
 
 Two libraries are free on Economic PCBA, not one: **Basic** (351 parts) and
 **Preferred Extended** (1235), the latter being parts JLCPCB keeps mounted
@@ -725,7 +746,9 @@ but has moved out of Basic. That distinction only appears in JLCPCB's API
 (`componentLibraryType == "base" or preferredComponentFlag`), not on the part
 page's category line, so it is recorded per part in `gen_jlc.LCSC`'s
 `fee_free` flag. Reading that field as "is Basic" is what made this number
-print $33 for a board that owed $27.
+print $33 for a board that owed $27. The field answers only "does this line
+pay on Economic"; whether Economic will take the part at all is the
+separate *PCBA Type* field, recorded in `STANDARD_ONLY`.
 
 The remaining eleven are structural, and the whole list was re-swept against
 the fee-free library part by part (#348). The library holds **no connectors
@@ -739,9 +762,14 @@ metering IC have no fee-free equivalent either. **U2 is the one that looks
 free and is not** — the AMS1117-3.3 is Basic, drops into the same SOT-223
 with the same pinout, and would drop out of regulation on a USB-only 4.35 V
 rail; the argument is written out at `U2` in `DESIGN-NOTES.md`. $33 is the floor
-for this board short of hand-soldering F1, L1, C46 and J14 as well.
+for this board short of hand-soldering F1, L1, C46 and J14 as well — on
+Economic. On Standard the floor is the line count, and the only lever is
+hand-fitting U1 and C46 to get off Standard in the first place.
 
-Substitutions that bought fee-free lines without giving anything up:
+Substitutions that bought fee-free lines without giving anything up (worth
+the stated amounts on Economic; on Standard a Basic line pays the same
+$1.53 as an Extended one, so these are banked for the day U1 and C46 come
+off the SMT BOM, and they were all better parts regardless):
 
 - **U4, D5, D6 → one Preferred SRV05-4 (C7420376)**, replacing an Extended
   SRV05-4 line (C558418) on D5/D6 and a USBLC6-2SC6 (C7519) on U4. Worth $6.
@@ -763,8 +791,8 @@ single-sourced with no fee-free alternative. Re-check immediately before
 ordering — see `FAB-READINESS-REVIEW-REVB.md`.
 
 SW1/SW2 are **SMD** tact switches (XKB TS-1187A, C318884), not a
-through-hole part — a Basic part, so it costs no feeder fee *and* stays
-machine-placed.
+through-hole part — a Basic part ("Economic and Standard"), so it costs no
+feeder fee on Economic *and* stays machine-placed.
 
 `hand-solder-parts.csv` carries a **Mouser second source** where one exists,
 so the shopping list works against either supplier. It is **one row per
@@ -895,10 +923,12 @@ blocked — that is the cheaper check for a Molex line, and it is the only one
 that worked for the mating connectors above (confirmed 2026-09-10; DigiKey
 serves a bot challenge too now). Re-confirm stock at order time.
 
-**Assembly stays Economic**: with 0 through-hole parts left in the assembly
-BOM (`gen_jlc.py`'s own output confirms this every run), the whole
-machine-placed set qualifies for Economic (SMD, top-side only) rather than
-Standard, same as rev A.
+**Assembly is Standard, not Economic** (corrected 2026-10-27): 0
+through-hole parts are left in the assembly BOM, but U1 (C3013945) and
+C46 (C2977550) are "Standard Only" parts, and one is enough. `gen_jlc.py`'s
+summary now reports the tier from both conditions every run; rev A's
+"same strategy" claim was wrong for the same reason, its module being the
+same part.
 
 **The CPL corrects both the angle and the origin, per part, from LCSC's own
 land patterns.** JLCPCB does not place our footprint: it places LCSC's

@@ -157,7 +157,7 @@ Rebuilt in full (`make pcb-build` → `pcb-fab` → `pcb-check` → `pcb-render`
 | `kicad-cli pcb drc` | **0 violations, 0 unconnected pads, 0 footprint errors** |
 | Silk | 261 labels, 0 touching / 0 illegal / 0 on a part body / 0 adrift; `check_silk` clean |
 | `make pcb-check` (all, including `check_placement`, which the 09-29 pass could not run) | exit 0: 29 GPIOs agree, netlist 108 nets / 0 mismatches, 1955 schematic uuids / 0 minted, 147 parts / 46 LCSC patterns fitted, 0 courtyard overlaps, USB pair OK, `gerbers.zip` current |
-| BOM / feeders | 147 placements on 49 lines; 14 Extended lines, **$42**, unchanged |
+| BOM / feeders | 147 placements on 49 lines; 14 Extended lines, **$42**, unchanged. **Status 2026-10-27:** that is the Economic bill, and the order is **Standard PCBA** — U1 (C3013945) and C46 (C2977550) are "Standard Only" parts — so the real fixed bill is 49 lines × $1.53 + $25.56 setup + $8.21 stencil = **$108.74**; `gen_jlc.py` now reports the tier (`STANDARD_ONLY`) |
 | Firmware | builds; `clang-tidy` 0 findings on CI's unfiltered count |
 | 3D renders | re-raytraced. KiCad's library models were fetched from `kicad-packages3D` master on GitLab, since this container ships none; the six vendored ones are unchanged |
 
@@ -341,7 +341,7 @@ Rebuild result, `make pcb` + `make pcb-check` + `make pcb-render`:
 | `check_jlc_placement` | 134 parts / 40 LCSC land patterns fitted (was 133 / 39) |
 | `check_mpn` | 147 sourced parts (was 146) |
 | Fab files | BOM 43 lines / 134 placements, CPL 134; C46 present in both at (97.500, -113.250) rot 0; absent from the hand-solder and Mouser lists, correctly |
-| Feeder fees | **11 lines / $33**, up from 10 / $30 — C2977550 is the new one. LCSC lists no aluminium electrolytic in either fee-free library, so there is no way to avoid it |
+| Feeder fees | **11 lines / $33**, up from 10 / $30 — C2977550 is the new one. LCSC lists no aluminium electrolytic in either fee-free library, so there is no way to avoid it. **Status 2026-10-27:** C2977550 is also *PCBA Type: Standard Only*, which this review did not check — with U1 it puts the order on Standard PCBA, where the feeder count is the BOM line count |
 | 3D renders | re-raytraced (`make pcb` stops at `pcb-check`, so `pcb-render` needed running separately) |
 
 **One thing to eyeball before you submit the order, and it is the only
@@ -419,7 +419,7 @@ right for derived files. Result:
 | Netlist / uuid round-trip | 102 nets, 0 mismatches; 1835 uuids, 0 minted, 0 dropped |
 | Placement / sourcing | 134 parts / 40 LCSC land patterns; 147 sourced parts |
 | C46 | present in BOM and CPL at (97.500, -113.250) rot 0, unchanged by the merge |
-| Feeder fees | 11 lines / $33 |
+| Feeder fees | 11 lines / $33 (Economic figure; see the 2026-10-27 status on the 09-30 table — the order is Standard) |
 | Host tests | 12/12 |
 
 The only thing the merge changed about C46 is nothing: #355's work is all in
@@ -1248,6 +1248,16 @@ after a via unchecked at its start point — invisible at 0.25 mm, and
 JLCPCB placement corrections applied (16)
 no through-hole parts in the assembly BOM -> Economic (SMD, top-side) assembly is sufficient
 ```
+
+> **Status 2026-10-27:** the last line was wrong, and stayed wrong through
+> every round below. Through-hole parts are one of two things that force
+> Standard PCBA; the other is a part whose JLCPCB page reads *PCBA Type:
+> Standard Only*, and the module (U1, C3013945) is one — as is C46
+> (C2977550), added 2026-09-18. `gen_jlc.py` checked only the first. It now
+> carries `STANDARD_ONLY` and prints `assembly tier: Standard -> … $108.74
+> fixed per order` for this BOM, with the Economic figure beside it for the
+> day U1 and C46 are hand-fitted. Every feeder total in this document is
+> the Economic bill.
 
 Designator sets in `jlcpcb/BOM.csv` (machine-placed) and
 `jlcpcb/hand-solder-parts.csv` (hand-fitted) are disjoint and together cover

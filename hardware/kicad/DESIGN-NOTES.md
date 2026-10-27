@@ -640,6 +640,14 @@ job is at 2 kHz. No fee-free equivalent exists: LCSC lists no aluminium
 electrolytic in the Basic or Preferred libraries at all, so this line
 costs the eleventh feeder fee ($3).
 
+2026-10-27: it costs more than a feeder. Its JLCPCB part page reads
+*PCBA Type: Standard Only*, so with U1 it is one of the two parts that
+put the whole order on Standard PCBA, where every BOM line pays $1.53
+and setup and stencil are three times Economic's (see
+`gen_jlc.STANDARD_ONLY` and the README's 2026-10-27 correction). A D5
+SMD electrolytic is a trivial hand-solder job, so if the order is ever
+to be Economic, this is the easy half of it.
+
 ## U1
 
 2026-10-26, the module's thermal pad (pad 41, 3.9 mm). The KiCad
@@ -656,6 +664,14 @@ unmodified library footprint again, and the four GND vias in the pour
 just outside it ((66.0, 33.25), (71.0, 33.25), (67.75, 35.75),
 (68.5, 35.75)) are unchanged. check_via_in_pad.py no longer exempts the
 pad, so any via inside it fails pcb-check.
+
+2026-10-27, sourcing: C3013945's JLCPCB part page reads *PCBA Type:
+Standard Only*. With C46 it is one of the two parts that put the order
+on Standard PCBA rather than the Economic tier the README assumed
+(`gen_jlc.STANDARD_ONLY`). Going back to Economic means hand-fitting the
+module - edge pads with an iron, centre thermal pad left dry - which is
+routine but costs the thermal path the twelve web holes above exist for.
+Not decided here.
 
 ## U2 (design.py line 672)
 
@@ -800,7 +816,10 @@ with the open pour under it. Do not "simplify" this back to 0.
 SMD tactile switches, not the 6 mm THT part: XKB TS-1187A (LCSC
 C318884) is a JLCPCB *Basic* part, so it carries no $3 feeder fee and
 stays on the SMT line. The THT switches were one of five unique
-Extended parts that existed only to force Standard assembly.
+Extended parts that existed only to force Standard assembly. (2026-10-27:
+the order is on Standard anyway, forced by U1 and C46 - see
+`gen_jlc.STANDARD_ONLY` - where a Basic line pays the same $1.53 feeder as
+any other. The saving is real only once those two are hand-fitted.)
 
 The two buttons are a PAIR and are now placed as one: RESET at x=91,
 BOOT at x=100, both on y=25, in the free band between the module's east
@@ -826,7 +845,10 @@ part D5 and D6 already carry. The driver was JLCPCB's feeder fee — one
 part number across three designators instead of two costs $3 less per
 order, and the SRV05-4 line chosen (C7420376) is a *Preferred* extended
 part, so it is another $3 cheaper again. That is $6 of a $27 bill, and
-it is the whole reason this changed.
+it is the whole reason this changed. (2026-10-27: that $27 is the
+Economic bill, and the order is on Standard because of U1 and C46 -
+`gen_jlc.STANDARD_ONLY` - where this line pays $1.53 like every other.
+The ESD and capacitance case below stands on its own.)
 
 It is not a compromise made to save it. Measured off the two datasheets,
 the SRV05-4 is the better part here on both axes that matter:

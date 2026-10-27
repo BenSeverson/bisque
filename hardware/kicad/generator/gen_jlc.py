@@ -484,6 +484,37 @@ LCSC = {
 # mounting holes - a designator that is neither H-prefixed nor in this set
 # reaches the BOM as a blank-LCSC row, i.e. a part to "buy" that is not a
 # part, and JLCPCB's PCBA upload rejects the pair.
+# LCSC part -> what it is. The parts JLCPCB's part page marks "Standard Only".
+#
+# fee_free above answers "does this line cost a feeder on Economic PCBA" and
+# says nothing about whether Economic PCBA will take the part at all. Every
+# JLCPCB part page carries a PCBA Type field, "Economic and Standard" or
+# "Standard Only", and ONE Standard-only part on the SMT BOM puts the whole
+# order on Standard, where every BOM line pays the feeder fee, Basic and
+# Preferred included, and setup and stencil cost three times Economic's.
+# Until 2026-10-27 this file knew only the other way onto Standard (a
+# through-hole part) and the README said the order was Economic while these
+# two had been on the BOM for months - so the Basic/Preferred substitutions
+# below were saving a fee the order was not paying. Checked part by part
+# against the PCBA Type field on 2026-10-27: every other machine-placed line
+# reads "Economic and Standard". A new part with a feeder fee is not enough
+# to look at; read its PCBA Type too, and add it here if it says Standard.
+STANDARD_ONLY = {
+    "C3013945": "ESP32-S3-WROOM-1U-N16R2 module (U1)",
+    "C2977550": "100 uF aluminium electrolytic (C46)",
+}
+
+# JLCPCB's price list ("PCB Assembly Cost: What Does the Price Include?",
+# last updated 2026-10-22), USD. JLCPCB says the figures drift with the
+# exchange rate, which is how the $3.00 feeder fee became $3.07. Economic
+# charges feeders on Extended lines only; Standard charges every line. The
+# Standard setup and stencil are the single-sided figures - this board is
+# top-side only on either tier.
+PRICES = {
+    "Economic": {"setup": 8.18, "stencil": 1.53, "feeder": 3.07},
+    "Standard": {"setup": 25.56, "stencil": 8.21, "feeder": 1.53},
+}
+
 NOT_ASSEMBLED = {
     "TP3", "TP4", "TP5", "TP6", "TP9", "TP10", "TP12",
     "SJ1", "SJ2",
@@ -505,19 +536,24 @@ DNP = set()
 
 # Parts fitted by hand rather than by JLCPCB.
 #
-# Each unique Extended part costs a $3 feeder-loading fee regardless of how
-# many boards are built, and any through-hole part forces the whole order
-# onto Standard assembly (Economic is SMD, top-side only) with a per-joint
-# charge on top. The through-hole parts here are connectors and a buzzer on
-# 2.54 mm and 5.08 mm pitch — the easiest joints on the board. LED1 is added
-# for cost, not solderability: no addressable RGB LED at LCSC is a Basic
-# part (checked across WS2812/SK6812/XL-xxxx), so its $3 buys nothing a
-# soldering iron can't do to a 5050 with four edge-accessible pads.
+# On Economic PCBA each unique Extended part costs a feeder-loading fee
+# (PRICES) regardless of how many boards are built, and any through-hole
+# part forces the whole order onto Standard assembly (Economic is SMD,
+# top-side only), where EVERY line pays a feeder fee. The through-hole parts
+# here are connectors and a buzzer on 2.54 mm and 5.08 mm pitch — the
+# easiest joints on the board. LED1 is added for cost, not solderability: no
+# addressable RGB LED at LCSC is a Basic part (checked across
+# WS2812/SK6812/XL-xxxx), so its feeder buys nothing a soldering iron can't
+# do to a 5050 with four edge-accessible pads.
 #
-# This takes the order from Standard assembly (any THT part forces it) to
-# Economic (SMD, top-side only) - see the task 15 report for the resulting
-# unique-Extended-part count. The remaining SMD parts are the ones where
-# machine placement is actually worth paying for.
+# This was meant to take the order from Standard assembly to Economic, and
+# it does not: U1 and C46 are "Standard Only" parts (STANDARD_ONLY), so the
+# order is Standard regardless, and the Extended-versus-Basic distinction
+# buys nothing until those two are hand-fitted as well. The through-hole
+# parts stay here anyway - a THT line on Standard adds a hand-soldering pass
+# and its own per-joint charge, and these are the easiest joints on the
+# board. main() prints which tier the BOM actually lands on and what the
+# fixed part of the bill is, so the claim is checked rather than remembered.
 HAND_SOLDER = {
     "BZ1",                                     # 12 mm buzzer, 7.6 mm pitch
     "J2", "J3", "J4", "J8", "J9",              # 5.08 mm screw terminals (2-pos)
@@ -832,6 +868,8 @@ def main(outdir):
                 note += " [NO LCSC PART - will not be assembled]"
             if is_through_hole(COMPONENTS[grefs[0]]["fpf"]):
                 note += " [THT - needs Standard assembly; confirm JLC can place it]"
+            if lcsc in STANDARD_ONLY:
+                note += " [PCBA Type Standard Only - forces Standard assembly]"
             w.writerow([value, ",".join(grefs), fp.split(":", 1)[1], lcsc, note])
 
     corrections = []
@@ -889,14 +927,15 @@ def main(outdir):
         w.writerows(order)
 
     ext = {LCSC[r][0] for r in refs if r in LCSC and not LCSC[r][2]}
+    std_only = sorted({r for r in refs
+                       if r in LCSC and LCSC[r][0] in STANDARD_ONLY}, key=ref_key)
     print("wrote %s, %s, %s, %s"
           % (bom_path, cpl_path, hand_path, mouser_path))
     print("%d parts to JLCPCB (%d BOM lines), %d hand-soldered on "
           "%d line(s), LCSC verified %s"
           % (len(refs), len(groups), len(hand_refs),
              len(group_by_orderable(hand_refs)), VERIFIED_ON))
-    print("%d unique Extended part(s) -> $%d in feeder fees: %s"
-          % (len(ext), 3 * len(ext), ", ".join(sorted(ext))))
+    print("%d unique Extended part(s): %s" % (len(ext), ", ".join(sorted(ext))))
     print("hand-soldered: %s" % ", ".join(sorted(hand_refs, key=ref_key)))
     print("mating connectors (cable side, %d line(s)): %s"
           % (len(mates), ", ".join("%s x%d" % (m["mpn"], m["qty"])
@@ -922,9 +961,31 @@ def main(outdir):
     if tht:
         print("WARNING: through-hole parts still in the assembly BOM (forces "
               "Standard assembly): %s" % ", ".join(tht))
-    else:
-        print("no through-hole parts in the assembly BOM -> Economic "
-              "(SMD, top-side) assembly is sufficient")
+    if std_only:
+        print("Standard-only parts on the SMT BOM (PCBA Type \"Standard Only\", "
+              "forces Standard assembly): %s"
+              % ", ".join("%s (%s)" % (r, LCSC[r][0]) for r in std_only))
+    # The fixed part of the assembly bill: what the order pays before the
+    # first joint, and the part that does not scale with quantity. Economic
+    # charges a feeder per unique Extended part; Standard charges one per
+    # BOM line, Basic or not.
+    tier = "Standard" if (tht or std_only) else "Economic"
+    lines = len(groups)
+    charged = lines if tier == "Standard" else len(ext)
+    bill = PRICES[tier]
+    fee = charged * bill["feeder"]
+    print("assembly tier: %s -> setup $%.2f + stencil $%.2f + %d %s x $%.2f "
+          "= $%.2f feeder fees -> $%.2f fixed per order"
+          % (tier, bill["setup"], bill["stencil"], charged,
+             "BOM lines" if tier == "Standard" else "Extended lines",
+             bill["feeder"], fee, bill["setup"] + bill["stencil"] + fee))
+    if tier == "Standard" and not tht:
+        econ = PRICES["Economic"]
+        efee = len(ext) * econ["feeder"]
+        print("  Economic would be setup $%.2f + stencil $%.2f + %d Extended "
+              "x $%.2f = $%.2f fixed per order, if %s were hand-fitted"
+              % (econ["setup"], econ["stencil"], len(ext), econ["feeder"],
+                 econ["setup"] + econ["stencil"] + efee, ", ".join(std_only)))
     if missing:
         print("WARNING: no LCSC part for: %s" % ", ".join(missing))
 
