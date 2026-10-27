@@ -45,8 +45,10 @@ BUCKET = 2.0
 # same-net case, which clearance rules deliberately ignore and which DRC will
 # never flag. An untented via inside a pad wicks solder out of the joint
 # during reflow — the alternative fix, filled-and-capped via-in-pad, is a
-# JLCPCB upcharge, and mask tenting cannot work because the pad's own mask
-# opening exposes the barrel anyway.
+# JLCPCB upcharge, and mask tenting cannot work on an ordinary pad because
+# the pad's own mask opening exposes the barrel anyway. (U7's exposed pad is
+# the exception: its mask opening is split into four windows so the web of
+# mask between them tents its vias — see gen_pcb.EP_VIA_GRID.)
 VIA_PAD_GAP = 0.15
 
 # Minimum web of laminate between two drilled apertures — via-to-via and

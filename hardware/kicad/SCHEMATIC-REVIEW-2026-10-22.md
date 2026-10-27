@@ -455,7 +455,7 @@ narrows the spread (check the one-shot's Rext range first).
 | 2 | CT channel A pseudo-differential (R33 to GND) | **Fixed 2026-10-26** — R65 1 k from CTA_P to GND mirrors R33; pin swing is now ±V/2 each side |
 | 3 | Grounded SSR return bypasses Q7 | **Open** — architecture unchanged |
 | 4 | Watchdog timing not guaranteed at 100 k/22 µF | **Fixed** (d46b4c6, review E5) — X7R timing pair |
-| 5 | 17 EP vias in paste | PCB item, not re-checked |
+| 5 | 17 EP vias in paste | **Fixed 2026-10-26** — 0 left: U1's nine deleted, U2's four moved out of the tab, U7's four under a mask web (PCB review item 4 status) |
 | 11 | Failed Q5 can over-stress Q6 gate | **Open** |
 | 12 | D8/U2 symbol honesty, MPN = C-number | **Fixed** — folded into findings 6 and 8 above, both closed |
 | ERC | 4 errors | **Fixed** — 0 errors (U11/U12 power flags added, PWR_FLAG on VOUT removed, SDO excluded) |

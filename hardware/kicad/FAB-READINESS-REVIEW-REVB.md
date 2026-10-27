@@ -87,6 +87,11 @@ to `ddb6ef8`; only the silkscreen layer changed.
   order form (no design change, board-wide, extra cost on 4 layers); accept
   for board 1 and inspect U7; or, rev C, move the vias into window gaps /
   redraw the paste around them (a copper change, full `pcb-build`).
+  **Status 2026-10-26:** the rev C option, done now — 0 vias under paste.
+  U1's nine in-window vias deleted (the library's twelve web holes stay),
+  U2's four moved into the pour outside the tab, U7 redrawn to four 1.1 mm
+  windows on a mask-webbed cross with its four vias under the mask web.
+  DESIGN-NOTES §U1/§U2/§U7.
 
 ### No action
 

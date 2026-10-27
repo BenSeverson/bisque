@@ -311,6 +311,8 @@ EP joint inspection and functional acceptance on prototypes; inspecting
 the package perimeter cannot verify a hidden QFN EP joint.
 [JLCPCB via-covering processes](https://jlcpcb.com/help/article/pcb-via-covering).
 
+> **Status 2026-10-26:** done on the board, no fab-side process needed. **U1:** the nine generator-placed vias in the paste windows are deleted; the KiCad library footprint's twelve bottom-tented 0.3 mm web holes remain. **U2:** the four tab vias moved 0.9 mm outside the tab into the masked +3V3 pour. **U7:** the stencil is four 1.1 mm windows on a 0.7 mm cross (50 % coverage), the pad's own mask opening is replaced by four 1.2 mm apertures over those windows, and the four GND vias (0.5/0.3) sit on the cross under the mask web, i.e. tented. Zero vias remain under paste. Details in DESIGN-NOTES §U1, §U2, §U7.
+
 ### 5. [P2] Many SPI transitions have distant return-path structures
 
 The stack is F.Cu / In1 GND / In2 +3V3 / B.Cu. Thus the nearest solid

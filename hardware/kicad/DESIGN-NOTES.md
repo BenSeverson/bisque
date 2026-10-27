@@ -640,6 +640,23 @@ job is at 2 kHz. No fee-free equivalent exists: LCSC lists no aluminium
 electrolytic in the Basic or Preferred libraries at all, so this line
 costs the eleventh feeder fee ($3).
 
+## U1
+
+2026-10-26, the module's thermal pad (pad 41, 3.9 mm). The KiCad
+library footprint already carries a thermal-via pattern of its own:
+nine 0.9 mm paste windows on 0.5 mm webs and TWELVE 0.3 mm thermal
+holes as through-hole pads numbered 41, sitting on the webs, top open
+inside the pad's mask and bottom tented (the pads carry no B.Mask).
+(Espressif's own footprint has the nine surface pads and no holes; the
+README's "Why KiCad's footprint" note is why this board uses KiCad's.) On top of that the
+original generator drilled nine more GND vias, one in the centre of each
+paste window - the ones the 2026-10-05 PCB review and JLC's DFM flagged.
+Those nine are gone; the twelve library holes stay. The pad is the
+unmodified library footprint again, and the four GND vias in the pour
+just outside it ((66.0, 33.25), (71.0, 33.25), (67.75, 35.75),
+(68.5, 35.75)) are unchanged. check_via_in_pad.py no longer exempts the
+pad, so any via inside it fails pcb-check.
+
 ## U2 (design.py line 672)
 
 The regulator and the bulk-cap row east of it sit 1.5 mm further east
@@ -747,6 +764,16 @@ kills U2 first — is gone with the 5V input: J2 is 24V into U11 now,
 and the only unregulated path to U2 is VBUS, which USB caps at 5.5V.
 KiCad ships no TLV1117LV symbol; TLV1117-33 is the same family and
 pin map, with the value carrying the real part.
+
+2026-10-26: the tab's four +3V3 vias were inside the 2.0 x 3.8 mm tab
+under 100 % paste (PCB review 2026-10-05 item 4). They now sit in the
+masked U2_POUR 0.9 mm above and below the tab - (40.7, 37.0),
+(41.8, 37.0), (40.4, 42.0), (41.3, 42.0); the lower pair is offset west
+to keep 0.2 mm from the +5V trunk to C1 - so the tab's joint has no
+hole under it and the vias are tented like any other. The thermal path
+gained ~1 mm of 1 oz copper; U2 was already the part to measure on
+board 1, and still is. check_via_in_pad.py no longer exempts the tab,
+so a via wandering back into it fails pcb-check.
 
 ## C5 (design.py line 811)
 
@@ -1626,6 +1653,26 @@ this task's scope; a bare test point is a candidate for Task 13.
 
 EP (pin 29) is a ground pin, not just a thermal tab (REV-B-NOTES.md
 SS2, Rev. C p.10/p.68: "Connect the pad to AGND and DGND") - tied GND.
+
+2026-10-26, the EP's vias and the stencil. The library footprint puts
+nine 0.83 mm paste windows on the 3.1 mm pad with 0.2 mm webs, so its
+four GND vias could only land in paste, where an open barrel wicks the
+joint during reflow (PCB review 2026-10-05 item 4; JLC's DFM flags it
+as "lead to hole distance"). The fab-side answer is epoxy fill-and-cap,
+a per-order surcharge on four layers. The board-side answer, taken
+here: four 1.1 mm paste windows at (95 +/- 0.9, 72 +/- 0.9) on a 0.7 mm
+cross web (50 % coverage, was 64 %), the copper pad with NO F.Mask
+layer of its own, and four 1.2 mm F.Mask apertures over the paste
+windows. The 0.6 mm web of mask between the apertures covers the vias,
+which moved onto the cross - (95, 70.9), (95, 72), (95, 73.1) and
+(96.1, 72), 0.5 mm pads on 0.3 mm drills so the mask has 0.05 mm of
+margin over the copper and 0.15 mm over the hole. They are ordinary
+tented vias now, and the fab-side option is unnecessary. The west arm
+carries no via because the I2C_SCL escape runs south on B.Cu at
+x 93.5/93.75 under the pad's west edge. Both edits live in the BOARD's
+copy of the footprint; "Update Footprint from Library" in KiCad would
+put the nine windows back, so don't. gen_pcb.EP_VIA_GRID keeps U7 as
+the one pad check_via_in_pad.py still exempts.
 
 ## general (design.py line 1864)
 

@@ -172,45 +172,51 @@ def fp_body_box(comp):
 
 
 # Vias INSIDE an exposed/thermal pad, as {(ref, pad): grid n} for an n x n
-# array. Review A6, and the one item on that list that cannot be bodged after
-# fab. Three pads need it and each for its own reason:
+# array. Review A6 placed them; this table now mostly records WHERE via-in-pad
+# is still tolerated, because check_via_in_pad.py reads it as its exemption
+# list and a via inside any pad not named here fails the check.
+#
+# History, since the three pads each went a different way (2026-10-26, the
+# "17 exposed-pad vias in paste" item of the 2026-10-05 PCB review):
 #
 #   U7 pad 29 - the ADE7953's exposed pad. Datasheet Table 5 is explicit:
 #     "Connect the pad to AGND and DGND". It is the part's analog ground
 #     reference, not a heatsink, and it had ZERO vias - nearest GND via
-#     3.36 mm away, reached only through the pad's own escape stub.
+#     3.36 mm away. STILL has vias in the pad, four of them, but the pad is
+#     now mask-webbed: the library's nine 0.83 mm paste windows (0.2 mm webs,
+#     no room for a drill) became four 1.1 mm windows on a 0.7 mm cross, the
+#     copper pad lost its F.Mask layer, and four 1.2 mm F.Mask apertures sit
+#     over the paste windows. The web of mask between them tents the vias
+#     (0.5 mm pads, 0.3 mm drill, so 0.05 mm of mask margin each side), which
+#     is what makes them acceptable without JLC's epoxy fill-and-cap. The
+#     west arm of the cross carries no via: the I2C_SCL escape runs south on
+#     B.Cu at x 93.5/93.75, straight under the pad's west edge.
 #   U2 pad 2  - the TLV1117LV33's SOT-223 tab (+3V3, hence the local U2_POUR
 #     flood). Measured Tj ~94 C at 50 C ambient with the nearest +3V3 via
-#     1.5 mm off the tab; the datasheet's 90 -> 46 C/W theta-JA range is a
-#     function of attached copper, and vias are how the tab reaches the
-#     In2.Cu plane rather than just the local F.Cu puddle.
-#   U1 pad 41 - the module's thermal pad. Espressif's own reference layout
-#     draws 9; this board had the nearest GND via 1.0-2.5 mm outside it.
+#     1.5 mm off the tab. Its four vias now sit 0.9 mm OUTSIDE the tab, above
+#     and below it in the masked pour, where they are ordinary tented vias;
+#     the tab keeps 100 % paste with no hole under it. Not in this table any
+#     more, so a via wandering back into the tab fails the check.
+#   U1 pad 41 - the module's thermal pad. The KiCad library footprint already
+#     carries twelve 0.3 mm thermal holes as pads numbered 41 on the stencil
+#     webs, bottom-tented (no B.Mask) - KiCad's addition, Espressif's own
+#     footprint has none. The nine vias this table used to add sat in the
+#     paste windows themselves and were the ones the fab review flagged;
+#     they are gone, and the pad is the unmodified library footprint again.
+#     Not in this table any more either.
 #
 # plane_vias() does not cover any of this. It gives a pad GROUP one via on an
 # escape ray OUTSIDE the pad, which is the right call for signal escapes and
 # is why the ADE7953's five grounds share one hole - but a thermal pad needs
 # copper through its own area, not a stub to a hole beside it.
 #
-# Via-in-pad is deliberate here and only here: on a thermal pad it is standard
-# practice, and check_via_in_pad.py reads this same table so a via inside any
-# OTHER pad still fails. Placed fixed, before routing, so they claim their
-# space while the board is empty.
 # A value is either n, for a symmetric n x n grid spanning the pad, or an
 # explicit list of (fx, fy) offsets in [-1, 1] as fractions of the usable
-# half-span, for a pad that cannot be filled symmetrically.
-#
-# U7 is the second kind, and the reason is worth knowing before "tidying" it
-# back to a 2: the ADE7953's I2C_SCL escape is a hand-seeded fixed track
-# (MANUAL_VIAS above) running south on B.Cu at x 93.75 - straight UNDER the
-# exposed pad. A symmetric 2x2 puts its west column at x 93.90, 0.15 mm off
-# that track, which is 2 shorting_items and 2 hole_clearance errors. The four
-# vias sit in the east of the pad instead. Off-centre is fine here: what the
-# pad needs is low impedance to the ground plane, not symmetry.
+# half-span, for a pad that cannot be filled symmetrically. Nothing has
+# regenerated the board from this table since 2026-10-06; U7's entry below
+# describes the pre-2026-10-26 placement and is kept for the exemption.
 EP_VIA_GRID = {
     ("U7", "29"): [(0.15, -1.0), (1.0, -1.0), (0.15, 1.0), (1.0, 1.0)],
-    ("U2", "2"): 2,
-    ("U1", "41"): 3,
 }
 
 # A pin number does NOT identify the exposed pad. Several footprints here give
