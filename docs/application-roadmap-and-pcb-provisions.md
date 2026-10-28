@@ -167,8 +167,9 @@ comfortable during the design:
 ### 3.3 Output bank: 2 SSR zones + 3 auxiliary channels (shipped, rev B)
 
 - **Two SSR triggers** (`SSR1_CTRL`, `SSR2_CTRL`), each a
-  **24 V** terminal off `VIN_P` switched low-side by a 60 V CJ2310 whose gate
-  is driven through an optocoupler, with an LED indicator. Roadmap §3.3 asked
+  **24 V** terminal switched on the + side by a 60 V P-channel LP2309LT1G
+  whose gate is pulled down through an optocoupler, with the − pin on board
+  ground and an LED indicator (rev B.4; B.2/B.3 switched the low side). Roadmap §3.3 asked
   for opto-**isolation** and rev B built it, then reverted it: an optocoupler
   only isolates if the SSR control loop is powered off-board, and this board
   powers the loop (hardware-design spec §2.4). **That is still true.** The

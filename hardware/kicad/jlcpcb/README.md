@@ -123,25 +123,26 @@ terminals are still not isolated — both sides share `GND`.
 
 ## SSR terminals are 24 V
 
-`J4`/`J9` pin 1 is **`VIN_P`, 24 V, always live** (fused by `F1`, clamped by
-`D8`); pin 2 is the switched low side. Wire the SSR's control **+** to the
-pin silkscreened `24V` and its **−** to `OUT`. **A 5 V-only SSR input wired
-here will be destroyed** — check the SSR's control range (an SSR-40DA-class
-input takes 3–32 V and is fine).
+`J4`/`J9` pin 1 (`OUT`) is the **switched + side**: `VIN_P` (24 V, fused by
+`F1`, clamped by `D8`) through the watchdog's cutoff `Q9` and the channel's
+own `Q5`/`Q6`. Pin 2 (`GND`) is board ground. Wire the SSR's control **+** to
+`OUT` and its **−** to `GND`. **A 5 V-only SSR input wired here will be
+destroyed** — check the SSR's control range (an SSR-40DA-class input takes
+3–32 V and is fine).
 
-The watchdog now gates the shared **return** (`Q7`) rather than the supply,
-so an expired window opens pin 2 and leaves pin 1 live. Budget **≤200 mA per
-channel**: `F1` holds at 750 mA and the buck takes ~250 mA of it.
+Rev B.4 (2026-10-28) moved the switch to the + side; the B.2/B.3 silk read
+`24V`/`OUT`, with pin 1 always live and the return switched. The pin order
+did not change — + still goes to pin 1, − to pin 2 — so a loom built to the
+old silk lands correctly. Budget **≤200 mA per channel**: `F1` holds at
+750 mA and the buck takes ~250 mA of it.
 
-**The SSR's `−` goes to `OUT` and nowhere else.** Because pin 1 is always
-live, an SSR whose `−` reaches ground by any other route is ON, and neither
-firmware nor the watchdog can turn it off. That covers a `−` landed on J2's
-`-` or the PSU's `−`, a negative bus shared with anything else, and a lead
-chafed onto the backplate: board GND is bonded to the earthed door through
-the mounting holes, so the enclosure *is* ground. Do not common the two
-SSRs' negatives either; each `−` goes to its own channel's `OUT`. Before first
-heat, meter `OUT` to GND with firmware idle. It should read close to 24 V,
-and near 0 V means that lead has found ground. This is the 2026-09-29
-review's finding A1. It is the same exposure as an SSR failing short, and the
-same answer applies: the contactor dropped by the mechanical over-temp
-cutout.
+**The SSR's `−` is on board ground, so a `−` lead that reaches ground by
+another route — the PSU `−`, a shared negative bus, a lead chafed onto the
+backplate — is harmless.** That is the point of B.4: on the earlier boards
+it turned the SSR on with no way to turn it off (2026-09-29 review A1,
+2026-10-05 item 3). The lead to watch now is `+`: an `OUT` wire that finds
+the earthed enclosure shorts that channel to ground, which the HDR-15-24's
+current limit (or `F1`, on a bigger supply) ends with the SSR off. Before
+first heat, meter each `OUT` to GND with firmware idle: it should read near
+0 V; near 24 V means a channel switch has failed short or `SJ2` is bridged.
+

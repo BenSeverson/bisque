@@ -27,6 +27,9 @@ The electrical findings in
 particularly input surge protection coordination, the SSR return-fault
 path that bypasses the watchdog, the channel-A CT range, and the stacked
 MOSFET fault case. A clean PCB DRC does not resolve those findings.
+(Status 2026-10-28: the surge coordination landed on 2026-10-27 and the
+return-fault and stacked-MOSFET items closed with the rev B.4 SSR rework —
+see the schematic review's items 1, 3 and 11.)
 
 The board is unchanged from the full `make pcb-check` and native DRC runs
 performed earlier in this chat. Those results were retained, and the new

@@ -157,7 +157,7 @@ Rebuilt in full (`make pcb-build` → `pcb-fab` → `pcb-check` → `pcb-render`
 | `kicad-cli pcb drc` | **0 violations, 0 unconnected pads, 0 footprint errors** |
 | Silk | 261 labels, 0 touching / 0 illegal / 0 on a part body / 0 adrift; `check_silk` clean |
 | `make pcb-check` (all, including `check_placement`, which the 09-29 pass could not run) | exit 0: 29 GPIOs agree, netlist 108 nets / 0 mismatches, 1955 schematic uuids / 0 minted, 147 parts / 46 LCSC patterns fitted, 0 courtyard overlaps, USB pair OK, `gerbers.zip` current |
-| BOM / feeders | 147 placements on 49 lines; 14 Extended lines, **$42**, unchanged. **Status 2026-10-27:** that is the Economic bill, and the order is **Standard PCBA** — U1 (C3013945) and C46 (C2977550) are "Standard Only" parts — so the real fixed bill is 49 lines × $1.53 + $25.56 setup + $8.21 stencil = **$108.74**; `gen_jlc.py` now reports the tier (`STANDARD_ONLY`) |
+| BOM / feeders | 147 placements on 49 lines; 14 Extended lines, **$42**, unchanged. **Status 2026-10-27:** that is the Economic bill, and the order is **Standard PCBA** — U1 (C3013945) and C46 (C2977550) are "Standard Only" parts — so the real fixed bill is 49 lines × $1.53 + $25.56 setup + $8.21 stencil = **$108.74**; `gen_jlc.py` now reports the tier (`STANDARD_ONLY`). **Rev B.4 (2026-10-28):** the SSR rework adds the LP2309LT1G line, 50 lines, **$110.27** |
 | Firmware | builds; `clang-tidy` 0 findings on CI's unfiltered count |
 | 3D renders | re-raytraced. KiCad's library models were fetched from `kicad-packages3D` master on GitLab, since this container ships none; the six vendored ones are unchanged |
 
@@ -230,7 +230,9 @@ Rebuilt in full (`make pcb-build` → `pcb-fab` → `pcb-check` → `pcb-render`
   second-order. Recorded at R22 in `design.py`.
 - **C3 — U12's ST pin** stays unconnected (accepted in `design.py`; no free
   GPIO within reach).
-- The high-side cutoff / `OUT`-sense options from A1.
+- The high-side cutoff / `OUT`-sense options from A1. **Done 2026-10-28
+  as rev B.4** — not as a rev-C item: the outputs are ground-referenced
+  (switched +, `−` on GND) and the watchdog cutoff Q9 sits in the 24 V rail.
 
 ### D. Confirmed correct
 

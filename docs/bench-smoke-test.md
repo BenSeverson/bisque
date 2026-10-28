@@ -36,13 +36,12 @@ None of them is a firmware bug.
       itself, up to 29 V at the top of the HDR-15-24's trim range. Check the
       SSR's *operating* input range, not only the rated one: an SSR-40DA-class
       input is 3–32 V and fine, but a 5 V-only input is destroyed.
-- [ ] **Each SSR's `−` is on its own `OUT` terminal and nowhere else.**
-      J4/J9 pin 1 (`24V`) is always live, and the board switches the
-      *return*. An SSR whose `−` reaches ground by any other route is on, and
-      neither firmware nor the hardware watchdog can turn it off. That
-      includes the PSU `−`, J2 `-`, a negative bus shared between the two
-      SSRs, or a lead touching the enclosure, which is bonded to board GND.
-      `+` to `24V`, `−` to `OUT`, one pair per SSR.
+- [ ] **Each SSR is wired `+` to `OUT` (pin 1) and `−` to `GND` (pin 2).**
+      Rev B.4 switches the + side and grounds the −, so a `−` lead that
+      also reaches the PSU `−` or the enclosure is harmless; the B.2/B.3
+      silk read `24V`/`OUT` with the same pin order. What must not happen
+      is an `OUT` lead touching the earthed box: that shorts the channel
+      to ground (the supply current-limits, the SSR stays off).
 - [ ] **`SJ2` ("WDT DEFEAT") is open.** The SSR stage is gated by the U10
       one-shot, which firmware retriggers on `WDT_KICK` at 5 Hz. Open is the
       supervised (correct) state — see "Bring-up: leave SJ2 open" in
@@ -122,21 +121,21 @@ the buck's own output ahead of the mux, is not `+5V`; probe it at C44.
 ### Output stage and watchdog (before a real kiln)
 
 Use an SSR with nothing on its load side. Failing that, use a dummy for
-each channel: a 4.7 kΩ ¼ W resistor in series with an LED, wired `24V` →
-LED anode, cathode → resistor → `OUT`. Flash the release build first. Every
+each channel: a 4.7 kΩ ¼ W resistor in series with an LED, wired `OUT` →
+LED anode, cathode → resistor → `GND`. Flash the release build first. Every
 check here runs at **idle**: firmware kicks the watchdog whenever its
 supervision loop is healthy, firing or not, so `SSR_EN` (the watchdog's
 permission rail) is live without starting a profile.
 
-- [ ] **`OUT` is not grounded.** With firmware idle, meter J4 pin 2 (and
-      J9 pin 2) to GND. Expect close to 24 V, a few volts less with nothing
-      connected. **Near 0 V means that SSR's `−` has found ground** and the
-      SSR is on with nothing able to stop it. Fix the wiring before anything
-      else.
+- [ ] **`OUT` is dead at idle.** With firmware idle, meter J4 pin 1 (and
+      J9 pin 1) to GND. Expect near 0 V. **Near 24 V means that channel's
+      switch (Q5/Q6) or the cutoff Q9 has failed short, or `SJ2` is
+      bridged** — fix before anything else. `SSR_24V` (Q9's drain) should
+      read ~24 V while firmware kicks and collapse within ~3 s when it stops.
 - [ ] **Idle is dark.** LED3/LED4 (the amber `SSR1`/`SSR2` indicators) and
       the SSRs' own input LEDs are off. A lit indicator at idle means either
-      `SJ2` is bridged or `OUT` is grounded. Both indicators sit across the
-      terminal, so they report what the channel is actually doing.
+      `SJ2` is bridged or a switch has failed short. Both indicators sit
+      across the terminal, so they report what the channel is actually doing.
 - [ ] **Watchdog cutoff with the MCU dead.** Hold RESET (SW1) and, while
       holding it, connect TP9 (`SSR1_CTRL`) to `+3V3` (J7 pin 1) through 1 kΩ.
       That lights channel 1's opto as if firmware had asked for heat, so the
@@ -166,8 +165,8 @@ permission rail) is live without starting a profile.
       J9 = zone 2) with amber indicators LED3/LED4. The firmware drives
       zone 1 only, so LED4 staying dark is expected.
 - [ ] The `SSR1` indicator (LED3) is **off** at idle. If it is lit before
-      any firing starts, `SJ2` is bridged or J4's `OUT` is grounded (see
-      above). Neither is something firmware can override.
+      any firing starts, `SJ2` is bridged or a channel switch has failed
+      short (see above). Neither is something firmware can override.
 
 ## Load the smoke-test profile
 

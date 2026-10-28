@@ -160,6 +160,19 @@ the power interruption architecture needs a redesign, such as appropriately
 protected high-side interruption. More firmware checks cannot open a
 ground-short bypass path.
 
+> **Status 2026-10-28, rev B.4:** redesigned rather than documented around.
+> Both channels now switch the **+** side with 60 V P-channel LP2309LT1Gs
+> (Q5/Q6, source on `SSR_24V`, drain on the terminal's pin 1) and the
+> terminals' pin 2 is board GND, so a `−` lead that finds ground is the
+> wiring diagram rather than a bypass. The watchdog's cutoff is a third
+> LP2309LT1G (Q9) in series between `VIN_P` and `SSR_24V`, driven through
+> Q7/R71/D12/R22, which restores the board-level turn-off B.1 had for a
+> failed-short channel. A `+` lead on the chassis is a short the supply's
+> current limit or F1 ends with the SSR off. The B.2 objection (no fee-free
+> 60 V P-FET) died with the Economic tier on 2026-10-27. Derivation in
+> `DESIGN-NOTES.md` (SSR block); the contactor remains required for a
+> load-side SSR failed short, which no board can interrupt.
+
 ### 4. P2 — Watchdog timeout is an estimate, not the claimed guaranteed worst case
 
 **Confirmed gap in the stated timing justification; functional topology is sound.**
@@ -352,6 +365,15 @@ gate-source zener alone is not an assured fix: with the existing gate-to-GND
 resistor it creates another return path from SSR_RTN to GND, potentially
 allowing SSR input current around Q7. Check every proposed clamp path
 against the actual SSR's turn-on current. Retain the independent load cutoff.
+
+> **Status 2026-10-28, rev B.4:** closed by the item-3 redesign. The
+> channel switches are P-channel with gates referenced to their common
+> source rail `SSR_24V` through R7/R20, and the watchdog opens that rail
+> (Q9) rather than a shared return, so a failed-short Q5 with the window
+> expired leaves nothing to pull the healthy channel's gate anywhere:
+> `V_SG` = 0 whatever `SSR_24V` floats to. `SSR_RTN` and R22's old role
+> no longer exist. Each gate also carries an 8.2 V gate-source zener
+> (D13/D14), which here is the drive clamp, not a fault patch.
 
 ### 12. P3 — Connector EMC, RGB logic margin, and design metadata need tightening
 

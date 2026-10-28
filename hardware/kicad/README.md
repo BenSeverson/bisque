@@ -133,19 +133,25 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   itself; use ungrounded-junction (isolated-tip) K-type probes on both
   channels. This is a documentation obligation, not something the board
   enforces electrically.
-- **SSR drive ×2, 24 V opto-driven low-side MOSFET**: screw terminals **J4**
-  (zone 1) / **J9** (zone 2), each **pin 1 = `VIN_P`** (24 V, fused and
-  TVS-clamped, **always live**) and **pin 2 = the switched low side**
-  (`SSR1_OUT` / `SSR2_OUT`). Per channel: GPIO → 220 Ω → the LED of an
-  TLP291 (**U8** zone 1, **U9** zone 2) → GND; the opto's collector sits on
-  `SSR_EN` (+5 V) and its emitter drives the gate of a **CJ2310** (**Q5** /
-  **Q6**), a 60 V logic-level N-channel MOSFET, with a **10 kΩ gate pulldown**
-  (R7/R20). Both channels return through **Q7**, a third CJ2310 that is the
-  watchdog's gate (see below). An amber indicator LED + 4.7 kΩ sits across
-  each terminal pair, so it lights only when the channel is actually
-  conducting. **D9**/**D10** freewheel each terminal for inductive loads. The
-  board supplies the SSR control loop. (The SSRs themselves and all mains
-  wiring stay outside this board.)
+- **SSR drive ×2, 24 V opto-driven high-side P-FET, ground-referenced (rev
+  B.4)**: screw terminals **J4** (zone 1) / **J9** (zone 2), each
+  **pin 1 = the switched +** (`SSR1_OUT` / `SSR2_OUT`, silk `OUT`) and
+  **pin 2 = board `GND`**. Per channel: GPIO → 220 Ω → the LED of a TLP291
+  (**U8** zone 1, **U9** zone 2) → GND; the opto's transistor pulls the gate
+  of an **LP2309LT1G** (**Q5** / **Q6**, 60 V P-channel) down through
+  **10 kΩ** (R69/R70), an **8.2 V zener** (D13/D14) gate-to-source sets the
+  drive from the rail, and **10 kΩ** (R7/R20) gate-to-source holds it off.
+  Both sources hang off **`SSR_24V`**, which is `VIN_P` through **Q9**, a
+  third LP2309LT1G that is the watchdog's cutoff (see below). An amber
+  indicator LED + 10 kΩ sits across each terminal pair, so it lights only
+  when the channel is actually conducting. **D9**/**D10** freewheel each
+  terminal for inductive loads. The board supplies the SSR control loop.
+  (The SSRs themselves and all mains wiring stay outside this board.)
+  Because the `−` pin is ground, an SSR lead that chafes onto the earthed
+  enclosure is the wiring diagram, not a fault — the 2026-10-05 review's
+  item 3, which B.2's switched-return topology could not cover. Rev B.2/B.3
+  boards had pin 1 always live (silk `24V`) and switched the return; the
+  pin order is unchanged, so a loom built to that silk still lands right.
 
   **Current budget, and it is a limit rather than a note.** F1 holds at
   750 mA and U11 takes ~250 mA of it, so the two channels share ~400 mA. Two
@@ -175,7 +181,7 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   **The opto is a TLP291 in SOP-4, not the LTV-817S this started as, and the
   reason is geometry.** The SMD-DIP4 body is 12.04 mm across its courtyard;
   the corridor between `J4`/`J9` and the rest of the block is ~5.5 mm and has
-  to carry both these parts and the four per-terminal legends (`24V`/`OUT`,
+  to carry both these parts and the four per-terminal legends (`OUT`/`GND`,
   each locked to its own screw's y and free only in x). A 12 mm opto leaves
   those legends nowhere to go, and they print on the terminal body — three
   `check_silk` failures that no amount of re-spacing fixes, because the
@@ -190,46 +196,46 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   its maximum, and 10.0 mA typical — half the ESP32's recommended source
   current.
 
-  The collector sitting on the **5 V** rail rather than on 24 V is deliberate:
-  an emitter follower into R7 saturates, so the gate lands at
-  `5 V − V_CE(sat)` ≈ 4.8 V — set by the rail, not by the opto's CTR. Run the
-  collector from 24 V instead and the gate goes to ~24 V, past the MOSFET's
-  ±20 V `V_GS`, and you need a zener to get back to where the 5 V rail
-  already was for free.
+  The gate drive comes from a **zener, not from the opto's CTR**, and that is
+  deliberate: with the opto saturated the R69/R7 pair alone would put half
+  the rail across the gate (11.9 V at 24 V, 18.8 V in a clamped 38 V fault,
+  24 V on the 48 V transient), so D13/D14 clamp `V_SG` to 8.2 V from
+  ~17 V upwards — the whole 21.6–29 V trim range and the fault alike. The
+  opto then sinks (`V_rail` − 8.5 V)/10 kΩ: 1.55 mA at 24 V, 2.95 mA in the
+  fault, against the ≥ 5.6 mA a GB-rank TLP291 passes at the worst-case LED
+  current. Off, the opto's 50 µA of 85 °C dark current across R7 is 0.5 V
+  against the LP2309LT1G's 1 V minimum threshold. Rev B.2 got the same
+  "from a rail, not a ratio" property by hanging the opto collectors on the
+  5 V `SSR_EN`; that rail now has nothing to do with the channels directly.
 
   **Hardware watchdog (`SJ2`, "WDT DEFEAT").** `SSR_EN` — since rev B.2 a
   +5 V **gate-drive** rail rather than the terminal supply — is supplied by
   Q4, a P-channel high-side MOSFET (AO3401A) whose gate node `SSR_PG` is held
   down by Q3, itself held on by **U10**, an SN74LVC1G123 retriggerable
   monostable driven from `WDT_KICK`; R47 (100 kΩ) pulls `SSR_PG` up
-  as the fail-safe. `SSR_EN` feeds both opto collectors *and* Q7's gate, so
-  when it collapses the channels open **two independent ways**: the optos lose
-  their collector rail and Q7 loses its gate. **R18** (10 kΩ) is what makes
-  that work — `SSR_EN` is Q4's *drain*, so with Q4 off nothing would define it
-  and Q7's gate would float, which is the same fail-dangerous bug R49 exists
-  to fix one node upstream.
+  as the fail-safe. `SSR_EN` enhances **Q7** (CJ2310), which pulls the gate
+  of **Q9** — the 24 V high-side cutoff between `VIN_P` and `SSR_24V` — down
+  through R71 (10 kΩ); D12 clamps Q9's `V_SG` to 8.2 V and **R22** (100 kΩ,
+  gate to source) holds Q9 off whenever Q7 is not pulling. When the window
+  expires `SSR_EN` falls, R18 (10 kΩ) takes Q7's gate down, R22 takes Q9's
+  gate to its source and `SSR_24V` is dead: both terminals are off whatever
+  the channel switches are doing, a failed-short channel included. **R18**
+  is what makes that work — `SSR_EN` is Q4's *drain*, so with Q4 off nothing
+  would define it and Q7's gate would float, the same fail-dangerous bug R49
+  exists to fix one node upstream.
 
-  **Q7 is in the shared return, and it is not the "stacked low side" this
-  design rejected.** The watchdog has to be able to open a channel whose
-  MOSFET has failed *short* — the case a firmware-owned interlock cannot cover
-  — so it stays in the load path. Keeping it on the high side at 24 V would
-  need a 60 V P-channel switch (the only fee-free one at JLCPCB is a
-  50 V/130 mA part that caps the terminals below their own current budget)
-  plus a divider to hold its `V_GS` inside ±20 V off a rail that reaches 37 V
-  while D8 clamps a sustained fault — putting the board's most safety-critical
-  node on a divider referenced to the fault. Q7 does the same job with the
-  same part as the channels and leaves U10/Q3/Q4/R47/SJ2 untouched in the 5 V
-  domain. The rejected "topology A" made **Q3** the series element back when
-  the charge pump could only lift its gate to 2.16 V, so its drop was
-  unbounded; Q7 is a dedicated switch gated at ~5 V, where the CJ2310 is
-  specified at 125 mΩ — 5 mV at 40 mA. The objection was to an unbounded drop,
-  and this one has a datasheet line under it. **R22** (100 kΩ) pins `SSR_RTN`
-  down so that with everything off it cannot drift to 24 V and put −24 V
-  across Q5/Q6's gates. It is 100 kΩ rather than 10 kΩ because of the very
-  fault the watchdog is in the load path *for*: with a channel MOSFET failed
-  short and the window expired, R22 in series with the SSR's own ~1.2 kΩ
-  input is all that is left, and 10 kΩ passes 2.1 mA — inside the trigger
-  range of an SSR-40DA-class input. 100 kΩ passes 237 µA.
+  **Q9 is the high-side cutoff B.2 rejected, and the reason it was rejected
+  is gone.** B.2 kept the watchdog in the shared *return* (Q7 as the switch)
+  because no fee-free 60 V P-channel part existed at JLCPCB; the only one was
+  a 50 V/130 mA BSS84 that capped the terminals below their own budget. On
+  Standard PCBA — which U1 and C46 force — every line pays the same $1.53,
+  and the LP2309LT1G (60 V, 1.9 A, LCSC C383253) is the part the objection
+  said did not exist. The return-side watchdog also could not touch an SSR
+  `−` lead that found ground (review A1 / item 3), and it let a failed-short
+  channel put −23.7 V on the healthy channel's gate through R22 (item 11);
+  with the switches on the + side and the cutoff in series with the rail,
+  both of those go away. Q7 survives as the level shift because its gate is
+  on a 5 V rail where the CJ2310 is specified, the argument B.2 made for it.
 
   Every **rising edge** on `WDT_KICK` restarts U10's window, so `Q` stays high
   only while firmware keeps kicking; a pin wedged at either level delivers no
@@ -727,7 +733,7 @@ optocouplers (TLP291, C55144), the three 60 V CJ2310s they drive (C75882),
 the **TPS2116 power mux** (U12, C3235557), the Qwiic connector (C160404) and
 the USB-C receptacle (C165948) — **$42.98 in feeder fees** at $3.07 each.
 On Standard, where this BOM is (see the correction above), the count that
-matters is the **49 BOM lines at $1.53 = $74.97**, and the 129 fee-free
+matters is the **50 BOM lines at $1.53 = $76.50 (rev B.4 adds the LP2309LT1G line; 49 and $74.97 before it)**, and the 129 fee-free
 placements are fee-free in name only.
 
 The last three of those are recent and worth attributing: the optos and the
@@ -1567,8 +1573,9 @@ libraries.)
 
 ## Safety
 
-This board switches an external SSR's **control input** only — board 24 V
-out, switched low side back, both channels. The optocouplers on the gate
+This board switches an external SSR's **control input** only — switched
+board 24 V out on `OUT`, `−` on board GND, both channels (rev B.4; B.2/B.3
+switched the return). The optocouplers on the gate
 drive are **not** an isolation barrier: rev B built an opto-*isolated*
 version and reverted it, because an optocoupler only isolates when the SSR
 control loop is powered off-board and this board powers it. U8/U9 keep a

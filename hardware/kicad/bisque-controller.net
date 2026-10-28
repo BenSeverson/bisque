@@ -9,7 +9,7 @@
 			(title_block
 				(title "Bisque Kiln Controller")
 				(company "Bisque project")
-				(rev "B.3")
+				(rev "B.4")
 				(date "2026-10-22")
 				(source "bisque-controller.kicad_sch")
 				(comment
@@ -57,7 +57,7 @@
 			(title_block
 				(title "Bisque Kiln Controller - Power input and 24 V -> 5 V buck")
 				(company "Bisque project")
-				(rev "B.3")
+				(rev "B.4")
 				(date "2026-10-22")
 				(source "power.kicad_sch")
 				(comment
@@ -105,7 +105,7 @@
 			(title_block
 				(title "Bisque Kiln Controller - ESP32-S3, USB, headers, status LED")
 				(company "Bisque project")
-				(rev "B.3")
+				(rev "B.4")
 				(date "2026-10-22")
 				(source "mcu.kicad_sch")
 				(comment
@@ -153,7 +153,7 @@
 			(title_block
 				(title "Bisque Kiln Controller - Thermocouple front-ends")
 				(company "Bisque project")
-				(rev "B.3")
+				(rev "B.4")
 				(date "2026-10-22")
 				(source "thermocouples.kicad_sch")
 				(comment
@@ -201,7 +201,7 @@
 			(title_block
 				(title "Bisque Kiln Controller - SSR drive and hardware watchdog")
 				(company "Bisque project")
-				(rev "B.3")
+				(rev "B.4")
 				(date "2026-10-22")
 				(source "ssr.kicad_sch")
 				(comment
@@ -249,7 +249,7 @@
 			(title_block
 				(title "Bisque Kiln Controller - Aux outputs, buzzer, protected inputs")
 				(company "Bisque project")
-				(rev "B.3")
+				(rev "B.4")
 				(date "2026-10-22")
 				(source "io.kicad_sch")
 				(comment
@@ -297,7 +297,7 @@
 			(title_block
 				(title "Bisque Kiln Controller - CT current sensing (ADE7953)")
 				(company "Bisque project")
-				(rev "B.3")
+				(rev "B.4")
 				(date "2026-10-22")
 				(source "ct.kicad_sch")
 				(comment
@@ -345,7 +345,7 @@
 			(title_block
 				(title "Bisque Kiln Controller - Test points and mounting")
 				(company "Bisque project")
-				(rev "B.3")
+				(rev "B.4")
 				(date "2026-10-22")
 				(source "test.kicad_sch")
 				(comment
@@ -7485,6 +7485,222 @@
 			)
 		)
 		(comp
+			(ref "D12")
+			(value "BZT52C8V2")
+			(footprint "Diode_SMD:D_SOD-323")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/da7020b76914ad0b2f5b3664460f5791.pdf?productCode=C22375294")
+			(description "Zener diode")
+			(fields
+				(field
+					(name "LCSC") "C22375294")
+				(field
+					(name "MPN") "BZT52C8V2S")
+				(field
+					(name "Manufacturer") "R+O")
+				(field
+					(name "Footprint") "Diode_SMD:D_SOD-323")
+				(field
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/da7020b76914ad0b2f5b3664460f5791.pdf?productCode=C22375294")
+				(field
+					(name "Description") "Zener diode")
+			)
+			(libsource
+				(lib "Device")
+				(part "D_Zener")
+				(description "Zener diode")
+			)
+			(property
+				(name "LCSC")
+				(value "C22375294")
+			)
+			(property
+				(name "MPN")
+				(value "BZT52C8V2S")
+			)
+			(property
+				(name "Manufacturer")
+				(value "R+O")
+			)
+			(property
+				(name "Sheetname")
+				(value "ssr")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheets/ssr.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "diode")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "TO-???* *_Diode_* *SingleDiode* D_*")
+			)
+			(sheetpath
+				(names "/ssr/")
+				(tstamps "/9f5358df-46db-5b0b-b8f6-c2f90039d70a/")
+			)
+			(tstamps "7313e5e5-1f97-4114-9bfa-310a7963d4ef")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "D13")
+			(value "BZT52C8V2")
+			(footprint "Diode_SMD:D_SOD-323")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/da7020b76914ad0b2f5b3664460f5791.pdf?productCode=C22375294")
+			(description "Zener diode")
+			(fields
+				(field
+					(name "LCSC") "C22375294")
+				(field
+					(name "MPN") "BZT52C8V2S")
+				(field
+					(name "Manufacturer") "R+O")
+				(field
+					(name "Footprint") "Diode_SMD:D_SOD-323")
+				(field
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/da7020b76914ad0b2f5b3664460f5791.pdf?productCode=C22375294")
+				(field
+					(name "Description") "Zener diode")
+			)
+			(libsource
+				(lib "Device")
+				(part "D_Zener")
+				(description "Zener diode")
+			)
+			(property
+				(name "LCSC")
+				(value "C22375294")
+			)
+			(property
+				(name "MPN")
+				(value "BZT52C8V2S")
+			)
+			(property
+				(name "Manufacturer")
+				(value "R+O")
+			)
+			(property
+				(name "Sheetname")
+				(value "ssr")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheets/ssr.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "diode")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "TO-???* *_Diode_* *SingleDiode* D_*")
+			)
+			(sheetpath
+				(names "/ssr/")
+				(tstamps "/9f5358df-46db-5b0b-b8f6-c2f90039d70a/")
+			)
+			(tstamps "c5eefcec-af0e-4fe2-9346-6e65ea276de2")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "D14")
+			(value "BZT52C8V2")
+			(footprint "Diode_SMD:D_SOD-323")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/da7020b76914ad0b2f5b3664460f5791.pdf?productCode=C22375294")
+			(description "Zener diode")
+			(fields
+				(field
+					(name "LCSC") "C22375294")
+				(field
+					(name "MPN") "BZT52C8V2S")
+				(field
+					(name "Manufacturer") "R+O")
+				(field
+					(name "Footprint") "Diode_SMD:D_SOD-323")
+				(field
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/da7020b76914ad0b2f5b3664460f5791.pdf?productCode=C22375294")
+				(field
+					(name "Description") "Zener diode")
+			)
+			(libsource
+				(lib "Device")
+				(part "D_Zener")
+				(description "Zener diode")
+			)
+			(property
+				(name "LCSC")
+				(value "C22375294")
+			)
+			(property
+				(name "MPN")
+				(value "BZT52C8V2S")
+			)
+			(property
+				(name "Manufacturer")
+				(value "R+O")
+			)
+			(property
+				(name "Sheetname")
+				(value "ssr")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheets/ssr.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "diode")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "TO-???* *_Diode_* *SingleDiode* D_*")
+			)
+			(sheetpath
+				(names "/ssr/")
+				(tstamps "/9f5358df-46db-5b0b-b8f6-c2f90039d70a/")
+			)
+			(tstamps "60991301-67d4-4f99-be23-5b51a63fa82e")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
 			(ref "J4")
 			(value "SSR1")
 			(footprint "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal")
@@ -7924,40 +8140,40 @@
 		)
 		(comp
 			(ref "Q5")
-			(value "CJ2310")
+			(value "LP2309LT1G")
 			(footprint "Package_TO_SOT_SMD:SOT-23")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/047c2d04a777425c9f562b3b0285a623.pdf?productCode=C75882")
-			(description "0.115A Id, 60V Vds, N-Channel MOSFET, SOT-23")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/97191dba0bcdd80a68862b8e77b141a9.pdf?productCode=C383253")
+			(description "P-Channel 60V 1.9A 1.4W Surface Mount SOT-23(TO-236)")
 			(fields
 				(field
-					(name "MPN") "CJ2310")
+					(name "MPN") "LP2309LT1G")
 				(field
-					(name "LCSC") "C75882")
+					(name "LCSC") "C383253")
 				(field
-					(name "Manufacturer") "JSCJ")
+					(name "Manufacturer") "LRC")
 				(field
 					(name "Footprint") "Package_TO_SOT_SMD:SOT-23")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/047c2d04a777425c9f562b3b0285a623.pdf?productCode=C75882")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/97191dba0bcdd80a68862b8e77b141a9.pdf?productCode=C383253")
 				(field
-					(name "Description") "0.115A Id, 60V Vds, N-Channel MOSFET, SOT-23")
+					(name "Description") "P-Channel 60V 1.9A 1.4W Surface Mount SOT-23(TO-236)")
 			)
 			(libsource
 				(lib "bisque")
-				(part "CJ2310")
-				(description "3 A Id, 60 V Vds, N-channel MOSFET, SOT-23, G-S-D (same pinout as 2N7002). Fitted part C75882.")
+				(part "LP2309LT1G")
+				(description "1.9 A Id, 60 V Vds, P-channel MOSFET, SOT-23, G-S-D (same pinout as AO3401A). Fitted part C383253.")
 			)
 			(property
 				(name "MPN")
-				(value "CJ2310")
+				(value "LP2309LT1G")
 			)
 			(property
 				(name "LCSC")
-				(value "C75882")
+				(value "C383253")
 			)
 			(property
 				(name "Manufacturer")
-				(value "JSCJ")
+				(value "LRC")
 			)
 			(property
 				(name "Sheetname")
@@ -7969,7 +8185,7 @@
 			)
 			(property
 				(name "ki_keywords")
-				(value "N-Channel MOSFET 60V")
+				(value "P-Channel MOSFET 60V")
 			)
 			(property
 				(name "ki_fp_filters")
@@ -7999,40 +8215,40 @@
 		)
 		(comp
 			(ref "Q6")
-			(value "CJ2310")
+			(value "LP2309LT1G")
 			(footprint "Package_TO_SOT_SMD:SOT-23")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/047c2d04a777425c9f562b3b0285a623.pdf?productCode=C75882")
-			(description "0.115A Id, 60V Vds, N-Channel MOSFET, SOT-23")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/97191dba0bcdd80a68862b8e77b141a9.pdf?productCode=C383253")
+			(description "P-Channel 60V 1.9A 1.4W Surface Mount SOT-23(TO-236)")
 			(fields
 				(field
-					(name "MPN") "CJ2310")
+					(name "MPN") "LP2309LT1G")
 				(field
-					(name "LCSC") "C75882")
+					(name "LCSC") "C383253")
 				(field
-					(name "Manufacturer") "JSCJ")
+					(name "Manufacturer") "LRC")
 				(field
 					(name "Footprint") "Package_TO_SOT_SMD:SOT-23")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/047c2d04a777425c9f562b3b0285a623.pdf?productCode=C75882")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/97191dba0bcdd80a68862b8e77b141a9.pdf?productCode=C383253")
 				(field
-					(name "Description") "0.115A Id, 60V Vds, N-Channel MOSFET, SOT-23")
+					(name "Description") "P-Channel 60V 1.9A 1.4W Surface Mount SOT-23(TO-236)")
 			)
 			(libsource
 				(lib "bisque")
-				(part "CJ2310")
-				(description "3 A Id, 60 V Vds, N-channel MOSFET, SOT-23, G-S-D (same pinout as 2N7002). Fitted part C75882.")
+				(part "LP2309LT1G")
+				(description "1.9 A Id, 60 V Vds, P-channel MOSFET, SOT-23, G-S-D (same pinout as AO3401A). Fitted part C383253.")
 			)
 			(property
 				(name "MPN")
-				(value "CJ2310")
+				(value "LP2309LT1G")
 			)
 			(property
 				(name "LCSC")
-				(value "C75882")
+				(value "C383253")
 			)
 			(property
 				(name "Manufacturer")
-				(value "JSCJ")
+				(value "LRC")
 			)
 			(property
 				(name "Sheetname")
@@ -8044,7 +8260,7 @@
 			)
 			(property
 				(name "ki_keywords")
-				(value "N-Channel MOSFET 60V")
+				(value "P-Channel MOSFET 60V")
 			)
 			(property
 				(name "ki_fp_filters")
@@ -8148,6 +8364,81 @@
 			)
 		)
 		(comp
+			(ref "Q9")
+			(value "LP2309LT1G")
+			(footprint "Package_TO_SOT_SMD:SOT-23")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/97191dba0bcdd80a68862b8e77b141a9.pdf?productCode=C383253")
+			(description "P-Channel 60V 1.9A 1.4W Surface Mount SOT-23(TO-236)")
+			(fields
+				(field
+					(name "LCSC") "C383253")
+				(field
+					(name "MPN") "LP2309LT1G")
+				(field
+					(name "Manufacturer") "LRC")
+				(field
+					(name "Footprint") "Package_TO_SOT_SMD:SOT-23")
+				(field
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/97191dba0bcdd80a68862b8e77b141a9.pdf?productCode=C383253")
+				(field
+					(name "Description") "P-Channel 60V 1.9A 1.4W Surface Mount SOT-23(TO-236)")
+			)
+			(libsource
+				(lib "bisque")
+				(part "LP2309LT1G")
+				(description "1.9 A Id, 60 V Vds, P-channel MOSFET, SOT-23, G-S-D (same pinout as AO3401A). Fitted part C383253.")
+			)
+			(property
+				(name "LCSC")
+				(value "C383253")
+			)
+			(property
+				(name "MPN")
+				(value "LP2309LT1G")
+			)
+			(property
+				(name "Manufacturer")
+				(value "LRC")
+			)
+			(property
+				(name "Sheetname")
+				(value "ssr")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheets/ssr.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "P-Channel MOSFET 60V")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "SOT?23*")
+			)
+			(sheetpath
+				(names "/ssr/")
+				(tstamps "/9f5358df-46db-5b0b-b8f6-c2f90039d70a/")
+			)
+			(tstamps "a18c61de-fcb5-414c-85bf-1698bb9f2ee1")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "3")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
 			(ref "R6")
 			(value "220R")
 			(footprint "Resistor_SMD:R_0805_2012Metric")
@@ -8221,21 +8512,21 @@
 		)
 		(comp
 			(ref "R7")
-			(value "4.7k")
+			(value "10k")
 			(footprint "Resistor_SMD:R_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17673")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17414")
 			(description "Resistor")
 			(fields
 				(field
-					(name "MPN") "0805W8F4701T5E")
+					(name "MPN") "0805W8F1002T5E")
 				(field
-					(name "LCSC") "C17673")
+					(name "LCSC") "C17414")
 				(field
 					(name "Manufacturer") "UNI-ROYAL")
 				(field
 					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17673")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17414")
 				(field
 					(name "Description") "Resistor")
 			)
@@ -8246,11 +8537,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "0805W8F4701T5E")
+				(value "0805W8F1002T5E")
 			)
 			(property
 				(name "LCSC")
-				(value "C17673")
+				(value "C17414")
 			)
 			(property
 				(name "Manufacturer")
@@ -8509,21 +8800,21 @@
 		)
 		(comp
 			(ref "R20")
-			(value "4.7k")
+			(value "10k")
 			(footprint "Resistor_SMD:R_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17673")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17414")
 			(description "Resistor")
 			(fields
 				(field
-					(name "MPN") "0805W8F4701T5E")
+					(name "MPN") "0805W8F1002T5E")
 				(field
-					(name "LCSC") "C17673")
+					(name "LCSC") "C17414")
 				(field
 					(name "Manufacturer") "UNI-ROYAL")
 				(field
 					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17673")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17414")
 				(field
 					(name "Description") "Resistor")
 			)
@@ -8534,11 +8825,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "0805W8F4701T5E")
+				(value "0805W8F1002T5E")
 			)
 			(property
 				(name "LCSC")
-				(value "C17673")
+				(value "C17414")
 			)
 			(property
 				(name "Manufacturer")
@@ -8997,6 +9288,222 @@
 				(tstamps "/9f5358df-46db-5b0b-b8f6-c2f90039d70a/")
 			)
 			(tstamps "3cc2a590-26b5-5843-8eaf-93f58103a5f3")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "R69")
+			(value "10k")
+			(footprint "Resistor_SMD:R_0805_2012Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17414")
+			(description "Resistor")
+			(fields
+				(field
+					(name "LCSC") "C17414")
+				(field
+					(name "MPN") "0805W8F1002T5E")
+				(field
+					(name "Manufacturer") "UNI-ROYAL")
+				(field
+					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+				(field
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17414")
+				(field
+					(name "Description") "Resistor")
+			)
+			(libsource
+				(lib "Device")
+				(part "R")
+				(description "Resistor")
+			)
+			(property
+				(name "LCSC")
+				(value "C17414")
+			)
+			(property
+				(name "MPN")
+				(value "0805W8F1002T5E")
+			)
+			(property
+				(name "Manufacturer")
+				(value "UNI-ROYAL")
+			)
+			(property
+				(name "Sheetname")
+				(value "ssr")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheets/ssr.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "R res resistor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "R_*")
+			)
+			(sheetpath
+				(names "/ssr/")
+				(tstamps "/9f5358df-46db-5b0b-b8f6-c2f90039d70a/")
+			)
+			(tstamps "505f3bc5-7aa7-419a-8faf-6b4447ac1e63")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "R70")
+			(value "10k")
+			(footprint "Resistor_SMD:R_0805_2012Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17414")
+			(description "Resistor")
+			(fields
+				(field
+					(name "LCSC") "C17414")
+				(field
+					(name "MPN") "0805W8F1002T5E")
+				(field
+					(name "Manufacturer") "UNI-ROYAL")
+				(field
+					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+				(field
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17414")
+				(field
+					(name "Description") "Resistor")
+			)
+			(libsource
+				(lib "Device")
+				(part "R")
+				(description "Resistor")
+			)
+			(property
+				(name "LCSC")
+				(value "C17414")
+			)
+			(property
+				(name "MPN")
+				(value "0805W8F1002T5E")
+			)
+			(property
+				(name "Manufacturer")
+				(value "UNI-ROYAL")
+			)
+			(property
+				(name "Sheetname")
+				(value "ssr")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheets/ssr.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "R res resistor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "R_*")
+			)
+			(sheetpath
+				(names "/ssr/")
+				(tstamps "/9f5358df-46db-5b0b-b8f6-c2f90039d70a/")
+			)
+			(tstamps "c9194d40-cdae-4b14-b04a-1217490a524a")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "R71")
+			(value "10k")
+			(footprint "Resistor_SMD:R_0805_2012Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17414")
+			(description "Resistor")
+			(fields
+				(field
+					(name "LCSC") "C17414")
+				(field
+					(name "MPN") "0805W8F1002T5E")
+				(field
+					(name "Manufacturer") "UNI-ROYAL")
+				(field
+					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+				(field
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17414")
+				(field
+					(name "Description") "Resistor")
+			)
+			(libsource
+				(lib "Device")
+				(part "R")
+				(description "Resistor")
+			)
+			(property
+				(name "LCSC")
+				(value "C17414")
+			)
+			(property
+				(name "MPN")
+				(value "0805W8F1002T5E")
+			)
+			(property
+				(name "Manufacturer")
+				(value "UNI-ROYAL")
+			)
+			(property
+				(name "Sheetname")
+				(value "ssr")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheets/ssr.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "R res resistor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "R_*")
+			)
+			(sheetpath
+				(names "/ssr/")
+				(tstamps "/9f5358df-46db-5b0b-b8f6-c2f90039d70a/")
+			)
+			(tstamps "ed9753da-3378-49dc-8d8d-8863101967ca")
 			(units
 				(unit
 					(name "A")
@@ -15615,6 +16122,44 @@
 		)
 		(libpart
 			(lib "bisque")
+			(part "LP2309LT1G")
+			(description "1.9 A Id, 60 V Vds, P-channel MOSFET, SOT-23, G-S-D (same pinout as AO3401A). Fitted part C383253.")
+			(docs "https://datasheet.lcsc.com/datasheet/pdf/97191dba0bcdd80a68862b8e77b141a9.pdf?productCode=C383253")
+			(footprints
+				(fp "SOT?23*")
+			)
+			(fields
+				(field
+					(name "Reference") "Q")
+				(field
+					(name "Value") "LP2309LT1G")
+				(field
+					(name "Footprint") "Package_TO_SOT_SMD:SOT-23")
+				(field
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/97191dba0bcdd80a68862b8e77b141a9.pdf?productCode=C383253")
+				(field
+					(name "Description") "1.9 A Id, 60 V Vds, P-channel MOSFET, SOT-23, G-S-D (same pinout as AO3401A). Fitted part C383253.")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "G")
+					(type "input")
+				)
+				(pin
+					(num "2")
+					(name "S")
+					(type "passive")
+				)
+				(pin
+					(num "3")
+					(name "D")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "bisque")
 			(part "MAX31856")
 			(description "[bisque] SDO typed tri-state (Hi-Z while CS high, shared SPI_MISO). Precision Thermocouple to Digital Converter with Linearization, TSSOP-14")
 			(docs "https://datasheets.maximintegrated.com/en/ds/MAX31856.pdf")
@@ -17968,51 +18513,32 @@
 				(pintype "passive")
 			)
 			(node
-				(ref "D10")
-				(pin "1")
-				(pinfunction "K_1")
-				(pintype "passive")
-			)
-			(node
 				(ref "D11")
 				(pin "1")
 				(pinfunction "K_1")
 				(pintype "passive")
 			)
 			(node
-				(ref "D9")
+				(ref "D12")
 				(pin "1")
 				(pinfunction "K_1")
-				(pintype "passive")
-			)
-			(node
-				(ref "J4")
-				(pin "1")
-				(pinfunction "Pin_1_1")
-				(pintype "passive")
-			)
-			(node
-				(ref "J9")
-				(pin "1")
-				(pinfunction "Pin_1_1")
-				(pintype "passive")
-			)
-			(node
-				(ref "LED3")
-				(pin "2")
-				(pinfunction "A_2")
-				(pintype "passive")
-			)
-			(node
-				(ref "LED4")
-				(pin "2")
-				(pinfunction "A_2")
 				(pintype "passive")
 			)
 			(node
 				(ref "Q8")
 				(pin "2")
 				(pinfunction "S_2")
+				(pintype "passive")
+			)
+			(node
+				(ref "Q9")
+				(pin "2")
+				(pinfunction "S_2")
+				(pintype "passive")
+			)
+			(node
+				(ref "R22")
+				(pin "1")
 				(pintype "passive")
 			)
 			(node
@@ -18027,30 +18553,36 @@
 			(name "/ssr/SSR1_GATE")
 			(class "Default")
 			(node
+				(ref "D13")
+				(pin "2")
+				(pinfunction "A_2")
+				(pintype "passive")
+			)
+			(node
 				(ref "Q5")
 				(pin "1")
 				(pinfunction "G_1")
 				(pintype "input")
 			)
 			(node
-				(ref "R7")
-				(pin "1")
+				(ref "R69")
+				(pin "2")
 				(pintype "passive")
 			)
 			(node
-				(ref "U8")
-				(pin "3")
+				(ref "R7")
+				(pin "2")
 				(pintype "passive")
 			)
 		)
 		(net
 			(code "86")
-			(name "/ssr/SSR1_IND_K")
+			(name "/ssr/SSR1_IND_A")
 			(class "Default")
 			(node
 				(ref "LED3")
-				(pin "1")
-				(pinfunction "K_1")
+				(pin "2")
+				(pinfunction "A_2")
 				(pintype "passive")
 			)
 			(node
@@ -18076,18 +18608,33 @@
 		)
 		(net
 			(code "88")
+			(name "/ssr/SSR1_OC")
+			(class "Default")
+			(node
+				(ref "R69")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "U8")
+				(pin "4")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "89")
 			(name "/ssr/SSR1_OUT")
 			(class "Default")
 			(node
 				(ref "D9")
-				(pin "2")
-				(pinfunction "A_2")
+				(pin "1")
+				(pinfunction "K_1")
 				(pintype "passive")
 			)
 			(node
 				(ref "J4")
-				(pin "2")
-				(pinfunction "Pin_2_2")
+				(pin "1")
+				(pinfunction "Pin_1_1")
 				(pintype "passive")
 			)
 			(node
@@ -18103,9 +18650,15 @@
 			)
 		)
 		(net
-			(code "89")
+			(code "90")
 			(name "/ssr/SSR2_GATE")
 			(class "Default")
+			(node
+				(ref "D14")
+				(pin "2")
+				(pinfunction "A_2")
+				(pintype "passive")
+			)
 			(node
 				(ref "Q6")
 				(pin "1")
@@ -18114,23 +18667,23 @@
 			)
 			(node
 				(ref "R20")
-				(pin "1")
+				(pin "2")
 				(pintype "passive")
 			)
 			(node
-				(ref "U9")
-				(pin "3")
+				(ref "R70")
+				(pin "2")
 				(pintype "passive")
 			)
 		)
 		(net
-			(code "90")
-			(name "/ssr/SSR2_IND_K")
+			(code "91")
+			(name "/ssr/SSR2_IND_A")
 			(class "Default")
 			(node
 				(ref "LED4")
-				(pin "1")
-				(pinfunction "K_1")
+				(pin "2")
+				(pinfunction "A_2")
 				(pintype "passive")
 			)
 			(node
@@ -18140,7 +18693,7 @@
 			)
 		)
 		(net
-			(code "91")
+			(code "92")
 			(name "/ssr/SSR2_LED_A")
 			(class "Default")
 			(node
@@ -18155,19 +18708,34 @@
 			)
 		)
 		(net
-			(code "92")
+			(code "93")
+			(name "/ssr/SSR2_OC")
+			(class "Default")
+			(node
+				(ref "R70")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "U9")
+				(pin "4")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "94")
 			(name "/ssr/SSR2_OUT")
 			(class "Default")
 			(node
 				(ref "D10")
-				(pin "2")
-				(pinfunction "A_2")
+				(pin "1")
+				(pinfunction "K_1")
 				(pintype "passive")
 			)
 			(node
 				(ref "J9")
-				(pin "2")
-				(pinfunction "Pin_2_2")
+				(pin "1")
+				(pinfunction "Pin_1_1")
 				(pintype "passive")
 			)
 			(node
@@ -18183,7 +18751,52 @@
 			)
 		)
 		(net
-			(code "93")
+			(code "95")
+			(name "/ssr/SSR_24V")
+			(class "Default")
+			(node
+				(ref "D13")
+				(pin "1")
+				(pinfunction "K_1")
+				(pintype "passive")
+			)
+			(node
+				(ref "D14")
+				(pin "1")
+				(pinfunction "K_1")
+				(pintype "passive")
+			)
+			(node
+				(ref "Q5")
+				(pin "2")
+				(pinfunction "S_2")
+				(pintype "passive")
+			)
+			(node
+				(ref "Q6")
+				(pin "2")
+				(pinfunction "S_2")
+				(pintype "passive")
+			)
+			(node
+				(ref "Q9")
+				(pin "3")
+				(pinfunction "D_3")
+				(pintype "passive")
+			)
+			(node
+				(ref "R20")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "R7")
+				(pin "1")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "96")
 			(name "/ssr/SSR_EN")
 			(class "Default")
 			(node
@@ -18203,19 +18816,52 @@
 				(pin "1")
 				(pintype "passive")
 			)
+		)
+		(net
+			(code "97")
+			(name "/ssr/SSR_HS_D")
+			(class "Default")
 			(node
-				(ref "U8")
-				(pin "4")
+				(ref "Q7")
+				(pin "3")
+				(pinfunction "D_3")
 				(pintype "passive")
 			)
 			(node
-				(ref "U9")
-				(pin "4")
+				(ref "R71")
+				(pin "1")
 				(pintype "passive")
 			)
 		)
 		(net
-			(code "94")
+			(code "98")
+			(name "/ssr/SSR_HS_G")
+			(class "Default")
+			(node
+				(ref "D12")
+				(pin "2")
+				(pinfunction "A_2")
+				(pintype "passive")
+			)
+			(node
+				(ref "Q9")
+				(pin "1")
+				(pinfunction "G_1")
+				(pintype "input")
+			)
+			(node
+				(ref "R22")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "R71")
+				(pin "2")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "99")
 			(name "/ssr/SSR_PG")
 			(class "Default")
 			(node
@@ -18243,35 +18889,7 @@
 			)
 		)
 		(net
-			(code "95")
-			(name "/ssr/SSR_RTN")
-			(class "Default")
-			(node
-				(ref "Q5")
-				(pin "2")
-				(pinfunction "S_2")
-				(pintype "passive")
-			)
-			(node
-				(ref "Q6")
-				(pin "2")
-				(pinfunction "S_2")
-				(pintype "passive")
-			)
-			(node
-				(ref "Q7")
-				(pin "3")
-				(pinfunction "D_3")
-				(pintype "passive")
-			)
-			(node
-				(ref "R22")
-				(pin "1")
-				(pintype "passive")
-			)
-		)
-		(net
-			(code "96")
+			(code "100")
 			(name "/ssr/WDT_CT_N")
 			(class "Default")
 			(node
@@ -18292,7 +18910,7 @@
 			)
 		)
 		(net
-			(code "97")
+			(code "101")
 			(name "/ssr/WDT_CT_P")
 			(class "Default")
 			(node
@@ -18324,7 +18942,7 @@
 			)
 		)
 		(net
-			(code "98")
+			(code "102")
 			(name "/ssr/WDT_KICK")
 			(class "Default")
 			(node
@@ -18346,7 +18964,7 @@
 			)
 		)
 		(net
-			(code "99")
+			(code "103")
 			(name "/ssr/WDT_OK")
 			(class "Default")
 			(node
@@ -18368,7 +18986,7 @@
 			)
 		)
 		(net
-			(code "100")
+			(code "104")
 			(name "/thermocouples/TC1_N")
 			(class "Default")
 			(node
@@ -18390,7 +19008,7 @@
 			)
 		)
 		(net
-			(code "101")
+			(code "105")
 			(name "/thermocouples/TC1_N_F")
 			(class "Default")
 			(node
@@ -18416,7 +19034,7 @@
 			)
 		)
 		(net
-			(code "102")
+			(code "106")
 			(name "/thermocouples/TC1_P")
 			(class "Default")
 			(node
@@ -18432,7 +19050,7 @@
 			)
 		)
 		(net
-			(code "103")
+			(code "107")
 			(name "/thermocouples/TC1_P_F")
 			(class "Default")
 			(node
@@ -18458,7 +19076,7 @@
 			)
 		)
 		(net
-			(code "104")
+			(code "108")
 			(name "/thermocouples/TC2_N")
 			(class "Default")
 			(node
@@ -18480,7 +19098,7 @@
 			)
 		)
 		(net
-			(code "105")
+			(code "109")
 			(name "/thermocouples/TC2_N_F")
 			(class "Default")
 			(node
@@ -18506,7 +19124,7 @@
 			)
 		)
 		(net
-			(code "106")
+			(code "110")
 			(name "/thermocouples/TC2_P")
 			(class "Default")
 			(node
@@ -18522,7 +19140,7 @@
 			)
 		)
 		(net
-			(code "107")
+			(code "111")
 			(name "/thermocouples/TC2_P_F")
 			(class "Default")
 			(node
@@ -18548,7 +19166,7 @@
 			)
 		)
 		(net
-			(code "108")
+			(code "112")
 			(name "GND")
 			(class "Plane")
 			(node
@@ -18762,6 +19380,12 @@
 				(pintype "passive")
 			)
 			(node
+				(ref "D10")
+				(pin "2")
+				(pinfunction "A_2")
+				(pintype "passive")
+			)
+			(node
 				(ref "D5")
 				(pin "2")
 				(pinfunction "VN_2")
@@ -18781,6 +19405,12 @@
 			)
 			(node
 				(ref "D8")
+				(pin "2")
+				(pinfunction "A_2")
+				(pintype "passive")
+			)
+			(node
+				(ref "D9")
 				(pin "2")
 				(pinfunction "A_2")
 				(pintype "passive")
@@ -18864,6 +19494,12 @@
 				(pintype "passive")
 			)
 			(node
+				(ref "J4")
+				(pin "2")
+				(pinfunction "Pin_2_2")
+				(pintype "passive")
+			)
+			(node
 				(ref "J5")
 				(pin "2")
 				(pinfunction "Pin_2_2")
@@ -18888,10 +19524,28 @@
 				(pintype "passive")
 			)
 			(node
+				(ref "J9")
+				(pin "2")
+				(pinfunction "Pin_2_2")
+				(pintype "passive")
+			)
+			(node
 				(ref "LED1")
 				(pin "3")
 				(pinfunction "VSS_3")
 				(pintype "power_in")
+			)
+			(node
+				(ref "LED3")
+				(pin "1")
+				(pinfunction "K_1")
+				(pintype "passive")
+			)
+			(node
+				(ref "LED4")
+				(pin "1")
+				(pinfunction "K_1")
+				(pintype "passive")
 			)
 			(node
 				(ref "Q2")
@@ -18913,16 +19567,6 @@
 			)
 			(node
 				(ref "R18")
-				(pin "2")
-				(pintype "passive")
-			)
-			(node
-				(ref "R20")
-				(pin "2")
-				(pintype "passive")
-			)
-			(node
-				(ref "R22")
 				(pin "2")
 				(pintype "passive")
 			)
@@ -18998,11 +19642,6 @@
 			)
 			(node
 				(ref "R68")
-				(pin "2")
-				(pintype "passive")
-			)
-			(node
-				(ref "R7")
 				(pin "2")
 				(pintype "passive")
 			)
@@ -19208,8 +19847,18 @@
 				(pintype "passive")
 			)
 			(node
+				(ref "U8")
+				(pin "3")
+				(pintype "passive")
+			)
+			(node
 				(ref "U9")
 				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "U9")
+				(pin "3")
 				(pintype "passive")
 			)
 			(node
@@ -19220,7 +19869,7 @@
 			)
 		)
 		(net
-			(code "109")
+			(code "113")
 			(name "Net-(R67-Pad2)")
 			(class "Default")
 			(node
@@ -19235,7 +19884,7 @@
 			)
 		)
 		(net
-			(code "110")
+			(code "114")
 			(name "VBUS")
 			(class "Track_0.50mm")
 			(node
@@ -19281,7 +19930,7 @@
 			)
 		)
 		(net
-			(code "111")
+			(code "115")
 			(name "unconnected-(D5-IO3-Pad4)")
 			(class "Default")
 			(node
@@ -19292,7 +19941,7 @@
 			)
 		)
 		(net
-			(code "112")
+			(code "116")
 			(name "unconnected-(J1-SBU1-PadA8)")
 			(class "Default")
 			(node
@@ -19303,7 +19952,7 @@
 			)
 		)
 		(net
-			(code "113")
+			(code "117")
 			(name "unconnected-(J1-SBU2-PadB8)")
 			(class "Default")
 			(node
@@ -19314,7 +19963,7 @@
 			)
 		)
 		(net
-			(code "114")
+			(code "118")
 			(name "unconnected-(LED1-DOUT-Pad2)")
 			(class "Default")
 			(node
@@ -19325,7 +19974,7 @@
 			)
 		)
 		(net
-			(code "115")
+			(code "119")
 			(name "unconnected-(U3-DNC-Pad6)")
 			(class "Default")
 			(node
@@ -19336,7 +19985,7 @@
 			)
 		)
 		(net
-			(code "116")
+			(code "120")
 			(name "unconnected-(U3-~{DRDY}-Pad7)")
 			(class "Default")
 			(node
@@ -19347,7 +19996,7 @@
 			)
 		)
 		(net
-			(code "117")
+			(code "121")
 			(name "unconnected-(U3-~{FAULT}-Pad13)")
 			(class "Default")
 			(node
@@ -19358,7 +20007,7 @@
 			)
 		)
 		(net
-			(code "118")
+			(code "122")
 			(name "unconnected-(U5-DNC-Pad6)")
 			(class "Default")
 			(node
@@ -19369,7 +20018,7 @@
 			)
 		)
 		(net
-			(code "119")
+			(code "123")
 			(name "unconnected-(U5-~{DRDY}-Pad7)")
 			(class "Default")
 			(node
@@ -19380,7 +20029,7 @@
 			)
 		)
 		(net
-			(code "120")
+			(code "124")
 			(name "unconnected-(U5-~{FAULT}-Pad13)")
 			(class "Default")
 			(node
@@ -19391,7 +20040,7 @@
 			)
 		)
 		(net
-			(code "121")
+			(code "125")
 			(name "unconnected-(U6-O4-Pad13)")
 			(class "Default")
 			(node
@@ -19402,7 +20051,7 @@
 			)
 		)
 		(net
-			(code "122")
+			(code "126")
 			(name "unconnected-(U6-O5-Pad12)")
 			(class "Default")
 			(node
@@ -19413,7 +20062,7 @@
 			)
 		)
 		(net
-			(code "123")
+			(code "127")
 			(name "unconnected-(U6-O6-Pad11)")
 			(class "Default")
 			(node
@@ -19424,7 +20073,7 @@
 			)
 		)
 		(net
-			(code "124")
+			(code "128")
 			(name "unconnected-(U6-O7-Pad10)")
 			(class "Default")
 			(node
@@ -19435,7 +20084,7 @@
 			)
 		)
 		(net
-			(code "125")
+			(code "129")
 			(name "unconnected-(U7-CF1-Pad23)")
 			(class "Default")
 			(node
@@ -19446,7 +20095,7 @@
 			)
 		)
 		(net
-			(code "126")
+			(code "130")
 			(name "unconnected-(U7-CF2-Pad24)")
 			(class "Default")
 			(node
@@ -19457,7 +20106,7 @@
 			)
 		)
 		(net
-			(code "127")
+			(code "131")
 			(name "unconnected-(U7-CLKOUT-Pad19)")
 			(class "Default")
 			(node
@@ -19468,7 +20117,7 @@
 			)
 		)
 		(net
-			(code "128")
+			(code "132")
 			(name "unconnected-(U7-ZX-Pad1)")
 			(class "Default")
 			(node
@@ -19479,7 +20128,7 @@
 			)
 		)
 		(net
-			(code "129")
+			(code "133")
 			(name "unconnected-(U7-ZX_I-Pad21)")
 			(class "Default")
 			(node
@@ -19490,7 +20139,7 @@
 			)
 		)
 		(net
-			(code "130")
+			(code "134")
 			(name "unconnected-(U7-~{IRQ}-Pad22)")
 			(class "Default")
 			(node
@@ -19501,7 +20150,7 @@
 			)
 		)
 		(net
-			(code "131")
+			(code "135")
 			(name "unconnected-(U7-~{REVP}-Pad20)")
 			(class "Default")
 			(node
@@ -19512,7 +20161,7 @@
 			)
 		)
 		(net
-			(code "132")
+			(code "136")
 			(name "unconnected-(U12-ST-Pad8)")
 			(class "Default")
 			(node
@@ -19523,7 +20172,7 @@
 			)
 		)
 		(net
-			(code "133")
+			(code "137")
 			(name "unconnected-(Y1-EN-Pad1)")
 			(class "Default")
 			(node

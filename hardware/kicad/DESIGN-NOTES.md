@@ -40,15 +40,17 @@ all three together). What the nets do:
   Watchdog: WDT_KICK retriggers the U10 one-shot; its Q holds Q3 on, Q3
     holds SSR_PG down, which turns on the high-side switch Q4 supplying
     SSR_EN. SSR_EN is a +5V GATE-DRIVE rail, not the terminal supply: it
-    feeds both opto collectors and Q7's gate, so losing it opens both
-    channels two independent ways. SJ2 ("WDT DEFEAT") shorts SSR_PG to GND,
-    defeating the watchdog - leave it open on boards that carry U10.
+    enhances Q7, which pulls the gate of the 24 V cutoff Q9 down, and Q9
+    feeds SSR_24V to both channels (rev B.4). SJ2 ("WDT DEFEAT") shorts
+    SSR_PG to GND for bring-up only.
   J11: IN1 (lid), IN2 (gas flow), IN3 (spare).
-  SSR drive: 24 V terminals fed from VIN_P (always live), switched on the low
-    side by a CJ2310 per channel (Q5/Q6) whose gate is driven through an
-    optocoupler (U8/U9), with Q7 in the shared return as the watchdog gate.
-    The optos are CONTAINMENT, not isolation - rev B's opto-ISOLATED version
-    was reverted and that reasoning still stands. See the SSR block below.
+  SSR drive (rev B.4): each terminal's + pin is SSRn_OUT, switched by a
+    60 V P-channel LP2309LT1G (Q5/Q6) off SSR_24V; the - pin is board GND.
+    The GPIO drives an opto LED (U8/U9) whose transistor pulls the gate
+    down; an 8.2 V zener per gate sets V_SG from the rail. SSR_24V is VIN_P
+    through Q9, the watchdog's high-side cutoff. Opto = containment, not
+    isolation: rev B's opto-isolated version was reverted and that reasoning
+    still stands. See the SSR block below.
   Power path: J2 -> F1 -> D8 (clamp) -> Q8 (reverse polarity, a P-FET and no
     longer a diode) = VIN_P, which feeds the buck AND both SSR terminals.
     U11 makes BUCK_5V; U12 selects between BUCK_5V and USB VBUS to make +5V,
@@ -143,7 +145,8 @@ net name -> netclass ("signal" default).
 AUX_VP is an externally supplied coil rail the board does not generate, so
 it may not join the GND/power pour logic. SSR_EN is board +5V switched by
 the watchdog's high-side MOSFET - a driven rail, but a gated one, so it is
-deliberately not a pour net either.
+deliberately not a pour net either; SSR_24V (rev B.4, VIN_P through Q9) is
+gated the same way and stays a 0.6 mm track for the same reason.
 
 ## general (design.py line 123)
 
@@ -1156,108 +1159,136 @@ I_C >= 5.6 mA (the worst-case I_F at CTR 100%) against the 1.0 mA the
 gate node needs through R7's 4.7k: 5.6x. That margin is also the aging
 budget - an LED driven this far inside its rating loses CTR slowly.
 
-THE COLLECTOR SITS ON SSR_EN, A 5 V RAIL, AND THAT IS LOAD-BEARING.
-An emitter follower into R7 saturates, so the gate lands at
-5 V - V_CE(sat) ~= 4.7 V - a voltage set by the RAIL, not by CTR.
-(V_CE(sat) 0.3 V max at I_C = 2.4 mA / I_F = 8 mA; we ask for 1.0 mA
-at ~7 mA, so 0.3 V is the pessimistic end.) That clears the CJ2310's
-4.5 V R_DS(on) spec point,
-which is the whole reason this number has to come from a rail and not
-from a ratio. Put the collector on 24 V instead and the gate goes to
-~24 V, over the MOSFET's +-20 V V_GS, and a zener is needed to get back
-to where the 5 V rail already was for free.
+THE OPTO PULLS THE GATE DOWN, AND THE ZENER SETS HOW FAR (rev B.4).
+U8's transistor sits emitter-to-GND, collector into the gate node
+through R69 (10k). The gate node is referenced to the P-FET's SOURCE,
+which is SSR_24V, so what matters is V_SG = V_rail - V_gate, and that
+is clamped by D13 (BZT52C8V2, gate to source) to 8.2 V as soon as the
+current through R69 exceeds what R7 (10k, gate to source) takes at
+8.2 V, i.e. 0.82 mA - true for any rail above ~17 V, which is the
+whole 21.6-29 V trim range and the 38 V clamped fault alike. The gate
+voltage therefore comes from a ZENER, not from the opto's CTR, which is
+the same "from a rail, not a ratio" rule B.2 bought with the 5 V
+collector supply; 8.2 V is comfortably past the LP2309LT1G's 4.5 V
+R_DS(on) spec point (260 mOhm max there, ~220 mOhm at 8 V) and inside
+its +-20 V V_GS. Without the zener the R69/R7 divider alone would put
+(V - 0.3)/2 across the gate: 11.9 V at 24 V, 18.8 V at the 38 V fault
+and 24 V on the 48 V transient - which is why the zener is there.
 
-R7/R20 (4.7k) still hold the gate down, but against a different thing:
-the opto's dark current, not a high-impedance GPIO. The datasheet
-bounds I_CEO at 0.08 uA max at 25 C and 50 uA max at 85 C (both at
-V_CE = 48 V; this collector sees 5 V). Interpolated, that is ~1 uA at
-50 C - but AT 85 C the bound is 50 uA, and across the 10k these were
-until review A5 (2026-09-29) that is 0.5 V: the CJ2310's V_GS(th)
-floor, with no margin left. (An earlier note here said "~10 uA hot,
-5x"; that was the 25 C I_C(off) spec, not a hot one.) 4.7k, an existing
-BOM line, puts the 85 C corner at 0.24 V, 2x under the floor, and still
-asks only 1 mA of the >= 5.6 mA the opto can pass. Going lower buys
-little: 2.2k would need 2.1 mA, and the CTR margin is also the aging
-budget above. The GPIO can
-no longer reach the gate at all, which is strictly better than what
-they used to guard.
+Opto current I_C = (V_rail - 8.2 - V_CE(sat))/10k: 1.3 mA at 21.6 V,
+1.55 mA at 24 V, 2.05 mA at 29 V, 2.95 mA while D8 clamps a fault at
+38 V. Against the >= 5.6 mA the GB-rank TLP291 passes at the worst-case
+LED current (CTR >= 100 % at I_F >= 5.6 mA, see above) that is 3.6x at
+nominal, 2.7x at the trim top and 1.9x in the fault, and the margin is
+still the aging budget. The zener carries I_C - 0.82 mA, 0.5-2.1 mA:
+below its 5 mA spec point, so V_SG sits nearer 7.5-7.8 V than 8.2 V,
+which changes nothing above. V_CEO is 80 V against a collector that
+sees at most the rail.
 
---- WHY THE WATCHDOG MOVED TO THE RETURN ------------------------------
-The watchdog must still be able to open a channel whose MOSFET has
-failed SHORT - that is the case a firmware-owned interlock cannot cover
-and the reason it is in the load path rather than the control path.
-Keeping it on the high side at 24 V would need a 60 V P-channel switch
-(the only fee-free one at JLCPCB is a 50 V/130 mA part that would cap
-the terminals below their own current budget) plus a resistive divider
-to keep its V_GS inside +-20 V off a rail that reaches 37 V when D8
-clamps a sustained fault - which puts the board's most safety-critical
-node on a divider referenced to the fault.
+R7/R20 (10k since B.4, gate to SOURCE) hold the P-FET off against the
+opto's dark current. The datasheet bounds I_CEO at 0.08 uA max at 25 C
+and 50 uA max at 85 C (at V_CE = 48 V; this collector sees ~24 V), so
+the 85 C corner is 50 uA x 10k = 0.5 V of V_SG against the LP2309LT1G's
+1 V minimum |V_GS(th)|: 2x, the same margin review A5 (2026-09-29) set
+for the 4.7k/CJ2310 pair this replaces. 4.7k would double it but would
+also need 1.74 mA at 8.2 V, more than R69 delivers at the trim bottom,
+and the zener would stop clamping. The GPIO still cannot reach the
+gate at all.
 
-Q7 in the shared return does the same job with the same part as the
-channels, and leaves the ENTIRE watchdog - U10, Q3, Q4, R47, SJ2 - in
-the 5 V domain, unchanged, with its fail-safe argument intact word for
-word. SSR_EN keeps its name and its meaning (the watchdog's permission
-to heat); it now carries gate drive instead of load current.
+--- REV B.4 (2026-10-28): HIGH SIDE, GROUND-REFERENCED ----------------
+B.2 put the switch in each channel's RETURN (pin 1 always-live VIN_P,
+pin 2 switched low side, CJ2310s) and the watchdog's Q7 in the shared
+return. The 2026-10-05 schematic review (item 3, fab review A1) named
+the hole: an SSR's - lead that finds ground by any route - chafed onto
+the earthed backplate, landed on the PSU -, commoned with the other
+channel - turns that SSR on with nothing on the board able to turn it
+off, because the fault bypasses the channel switch AND Q7. B.1 could at
+least drop the terminal rail; B.2 could not. Item 11 was the second
+cost of that topology: Q5 failed short with the window expired pulled
+SSR_RTN to 23.7 V through the SSR's own input and put -23.7 V on the
+healthy channel's gate.
 
-THIS IS NOT THE "STACKED LOW SIDE" (topology A) THE WATCHDOG BLOCK
-BELOW REJECTS. That proposal made Q3 - whose gate the old charge pump
-could only lift to 2.16 V, below the 2.5 V where the AO3400A
-guarantees any R_DS(on) - the series element, so its drop was unbounded
-and subtracted from the channel's V_GS. Q7 is a dedicated switch with
-its gate on SSR_EN at ~5 V, where the CJ2310 is specified at 125 mOhm:
-5 mV at 40 mA, 50 mV at the 400 mA budget. The objection was about an
-unbounded drop, and this one is bounded by a datasheet line.
+B.2 rejected a high-side arrangement for one reason, written below the
+old derivation: no fee-free 60 V P-channel part at JLCPCB. That premise
+died with the Economic tier (2026-10-27: U1 and C46 are Standard-only,
+so every line pays the same $1.53), and the LP2309LT1G (LRC, C383253,
+60 V, 1.9 A, +-20 V gate, SOT-23, "Economic and Standard") is exactly
+the part the objection said did not exist.
 
-Two independent things collapse when the window expires, which is a
-gain over the single high-side switch: SSR_EN falls, so the optos lose
-their collector rail AND Q7 loses its gate. Either alone opens both
-channels.
+THE TOPOLOGY. Each terminal's + (pin 1, still where the SSR's + goes)
+is SSRn_OUT, the drain of a P-channel Q5/Q6 whose source is SSR_24V;
+the - (pin 2) is board GND. SSR_24V is VIN_P through Q9, a third
+LP2309LT1G that is the watchdog's cutoff: Q7 (the CJ2310, gate on
+SSR_EN) pulls Q9's gate down through R71 (10k), D12 clamps Q9's V_SG to
+8.2 V and R22 (100k, gate to source) holds Q9 off whenever Q7 is not
+pulling. Same gate network three times, same part three times.
 
-R18 is why that works at all. SSR_EN is Q4's DRAIN, so with Q4 off
-nothing defines it - and Q7's gate hangs on it. This is exactly the
-bug R49 was added to fix on Q3's gate ("a floating gate is not off"),
-one node downstream, and it fails in the same dangerous direction.
-10k rather than R49's 100k because this node gates the heat directly
-and 0.5 mA is not worth saving.
+WHAT IT BUYS. (a) A - lead on ground is now the wiring diagram, not a
+fault. (b) A + lead that finds the chassis is a short through the on
+channel's Q5 and Q9 to ground: the HDR-15-24 goes constant-current at
+110-145 % (0.7-0.9 A) and hiccups, or a bigger PSU trips F1 at 1.5 A;
+the LP2309LT1G is rated 1.9 A continuous / 7.6 A pulsed and the SSR,
+with 0 V across it, is OFF. Either way the fault fails safe and
+announces itself (the board reboots or the fuse holds). (c) Q5 failed
+short: the channel is on regardless of firmware, the over-temperature
+trip blocks the kick (safety.c, s_wdt_blocked), the window expires and
+Q9 opens - B.1's coverage, back. (d) Item 11 is gone: with Q9 open
+nothing pulls SSR_24V, and Q5/Q6's gates ride their sources through
+R7/R20, so a failed channel cannot stress the healthy one. (e) Q9
+failed short is the one new exposure, and it is exactly B.1's Q4
+failed short: the watchdog loses its load-path switch, the channels
+stay under firmware control through the optos, and the bench sees it
+as SSR_24V live with SSR_EN dead.
 
-R22 defines SSR_RTN for the mirror-image reason. With Q7 off and both
-channels off, SSR_RTN is an island between three drain-source
-leakages and would charge toward 24 V - putting -24 V across Q5/Q6's
-gates, outside the +-20 V rating, with everything nominally OFF.
+WHAT IT COSTS. B.2 had two independent things collapse when the
+window expired (opto collector rail AND Q7's gate); B.4 has one load-
+path effect, Q9. The second mechanism now is the firmware's own e-stop
+driving the GPIOs off, which does not depend on SSR_EN at all. Also
+one more BOM line (C383253, 50 lines, $110.27 fixed on Standard) and
+seven more placements; D12-D14 are D11's zener, R69-R71 and the new
+R7/R20 are the 10k line.
 
-100k, not 10k, and the difference is the fault this whole arrangement
-exists for. With Q5 FAILED SHORT and the window expired, the only
-thing between 24 V and the SSR is R22 in series with the SSR's own
-input (~1.2k): 10k passes 2.1 mA, and an SSR-40DA-class input can
-trigger from about 2 mA. That is a watchdog that does not quite work
-in the one case it is in the load path for. 100k passes 237 uA, an
-order of magnitude under any trigger.
+THE SHARED CUTOFF, NUMBERS. Q7 on: I = (V_rail - 8.2)/10k - the 82 uA
+R22 takes = 1.5 mA at 24 V, 2.0 mA at 29 V, 2.9 mA at 38 V into D12;
+Q7's gate is SSR_EN at ~5 V, where the CJ2310's 125 mOhm is specified,
+so its drop is nothing at 3 mA. Q7 off: its I_DSS (1 uA max at 60 V)
+across R22 is 0.1 V, and Q9's gate sits on its source. Q7's drain
+stands off the rail (24-38 V, 48 V transient) against 60 V; Q9 and
+Q5/Q6 stand off the same rail drain-to-source when off, against -60 V.
+Nothing needs an R22-style pulldown on SSR_24V: with Q9 off the node
+floats, but Q5/Q6 are off by V_SG = 0 whatever it floats to, and the
+terminal's own load (an SSR input, ~1.2k) defines OUT at the 10 uA of
+I_DSS a channel can leak.
 
-It is still stiff enough for the job it was added for: 3 x 1 uA of
-I_DSS (CJ2310 datasheet, at 60 V) across 100k is 0.3 V, so Q5/Q6 see
--0.3 V V_GS rather than -24 V. The third state - watchdog tripped,
-firmware still calling for heat - is simply the first one again:
-SSR_EN is down, so the opto has no collector rail and Q5's gate sits
-at R7's 0 V whatever the GPIO does. (An earlier note here had Q5
-running as a source follower in that state; it cannot, because its
-gate drive and Q7's come off the same rail.)
+DISSIPATION. R69/R70/R71 (10k, 0805, 125 mW): (V - 8.5)^2/10k =
+24 mW at 24 V, 42 mW at 29 V, 87 mW during a clamped 38 V fault. R7/R20
+and R22: 6.7 mW and 0.7 mW. D12-D14 (200 mW): 8.2 V x (I - I_R) =
+6-12 mW nominal, 17-24 mW in the fault. Q5/Q6 at the 200 mA coil
+budget: 0.22 Ohm x 0.04 = 9 mW; Q9 at the 400 mA channel budget: 35 mW,
+0.1 V - the terminal still sees the input within 0.15 V.
 
-What R22 does NOT cover is the fault it was sized for. With Q5 failed
-short and the window expired, SSR_RTN is pulled up through the SSR's
-own input to 24 x 100k/101.2k = 23.7 V, and the HEALTHY channel's
-MOSFET then sees V_GS = -23.7 V against the CJ2310's +-20 V. It is a
-second-order stress after a first fault, and the watchdog still holds
-the SSR off while it lasts - but it is outside a rating. 2026-09-29
-review, rev-C item C2.
+THE OLD DERIVATION (B.2, for the record) argued that Q7 in the return
+was not the rejected "stacked low side" because its gate came from a
+5 V rail where the CJ2310 is specified; that argument was sound and is
+why Q7 survives as the level shift. R22's 100k was sized so that, with
+Q5 failed short and the window expired, R22 in series with the SSR's
+input passed 237 uA rather than 10k's 2.1 mA (an SSR-40DA input can
+trigger from ~2 mA); that role is gone, and 100k is kept as Q9's
+gate-to-source pull-off because its only job now is to beat Q7's 1 uA
+of I_DSS.
 
 --- PARTS -------------------------------------------------------------
-CJ2310 replaces the AO3400A on every switch that now stands off 24 V
-(Q5, Q6, Q7): 60 V against the 37 V D8 clamps a sustained fault to, and
-125 mOhm specified AT 4.5 V, which is the gate voltage these actually
-get. The AO3400A is a 30 V part and would be inside its rating in
-normal operation and outside it during the one event the TVS exists
-for. It is one of this rev's two new feeders (+$3 each); the TLP291
-optos are the other - Extended, not Basic (see U8).
+LP2309LT1G (LRC, C383253, SOT-23 G-S-D, the same pinout as the
+AO3401A and the CJ2310): -60 V V_DS, +-20 V V_GS, -1.9 A, 215 mOhm max
+at -10 V and 260 mOhm max at -4.5 V, V_GS(th) -1 to -3 V. The AO3401A
+Q4/Q8 use is a 30 V part and would sit outside its rating for the
+whole of the clamped fault, so it is not an option here any more than
+the AO3400A was for the CJ2310s. CJ2309A (C7433254) and PJM2309PSA
+(C411721) are the same device from other houses and were out of stock
+on 2026-10-28; the LRC part had 165,000. Extended, "Economic and
+Standard", $0.078 at 5. The CJ2310 stays on the BOM for Q7 alone.
+D12-D14 are D11's BZT52C8V2S (Basic); R69-R71 and R7/R20 are the 10k
+line (C17414, Basic), so the 4.7k line keeps only R44/R45.
 
 ## U8 (design.py line 1312)
 
@@ -1312,6 +1343,12 @@ still covers the 200 mA coil budget five times over. VF 1.1 V at 1 A
 makes the coil current decay a little faster than through a Schottky,
 which is harmless here.
 
+2026-10-28, rev B.4: the freewheel now sits across the terminal the
+other way up, cathode on SSRn_OUT (the switched +) and anode on GND,
+because the - pin is ground now. Same part, same land, same job: a coil
+between + and - still has its diode across it. Standing off the rail
+with the channel on is unchanged at up to 38 V against 1 kV.
+
 ## LED3 (design.py line 1343)
 
 The channel's readout row: the indicator resistor, the LED and the
@@ -1325,17 +1362,27 @@ control test point on one y, with channel 2's row the same three parts
 range's real top of 29 V (2026-10-27). An indicator LED is
 plainly visible at 2 mA. Review A3, 2026-09-29. The pair
 still sits across the TERMINAL, so it reads the channel's actual
-output state - lit only when Q5 AND Q7 are both conducting, which is
-firmware asking and the watchdog agreeing.
+output state - lit only when Q5 AND Q9 are both conducting, which is
+firmware asking and the watchdog agreeing. (Rev B.4: anode on SSRn_OUT
+through R10/R21, cathode on GND - the pair moved to the other side of
+the terminal with the switch, and the numbers above are unchanged.)
 
 ## Q7 (design.py line 1392)
 
---- Shared switched return, and the two nodes that must not float -----
-Q7 carries both channels. Its drain stands off 24 V whenever a channel
-is commanded on and the window has expired, so it is the same 60 V
-CJ2310 rather than a second part number.
+--- The watchdog's level shift (rev B.4) -----------------------------
+Q7 used to be the switch in the shared return; since B.4 it is the
+N-channel that pulls the 24 V cutoff Q9's gate down through R71 when
+SSR_EN is up (see the SSR block). Its drain stands off the rail through
+R71 whenever SSR_EN is down, so it is still the 60 V CJ2310, and it is
+the only place that part remains. Gate on SSR_EN at ~5 V, where the
+125 mOhm is specified, so its drop at 3 mA is nothing.
 
 ## R22 (design.py line 1402)
+
+Rev B.4: gate-to-source pull-off of Q9, 100k, so that with Q7 off
+nothing but Q7's 1 uA of I_DSS (0.1 V) acts on the gate and Q9 is off.
+The B.2 sizing argument (237 uA through a failed-short channel into
+the SSR) is history; see the SSR block.
 
 Placed north of D9 rather than in the channel-2 column with the parts
 it serves, and that is a SILK constraint, not an electrical one. A
@@ -1352,12 +1399,14 @@ parts and one fewer designator clears it.
 WDT_KICK (U1.29, a firmware square wave) retriggers U10, a one-shot
 whose Q output keeps Q3 enhanced, Q3 holds SSR_PG (the gate of the
 high-side switch Q4) down, and Q4 supplies SSR_EN - the +5V rail that
-feeds both opto collectors (U8/U9) and Q7's gate. Stop
+enhances Q7, which pulls the gate of the 24 V cutoff Q9 down so that
+SSR_24V, both channels' source rail, is live (rev B.4; in B.2/B.3
+SSR_EN fed the opto collectors and Q7 switched the shared return). Stop
 kicking and the window (1.3-3.1s worst case, R46*(C38+C49), see
 arithmetic below) expires, Q falls, R47 pulls SSR_PG to +5V, Q4 turns
-off, R18 pulls SSR_EN down, and both channels open - the optos lose
-their collector rail and Q7 loses its gate, either of which is
-sufficient. This is the only interlock on this board that survives
+off, R18 pulls SSR_EN down, Q7 lets go, R22 pulls Q9's gate to its
+source and SSR_24V is dead - both terminals are off whatever the
+channel switches are doing. This is the only interlock on this board that survives
 firmware death - lid/over-temp/stale-TC are firmware-owned and die
 with it. It is still only SUPPLEMENTARY: the real protection is a
 mechanical over-temperature cutout in series with the element
@@ -1490,9 +1539,10 @@ PCB does not care which pad is which here; C38 is due north.
 
 High-side switch for the SSR gate-drive rail. AO3401A (P-channel,
 SOT-23, LCSC C15127, JLCPCB Basic): source on +5V, gate on SSR_PG,
-drain IS SSR_EN. It carries gate drive only - ~1.5 mA into two opto
-collectors, Q7's gate and R18 - which is why a 30 V part is still the
-right one here while Q5/Q6/Q7 had to move to 60 V.
+drain IS SSR_EN. It carries gate drive only - 0.5 mA into R18 and
+Q7's gate (since B.4; B.2 also fed the two opto collectors from it) -
+which is why a 30 V part is still the right one here while Q5/Q6/Q7
+and Q9 stand off the 24 V rail and are 60 V parts.
 Pin order from KiCad's own Transistor_FET:AO3401A symbol
 (extends TP0610T): 1 G, 2 S, 3 D.
 

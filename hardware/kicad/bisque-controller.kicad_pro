@@ -710,7 +710,7 @@
       },
       {
         "netclass": "Track_0.60mm",
-        "pattern": "SSR_RTN"
+        "pattern": "SSR_24V"
       },
       {
         "netclass": "Track_0.70mm",

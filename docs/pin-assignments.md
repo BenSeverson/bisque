@@ -145,9 +145,10 @@ mechanical microswitch in series with the element contactor.
 The `WDT_KICK` pin drives the B input of `U10`, an SN74LVC1G123 retriggerable monostable
 ([#307](https://github.com/BenSeverson/bisque/issues/307),
 `hardware/kicad/README.md` §"Hardware watchdog") gating the +5 V **gate-drive**
-rail (`SSR_EN`). `SSR_EN` feeds both opto collectors and Q7's gate, so losing
-it opens both channels two independent ways. The SSR terminals themselves are
-fed from `VIN_P` (24 V) and stay live; it is the switched low side that opens.
+rail (`SSR_EN`). `SSR_EN` holds Q7 on, which holds the 24 V cutoff Q9 on; losing
+it drops `SSR_24V`, the rail both channel P-FETs switch from, so both terminals
+go dead whatever the channel switches are doing (rev B.4; the B.2/B.3 boards
+kept pin 1 live and opened the switched return instead).
 
 Firmware toggles the pin at **5 Hz** — a rising edge every 200 ms — gated on
 `safety_task`'s heartbeat (`components/safety/wdt_kick.h`), against a
@@ -260,7 +261,7 @@ this doc's job is to record the channel and terminal, not the firmware
 policy.
 
 `SSR2_CTRL` is listed here for cadence contrast only — it is the second SSR
-zone's own low-side MOSFET gate (§1), not a member of the aux bank, and unlike
+zone's own high-side P-FET drive (§1), not a member of the aux bank, and unlike
 the aux channels it modulates on the 100 ms window rather than the 1 Hz tick
 because it tracks the main SSR's duty cycle simultaneously by definition.
 

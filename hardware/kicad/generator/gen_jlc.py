@@ -195,7 +195,8 @@ JLC_PLACEMENT = {
     "C48937499": (270, -0.287, -0.000),  # U2    SOT-223-3_TabPin2                    resid 0.000 (2 pin#)
     "C7420376": (270,  0.000,  0.000),   # U4    SOT-23-6                             resid 0.062 (6 pin#)
     "C7512":    (270,  0.000,  0.000),   # U6    SOIC-16_3.9x9.9mm_P1.27mm            resid 0.261 (16 pin#)
-    "C75882":   (180,  0.000,  0.000),   # Q5    SOT-23                               resid 0.397 (3 pin#)
+    "C383253":  (180,  0.000,  0.000),   # Q5    SOT-23                               resid 0.083 (3 pin#)
+    "C75882":   (180,  0.000,  0.000),   # Q7    SOT-23                               resid 0.397 (3 pin#)
     "C81598":   (  0,  0.000,  0.000),   # D4    D_SOD-123                            resid 0.085 (2 pin#)
     "C3018540": (  0,  0.000,  0.000),   # D9    D_SOD-123                            resid 0.023 (2 pin#)
     "C13585":   (  0,  0.000,  0.000),   # C41   C_1206_3216Metric                    resid 0.118 (2 pin#)
@@ -320,6 +321,11 @@ LCSC = {
     # comes in, and the part sits in a 2.9mm slot west of Q8 where the
     # smaller land is the easier fit anyway.
     "D11": ("C22375294", "BZT52C8V2S 8.2V 200mW zener SOD-323", True, True),
+    # Gate-source clamps of the three P-channel switches (rev B.4): the same
+    # zener as D11, so the line's placement count rises and nothing else.
+    "D12": ("C22375294", "BZT52C8V2S 8.2V 200mW zener SOD-323 - Q9 gate clamp", True, True),
+    "D13": ("C22375294", "BZT52C8V2S 8.2V 200mW zener SOD-323 - Q5 gate clamp", True, True),
+    "D14": ("C22375294", "BZT52C8V2S 8.2V 200mW zener SOD-323 - Q6 gate clamp", True, True),
     # The one SMAJ30A of 44 listings that LCSC files as Preferred rather
     # than Extended, which is the whole reason for it (#348) - same MPN,
     # same DO-214AC land pattern, same 30V/400W part, $3 less per order.
@@ -361,15 +367,21 @@ LCSC = {
     "LED4": ("C2296", "KT-0805Y amber LED 0805", True, True),
     "Q2": ("C20917", "AO3400A SOT-23", True, True),
     "Q3": ("C20917", "AO3400A SOT-23", True, True),
-    # Watchdog high-side switch: the one P-channel part on the board.
+    # Watchdog high-side switch for the 5 V gate-drive rail (SSR_EN).
     "Q4": ("C15127", "AO3401A P-channel SOT-23", True, True),
-    # Q5/Q6/Q7 stand off 24 V (37 V while D8 clamps a sustained fault), so
-    # they are 60 V parts rather than the AO3400A's 30 V, and the CJ2310's
-    # 125 mOhm is specified AT 4.5 V - the gate voltage the optos actually
-    # deliver. The board's one Extended-and-not-Preferred line besides U10.
-    "Q5": ("C75882", "CJ2310 60V 3A N-channel SOT-23", False, True),
-    "Q6": ("C75882", "CJ2310 60V 3A N-channel SOT-23", False, True),
-    "Q7": ("C75882", "CJ2310 60V 3A N-channel SOT-23 - watchdog return gate", False, True),
+    # Rev B.4 (2026-10-28): the SSR terminals are switched on the + side and
+    # their - pin is board GND, so Q5/Q6 (one per channel) and Q9 (the
+    # watchdog's 24 V cutoff feeding SSR_24V) are 60 V P-channel parts. The
+    # LP2309LT1G stands off 38 V while D8 clamps a sustained fault with 22 V
+    # to spare, and its 260 mOhm at 4.5 V is irrelevant: the gates are
+    # zener-clamped to 8.2 V from the rail. B.2 rejected this topology for
+    # want of a fee-free 60 V P-FET; on Standard PCBA every line pays the
+    # same $1.53, so that objection is gone (DESIGN-NOTES.md, SSR block).
+    # Q7 stays a CJ2310 as the level shift that pulls Q9's gate down.
+    "Q5": ("C383253", "LP2309LT1G 60V 1.9A P-channel SOT-23 - SSR1 high-side switch", False, True),
+    "Q6": ("C383253", "LP2309LT1G 60V 1.9A P-channel SOT-23 - SSR2 high-side switch", False, True),
+    "Q7": ("C75882", "CJ2310 60V 3A N-channel SOT-23 - level shift for Q9's gate", False, True),
+    "Q9": ("C383253", "LP2309LT1G 60V 1.9A P-channel SOT-23 - watchdog 24 V cutoff", False, True),
     # Reverse-polarity switch, replacing the SS34 that used to be D1. Same
     # part as Q4 and already Basic, so the swap adds no feeder fee - and the
     # 30V rating is sufficient here for reasons DESIGN-NOTES.md derives at Q8 (the
@@ -382,7 +394,7 @@ LCSC = {
     "R4": ("C27834", "5.1k 0805 1%", True, True),
     "R5": ("C27834", "5.1k 0805 1%", True, True),
     "R6": ("C17557", "220R 0805 1%", True, True),
-    "R7": ("C17673", "4.7k 0805 1%", True, True),
+    "R7": ("C17414", "10k 0805 1%", True, True),
     "R8": ("C17414", "10k 0805 1%", True, True),
     "R9": ("C17513", "1k 0805 1%", True, True),
     "R10": ("C17414", "10k 0805 1%", True, True),
@@ -395,7 +407,7 @@ LCSC = {
     "R17": ("C17408", "100R 0805 1%", True, True),
     "R18": ("C17414", "10k 0805 1%", True, True),
     "R19": ("C17557", "220R 0805 1%", True, True),
-    "R20": ("C17673", "4.7k 0805 1%", True, True),
+    "R20": ("C17414", "10k 0805 1%", True, True),
     "R21": ("C17414", "10k 0805 1%", True, True),
     "R22": ("C149504", "100k 0805 1%", True, True),
     "R23": ("C17414", "10k 0805 1%", True, True),
@@ -447,6 +459,11 @@ LCSC = {
     "R66": ("C149504", "100k 0805 1%", True, True),
     "R67": ("C149504", "100k 0805 1%", True, True),
     "R68": ("C17621", "30k 0805 1%", True, True),
+    # Rev B.4 SSR block: R69/R70 set the opto's collector current into the
+    # channel gate nodes, R71 the same for Q7 into Q9's gate.
+    "R69": ("C17414", "10k 0805 1%", True, True),
+    "R70": ("C17414", "10k 0805 1%", True, True),
+    "R71": ("C17414", "10k 0805 1%", True, True),
     "SW1": ("C318884", "TS-1187A-B-A-B 5.1x5.1mm SMD tactile switch", True, True),
     "SW2": ("C318884", "TS-1187A-B-A-B 5.1x5.1mm SMD tactile switch", True, True),
     # Containment, not isolation - see DESIGN-NOTES.md's SSR block. SOP-4 rather

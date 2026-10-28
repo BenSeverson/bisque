@@ -48,14 +48,15 @@ menu "Bisque Configuration"
             default 17
             help
                 Trigger for the primary (zone 1) SSR output — the kiln's main
-                heat output. On the rev B.2 board it lights optocoupler U8,
-                whose output drives low-side MOSFET Q5 (containment against a
-                24 V gate fault, not isolation). Driven from the 100 ms SSR
-                window.
+                heat output. On the rev B.4 board it lights optocoupler U8,
+                whose output pulls down the gate of high-side P-FET Q5
+                (containment against a 24 V gate fault, not isolation).
+                Driven from the 100 ms SSR window.
 
                 Gated in hardware by the watchdog one-shot on
                 KILN_PIN_WDT_KICK (see below): if that pin stops
-                toggling, SSR_EN collapses and this output de-energizes
+                toggling, SSR_EN collapses, the 24 V cutoff Q9 opens and
+                this output de-energizes
                 regardless of what firmware commands. Firmware kicks the pin
                 at 5 Hz; the SJ2 "WDT DEFEAT" jumper bypasses the watchdog
                 and stays open in normal use.
@@ -266,7 +267,7 @@ menu "Bisque Configuration"
             default 21
             help
                 Trigger for the second SSR zone: optocoupler U9 driving
-                low-side MOSFET Q6 on the rev B.2 board, watchdog-gated
+                high-side P-FET Q6 on the rev B.4 board, watchdog-gated
                 exactly like zone 1. Driven from the 100 ms SSR window rather than the
                 1 Hz firing tick, because zone 2 modulates simultaneously
                 with zone 1.
@@ -335,7 +336,7 @@ menu "Bisque Configuration"
             help
                 Square-wave output retriggering the hardware watchdog
                 one-shot (U10, SN74LVC1G123) that gates SSR_EN, the +5V rail
-                feeding both SSR channels. If the firmware stops toggling
+                holding the 24 V cutoff (Q9) on for both SSR channels. If the firmware stops toggling
                 this pin - or wedges with it stuck high or stuck low - the
                 one-shot's window (1.3-3.1 s worst case) expires and both
                 SSRs de-energize.

@@ -693,11 +693,12 @@ ROUTE_ORDER = [
     # vias to 109.8 mm over 15 while A went 251.0 -> 129.3 mm. Promote the
     # pair or neither.
     ("CTB_P", 0.4), ("CTB_N", 0.4), ("CTB_F", SIG_W),
-    # The two switched low sides and the shared return they meet at. The SSR
-    # loop current (~20 mA/channel with its indicator, up to the ~200 mA per
-    # channel F1's budget allows) lands on these three, and SSR_RTN carries
-    # BOTH channels, so it is the widest of them.
-    ("SSR_RTN", 0.6), ("SSR1_OUT", 0.4), ("SSR2_OUT", 0.4),
+    # The two switched + sides and the watchdog-gated 24 V rail they hang
+    # off (rev B.4: the - pins are GND). The SSR loop current (~20 mA/channel
+    # with its indicator, up to the ~200 mA per channel F1's budget allows)
+    # lands on these three, and SSR_24V carries BOTH channels, so it is the
+    # widest of them.
+    ("SSR_24V", 0.6), ("SSR1_OUT", 0.4), ("SSR2_OUT", 0.4),
     # SSR_EN stopped being a supply rail in rev B.2 - it is gate drive now,
     # ~1.5 mA into two opto collectors, Q7's gate and R18 - but it stays at
     # 0.5 mm rather than SIG_W because it is the net that gates the heat and
@@ -732,7 +733,10 @@ ROUTE_ORDER = [
     # move them or take their lane.
     ("CC1", SIG_W), ("CC2", SIG_W),
     # SSR driver chains, watchdog gate (the two gate nets are promoted above)
-    ("SSR1_IND_K", SIG_W), ("SSR2_IND_K", SIG_W),
+    ("SSR1_IND_A", SIG_W), ("SSR2_IND_A", SIG_W),
+    # Rev B.4 gate networks: opto collector -> 10k -> P-FET gate per channel,
+    # and Q7's drain -> 10k -> Q9's gate for the watchdog cutoff.
+    ("SSR1_OC", SIG_W), ("SSR2_OC", SIG_W), ("SSR_HS_D", SIG_W), ("SSR_HS_G", SIG_W),
     # Opto LED anodes: one resistor to one opto pin, wholly inside the block.
     ("SSR1_LED_A", SIG_W), ("SSR2_LED_A", SIG_W),
     ("WDT_OK", SIG_W), ("WDT_CT_P", SIG_W),
@@ -1290,13 +1294,14 @@ PIN_LEGENDS = {
     # terminal a reader would otherwise guess wrong. `V+` says supply; the
     # three switched low sides are just numbered.
     "J10": ("E", 0.8, ("V+", "1", "2", "3")),
-    # Both SSR blocks are "24 V (always live) and the switched low side", so
-    # the pin order is worth naming: hook the SSR's control + to `24V` and
-    # its - to `OUT`. `24V` rather than `5V` since rev B.2, and it is the one
-    # legend on this board a stale copy could damage a part through - a 5 V
-    # SSR input wired to what the silk still called 5 V would see 24 V.
-    "J4": ("E", 0.8, ("24V", "OUT")),
-    "J9": ("E", 0.8, ("24V", "OUT")),
+    # Both SSR blocks are "switched 24 V on the + pin, board GND on the -"
+    # since rev B.4 (the B.2/B.3 boards switched the low side and kept pin 1
+    # always live). Pin 1 is still where the SSR's control + goes and pin 2
+    # its -, so a loom wired to the old silk lands correctly; only the names
+    # change: `OUT` is the switched + and `GND` says what the - pin is. A
+    # 5 V-only SSR input wired here still sees 24 V when the channel is on.
+    "J4": ("E", 0.8, ("OUT", "GND")),
+    "J9": ("E", 0.8, ("OUT", "GND")),
     # east-edge screw terminals, legends in the interior strip west of them
     "J3": ("W", 0.8, ("K+", "K-")),
     "J8": ("W", 0.8, ("K+", "K-")),

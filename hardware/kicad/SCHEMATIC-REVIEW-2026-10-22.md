@@ -158,7 +158,7 @@ the consequence is that the root page carries no information (it is an
 index, not a block diagram) and the reader cannot tell a bus that leaves
 the sheet from one that does not. Worse, 48 global labels are used on
 **one sheet only** (`USB_DN/DP`, all five `BTN_*`, all the `LCD_*_R` and
-`T_*_R` nets, `EN`, `IO0`, `BUCK_5V`, `SSR_EN`, `SSR_RTN`, `AUX_VP`,
+`T_*_R` nets, `EN`, `IO0`, `BUCK_5V`, `SSR_EN`, `SSR_RTN` (now `SSR_24V`), `AUX_VP`,
 `ADE_*`, `CTA_*`, `CTB_*`, `TC1_N_F`, `TC2_N_F`, `WDT_CT_N`, `VIN`,
 `VLED`, …). No ERC rule catches this: `single_global_label` (ignored by
 KiCad's own default, and in this project) only fires when a global label
