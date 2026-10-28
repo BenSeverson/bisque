@@ -5747,7 +5747,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "SS34"
+		(property "Value" "SS36"
 			(at 204.47 76.83 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5769,7 +5769,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/dfa1ff67dea875d0135103ba9ada713a.pdf?productCode=C8678"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/9e763de50d66dc26804ef4c3650380df.pdf?productCode=C7420367"
 			(at 208.28 80.01 0)
 			(hide yes)
 			(show_name no)
@@ -5791,7 +5791,7 @@
 				)
 			)
 		)
-		(property "MPN" "SS34"
+		(property "MPN" "SS36"
 			(at 208.28 80.01 0)
 			(hide yes)
 			(show_name no)
@@ -5802,7 +5802,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C8678"
+		(property "LCSC" "C7420367"
 			(at 208.28 80.01 0)
 			(hide yes)
 			(show_name no)
@@ -5813,7 +5813,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "MDD(Microdiode Semiconductor)"
+		(property "Manufacturer" "R+O"
 			(at 208.28 80.01 0)
 			(hide yes)
 			(show_name no)

@@ -244,7 +244,9 @@ maximum input is **40 V**. Two consequences worth knowing:
    negative bus, a lead chafed onto this earthed box) turns that SSR on with
    no way for the board to turn it off. Meter `OUT` to GND with firmware
    idle: it should read close to 24 V. Check that the SSR's DC input
-   *operating* range reaches 26.4 V, the HDR-15-24 at full +10 % trim. The
+   *operating* range reaches 29 V, the top of the HDR-15-24's trim range
+   (21.6–29 V per its datasheet), and that a 38 V excursion during a
+   clamped supply fault does not destroy it. The
    amber board LEDs show true drive state.
 4. Megger/continuity-check the mains side with the SELV loom
    disconnected, prove the over-temp cutout drops the contactor, then

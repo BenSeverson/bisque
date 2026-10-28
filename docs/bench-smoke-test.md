@@ -33,7 +33,7 @@ None of them is a firmware bug.
       terminals**. Meter the PSU *before* landing the wire. 5 V there browns
       the board out, and anything above ~33 V takes out the TVS and the fuse.
 - [ ] **The SSRs' control inputs take 24 V.** J4/J9 pin 1 is the 24 V input
-      itself, up to 26.4 V at the HDR-15-24's full +10 % trim. Check the
+      itself, up to 29 V at the top of the HDR-15-24's trim range. Check the
       SSR's *operating* input range, not only the rated one: an SSR-40DA-class
       input is 3–32 V and fine, but a 5 V-only input is destroyed.
 - [ ] **Each SSR's `−` is on its own `OUT` terminal and nowhere else.**

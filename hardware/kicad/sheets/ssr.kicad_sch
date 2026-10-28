@@ -8746,7 +8746,7 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:D_Schottky")
+		(lib_id "Device:D")
 		(at 66.04 153.67 0)
 		(unit 1)
 		(body_style 1)
@@ -8767,7 +8767,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "B5819W"
+		(property "Value" "1N4007W"
 			(at 62.23 150.49 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8789,7 +8789,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/4ac2c059be7c462694ab0715ce987a85.pdf?productCode=C8598"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/a7dbd01177530af63da342fa61873c89.pdf?productCode=C3018540"
 			(at 66.04 153.67 0)
 			(hide yes)
 			(show_name no)
@@ -8800,7 +8800,7 @@
 				)
 			)
 		)
-		(property "Description" "Schottky diode"
+		(property "Description" "Diode"
 			(at 66.04 153.67 0)
 			(hide yes)
 			(show_name no)
@@ -8811,7 +8811,7 @@
 				)
 			)
 		)
-		(property "MPN" "B5819W SL"
+		(property "MPN" "1N4007W"
 			(at 66.04 153.67 0)
 			(hide yes)
 			(show_name no)
@@ -8822,7 +8822,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C8598"
+		(property "LCSC" "C3018540"
 			(at 66.04 153.67 0)
 			(hide yes)
 			(show_name no)
@@ -8833,7 +8833,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "JSCJ"
+		(property "Manufacturer" "FUXINSEMI"
 			(at 66.04 153.67 0)
 			(hide yes)
 			(show_name no)
@@ -9392,7 +9392,7 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:D_Schottky")
+		(lib_id "Device:D")
 		(at 66.04 82.55 0)
 		(unit 1)
 		(body_style 1)
@@ -9413,7 +9413,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "B5819W"
+		(property "Value" "1N4007W"
 			(at 62.23 79.37 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9435,7 +9435,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/4ac2c059be7c462694ab0715ce987a85.pdf?productCode=C8598"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/a7dbd01177530af63da342fa61873c89.pdf?productCode=C3018540"
 			(at 66.04 82.55 0)
 			(hide yes)
 			(show_name no)
@@ -9446,7 +9446,7 @@
 				)
 			)
 		)
-		(property "Description" "Schottky diode"
+		(property "Description" "Diode"
 			(at 66.04 82.55 0)
 			(hide yes)
 			(show_name no)
@@ -9457,7 +9457,7 @@
 				)
 			)
 		)
-		(property "MPN" "B5819W SL"
+		(property "MPN" "1N4007W"
 			(at 66.04 82.55 0)
 			(hide yes)
 			(show_name no)
@@ -9468,7 +9468,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C8598"
+		(property "LCSC" "C3018540"
 			(at 66.04 82.55 0)
 			(hide yes)
 			(show_name no)
@@ -9479,7 +9479,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "JSCJ"
+		(property "Manufacturer" "FUXINSEMI"
 			(at 66.04 82.55 0)
 			(hide yes)
 			(show_name no)

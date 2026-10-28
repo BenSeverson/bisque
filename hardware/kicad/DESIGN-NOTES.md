@@ -287,13 +287,47 @@ TVS is rated for a 10/1000 us pulse, not for holding a DC fault, and a
 PPTC on its own is far too slow to protect anything from the voltage.
 
 Ratings are picked against each other and against U11's 40 V abs max.
-D8 stands off 30 V (above an HDR-15-24 at full +10% trim, 26.4 V) and
-breaks down at 33.3 V min, so a SUSTAINED fault sits at 33-37 V, inside
-U11's rating. Its 48.4 V clamp at 8.3 A does exceed 40 V, but that is a
-surge figure and an abs-max is a DC spec. F1 must survive the fault
-voltage MINUS the clamp, so its 33 V rating covers inputs to ~67 V.
-750 mA hold against a ~250 mA load leaves room for inrush without
-nuisance tripping, and its 90 mohm sits upstream of a regulator.
+D8 stands off 30 V (above an HDR-15-24 at the top of its trim range,
+29 V - the Mean Well sheet says 21.6-29 V, not the +-10% this note
+used to assume) and breaks down at 33.3 V min, so a SUSTAINED fault
+sits at 33-37 V, inside U11's rating. Its 48.4 V clamp at 8.3 A does
+exceed 40 V, but that is a surge figure and an abs-max is a DC spec. F1
+must survive the fault voltage MINUS the clamp, so its 33 V rating
+covers inputs to ~67 V. 750 mA hold against a ~250 mA load leaves room
+for inrush without nuisance tripping, and its 90 mohm sits upstream of
+a regulator.
+
+--- THE ENVELOPE, 2026-10-27 (schematic review 2026-10-05 item 1, PCB
+review item 9). The reviews were right that "it is a surge figure" is
+not a rating, so here is what the clamp is coordinated AGAINST, with
+numbers. The 24 V input is the HDR-15-24 (or a supply of the same
+class: <= 1 A current limit) inside the same enclosure, on wiring that
+stays in the box. It is not a field port and claims no IEC 61000-4-5
+surge rating. Under that envelope the SMAJ30A's own table gives the
+rail: dynamic resistance (48.4 - 36.8)/8.3 = 1.4 ohm, so VIN_F sits at
+36.8 V + 1.4 V per ampere, worst case.
+  (a) Supply regulation failure. The HDR-15-24 limits at 110-145% of
+      15 W, i.e. <= 0.91 A: rail <= 38.1 V. D8 cannot hold 33 W and
+      fails SHORT, the supply sees < 50% output and hiccups. Nothing
+      downstream saw more than 38 V. The board needs a new D8.
+  (b) The supply's own OVP, 30-36 V, overlaps D8's 33.3-36.8 V
+      breakdown. Either the supply shuts off first or (a) happens.
+  (c) A larger supply misapplied. F1 trips above 1.5 A; up to 2.3 A the
+      rail stays under 40 V, and D8 fails short well before F1's
+      seconds-long trip at that current, so F1 then clears a dead short.
+      Only at 5.8 A would the rail reach U11's 45 V abs max, and only a
+      10/1000 us pulse at 8.3 A reaches the datasheet's 48.4 V.
+So the parts behind D8 are sized for 38 V sustained and 40 V transient,
+not 48 V. Q8 (AO3401A, 30 V) is NOT in that list: its body diode
+conducts from the first microsecond and D11 clamps its gate, so it
+stands off nothing in a forward fault (the Q8 note below). The two that
+HAD no margin were the 40 V diodes - D7's SS34 and D9/D10's B5819W,
+both of which see the rail in reverse - and both are 60 V-class or
+better now (see D7 and D9). The reviewers' lower-clamp option is ruled
+out by the supply: an SMAJ28A stands off 28 V, under the 29 V trim top.
+The remaining exposures are named, not fixed: the external SSR input
+must take 29 V and survive 38 V (installation check A4), and a true
+field-surge rating or a 60 V buck is rev C work.
 
 ## Q8 (design.py line 298)
 
@@ -579,6 +613,14 @@ Catch diode. Non-synchronous buck, so this carries the inductor current
 for ~79% of every cycle - it is not optional and it is not a snubber.
 SS34 is already a BOM line and its 40 V / 3 A covers a 24 V input at
 1.28 A peak. Pad 1 = cathode, on the switch node.
+
+2026-10-27: SS36 (R+O, C7420367), 60 V, same SMA land. The catch diode
+sees VIN_P in reverse during every on-time, and the F1 note's envelope
+puts that rail at up to 38 V during a clamped fault - 2 V under the
+SS34's rating, and over it on any excursion. The price is VF 0.70 V at
+3 A against the SS34's 0.55 V: ~0.16 W more in the diode and ~1% of
+buck efficiency at full load. The SS34 is retired from the BOM (D7 was
+its only designator); its datasheet stays in datasheets/ as retired.
 
 ## L1 (design.py line 613)
 
@@ -1256,6 +1298,20 @@ against 24 V nominal and the 30 V TVS clamp; the 48 V clamp transient
 (review item 1) is a separate, still-open coordination item that this
 does not change.
 
+2026-10-27, one day later: 1N4007W (FUXINSEMI C3018540, the SOD-123
+body - not the -FL), 1 kV / 1 A average / 25 A surge, same land, drawn
+with Device:D rather than the Schottky symbol. The paragraph above
+undersold the reverse requirement. With its channel ON the freewheel
+diode stands off the whole rail: 24 V nominal, 29 V at the HDR-15-24's
+trim top, and ~38 V while D8 clamps a fault (the envelope at F1), so
+the B5819W's 40 V had 2 V of margin on a sustained fault and none on a
+transient. A standard-recovery rectifier is the right part for a
+contactor coil freewheel - the coil is switched at the SSR timer's
+rate, where microseconds of recovery do not matter - and 1 A average
+still covers the 200 mA coil budget five times over. VF 1.1 V at 1 A
+makes the coil current decay a little faster than through a Schottky,
+which is harmless here.
+
 ## LED3 (design.py line 1343)
 
 The channel's readout row: the indicator resistor, the LED and the
@@ -1265,7 +1321,8 @@ control test point on one y, with channel 2's row the same three parts
 10k, not the 680R this was at 5 V nor the 4.7k it was at first on 24 V:
 (24 - 2.0)/10k = 2.2 mA and 48 mW. At 4.7k the resistor burned 103 mW,
 82% of an 0805's 125 mW, and 127 mW - over rating - at the HDR-15-24's
-+10% trim (26.4 V); at 10k that corner is 60 mW. An indicator LED is
++10% trim (26.4 V); at 10k that corner is 60 mW, and 73 mW at the trim
+range's real top of 29 V (2026-10-27). An indicator LED is
 plainly visible at 2 mA. Review A3, 2026-09-29. The pair
 still sits across the TERMINAL, so it reads the channel's actual
 output state - lit only when Q5 AND Q7 are both conducting, which is

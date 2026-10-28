@@ -1,7 +1,7 @@
 (export
 	(version "E")
 	(design
-		(tool "Eeschema 10.0.6")
+		(tool "Eeschema 10.0.7")
 		(sheet
 			(number "1")
 			(name "/")
@@ -1254,21 +1254,21 @@
 		)
 		(comp
 			(ref "D7")
-			(value "SS34")
+			(value "SS36")
 			(footprint "Diode_SMD:D_SMA")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/dfa1ff67dea875d0135103ba9ada713a.pdf?productCode=C8678")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/9e763de50d66dc26804ef4c3650380df.pdf?productCode=C7420367")
 			(description "Schottky diode")
 			(fields
 				(field
-					(name "MPN") "SS34")
+					(name "MPN") "SS36")
 				(field
-					(name "LCSC") "C8678")
+					(name "LCSC") "C7420367")
 				(field
-					(name "Manufacturer") "MDD(Microdiode Semiconductor)")
+					(name "Manufacturer") "R+O")
 				(field
 					(name "Footprint") "Diode_SMD:D_SMA")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/dfa1ff67dea875d0135103ba9ada713a.pdf?productCode=C8678")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/9e763de50d66dc26804ef4c3650380df.pdf?productCode=C7420367")
 				(field
 					(name "Description") "Schottky diode")
 			)
@@ -1279,15 +1279,15 @@
 			)
 			(property
 				(name "MPN")
-				(value "SS34")
+				(value "SS36")
 			)
 			(property
 				(name "LCSC")
-				(value "C8678")
+				(value "C7420367")
 			)
 			(property
 				(name "Manufacturer")
-				(value "MDD(Microdiode Semiconductor)")
+				(value "R+O")
 			)
 			(property
 				(name "Sheetname")
@@ -7342,40 +7342,40 @@
 		)
 		(comp
 			(ref "D9")
-			(value "B5819W")
+			(value "1N4007W")
 			(footprint "Diode_SMD:D_SOD-123")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/4ac2c059be7c462694ab0715ce987a85.pdf?productCode=C8598")
-			(description "Schottky diode")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/a7dbd01177530af63da342fa61873c89.pdf?productCode=C3018540")
+			(description "Diode")
 			(fields
 				(field
-					(name "MPN") "B5819W SL")
+					(name "MPN") "1N4007W")
 				(field
-					(name "LCSC") "C8598")
+					(name "LCSC") "C3018540")
 				(field
-					(name "Manufacturer") "JSCJ")
+					(name "Manufacturer") "FUXINSEMI")
 				(field
 					(name "Footprint") "Diode_SMD:D_SOD-123")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/4ac2c059be7c462694ab0715ce987a85.pdf?productCode=C8598")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/a7dbd01177530af63da342fa61873c89.pdf?productCode=C3018540")
 				(field
-					(name "Description") "Schottky diode")
+					(name "Description") "Diode")
 			)
 			(libsource
 				(lib "Device")
-				(part "D_Schottky")
-				(description "Schottky diode")
+				(part "D")
+				(description "Diode")
 			)
 			(property
 				(name "MPN")
-				(value "B5819W SL")
+				(value "1N4007W")
 			)
 			(property
 				(name "LCSC")
-				(value "C8598")
+				(value "C3018540")
 			)
 			(property
 				(name "Manufacturer")
-				(value "JSCJ")
+				(value "FUXINSEMI")
 			)
 			(property
 				(name "Sheetname")
@@ -7387,7 +7387,7 @@
 			)
 			(property
 				(name "ki_keywords")
-				(value "diode Schottky")
+				(value "diode")
 			)
 			(property
 				(name "ki_fp_filters")
@@ -7414,40 +7414,40 @@
 		)
 		(comp
 			(ref "D10")
-			(value "B5819W")
+			(value "1N4007W")
 			(footprint "Diode_SMD:D_SOD-123")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/4ac2c059be7c462694ab0715ce987a85.pdf?productCode=C8598")
-			(description "Schottky diode")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/a7dbd01177530af63da342fa61873c89.pdf?productCode=C3018540")
+			(description "Diode")
 			(fields
 				(field
-					(name "MPN") "B5819W SL")
+					(name "MPN") "1N4007W")
 				(field
-					(name "LCSC") "C8598")
+					(name "LCSC") "C3018540")
 				(field
-					(name "Manufacturer") "JSCJ")
+					(name "Manufacturer") "FUXINSEMI")
 				(field
 					(name "Footprint") "Diode_SMD:D_SOD-123")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/4ac2c059be7c462694ab0715ce987a85.pdf?productCode=C8598")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/a7dbd01177530af63da342fa61873c89.pdf?productCode=C3018540")
 				(field
-					(name "Description") "Schottky diode")
+					(name "Description") "Diode")
 			)
 			(libsource
 				(lib "Device")
-				(part "D_Schottky")
-				(description "Schottky diode")
+				(part "D")
+				(description "Diode")
 			)
 			(property
 				(name "MPN")
-				(value "B5819W SL")
+				(value "1N4007W")
 			)
 			(property
 				(name "LCSC")
-				(value "C8598")
+				(value "C3018540")
 			)
 			(property
 				(name "Manufacturer")
-				(value "JSCJ")
+				(value "FUXINSEMI")
 			)
 			(property
 				(name "Sheetname")
@@ -7459,7 +7459,7 @@
 			)
 			(property
 				(name "ki_keywords")
-				(value "diode Schottky")
+				(value "diode")
 			)
 			(property
 				(name "ki_fp_filters")

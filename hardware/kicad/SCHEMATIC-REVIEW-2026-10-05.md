@@ -83,6 +83,21 @@ higher-rated downstream parts, or an overvoltage disconnect. A lower TVS must
 also tolerate the documented 26.4 V PSU setting. Validate fault energy and
 clearing time; selecting another nominal TVS voltage alone is insufficient.
 
+> **Status 2026-10-27:** coordinated, by defining the envelope and raising
+> the two parts that had no margin, not by changing the TVS. The HDR-15-24
+> trims to **29 V** (its sheet: 21.6–29 V), so a lower TVS is ruled out —
+> an SMAJ28A stands off 28 V. Under the envelope (in-enclosure supply,
+> ≤ 1 A limit, wiring stays in the box) the SMAJ30A's own table bounds the
+> rail at 36.8 V + 1.4 Ω × I: ≤ 38.1 V at the HDR-15-24's 0.91 A limit,
+> ≤ 40 V up to F1's 2.3 A, 45 V (U11 abs max) only at 5.8 A, 48.4 V only
+> on the 10/1000 µs pulse. D7 SS34 → **SS36** (60 V, C7420367) and D9/D10
+> B5819W → **1N4007W** (1 kV, C3018540), both in the same lands. Q8 is
+> not stressed in a forward fault (body diode conducts, D11 clamps the
+> gate). The sustained current-limited case ends with D8 failing short at
+> ≤ 38 V, which is the intended outcome. Written out at F1, D7 and D9 in
+> `DESIGN-NOTES.md`. Still named as open: the external SSR input at 29 V /
+> 38 V (installation check A4) and a field-surge rating or 60 V buck (rev C).
+
 ### 2. P2 — Channel A still exceeds its pin range above approximately 69 A
 
 **Confirmed by netlist and linear AC analysis; clipping not bench-observed.**

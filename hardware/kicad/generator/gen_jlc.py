@@ -197,7 +197,7 @@ JLC_PLACEMENT = {
     "C7512":    (270,  0.000,  0.000),   # U6    SOIC-16_3.9x9.9mm_P1.27mm            resid 0.261 (16 pin#)
     "C75882":   (180,  0.000,  0.000),   # Q5    SOT-23                               resid 0.397 (3 pin#)
     "C81598":   (  0,  0.000,  0.000),   # D4    D_SOD-123                            resid 0.085 (2 pin#)
-    "C8598":    (  0,  0.000,  0.000),   # D9    D_SOD-123                            resid 0.050 (2 pin#)
+    "C3018540": (  0,  0.000,  0.000),   # D9    D_SOD-123                            resid 0.023 (2 pin#)
     "C13585":   (  0,  0.000,  0.000),   # C41   C_1206_3216Metric                    resid 0.118 (2 pin#)
     # U12. A QUARTER TURN, and the one row here that could not have been
     # guessed from the package name: LCSC runs the SOT-583's 0.5 mm pitch
@@ -209,7 +209,7 @@ JLC_PLACEMENT = {
     "C475527":  (  0,  0.000,  0.000),   # L1    L_Changjiang_FXL0650                 resid 0.025 (2 pin#)
     "C61063":   (270,  0.000,  0.000),   # U11   SOIC-8_3.9x4.9mm_P1.27mm             resid 0.230 (8 pin#)
     "C19077547": (  0,  0.000,  0.000),   # D8    D_SMA                                resid 0.404 (2 pin#)
-    "C8678":    (  0,  0.000,  0.000),   # D7    D_SMA                                resid 0.200 (2 pin#)
+    "C7420367": (  0,  0.000,  0.000),   # D7    D_SMA                                resid 0.150 (2 pin#)
 }
 
 
@@ -308,7 +308,11 @@ LCSC = {
     "D4": ("C81598", "1N4148W SOD-123", True, True),
     "D5": ("C7420376", "SRV05-4 TVS array SOT-23-6", True, True),
     "D6": ("C7420376", "SRV05-4 TVS array SOT-23-6", True, True),
-    "D7": ("C8678", "SS34 40V 3A Schottky SMA - U11 catch diode", True, True),
+    # 60 V, not the SS34's 40 V: the catch diode sees the input rail in
+    # reverse every cycle, and D8 holds a sustained fault at up to ~38 V
+    # (DESIGN-NOTES at F1, 2026-10-27). Same SMA land; VF 0.70 V at 3 A
+    # against the SS34's 0.55 V costs ~1% of buck efficiency at full load.
+    "D7": ("C7420367", "SS36 60V 3A Schottky SMA - U11 catch diode", False, True),
     # Q8's gate clamp. 8.2V, not the 10V or 12V that look like more headroom
     # against the AO3401A's +-12V V_GS: a 12V zener at +5% is 12.6V, i.e.
     # outside the rating it is fitted to guard. SOD-323 rather than the
@@ -328,8 +332,14 @@ LCSC = {
     # Freewheel across each SSR terminal pair. Same part as D3/D4, so no
     # new line - see DESIGN-NOTES.md for why 150 mA/450 mA peak is the right
     # size against F1's budget rather than an SMA Schottky.
-    "D9": ("C8598", "B5819W 40V 1A Schottky SOD-123 - SSR1 terminal freewheel", True, True),
-    "D10": ("C8598", "B5819W 40V 1A Schottky SOD-123 - SSR2 terminal freewheel", True, True),
+    # 1 kV standard-recovery rectifier, not a 40 V Schottky: with its
+    # channel on the freewheel diode sees the whole 24 V rail in reverse,
+    # 29 V at the HDR-15-24's trim top and ~38 V while D8 clamps a fault,
+    # so the B5819W's 40 V had no margin (2026-10-27). Recovery time is
+    # irrelevant for a contactor coil switched at the SSR timer's rate.
+    # Same D_SOD-123 land (C3018540 is the SOD-123 body, not the -FL).
+    "D9": ("C3018540", "1N4007W 1kV 1A rectifier SOD-123 - SSR1 terminal freewheel", False, True),
+    "D10": ("C3018540", "1N4007W 1kV 1A rectifier SOD-123 - SSR2 terminal freewheel", False, True),
     "F1": ("C369169", "JK-mSMD075-33 PPTC 750mA hold / 1.5A trip, 33V, 1812", False, True),
     "L1": ("C475527", "FXL0650-470-M 47uH 2A 2.6A-sat 230mohm 7x6.6mm", False, True),
     "J1": ("C165948", "HRO TYPE-C-31-M-12 USB-C 16P", False, True),

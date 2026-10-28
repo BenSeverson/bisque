@@ -518,6 +518,10 @@ surge current and energy, and sustained-fault behavior. Verify voltage at
 the protected parts. A shorter buck loop cannot repair this rating mismatch;
 the schematic review's input-protection finding remains open.
 
+> **Status 2026-10-27:** see the schematic review's item 1 status. Envelope
+> defined at F1 in `DESIGN-NOTES.md`; D7 → SS36 (60 V), D9/D10 → 1N4007W
+> (1 kV); D8 stays SMAJ30A because the supply trims to 29 V.
+
 ### 10. [P2] F1's operating-current and temperature budget needs qualification
 
 **Refs:** F1, buck input and both SSR/coil outputs. **Source:** S4.

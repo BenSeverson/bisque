@@ -451,7 +451,7 @@ narrows the spread (check the one-shot's Rext range first).
 
 | # | Finding | Status at e5dcc7a |
 |---|---|---|
-| 1 | TVS clamp (48 V) above XL1509/SS34/AO3401A ratings | **Open** — D8 still SMAJ30A, U11 XL1509, D7 SS34 |
+| 1 | TVS clamp (48 V) above XL1509/SS34/AO3401A ratings | **Coordinated 2026-10-27** — envelope written at F1 (rail ≤ 38 V sustained under the in-box supply, ≤ 40 V to F1's trip); D7 → SS36 60 V, D9/D10 → 1N4007W 1 kV; D8 stays (supply trims to 29 V, so no lower standoff fits); AO3401A was never stressed. Open residue: SSR input rating (A4), field surge / 60 V buck (rev C) |
 | 2 | CT channel A pseudo-differential (R33 to GND) | **Fixed 2026-10-26** — R65 1 k from CTA_P to GND mirrors R33; pin swing is now ±V/2 each side |
 | 3 | Grounded SSR return bypasses Q7 | **Open** — architecture unchanged |
 | 4 | Watchdog timing not guaranteed at 100 k/22 µF | **Fixed** (d46b4c6, review E5) — X7R timing pair |

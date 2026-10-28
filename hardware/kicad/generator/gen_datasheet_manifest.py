@@ -87,14 +87,14 @@ DOC_FOR = {
     "XL1509-5.0E1_C61063.pdf": "XL1509-5.0E1",
     "SRV05-4_C7420376.pdf": "SRV05-4",
     "JK-mSMD075-33_PPTC_C369169.pdf": "750mA/33V",
-    "SS34_C8678.pdf": "SS34",
+    "SS36_C7420367.pdf": "SS36",
     "BZT52C8V2S_C22375294.pdf": "BZT52C8V2",
     "CL31A226KAHNNNE_22uF_C12891.pdf": "22uF/25V",
     "CL31A106KBHNNNE_10uF_50V_C13585.pdf": "10uF/50V",
     "FXL0650-470-M_C475527.pdf": "47uH/2A",
     "RVT1C101M0505_C2977550.pdf": "100uF/16V",
     "1N4148W_C81598.pdf": "1N4148W",
-    "B5819W_C8598.pdf": "B5819W",
+    "1N4007W_C3018540.pdf": "1N4007W",
     "0805W8F2200T5E_220R_C17557.pdf": "220R",
     "0805W8F3002T5E_30k_C17621.pdf": "30k",
     "0805W8F1004T5E_1M_C17514.pdf": "1M",
@@ -107,6 +107,12 @@ DOC_FOR = {
 # the deliberate alternative to deleting the file; anything in datasheets/ that
 # is in neither DOC_FOR nor here is reported as an orphan.
 RETIRED = {
+    # The 2026-10-27 input-protection coordination (DESIGN-NOTES at F1):
+    # both were 40 V parts standing off a rail D8 lets reach ~38 V.
+    "SS34_C8678.pdf":
+        "D7 before the 60 V SS36",
+    "B5819W_C8598.pdf":
+        "D9/D10 for one day (2026-10-26) between the 1N4148W and the 1N4007W",
     "USBLC6-2SC6_ST.pdf":
         "U4 before it became an SRV05-4",
     # U8/U9 are optocouplers again in rev B.2, but not THIS optocoupler: the
