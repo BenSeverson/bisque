@@ -83,9 +83,29 @@ the buck's own output ahead of the mux, is not `+5V`; probe it at C44.
       below, the gate is not being pulled: check R62, and D11's orientation
       (cathode to `VIN_P`).
 - [ ] **Scope `BUCK_5V`** at C44 under load (Wi-Fi associated, backlight on).
-      Expect < ~100 mV of ripple at 150 kHz and **no** low-frequency
-      envelope. Subharmonic wobble at a few kHz means the buck's loop is
-      marginal and C46, the bulk electrolytic, is doing less than intended.
+      Expect < ~100 mV of ripple at 150 kHz (the design figure is 36–41 mV pp)
+      and **no** low-frequency envelope. Subharmonic wobble at a few kHz means
+      the buck's loop is marginal and C46, the bulk electrolytic, is doing
+      less than intended.
+- [ ] **Buck loop qualification** (PCB review 2026-10-05 item 3 — the XL1509's
+      compensation is undocumented, so this is the evidence, not the design
+      notes). Probe `BUCK_5V` at C44 with a short ground spring, AC-coupled:
+      - *Load step* 0.2 → 0.8 A and back (a resistive load on `+5V` switched by
+        a FET, or a bench load in transient mode), 10 µs edges. Record the
+        overshoot and the ring: ≤ 2 cycles of decaying ring, settled within
+        ~200 µs, is a healthy phase margin; a ring that lasts > 5 cycles, or
+        any sustained oscillation at 1–20 kHz, is the loop telling you C46 is
+        not the part the sheet says — stop and read `DESIGN-NOTES.md` at C46.
+      - *Startup* at 24 V into the idle board: monotonic rise, no overshoot
+        past 5.5 V (the XL1509 has no soft-start; the 4 A current limit sets
+        the slope).
+      - *No load* (U2 unplugged is not possible — use the board's idle draw)
+        and *full load* (1.0 A total on `+5V`, the rated ceiling): ripple and
+        the step response at both.
+      - *Hot*: repeat the load step after the enclosure soak below. U11's
+        datasheet puts it at ~110 °C junction at 1.0 A and 50 °C ambient;
+        a thermocouple on its body should read under 90 °C.
+      Record all four in the board log with the firmware revision.
 - [ ] **Check U2, U11 and Q8 by hand** after 10 minutes at temperature.
       U2 is warm (it dissipates ~0.5 W). U11 is warm. Q8 should be barely
       above ambient; if it is hot, it is running on its body diode.

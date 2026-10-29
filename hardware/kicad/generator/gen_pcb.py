@@ -597,8 +597,11 @@ ROUTE_ORDER = [
     # U11's switch node. Wide because it carries the full inductor current,
     # but deliberately SHORT rather than generous: SW_5V swings the whole
     # input rail at the switching edge, so every extra mm2 of it is antenna.
-    # It exists only between U11 pin 2, D7's cathode and L1 pin 1, all three
-    # of which are placed within a few mm of each other for that reason.
+    # It exists only between U11 pin 2, D7's cathode and L1's switch-side pad
+    # (pin 2), all three of which are placed within a few mm of each other for
+    # that reason - since 2026-10-28 on F.Cu alone, with no via in the loop
+    # (PCB review 2026-10-05 item 3), and the tracks are locked so no re-route
+    # lengthens them.
     ("SW_5V", 0.8),
     # The multi-drop buses: longest reach, most terminals, hardest to thread.
     # The two thermocouple chip selects ride the same channel between U3 and U5

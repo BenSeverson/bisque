@@ -286,6 +286,31 @@ ambient, then qualify ripple, peak current and L1 heating at that operating
 point. Replace the inductor if that budget exceeds its verified margins;
 do not advertise a 2 A system rating from the regulator's headline alone.
 
+> **Status 2026-10-28:** done on the board and in the parts, with the one
+> thing paper cannot settle written as a bench item. *Layout:* U11 turned
+> 180° so the switch pin faces D7 and L1; `SW_5V` is 9.4 mm of F.Cu in two
+> legs (3.9 mm to D7's cathode, 4.5 mm to L1) with no via, tracks locked;
+> C41 2.5 mm from pin 1 with its GND via beside it, D7's anode on two vias,
+> so the hot loop closes through In1 under the IC; FB taken from C44's pad
+> on B.Cu; VIN_P/BUCK_5V cross on B.Cu. *Input:* C41/C42 → CL32B475KBUYNNE
+> 1210 X7R 4.7 µF (C170099): Samsung's curve gives 3.10 µF each at 24 V,
+> 2.72 at 29 V — 6.2 µF for the pair against the 2.7 µF the 10 µF X5R gave;
+> 0.43 A rms, 0.23 V pp. No input electrolytic, on the Middlebrook and
+> source arguments in `DESIGN-NOTES.md` at C41, and because a GP can's
+> ripple share cannot be bounded without a 100 kHz ESR. *Output:* C46 →
+> Panasonic FK EEEFK1E101SP (C178540), 100 µF/25 V, **0.36 Ω and 240 mA
+> specified at 100 kHz** — the LM2596-table class; C45 removed so the single
+> 13.65 µF ceramic's takeover of the ESR zero moves from 16 kHz to 32 kHz.
+> Output-filter phase at 10/20/40 kHz is −124/−129/−143° against
+> −148/−163/−172° before (at the old part's assumed 1 Ω); the error amplifier
+> is unpublished, so the phase margin itself is the bench item now in
+> `docs/bench-smoke-test.md` (load step, startup, no/full load, hot). *L1 and
+> budget:* the rail is rated 1.0 A at 50 °C; at 29 V, 127 kHz and L −20% the
+> peak is 1.48 A against the 2.08 A 30%-drop point, 9 °C rise; U11 ~0.6 W
+> (Tj ~110 °C at the 100 °C/W free-air figure — the ceiling, not a cruise);
+> D7 0.53 W. 2 A is explicitly not a rating. DESIGN-NOTES at C41, C44, C46,
+> D7, L1.
+
 ### 4. [P2] Exposed-pad vias require a defined reflow process
 
 **Refs:** U1 pad 41, U2 tab/pad 2, U7 pad 29.

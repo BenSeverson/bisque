@@ -91,9 +91,9 @@ DOC_FOR = {
     "SS36_C7420367.pdf": "SS36",
     "BZT52C8V2S_C22375294.pdf": "BZT52C8V2",
     "CL31A226KAHNNNE_22uF_C12891.pdf": "22uF/25V",
-    "CL31A106KBHNNNE_10uF_50V_C13585.pdf": "10uF/50V",
+    "CL32B475KBUYNNE_C170099.pdf": "4.7uF/50V",
     "FXL0650-470-M_C475527.pdf": "47uH/2A",
-    "RVT1C101M0505_C2977550.pdf": "100uF/16V",
+    "EEEFK1E101SP_C178540.pdf": "100uF/25V",
     "1N4148W_C81598.pdf": "1N4148W",
     "1N4007W_C3018540.pdf": "1N4007W",
     "0805W8F2200T5E_220R_C17557.pdf": "220R",
@@ -108,6 +108,13 @@ DOC_FOR = {
 # the deliberate alternative to deleting the file; anything in datasheets/ that
 # is in neither DOC_FOR nor here is reported as an orphan.
 RETIRED = {
+    # The 2026-10-28 buck qualification (PCB review 2026-10-05 item 3,
+    # DESIGN-NOTES at C41 and C46): the 10 uF X5R held 1.35 uF at 24 V, and
+    # the RVT's sheet never gave an ESR at the switching frequency.
+    "CL31A106KBHNNNE_10uF_50V_C13585.pdf":
+        "C41/C42 before the 1210 X7R CL32B475KBUYNNE",
+    "RVT1C101M0505_C2977550.pdf":
+        "C46 before the Panasonic FK EEEFK1E101SP",
     # The 2026-10-27 input-protection coordination (DESIGN-NOTES at F1):
     # both were 40 V parts standing off a rail D8 lets reach ~38 V.
     "SS34_C8678.pdf":

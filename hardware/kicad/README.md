@@ -111,9 +111,15 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   flashing session). Its ST pin is left unconnected on purpose — see
   `DESIGN-NOTES.md` at U12 for why that GPIO is not worth the route.
 
-  `BUCK_5V` and `+5V` are deliberately separate nets: C44/C45/**C46** are the
-  buck's compensation (C46 is the electrolytic supplying the ESR zero) and
-  belong on the buck's side of the mux, not the load's.
+  `BUCK_5V` and `+5V` are deliberately separate nets: C44/**C46** are the
+  buck's compensation (C46 is the electrolytic supplying the ESR zero — since
+  2026-10-28 a Panasonic FK with its 0.36 Ω *specified* at 100 kHz, beside one
+  22 µF ceramic rather than two; `DESIGN-NOTES.md` at C46 and C44) and
+  belong on the buck's side of the mux, not the load's. The input pair C41/C42
+  is chosen on Samsung's bias curve: 1210 X7R 4.7 µF holding 3.1 µF each at
+  24 V, where the 1206 10 µF they replace held 1.35 µF. The 5 V rail is rated
+  1.0 A at 50 °C in-box ambient (`DESIGN-NOTES.md` at C41, "LOAD BUDGET");
+  the regulator's 2 A headline is not a rating of this board.
   Power LED (green) on 3V3. The display (below) draws from +5V directly, not
   through U2 — its backlight and panel logic were the dominant unmodeled load
   on the LDO, and moving them off keeps U2's junction temperature comfortably
@@ -701,7 +707,9 @@ through-hole part forces the whole order onto **Standard** assembly
 Through-hole parts are not the only thing that forces Standard: each
 JLCPCB part page carries a *PCBA Type* field, and two lines on the SMT
 BOM read **"Standard Only"** — the module (U1, C3013945) and the buck's
-100 µF electrolytic (C46, C2977550). Every other machine-placed line was
+100 µF electrolytic (C46, then C2977550; the Panasonic EEEFK1E101SP that
+replaced it on 2026-10-28 is *assumed* Standard-only until its part page has
+been read — U1 decides the tier either way). Every other machine-placed line was
 checked the same day and reads "Economic and Standard". One Standard-only
 part is enough, so the hand-solder split below never bought Economic, and
 the fee-free substitutions further down have been saving a fee the order
@@ -722,16 +730,19 @@ carrying designators the BOM does not have:
 | J2, J3, J4, J8, J9 (2-pos screw terminals), J10, J11, J12 (4-pos screw terminals), J5, J6, J7 (KK-254 wafers), BZ1 (buzzer) | 5.08 mm and 2.54 mm pitch — the easiest joints on the board, but the ones that would force Standard assembly |
 | LED1 (WS2812B, PLCC-4 5050) | No addressable RGB LED at LCSC is a Basic part (checked across WS2812/SK6812/XL-xxxx), so its $3 buys nothing an iron can't do to four edge-accessible pads |
 
-What's left goes down the SMT line. **14 unique Extended parts** would pay
+What's left goes down the SMT line. **18 unique Extended parts** would pay
 a feeder on Economic — the module
 (ESP32-S3-WROOM-1U-N16R2, C3013945), both MAX31856MUD+T (C2653162, one
 designator, two placements), the ADE7953 (C515890), its 3.579545 MHz
 oscillator (C2838127), the watchdog monostable (SN74LVC1G123, C123302), the
-LDO (TLV1117LV33, C48937499), the buck's inductor (C475527), the input PPTC
-(C369169), the buck's bulk electrolytic (C46, C2977550), the two SSR
-optocouplers (TLP291, C55144), the three 60 V CJ2310s they drive (C75882),
-the **TPS2116 power mux** (U12, C3235557), the Qwiic connector (C160404) and
-the USB-C receptacle (C165948) — **$42.98 in feeder fees** at $3.07 each.
+LDO (TLV1117LV33, C48937499), the buck's inductor (C475527), its input
+ceramics (1210 X7R, C170099) and bulk electrolytic (Panasonic FK, C178540),
+its SS36 catch diode (C7420367), the input PPTC (C369169), the two SSR
+optocouplers (TLP291, C55144), the CJ2310 (C75882) and the three LP2309LT1G
+P-FETs (C383253) of the SSR stage, the 1N4007W (C3018540), the **TPS2116
+power mux** (U12, C3235557), the Qwiic connector (C160404) and the USB-C
+receptacle (C165948) — **$55.26 in feeder fees** at $3.07 each (the
+generator prints the current list and the Economic bill every run).
 On Standard, where this BOM is (see the correction above), the count that
 matters is the **50 BOM lines at $1.53 = $76.50 (rev B.4 adds the LP2309LT1G line; 49 and $74.97 before it)**, and the 129 fee-free
 placements are fee-free in name only.
@@ -761,8 +772,8 @@ the fee-free library part by part (#348). The library holds **no connectors
 at all**, so J1 and J14 cannot be avoided at any price; it holds no PPTC, no
 oscillator at 3.579545 MHz, no retriggerable monostable, no inductor
 fit for a 2 A rail, and **no aluminium electrolytic in any package** — which
-is what makes C46 the one line here that pays $3 for a three-cent part, and
-it is paid because the alternative is an unstable 5 V rail (see C46 in
+is what makes C46 a line that pays $3 for a fifteen-cent part, and it is paid
+because the alternative is an unstable 5 V rail (see C46 in
 `DESIGN-NOTES.md`); and the module, both thermocouple front-ends and the
 metering IC have no fee-free equivalent either. **U2 is the one that looks
 free and is not** — the AMS1117-3.3 is Basic, drops into the same SOT-223
@@ -931,7 +942,7 @@ serves a bot challenge too now). Re-confirm stock at order time.
 
 **Assembly is Standard, not Economic** (corrected 2026-10-27): 0
 through-hole parts are left in the assembly BOM, but U1 (C3013945) and
-C46 (C2977550) are "Standard Only" parts, and one is enough. `gen_jlc.py`'s
+C46 (C178540, assumed from its predecessor's page) are "Standard Only" parts, and one is enough. `gen_jlc.py`'s
 summary now reports the tier from both conditions every run; rev A's
 "same strategy" claim was wrong for the same reason, its module being the
 same part.

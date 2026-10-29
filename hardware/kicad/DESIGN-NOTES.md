@@ -56,7 +56,7 @@ all three together). What the nets do:
     U11 makes BUCK_5V; U12 selects between BUCK_5V and USB VBUS to make +5V,
     in PRIORITY mode so the buck wins over a higher USB port rather than the
     other way round; U2 drops +5V to +3V3. BUCK_5V and +5V are separate nets
-    on purpose - C44/C45/C46 belong to the buck's feedback loop and stay on
+    on purpose - C44/C46 belong to the buck's feedback loop and stay on
     its side of the mux. See the Q8 and U12 blocks for both derivations.
 
 J7's pins 5-8 carried VENT/(unconnected)/AUX_A/AUX_B through Task 10, all
@@ -610,6 +610,70 @@ rather than free: the ADE7953 measures a 50/60 Hz signal through the
 filters. Keep the hot loop (C41/C42 -> U11 pin 1 -> pin 2 -> D7 -> GND)
 tight; it, not the inductor, is what radiates.
 
+--- INPUT CAPACITORS, BY THEIR VALUE AT 24 V (2026-10-28, PCB review
+2026-10-05 item 3). C41/C42 were CL31A106KBHNNNE, 10 uF/50 V X5R in
+1206, and Samsung's own DC-bias curve for that part gives -86.5% at
+24 V: 1.35 uF each, 1.17 at 26.4 V, 1.03 at 29 V. The "20 uF" input bank
+was 2.7 uF. They are now CL32B475KBUYNNE (C170099), 4.7 uF/50 V X7R in
+1210, whose curve gives -33.9% at 24 V: 3.10 uF each, 2.91 at 26.4 V,
+2.72 at 29 V - 6.2 uF for the pair where there was 2.7, from a smaller
+nominal. The 1206 X7R 4.7 uF (CL31B475KBHNNNE) was the obvious cheaper
+swap and holds only 2.24 uF at 24 V; the 1206 X7R 2.2 uF (Basic) holds
+1.41. Thin dielectric, not the class marking, decides it. All four
+curves were read from product.samsungsem.com, and the two that matter
+are repeated in `datasheets/` by their LCSC sheets.
+
+What the bank has to do, per the LM2596 datasheet this part copies: be
+chosen for RMS current, not capacitance. At 1.0 A out and D = 0.24 the
+input current is 0.43 A rms, 0.21 A per 1210 - nothing for an MLCC. The
+ripple it leaves on VIN_P is I*D*(1-D)/(f*C) = 0.23 V pp at 127 kHz
+(1%), and the pair's impedance at the switching frequency is 0.20 ohm.
+
+NO electrolytic on the input, deliberately. The reviewers' "suitable
+bulk capacitance" was considered: the HDR-15-24 sits on the same DIN
+rail a few tens of centimetres away and is a stiff source, J2 is a
+screw terminal nobody hot-plugs, D8 clamps any lead-inductance ring
+at 33-37 V, and the input filter's Z0 (sqrt(0.5 uH / 6 uF) = 0.3 ohm)
+is two orders under the converter's -Vin^2/P = -96 ohm negative input
+impedance, so the Middlebrook margin is not in question. Against that,
+a general-purpose 47 uF/50 V can has no ESR figure at 100 kHz in its
+sheet, so its share of the 0.43 A cannot be bounded - at 0.3 ohm it
+would take 40% and exceed its own 98 mA rating. A part that cannot be
+qualified is not "suitable bulk".
+
+--- THE LAYOUT (2026-10-28, same item). The block was rebuilt as the
+review asked. U11 is turned 180 so its switch pin faces east, where D7
+(horizontal, cathode west) and L1 (switch pad west) now sit: the switch
+node is 9.4 mm of 0.8 mm F.Cu in two short legs from a 1.5 mm stub -
+pin 2 to D7's cathode 3.9 mm, to L1's pad 4.5 mm - with NO via, where
+it was 18 mm with two layer changes. Those tracks are LOCKED. C41 sits
+2.5 mm south of pin 1 with C42 stacked under it, both GND pads on vias
+beside them; D7's anode has two vias of its own, so the input loop
+(C41 -> pin 1 -> pin 2 -> D7 -> plane -> C41) closes through the In1
+plane 0.2 mm under the parts rather than round a 9 mm F.Cu detour. C44
+stands on L1's output pad (3.1 mm), FB leaves pin 3 on a 0.3 mm trace
+to a via and runs on B.Cu to C44's pad - the quiet node, away from the
+switch node and the inductor, as the datasheet asks. VIN_P and BUCK_5V
+cross the block on B.Cu, which was empty there. C46 (now a 6.3 mm can)
+stays west of FID3, which moved 3.9 mm south to make room; the second
+output ceramic is gone (see C44).
+
+--- LOAD BUDGET (2026-10-28). The rail is rated for 1.0 A continuous at
+50 C in-box ambient, and "~250 mA at 24 V" elsewhere in these notes is
+that figure at 80% efficiency. Where it goes: the module's Wi-Fi TX
+peaks (~0.5 A through U2), the display and its backlight (~0.15 A, on
++5V directly), LED1 (0.06 A), the buzzer (0.03 A) and the small
+loads (~0.05 A) - about 0.8 A, leaving ~0.2 A for aux relays if SJ1
+ties AUX_VP to +5V. At 1.0 A and 24 V, U11 dissipates ~0.6 W (1.2 V
+saturation x 0.24 duty, 5 mA quiescent, ~0.18 W switching at 100 ns
+edges) - +59 C at the datasheet's 100 C/W free-air figure, so Tj ~110 C
+at 50 C ambient against a 125 C limit; the four GND pins into the pour
+and plane buy some of that back, but the 1.0 A is a ceiling, not a
+cruise. D7 carries 0.76 A average x 0.7 V = 0.53 W on an SMA with
+plane vias; L1 0.23 W in its DCR. 2 A is the regulator's headline and
+is not a rating of this board: at 2 A L1's peak current passes its
+30%-drop point and U11 would be at 1.2 W.
+
 ## D7 (design.py line 606)
 
 Catch diode. Non-synchronous buck, so this carries the inductor current
@@ -625,12 +689,35 @@ SS34's rating, and over it on any excursion. The price is VF 0.70 V at
 buck efficiency at full load. The SS34 is retired from the BOM (D7 was
 its only designator); its datasheet stays in datasheets/ as retired.
 
+2026-10-28: placed with its cathode 3.9 mm from U11's switch pin on a
+locked F.Cu track, its anode on two GND vias of its own, so the catch
+current's return meets the input capacitors' return in the In1 plane
+directly under the regulator (the layout note at C41). At the 1.0 A
+budget it averages 0.76 A x 0.7 V = 0.53 W; the SS36's 3 A / 60 V
+leaves the F1-envelope argument above unchanged.
+
 ## L1 (design.py line 613)
 
 47 uH is the small end, not a lazy round number: at 150 kHz and
 24 -> 5 V it gives dI = 5 x 0.792 / (47u x 150k) = 0.56 A, so 56%
 ripple on a 1 A load and a 1.28 A peak. Going smaller makes that worse,
 not the part - inductor volume goes as L x I^2.
+
+2026-10-28, qualified at the load budget (1.0 A, see C41) with every
+term at its worst datasheet bound rather than nominal: Fosc at its
+127 kHz minimum, L at -20% (37.6 uH), Vin at the trim top (29 V) with
+U11's 1.2 V saturation and D7's 0.7 V in the duty cycle. dI = 0.95 A pp
+and the peak is 1.48 A at 1.0 A out (1.28 A at 0.8 A). FXL0650-470-M's
+sheet (cjiang, in `datasheets/`) defines Isat MAX 2.08 A as the ~30%
+inductance-drop point and Irms MAX 1.5 A as a 20 C rise from 25 C, so
+the peak sits at 71% of the drop point and the 1.0 A rms at (1/1.5)^2 x
+20 = 9 C of rise plus ~0.23 W of DCR loss - ~65 C at 50 C ambient
+against the series' 125 C total. At the 2 A headline the same arithmetic
+gives a 2.5 A peak, over the drop point: not a rating of this board.
+The 68 uH the datasheet table lists for 20-40 V in (FXL0650-680-M,
+Isat 2.0 A, DCR 320 mohm) would cut dI to 0.48 A at the cost of 0.1 W;
+not taken, because at 1 A the 47 uH's margins above are comfortable and
+the part is cached, placed and fitted.
 
 L1 was 0.08 mm inside an 8 mm washer's footprint on H4 (PCB review
 2026-10-05, item 8). On 2026-10-23 the buck's input caps (C41/C42/C43),
@@ -639,6 +726,17 @@ terminal's courtyard, the VIN_P bus re-run below them at y 98.6 - and
 L1's courtyard now clears the washer by 1.4 mm.
 
 ## C44 (design.py line 619)
+
+2026-10-28: ONE 22 uF ceramic on the output, not two - C45 is gone (PCB
+review 2026-10-05 item 3). The ceramic's job is the 150 kHz ripple,
+and 13.65 uF (Samsung's curve for CL31A226KAHNNNE at 5 V: -38%) does
+it: 0.061 ohm at the switching frequency, 36 mV pp of ripple at the
+nominal 0.69 A inductor ripple, 41 mV at the worst-case 0.78 A. What a
+second one would buy is harm: the ceramic shorts out C46's ESR zero
+above f = 1/(2 pi ESR C_cer), which is 32 kHz with one part and 16 kHz
+with two - and 16 kHz is where an LM2596-class loop is still working
+(see C46 for why that zero is the whole point). The old note's "~32 uF
+after bias" for the pair was wrong too: 27.3 uF, from the curve.
 
 +5V on pin 1, SW_5V on pin 2, and the order is not arbitrary
 even though an inductor is symmetric. A rail's port symbol is
@@ -662,28 +760,72 @@ feed-forward capacitor as the cure, which the FIXED-output part cannot
 take: FB is tied straight to the output, so there is no divider to put
 CFF across.
 
-C44/C45 alone are 2 x 22 uF X5R, ~32 uF after DC bias at 5 V, ESR a few
-milliohms. That puts the double pole at 1/(2*pi*sqrt(47u*32u)) = 4.1 kHz
-and the ESR zero near 1 MHz - i.e. nowhere useful - which is the classic
-all-ceramic instability for this family. Adding 100 uF of aluminium at
-~0.5-1.5 ohm ESR moves the pole to ~2.0 kHz and plants a zero at
-1.1-3.2 kHz, right where it is wanted.
+A ceramic-only output puts the double pole at 1/(2*pi*sqrt(47u*C)) with
+an ESR zero near 1 MHz - i.e. nowhere useful - which is the classic
+all-ceramic instability for this family. An electrolytic in parallel
+plants the zero where the loop can use it. (The paragraphs below are
+the 2026-10-28 re-derivation; the original argued the same topology
+from a general-purpose part's assumed 0.5-1.5 ohm, which its datasheet
+never said - the PCB review of 2026-10-05, item 3, was right about that.)
 
-High ESR is a FEATURE here and costs nothing in ripple: at 150 kHz the
-ceramics are ~0.04 ohm and this part is ~1 ohm, so the ceramics shunt
-~96% of the inductor ripple and C46 sees ~6 mA against its 50 mA rating.
-Do not "improve" it with a polymer or another MLCC - both have the low
-ESR that is the problem.
+--- WHICH ELECTROLYTIC, AND WHY THE ESR HAS TO BE A NUMBER ON A SHEET.
+The XL1509 is an LM2596 clone pin for pin (150 kHz, 1.23 V FB, 1.2 V
+saturation, "internal compensation"), and neither sheet gives the error
+amplifier, so the loop cannot be closed on paper. What the LM2596 sheet
+DOES give is the documented capacitor class: "low impedance or low-ESR
+electrolytic or solid tantalum capacitors designed for switching
+regulator applications must be used ... the important parameters are
+the 100-kHz ESR, the RMS ripple current rating, voltage rating, and
+capacitance value", with the warning that an "extremely low" ESR goes
+unstable, and tables of Nichicon PL / Panasonic HFQ / AVX TPS parts
+whose 100 kHz ESR is 0.05-0.3 ohm at 100-330 uF - zeros at 5-16 kHz.
+XL Semi's own 5 V / 40 V-in row is 68 uH with a 180 uF/35 V of that
+class or an AVX TPS 100 uF/10 V. The RVT1C101M0505 fitted until now was
+a general-purpose can: its sheet gives tan d <= 0.20 at 120 Hz (an ESR
+of <= 2.65 ohm AT 120 Hz) and nothing at 100 kHz, which is not a
+specification of the one parameter the regulator depends on.
 
-D5 x 5.4 mm rather than the commoner D6.3: the only free board left in
-this corner is 6.0 mm tall (CP_Elec_6.3x5.4 needs a 7.10 mm courtyard),
-and 100 uF is the largest value that fits a D5 can. Placed south-west of
-C44 with 0.66 mm of courtyard clearance to it, 3.4 mm of body-to-centre
-clearance to FID3 (the assembly camera needs to see the fiducial), and a
-~7.8 mm run on +5V - long for a ceramic, irrelevant for a bulk cap whose
-job is at 2 kHz. No fee-free equivalent exists: LCSC lists no aluminium
-electrolytic in the Basic or Preferred libraries at all, so this line
-costs the eleventh feeder fee ($3).
+C46 is now the Panasonic FK EEEFK1E101SP (C178540): 100 uF/25 V,
+D6.3 x 5.8, and its sheet states impedance 0.36 ohm at 100 kHz, ripple
+240 mA rms at 100 kHz, tan d 0.14, 2000 h at 105 C. ESR zero at
+1/(2 pi 0.36 100u) = 4.4 kHz, in the documented band. 25 V where 7.5 V
+would do (the LM2596 sheet's 1.5x) because, as that sheet also says,
+the higher voltage rating is how the low ESR is bought. Panasonic is
+one of the two electrolytic brands in TI's table; FK is its SMD
+low-impedance line. The RVE1C101M0605 (0.85 ohm at 100 kHz, 6.3 x 5.4)
+was the fallback if the 5.8 mm height had not fitted.
+
+What the output network now looks like, computed as impedances (L 47 uH,
+C_cer 13.65 uF, C_e 100 uF at 0.36 ohm): ESR zero 4.4 kHz; the ceramic
+takes over above 32 kHz; LC corner 2.2 kHz; and the phase of the output
+filter alone is -124 deg at 10 kHz, -129 at 20 kHz, -143 at 40 kHz. The
+old network (27.3 uF of ceramic, 100 uF at an assumed 1 ohm) sat at
+-148 / -163 / -172 at the same frequencies, and at the RVT's tan-d bound
+of 2.65 ohm at -165 / -173 / -177 - i.e. for everything above ~5 kHz it
+behaved as the all-ceramic case this part exists to avoid. The new
+network recovers 25-45 degrees of phase across the band an LM2596-class
+loop crosses over in. That is the whole of what can be said without the
+error amplifier, and it is why the fitted part is now one from the
+documented class rather than one argued into the role.
+
+Ripple into it is fine: the inductor's 0.69-0.78 A pp is 0.20-0.23 A
+rms, split by impedance 86% into the ceramic and 14% into C46 - 29-33 mA
+against 240 mA. Output ripple 36-41 mV pp (0.7-0.8%).
+
+STABILITY IS A BENCH ITEM AND IS WRITTEN AS ONE in
+`docs/bench-smoke-test.md`: load step 0.2 -> 0.8 A, startup, no-load,
+full load, cold and hot, with the subharmonic/ringing criteria that
+decide whether the part is doing what this note claims. Until a board
+has done that, this note describes the design intent and the margins
+that can be computed, not a measured phase margin.
+
+Fits where the D5 can was. The old note's "only free board here is 6.0
+mm tall" was true of the previous layout; the 2026-10-28 re-layout
+moved C44 onto L1's output pad and FID3 3.9 mm south, and the 7.1 mm
+courtyard of the 6.3 mm can clears J7, FID3 and the board edge. No
+fee-free equivalent exists: LCSC lists no aluminium electrolytic in the
+Basic or Preferred libraries at all, so this line pays a feeder on
+Economic ($3) and $0.15 for the part.
 
 2026-10-27: it costs more than a feeder. Its JLCPCB part page reads
 *PCBA Type: Standard Only*, so with U1 it is one of the two parts that

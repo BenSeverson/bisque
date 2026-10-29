@@ -181,7 +181,7 @@ JLC_PLACEMENT = {
     # CANNOT police: rotating it 180 deg still makes the pads coincide, so
     # only the pad NUMBERING carries the polarity, and on a 100 uF
     # electrolytic getting it wrong vents the part on first power-up.
-    "C2977550": (  0,  0.000,  0.000),   # C46   CP_Elec_5x5.4                        polarised - see note
+    "C178540":  (  0,  0.000,  0.000),   # C46   CP_Elec_6.3x5.8                      resid 0.030 (2 pin#)
     "C3013945": (  0,  0.000, -0.477),   # U1    ESP32-S3-WROOM-1U                    resid 0.022 (40 pin#)
     "C318884":  (  0,  0.000,  0.000),   # SW1   SW_Push_1P1T_XKB_TS-1187A            resid 0.025 (4 shape)
     "C49678":   (  0,  0.000,  0.000),   # C2    C_0805_2012Metric                    resid 0.050 (2 pin#)
@@ -199,7 +199,7 @@ JLC_PLACEMENT = {
     "C75882":   (180,  0.000,  0.000),   # Q7    SOT-23                               resid 0.397 (3 pin#)
     "C81598":   (  0,  0.000,  0.000),   # D4    D_SOD-123                            resid 0.085 (2 pin#)
     "C3018540": (  0,  0.000,  0.000),   # D9    D_SOD-123                            resid 0.023 (2 pin#)
-    "C13585":   (  0,  0.000,  0.000),   # C41   C_1206_3216Metric                    resid 0.118 (2 pin#)
+    "C170099":  (  0,  0.000,  0.000),   # C41   C_1210_3225Metric                    resid 0.042 (2 pin#)
     # U12. A QUARTER TURN, and the one row here that could not have been
     # guessed from the package name: LCSC runs the SOT-583's 0.5 mm pitch
     # along x with the two rows above and below, KiCad runs it along y with
@@ -290,16 +290,26 @@ LCSC = {
     "C38": ("C28323", "CL21B105KBFNNNE 1uF 50V X7R 0805", True, True),
     "C39": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
     "C40": ("C1739", "0805B333K500NT 33nF 50V X7R 0805", True, True),
-    "C41": ("C13585", "CL31A106KBHNNNE 10uF 50V X5R 1206", True, True),
-    "C42": ("C13585", "CL31A106KBHNNNE 10uF 50V X5R 1206", True, True),
+    # Buck input, chosen on Samsung's DC-bias curve, not the nominal: a 1210
+    # X7R 4.7 uF holds 3.1 uF at 24 V and 2.7 uF at 29 V, where the 1206 X5R
+    # 10 uF it replaced held 1.35 uF (PCB review 2026-10-05 item 3).
+    "C41": ("C170099", "CL32B475KBUYNNE 4.7uF 50V X7R 1210 - buck input, 3.1uF at 24V", False, True),
+    "C42": ("C170099", "CL32B475KBUYNNE 4.7uF 50V X7R 1210 - buck input, 3.1uF at 24V", False, True),
     "C43": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
+    # Buck output ceramic: ONE 22 uF (13.7 uF at 5 V), not two. The ceramic
+    # shorts out C46's ESR zero above 1/(2*pi*ESR*C_cer); one part keeps that
+    # at 32 kHz, two put it at 16 kHz, inside the loop's working band. C45 is
+    # gone for that reason (PCB review 2026-10-05 item 3, DESIGN-NOTES at C46).
     "C44": ("C12891", "CL31A226KAHNNNE 22uF 25V X5R 1206", True, True),
-    "C45": ("C12891", "CL31A226KAHNNNE 22uF 25V X5R 1206", True, True),
     # The buck's ESR zero - see the long note at C46 in design.py. No
     # aluminium electrolytic is fee-free at LCSC in any package, so this is
     # the one line on the board that buys a feeder fee for three cents of
     # part.
-    "C46": ("C2977550", "RVT1C101M0505 100uF 16V D5x5.4 aluminium electrolytic", False, True),
+    # Buck output bulk: a switching-grade low-impedance part with its ESR
+    # SPECIFIED at 100 kHz (0.36 ohm, 240 mA rms), the class the LM2596-family
+    # design tables are built on. The RVT1C101M0505 it replaces was a general-
+    # purpose part whose sheet gave only tan d at 120 Hz.
+    "C46": ("C178540", "EEEFK1E101SP 100uF 25V D6.3x5.8 Panasonic FK, 0.36ohm@100kHz", False, True),
     # U12's input capacitors (review A6). 0402 because nothing larger fits
     # beside the mux; see DESIGN-NOTES.md at C47. Basic, so no feeder.
     "C47": ("C52923", "CL05A105KA5NQNC 1uF 25V X5R 0402", True, True),
@@ -528,7 +538,12 @@ LCSC = {
 # to look at; read its PCBA Type too, and add it here if it says Standard.
 STANDARD_ONLY = {
     "C3013945": "ESP32-S3-WROOM-1U-N16R2 module (U1)",
-    "C2977550": "100 uF aluminium electrolytic (C46)",
+    # 2026-10-28: C46 became the Panasonic EEEFK1E101SP (C178540). Its PCBA
+    # Type was NOT read - JLCPCB's part page needs a browser session - so it
+    # is kept here on the assumption that a D6.3 can is Standard like the D5
+    # one was. U1 puts the order on Standard regardless; correct this entry
+    # when the page has been read, it changes nothing until U1 is hand-fitted.
+    "C178540": "100 uF aluminium electrolytic (C46) - assumed, not read",
 }
 
 # JLCPCB's price list ("PCB Assembly Cost: What Does the Price Include?",

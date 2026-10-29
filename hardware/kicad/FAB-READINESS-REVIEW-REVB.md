@@ -324,6 +324,17 @@ order-form choice.** The prior round's A-list is verified fixed except A2
 
 ### Status, 2026-09-19 — A1 landed, documentation corrected
 
+> **Status 2026-10-28:** the fix below was revisited by the PCB review of
+> 2026-10-05 (item 3): the RVT general-purpose can had no ESR at 100 kHz
+> on its sheet, so the ESR zero it was fitted to supply was an assumption.
+> C46 is now the Panasonic FK EEEFK1E101SP (`C178540`, `CP_Elec_6.3x5.8`,
+> 0.36 Ω and 240 mA specified at 100 kHz), C45 is removed so one ceramic
+> does not short the zero out, C41/C42 are 1210 X7R chosen on their bias
+> curve (6.2 µF at 24 V for the pair, not 2.7), and the block was re-laid
+> with the switch node on F.Cu alone. Loop stability is a bench item in
+> `docs/bench-smoke-test.md`. See that review's item 3 status and
+> `DESIGN-NOTES.md` at C41/C44/C46.
+
 **A1 is fixed and the package is rebuilt.** `C46`, a 100 uF 16 V aluminium
 electrolytic (LCSC `C2977550`, `CP_Elec_5x5.4`), now sits across `+5V` at
 (97.5, 113.25) with 0.66 mm of courtyard clearance to C44, 3.40 mm from

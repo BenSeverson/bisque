@@ -3850,17 +3850,6 @@
 	)
 	(wire
 		(pts
-			(xy 179.07 123.19)
-			(xy 179.07 125.73)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "76821201-ad12-5644-a705-cfd61c466622")
-	)
-	(wire
-		(pts
 			(xy 82.55 149.86)
 			(xy 82.55 147.32)
 		)
@@ -3979,17 +3968,6 @@
 			(type default)
 		)
 		(uuid "9dbc36d7-b8d7-50ca-975e-f76e372e62ef")
-	)
-	(wire
-		(pts
-			(xy 179.07 115.57)
-			(xy 179.07 113.03)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "a4596322-7210-5f65-8c04-fba5d33b2904")
 	)
 	(wire
 		(pts
@@ -4305,17 +4283,6 @@
 		)
 		(uuid "1fae7372-5f0b-585b-9d8d-d33a1c6712aa")
 	)
-	(text "24 V -> 5 V BUCK  XL1509-5.0, fixed output\nC41-C43 in, D7 catch, L1 47uH, C44/C45/C46 out. FB ties to the\noutput because the part is the fixed 5.0 V version; EN is\nactive LOW and grounded. C46 is an ELECTROLYTIC on purpose:\nvoltage-mode with fixed compensation needs its ESR zero, and\nan all-ceramic output has none. Keep C41/C42 - U11 - D7\ntight: that loop, not L1, is what radiates."
-		(at 147.3333 37.9 0)
-		(effects
-			(font
-				(size 2 2)
-				(bold yes)
-			)
-			(justify left)
-		)
-		(uuid "cae838e7-8434-5448-a341-c9e27dab1903")
-	)
 	(label "BUCK_5V"
 		(at 95.25 152.4 90)
 		(effects
@@ -4335,16 +4302,6 @@
 			(justify left bottom)
 		)
 		(uuid "1fb7469f-404f-5d97-abd6-5c6330fa2364")
-	)
-	(label "BUCK_5V"
-		(at 179.07 113.03 90)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "1fd1a4b9-5518-5659-84b7-e0e115dcdec7")
 	)
 	(label "VIN"
 		(at 67.31 80.01 90)
@@ -4548,6 +4505,11 @@
 		)
 		(uuid "a57048b4-6632-4ae2-97d4-8ba9dd755b3d")
 	)
+  (text "24 V -> 5 V BUCK  XL1509-5.0, fixed output (LM2596 class)\nC41/C42 in (1210 X7R: 3.1 uF each AT 24 V - a 1206 10 uF held 1.35),\nD7 catch, L1 47uH, C44 + C46 out. FB ties to the output because the\npart is the fixed 5.0 V version; EN is active LOW and grounded.\nC46 is a LOW-IMPEDANCE ELECTROLYTIC on purpose, 0.36 ohm AT 100 kHz:\nvoltage-mode with fixed compensation leans on its ESR zero (4.4 kHz),\nand ONE ceramic only - a second 22 uF shorts that zero out at 16 kHz.\nRated for 1.0 A out at 50 C ambient; stability is a bench item.\nKeep C41/C42 - U11 - D7 - L1 tight: that loop, not L1, is what radiates."
+    (at 147.3333 37.9 0)
+    (effects (font (size 2 2) (bold yes)) (justify left))
+    (uuid "553590cc-4f8a-48cb-881e-7c3e9c3de730")
+  )
 	(symbol
 		(lib_id "power:PWR_FLAG")
 		(at 67.31 73.66 0)
@@ -5235,82 +5197,6 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 179.07 125.73 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "24c59e10-3a40-5762-ab5f-9774b3d1c8f8")
-		(property "Reference" "#PWR0018"
-			(at 179.07 125.73 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 179.07 129.5495 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 179.07 125.73 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 179.07 125.73 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 179.07 125.73 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(body_style 1)
-		(in_pos_files yes)
-		(pin "1"
-			(uuid "d855939b-1684-57fe-9c7c-72e842849233")
-		)
-		(instances
-			(project "bisque-controller"
-				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/c3ce2838-e44f-5ef5-9340-801a744d4591"
-					(reference "#PWR0018")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:GND")
 		(at 60.96 186.69 0)
 		(unit 1)
 		(exclude_from_sim no)
@@ -5481,7 +5367,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "100uF/16V"
+		(property "Value" "100uF/25V"
 			(at 201.306 120.33 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5492,7 +5378,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:CP_Elec_5x5.4"
+		(property "Footprint" "Capacitor_SMD:CP_Elec_6.3x5.8"
 			(at 198.12 119.38 0)
 			(hide yes)
 			(show_name no)
@@ -5503,7 +5389,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/28b7f65130241c48e650f325ce318c84.pdf?productCode=C2977550"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/c596debefdd111e034ecea664346d8fe.pdf?productCode=C178540"
 			(at 198.12 119.38 0)
 			(hide yes)
 			(show_name no)
@@ -5525,7 +5411,7 @@
 				)
 			)
 		)
-		(property "MPN" "RVT1C101M0505"
+		(property "MPN" "EEEFK1E101SP"
 			(at 198.12 119.38 0)
 			(hide yes)
 			(show_name no)
@@ -5536,7 +5422,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C2977550"
+		(property "LCSC" "C178540"
 			(at 198.12 119.38 0)
 			(hide yes)
 			(show_name no)
@@ -5547,7 +5433,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "ROQANG"
+		(property "Manufacturer" "PANASONIC"
 			(at 198.12 119.38 0)
 			(hide yes)
 			(show_name no)
@@ -6089,7 +5975,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "10uF/50V"
+		(property "Value" "4.7uF/50V"
 			(at 244.232 68.26 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6100,7 +5986,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric"
+		(property "Footprint" "Capacitor_SMD:C_1210_3225Metric"
 			(at 241.3 67.31 0)
 			(hide yes)
 			(show_name no)
@@ -6111,7 +5997,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/02336ea48ea44ca18c72517dd3cb7b47.pdf?productCode=C13585"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/61b8a52ad9f6bbda0838948a03e436a3.pdf?productCode=C170099"
 			(at 241.3 67.31 0)
 			(hide yes)
 			(show_name no)
@@ -6133,7 +6019,7 @@
 				)
 			)
 		)
-		(property "MPN" "CL31A106KBHNNNE"
+		(property "MPN" "CL32B475KBUYNNE"
 			(at 241.3 67.31 0)
 			(hide yes)
 			(show_name no)
@@ -6144,7 +6030,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C13585"
+		(property "LCSC" "C170099"
 			(at 241.3 67.31 0)
 			(hide yes)
 			(show_name no)
@@ -6884,120 +6770,6 @@
 			(project ""
 				(path "/7d618d6e-cdd6-57df-9cb1-e438e0016f8b"
 					(reference "#FLG01")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:C")
-		(at 179.07 119.38 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "7fb7eb23-aab8-5d89-b24a-8784452b295d")
-		(property "Reference" "C45"
-			(at 182.002 118.43 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "22uF/25V"
-			(at 182.002 120.33 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric"
-			(at 179.07 119.38 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/02336ea48ea44ca18c72517dd3cb7b47.pdf?productCode=C12891"
-			(at 179.07 119.38 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Unpolarized capacitor"
-			(at 179.07 119.38 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MPN" "CL31A226KAHNNNE"
-			(at 179.07 119.38 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" "C12891"
-			(at 179.07 119.38 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Manufacturer" "Samsung Electro-Mechanics"
-			(at 179.07 119.38 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(body_style 1)
-		(in_pos_files yes)
-		(pin "1"
-			(uuid "1ccd968b-2d99-547b-8cff-0530bfdf1f01")
-		)
-		(pin "2"
-			(uuid "eb7acf38-2f1b-52b5-8a03-c208f5b46ab6")
-		)
-		(instances
-			(project "bisque-controller"
-				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/c3ce2838-e44f-5ef5-9340-801a744d4591"
-					(reference "C45")
 					(unit 1)
 				)
 			)
@@ -8658,7 +8430,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "10uF/50V"
+		(property "Value" "4.7uF/50V"
 			(at 226.452 68.26 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8669,7 +8441,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric"
+		(property "Footprint" "Capacitor_SMD:C_1210_3225Metric"
 			(at 223.52 67.31 0)
 			(hide yes)
 			(show_name no)
@@ -8680,7 +8452,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/02336ea48ea44ca18c72517dd3cb7b47.pdf?productCode=C13585"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/61b8a52ad9f6bbda0838948a03e436a3.pdf?productCode=C170099"
 			(at 223.52 67.31 0)
 			(hide yes)
 			(show_name no)
@@ -8702,7 +8474,7 @@
 				)
 			)
 		)
-		(property "MPN" "CL31A106KBHNNNE"
+		(property "MPN" "CL32B475KBUYNNE"
 			(at 223.52 67.31 0)
 			(hide yes)
 			(show_name no)
@@ -8713,7 +8485,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C13585"
+		(property "LCSC" "C170099"
 			(at 223.52 67.31 0)
 			(hide yes)
 			(show_name no)
