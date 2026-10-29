@@ -835,6 +835,11 @@ and setup and stencil are three times Economic's (see
 SMD electrolytic is a trivial hand-solder job, so if the order is ever
 to be Economic, this is the easy half of it.
 
+2026-10-29: the Panasonic FK that replaced it (C178540, above) reads
+*PCBA Type: Standard and Economy* on its JLCPCB page, so C46 no longer
+forces anything. U1 alone puts the order on Standard now, and the
+Economic option is hand-fitting the module and nothing else.
+
 ## U1
 
 2026-10-26, the module's thermal pad (pad 41, 3.9 mm). The KiCad
@@ -853,9 +858,10 @@ just outside it ((66.0, 33.25), (71.0, 33.25), (67.75, 35.75),
 pad, so any via inside it fails pcb-check.
 
 2026-10-27, sourcing: C3013945's JLCPCB part page reads *PCBA Type:
-Standard Only*. With C46 it is one of the two parts that put the order
-on Standard PCBA rather than the Economic tier the README assumed
-(`gen_jlc.STANDARD_ONLY`). Going back to Economic means hand-fitting the
+Standard Only*. It is the part that puts the order on Standard PCBA
+rather than the Economic tier the README assumed (`gen_jlc.STANDARD_ONLY`;
+C46 was the other until its 2026-10-28 replacement, which is Standard and
+Economy). Going back to Economic means hand-fitting the
 module - edge pads with an iron, centre thermal pad left dry - which is
 routine but costs the thermal path the twelve web holes above exist for.
 Not decided here.
@@ -1352,8 +1358,8 @@ healthy channel's gate.
 
 B.2 rejected a high-side arrangement for one reason, written below the
 old derivation: no fee-free 60 V P-channel part at JLCPCB. That premise
-died with the Economic tier (2026-10-27: U1 and C46 are Standard-only,
-so every line pays the same $1.53), and the LP2309LT1G (LRC, C383253,
+died with the Economic tier (2026-10-27: U1 is Standard-only, so every
+line pays the same $1.53), and the LP2309LT1G (LRC, C383253,
 60 V, 1.9 A, +-20 V gate, SOT-23, "Economic and Standard") is exactly
 the part the objection said did not exist.
 

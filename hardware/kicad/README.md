@@ -707,13 +707,13 @@ through-hole part forces the whole order onto **Standard** assembly
 Through-hole parts are not the only thing that forces Standard: each
 JLCPCB part page carries a *PCBA Type* field, and two lines on the SMT
 BOM read **"Standard Only"** — the module (U1, C3013945) and the buck's
-100 µF electrolytic (C46, then C2977550; the Panasonic EEEFK1E101SP that
-replaced it on 2026-10-28 is *assumed* Standard-only until its part page has
-been read — U1 decides the tier either way). Every other machine-placed line was
-checked the same day and reads "Economic and Standard". One Standard-only
-part is enough, so the hand-solder split below never bought Economic, and
-the fee-free substitutions further down have been saving a fee the order
-does not pay. `gen_jlc.STANDARD_ONLY` now records the two, and the
+100 µF electrolytic (C46, then C2977550; the Panasonic EEEFK1E101SP
+(C178540) that replaced it on 2026-10-28 reads "Standard and Economy" on its
+part page, read 2026-10-29, so since then U1 alone decides the tier). Every
+other machine-placed line was checked the same day and reads "Economic and
+Standard". One Standard-only part is enough, so the hand-solder split below
+never bought Economic, and the fee-free substitutions further down have been
+saving a fee the order does not pay. `gen_jlc.STANDARD_ONLY` records it, and the
 generator's summary names the tier the BOM actually lands on and the fixed
 bill for it (`assembly tier: Standard -> … $108.74 fixed per order`, against
 $52.69 on Economic). The way back to Economic is to hand-fit U1 and C46 as
@@ -941,8 +941,9 @@ that worked for the mating connectors above (confirmed 2026-09-10; DigiKey
 serves a bot challenge too now). Re-confirm stock at order time.
 
 **Assembly is Standard, not Economic** (corrected 2026-10-27): 0
-through-hole parts are left in the assembly BOM, but U1 (C3013945) and
-C46 (C178540, assumed from its predecessor's page) are "Standard Only" parts, and one is enough. `gen_jlc.py`'s
+through-hole parts are left in the assembly BOM, but U1 (C3013945) is a
+"Standard Only" part, and one is enough (C46 was the other until 2026-10-28;
+its Panasonic replacement, C178540, reads "Standard and Economy"). `gen_jlc.py`'s
 summary now reports the tier from both conditions every run; rev A's
 "same strategy" claim was wrong for the same reason, its module being the
 same part.

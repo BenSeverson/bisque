@@ -538,12 +538,11 @@ LCSC = {
 # to look at; read its PCBA Type too, and add it here if it says Standard.
 STANDARD_ONLY = {
     "C3013945": "ESP32-S3-WROOM-1U-N16R2 module (U1)",
-    # 2026-10-28: C46 became the Panasonic EEEFK1E101SP (C178540). Its PCBA
-    # Type was NOT read - JLCPCB's part page needs a browser session - so it
-    # is kept here on the assumption that a D6.3 can is Standard like the D5
-    # one was. U1 puts the order on Standard regardless; correct this entry
-    # when the page has been read, it changes nothing until U1 is hand-fitted.
-    "C178540": "100 uF aluminium electrolytic (C46) - assumed, not read",
+    # C46's RVT1C101M0505 (C2977550) was the second entry here until
+    # 2026-10-28. Its replacement, the Panasonic EEEFK1E101SP (C178540), reads
+    # "Standard and Economy" on its JLCPCB part page (read 2026-10-29), so it
+    # is NOT listed: U1 alone puts the order on Standard, and hand-fitting the
+    # module is now the whole of the Economic option.
 }
 
 # JLCPCB's price list ("PCB Assembly Cost: What Does the Price Include?",
@@ -589,9 +588,10 @@ DNP = set()
 # do to a 5050 with four edge-accessible pads.
 #
 # This was meant to take the order from Standard assembly to Economic, and
-# it does not: U1 and C46 are "Standard Only" parts (STANDARD_ONLY), so the
-# order is Standard regardless, and the Extended-versus-Basic distinction
-# buys nothing until those two are hand-fitted as well. The through-hole
+# it does not: U1 is a "Standard Only" part (STANDARD_ONLY; C46 was until
+# 2026-10-28), so the order is Standard regardless, and the Extended-versus-
+# Basic distinction buys nothing until the module is hand-fitted as well. The
+# through-hole
 # parts stay here anyway - a THT line on Standard adds a hand-soldering pass
 # and its own per-joint charge, and these are the easiest joints on the
 # board. main() prints which tier the BOM actually lands on and what the

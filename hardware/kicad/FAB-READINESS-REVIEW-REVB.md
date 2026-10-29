@@ -1265,8 +1265,9 @@ no through-hole parts in the assembly BOM -> Economic (SMD, top-side) assembly i
 > **Status 2026-10-27:** the last line was wrong, and stayed wrong through
 > every round below. Through-hole parts are one of two things that force
 > Standard PCBA; the other is a part whose JLCPCB page reads *PCBA Type:
-> Standard Only*, and the module (U1, C3013945) is one — as is C46
-> (C2977550), added 2026-09-18. `gen_jlc.py` checked only the first. It now
+> Standard Only*, and the module (U1, C3013945) is one — as was C46
+> (C2977550), added 2026-09-18 and replaced on 2026-10-28 by a part that is
+> not. `gen_jlc.py` checked only the first. It now
 > carries `STANDARD_ONLY` and prints `assembly tier: Standard -> … $108.74
 > fixed per order` for this BOM, with the Economic figure beside it for the
 > day U1 and C46 are hand-fitted. Every feeder total in this document is
