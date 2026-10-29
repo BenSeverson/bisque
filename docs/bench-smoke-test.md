@@ -42,6 +42,15 @@ None of them is a firmware bug.
       silk read `24V`/`OUT` with the same pin order. What must not happen
       is an `OUT` lead touching the earthed box: that shorts the channel
       to ground (the supply current-limits, the SSR stays off).
+- [ ] **The loads on J4/J9 fit the F1 budget at the box's temperature.**
+      The two terminals share **280 mA at 50 °C in-box, 180 mA at 60 °C**
+      (F1's derated hold current less the buck; `DESIGN-NOTES.md` at F1).
+      Two SSR inputs (~40 mA with indicators) always fit. One 24 VDC coil
+      beside an SSR: ≤ 260 mA (6.2 W) at 50 °C, ≤ 160 mA at 60 °C. Two
+      coils: ≤ 140 mA each at 50 °C, ≤ 90 mA each at 60 °C. Read the coil's
+      *DC hold* consumption off its sheet (a 5.4 W TeSys-D coil is 225 mA
+      and fits only as the one coil). Over budget, F1 trips on a hot day
+      and the kiln stops heating.
 - [ ] **`SJ2` ("WDT DEFEAT") is open.** The SSR stage is gated by the U10
       one-shot, which firmware retriggers on `WDT_KICK` at 5 Hz. Open is the
       supervised (correct) state — see "Bring-up: leave SJ2 open" in
@@ -227,6 +236,15 @@ curl -X POST http://<kiln-ip>/api/v1/profiles/import \
       ([#342](https://github.com/BenSeverson/bisque/issues/342)).
 - [ ] **No error events** during the run (no `error` status, no fault
       banner on the LCD).
+- [ ] **Installed-load current** (PCB review 2026-10-05 item 10). With the
+      SSR on, Wi-Fi associated and the backlight lit, meter the 24 V input
+      current at J2 (or read the bench supply) and note the air temperature
+      beside the board. It must be under F1's derated hold current for that
+      temperature: 0.63 A at 40 °C, 0.57 A at 50 °C, 0.49 A at 60 °C. Also
+      meter J2 `+` to the far pad of F1 (D8's anode): the drop divided by
+      the current is F1's resistance, 0.09–0.45 Ω on its sheet. Record
+      both in the board log. Anything above the table means the J4/J9 loads
+      are over the budget in the prerequisites, not that F1 is undersized.
 
 ## Verify persistence
 

@@ -577,6 +577,25 @@ Restrict coil loading or change the coordinated protection design if that
 budget is exceeded. Do not merely enlarge F1 without checking fault energy
 and the remaining protection components.
 
+> **Status 2026-10-29:** budget established, F1 kept. The family derating
+> row (0.57 A at 50 °C, 0.49 A at 60 °C) is applied to the -33 part on the
+> sheet's own pattern (the 110's -16/-24/-33 rows are identical to its base
+> row) and flagged as an inference, not a Jinrui statement. Against it: U11
+> at its 1.0 A ceiling is 0.29 A at low line, so the two SSR terminals
+> share **280 mA at the board's 50 °C in-box rating and 180 mA at 60 °C**;
+> above 50 °C the HDR-15-24's own derating (0.63 A to 50 °C, 50 % at 70 °C)
+> is the tighter limit. Translated into loads at F1 in `DESIGN-NOTES.md`
+> and in the README's J4/J9 section: two SSR inputs always fit, one 5.4 W
+> coil fits at 50 °C, two coils only at ≤ 3.4 W each. Resistance 0.09–0.45 Ω
+> is 51–257 mV at the 50 °C hold current, inside the SSR window. Under the
+> in-box supply F1 may or may not trip in a fault (the supply's 0.70–0.92 A
+> limit sits in the hold-to-trip band); either way the rail collapses, and
+> F1's job is the misapplied-larger-supply case, where its 1.5 A trip keeps
+> the clamped rail at 38.9 V. Not enlarged: a JK-mSMD110-33 would trip at
+> 39.9 V on D8's curve for 60 mA of budget the supply cannot deliver above
+> 50 °C. Bench: the smoke test now meters the installed 24 V current against
+> the table and reads F1's drop.
+
 ### 11. [P2] Watchdog capacitor data do not support the stated timeout window
 
 **Refs:** C38/R46/U10, and the same purchased capacitor at C1/C3/C44/C45.

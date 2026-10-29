@@ -159,10 +159,18 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   boards had pin 1 always live (silk `24V`) and switched the return; the
   pin order is unchanged, so a loom built to that silk still lands right.
 
-  **Current budget, and it is a limit rather than a note.** F1 holds at
-  750 mA and U11 takes ~250 mA of it, so the two channels share ~400 mA. Two
-  SSR inputs plus their indicators is ~40 mA, a 10× margin; one small DC
-  contactor coil per channel fits; two large ones do not.
+  **Current budget, and it is a limit rather than a note.** The two channels
+  share what is left of F1's *derated* hold current after the buck: **280 mA
+  at the board's 50 °C in-box rating, 180 mA at 60 °C** (derived at F1 in
+  `DESIGN-NOTES.md`, 2026-10-29, from the PPTC's derating table, the
+  HDR-15-24's own derating and U11 at its 1.0 A ceiling). Two SSR inputs
+  plus their indicators is ~40 mA and fits at any ambient. One 24 V coil
+  beside an SSR: ≤ 260 mA (6.2 W) at 50 °C, ≤ 160 mA at 60 °C — a 5.4 W
+  TeSys-D-class coil fits at 50 °C and not at 60. Two coils: ≤ 140 mA each
+  at 50 °C, ≤ 90 mA each at 60 °C. The "~400 mA" quoted before was the 25 °C
+  figure. F1 is not enlarged to buy more: under the in-box supply the
+  supply's 0.63 A is the next limit anyway, and a 1.1 A PPTC's 2.2 A trip
+  would put the clamped fault rail at 39.9 V against U11's 40 V.
 
   **The optocouplers are containment, not isolation, and that distinction is
   load-bearing.** Rev B opto-*isolated* both channels — dry-contact terminals,

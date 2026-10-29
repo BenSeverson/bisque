@@ -332,6 +332,81 @@ The remaining exposures are named, not fixed: the external SSR input
 must take 29 V and survive 38 V (installation check A4), and a true
 field-surge rating or a 60 V buck is rev C work.
 
+--- THE LOAD BUDGET, 2026-10-29 (PCB review 2026-10-05 item 10). The
+"750 mA hold against a ~250 mA load" above is the 25 C figure, and the
+board does not live at 25 C. What F1 actually carries, and what it is
+allowed to, by the two sheets involved:
+
+  F1, JK-mSMD075-33 (Jinrui JK-mSMD family sheet, "Thermal Derating
+  Chart", the JK-mSMD075 row). Hold current, i.e. the current it is
+  guaranteed NOT to trip at in still air at that ambient:
+      25 C 0.75 A | 40 C 0.63 | 50 C 0.57 | 60 C 0.49 | 70 C 0.45 | 85 C 0.35
+  The table has no -33 row for the 075. It does list the 110's -16/-24/
+  -33 variants, and each is identical to the base row, because the suffix
+  is the voltage rating and the derating describes the PTC element; the
+  075 row is used on that pattern. It is an inference from the sheet's
+  own layout, not a Jinrui statement, and is flagged as such. Resistance
+  is 0.09 ohm minimum initial, 0.45 ohm maximum one hour after reflow:
+  at the 50 C hold current that is 51-257 mV and 29-146 mW, already
+  inside the hold spec (the spec is measured on the self-heated part).
+  VIN_P at low line is therefore >= 21.6 - 0.26 - 0.03 (Q8) = 21.3 V,
+  well inside a 3-32 V SSR input.
+
+  The supply, HDR-15-24 (Mean Well sheet, rev 2026-10-09): 0.63 A rated,
+  full load to 50 C, derating linearly to 50% at 70 C (so 0.47 A at
+  60 C, 0.32 A at 70 C). Current limit 110-145% of 15.2 W = 0.70-0.92 A,
+  constant-current, then hiccup under 50% output voltage.
+
+  The buck, U11, at the 1.0 A / 5 V ceiling (its LOAD BUDGET note), 80%
+  efficiency (the XL1509 sheet gives 82% at 12 V in; 24 V in is worse):
+  6.25 W input = 0.29 A at 21.6 V, 0.26 A at 24 V, 0.22 A at 29 V. The
+  budget uses low line, 0.29 A. At the ~0.8 A the board is expected to
+  cruise at, 0.23 A. Nothing else of consequence hangs on VIN_P: the
+  gate networks and D8's leakage are under a milliampere together.
+
+  What the two terminals (J4/J9) may draw together, = min(F1 hold,
+  supply) - 0.29 A:
+      40 C: 0.34 A | 50 C: 0.28 A | 60 C: 0.18 A | 70 C: 0.03 A
+  At and below 50 C F1 is the binding limit, 60 mA under the supply's
+  rating; from 60 C up the supply derates faster and is the limit
+  itself. The rated in-box ambient for this board is 50 C (the U11
+  note), so the published figure is 280 mA shared, 180 mA at 60 C.
+  Translated: two SSR inputs (2 x ~15 mA + 2 x ~5 mA indicators = 40 mA)
+  fit at any ambient the supply works at. One 24 V coil on one channel
+  with an SSR on the other: <= 260 mA (6.2 W) at 50 C, <= 160 mA (3.8 W)
+  at 60 C - a TeSys-D-class 24 VDC coil (5.4 W, 225 mA) fits at 50 C and
+  does not at 60. Two coils: <= 140 mA (3.4 W) each at 50 C, <= 90 mA
+  (2.2 W) each at 60 C. "Two large contactors" never fitted and still
+  does not; the difference is that the limit now has numbers and an
+  ambient attached. DC coils have no inrush beyond their steady current,
+  and a PPTC is thermal with a 0.2 s trip even at 8 A, so the input
+  capacitors' charge and the buck's start-up are invisible to it.
+
+  WHAT F1 DOES AND DOES NOT DO UNDER THIS SUPPLY. Its trip current is
+  1.5 A at 25 C; the sheet derates only the hold current, and if trip
+  tracks it (roughly 2 x hold) it is ~1.1 A at 50 C. The HDR-15-24's
+  limit, 0.70-0.92 A, sits below that and inside the hold-to-trip band,
+  so in a fault fed by the in-box supply F1 MAY trip, eventually, or
+  may sit in the band with the supply in constant current and then
+  hiccup. Either way the rail is collapsed and the board is off; the
+  envelope's case (a) ends that way whether or not F1 opens, and the
+  note above already says so. F1 earns its place in case (c), a larger
+  supply misapplied, where its trip at 1.5 A keeps the clamped rail at
+  36.8 + 1.4 x 1.5 = 38.9 V with 1.1 V to U11's 40 V. That is also why it
+  is not upsized: the JK-mSMD110-33 in the same land would hold 0.83 A
+  at 50 C but trip at 2.2 A, i.e. 39.9 V on D8's curve, the whole of
+  item 9's margin spent for 60 mA of budget at <= 50 C and nothing
+  above it, because the supply is the limit there. The review's "do not
+  merely enlarge F1" is exactly right and the budget is written under
+  the fuse that is fitted.
+
+  Placement is not a factor: F1 is at (23.7, 32.2) by J2, 100 mm from
+  U11 and L1 and 14-18 mm from D8, Q8 and U2, so its ambient is the box
+  air the table is read at. Bench: the smoke test's installed-load
+  check meters the 24 V input current in the real configuration against
+  this table at the box's own temperature, and reads F1's drop as a
+  resistance check.
+
 ## Q8 (design.py line 298)
 
 --- REVERSE POLARITY: a P-channel MOSFET, not a diode ----------------
@@ -1253,12 +1328,16 @@ drop of the SS34 that Q8 replaced; it now costs ~33 mV, so the terminal
 really is at the input voltage and the 3-32 V SSR window is entered
 with the whole of it.
 
-CURRENT BUDGET, and it is a real limit rather than a note. F1 holds at
-750 mA and U11 draws ~250 mA of it, so the two channels share ~400 mA
-before the fuse starts to think about it. Two SSR inputs (~15 mA each)
-and two indicators (~5 mA each) is 40 mA, a 10x margin. A small DC
-contactor coil per channel fits; two large ones do not. D9/D10 are
-sized to that budget and no further - see them.
+CURRENT BUDGET, and it is a real limit rather than a note. The two
+channels share what is left of F1's DERATED hold current after the
+buck: 280 mA at the board's 50 C in-box rating, 180 mA at 60 C (the
+2026-10-29 block at F1 derives it, from the PPTC's derating table, the
+HDR-15-24's own derating and U11 at its 1.0 A ceiling). Two SSR inputs
+(~15 mA each) and two indicators (~5 mA each) is 40 mA, a 7x margin.
+One 24 V coil beside an SSR: <= 260 mA at 50 C (a 5.4 W TeSys-D-class
+coil fits), <= 160 mA at 60 C. Two coils: <= 140 mA each at 50 C,
+<= 90 mA each at 60 C. The "~400 mA" this paragraph used to quote was
+the 25 C figure. D9/D10 (1N4007W, 1 A) cover any of it.
 
 --- WHY THE OPTOCOUPLERS ARE BACK, AND WHAT THEY ARE FOR --------------
 Rev B opto-isolated both channels (U8/U9 + SJ3/SJ4) and then REVERTED
