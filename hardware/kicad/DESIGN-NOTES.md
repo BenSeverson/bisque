@@ -2491,6 +2491,22 @@ B.Cu track's return (the pour sits 0.2 mm beside the track, the plane
 to +3V3; only a capacitor does that. The review said exactly this and it
 stays true.
 
+A second pass (2026-10-30) did the same for the nets the fab-readiness
+review named next: I2C and every display/touch line, including the
+resistor-side `*_R` nets at J5, which carry the same 40 MHz edges.
+31 more locked 0.6/0.3 GND vias, placed by the same rule (nearest free
+spot 0.9-2.5 mm from any transition with no GND via or GND THT pad
+within 1.2 mm; clear of every pad, the nameplate pocket and the rule
+area). I2C is now 13 of 15 within 1.5 mm (was 2), display/touch 19 of
+27 (was 2). Five transitions have no spot within 2.5 mm: I2C_SDA,
+LCD_CS and LCD_BL beside U1's south edge, LCD_DC_R and T_CS_R in the
+J5 resistor rows. Board-wide, 88 of the 333 vias on non-plane nets
+have a GND via within 1.5 mm (52 before this pass, 15 at the 09-02
+review); the board carries 179 GND vias. The slow and DC nets (SSR,
+watchdog, nav, analog, CT) were left alone on purpose - the review
+graded them a rev-C EMI item, and every GND via is another antipad in
+the In2 +3V3 plane.
+
 The cheapest lever is R72/R73 (see above): a 33 ohm source resistor
 slows the edge, and every return-path figure here matters less at 3 ns
 than at 1 ns. The bench check (bench-smoke-test.md, "SPI bus waveforms")

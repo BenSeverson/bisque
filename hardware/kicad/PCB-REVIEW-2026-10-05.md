@@ -415,6 +415,9 @@ proven.
 > bus+T_CS vias have a GND via within 1.5 mm** (was 1 of 39); a GND via
 > bridges In1 to the outer GND pours, not to In2, so this helps the
 > coplanar share of the return and the EMI case, not the plane transfer.
+> A second pass on 2026-10-30 added 31 more beside the I2C and
+> display/touch transitions: I2C 13 of 15 within 1.5 mm (was 2),
+> display/touch 19 of 27 (was 2), 88 of 333 board-wide (was 52).
 > Not done: the J5-end transitions are still ~36 mm from a transfer cap;
 > that end is where the loom resistors are, and the bench check below is
 > what decides whether it matters. **Bench:** `docs/bench-smoke-test.md`

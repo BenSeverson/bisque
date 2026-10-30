@@ -1075,6 +1075,14 @@ place to add them if the board is respun for any other reason.
 > within 1.5 mm; the other 16 have no room within 2.5 mm). The USB pair
 > has no vias at all on the current board — it was re-routed as one object
 > on F.Cu — so that half closed itself.
+>
+> **Status 2026-10-30:** the I2C and display/touch transitions got the
+> same treatment: 31 GND vias, so I2C is 13 of 15 within 1.5 mm and
+> display/touch 19 of 27 (each was 2). Board-wide 88 of 333 vias on
+> non-plane nets now have one (52 before, 15 at the 09-02 round). What
+> remains bare is the slow and DC nets (SSR, watchdog, nav, analog, CT),
+> left as the rev-C EMI item this review graded them, plus five fast
+> transitions with no room within 2.5 mm (DESIGN-NOTES §C51).
 
 ### 6. `datasheets/manifest.json` described a design that no longer exists — *housekeeping, FIXED*
 

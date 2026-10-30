@@ -301,7 +301,7 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   leave the ESP32 through **R72/R73** (33 Ω, 0603) ahead of every branch —
   the pin-side stubs are `SPI_SCLK_U1`/`SPI_MOSI_U1` — and four 100 nF
   0603s (**C51–C54**) sit at the bus's layer transitions as +3V3-to-GND
-  reference-transfer caps, with 29 GND stitch vias beside the rest. The
+  reference-transfer caps, with 29 GND stitch vias beside the rest (and 31 more, since 2026-10-30, beside the I2C and display/touch transitions). The
   honest coverage figures are in `DESIGN-NOTES.md` §C51; the 40 MHz
   waveforms are a bench check, not a proof. The XPT2046 touch controller itself lives on the display
   module, not this PCB. VCC runs from +5V rather than +3V3, per the
