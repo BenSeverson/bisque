@@ -2414,6 +2414,102 @@ them. R39-R43 one row east do the identical job uncrossed and land
 within 1.5 mm of ideal, which is what says this was ordering rather
 than congestion. Move one of these two and move the other.
 
+## R72 / R73 (PCB review 2026-10-05 item 5)
+
+--- Source series termination at the ESP32 ------------------------------
+Everything the bus had in series sat at the far end: R39-R43 and R54-R58
+damp the LOOM, at J5. Between U1's pin and the first branch there was
+nothing, and the first branch is AT the pin - SPI_SCLK split at U1 pad 20
+into the east run (U3/U5, under the module at y 41.25) and the south run
+(the J5 rows) with the junction on the pad itself. A 40 MHz clock driving
+~120 mm of trunk, two stubs and a loom from a bare CMOS output overshoots
+at every receiver and radiates from every transition. R72 (SCLK) and R73
+(MOSI) are the missing source resistors: U1's pin now drives a 2 mm stub
+(SPI_SCLK_U1 / SPI_MOSI_U1, locked copper) into the resistor, and the bus
+starts on the resistor's far pad, so every branch is behind it. MISO gets
+none: it is slave-driven, and its damping belongs at the slave - the
+MAX31856s run it at 1 MHz and the panel's SDO already has R56.
+
+33R because the trunk is 0.3 mm over 0.21 mm of prepreg (~60 ohm) and the
+S3's output is ~25-35 ohm at the default drive strength, so 30 + 33 is
+the series match; 22 and 47 are the bench alternatives and the footprint
+is the point, not the value. The loom lines now see 33 + 33 (R72 + R54);
+if the J5 edge is too slow for 40 MHz the connector-end part goes to 0R
+first, because the source end is what protects U3/U5. Firmware's own
+levers are the GPIO drive strength and APP_LCD_SPI_FREQ_HZ (20 MHz halves
+every harmonic and costs ~60 ms on a full-screen redraw).
+
+0603 (C23140, UNI-ROYAL 0603WAF330JT5E, Basic), the board's only 0603
+resistors: U1's south escapes are on a 1.27 mm pitch and two 0805s do not
+fit between them (two 1.45 mm pads on 1.27 mm centres overlap). The 0603s
+sit staggered - R73 at (68.0, 45.6) directly under pad 19, R72 at
+(69.65, 46.3) under pad 20 with its courtyard 0.1 mm clear of R73's -
+and the MISO escape from pad 21 runs straight down past R72's east edge.
+
+## C51-C54 and the stitch vias (PCB review 2026-10-05 item 5)
+
+--- Why the SPI bus changes reference plane ---------------------------
+The stack is F.Cu / In1 GND / In2 +3V3 / B.Cu, 0.21 mm of prepreg to
+each plane. A track on F.Cu returns on In1; the same track on B.Cu
+returns on In2. Every F-to-B via is therefore a reference change, and
+the return current has to get from one plane to the other - through the
+0.32 nF the two planes make across the 1.065 mm core (12 ohm at 40 MHz,
+spread over the whole board) or through the nearest capacitor that ties
++3V3 to GND. The bus has 37 such vias (SCLK 13, MOSI 10, MISO 14), and
+before this item the nearest 3V3-GND capacitor to any of them was a
+decoupling part 10-46 mm away.
+
+--- What was tried: re-routing ------------------------------------------
+The review's first lever is fewer vias. Eight re-route runs on scratch
+copies (router.py via_cost 12-160, every order of the three nets, T_CS
+and the chip selects ripped with them or kept): SCLK and MOSI never came
+under 7 vias, and the runs that cut vias paid in length - MOSI 330 mm at
+cost 160 against 120 mm as committed, MISO 2 vias only by taking the one
+clean F.Cu corridor from the other two. The corridor between U1's south
+edge and the J5 rows is simply full. The committed routing is kept.
+
+--- What was done: caps where they fit, GND vias everywhere -------------
+C51-C54 are 100 nF 0603 X7R (C14663, Basic), each with its own via to
+In1 beside the GND pad and to In2 beside the +3V3 pad, so the transfer
+loop is pad-via-plane and nothing else. The sites are the result of a
+search, not a choice: every 0.5 mm grid point within 3 mm of a bus via
+was tested for an 0603 plus two 0.6 mm vias clear of all copper and
+courtyards, and the four sites covering the most vias were taken. That
+is 5 of the 37 bus vias within 3 mm of a transfer cap, up from 0, and
+the farthest bus via from ANY 3V3-GND capacitor 36 mm, down from 46.
+The two clusters that matter most got nothing: the nine vias where the
+bus leaves U1 (R72/R73 and the MISO/T_CS escapes now fill that space)
+and the two five-via clusters in the J5 resistor rows. 0402 does not
+help - it is the two vias, not the body, that need the room.
+
+The GND stitch vias are the other half. 29 were added within 0.9-2.5 mm
+of a transition, so 26 of the 42 SPI+T_CS vias now have a GND via within
+1.5 mm (one did before). Be clear about what that buys: a GND via joins
+In1 to the F.Cu and B.Cu GND pours, which carry the coplanar share of a
+B.Cu track's return (the pour sits 0.2 mm beside the track, the plane
+0.21 mm below it), and it shortens the EMI loop. It does NOT connect GND
+to +3V3; only a capacitor does that. The review said exactly this and it
+stays true.
+
+The cheapest lever is R72/R73 (see above): a 33 ohm source resistor
+slows the edge, and every return-path figure here matters less at 3 ns
+than at 1 ns. The bench check (bench-smoke-test.md, "SPI bus waveforms")
+is the evidence; the firmware fallback is 20 MHz.
+
+--- Tooling notes --------------------------------------------------------
+Two things route.py does that bit here. (1) `rip_up(keep_stubs=True)`
+keeps the fine-pitch escape stubs of FANOUT parts, and the router seeds
+its search from ALL existing copper of the net - so on a net with two
+FANOUT ends (SPI_* to U3 and U5) the second stub is "reached" trivially
+and the net comes back as two islands with DRC clean on everything but
+`unconnected_items`. Rip the stubs too (keep_stubs=False) for those
+nets. (2) The same seeding means a locked island (copper the rip-up
+could not take) is treated as connected; delete every piece east of the
+cut before re-growing a branch. The nameplate pocket (gen_pcb's largest
+empty rectangle) is also an obstacle nobody draws: C52 landed in it on
+the first pass and the sync refused; the placement search now keeps a
+68.5-85.5 x 62-86 box clear, and the nameplate still had to scale to 62 %.
+
 ## general (design.py line 2250)
 
 pin 6 carried the raw lid-switch input in rev A; the lid

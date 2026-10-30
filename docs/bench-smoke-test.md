@@ -118,6 +118,20 @@ the buck's own output ahead of the mux, is not `+5V`; probe it at C44.
 - [ ] **Check U2, U11 and Q8 by hand** after 10 minutes at temperature.
       U2 is warm (it dissipates ~0.5 W). U11 is warm. Q8 should be barely
       above ambient; if it is hot, it is running on its body diode.
+- [ ] **SPI bus waveforms at 40 MHz** (PCB review 2026-10-05 item 5). With
+      the display loom and panel plugged in and the firmware driving the LCD,
+      scope `SPI_SCLK` at TP5 and `SPI_MOSI` at TP4 (the bus side of R72/R73),
+      then the same two lines at U3 pin 10/12 and at J5 pins 7/6 (the far side
+      of R54/R55). Ground the probe at the nearest GND via, spring tip, no
+      clip lead. Pass: a clean 0/3.3 V square at every point with overshoot
+      **under 0.5 V** and no ledge in the rising edge wider than ~2 ns at the
+      MAX31856 end. The series pair is 33 Ω at U1 (R72/R73) plus 33 Ω at the
+      connector (R54/R55); if the J5 edge is too slow for 40 MHz (rise more
+      than ~5 ns into the panel), fit R54/R55 as 0 Ω before touching R72/R73,
+      and if the U3 end rings, go to 47 Ω at R72/R73. The firmware fallback is
+      `APP_LCD_SPI_FREQ_HZ` to 20 MHz. Also confirm the thermocouples still
+      read with the panel attached (the R56 SDO hedge): if TP6 is held while
+      TC1 is selected, lift R56.
 - [ ] *Optional, board 1 only:* **reverse the supply** with the current
       limit at ~100 mA. The supply should sit in current limit (D8 conducting
       forward), the board should stay dark, and nothing should warm. Restore

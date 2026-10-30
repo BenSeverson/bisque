@@ -607,6 +607,7 @@ ROUTE_ORDER = [
     # The two thermocouple chip selects ride the same channel between U3 and U5
     # and are routed with them rather than with the other escapes, or the bus
     # takes the channel first and leaves them nothing.
+    ("SPI_MOSI_U1", SIG_W), ("SPI_SCLK_U1", SIG_W),   # U1 pin -> R73 / R72
     ("SPI_MOSI", SIG_W), ("SPI_SCLK", SIG_W), ("SPI_MISO", SIG_W),
     ("TC1_CS", SIG_W), ("TC2_CS", SIG_W),
     ("I2C_SDA", SIG_W), ("I2C_SCL", SIG_W),

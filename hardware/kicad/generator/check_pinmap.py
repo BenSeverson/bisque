@@ -41,9 +41,12 @@ NO_KCONFIG_SYMBOL = {"USB_DN", "USB_DP", "TXD0", "RXD0", "IO0"}
 
 # net name -> Kconfig symbol that must hold that GPIO.
 NET_KCONFIG = {
-    "SPI_MOSI": "KILN_PIN_SPI_MOSI",
+    # SCLK/MOSI leave U1 through series resistors R72/R73 (PCB review
+    # 2026-10-05 item 5): the pin-side stub is the *_U1 net, the bus beyond the
+    # resistor keeps the plain name. The GPIO is on the stub.
+    "SPI_MOSI_U1": "KILN_PIN_SPI_MOSI",
     "SPI_MISO": "KILN_PIN_SPI_MISO",
-    "SPI_SCLK": "KILN_PIN_SPI_SCLK",
+    "SPI_SCLK_U1": "KILN_PIN_SPI_SCLK",
     "TC1_CS": "KILN_PIN_TC1_CS",
     "TC2_CS": "KILN_PIN_TC2_CS",
     "SSR1_CTRL": "KILN_PIN_SSR1",

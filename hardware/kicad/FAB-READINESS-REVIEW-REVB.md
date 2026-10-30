@@ -1070,6 +1070,12 @@ error count fell 58 → 55.
 these speeds — Full-Speed USB and few-MHz SPI — but the USB pair is the cheapest
 place to add them if the board is respun for any other reason.
 
+> **Status 2026-10-29:** the SPI half is done with the PCB review's item 5:
+> 29 GND vias beside the SPI_SCLK/MOSI/MISO/T_CS transitions (26 of 42
+> within 1.5 mm; the other 16 have no room within 2.5 mm). The USB pair
+> has no vias at all on the current board — it was re-routed as one object
+> on F.Cu — so that half closed itself.
+
 ### 6. `datasheets/manifest.json` described a design that no longer exists — *housekeeping, FIXED*
 
 The manifest claims **all 26 parts failed to download** while 13 PDFs sit in the

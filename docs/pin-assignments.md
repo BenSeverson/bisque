@@ -46,8 +46,8 @@ configurable pin's Kconfig default is the GPIO in the first column.
 | 8 | 12 | ADC1_7 | `LCD_CS` | Display CS | `KILN_PIN_LCD_CS` | active |
 | 9 | 17 | ADC1_8 | `LCD_DC` | Display D/C | `KILN_PIN_LCD_DC` | active |
 | 10 | 18 | ADC1_9 | `IN3` | Protected input 3 (spare) | `KILN_PIN_IN_SPARE` | routed, **no driver** |
-| 11 | 19 | ADC2_0 | `SPI_MOSI` | SPI2 shared bus | `KILN_PIN_SPI_MOSI` | active |
-| 12 | 20 | ADC2_1 | `SPI_SCLK` | SPI2 shared bus | `KILN_PIN_SPI_SCLK` | active |
+| 11 | 19 | ADC2_0 | `SPI_MOSI_U1` | SPI2 shared bus, through R73 (33 Ω) onto `SPI_MOSI` | `KILN_PIN_SPI_MOSI` | active |
+| 12 | 20 | ADC2_1 | `SPI_SCLK_U1` | SPI2 shared bus, through R72 (33 Ω) onto `SPI_SCLK` | `KILN_PIN_SPI_SCLK` | active |
 | 13 | 21 | ADC2_2 | `SPI_MISO` | SPI2 shared bus | `KILN_PIN_SPI_MISO` | active |
 | 14 | 22 | ADC2_3 | `AUX3` | Aux channel 3, via U6 → J10.4 | `KILN_PIN_AUX3` | routed, **no driver** |
 | 15 | 8 | ADC2_4 | `AUX2` | Aux channel 2, via U6 → J10.3 | `KILN_PIN_AUX2` | routed, **no driver** |

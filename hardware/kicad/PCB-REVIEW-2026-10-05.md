@@ -392,6 +392,38 @@ the actual loom and all SPI devices fitted; edge rate also matters.
 EMI qualification remains required before calling the layout production
 proven.
 
+> **Status 2026-10-29:** done on the board, with the honest numbers below;
+> the transition count itself did not come down. Re-routing was tried
+> first, eight ways (via cost 12-160, every net order, the chip selects and
+> LCD lines ripped with the bus or not): the density between U1 and the J5
+> rows forces 7-13 vias on SCLK and MOSI whatever the penalty, and the
+> runs that did cut vias did it by doubling the trace length (MOSI 330 mm
+> at cost 160). So the committed routing stays and the review's other
+> three levers are applied. **Source series resistors:** R72/R73 (33 Ω,
+> 0603) sit between U1's SCLK/MOSI pins and the bus, ahead of every
+> branch — the SCLK junction used to be on the pad itself, so its east
+> run to U3/U5 was re-grown from behind the resistor (11 → 13 vias); MISO
+> stays bare, its damping is at the slaves. **Reference-transfer caps:**
+> C51-C54, 100 nF 0603 with their own via to each plane, at the four
+> sites a cap plus two vias fits within 3 mm of a bus via — C51 (59.8, 68)
+> and C52 (63.8, 51.3) on the SCLK/MOSI trunk, C53 (79.8, 48) on the
+> U3/U5 run, C54 (52.5, 63.5). That is **5 of 37 bus vias within 3 mm of
+> a 3V3-GND capacitor** (was 0 of 34); the farthest bus via from any such
+> cap is 36 mm (was 46). The U1 exit cluster (9 vias) and the J5-row
+> clusters have no room for one, and 0402 would not change that.
+> **GND stitching:** 29 GND vias added beside transitions, so **26 of 42
+> bus+T_CS vias have a GND via within 1.5 mm** (was 1 of 39); a GND via
+> bridges In1 to the outer GND pours, not to In2, so this helps the
+> coplanar share of the return and the EMI case, not the plane transfer.
+> Not done: the J5-end transitions are still ~36 mm from a transfer cap;
+> that end is where the loom resistors are, and the bench check below is
+> what decides whether it matters. **Bench:** `docs/bench-smoke-test.md`
+> now scopes SCLK/MOSI at TP5/TP4, U3 and J5 at 40 MHz with the tuning
+> order (R54/R55 to 0R first, then R72/R73 to 47R, then 20 MHz in
+> firmware). Side effect: the nameplate pocket shrank and the silk
+> nameplate prints at 62 % (floor 60 %). Details in DESIGN-NOTES §R72 and
+> §C51.
+
 ### 6. [P2] Power-mux bypass placement and USB clamp coordination need improvement
 
 > **Status 2026-10-23:** the input-capacitor half is done: C47 is 0.5 mm from VIN2, C48 0.7 mm from VIN1, each with a GND via. The USB clamp coordination part is untouched.

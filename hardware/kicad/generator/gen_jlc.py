@@ -185,6 +185,8 @@ JLC_PLACEMENT = {
     "C3013945": (  0,  0.000, -0.477),   # U1    ESP32-S3-WROOM-1U                    resid 0.022 (40 pin#)
     "C318884":  (  0,  0.000,  0.000),   # SW1   SW_Push_1P1T_XKB_TS-1187A            resid 0.025 (4 shape)
     "C49678":   (  0,  0.000,  0.000),   # C2    C_0805_2012Metric                    resid 0.050 (2 pin#)
+    "C14663":   (  0,  0.000,  0.000),   # C51   C_0603_1608Metric                    fitted by check_jlc_placement
+    "C23140":   (  0,  0.000,  0.000),   # R72   R_0603_1608Metric                    fitted by check_jlc_placement
     "C123302":  (180,  0.000,  0.000),   # U10   SSOP-8_2.95x2.8mm_P0.65mm            fitted by check_jlc_placement
     # U8/U9. A 4-pad package whose pads are NOT symmetric about the origin
     # (1/2 one side, 3/4 the other), so the pin-numbered fit disambiguates
@@ -320,6 +322,14 @@ LCSC = {
     # to ~0.3 V on a pin rated 6 V. Same part as C27/C29/C33, so no new line;
     # the 0805 land also takes C15850 (10 uF) if the bench wants more.
     "C50": ("C1779", "CL21A475KAQNNNE 4.7uF 25V X5R 0805 - VBUS bulk, 3.2uF at 5V", True, True),
+    # C51-C54: +3V3-to-GND reference-transfer caps at the SPI bus's F.Cu/B.Cu
+    # transitions (PCB review 2026-10-05 item 5). 0603, not the 0805 line the
+    # rest of the board uses: an 0805 with a via beside each pad does not fit
+    # at any of the four sites. Basic part, so a new line costs no feeder fee.
+    "C51": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603 - SPI return path", True, True),
+    "C52": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603 - SPI return path", True, True),
+    "C53": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603 - SPI return path", True, True),
+    "C54": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603 - SPI return path", True, True),
     "C49": ("C28323", "CL21B105KBFNNNE 1uF 50V X7R 0805", True, True),
     "D3": ("C81598", "1N4148W SOD-123 - VLED drop diode, silicon on purpose", True, True),
     "D4": ("C81598", "1N4148W SOD-123", True, True),
@@ -480,6 +490,13 @@ LCSC = {
     "R69": ("C17414", "10k 0805 1%", True, True),
     "R70": ("C17414", "10k 0805 1%", True, True),
     "R71": ("C17414", "10k 0805 1%", True, True),
+    # R72/R73: source series termination on SPI_SCLK / SPI_MOSI at U1's pins,
+    # ahead of every branch (PCB review 2026-10-05 item 5). 0603, not the
+    # board's 0805 resistor line: two 0805s do not fit between U1's 1.27 mm
+    # escapes. Basic part, no feeder fee. The value is a bench decision
+    # (0/22/47 are the alternatives), the footprint is the point.
+    "R72": ("C23140", "33R 0603 1%", True, True),
+    "R73": ("C23140", "33R 0603 1%", True, True),
     "SW1": ("C318884", "TS-1187A-B-A-B 5.1x5.1mm SMD tactile switch", True, True),
     "SW2": ("C318884", "TS-1187A-B-A-B 5.1x5.1mm SMD tactile switch", True, True),
     # Containment, not isolation - see DESIGN-NOTES.md's SSR block. SOP-4 rather

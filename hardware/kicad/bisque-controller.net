@@ -2951,6 +2951,294 @@
 			)
 		)
 		(comp
+			(ref "C51")
+			(value "100nF")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
+			(description "Unpolarized capacitor")
+			(fields
+				(field
+					(name "MPN") "CC0603KRX7R9BB104")
+				(field
+					(name "LCSC") "C14663")
+				(field
+					(name "Manufacturer") "YAGEO")
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
+				(field
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
+				(field
+					(name "Description") "Unpolarized capacitor")
+			)
+			(libsource
+				(lib "Device")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "MPN")
+				(value "CC0603KRX7R9BB104")
+			)
+			(property
+				(name "LCSC")
+				(value "C14663")
+			)
+			(property
+				(name "Manufacturer")
+				(value "YAGEO")
+			)
+			(property
+				(name "Sheetname")
+				(value "mcu")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheets/mcu.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/mcu/")
+				(tstamps "/0b4ed2f0-cfc7-58f4-8f05-750454c503bf/")
+			)
+			(tstamps "4244e298-1298-4fc3-b55e-4b84013c6b4e")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C52")
+			(value "100nF")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
+			(description "Unpolarized capacitor")
+			(fields
+				(field
+					(name "MPN") "CC0603KRX7R9BB104")
+				(field
+					(name "LCSC") "C14663")
+				(field
+					(name "Manufacturer") "YAGEO")
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
+				(field
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
+				(field
+					(name "Description") "Unpolarized capacitor")
+			)
+			(libsource
+				(lib "Device")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "MPN")
+				(value "CC0603KRX7R9BB104")
+			)
+			(property
+				(name "LCSC")
+				(value "C14663")
+			)
+			(property
+				(name "Manufacturer")
+				(value "YAGEO")
+			)
+			(property
+				(name "Sheetname")
+				(value "mcu")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheets/mcu.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/mcu/")
+				(tstamps "/0b4ed2f0-cfc7-58f4-8f05-750454c503bf/")
+			)
+			(tstamps "2ca2556e-5006-43d6-9ee2-7fd3c819ef6f")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C53")
+			(value "100nF")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
+			(description "Unpolarized capacitor")
+			(fields
+				(field
+					(name "MPN") "CC0603KRX7R9BB104")
+				(field
+					(name "LCSC") "C14663")
+				(field
+					(name "Manufacturer") "YAGEO")
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
+				(field
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
+				(field
+					(name "Description") "Unpolarized capacitor")
+			)
+			(libsource
+				(lib "Device")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "MPN")
+				(value "CC0603KRX7R9BB104")
+			)
+			(property
+				(name "LCSC")
+				(value "C14663")
+			)
+			(property
+				(name "Manufacturer")
+				(value "YAGEO")
+			)
+			(property
+				(name "Sheetname")
+				(value "mcu")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheets/mcu.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/mcu/")
+				(tstamps "/0b4ed2f0-cfc7-58f4-8f05-750454c503bf/")
+			)
+			(tstamps "f6fde3a6-2a0f-4e5e-8136-12ca0e29ce38")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C54")
+			(value "100nF")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
+			(description "Unpolarized capacitor")
+			(fields
+				(field
+					(name "MPN") "CC0603KRX7R9BB104")
+				(field
+					(name "LCSC") "C14663")
+				(field
+					(name "Manufacturer") "YAGEO")
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
+				(field
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
+				(field
+					(name "Description") "Unpolarized capacitor")
+			)
+			(libsource
+				(lib "Device")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "MPN")
+				(value "CC0603KRX7R9BB104")
+			)
+			(property
+				(name "LCSC")
+				(value "C14663")
+			)
+			(property
+				(name "Manufacturer")
+				(value "YAGEO")
+			)
+			(property
+				(name "Sheetname")
+				(value "mcu")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheets/mcu.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/mcu/")
+				(tstamps "/0b4ed2f0-cfc7-58f4-8f05-750454c503bf/")
+			)
+			(tstamps "f44ef6ce-fa37-45c7-8b46-b74ac321f769")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
 			(ref "D3")
 			(value "1N4148W")
 			(footprint "Diode_SMD:D_SOD-123")
@@ -5078,6 +5366,150 @@
 				(tstamps "/0b4ed2f0-cfc7-58f4-8f05-750454c503bf/")
 			)
 			(tstamps "e4699df6-5587-5438-9694-0e464be2a681")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "R72")
+			(value "33")
+			(footprint "Resistor_SMD:R_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140")
+			(description "Resistor")
+			(fields
+				(field
+					(name "MPN") "0603WAF330JT5E")
+				(field
+					(name "LCSC") "C23140")
+				(field
+					(name "Manufacturer") "UNI-ROYAL")
+				(field
+					(name "Footprint") "Resistor_SMD:R_0603_1608Metric")
+				(field
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140")
+				(field
+					(name "Description") "Resistor")
+			)
+			(libsource
+				(lib "Device")
+				(part "R")
+				(description "Resistor")
+			)
+			(property
+				(name "MPN")
+				(value "0603WAF330JT5E")
+			)
+			(property
+				(name "LCSC")
+				(value "C23140")
+			)
+			(property
+				(name "Manufacturer")
+				(value "UNI-ROYAL")
+			)
+			(property
+				(name "Sheetname")
+				(value "mcu")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheets/mcu.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "R res resistor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "R_*")
+			)
+			(sheetpath
+				(names "/mcu/")
+				(tstamps "/0b4ed2f0-cfc7-58f4-8f05-750454c503bf/")
+			)
+			(tstamps "e81aed2f-7412-4713-8fbf-94984f513a71")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "R73")
+			(value "33")
+			(footprint "Resistor_SMD:R_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140")
+			(description "Resistor")
+			(fields
+				(field
+					(name "MPN") "0603WAF330JT5E")
+				(field
+					(name "LCSC") "C23140")
+				(field
+					(name "Manufacturer") "UNI-ROYAL")
+				(field
+					(name "Footprint") "Resistor_SMD:R_0603_1608Metric")
+				(field
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140")
+				(field
+					(name "Description") "Resistor")
+			)
+			(libsource
+				(lib "Device")
+				(part "R")
+				(description "Resistor")
+			)
+			(property
+				(name "MPN")
+				(value "0603WAF330JT5E")
+			)
+			(property
+				(name "LCSC")
+				(value "C23140")
+			)
+			(property
+				(name "Manufacturer")
+				(value "UNI-ROYAL")
+			)
+			(property
+				(name "Sheetname")
+				(value "mcu")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheets/mcu.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "R res resistor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "R_*")
+			)
+			(sheetpath
+				(names "/mcu/")
+				(tstamps "/0b4ed2f0-cfc7-58f4-8f05-750454c503bf/")
+			)
+			(tstamps "cfc45c42-2ef9-44b0-8c77-7be851ad98b1")
 			(units
 				(unit
 					(name "A")
@@ -16460,6 +16892,26 @@
 				(pintype "passive")
 			)
 			(node
+				(ref "C51")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "C52")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "C53")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "C54")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
 				(ref "C6")
 				(pin "1")
 				(pintype "passive")
@@ -17921,16 +18373,15 @@
 				(pintype "passive")
 			)
 			(node
+				(ref "R73")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
 				(ref "TP4")
 				(pin "1")
 				(pinfunction "1_1")
 				(pintype "passive")
-			)
-			(node
-				(ref "U1")
-				(pin "19")
-				(pinfunction "IO11_19")
-				(pintype "bidirectional")
 			)
 			(node
 				(ref "U3")
@@ -17947,6 +18398,22 @@
 		)
 		(net
 			(code "60")
+			(name "/mcu/SPI_MOSI_U1")
+			(class "Default")
+			(node
+				(ref "R73")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "U1")
+				(pin "19")
+				(pinfunction "IO11_19")
+				(pintype "bidirectional")
+			)
+		)
+		(net
+			(code "61")
 			(name "/mcu/SPI_SCLK")
 			(class "Default")
 			(node
@@ -17960,16 +18427,15 @@
 				(pintype "passive")
 			)
 			(node
+				(ref "R72")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
 				(ref "TP5")
 				(pin "1")
 				(pinfunction "1_1")
 				(pintype "passive")
-			)
-			(node
-				(ref "U1")
-				(pin "20")
-				(pinfunction "IO12_20")
-				(pintype "bidirectional")
 			)
 			(node
 				(ref "U3")
@@ -17985,7 +18451,23 @@
 			)
 		)
 		(net
-			(code "61")
+			(code "62")
+			(name "/mcu/SPI_SCLK_U1")
+			(class "Default")
+			(node
+				(ref "R72")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "U1")
+				(pin "20")
+				(pinfunction "IO12_20")
+				(pintype "bidirectional")
+			)
+		)
+		(net
+			(code "63")
 			(name "/mcu/SSR1_CTRL")
 			(class "Default")
 			(node
@@ -18007,7 +18489,7 @@
 			)
 		)
 		(net
-			(code "62")
+			(code "64")
 			(name "/mcu/SSR2_CTRL")
 			(class "Default")
 			(node
@@ -18029,7 +18511,7 @@
 			)
 		)
 		(net
-			(code "63")
+			(code "65")
 			(name "/mcu/TC1_CS")
 			(class "Default")
 			(node
@@ -18051,7 +18533,7 @@
 			)
 		)
 		(net
-			(code "64")
+			(code "66")
 			(name "/mcu/TC2_CS")
 			(class "Default")
 			(node
@@ -18073,7 +18555,7 @@
 			)
 		)
 		(net
-			(code "65")
+			(code "67")
 			(name "/mcu/TXD0")
 			(class "Default")
 			(node
@@ -18090,7 +18572,7 @@
 			)
 		)
 		(net
-			(code "66")
+			(code "68")
 			(name "/mcu/T_CLK_R")
 			(class "Default")
 			(node
@@ -18106,7 +18588,7 @@
 			)
 		)
 		(net
-			(code "67")
+			(code "69")
 			(name "/mcu/T_CS")
 			(class "Default")
 			(node
@@ -18127,7 +18609,7 @@
 			)
 		)
 		(net
-			(code "68")
+			(code "70")
 			(name "/mcu/T_CS_R")
 			(class "Default")
 			(node
@@ -18143,7 +18625,7 @@
 			)
 		)
 		(net
-			(code "69")
+			(code "71")
 			(name "/mcu/T_DIN_R")
 			(class "Default")
 			(node
@@ -18159,7 +18641,7 @@
 			)
 		)
 		(net
-			(code "70")
+			(code "72")
 			(name "/mcu/T_DO_R")
 			(class "Default")
 			(node
@@ -18175,7 +18657,7 @@
 			)
 		)
 		(net
-			(code "71")
+			(code "73")
 			(name "/mcu/T_IRQ")
 			(class "Default")
 			(node
@@ -18191,7 +18673,7 @@
 			)
 		)
 		(net
-			(code "72")
+			(code "74")
 			(name "/mcu/T_IRQ_R")
 			(class "Default")
 			(node
@@ -18207,7 +18689,7 @@
 			)
 		)
 		(net
-			(code "73")
+			(code "75")
 			(name "/mcu/USB_DN")
 			(class "Default")
 			(node
@@ -18242,7 +18724,7 @@
 			)
 		)
 		(net
-			(code "74")
+			(code "76")
 			(name "/mcu/USB_DP")
 			(class "Default")
 			(node
@@ -18277,7 +18759,7 @@
 			)
 		)
 		(net
-			(code "75")
+			(code "77")
 			(name "/mcu/VLED")
 			(class "Default")
 			(node
@@ -18299,7 +18781,7 @@
 			)
 		)
 		(net
-			(code "76")
+			(code "78")
 			(name "/mcu/WS_DIN")
 			(class "Default")
 			(node
@@ -18315,7 +18797,7 @@
 			)
 		)
 		(net
-			(code "77")
+			(code "79")
 			(name "/power/BUCK_5V")
 			(class "Default")
 			(node
@@ -18369,7 +18851,7 @@
 			)
 		)
 		(net
-			(code "78")
+			(code "80")
 			(name "/power/LEDP_K")
 			(class "Default")
 			(node
@@ -18385,7 +18867,7 @@
 			)
 		)
 		(net
-			(code "79")
+			(code "81")
 			(name "/power/MUX_PR1")
 			(class "Default")
 			(node
@@ -18406,7 +18888,7 @@
 			)
 		)
 		(net
-			(code "80")
+			(code "82")
 			(name "/power/SW_5V")
 			(class "Default")
 			(node
@@ -18429,7 +18911,7 @@
 			)
 		)
 		(net
-			(code "81")
+			(code "83")
 			(name "/power/VIN")
 			(class "Default")
 			(node
@@ -18445,7 +18927,7 @@
 			)
 		)
 		(net
-			(code "82")
+			(code "84")
 			(name "/power/VIN_F")
 			(class "Default")
 			(node
@@ -18467,7 +18949,7 @@
 			)
 		)
 		(net
-			(code "83")
+			(code "85")
 			(name "/power/VIN_GATE")
 			(class "Default")
 			(node
@@ -18489,7 +18971,7 @@
 			)
 		)
 		(net
-			(code "84")
+			(code "86")
 			(name "/power/VIN_P")
 			(class "Default")
 			(node
@@ -18544,7 +19026,7 @@
 			)
 		)
 		(net
-			(code "85")
+			(code "87")
 			(name "/ssr/SSR1_GATE")
 			(class "Default")
 			(node
@@ -18571,7 +19053,7 @@
 			)
 		)
 		(net
-			(code "86")
+			(code "88")
 			(name "/ssr/SSR1_IND_A")
 			(class "Default")
 			(node
@@ -18587,7 +19069,7 @@
 			)
 		)
 		(net
-			(code "87")
+			(code "89")
 			(name "/ssr/SSR1_LED_A")
 			(class "Default")
 			(node
@@ -18602,7 +19084,7 @@
 			)
 		)
 		(net
-			(code "88")
+			(code "90")
 			(name "/ssr/SSR1_OC")
 			(class "Default")
 			(node
@@ -18617,7 +19099,7 @@
 			)
 		)
 		(net
-			(code "89")
+			(code "91")
 			(name "/ssr/SSR1_OUT")
 			(class "Default")
 			(node
@@ -18645,7 +19127,7 @@
 			)
 		)
 		(net
-			(code "90")
+			(code "92")
 			(name "/ssr/SSR2_GATE")
 			(class "Default")
 			(node
@@ -18672,7 +19154,7 @@
 			)
 		)
 		(net
-			(code "91")
+			(code "93")
 			(name "/ssr/SSR2_IND_A")
 			(class "Default")
 			(node
@@ -18688,7 +19170,7 @@
 			)
 		)
 		(net
-			(code "92")
+			(code "94")
 			(name "/ssr/SSR2_LED_A")
 			(class "Default")
 			(node
@@ -18703,7 +19185,7 @@
 			)
 		)
 		(net
-			(code "93")
+			(code "95")
 			(name "/ssr/SSR2_OC")
 			(class "Default")
 			(node
@@ -18718,7 +19200,7 @@
 			)
 		)
 		(net
-			(code "94")
+			(code "96")
 			(name "/ssr/SSR2_OUT")
 			(class "Default")
 			(node
@@ -18746,7 +19228,7 @@
 			)
 		)
 		(net
-			(code "95")
+			(code "97")
 			(name "/ssr/SSR_24V")
 			(class "Default")
 			(node
@@ -18791,7 +19273,7 @@
 			)
 		)
 		(net
-			(code "96")
+			(code "98")
 			(name "/ssr/SSR_EN")
 			(class "Default")
 			(node
@@ -18813,7 +19295,7 @@
 			)
 		)
 		(net
-			(code "97")
+			(code "99")
 			(name "/ssr/SSR_HS_D")
 			(class "Default")
 			(node
@@ -18829,7 +19311,7 @@
 			)
 		)
 		(net
-			(code "98")
+			(code "100")
 			(name "/ssr/SSR_HS_G")
 			(class "Default")
 			(node
@@ -18856,7 +19338,7 @@
 			)
 		)
 		(net
-			(code "99")
+			(code "101")
 			(name "/ssr/SSR_PG")
 			(class "Default")
 			(node
@@ -18884,7 +19366,7 @@
 			)
 		)
 		(net
-			(code "100")
+			(code "102")
 			(name "/ssr/WDT_CT_N")
 			(class "Default")
 			(node
@@ -18905,7 +19387,7 @@
 			)
 		)
 		(net
-			(code "101")
+			(code "103")
 			(name "/ssr/WDT_CT_P")
 			(class "Default")
 			(node
@@ -18937,7 +19419,7 @@
 			)
 		)
 		(net
-			(code "102")
+			(code "104")
 			(name "/ssr/WDT_KICK")
 			(class "Default")
 			(node
@@ -18959,7 +19441,7 @@
 			)
 		)
 		(net
-			(code "103")
+			(code "105")
 			(name "/ssr/WDT_OK")
 			(class "Default")
 			(node
@@ -18981,7 +19463,7 @@
 			)
 		)
 		(net
-			(code "104")
+			(code "106")
 			(name "/thermocouples/TC1_N")
 			(class "Default")
 			(node
@@ -19003,7 +19485,7 @@
 			)
 		)
 		(net
-			(code "105")
+			(code "107")
 			(name "/thermocouples/TC1_N_F")
 			(class "Default")
 			(node
@@ -19029,7 +19511,7 @@
 			)
 		)
 		(net
-			(code "106")
+			(code "108")
 			(name "/thermocouples/TC1_P")
 			(class "Default")
 			(node
@@ -19045,7 +19527,7 @@
 			)
 		)
 		(net
-			(code "107")
+			(code "109")
 			(name "/thermocouples/TC1_P_F")
 			(class "Default")
 			(node
@@ -19071,7 +19553,7 @@
 			)
 		)
 		(net
-			(code "108")
+			(code "110")
 			(name "/thermocouples/TC2_N")
 			(class "Default")
 			(node
@@ -19093,7 +19575,7 @@
 			)
 		)
 		(net
-			(code "109")
+			(code "111")
 			(name "/thermocouples/TC2_N_F")
 			(class "Default")
 			(node
@@ -19119,7 +19601,7 @@
 			)
 		)
 		(net
-			(code "110")
+			(code "112")
 			(name "/thermocouples/TC2_P")
 			(class "Default")
 			(node
@@ -19135,7 +19617,7 @@
 			)
 		)
 		(net
-			(code "111")
+			(code "113")
 			(name "/thermocouples/TC2_P_F")
 			(class "Default")
 			(node
@@ -19161,7 +19643,7 @@
 			)
 		)
 		(net
-			(code "112")
+			(code "114")
 			(name "GND")
 			(class "Plane")
 			(node
@@ -19361,6 +19843,26 @@
 			)
 			(node
 				(ref "C50")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C51")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C52")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C53")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C54")
 				(pin "2")
 				(pintype "passive")
 			)
@@ -19864,7 +20366,7 @@
 			)
 		)
 		(net
-			(code "113")
+			(code "115")
 			(name "Net-(R67-Pad2)")
 			(class "Default")
 			(node
@@ -19879,7 +20381,7 @@
 			)
 		)
 		(net
-			(code "114")
+			(code "116")
 			(name "VBUS")
 			(class "Track_0.50mm")
 			(node
@@ -19930,7 +20432,7 @@
 			)
 		)
 		(net
-			(code "115")
+			(code "117")
 			(name "unconnected-(D5-IO3-Pad4)")
 			(class "Default")
 			(node
@@ -19941,7 +20443,7 @@
 			)
 		)
 		(net
-			(code "116")
+			(code "118")
 			(name "unconnected-(J1-SBU1-PadA8)")
 			(class "Default")
 			(node
@@ -19952,7 +20454,7 @@
 			)
 		)
 		(net
-			(code "117")
+			(code "119")
 			(name "unconnected-(J1-SBU2-PadB8)")
 			(class "Default")
 			(node
@@ -19963,7 +20465,7 @@
 			)
 		)
 		(net
-			(code "118")
+			(code "120")
 			(name "unconnected-(LED1-DOUT-Pad2)")
 			(class "Default")
 			(node
@@ -19974,7 +20476,7 @@
 			)
 		)
 		(net
-			(code "119")
+			(code "121")
 			(name "unconnected-(U3-DNC-Pad6)")
 			(class "Default")
 			(node
@@ -19985,7 +20487,7 @@
 			)
 		)
 		(net
-			(code "120")
+			(code "122")
 			(name "unconnected-(U3-~{DRDY}-Pad7)")
 			(class "Default")
 			(node
@@ -19996,7 +20498,7 @@
 			)
 		)
 		(net
-			(code "121")
+			(code "123")
 			(name "unconnected-(U3-~{FAULT}-Pad13)")
 			(class "Default")
 			(node
@@ -20007,7 +20509,7 @@
 			)
 		)
 		(net
-			(code "122")
+			(code "124")
 			(name "unconnected-(U5-DNC-Pad6)")
 			(class "Default")
 			(node
@@ -20018,7 +20520,7 @@
 			)
 		)
 		(net
-			(code "123")
+			(code "125")
 			(name "unconnected-(U5-~{DRDY}-Pad7)")
 			(class "Default")
 			(node
@@ -20029,7 +20531,7 @@
 			)
 		)
 		(net
-			(code "124")
+			(code "126")
 			(name "unconnected-(U5-~{FAULT}-Pad13)")
 			(class "Default")
 			(node
@@ -20040,7 +20542,7 @@
 			)
 		)
 		(net
-			(code "125")
+			(code "127")
 			(name "unconnected-(U6-O4-Pad13)")
 			(class "Default")
 			(node
@@ -20051,7 +20553,7 @@
 			)
 		)
 		(net
-			(code "126")
+			(code "128")
 			(name "unconnected-(U6-O5-Pad12)")
 			(class "Default")
 			(node
@@ -20062,7 +20564,7 @@
 			)
 		)
 		(net
-			(code "127")
+			(code "129")
 			(name "unconnected-(U6-O6-Pad11)")
 			(class "Default")
 			(node
@@ -20073,7 +20575,7 @@
 			)
 		)
 		(net
-			(code "128")
+			(code "130")
 			(name "unconnected-(U6-O7-Pad10)")
 			(class "Default")
 			(node
@@ -20084,7 +20586,7 @@
 			)
 		)
 		(net
-			(code "129")
+			(code "131")
 			(name "unconnected-(U7-CF1-Pad23)")
 			(class "Default")
 			(node
@@ -20095,7 +20597,7 @@
 			)
 		)
 		(net
-			(code "130")
+			(code "132")
 			(name "unconnected-(U7-CF2-Pad24)")
 			(class "Default")
 			(node
@@ -20106,7 +20608,7 @@
 			)
 		)
 		(net
-			(code "131")
+			(code "133")
 			(name "unconnected-(U7-CLKOUT-Pad19)")
 			(class "Default")
 			(node
@@ -20117,7 +20619,7 @@
 			)
 		)
 		(net
-			(code "132")
+			(code "134")
 			(name "unconnected-(U7-ZX-Pad1)")
 			(class "Default")
 			(node
@@ -20128,7 +20630,7 @@
 			)
 		)
 		(net
-			(code "133")
+			(code "135")
 			(name "unconnected-(U7-ZX_I-Pad21)")
 			(class "Default")
 			(node
@@ -20139,7 +20641,7 @@
 			)
 		)
 		(net
-			(code "134")
+			(code "136")
 			(name "unconnected-(U7-~{IRQ}-Pad22)")
 			(class "Default")
 			(node
@@ -20150,7 +20652,7 @@
 			)
 		)
 		(net
-			(code "135")
+			(code "137")
 			(name "unconnected-(U7-~{REVP}-Pad20)")
 			(class "Default")
 			(node
@@ -20161,7 +20663,7 @@
 			)
 		)
 		(net
-			(code "136")
+			(code "138")
 			(name "unconnected-(U12-ST-Pad8)")
 			(class "Default")
 			(node
@@ -20172,7 +20674,7 @@
 			)
 		)
 		(net
-			(code "137")
+			(code "139")
 			(name "unconnected-(Y1-EN-Pad1)")
 			(class "Default")
 			(node

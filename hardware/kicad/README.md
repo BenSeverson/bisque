@@ -297,7 +297,13 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   SPI2 bus through 33 Ω series damping resistors (R39/R41/R42 — the bus now
   multi-drops the LCD at 40 MHz plus two MAX31856s and the touch controller
   at lower clocks); only `T_CS` and `T_IRQ` cost new
-  dedicated GPIOs. The XPT2046 touch controller itself lives on the display
+  dedicated GPIOs. Since 2026-10-29 (PCB review item 5) SCLK and MOSI also
+  leave the ESP32 through **R72/R73** (33 Ω, 0603) ahead of every branch —
+  the pin-side stubs are `SPI_SCLK_U1`/`SPI_MOSI_U1` — and four 100 nF
+  0603s (**C51–C54**) sit at the bus's layer transitions as +3V3-to-GND
+  reference-transfer caps, with 29 GND stitch vias beside the rest. The
+  honest coverage figures are in `DESIGN-NOTES.md` §C51; the 40 MHz
+  waveforms are a bench check, not a proof. The XPT2046 touch controller itself lives on the display
   module, not this PCB. VCC runs from +5V rather than +3V3, per the
   module's own manual and reference wiring diagrams, with no level shifter
   needed on CS/RESET/DC/MOSI/SCK.
@@ -1023,6 +1029,8 @@ re-derived in one direction only:
 make pcb-netlist   # export + stamp bisque-controller.net from the schematic
 make pcb-sync      # apply the netlist to the board; re-derive owned silk, zones, stack-up; fill + DRC
 make pcb-route     # route every unconnected net over the live board (NETS=a,b rips those up first)
+                   # known gap: a net with two FANOUT (fine-pitch) ends comes back as two
+                   # islands - the kept escape stubs seed the search; see DESIGN-NOTES §C51
 make pcb-check     # every checker, nothing rebuilt
 make pcb-fab       # gerbers, drill, gerbers.zip, BOM/CPL, PDFs
 make pcb           # sync + fab + check + render
