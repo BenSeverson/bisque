@@ -557,6 +557,10 @@ refutation pass the 2026-09-02 round had. See "Not performed".
   Low — C22 is on the filtered side.
 - **VBUS has no local capacitor or clamp** (Konnect, analyzer). D2 → C1 is
   the only bulk; U4's VCC pin references VBUS. Add 1 µF at J1 in rev C. Low.
+  **Status 2026-10-29:** done twice over — C47 (1 µF, at U12's VIN2 pin,
+  A6 above) and C50 (4.7 µF at J1, PCB review 2026-10-05 item 6), the
+  latter sized so an 8 kV contact discharge steered into VBUS by U4 is a
+  0.3 V step; see `DESIGN-NOTES.md` at C50.
 - **SJ1 is a 24 V-onto-+5V trap.** With `AUX_VP` fed from the 24 V rail at
   J10.1, bridging SJ1 puts 24 V on +5V (U2 is 6 V abs max; LED1, BZ1 and the
   SSR gate rail follow). The silk says `AUX=5V` and the enclosure README

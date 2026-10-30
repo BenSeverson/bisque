@@ -659,6 +659,96 @@ typical case, not a tolerance, and ~0.5 uF is still what the pin
 needs for a sub-amp step. A 6.3 V part would read
 higher on paper and sit 1.1 V above a 5.25 V port at rated voltage.
 
+## C50
+
+--- VBUS bulk, and the USB clamp coordination (2026-10-29, PCB review
+2026-10-05 item 6, second half) ---------------------------------------
+4.7 uF 25 V X5R 0805 (C1779, the C27/C29/C33 part, Basic) across VBUS
+at (52.4, 31.1), between J1's VBUS escape and R4, pad 1 on the locked
+VBUS trunk at x 50.45 and pad 2 on its own GND via. It is the answer to
+the reviewer's point that "U4 clamps transients so U12 is safe" was not
+supported, and the point was right. Here is what the parts actually do.
+
+THE PARTS BEHIND THE PORT. U12 (TPS2116) VIN2 is on VBUS: 6 V absolute
+maximum, 5.5 V recommended. U2 (TLV1117LV) sits behind U12 on +5V, also
+6 V. U4 (SRV05-4, C7420376) has its VP pin on VBUS, so every positive
+strike on D+ or D- is steered INTO VBUS, and its rail clamp (VP to VN)
+is a "5 V" TVS in name only: 5 V working, 6 V minimum breakdown at
+1 mA, 13.5 V typical and 15 V maximum at 4 A, 8/20 us. Dynamic
+resistance from its own table is (13.5 - 6)/4 ~ 1.9 ohm. Nothing in
+that device holds a 5 V bus under 6 V at any current worth naming.
+
+WHAT PROTECTS U12 IS CHARGE SHARING, NOT THE TVS. Define the exposure
+first: this is a bench port inside the enclosure, connected to a
+laptop while flashing or debugging. The condition it is coordinated
+against is IEC 61000-4-2 contact discharge, +-8 kV (level 4), applied
+to the receptacle or its lines during handling. There is no IEC
+61000-4-5 surge requirement on it and none is claimed; 15 kV air
+discharge to a port inside a closed metal box is not a credible event
+and is quoted below for scale only. An 8 kV gun is 150 pF at 8 kV,
+1.2 uC, and all of it ends up on the VBUS node whichever pin it hits,
+because U4's steering diodes route D+/D- strikes there. With a
+capacitance C on that node the bus steps by Q/C and the TVS does
+almost nothing: at 6.5 V it carries 0.26 A against a 24 A gun current
+(8 kV / 330 ohm), so it only drains the node back to ~6 V over the
+following microseconds. The capacitor sets the peak.
+  Before C50: C47 alone, 1 uF nominal, 0.55 uF at 5 V (Samsung's bias
+  curve for CL05A105KA5NQN, -44.8%): 1.2 uC / 0.55 uF = 2.2 V, i.e.
+  7.2-7.5 V on a 5.0-5.25 V bus, on a pin rated 6 V. That was the gap.
+  With C50: CL21A475KAQNNN keeps 3.20 uF at 5 V (-31.8%), 3.75 uF for
+  the node: 0.32 V, peak 5.3-5.6 V. Margin 0.4 V at the USB-C ceiling
+  of 5.25 V, 0.7 V at a nominal port. (15 kV air, 2.25 uC: 0.60 V,
+  5.6-5.85 V - under 6 V even then.)
+The 10 uF part in the same land (C15850, CL21A106KAYNNN) reads 4.97 uF
+at 5 V, not 10 - its bias loss is -50% - so it would buy 0.1 V, and it
+puts the port's capacitance at 11 uF nominal against the USB 2.0 limit
+of 10 uF at a downstream port (s7.2.4.1) and 55 uC of inrush against
+the 50 uC the compliance test allows. 4.7 uF + 1 uF = 5.7 uF nominal,
+28 uC, is inside both. The land takes either, so the bench can move to
+10 uF if the hot-plug waveform below says so, with no copper change.
+
+HOT-PLUG IS THE SAME CAPACITOR DOING A SECOND JOB. Plugging into a live
+port rings the cable inductance (~1 uH for a metre, both conductors)
+against the node capacitance, and the overshoot is set by the damping
+ratio zeta = R / (2 sqrt(L/C)) where R is the series resistance of
+cable, contacts and the host's current limiter. sqrt(L/C) was 1.35 ohm
+with 0.55 uF and is 0.52 ohm with 3.75 uF, so for the same R the ring
+is better damped now: at R = 0.3 ohm the overshoot falls from ~70% to
+~39% (8.5 V -> 6.9 V peak), at R = 0.8 ohm from ~37% to ~4% (6.9 V ->
+5.2 V). The real R is the host's, not ours, and is the one number this
+note cannot supply, which is why the smoke test scopes VBUS at C50
+during insertion into the laptops actually used; the 10 uF fallback
+exists for that result. More bulk helps this case monotonically, and
+the USB limit is the only thing that stops it at 4.7.
+
+WHAT IS STILL NOT PROTECTED, SAID PLAINLY. A sustained over-voltage
+from the host - a defective adapter putting 9-20 V on VBUS - is not
+covered. A Type-C sink with 5.1 k Rd (R3/R4) is never offered more
+than vSafe5V by a compliant source, and legacy QC/"fast charge"
+schemes need a D+/D- handshake this board never gives, so the case is
+a broken supply, not a protocol one. If it happens, U4's rail clamp
+conducts from 6 V, sits at 7-8 V at a few hundred milliamps, dissipates
+watts it is not rated to hold and fails short in seconds, which drops
+the bus and trips the source's limit - and U12 has by then seen 7-8 V
+on a 6 V pin for those seconds. Rev C, if the port is ever more than a
+bench port: an OVP load switch with a ~6 V cutoff (TPS2594x / NCP360
+class) in the VBUS path, which is also the only kind of part that holds
+a 5 V bus under 6 V against a sustained source. The TVS-on-the-rail
+pattern cannot, by physics, and the note at U4 no longer says it does.
+
+Through the mux, U2 and the +5V loads see the VBUS bump attenuated by
++5V's own ~25 uF through U12's 40 mohm channel - tens of millivolts at
+most - and only while U12 is on VIN2, i.e. on the bench.
+
+HOLD-UP, since the review raised it with the same breath: the 8 us
+break-before-make at 0.5 A into +5V's ~25 uF (C1 13.65 uF at 5 V bias
++ C11 + C2) is 160 mV, on top of the dip to the PR1 threshold that the
+U12 note derives, so the switchover depth is still set by the
+threshold and not by capacitance. No output capacitor was added at
+U12's VOUT pin: the datasheet asks for >= 0.1 uF for linear soft start
+and C1 is 11.7 mm away on a 0.7 mm track, which is inductive enough to
+matter at 100 MHz and not at the microsecond edges a soft start has.
+
 ## C41 (design.py line 568)
 
 --- 24 V -> 5 V buck (the +5V rail) ---------------------------------
@@ -1164,6 +1254,17 @@ protects are referenced to the 5 V bus.
 
 SRV05-4: 1 IO1, 2 VN(GND), 3 IO2, 4 IO3, 5 VP(VBUS), 6 IO4 - the same
 pinout D5/D6 are documented against below.
+
+2026-10-29 (PCB review 2026-10-05, item 6): the +-30 kV on this sheet
+is the array's own survival, not the board's. Its rail clamp, VP to VN,
+breaks down at 6 V minimum and clamps at 13.5 V at 4 A, so it does NOT
+hold VBUS under U12's 6 V absolute maximum during a strike; what does
+is the charge the strike has to share with the VBUS capacitance, and
+that is C50's job (see C50 for the arithmetic: 0.55 uF before it,
+3.75 uF with it, 2.2 V against 0.32 V of bus step at 8 kV contact).
+The steering diodes are the part of U4 that matters for D+/D-: they
+turn a strike on a data line into a step on the bus, and the bus is
+where the protection lives.
 
 ## U3 (design.py line 943)
 

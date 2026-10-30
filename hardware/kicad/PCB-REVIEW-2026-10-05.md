@@ -466,6 +466,28 @@ rail steering plus the connector-side topology does not qualify a 24 V
 sensor miswire or ensure the ADE7953's 2 V analog-input absolute maximum.
 Those existing findings stay open.
 
+> **Status 2026-10-29 (clamp coordination):** agreed that the TVS does not
+> protect U12, and the protection is re-stated as charge sharing. The
+> exposure is defined as IEC 61000-4-2 ±8 kV contact at a bench port inside
+> the enclosure; no 61000-4-5 claim. An 8 kV gun's 1.2 µC lands on the VBUS
+> node whichever pin it hits (U4 steers D+/D− there), and with C47 alone
+> (0.55 µF at 5 V on Samsung's curve) that was a 2.2 V step, 7.2–7.5 V on a
+> 6 V pin. **C50**, 4.7 µF 0805 X5R (C1779, already a BOM line; 3.20 µF at
+> 5 V) sits on VBUS at (52.4, 31.1) by J1 with its own GND via: 3.75 µF on
+> the node, a 0.32 V step, 5.3–5.6 V peak. The SRV05-4 rail clamp (6 V min
+> breakdown, 1.9 Ω dynamic) carries 0.26 A at 6.5 V against a 24 A gun and
+> only drains the node afterwards. 4.7 rather than 10 µF because the 10 µF
+> part keeps 4.97 µF at 5 V (−50 %) for 0.1 V of gain while putting the port
+> at 11 µF / 55 µC against USB's 10 µF / 50 µC; the land takes either. The
+> same capacitance lowers √(L/C) for the hot-plug ring from 1.35 to 0.52 Ω,
+> so the bench scopes VBUS at C50 on insertion with the 10 µF swap as the
+> fallback. **Not covered, and now said so at C50 and U4:** a sustained
+> >6 V from a defective host, where the TVS fails short in seconds with U12
+> at 7–8 V meanwhile; rev C is an OVP load switch (~6 V cutoff). Hold-up:
+> 0.5 A × 8 µs into +5V's ~25 µF is 160 mV, the switchover depth stays set
+> by the PR1 threshold. No VOUT capacitor added (datasheet wants ≥ 0.1 µF
+> for soft start; C1 at 11.7 mm is that). ERC 0, DRC 0, `make pcb` green.
+
 ### 7. [P3] Cold-junction accuracy and thermal loading need assembled-board evidence
 
 U3/U5 centres are approximately **17 mm from their respective terminal-pad

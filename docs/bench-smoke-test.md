@@ -143,6 +143,15 @@ the buck's own output ahead of the mux, is not `+5V`; probe it at C44.
       channel, probe VBUS at C47 while the 24 V comes back: C47/C48 are U12's
       input caps, and VBUS should not overshoot 6 V. On a board built before
       they were added (fab review A6), treat any overshoot as a stop.
+- [ ] **USB hot-plug ring** (PCB review 2026-10-05 item 6). Scope VBUS at
+      C50 (single-shot, ≥ 100 MHz, short ground spring) and plug the cable
+      into the live laptop five times, with the 24 V off. The cable's ~1 µH
+      rings against the 3.75 µF on the node and the damping comes from the
+      host's own series resistance, which no design note can know. Pass is
+      **no excursion above 5.8 V** on any insertion (U12's VIN2 is 6 V abs
+      max). If it overshoots, fit **C15850 (10 µF)** in C50's land — same
+      footprint, already on the BOM — and repeat; record both traces. Do
+      this with every laptop that will be used for flashing, not one.
 - [ ] Bring the display up at a reduced SPI clock first if it is unstable.
       SCLK is a multi-drop net with two thermocouple stubs and ~150 mm of
       loom before the panel.

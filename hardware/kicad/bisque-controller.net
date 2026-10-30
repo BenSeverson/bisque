@@ -1181,6 +1181,78 @@
 			)
 		)
 		(comp
+			(ref "C50")
+			(value "4.7uF")
+			(footprint "Capacitor_SMD:C_0805_2012Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/02336ea48ea44ca18c72517dd3cb7b47.pdf?productCode=C1779")
+			(description "Unpolarized capacitor")
+			(fields
+				(field
+					(name "MPN") "CL21A475KAQNNNE")
+				(field
+					(name "LCSC") "C1779")
+				(field
+					(name "Manufacturer") "Samsung Electro-Mechanics")
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0805_2012Metric")
+				(field
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/02336ea48ea44ca18c72517dd3cb7b47.pdf?productCode=C1779")
+				(field
+					(name "Description") "Unpolarized capacitor")
+			)
+			(libsource
+				(lib "Device")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "MPN")
+				(value "CL21A475KAQNNNE")
+			)
+			(property
+				(name "LCSC")
+				(value "C1779")
+			)
+			(property
+				(name "Manufacturer")
+				(value "Samsung Electro-Mechanics")
+			)
+			(property
+				(name "Sheetname")
+				(value "power")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheets/power.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/power/")
+				(tstamps "/c3ce2838-e44f-5ef5-9340-801a744d4591/")
+			)
+			(tstamps "ca9eb57d-fbe9-48d9-ab3d-6ded43f99404")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
 			(ref "D7")
 			(value "SS36")
 			(footprint "Diode_SMD:D_SMA")
@@ -19288,6 +19360,11 @@
 				(pintype "passive")
 			)
 			(node
+				(ref "C50")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
 				(ref "C6")
 				(pin "2")
 				(pintype "passive")
@@ -19807,6 +19884,11 @@
 			(class "Track_0.50mm")
 			(node
 				(ref "C47")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "C50")
 				(pin "1")
 				(pintype "passive")
 			)

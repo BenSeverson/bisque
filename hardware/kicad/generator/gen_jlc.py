@@ -314,6 +314,12 @@ LCSC = {
     # beside the mux; see DESIGN-NOTES.md at C47. Basic, so no feeder.
     "C47": ("C52923", "CL05A105KA5NQNC 1uF 25V X5R 0402", True, True),
     "C48": ("C52923", "CL05A105KA5NQNC 1uF 25V X5R 0402", True, True),
+    # VBUS bulk beside the USB connector (PCB review 2026-10-05, item 6):
+    # the ESD charge that U4 steers into VBUS lands on this capacitance, and
+    # 3.2 uF at 5 V (Samsung's bias curve) holds an 8 kV contact discharge
+    # to ~0.3 V on a pin rated 6 V. Same part as C27/C29/C33, so no new line;
+    # the 0805 land also takes C15850 (10 uF) if the bench wants more.
+    "C50": ("C1779", "CL21A475KAQNNNE 4.7uF 25V X5R 0805 - VBUS bulk, 3.2uF at 5V", True, True),
     "C49": ("C28323", "CL21B105KBFNNNE 1uF 50V X7R 0805", True, True),
     "D3": ("C81598", "1N4148W SOD-123 - VLED drop diode, silicon on purpose", True, True),
     "D4": ("C81598", "1N4148W SOD-123", True, True),

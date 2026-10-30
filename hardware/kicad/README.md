@@ -351,8 +351,14 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   sensor, or an external ADC without board changes. No I2C driver exists in
   firmware yet.
 - **USB-C (J1)** for native-USB flashing: 5.1 kΩ CC resistors, SRV05-4 (U4)
-  ESD protection, VBUS ORed into +5 V. RESET (SW1) and BOOT (SW2)
-  buttons.
+  ESD steering, VBUS into +5 V through the U12 power mux. RESET (SW1) and
+  BOOT (SW2) buttons. **C50** (4.7 µF, 3.2 µF at 5 V) is the VBUS bulk by
+  the connector, and it — not U4's rail clamp, which breaks down at 6 V and
+  clamps at 13.5 V — is what keeps an 8 kV contact discharge to a ~0.3 V
+  step on U12's 6 V-rated VIN2 pin (`DESIGN-NOTES.md` at C50). The port is a
+  bench port: IEC 61000-4-2 level 4 contact is the exposure it is coordinated
+  against, a sustained over-voltage from a defective host is not covered
+  (rev C: an OVP load switch), and the smoke test scopes VBUS on hot-plug.
 - **Status LED**: WS2812B on `LED_DATA`; its VDD comes through a 1N4148W drop
   diode (D3), putting VLED at ≈4.15 V so V_IH = 0.7·VLED ≈ 2.9 V stays
   comfortably under the 3.3 V data level. The diode is *silicon*, not the
