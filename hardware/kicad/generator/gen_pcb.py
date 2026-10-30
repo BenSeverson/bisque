@@ -927,8 +927,12 @@ TITLE_ROWS = [("BISQUE", 2.6, 0.7),
               # board that still said REV B would be indistinguishable on a
               # bench from one whose pin 1 is 5 V, and the failure mode is a
               # 5 V SSR input wired to 24 V. This is the one silk string on
-              # the board that has to move when the output stage does.
-              ("REV B.2", 1.0, 0.7),
+              # the board that has to move when the output stage does - and
+              # it did again at B.4, where the terminals went from "24 V
+              # always live, - switched" to "+ switched, - on GND": a B.2
+              # wiring diagram applied to a B.4 board grounds the switched
+              # side. Keep this in step with the schematic title blocks.
+              ("REV B.4", 1.0, 0.7),
               ("© 2026 Ben Severson", 0.9, 0.0)]
 # Clear board the nameplate keeps around itself and from the outline, mm. The
 # first is not slack: the parts bounding the pocket still have to put their

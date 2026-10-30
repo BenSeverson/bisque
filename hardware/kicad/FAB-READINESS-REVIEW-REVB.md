@@ -274,7 +274,7 @@ Rebuilt in full (`make pcb-build` → `pcb-fab` → `pcb-check` → `pcb-render`
 - **Track widths:** `VIN`/`VIN_F`/`VIN_P` 0.8 mm, `BUCK_5V`/`+5V` 0.7 mm,
   `SSR_RTN` 0.6 mm (Q7 carries both channels' ≤ 400 mA), `SSRn_OUT` 0.4 mm,
   `SSR_EN` 0.5 mm, gates 0.3 mm. All are ample for the budgets.
-- **Silk:** `REV B.2`, with J4/J9 legends `24V` / `OUT` per terminal.
+- **Silk:** `REV B.2` at the time of this pass, `REV B.4` since 2026-10-29, with J4/J9 legends `24V` / `OUT` per terminal.
 
 ### E. Fixed in this pass (documentation only; no board or firmware change)
 

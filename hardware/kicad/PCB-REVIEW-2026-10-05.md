@@ -644,6 +644,27 @@ specified accuracy. Record the resulting guaranteed/qualified interval.
 The data suggest more loss than assumed; they do not establish the actual
 expiration time on this PCB.
 
+> **Status 2026-10-29:** closed on the capacitor side by the rev B.3
+> timing pair, and the extrapolation that remains is named and measured.
+> The 22 µF X5R is gone from the timing path: C38 ∥ C49 are two 1 µF
+> 50 V X7R 0805 (C5/C37's line) with R46 at 1 MΩ, so the bias loss the
+> finding measured on the Samsung curve is no longer a 20 % surprise but
+> a −5 % bias-and-aging term on a part specified across −40…125 °C. The
+> window is 2.0–2.2 s nominal and **1.3–3.1 s** worst case, every term a
+> datasheet or purchase figure (±10 % tolerance, ±15 % X7R over
+> temperature, −5 % bias/aging, R ±1 %, and the one-shot's ±0.25 µA
+> timing-pin leakage, an 11 % term at 1 MΩ). What is still extrapolated
+> is TI's K = 1.0–1.1 from the 10 kΩ × 0.1 µF anchor to 1 MΩ × 2 µF;
+> the bench smoke test's "Watchdog window" check records the measured
+> value against that bound for exactly this reason. Held-high and
+> held-low kicks are the same case by construction: B is rising-edge
+> triggered, so a DC level at either polarity delivers no edge and the
+> window expires. Derivation in DESIGN-NOTES §"THE ONE-SHOT"; see also
+> the schematic review's item 4 status, which covers the fault-latency
+> half. The same purchased X5R stays at C1/C3/C44 as a decoupling part,
+> where its bias loss is a margin term rather than a timing one (C45 went
+> with the item-3 buck rework).
+
 ### 12. [P2] Coil-flyback capability lacks a specified repetitive rating
 
 **Refs:** D9/D10; also D3/D4. **Source:** S10.

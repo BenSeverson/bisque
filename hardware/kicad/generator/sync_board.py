@@ -449,7 +449,7 @@ def set_title_block(board):
     tb = pcbnew.TITLE_BLOCK()
     tb.SetTitle("Bisque Kiln Controller")
     tb.SetDate("2026-09-19")
-    tb.SetRevision("B")
+    tb.SetRevision("B.4")
     tb.SetCompany("Bisque project")
     tb.SetComment(0, "ESP32-S3-WROOM-1U-N16R2 + 2x MAX31856 + dual SSR + ADE7953")
     tb.SetComment(1, "4-layer, 100 x 100 mm, JLCPCB standard process")

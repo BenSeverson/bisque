@@ -5,13 +5,13 @@
       "Application": "Pcbnew",
       "Version": "10.0.7"
     },
-    "CreationDate": "2026-10-29T17:29:53-07:00"
+    "CreationDate": "2026-10-29T20:28:49-07:00"
   },
   "GeneralSpecs": {
     "ProjectId": {
       "Name": "bisque-controller",
       "GUID": "62697371-7565-42d6-936f-6e74726f6c6c",
-      "Revision": "B"
+      "Revision": "B.4"
     },
     "Size": {
       "X": 100.1,

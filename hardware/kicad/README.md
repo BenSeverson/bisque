@@ -1398,7 +1398,7 @@ constraint rather than a weight: see **per-terminal legends** below.
 
 **The nameplate is the one silk item that is placed rather than anchored**,
 and the place is *measured at build time*.
-`BISQUE / KILN CONTROLLER / REV B / © 2026 Ben Severson`, under the project's
+`BISQUE / KILN CONTROLLER / REV B.4 / © 2026 Ben Severson`, under the project's
 flame, goes wherever `gen_pcb.largest_empty_rect()` finds the most empty
 board: every part's keep-out (drawn body ∪ copper, grown by
 `TITLE_MARGIN`) is rasterised on a 0.25 mm lattice inside the outline and the

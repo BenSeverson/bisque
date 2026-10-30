@@ -196,6 +196,25 @@ continues, the 900 ms heartbeat allowance can precede the final one-shot
 interval. Test MCU reset, missing 3.3 V, OTA/flash operations, emergency stop,
 and boot with SJ2 open.
 
+> **Status 2026-10-29:** the 100 kΩ/22 µF figures this finding reviewed
+> were replaced on 2026-10-23 (10-22 review, E5) by R46 1 MΩ and
+> C38 ∥ C49, 2 × 1 µF X7R, and the window re-derived with every term a
+> datasheet or purchase figure: **1.3–3.1 s worst case** over −40…125 °C,
+> 2.0–2.2 s nominal (DESIGN-NOTES §"THE ONE-SHOT"; PCB review item 11
+> status for the capacitor side). The one term that is still an
+> extrapolation, TI's K factor carried from its 10 kΩ × 0.1 µF anchor, is
+> what the bench smoke test's "Watchdog window" check measures. Kick held
+> high and kick held low are covered by the topology rather than by test:
+> B is rising-edge triggered, so neither level delivers an edge.
+> Total fault latency is the part the finding was right to ask for and it
+> is now asserted, not estimated: `WDT_HEARTBEAT_TIMEOUT_MS` is 900 ms,
+> the kick period 200 ms, and `tests/host/test_wdt_kick.c` fails if their
+> sum reaches the 1 280 ms minimum window (it lands 180 ms short). What
+> is left is on the bench: `docs/bench-smoke-test.md` already measures
+> the window and brings the board up with SJ2 open; `SSR_EN` during
+> reset, flashing and emergency stop is not yet a listed check and should
+> be added when the first board is on the bench.
+
 ### 5. P2 — Seventeen open thermal vias overlap paste apertures
 
 **Confirmed on the current PCB; previously reported by JLCDFM.**
@@ -216,6 +235,20 @@ process. If accepting the existing geometry for prototypes, explicitly arrange
 inspection of hidden joints and verify U7 ground continuity and U2 thermal
 performance; do not infer joint quality from DRC.
 [JLC via covering process descriptions](https://jlcpcb.com/help/article/pcb-via-covering).
+
+> **Status 2026-10-29:** closed on the board on 2026-10-26 by the PCB
+> review's item 4, by geometry rather than by a filled-via process: the
+> count is **zero vias under paste**. U1's nine generator-placed vias in
+> the paste windows are deleted (the library footprint's twelve
+> bottom-tented 0.3 mm web holes remain, under mask, not paste); U2's four
+> tab vias moved 0.9 mm outside the tab into the masked +3V3 pour; U7's
+> stencil is four 1.1 mm windows on a 0.7 mm cross with the pad's mask
+> opening replaced by four 1.2 mm apertures over them, and its four GND
+> vias sit on the cross under the mask web, tented. No extra JLC process
+> is ordered. The via-in-pad checker's exemption no longer hides anything
+> because there is nothing left for it to exempt. Details in DESIGN-NOTES
+> §U1, §U2, §U7; U7's hidden-joint continuity remains a first-article
+> inspection item under item 8.
 
 ### 6. P2 — External input protection has narrower coverage than its names suggest
 
