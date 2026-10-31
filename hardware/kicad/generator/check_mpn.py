@@ -15,7 +15,7 @@ It is deliberately symmetric, because both directions have failed elsewhere:
     generated before the part was sourced, and the BOM would ship a part the
     schematic does not mention;
   * a property with no table entry means the part was DE-sourced (moved to
-    NOT_ASSEMBLED, or dropped outright) and a stale number is still sitting on
+    "Exclude from BOM", or dropped outright) and a stale number is still sitting on
     the symbol - the failure mode that left `USBLC6-2SC6` in
     datasheets/manifest.json long after U4 became an SRV05-4.
 

@@ -9968,7 +9968,16 @@
 				)
 			)
 		)
-	)
+	
+		(property "Assembly" "Optional hand solder - JLC assembles; untick at JLC to fit by hand"
+			(at 378.46 52.07 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		))
 	(symbol
 		(lib_id "power:+3V3")
 		(at 345.44 55.88 0)
@@ -10544,7 +10553,7 @@
 		(at 25.4 228.6 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(uuid "4307df48-2678-4e9c-b6d0-2999dbd06e3c")
@@ -11608,7 +11617,7 @@
 		(at 38.1 228.6 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(uuid "63841640-000e-4ce6-a987-80f0726d7792")
@@ -12263,7 +12272,7 @@
 		(at 63.5 228.6 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(uuid "763bae23-0ccf-4d96-8a2a-dc65e25c531c")
@@ -14015,7 +14024,7 @@
 		(at 50.8 228.6 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(uuid "b3dcd87f-c236-4836-8720-98380a419b72")
@@ -14356,7 +14365,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/bc8264a6d62c958a89e25ec8cc82b690.pdf?productCode=C2761795"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/3795cfb9d54f7ec8ecc0b043ede3c05a.pdf?productCode=C2874885"
 			(at 163.83 207.01 0)
 			(hide yes)
 			(show_name no)
@@ -14378,7 +14387,7 @@
 				)
 			)
 		)
-		(property "MPN" "WS2812B-B/T"
+		(property "MPN" "WS2812B-V5/W"
 			(at 163.83 207.01 0)
 			(hide yes)
 			(show_name no)
@@ -14389,7 +14398,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C2761795"
+		(property "LCSC" "C2874885"
 			(at 163.83 207.01 0)
 			(hide yes)
 			(show_name no)
@@ -14433,7 +14442,16 @@
 				)
 			)
 		)
-	)
+	
+		(property "Assembly" "Optional hand solder - JLC assembles; untick at JLC to fit by hand"
+			(at 163.83 207.01 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		))
 	(symbol
 		(lib_id "Device:R")
 		(at 346.71 179.07 0)
@@ -14963,7 +14981,16 @@
 				)
 			)
 		)
-	)
+	
+		(property "Assembly" "Optional hand solder - JLC assembles; untick at JLC to fit by hand"
+			(at 304.8 59.69 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		))
 	(symbol
 		(lib_id "Device:R")
 		(at 67.31 58.42 0)
@@ -15083,7 +15110,7 @@
 		(at 76.2 228.6 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(uuid "d7182196-3ac1-4b24-b5e7-9b7cca1484d4")
@@ -15887,7 +15914,16 @@
 				)
 			)
 		)
-	)
+	
+		(property "Assembly" "Optional hand solder - JLC assembles; untick at JLC to fit by hand"
+			(at 337.82 46.99 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		))
 	(symbol
 		(lib_id "Device:C")
 		(at 62.23 163.83 0)

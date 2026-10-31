@@ -122,9 +122,9 @@ def refresh(part_numbers):
 def main(argv):
     sys.path.insert(0, HERE)
     if "--refresh" in argv:
-        from gen_jlc import LCSC, HAND_SOLDER, NOT_ASSEMBLED
-        wanted = {p[0] for ref, p in LCSC.items()
-                  if p[0] and ref not in HAND_SOLDER and ref not in NOT_ASSEMBLED}
+        from gen_jlc import LCSC, hand_solder, not_assembled
+        skip = hand_solder() | not_assembled()
+        wanted = {p[0] for ref, p in LCSC.items() if p[0] and ref not in skip}
         refresh(wanted)
         return 0
     parts = load()

@@ -1,4 +1,9 @@
-"""Generate JLCPCB assembly files (BOM.csv + CPL.csv) from the netlist and the board.
+"""Generate the JLCPCB CPL and the hand-fit shopping lists from the netlist and the board.
+
+BOM.csv is NOT written here. It is exported straight from the schematic by
+`kicad-cli sch export bom` (see `pcb-fab` in the top-level Makefile), so the
+schematic's own fields - Value, Footprint, LCSC, MPN, Manufacturer and
+Assembly - are the BOM, and there is no second copy of it to drift.
 
 Every LCSC part number below was verified live against the LCSC catalog
 (package, value and stock) — see VERIFIED_ON. The most recent sweep re-checked
@@ -13,15 +18,20 @@ footprint for the part, not ours, and the two libraries do not always agree on
 where zero rotation points or where the origin sits. See JLC_PLACEMENT, which
 check_jlc_placement.py derives from LCSC's own land patterns and verifies.
 
-Parts in HAND_SOLDER are deliberately left off *both* files and written to
-hand-solder-parts.csv instead — see that table for why. JLCPCB's PCBA upload
-rejects a CPL carrying designators the BOM doesn't have, so a part must drop
-out of both or neither.
+Both "which parts" decisions live on the schematic symbols, not in this file:
 
-Designators in NOT_ASSEMBLED (test points, solder jumpers, fiducials) are
-excluded even earlier, before HAND_SOLDER is consulted — they
-have no manufactured part at all, so they must not appear in the shopping
-list either.
+  * a symbol whose `Assembly` field starts with HAND SOLDER is fitted by hand
+    (see hand_solder()). It is still in BOM.csv - with the field as its Notes
+    cell - and still in CPL.csv, because JLCPCB's PCBA upload rejects a CPL
+    carrying designators the BOM doesn't have, so a part must be in both or
+    neither. You untick those lines on JLCPCB's BOM page. It is also written
+    to mouser-order.csv. None does today: JLCPCB fits everything.
+  * a symbol whose `Assembly` field reads "Optional hand solder ..." is
+    fitted by JLCPCB, and is the part you would untick to fit it yourself
+    (see hand_solder_optional()). Those are what hand-solder-parts.csv lists.
+  * a symbol marked "Exclude from BOM" (test points, solder jumpers,
+    fiducials, mounting holes) has no manufactured part at all and appears in
+    none of the files. See not_assembled().
 """
 import csv
 import re
@@ -35,6 +45,25 @@ import netlist as NL
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 KICAD_DIR = os.path.join(HERE, os.pardir)
+
+
+def in_bom(comp):
+    """False for a netlist component marked "Exclude from BOM" - KiCad writes
+    that as a bare `exclude_from_bom` property, which netlist.load() files
+    under fields with an empty value."""
+    return "exclude_from_bom" not in comp["fields"]
+
+
+def is_hand_solder(comp):
+    """True when the symbol's Assembly field says it is fitted by hand."""
+    return comp["fields"].get("Assembly", "").upper().startswith("HAND SOLDER")
+
+
+def is_hand_solder_option(comp):
+    """True when the Assembly field names the part as hand-solderable at all -
+    fitted by hand (HAND SOLDER ...) or by JLCPCB with the option to untick
+    it (Optional hand solder ...)."""
+    return "HAND SOLDER" in comp["fields"].get("Assembly", "").upper()
 
 
 def _components():
@@ -59,7 +88,9 @@ def _components():
         out[ref] = {"value": c["value"], "fp": c["footprint"],
                     "fpf": c["footprint"].split(":", 1)[-1] + ".kicad_mod",
                     "pins": {k: v for k, v in c["pins"].items()},
-                    "at": (f["x"], f["y"], f["rot"]), "dnp": c["dnp"]}
+                    "at": (f["x"], f["y"], f["rot"]), "dnp": c["dnp"],
+                    "in_bom": in_bom(c), "hand": is_hand_solder(c),
+                    "hand_opt": is_hand_solder_option(c)}
     return out
 
 
@@ -163,12 +194,15 @@ JLC_PLACEMENT = {
     "C17630":   (  0,  0.000,  0.000),   # R3    R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17634":   (  0,  0.000,  0.000),   # R39   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17673":   (  0,  0.000,  0.000),   # R44   R_0805_2012Metric                    resid 0.088 (2 pin#)
+    "C17701004": (  0, 16.510,  0.000),   # J5    Molex_KK-254_AE-6410-14A_1x14_P2.54m resid 0.000 (14 pin#)
     "C17724":   (  0,  0.000,  0.000),   # R31   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C1779":    (  0,  0.000,  0.000),   # C27   C_0805_2012Metric                    resid 0.050 (2 pin#)
     "C20917":   (180,  0.000,  0.000),   # Q5    SOT-23                               resid 0.083 (3 pin#)
     "C22375294": (  0,  0.000,  0.000),   # D11   D_SOD-323                            resid 0.089 (2 pin#)
     "C2296":    (  0,  0.000,  0.000),   # LED3  LED_0805_2012Metric                  resid 0.113 (2 pin#)
     "C2297":    (  0,  0.000,  0.000),   # LED2  LED_0805_2012Metric                  resid 0.113 (2 pin#)
+    "C239381":  (  0,  6.350,  0.000),   # J6    Molex_KK-254_AE-6410-06A_1x06_P2.54m resid 0.000 (6 pin#)
+    "C240822":  (180,  8.890,  0.000),   # J7    Molex_KK-254_AE-6410-08A_1x08_P2.54m resid 0.000 (8 pin#)
     "C2838127": (  0,  0.000,  0.000),   # Y1    Oscillator_SMD_Abracon_ASE-4Pin_3.2x resid 0.071 (4 pin#)
     "C2653162": (270,  0.000,  0.000),   # U3    TSSOP-14_4.4x5mm_P0.65mm             resid 0.062 (14 pin#)
     "C27834":   (  0,  0.000,  0.000),   # R4    R_0805_2012Metric                    resid 0.088 (2 pin#)
@@ -182,8 +216,10 @@ JLC_PLACEMENT = {
     # only the pad NUMBERING carries the polarity, and on a 100 uF
     # electrolytic getting it wrong vents the part on first power-up.
     "C178540":  (  0,  0.000,  0.000),   # C46   CP_Elec_6.3x5.8                      resid 0.030 (2 pin#)
+    "C2874885": (  0,  0.000,  0.000),   # LED1  LED_WS2812B_PLCC4_5.0x5.0mm_P3.2mm   resid 0.071 (4 pin#)
     "C3013945": (  0,  0.000, -0.477),   # U1    ESP32-S3-WROOM-1U                    resid 0.022 (40 pin#)
     "C318884":  (  0,  0.000,  0.000),   # SW1   SW_Push_1P1T_XKB_TS-1187A            resid 0.025 (4 shape)
+    "C42377749": (  0,  7.620,  0.000),   # J10   TerminalBlock_Phoenix_MKDS-1,5-4-5.0 resid 0.000 (4 pin#)
     "C49678":   (  0,  0.000,  0.000),   # C2    C_0805_2012Metric                    resid 0.050 (2 pin#)
     "C14663":   (  0,  0.000,  0.000),   # C51   C_0603_1608Metric                    fitted by check_jlc_placement
     "C23140":   (  0,  0.000,  0.000),   # R72   R_0603_1608Metric                    fitted by check_jlc_placement
@@ -213,21 +249,26 @@ JLC_PLACEMENT = {
     "C61063":   (270,  0.000,  0.000),   # U11   SOIC-8_3.9x4.9mm_P1.27mm             resid 0.230 (8 pin#)
     "C19077547": (  0,  0.000,  0.000),   # D8    D_SMA                                resid 0.404 (2 pin#)
     "C7420367": (  0,  0.000,  0.000),   # D7    D_SMA                                resid 0.150 (2 pin#)
+    "C8465":    (  0,  2.540,  0.000),   # J2    TerminalBlock_Phoenix_MKDS-1,5-2-5.0 resid 0.000 (2 pin#)
+    "C96093":   (  0,  3.800,  0.000),   # BZ1   Buzzer_12x9.5RM7.6                   resid 0.000 (2 pin#)
 }
 
 
-def jlc_placement(lcsc, kicad_rot):
+def jlc_placement(lcsc, kicad_rot, hand=False):
     """KiCad angle -> (CPL angle, CPL dx, CPL dy, correction applied).
 
     dx/dy are already turned into board coordinates, so a caller adds them
     straight to Mid X / Mid Y.
 
     A part with no LCSC number is not being assembled, so there is nothing to
-    correct against; anything else must be in the table, since silently
+    correct against, and neither is a hand-soldered one: its CPL row exists
+    only so the BOM and CPL carry the same designators, and the line is
+    unticked at order time. An optional-hand-solder part IS assembled, so it
+    is corrected like any other. Anything else must be in the table, since silently
     shipping an uncorrected placement is how the SOT-23-6s went out 90 degrees
     off in the first place.
     """
-    if not lcsc:
+    if not lcsc or hand:
         return kicad_rot % 360, 0.0, 0.0, (0, 0.0, 0.0)
     if lcsc not in JLC_PLACEMENT:
         sys.exit("gen_jlc: %s has no JLC_PLACEMENT entry. Add the part to "
@@ -387,7 +428,10 @@ LCSC = {
     "J11": ("C42377749", "WJ500V-5.08-04P 5.08mm screw terminal 1x04", False, True),
     "J12": ("C42377749", "WJ500V-5.08-04P 5.08mm screw terminal 1x04", False, True),
     "J14": ("C160404", "JST SM04B-SRSS-TB(LF)(SN) SH 1x04", False, True),
-    "LED1": ("C2761795", "WS2812B-B/T 5050 RGB", False, True),
+    # WS2812B-V5/W since 2026-10-30: the -B/T (C2761795) was out of stock at
+    # LCSC and JLCPCB alike. Same 1 VDD / 2 DOUT / 3 VSS / 4 DIN pinout; VIH
+    # is 0.63*VDD rather than a fixed 2.7 V, ~2.6 V at D3's ~4.15 V VLED.
+    "LED1": ("C2874885", "WS2812B-V5/W 5050 RGB", False, True),
     "LED2": ("C2297", "KT-0805G green LED 0805", True, True),
     "LED3": ("C2296", "KT-0805Y amber LED 0805", True, True),
     "LED4": ("C2296", "KT-0805Y amber LED 0805", True, True),
@@ -528,22 +572,6 @@ LCSC = {
     "Y1": ("C2838127", "TFOM3.579545M4RHKCNT2T 3.579545MHz XO SMD3225-4P", False, True),
 }
 
-# Board features with no manufactured part: excluded from the BOM, the CPL,
-# AND hand-solder-parts.csv. HAND_SOLDER (below) is the wrong bucket for
-# these - it feeds hand-solder-parts.csv, a shopping list meant to be pasted
-# into a cart, and a designator with no LCSC number would land there as a
-# blank-LCSC row (a part to "buy" that isn't a part). assembly_refs() drops
-# these before either bucket sees them, the same way mounting holes already
-# are.
-#
-# TP3-TP6/TP9/TP10/TP12: 1 mm bring-up test pads (Task 13) - bare copper, nothing to
-# place or buy. SJ1/SJ2: open solder-jumper footprints (AUX_VP<-+5V link and
-# the WDT bring-up defeat) - populated with solder, not a component. SJ3/SJ4
-# went with the optocouplers (see DESIGN-NOTES.md's SSR block). FID1-3: optical alignment targets, bare copper on no net. They must be
-# listed HERE and not left to the H-prefix rule assembly_refs() uses for the
-# mounting holes - a designator that is neither H-prefixed nor in this set
-# reaches the BOM as a blank-LCSC row, i.e. a part to "buy" that is not a
-# part, and JLCPCB's PCBA upload rejects the pair.
 # LCSC part -> what it is. The parts JLCPCB's part page marks "Standard Only".
 #
 # fee_free above answers "does this line cost a feeder on Economic PCBA" and
@@ -578,16 +606,73 @@ PRICES = {
     "Economic": {"setup": 8.18, "stencil": 1.53, "feeder": 3.07},
     "Standard": {"setup": 25.56, "stencil": 8.21, "feeder": 1.53},
 }
+# Through-hole parts on the same price list: "Hand-soldering Labor" per order
+# and "Manual Assembly" per joint (first 10,000 joints).
+MANUAL = {"labor": 3.58, "joint": 0.0164}
 
-NOT_ASSEMBLED = {
-    "TP3", "TP4", "TP5", "TP6", "TP9", "TP10", "TP12",
-    "SJ1", "SJ2",
-    "FID1", "FID2", "FID3",
-}
+
+
+def not_assembled():
+    """Refs with no manufactured part: in no BOM, CPL or shopping list.
+
+    The schematic owns this as KiCad's own "Exclude from BOM" attribute, set
+    on the test points, solder jumpers (SJ1/SJ2 - populated with solder, not
+    a component), fiducials and mounting holes. `kicad-cli sch export bom`
+    honours the same flag, so BOM.csv and this set cannot disagree. A bare
+    pad that is NOT flagged reaches BOM.csv as a blank-LCSC line - a part to
+    "buy" that is not a part - and main() warns about it.
+    """
+    return {ref for ref, c in COMPONENTS.items() if not c["in_bom"]}
+
+
+def hand_solder():
+    """Refs fitted by hand rather than by JLCPCB - the symbols whose Assembly
+    field reads `HAND SOLDER - uncheck at JLC`.
+
+    They stay in BOM.csv and CPL.csv (untick them on JLCPCB's BOM page) and
+    are also written to mouser-order.csv.
+
+    Empty since 2026-10-30: JLCPCB fits every part. The through-hole parts
+    and LED1 cost ~$22 for 5 boards fitted there (LCSC parts, $0.0164 a
+    manual joint, $3.58 hand-soldering labor per order) against ~$110 for the
+    genuine Phoenix/Molex parts from Mouser with US tariff, so the soldering
+    iron saves nothing. Their Assembly field now reads `Optional hand solder
+    ...` (hand_solder_optional()); set it back to `HAND SOLDER - uncheck at
+    JLC` to return a part here.
+
+    Why these parts were hand-fitted before: on Economic PCBA each unique Extended part costs a
+    feeder-loading fee (PRICES) regardless of how many boards are built, and
+    any through-hole part forces the whole order onto Standard assembly
+    (Economic is SMD, top-side only), where EVERY line pays a feeder fee. The
+    through-hole parts are connectors and a buzzer on 2.54 mm and 5.08 mm
+    pitch - the easiest joints on the board. LED1 is there for cost, not
+    solderability: no addressable RGB LED at LCSC is a Basic part (checked
+    across WS2812/SK6812/XL-xxxx), so its feeder buys nothing a soldering iron
+    can't do to a 5050 with four edge-accessible pads.
+
+    This was meant to take the order from Standard assembly to Economic, and
+    it does not: U1 is a "Standard Only" part (STANDARD_ONLY), so the order is
+    Standard regardless, and the Extended-versus-Basic distinction buys
+    nothing until the module is hand-fitted as well. The through-hole parts
+    stay hand-fitted anyway - a THT line on Standard adds a hand-soldering
+    pass and its own per-joint charge. main() prints which tier the order
+    actually lands on once those lines are unticked.
+    """
+    return {ref for ref, c in COMPONENTS.items() if c["in_bom"] and c["hand"]}
+
+
+def hand_solder_optional():
+    """Refs JLCPCB fits but you could untick and fit by hand - every symbol
+    whose Assembly field mentions hand soldering, hand_solder() included.
+    hand-solder-parts.csv lists them, so the shopping list is ready if one
+    goes back to the iron."""
+    return {ref for ref, c in COMPONENTS.items()
+            if c["in_bom"] and c["hand_opt"]}
+
 
 # Parts that ARE parts, and are deliberately not fitted. Distinct from
-# NOT_ASSEMBLED above, and the distinction is the whole point: the refs up
-# there are mostly not parts at all. A test point is a bare pad, a solder
+# not_assembled() above, and the distinction is the whole point: those refs
+# are not parts at all. A test point is a bare pad, a solder
 # jumper is copper, a fiducial is bare copper - there is nothing to populate,
 # so calling them "do not populate" asserts something false.
 #
@@ -597,35 +682,6 @@ NOT_ASSEMBLED = {
 # consumed on BOTH sides - `(dnp yes)` in the schematic and the footprint
 # attribute on the board - so the two agree by construction.
 DNP = set()
-
-# Parts fitted by hand rather than by JLCPCB.
-#
-# On Economic PCBA each unique Extended part costs a feeder-loading fee
-# (PRICES) regardless of how many boards are built, and any through-hole
-# part forces the whole order onto Standard assembly (Economic is SMD,
-# top-side only), where EVERY line pays a feeder fee. The through-hole parts
-# here are connectors and a buzzer on 2.54 mm and 5.08 mm pitch — the
-# easiest joints on the board. LED1 is added for cost, not solderability: no
-# addressable RGB LED at LCSC is a Basic part (checked across
-# WS2812/SK6812/XL-xxxx), so its feeder buys nothing a soldering iron can't
-# do to a 5050 with four edge-accessible pads.
-#
-# This was meant to take the order from Standard assembly to Economic, and
-# it does not: U1 is a "Standard Only" part (STANDARD_ONLY; C46 was until
-# 2026-10-28), so the order is Standard regardless, and the Extended-versus-
-# Basic distinction buys nothing until the module is hand-fitted as well. The
-# through-hole
-# parts stay here anyway - a THT line on Standard adds a hand-soldering pass
-# and its own per-joint charge, and these are the easiest joints on the
-# board. main() prints which tier the BOM actually lands on and what the
-# fixed part of the bill is, so the claim is checked rather than remembered.
-HAND_SOLDER = {
-    "BZ1",                                     # 12 mm buzzer, 7.6 mm pitch
-    "J2", "J3", "J4", "J8", "J9",              # 5.08 mm screw terminals (2-pos)
-    "J10", "J11", "J12",                       # 5.08 mm screw terminals (4-pos)
-    "J5", "J6", "J7",                          # KK-254 friction-lock wafers
-    "LED1",                                    # WS2812B, PLCC-4 5050
-}
 
 # Second source at Mouser for the hand-fitted parts, keyed by LCSC part
 # number, so the shopping list works against either supplier.
@@ -678,7 +734,7 @@ MOUSER_ALT = {
                "12x9.5mm body, 7.6mm pitch, 5V THT active - datasheet-verified"),
     # Mouser hosts WS2812B datasheets and sells third-party modules built on
     # it, but no bare Worldsemi 5050 could be found in their catalog.
-    "C2761795": ("", "", "",
+    "C2874885": ("", "", "",
                  "NOT AT MOUSER - source from LCSC, DigiKey, Adafruit or SparkFun"),
 }
 
@@ -766,13 +822,9 @@ def is_through_hole(fpf):
 
 
 def assembly_refs():
-    """Refs that go to assembly, in design order.
-
-    Excludes mounting holes (H-prefixed) and NOT_ASSEMBLED (board features
-    with no manufactured part - test points, solder jumpers, fiducials).
-    """
-    return [ref for ref in COMPONENTS
-            if not ref.startswith("H") and ref not in NOT_ASSEMBLED]
+    """Refs on the BOM - every part, hand-soldered ones included - in
+    designator order. Excludes not_assembled()."""
+    return [ref for ref, c in COMPONENTS.items() if c["in_bom"]]
 
 
 def ref_key(ref):
@@ -817,9 +869,9 @@ def group_by_orderable(refs):
     return sorted(out, key=lambda e: ref_key(e[3][0]))
 
 
-def mating_rows(hand_refs):
+def mating_rows(refs):
     """[{refs, comment, qty, desc, mpn, mfr, note, consumable}] - the
-    cable-side parts the hand-fitted headers need.
+    cable-side parts the board's KK-254 headers need, whoever fits them.
 
     Derived from the board rather than typed out: the circuit counts come from
     each connector's own pin map, so the terminal quantity cannot drift when a
@@ -830,7 +882,7 @@ def mating_rows(hand_refs):
     say. `consumable` marks the rows where that exact count is not what you
     order - see SPARES.
     """
-    kk = sorted((r for r in hand_refs if KK254_FP_MARK in COMPONENTS[r]["fp"]),
+    kk = sorted((r for r in refs if KK254_FP_MARK in COMPONENTS[r]["fp"]),
                 key=ref_key)
     missing = [r for r in kk if r not in KK254_HOUSING]
     if missing:
@@ -907,45 +959,37 @@ def mouser_order(hand_refs, mates):
 
 def main(outdir):
     os.makedirs(outdir, exist_ok=True)
-    bom_path = os.path.join(outdir, "BOM.csv")
     cpl_path = os.path.join(outdir, "CPL.csv")
     hand_path = os.path.join(outdir, "hand-solder-parts.csv")
     mouser_path = os.path.join(outdir, "mouser-order.csv")
 
+    # all_refs is BOM.csv's population; refs is what JLCPCB actually places
+    # once the hand-solder lines are unticked, which is what the tier and fee
+    # estimate below are about.
     all_refs = assembly_refs()
-    refs = [r for r in all_refs if r not in HAND_SOLDER]
-    hand_refs = [r for r in all_refs if r in HAND_SOLDER]
+    hand = hand_solder()
+    refs = [r for r in all_refs if r not in hand]
+    hand_refs = [r for r in all_refs if r in hand]
+    optional = hand_solder_optional()
+    opt_refs = [r for r in all_refs if r in optional]
 
     groups = group_by_part(refs)
 
     missing = [r for r in refs if not (LCSC.get(r) or ("",))[0]]
     tht = sorted({r for r in refs if is_through_hole(COMPONENTS[r]["fpf"])})
 
-    with open(bom_path, "w", newline="") as fh:
-        w = csv.writer(fh)
-        w.writerow(["Comment", "Designator", "Footprint", "LCSC Part #", "Notes"])
-        for (value, fp, lcsc), grefs in sorted(groups.items(), key=lambda kv: kv[1][0]):
-            part = LCSC.get(grefs[0])
-            note = part[1] if part else ""
-            if part and not part[3]:
-                note += " [CONFIRM part # at order time]"
-            if not lcsc:
-                note += " [NO LCSC PART - will not be assembled]"
-            if is_through_hole(COMPONENTS[grefs[0]]["fpf"]):
-                note += " [THT - needs Standard assembly; confirm JLC can place it]"
-            if lcsc in STANDARD_ONLY:
-                note += " [PCBA Type Standard Only - forces Standard assembly]"
-            w.writerow([value, ",".join(grefs), fp.split(":", 1)[1], lcsc, note])
-
     corrections = []
     with open(cpl_path, "w", newline="") as fh:
         w = csv.writer(fh)
         w.writerow(["Designator", "Mid X", "Mid Y", "Layer", "Rotation"])
-        for ref in refs:
+        # Every BOM ref, hand-soldered ones too: JLCPCB rejects a BOM/CPL
+        # pair whose designators differ, and BOM.csv carries them all.
+        for ref in all_refs:
             c = COMPONENTS[ref]
             x, y, rot = c["at"]
             fp_name = c["fp"].split(":", 1)[1]
-            jrot, dx, dy, applied = jlc_placement((LCSC.get(ref) or ("",))[0], rot)
+            jrot, dx, dy, applied = jlc_placement((LCSC.get(ref) or ("",))[0],
+                                                  rot, hand=ref in hand)
             if any(applied):
                 corrections.append((ref, fp_name, rot, jrot, applied[0], dx, dy))
             # Mid X / Mid Y is where LCSC's footprint origin goes, which is
@@ -953,9 +997,10 @@ def main(outdir):
             w.writerow([ref, "%.3fmm" % (x + dx), "%.3fmm" % (-y + dy),
                         "Top", "%.1f" % jrot])
 
-    # Shopping list for the parts JLCPCB is *not* fitting. Same LCSC part
-    # numbers, so it can be pasted straight into an LCSC cart alongside the
-    # PCBA order — but nothing here is bound to LCSC's catalogue any more,
+    # Shopping list for the parts you could fit by hand - every
+    # hand_solder_optional() part, so it is ready if one goes back to the
+    # iron. Same LCSC part numbers, so it can be pasted straight into an LCSC
+    # cart alongside the PCBA order — but nothing here is bound to LCSC's catalogue any more,
     # which matters for the KK-254 wafers (the lowest-stock lines on the BOM).
     #
     # One row per orderable part, not per designator: see group_by_orderable().
@@ -964,13 +1009,15 @@ def main(outdir):
     # ("mating"), which are not on the board at all and therefore have no
     # designator, footprint or LCSC line of their own.
     no_alt = []
-    mates = mating_rows(hand_refs)
+    # The mating housings are needed whoever fits the headers, so they come
+    # from every header on the BOM, not just the hand-fitted ones.
+    mates = mating_rows(all_refs)
     with open(hand_path, "w", newline="") as fh:
         w = csv.writer(fh)
         w.writerow(["Kind", "Designator", "Comment", "Footprint",
                     "LCSC Part #", "Qty per board", "Description",
                     "Mouser MPN", "Mouser Manufacturer", "Notes"])
-        for value, fp, lcsc, grefs in group_by_orderable(hand_refs):
+        for value, fp, lcsc, grefs in group_by_orderable(opt_refs):
             part = LCSC.get(grefs[0])
             mpn, mfr, _, note = MOUSER_ALT.get(lcsc, ("", "", "", ""))
             if not mpn:
@@ -994,14 +1041,17 @@ def main(outdir):
     ext = {LCSC[r][0] for r in refs if r in LCSC and not LCSC[r][2]}
     std_only = sorted({r for r in refs
                        if r in LCSC and LCSC[r][0] in STANDARD_ONLY}, key=ref_key)
-    print("wrote %s, %s, %s, %s"
-          % (bom_path, cpl_path, hand_path, mouser_path))
-    print("%d parts to JLCPCB (%d BOM lines), %d hand-soldered on "
-          "%d line(s), LCSC verified %s"
-          % (len(refs), len(groups), len(hand_refs),
+    print("wrote %s, %s, %s (BOM.csv is kicad-cli's, from the schematic)"
+          % (cpl_path, hand_path, mouser_path))
+    print("%d parts on the BOM/CPL: %d placed by JLCPCB (%d BOM lines), %d "
+          "hand-soldered on %d line(s) to untick, LCSC verified %s"
+          % (len(all_refs), len(refs), len(groups), len(hand_refs),
              len(group_by_orderable(hand_refs)), VERIFIED_ON))
     print("%d unique Extended part(s): %s" % (len(ext), ", ".join(sorted(ext))))
-    print("hand-soldered: %s" % ", ".join(sorted(hand_refs, key=ref_key)))
+    print("hand-soldered: %s" % (", ".join(sorted(hand_refs, key=ref_key))
+                                 or "none"))
+    print("optional hand solder (JLCPCB fits; untick to fit yourself): %s"
+          % ", ".join(sorted(opt_refs, key=ref_key)))
     print("mating connectors (cable side, %d line(s)): %s"
           % (len(mates), ", ".join("%s x%d" % (m["mpn"], m["qty"])
                                    for m in mates)))
@@ -1024,8 +1074,10 @@ def main(outdir):
             print("  %-5s %-35s %3.0f -> %3.0f (+%d)%s"
                   % (ref, fp_name[:35], rot, jrot, crot, shift))
     if tht:
-        print("WARNING: through-hole parts still in the assembly BOM (forces "
-              "Standard assembly): %s" % ", ".join(tht))
+        print("through-hole parts JLCPCB fits by manual assembly (forces "
+              "Standard; $%.2f labor per order + $%.4f a joint): %s"
+              % (MANUAL["labor"], MANUAL["joint"],
+                 ", ".join(sorted(tht, key=ref_key))))
     if std_only:
         print("Standard-only parts on the SMT BOM (PCBA Type \"Standard Only\", "
               "forces Standard assembly): %s"
@@ -1052,7 +1104,8 @@ def main(outdir):
               % (econ["setup"], econ["stencil"], len(ext), econ["feeder"],
                  econ["setup"] + econ["stencil"] + efee, ", ".join(std_only)))
     if missing:
-        print("WARNING: no LCSC part for: %s" % ", ".join(missing))
+        print("WARNING: no LCSC part for: %s - source it, or mark the symbol "
+              "Exclude from BOM if it is not a part" % ", ".join(missing))
 
 
 if __name__ == "__main__":

@@ -341,6 +341,14 @@ pcb-route:  ## Route unconnected nets (or NETS=a,b, ripped up first); ROUTER=inh
 	cd $(KICAD_DIR) && "$$KPY" generator/route.py $(if $(NETS),--nets $(NETS),) \
 	  $(if $(ROUTER),--router $(ROUTER),) bisque-controller.kicad_pcb
 
+# BOM.csv is the schematic's own BOM, exported by kicad-cli: every symbol not
+# marked "Exclude from BOM". The Assembly field lands in the Notes column:
+# "Optional hand solder ..." marks a line JLCPCB fits that you may untick to
+# fit yourself, "HAND SOLDER ..." one you must untick. Ranges are off
+# (--ref-range-delimiter '') because JLCPCB reads "R1-R4" as one designator.
+BOM_FIELDS := Value,Reference,$${FOOTPRINT_NAME},LCSC,MPN,Manufacturer,$${QUANTITY},Assembly
+BOM_LABELS := Comment,Designator,Footprint,LCSC Part \#,MPN,Manufacturer,Qty,Notes
+
 # Everything a fab order reads. Runs AFTER pcb-sync: sync_board.py ends
 # with a `kicad-cli pcb drc --refill-zones` pass, and exporting before that
 # bakes a stale pour into gerbers/. Stale gerbers are deleted rather than
@@ -358,6 +366,10 @@ pcb-fab:  ## Regenerate gerbers, drill, gerbers.zip, BOM/CPL and the PDFs
 	       --excellon-units mm --excellon-zeros-format decimal --generate-map \
 	       --map-format gerberx2 --gerber-precision 5 bisque-controller.kicad_pcb \
 	  && python3 generator/gen_gerber_zip.py \
+	  && kicad-cli sch export bom -o jlcpcb/BOM.csv \
+	       --fields '$(BOM_FIELDS)' --labels '$(BOM_LABELS)' \
+	       --group-by 'Value,$${FOOTPRINT_NAME},LCSC,Assembly' \
+	       --ref-range-delimiter '' bisque-controller.kicad_sch \
 	  && python3 generator/gen_jlc.py jlcpcb \
 	  && kicad-cli sch export pdf -o pdf/bisque-controller-schematic.pdf \
 	       bisque-controller.kicad_sch \

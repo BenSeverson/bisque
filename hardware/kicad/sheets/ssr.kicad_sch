@@ -6747,7 +6747,7 @@
 		(at 255.27 74.93 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(uuid "3a3435db-4e17-5912-832e-9bd69a07aee1")
@@ -7457,7 +7457,7 @@
 		(at 148.59 100.33 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(uuid "4e7a4510-010c-5a1b-9e52-2259f32af445")
@@ -7837,7 +7837,16 @@
 				)
 			)
 		)
-	)
+	
+		(property "Assembly" "Optional hand solder - JLC assembles; untick at JLC to fit by hand"
+			(at 102.87 151.13 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		))
 	(symbol
 		(lib_id "Device:R")
 		(at 85.09 109.22 0)
@@ -9167,7 +9176,16 @@
 				)
 			)
 		)
-	)
+	
+		(property "Assembly" "Optional hand solder - JLC assembles; untick at JLC to fit by hand"
+			(at 102.87 80.01 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		))
 	(symbol
 		(lib_id "Device:R")
 		(at 227.33 68.58 0)

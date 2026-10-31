@@ -5288,7 +5288,16 @@
 				)
 			)
 		)
-	)
+	
+		(property "Assembly" "Optional hand solder - JLC assembles; untick at JLC to fit by hand"
+			(at 15.24 190.5 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		))
 	(symbol
 		(lib_id "Device:C")
 		(at 91.44 43.18 0)

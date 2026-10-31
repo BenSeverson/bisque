@@ -39,7 +39,7 @@ import pcbnew
 import gen_pcb as G
 import netlist as NL
 import silk
-from gen_jlc import NOT_ASSEMBLED
+from gen_jlc import in_bom
 from gen_pcb import apply_stackup, sync_netclasses, netclass_table, PLANE_LAYER
 from kicad_build import (load_footprint, V, MM, MODEL_FIXUP, MODEL_DIR,
                          SILK_MIN_STROKE, widen_fp_silk, apply_layer_types,
@@ -63,13 +63,16 @@ def kiid(*key):
 
 
 # --------------------------------------------------------------- footprints
-def style_footprint(fp, ref, dnp):
+def style_footprint(fp, ref, dnp, fitted):
     """Everything about a footprint that is policy rather than placement.
 
     Idempotent: each rule either sets a value or clamps one, so a footprint
     that has been through here before comes out unchanged.
     """
     fp.SetDNP(dnp)
+    # The schematic's "Exclude from BOM" (test points, jumpers, fiducials,
+    # holes) is the board's too - see gen_jlc.not_assembled().
+    fp.SetExcludedFromBOM(not fitted)
     for pad in fp.Pads():
         num = str(pad.GetNumber())
         # library EP thermal vias use 0.2 mm drills; upsize to 0.3 mm so the
@@ -103,7 +106,7 @@ def style_footprint(fp, ref, dnp):
             nm.m_Rotation = pcbnew.VECTOR3D(*rot)
             nm.m_Offset = pcbnew.VECTOR3D(*off)
             # A part that is not fitted must not be rendered as if it were.
-            nm.m_Show = ref not in NOT_ASSEMBLED
+            nm.m_Show = fitted
             fp.Models().push_back(nm)
     # Silk: designator size and the fab's stroke floor; see kicad_build.
     t = fp.Reference()
@@ -212,7 +215,7 @@ def sync_footprints(board, nl, rep):
             if got != want:
                 rep["renetted"].append((ref, num, got, want))
             pad.SetNet(net(want) if want else None)
-        style_footprint(fp, ref, c["dnp"])
+        style_footprint(fp, ref, c["dnp"], in_bom(c))
         if not fp.IsLocked():
             reset_reference(fp, lib, name)
     return have, net

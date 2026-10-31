@@ -6,9 +6,10 @@ incompatible part, added a second SSR zone and a digital current-sense chip,
 moved most GPIOs, and swapped the module variant.
 4-layer, 100 × 100 mm, built for **JLCPCB assembly**: 0805 passives,
 QFN/TSSOP/SOIC/SOT ICs, SMD tact switches and the ESP32-S3-WROOM-1U module's
-castellated pads all go down the SMT line, plus thirteen through-hole parts
-(terminals, wafers, buzzer) fitted by hand — see "Fabrication & assembly"
-below for why that split is much cheaper than it looks. The design record for
+castellated pads all go down the SMT line, and JLCPCB hand-solders the twelve
+through-hole parts (terminals, wafers, buzzer) on the same order — see
+"Fabrication & assembly" below for why that is cheaper than fitting them
+yourself. The design record for
 this respin, including the routing escalation that forced the layer count,
 is `docs/superpowers/specs/2026-08-10-pcb-rev-b-hardware-design.md`; the
 fab-readiness sign-off is `FAB-READINESS-REVIEW-REVB.md`.
@@ -32,7 +33,7 @@ table — 92 nets, 0 mismatches). The 3D renders in `3d/` are raytraced by
 | `bisque-controller-drc.rpt` | KiCad DRC report, now including the `.kicad_dru` rules above (0 errors, 0 unconnected, 0 warnings — the 109 silkscreen warnings went with the silk packer, see "Regenerating the files") |
 | `gerbers/` | Fabrication outputs (kicad-cli: F.Cu, B.Cu, **In1.Cu, In2.Cu**, paste/silk/mask, Edge.Cuts, Excellon drill + job file) |
 | `pdf/` | Schematic and board PDFs (kicad-cli) |
-| `jlcpcb/` | The complete JLCPCB upload: `gerbers.zip` for fabrication, BOM + CPL for assembly, plus the hand-solder shopping list and `mouser-order.csv` |
+| `jlcpcb/` | The complete JLCPCB upload: `gerbers.zip` for fabrication, BOM + CPL for assembly, plus the shopping list for the parts you could hand-solder instead, and `mouser-order.csv` for the mating connectors |
 | `generator/` | Scripts that build everything from one connectivity table |
 
 ## Opening it
@@ -562,8 +563,8 @@ the three disagree. Nothing else restates a GPIO number, this README included.
 ## Bill of materials
 
 141 components, 92 nets. Full machine-readable BOM: `jlcpcb/BOM.csv` (40
-lines covering 109 machine-placed parts) plus `jlcpcb/hand-solder-parts.csv`
-(13 hand-fitted parts). Selected parts worth calling out:
+lines covering 109 machine-placed parts); `jlcpcb/hand-solder-parts.csv`
+lists the 13 of them you could fit by hand instead. Selected parts worth calling out:
 
 | Ref | Value / Part | Package |
 |---|---|---|
@@ -708,15 +709,25 @@ Bare boards: roughly **$10–15 for 5 pcs** at the 4-layer ≤100×100 mm tier
 gerbers + drill files, including the two inner-layer files, are in
 `gerbers/`.
 
-**Assembly**: `generator/gen_jlc.py` writes `jlcpcb/BOM.csv` +
-`jlcpcb/CPL.csv` for the PCBA upload, `jlcpcb/hand-solder-parts.csv` for the
-parts you fit yourself, and `jlcpcb/mouser-order.csv` for ordering those from
-Mouser in one import. Every part carries an LCSC part number verified
+**Assembly**: `jlcpcb/BOM.csv` is the schematic's own BOM, exported by
+`kicad-cli sch export bom` in `make pcb-fab` from each symbol's Value,
+Footprint, `LCSC`, `MPN`, `Manufacturer` and `Assembly` fields - there is no
+second copy of it in Python. `generator/gen_jlc.py` writes `jlcpcb/CPL.csv`
+(it owns the per-part rotation corrections), `jlcpcb/hand-solder-parts.csv`
+for the parts you could fit yourself instead, and `jlcpcb/mouser-order.csv`
+for ordering the hand-fitted parts and the mating connectors from Mouser in
+one import. Every part carries an LCSC part number verified
 against the catalog (package, value, stock) — there are no blanks and nothing
 to guess at in JLC's BOM matcher.
 
-**The board is deliberately split between the SMT line and a soldering
-iron**, same strategy as rev A. On **Economic** PCBA each unique
+**Since 2026-10-30 JLCPCB fits every part**, through-hole included. The
+board used to be split between the SMT line and a soldering iron, same
+strategy as rev A, and the reasoning below is why; the correction after it is
+why the split stopped paying. Priced live that day for 5 boards, JLCPCB
+fitting the twelve through-hole parts and LED1 costs ~$22 (LCSC parts,
+$0.0164 per manual joint, $3.58 hand-soldering labor per order) against
+~$110 for the genuine Phoenix/Molex parts from Mouser with US tariff, before
+your own time. The split was: On **Economic** PCBA each unique
 **Extended** part costs a flat feeder-loading fee ($3.07 at JLCPCB's
 2026-10-22 price list) no matter how many boards you build, and a single
 through-hole part forces the whole order onto **Standard** assembly
@@ -741,11 +752,25 @@ well — the electrolytic is trivial, the module's edge pads are routinely
 hand-soldered with the centre thermal pad left dry — and that is a decision
 for the next order, not something the generator makes for you.
 
-`HAND_SOLDER` in `gen_jlc.py` drops thirteen designators from both the BOM
-and the CPL — they must leave together, since JLCPCB's upload rejects a CPL
-carrying designators the BOM does not have:
+Thirteen symbols carry `Assembly` = `Optional hand solder - JLC assembles;
+untick at JLC to fit by hand`, which shows up in the BOM's `Notes` column.
+JLCPCB fits them like everything else and their CPL rows are rotation-
+corrected (`JLC_PLACEMENT`); the note marks the lines you can untick on
+JLCPCB's BOM page if you would rather fit one yourself (you have the LEDs, say),
+and `hand-solder-parts.csv` is the shopping list for that. To make one
+hand-fitted for good, set its field back to `HAND SOLDER - uncheck at JLC`:
+`gen_jlc.hand_solder()` then drops its rotation correction and adds it to
+`mouser-order.csv`. Either way a part stays in **both** the BOM and the CPL,
+since JLCPCB's upload rejects a CPL carrying designators the BOM does not
+have. Test points, solder jumpers, fiducials and mounting holes are marked
+"Exclude from BOM" on the symbol and appear in neither file.
 
-| Hand-fitted | Why |
+LED1 is a WS2812B-V5/W (C2874885) since the same day: the WS2812B-B/T
+(C2761795) was out of stock at LCSC and JLCPCB. Same pinout; its VIH is
+0.63 × VDD, ~2.6 V at the ~4.15 V VLED that D3 sets (see D3 in
+`DESIGN-NOTES.md`), under the -B/T's fixed 2.7 V.
+
+| Formerly hand-fitted | Why |
 |---|---|
 | J2, J3, J4, J8, J9 (2-pos screw terminals), J10, J11, J12 (4-pos screw terminals), J5, J6, J7 (KK-254 wafers), BZ1 (buzzer) | 5.08 mm and 2.54 mm pitch — the easiest joints on the board, but the ones that would force Standard assembly |
 | LED1 (WS2812B, PLCC-4 5050) | No addressable RGB LED at LCSC is a Basic part (checked across WS2812/SK6812/XL-xxxx), so its $3 buys nothing an iron can't do to four edge-accessible pads |
@@ -850,7 +875,7 @@ which connector is which.
 | J2, J3, J4, J8, J9 | C8465 | Phoenix Contact **1715721** (MKDS 1,5/2-5,08) — the part this footprint is named for |
 | J10, J11, J12 | C42377749 | Phoenix Contact **1715747** (MKDS 1,5/4-5,08) — the part this footprint is named for |
 | BZ1 | C96093 | Same Sky **CMI-1295-0585T** — Ø12 × 9.5 mm, 7.6 mm pitch, 5 V THT active |
-| LED1 | C2761795 | **none** — no bare Worldsemi 5050 in Mouser's catalog; use LCSC, DigiKey, Adafruit or SparkFun |
+| LED1 | C2874885 | **none** — no bare Worldsemi 5050 in Mouser's catalog; use LCSC, DigiKey, Adafruit or SparkFun |
 
 Several of these LCSC lines are Chinese generics and the Mouser column is the
 genuine part each footprint was drawn from where one exists, so it fits at
@@ -1110,10 +1135,15 @@ that does not route is not saved: the board on disk keeps whatever copper
 it had, and the command exits 1.
 
 `ROUTER=freerouting` is an experimental backend: it exports a DSN with every
-non-target net in a class Freerouting is told to ignore and lifts only the
-targets' copper back off the session. On this board Freerouting 2.3.0 reads
-the fixed copper as hundreds of violations and did not converge in 18
-minutes on one net, so it is not the default.
+non-target track and via as fixed copper and lifts only the targets' copper
+back off the session. (It once put the other nets in a class passed to
+`-inc`, which makes Freerouting ignore them as obstacles too - 456 of 616
+DRC violations in one run were new copper through stitch vias and locked
+escapes.) Benchmarked 2026-10-30 with all 106 signal nets ripped up: the
+in-house router leaves 18 nets in 50 s; Freerouting 2.3.0 leaves 19 after
+22 min (28 DRC, 31 unconnected pads), 2.5.0 leaves 17 and breaks +3V3 after
+21 min (40 DRC, 113 unconnected pads). Neither finishes the board, so it is
+not the default.
 
 The copper the old pipeline could only produce from hand seeds - the USB
 pair, the ADE7953 I2C escapes, the U12 escapes, the manual and stitch vias

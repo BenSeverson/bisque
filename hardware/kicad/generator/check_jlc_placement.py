@@ -42,7 +42,8 @@ from collections import defaultdict
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import lcsc_pads
 from gen_jlc import COMPONENTS
-from gen_jlc import JLC_PLACEMENT, LCSC, HAND_SOLDER, NOT_ASSEMBLED, jlc_placement
+from gen_jlc import (JLC_PLACEMENT, LCSC, hand_solder, not_assembled,
+                     jlc_placement)
 
 # LCSC pad number -> our pad number, where the two libraries number the same
 # physical pin differently. Read off the LCSC symbol's pin names.
@@ -179,8 +180,9 @@ def derive(lcsc_part, fpref, pads):
 
 
 def assembled():
+    skip = hand_solder() | not_assembled()
     for ref, c in COMPONENTS.items():
-        if ref in NOT_ASSEMBLED or ref in HAND_SOLDER:
+        if ref in skip:
             continue
         part = LCSC.get(ref)
         if part and part[0]:

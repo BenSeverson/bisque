@@ -2,9 +2,18 @@
 
 Everything an order uploads is in this directory. `gerbers.zip` goes to the PCB
 order form; `BOM.csv` + `CPL.csv` go to the SMT assembly step.
-`hand-solder-parts.csv` is the shopping list for the through-hole parts you
-solder yourself after the board comes back, plus the mating connectors for the
-board's headers.
+
+**`BOM.csv` lists every part on the board, and JLCPCB fits all of them** -
+leave every line ticked. The 13 lines whose `Notes` read `Optional hand
+solder - JLC assembles; untick at JLC to fit by hand` (BZ1, J2-J12, LED1) are
+the ones you *could* fit yourself: untick one on JLCPCB's BOM confirmation
+page and it arrives unfitted. Their CPL rows are rotation-corrected like the
+rest, so a ticked line is placed right. (A line whose note reads `HAND SOLDER
+- uncheck at JLC` is hand-fitted for good: untick it, and its CPL row is not
+corrected. None does today.)
+`hand-solder-parts.csv` is the shopping list for those optional parts, plus
+the mating connectors for the board's headers, which you need whoever fits
+the headers.
 
 Its first column, `Kind`, splits it in two. `board` rows are parts that get
 soldered down — one row per **orderable part**, so the five identical
@@ -16,13 +25,17 @@ they have no designator, footprint or LCSC line, and they appear in neither
 `BOM.csv` nor `CPL.csv`. See the sourcing section of `../README.md` for the
 part numbers and why those particular ones.
 
-`mouser-order.csv` is the same shopping list again, shaped for Mouser's
-importer instead of for a reader — see "Ordering from Mouser" below.
+`mouser-order.csv` is the parts you have to buy yourself - the mating
+connectors, plus any `HAND SOLDER` part - shaped for Mouser's importer
+instead of for a reader — see "Ordering from Mouser" below.
 
 All five are generated — don't hand-edit. `make pcb-fab` writes them:
 `generator/gen_gerber_zip.py` packs `../gerbers/` (including the `.gbrjob`,
-which is what tells the fab the stack-up), and `generator/gen_jlc.py` writes
-the four CSVs. `make pcb-check` fails if `gerbers.zip` has gone stale against
+which is what tells the fab the stack-up), `kicad-cli sch export bom` writes
+`BOM.csv` straight from the schematic's fields (`LCSC`, `MPN`,
+`Manufacturer`, and `Assembly` for the Notes column), and
+`generator/gen_jlc.py` writes the other three CSVs. To change what is on the
+BOM, or whether a part is hand-soldered, edit the symbol, not a script. `make pcb-check` fails if `gerbers.zip` has gone stale against
 `../gerbers/`, so the zip in a clone is always the one that matches the board
 beside it.
 
@@ -45,7 +58,10 @@ The `Description` is the **Mouser** part's, not the LCSC one's — a row reading
 `22-27-2141 … XD-2510-14A` is the kind of thing that makes you think the
 import matched the wrong part.
 
-Two deliberate differences from `hand-solder-parts.csv`:
+Three deliberate differences from `hand-solder-parts.csv`:
+
+* **The optional board parts are not in it.** JLCPCB fits them; it lists a
+  board part only when its note says `HAND SOLDER`.
 
 * **`LED1` is not in it.** No bare Worldsemi 5050 is in Mouser's catalog, and
   an unmatched line you have to notice and delete is worse than one the
@@ -66,8 +82,8 @@ more than one.
 
 `SJ2` (the "WDT DEFEAT" solder jumper, silkscreened near the SSR drive
 section) is **not** in `BOM.csv`, `CPL.csv`, or `hand-solder-parts.csv` — it's
-a solder jumper, not a manufactured part, so it's deliberately excluded from
-assembly (see `NOT_ASSEMBLED` in `gen_jlc.py`).
+a solder jumper, not a manufactured part, so its symbol is marked "Exclude
+from BOM" (see `not_assembled()` in `gen_jlc.py`).
 
 **Leave it open.** This package's board carries `U10`, an SN74LVC1G123
 retriggerable one-shot gating the SSR +5 V gate-drive rail, and firmware kicks it on
