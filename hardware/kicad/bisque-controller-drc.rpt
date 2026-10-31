@@ -1,5 +1,5 @@
 ** Drc report for bisque-controller.kicad_pcb **
-** Created on 2026-10-30T11:59:42 **
+** Created on 2026-10-30T21:31:59 **
 ** Report includes: Errors, Warnings, Exclusions **
 
 ** Found 0 DRC violations **
@@ -9,8 +9,6 @@
 ** Found 0 Footprint errors **
 
 ** Ignored checks **
-    - Footprint has no courtyard defined
-    - Track endpoint not centered on via
     - Tuning profile track geometries
     - Footprint doesn't match symbol's footprint filters
     - Footprint component type doesn't match footprint pads

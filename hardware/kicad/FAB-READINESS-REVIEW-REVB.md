@@ -1028,6 +1028,13 @@ nothing electrically (same net).
 The 3×3 `F.Paste`-only sub-pad pattern under the EP is already correct
 windowpane practice; leave it alone.
 
+> **Status 2026-10-30:** fixed under the PCB review's item 4 (2026-10-26).
+> Pad 29 now has four 0.5/0.3 GND vias to In1, one at the pad centre and
+> three 1.1 mm from it, all on the paste cross under the mask web, so they
+> are tented and none sits under paste. The stencil is four 1.1 mm windows
+> (50 % coverage) rather than the 3×3 pattern described above. DESIGN-NOTES
+> §U7.
+
 ### 3. U2's SOT-223 tab has no thermal vias, and the Tj headline is quoted at the wrong ambient — *medium*
 
 The tab (pad 2, 2.0 × 3.8 mm) is on `+3V3`, and In2.Cu is a **90.6 %-fill +3V3
@@ -1048,6 +1055,15 @@ Still inside spec everywhere, but at 50 °C U2 crosses the 85 °C threshold that
 starts to matter for the electrolytics and MLCCs near it. Finding 1 works in
 your favour here: real dissipation is `(4.6 − 3.3) × I`, not `(5.0 − 3.3) × I`,
 so ~0.56 W rather than the modelled 0.73 W.
+
+> **Status 2026-10-30:** the via half is fixed under the PCB review's item 4
+> (2026-10-26): four 0.6/0.3 vias join the tab's +3V3 pour to the In2
+> plane, each just outside the tab in the masked pour, so none sits under
+> paste. The Tj half is superseded rather than closed. U2 is now a
+> TLV1117LV33 fed from the buck's regulated 5.0 V, so the dissipation is
+> `(5.0 − 3.3) × I`, 0.85 W at 0.5 A, not the 0.56 W above. The PCB review's
+> item 7 and the schematic review's item 8 carry it as a first-article
+> measurement at the 50 °C in-box ambient, not an analyzer figure.
 
 ### 4. Both inner planes were declared `signal` in the stackup — *low, FIXED*
 
@@ -1196,24 +1212,20 @@ No unexplained drift.
   now applies only to boards assembled from the pre-one-shot package.)
 
 - **Measure the watchdog window on board 1 — it is a safety-path assumption.**
-  The worst-case window arithmetic (1.65–2.71 s from `R46` 100 kΩ × `C38`
-  22 µF, `design.py`'s watchdog block) extrapolates the SN74LVC1G123's
-  K = 1.0–1.1 far beyond the datasheet's 10 kΩ × 0.1 µF spec anchor, and
-  `C38` as ordered (`C12891`, X5R) is rated only to +85 °C, with its ±15 %
-  temperature characteristic guaranteed no further. On the first board, time
-  the actual window at `TP12` across supply and temperature, and confirm the
-  SSR rail drops on all four failure shapes: kick stopped, pin stuck high,
-  pin stuck low, and MCU held in reset. The timing parts are reworkable if
-  the measurement disagrees. (An earlier version of this bullet timed the
-  charge pump's *decay* through `C39`/1 MΩ values that no longer exist —
-  superseded with the pump itself.)
+  The window is set by `R46` 1 MΩ and `C38` ∥ `C49`, two 1 µF 50 V X7R 0805
+  (rev B.3; the 100 kΩ × 22 µF X5R pair this bullet used to describe is
+  gone). That gives 2.0–2.2 s nominal and 1.3–3.1 s worst case, every term
+  a datasheet or purchase figure except the SN74LVC1G123's K = 1.0–1.1,
+  which is still extrapolated from the 10 kΩ × 0.1 µF anchor (PCB review
+  item 11, DESIGN-NOTES §"THE ONE-SHOT"). On the first board, time the
+  actual window at `TP12` and confirm the SSR rail drops on all four failure
+  shapes: kick stopped, pin stuck high, pin stuck low, and MCU held in
+  reset. `docs/bench-smoke-test.md` "Watchdog window" is that procedure.
 
-- **`datasheets/manifest.json` is stale** — see finding 6. It claims all 26
-  parts failed while 13 PDFs are on disk, and still lists retired parts
-  (`USBLC6-2SC6` for U4, `MAX31855KASA+` for U3,
-  `ESP32-S3-WROOM-1-N16R8` for U1). Datasheets missing for parts actually
-  fitted: **SRV05-4** (U4, D5, D6), **SS34** (D1, D2), **SS14** (D3),
-  **1N4148W** (D4).
+- **`datasheets/manifest.json`** — closed (finding 6). It is generated
+  from the schematic and the PDFs on disk, and `make pcb` reports it
+  current with 29 of 29 datasheets present. SRV05-4, SS34 and 1N4148W are
+  now on disk; SS14 left the design when D3 became silicon.
 
 ## Design history — decisions and defects, recorded
 

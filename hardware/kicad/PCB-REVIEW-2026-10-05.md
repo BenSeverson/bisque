@@ -753,6 +753,18 @@ other native categories are ignored by the project, including missing
 courtyards and off-centre via endpoints; the independent courtyard scan
 found no missing courtyard on this board.
 
+> **Status 2026-10-30:** done. The project now checks solder mask to
+> copper at 0.05 mm and the minimum mask groove at 0.10 mm, and
+> `missing_courtyard` and `track_not_centered_on_via` are errors rather
+> than ignored. The first DRC under those settings found six track ends
+> 0.05-0.25 mm off their via's centre (GND, AUX1, BUCK_5V, CTB_F); each
+> was snapped onto the centre, and `make pcb` is back at 0 violations and
+> 0 unconnected. The mask checks and the courtyard check found nothing.
+> Still ignored, on purpose: `footprint_filters_mismatch` and
+> `footprint_type_mismatch` (schematic-to-board metadata, which the sync
+> owns) and `tuning_profile_track_geometries` (no tuning profiles are
+> defined).
+
 Ordering must explicitly select the declared **JLC04161H-7628** stack,
 four layers, 1.6 mm, and **ENIG**, and settle finding 4's via processing.
 The USB impedance estimate depends on that press; changing prepreg is not
