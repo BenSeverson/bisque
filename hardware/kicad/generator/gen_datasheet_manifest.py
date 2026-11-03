@@ -87,6 +87,11 @@ DOC_FOR = {
     "SMAJ30A_C19077547.pdf": "SMAJ30A",
     "XL1509-5.0E1_C61063.pdf": "XL1509-5.0E1",
     "SRV05-4_C7420376.pdf": "SRV05-4",
+    # Rev B.5 connector protection (2026-11-02): J11 terminal TVS, J6 nav-loom
+    # ESD array, and the current-limited switch on the J7/J14 3V3 pins.
+    "SMF30CA_C2943771.pdf": "SMF30CA",
+    "ESDA6V1-5SC6_C2827672.pdf": "ESDA6V1-5SC6",
+    "AP2331SA-7_C500764.pdf": "AP2331SA-7",
     "JK-mSMD075-33_PPTC_C369169.pdf": "750mA/33V",
     "SS36_C7420367.pdf": "SS36",
     "BZT52C8V2S_C22375294.pdf": "BZT52C8V2",

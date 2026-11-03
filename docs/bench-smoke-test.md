@@ -85,7 +85,8 @@ the buck's own output ahead of the mux, is not `+5V`; probe it at C44.
 - [ ] **Idle draw.** Once booted with the display lit, expect roughly
       50–150 mA at 24 V. A supply sitting in current limit with nothing
       connected means stop and look.
-- [ ] **Rails:** `+5V` (C2) 4.9–5.1 V, `+3V3` (J7 pin 1) 3.2–3.4 V, C44
+- [ ] **Rails:** `+5V` (C2) 4.9–5.1 V, `+3V3` (C3) 3.2–3.4 V — J7 pin 1 is
+      `+3V3_HDR` since rev B.5, within ~30 mV of it behind U13 — C44
       (`BUCK_5V`) the same as `+5V` to within a few tens of mV.
 - [ ] **Q8 is switched on, not conducting through its body diode.** J4
       pin 1 (`VIN_P`) reads within ~50 mV of J2's `+`. If it is ~0.6 V
@@ -169,6 +170,20 @@ the buck's own output ahead of the mux, is not `+5V`; probe it at C44.
 - [ ] Bring the display up at a reduced SPI clock first if it is unstable.
       SCLK is a multi-drop net with two thermocouple stubs and ~150 mm of
       loom before the panel.
+
+### Connector protection (rev B.5)
+
+- [ ] **Lid input levels.** With `KILN_LID_SWITCH_EXTERNAL_PULLUP` on (the
+      default), meter `IN1` at C12: ~3.3 V with J11 pin 1 open, under 0.1 V
+      with it jumpered to J11 GND, and the dashboard follows (open / shut).
+      ~2.3 V closed means the internal pull-up is on - wrong config.
+- [ ] **Header 3V3 short.** Short J14 pin 2 (or J7 pin 1) to GND for one
+      second while watching `+3V3` at C3: it stays above 3.0 V and the
+      controller does not reset. U13 recovers when the short is removed.
+- [ ] **Optional: J11 miswire.** From a current-limited bench supply at 24 V,
+      touch J11 pin 2 (IN2, no firmware consumer): `IN2` at C23 reads no
+      more than ~3.6 V and `+3V3` does not move. Do not do this on IN1 with
+      a firing loaded.
 
 ### Output stage and watchdog (before a real kiln)
 

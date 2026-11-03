@@ -1998,7 +1998,117 @@ What regulating removed is the TRADE, not the drop. The review's
 is now a real fix rather than a hedge, and the 74AHCT1G125 the review
 offered as the alternative is not needed.
 
+## Connector protection (rev B.5, 2026-11-02)
+
+The rev-C connector list, pulled into B.5 because nothing has been built.
+Four connectors, four different answers; the derivations are here and the
+review status lines point at them.
+
+--- J11: survives a 24 V wire, still a dry-contact input --------------
+Before: J11 pin -> 1k -> GPIO, with the 10k pull-up and 100nF on the GPIO
+side and D5 (SRV05-4) on the terminal side. The SRV05-4 is a RAIL clamp:
+its steering diodes go to +3V3. A 24 V field wire landed on a J11 terminal
+therefore drove +3V3 directly through a forward diode with nothing in
+series - the 1k was downstream of the clamp and limited nothing
+(schematic review 2026-10-05 item 6). The fix moves the parts, not just
+the values:
+
+    J11.n --+-- R13/R27/R29 10k -- +3V3
+            +-- D15/D16/D17 SMF30CA -- GND
+            +-- R12/R26/R28 100k --+-- C12/C23/C24 100nF -- GND
+                                   +-- GPIO (IN1/IN2/IN3)
+
+Numbers, at the supply's 29 V trim ceiling (the worst wire a kiln cabinet
+offers):
+  * SMF30CA, bidirectional, 30 V standoff, 33.3 V minimum breakdown: 1 uA
+    at 29 V, so it does nothing in a miswire and clamps only transients
+    (48.4 V at 4.1 A, 10/1000 us). A 24 V CAN-class part (PESD2CAN,
+    NUP2105L) would have conducted at the 29 V trim and burned.
+  * The pull-up takes (29 - 3.3)/10k = 2.6 mA OUT of the wire and into
+    +3V3, 66 mW in an 0805 rated 125 mW. +3V3 always carries >= 50 mA of
+    load, so U2 simply supplies 2.6 mA less; nothing back-drives.
+  * The GPIO sees (29 - 3.6)/100k = 0.25 mA through its own clamp diode.
+  * Reversed (-24 V): the TVS is bidirectional, so it still does nothing;
+    the pull-up pulls 2.7 mA the other way and the pin's lower diode
+    carries 0.24 mA.
+Function: a closed contact holds the terminal at 0 V and the pin follows
+through 100k with no divider, so LOW is a clean 0 V; open, the pin sits at
+3.3 V through 110k. 100k x 100nF is a 10 ms corner (11 ms going open),
+against a firmware that samples the lid every 500 ms - the filter is
+still only an EMI filter.
+
+The one consequence outside the board: the ESP32's internal pull-up
+(~45k) MUST be off on this pin. Against R12's 100k it would hold a
+closed lid at ~2.3 V - a HIGH - and the kiln would read "lid open"
+forever. safety_init_io() leaves it off under
+KILN_LID_SWITCH_EXTERNAL_PULLUP (Kconfig, default y). A perfboard build
+with no pull-up of its own turns the option off and gets the internal
+pull-up back, so an unwired input still reads open. B.4 boards also
+work with the option on: their 10k was on the pin side.
+
+Still a dry-contact input. A powered 24 V sensor (PNP output) drives the
+terminal to 24 V when active and leaves it to R13 when not: both read
+HIGH. The board now survives that sensor; it does not read it.
+
+Placement: the nine filter parts moved from two rows west of J11 into
+one row (y 113.4) under J5, and the TVS row (y 117.6) sits between it
+and J11's terminals. The band they vacated is what D19-D21 needed.
+
+--- J6: an array, no series resistors ---------------------------------
+D18, an ESDA6V1-5SC6 (five unidirectional lines to a common GND, 6.1 V,
+60 pF), clamps BTN_UP/DOWN/LEFT/RIGHT/SEL. 60 pF is nothing on a switch
+contact.
+
+The 1k series resistors the plan called for are NOT fitted. Five 0603s
+fit in the one free strip above J6 (1.7 mm between the resistor row at
+y 96.5 and J6's courtyard), but their ten pads then need ten escapes
+through that row, and the in-house router left one to three of the ten
+nets unrouted in every order, rotation of D18 and resistor pitch tried.
+Stacked beside U1's button pins instead, their inner pads were
+unreachable. The loom carries only switch contacts against the ESP32's
+internal pull-ups; the array is the protection the review asked for,
+and a series R is the thing to add if an ESD test says otherwise.
+
+--- J5: three low-capacitance arrays and two resistors ----------------
+D19-D21 are SRV05-4s (the U4/D6 part), each on four adjacent J5 pins in
+pin order, directly under the header: 3-6, 7-10, 11-14. A rail clamp is
+right here, unlike J11: every J5 line is 3.3 V logic from a module whose
+own regulator makes 3.3 V, so there is no higher voltage on the loom to
+steer into +3V3, and the SRV05-4's few pF is what a 40 MHz SCLK can
+afford. LCD_RST and LCD_BL were the two J5 lines with no series
+resistor; R79/R80 (33 ohm, 0603) give them the same as the others.
+
+--- J7/J14: a current-limited 3V3 and four clamps ---------------------
+The header 3V3 pins (J7.1, J7.7, J14.2) are a net of their own,
++3V3_HDR, fed by U13: an AP2331SA-7, always on, 0.25-0.35 ohm, with a
+0.3-0.5 A short-circuit limit and thermal shutdown. A Qwiic or AUX
+device shorted across 3V3 used to pull U1's rail down with it; now U13
+limits and cycles, and U2 sees at most 0.5 A extra - (5 - 3.3) x 0.5 =
+0.85 W for as long as U13 takes to trip its own thermal shutdown (1.3 W
+in a SOT-23 at 215 C/W: well under a second). A PTC was considered and
+rejected: it ends a short but does nothing to hold the rail while it
+lasts. C55 is the datasheet's 0.1 uF on the output.
+
+One behaviour change: U13 blocks reverse current, so the header can no
+longer back-power the board (a USB-UART adapter's 3V3 on J7.1 used to
+reach +3V3 directly). Nothing documented relied on that.
+
+D22 (SRV05-4) clamps TXD0, RXD0, I2C_SDA and I2C_SCL at J7; J14 shares
+the I2C pair.
+
+--- Tooling notes -----------------------------------------------------
+Placement was a search, not a choice: a 0.1 mm occupancy grid of every
+courtyard, pad and non-ripped track/via, nearest free spot to a target
+beside each connector. Locking a footprint pins its designator for
+silk.py (CLAUDE.md), so the new parts are left unlocked - with them
+locked, D19-D21's references sat on J5's outline and failed DRC.
+
 ## R12 (design.py line 1725)
+
+> **Superseded in part by rev B.5** (§"Connector protection" above): R12/R26/R28
+> are 100k on the GPIO side of the pull-up, the pull-up is on the terminal side,
+> and D5 is gone - D15-D17 (SMF30CA to GND) replace it. The ESD/fault reasoning
+> below describes rev B.4 and earlier.
 
 --- Protected dry-contact inputs (lid / gas flow / spare) -----------
 Generalises rev A's single lid-switch filter (below) to three
@@ -2052,6 +2162,9 @@ past them. See gen_sch.py SCH_AT for the >=20mm spacing rule that
 keeps facing pin-label stubs from merging nets (Tasks 7, 8).
 
 ## C23 (design.py line 1778)
+
+> **Superseded by rev B.5:** the J11 filter parts now sit in one row under J5
+> (§"Connector protection"); the placement argument below is historical.
 
 Channel 2's filter cap, in channel 2's row. It used to sit at
 (35.0, 115.0) - 20 mm west of its own R26/R27, on the far side of

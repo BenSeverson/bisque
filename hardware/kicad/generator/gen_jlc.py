@@ -232,6 +232,11 @@ JLC_PLACEMENT = {
     "C515890":  (270,  0.000,  0.000),   # U7    QFN-28-1EP_5x5mm_P0.5mm_EP3.1x3.1mm  resid 0.075 (29 pin#)
     "C48937499": (270, -0.287, -0.000),  # U2    SOT-223-3_TabPin2                    resid 0.000 (2 pin#)
     "C7420376": (270,  0.000,  0.000),   # U4    SOT-23-6                             resid 0.062 (6 pin#)
+    "C2827672": (270,  0.000,  0.000),   # D18   SOT-23-6                             resid 0.012 (6 pin#)
+    # D15-D17. The SMF30CA is bidirectional, so the 0.300 residual (LCSC's SOD-123FL
+    # land is 0.2 mm wider than KiCad's D_SOD-123F) is all pad span, none of it polarity.
+    "C2943771": (  0,  0.000,  0.000),   # D15   D_SOD-123F                           resid 0.300 (2 pin#)
+    "C500764":  (180,  0.000,  0.000),   # U13   SOT-23                               resid 0.083 (3 pin#)
     "C7512":    (270,  0.000,  0.000),   # U6    SOIC-16_3.9x9.9mm_P1.27mm            resid 0.261 (16 pin#)
     "C383253":  (180,  0.000,  0.000),   # Q5    SOT-23                               resid 0.083 (3 pin#)
     "C75882":   (180,  0.000,  0.000),   # Q7    SOT-23                               resid 0.397 (3 pin#)
@@ -371,10 +376,10 @@ LCSC = {
     "C52": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603 - SPI return path", True, True),
     "C53": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603 - SPI return path", True, True),
     "C54": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603 - SPI return path", True, True),
+    "C55": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603 - U13 output", True, True),
     "C49": ("C28323", "CL21B105KBFNNNE 1uF 50V X7R 0805", True, True),
     "D3": ("C81598", "1N4148W SOD-123 - VLED drop diode, silicon on purpose", True, True),
     "D4": ("C81598", "1N4148W SOD-123", True, True),
-    "D5": ("C7420376", "SRV05-4 TVS array SOT-23-6", True, True),
     "D6": ("C7420376", "SRV05-4 TVS array SOT-23-6", True, True),
     # 60 V, not the SS34's 40 V: the catch diode sees the input rail in
     # reverse every cycle, and D8 holds a sustained fault at up to ~38 V
@@ -393,6 +398,14 @@ LCSC = {
     "D12": ("C22375294", "BZT52C8V2S 8.2V 200mW zener SOD-323 - Q9 gate clamp", True, True),
     "D13": ("C22375294", "BZT52C8V2S 8.2V 200mW zener SOD-323 - Q5 gate clamp", True, True),
     "D14": ("C22375294", "BZT52C8V2S 8.2V 200mW zener SOD-323 - Q6 gate clamp", True, True),
+    "D15": ("C2943771", "SMF30CA 30V bidirectional TVS SOD-123FL - J11 terminal", False, True),
+    "D16": ("C2943771", "SMF30CA 30V bidirectional TVS SOD-123FL - J11 terminal", False, True),
+    "D17": ("C2943771", "SMF30CA 30V bidirectional TVS SOD-123FL - J11 terminal", False, True),
+    "D18": ("C2827672", "ESDA6V1-5SC6 5-line ESD array SOT-23-6 - J6 nav loom", False, True),
+    "D19": ("C7420376", "SRV05-4 TVS array SOT-23-6 - J5 display loom", True, True),
+    "D20": ("C7420376", "SRV05-4 TVS array SOT-23-6 - J5 display loom", True, True),
+    "D21": ("C7420376", "SRV05-4 TVS array SOT-23-6 - J5 touch loom", True, True),
+    "D22": ("C7420376", "SRV05-4 TVS array SOT-23-6 - J7/J14 headers", True, True),
     # The one SMAJ30A of 44 listings that LCSC files as Preferred rather
     # than Extended, which is the whole reason for it (#348) - same MPN,
     # same DO-214AC land pattern, same 30V/400W part, $3 less per order.
@@ -469,7 +482,7 @@ LCSC = {
     "R9": ("C17513", "1k 0805 1%", True, True),
     "R10": ("C17414", "10k 0805 1%", True, True),
     "R11": ("C17408", "100R 0805 1%", True, True),
-    "R12": ("C17513", "1k 0805 1%", True, True),
+    "R12": ("C149504", "100k 0805 1% - J11 series, limits a 24 V miswire to 0.25 mA", True, True),
     "R13": ("C17414", "10k 0805 1%", True, True),
     "R14": ("C17408", "100R 0805 1%", True, True),
     "R15": ("C17408", "100R 0805 1%", True, True),
@@ -483,9 +496,9 @@ LCSC = {
     "R23": ("C17414", "10k 0805 1%", True, True),
     "R24": ("C17414", "10k 0805 1%", True, True),
     "R25": ("C17414", "10k 0805 1%", True, True),
-    "R26": ("C17513", "1k 0805 1%", True, True),
+    "R26": ("C149504", "100k 0805 1% - J11 series, limits a 24 V miswire to 0.25 mA", True, True),
     "R27": ("C17414", "10k 0805 1%", True, True),
-    "R28": ("C17513", "1k 0805 1%", True, True),
+    "R28": ("C149504", "100k 0805 1% - J11 series, limits a 24 V miswire to 0.25 mA", True, True),
     "R29": ("C17414", "10k 0805 1%", True, True),
     "R30": ("C17414", "10k 0805 1%", True, True),
     "R31": ("C17724", "0805W8F510KT5E 5.1R 0805 1%", True, True),
@@ -541,6 +554,8 @@ LCSC = {
     # (0/22/47 are the alternatives), the footprint is the point.
     "R72": ("C23140", "33R 0603 1%", True, True),
     "R73": ("C23140", "33R 0603 1%", True, True),
+    "R79": ("C23140", "33R 0603 1% - LCD_RST series", True, True),
+    "R80": ("C23140", "33R 0603 1% - LCD_BL series", True, True),
     "SW1": ("C318884", "TS-1187A-B-A-B 5.1x5.1mm SMD tactile switch", True, True),
     "SW2": ("C318884", "TS-1187A-B-A-B 5.1x5.1mm SMD tactile switch", True, True),
     # Containment, not isolation - see DESIGN-NOTES.md's SSR block. SOP-4 rather
@@ -569,6 +584,7 @@ LCSC = {
     # keeps the buck winning over a 5.25V USB host; an ideal diode would
     # hand the rail to whichever input happened to be higher.
     "U12": ("C3235557", "TPS2116DRLR 2.5A power mux SOT-583", False, True),
+    "U13": ("C500764", "AP2331SA-7 200mA current-limited switch SOT-23 - J7/J14 3V3", False, True),
     "Y1": ("C2838127", "TFOM3.579545M4RHKCNT2T 3.579545MHz XO SMD3225-4P", False, True),
 }
 

@@ -7,7 +7,7 @@
 	(title_block
 		(title "Bisque Kiln Controller - Aux outputs, buzzer, protected inputs")
 		(date "2026-10-22")
-		(rev "B.4")
+		(rev "B.5")
 		(company "Bisque project")
 		(comment 1 "ESP32-S3-WROOM-1U-N16R2 + 2x MAX31856 + dual SSR + ADE7953")
 		(comment 2 "4-layer, 100 x 100 mm, JLCPCB standard process")
@@ -3123,6 +3123,180 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "Device:D_TVS"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 1.016)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "D"
+				(at 0 2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "D_TVS"
+				(at 0 -2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Bidirectional transient-voltage-suppression diode"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "diode TVS thyrector"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "TO-???* *_Diode_* *SingleDiode* D_*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "D_TVS_0_1"
+				(polyline
+					(pts
+						(xy -2.54 1.27)
+						(xy -2.54 -1.27)
+						(xy 2.54 1.27)
+						(xy 2.54 -1.27)
+						(xy -2.54 1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.508 1.27)
+						(xy 0 1.27)
+						(xy 0 -1.27)
+						(xy -0.508 -1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.27 0)
+						(xy -1.27 0)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "D_TVS_1_1"
+				(pin passive line
+					(at -3.81 0 0)
+					(length 2.54)
+					(name "A1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 3.81 0 180)
+					(length 2.54)
+					(name "A2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 	)
 	(junction
 		(at 156.21 62.23)
@@ -3201,10 +3375,6 @@
 		(uuid "0c3d65dd-3b1c-47e5-9c42-e0710c7b6cd2")
 	)
 	(no_connect
-		(at 323.85 144.78)
-		(uuid "36fec20c-63f5-5325-8d18-c7f52b015e75")
-	)
-	(no_connect
 		(at 50.8 60.96)
 		(uuid "4f523692-75f4-5df3-9bef-8703663826c7")
 	)
@@ -3219,17 +3389,6 @@
 	(no_connect
 		(at 50.8 55.88)
 		(uuid "ee0731d5-8c83-5165-9401-5334860eb8b0")
-	)
-	(wire
-		(pts
-			(xy 323.85 149.86)
-			(xy 326.39 149.86)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "0715d8aa-7e49-5b2c-995a-11da2e0b7767")
 	)
 	(wire
 		(pts
@@ -3277,17 +3436,6 @@
 	)
 	(wire
 		(pts
-			(xy 311.15 160.02)
-			(xy 311.15 162.56)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "1540b3cd-ef3c-58bf-9b9e-3335c7a947b4")
-	)
-	(wire
-		(pts
 			(xy 167.64 62.23)
 			(xy 148.59 62.23)
 		)
@@ -3332,17 +3480,6 @@
 	)
 	(wire
 		(pts
-			(xy 314.96 83.82)
-			(xy 322.58 83.82)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "239c2df2-7ce9-5aa8-a3d5-872cde227676")
-	)
-	(wire
-		(pts
 			(xy 30.48 63.5)
 			(xy 27.94 63.5)
 		)
@@ -3365,17 +3502,6 @@
 	)
 	(wire
 		(pts
-			(xy 298.45 144.78)
-			(xy 295.91 144.78)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "2b560db5-18da-5c0a-8339-2a503ad60aee")
-	)
-	(wire
-		(pts
 			(xy 27.94 63.5)
 			(xy 27.94 66.04)
 		)
@@ -3384,17 +3510,6 @@
 			(type default)
 		)
 		(uuid "2b9f0fd0-e455-5685-842b-a81ef65f7124")
-	)
-	(wire
-		(pts
-			(xy 314.96 53.34)
-			(xy 322.58 53.34)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "3363b50d-be1f-5545-b82d-110816338db5")
 	)
 	(wire
 		(pts
@@ -3585,17 +3700,6 @@
 	)
 	(wire
 		(pts
-			(xy 311.15 134.62)
-			(xy 311.15 132.08)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "9118072f-3775-584a-8301-002f34e19a2c")
-	)
-	(wire
-		(pts
 			(xy 27.94 58.42)
 			(xy 27.94 60.96)
 		)
@@ -3651,17 +3755,6 @@
 	)
 	(wire
 		(pts
-			(xy 298.45 149.86)
-			(xy 295.91 149.86)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "9e0609ff-d866-5dbd-a1c4-09e9fe1cc260")
-	)
-	(wire
-		(pts
 			(xy 87.63 53.34)
 			(xy 87.63 55.88)
 		)
@@ -3670,17 +3763,6 @@
 			(type default)
 		)
 		(uuid "a15dd10d-eeb2-5db7-9485-9681d621f97e")
-	)
-	(wire
-		(pts
-			(xy 314.96 114.3)
-			(xy 322.58 114.3)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "a6d5ec12-ee14-587e-b9ff-6858572fc3a9")
 	)
 	(wire
 		(pts
@@ -3899,6 +3981,39 @@
 		)
 		(uuid "ed863777-87ab-4533-8402-66222cd51854")
 	)
+	(wire
+		(pts
+			(xy 293.37 53.34)
+			(xy 300.99 53.34)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7f5731e2-1a6b-42a9-95fa-dadba6cee518")
+	)
+	(wire
+		(pts
+			(xy 293.37 83.82)
+			(xy 300.99 83.82)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7cb968f8-cf0a-406a-92c7-5ab674c26375")
+	)
+	(wire
+		(pts
+			(xy 293.37 114.3)
+			(xy 300.99 114.3)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e1ba8fca-c010-4f8c-8079-036be89079dc")
+	)
 	(text "ALARM BUZZER"
 		(at 147.3333 27.7 0)
 		(effects
@@ -3910,7 +4025,7 @@
 		)
 		(uuid "553f89ec-0770-52db-adcb-7321a75533cb")
 	)
-	(text "PROTECTED INPUTS x3  lid / gas-flow / spare\n1k + 10k pull-up + 100nF each, SRV05-4 TVS"
+	(text "PROTECTED INPUTS x3  lid / gas-flow / spare\n10k pull-up + SMF30CA at the terminal, 100k + 100nF to the pin"
 		(at 272.6667 29.4 0)
 		(effects
 			(font
@@ -3921,6 +4036,27 @@
 		)
 		(uuid "8ceecd9e-599d-5d3d-b1bf-a46fc27c61e7")
 	)
+	(text "U6 channels run AUX3/AUX2/AUX1 on I1/I2/I3 (reversed against J10)\nfor routing; O1 and O3 reach J10 by label, O2 by wire.\nR23-R25 hold each input low while the MCU pin is high-Z."
+		(at 22 80 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "43e544a8-bf49-4a7e-b4f1-b21cc3283526")
+	)
+	(text "AUX OUTPUT BANK\nULN2003 vent/purge/spare; COM->AUX_VP, SJ1 links to +5V"
+		(at 22 28.5 0)
+		(effects
+			(font
+				(size 2 2)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+		(uuid "d1054797-1fd5-4a95-902b-829548947f16")
+	)
 	(label "AUX1"
 		(at 87.63 43.18 0)
 		(effects
@@ -3930,16 +4066,6 @@
 			(justify left bottom)
 		)
 		(uuid "2af78c5d-72d2-5a32-9509-fef9cfe01b25")
-	)
-	(label "IN1_RAW"
-		(at 295.91 144.78 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "35748bcb-d589-5c7d-aa8a-b19177a3905a")
 	)
 	(label "AUX3_OUT"
 		(at 73.66 53.34 180)
@@ -3961,16 +4087,6 @@
 		)
 		(uuid "79d0e9d7-cab7-4914-af47-a4046acebe50")
 	)
-	(label "IN3_RAW"
-		(at 295.91 149.86 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "84e875d0-7c0e-5fe3-8053-ad208e35e29d")
-	)
 	(label "AUX3_OUT"
 		(at 50.8 48.26 0)
 		(effects
@@ -3980,16 +4096,6 @@
 			(justify left bottom)
 		)
 		(uuid "879cca6c-84e7-4dc0-9b6c-d754fce87e19")
-	)
-	(label "IN2_RAW"
-		(at 326.39 149.86 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "99b7d7be-7e13-522f-9b38-c04ee19a29f4")
 	)
 	(label "IN1_RAW"
 		(at 284.48 53.34 0)
@@ -4091,6 +4197,36 @@
 		)
 		(uuid "7b366953-6895-48b8-83f3-824e6429a772")
 	)
+	(label "IN1_RAW"
+		(at 297.18 143.51 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "f681e0ce-0f29-414f-8e8f-2e633d955f65")
+	)
+	(label "IN2_RAW"
+		(at 312.42 143.51 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "5f03c33c-9f30-4961-8d80-1a36593efb1a")
+	)
+	(label "IN3_RAW"
+		(at 327.66 143.51 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "dc5444a3-cece-4501-ba5b-cc146196115d")
+	)
 	(hierarchical_label "AUX3"
 		(shape input)
 		(at 27.94 48.26 180)
@@ -4168,16 +4304,6 @@
 		)
 		(uuid "c884d974-af6f-57ed-ac14-83a334d864be")
 	)
-  (text "U6 channels run AUX3/AUX2/AUX1 on I1/I2/I3 (reversed against J10)\nfor routing; O1 and O3 reach J10 by label, O2 by wire.\nR23-R25 hold each input low while the MCU pin is high-Z."
-    (at 22 80 0)
-    (effects (font (size 1.27 1.27)) (justify left top))
-    (uuid "43e544a8-bf49-4a7e-b4f1-b21cc3283526")
-  )
-  (text "AUX OUTPUT BANK\nULN2003 vent/purge/spare; COM->AUX_VP, SJ1 links to +5V"
-    (at 22 28.5 0)
-    (effects (font (size 2 2) (bold yes)) (justify left bottom))
-    (uuid "d1054797-1fd5-4a95-902b-829548947f16")
-  )
 	(symbol
 		(lib_id "power:GND")
 		(at 322.58 63.5 0)
@@ -4621,25 +4747,25 @@
 		(dnp no)
 		(uuid "21864964-d18e-543d-a3fb-b96a60e97022")
 		(property "Reference" "R29"
-			(at 317.5 106.68 0)
+			(at 313.69 106.68 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
+				(justify right)
 			)
 		)
 		(property "Value" "10k"
-			(at 317.5 109.22 0)
+			(at 313.69 109.22 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
+				(justify right)
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
@@ -5065,82 +5191,6 @@
 			(project "bisque-controller"
 				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
 					(reference "#PWR0116")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:+3V3")
-		(at 311.15 132.08 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "445c86c9-f57c-5957-9bf2-0e6985fb320a")
-		(property "Reference" "#PWR0207"
-			(at 311.15 132.08 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+3V3"
-			(at 311.15 128.2605 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 311.15 132.08 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 311.15 132.08 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 311.15 132.08 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(body_style 1)
-		(in_pos_files yes)
-		(pin "1"
-			(uuid "792456ee-e5ba-5b6f-bc90-e7415b951aca")
-		)
-		(instances
-			(project "bisque-controller"
-				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
-					(reference "#PWR0207")
 					(unit 1)
 				)
 			)
@@ -5575,7 +5625,7 @@
 	)
 	(symbol
 		(lib_id "Device:R")
-		(at 297.18 83.82 90)
+		(at 318.77 83.82 90)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -5583,7 +5633,7 @@
 		(dnp no)
 		(uuid "57920c64-2d50-543e-aa82-7541bf6c1868")
 		(property "Reference" "R26"
-			(at 297.18 78.74 90)
+			(at 318.77 78.74 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -5592,8 +5642,8 @@
 				)
 			)
 		)
-		(property "Value" "1k"
-			(at 297.18 81.28 90)
+		(property "Value" "100k"
+			(at 318.77 81.28 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -5603,7 +5653,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
-			(at 297.18 83.82 0)
+			(at 318.77 83.82 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5613,8 +5663,8 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17513"
-			(at 297.18 83.82 0)
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C149504"
+			(at 318.77 83.82 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5625,7 +5675,7 @@
 			)
 		)
 		(property "Description" "Resistor"
-			(at 297.18 83.82 0)
+			(at 318.77 83.82 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5635,8 +5685,8 @@
 				)
 			)
 		)
-		(property "MPN" "0805W8F1001T5E"
-			(at 297.18 83.82 0)
+		(property "MPN" "0805W8F1003T5E"
+			(at 318.77 83.82 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5646,8 +5696,8 @@
 				)
 			)
 		)
-		(property "LCSC" "C17513"
-			(at 297.18 83.82 0)
+		(property "LCSC" "C149504"
+			(at 318.77 83.82 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5658,7 +5708,7 @@
 			)
 		)
 		(property "Manufacturer" "UNI-ROYAL"
-			(at 297.18 83.82 0)
+			(at 318.77 83.82 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5695,25 +5745,25 @@
 		(dnp no)
 		(uuid "5ff39adc-0a49-5549-bc67-a77134792446")
 		(property "Reference" "R27"
-			(at 317.5 76.2 0)
+			(at 313.69 76.2 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
+				(justify right)
 			)
 		)
 		(property "Value" "10k"
-			(at 317.5 78.74 0)
+			(at 313.69 78.74 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
+				(justify right)
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
@@ -6657,82 +6707,6 @@
 		)
 	)
 	(symbol
-		(lib_id "power:GND")
-		(at 311.15 162.56 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "ab68d6c8-b978-5a5a-a097-79e7cd5d9149")
-		(property "Reference" "#PWR0208"
-			(at 311.15 162.56 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 311.15 166.3795 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 311.15 162.56 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 311.15 162.56 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 311.15 162.56 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(body_style 1)
-		(in_pos_files yes)
-		(pin "1"
-			(uuid "f1677f4c-eac4-53e7-b598-83e3f0ebc36e")
-		)
-		(instances
-			(project "bisque-controller"
-				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
-					(reference "#PWR0208")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "Device:R")
 		(at 110.49 49.53 0)
 		(unit 1)
@@ -6848,7 +6822,7 @@
 	)
 	(symbol
 		(lib_id "Device:R")
-		(at 297.18 114.3 90)
+		(at 318.77 114.3 90)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -6856,7 +6830,7 @@
 		(dnp no)
 		(uuid "b5df2788-17a7-5939-9759-192106d62364")
 		(property "Reference" "R28"
-			(at 297.18 109.22 90)
+			(at 318.77 109.22 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -6865,8 +6839,8 @@
 				)
 			)
 		)
-		(property "Value" "1k"
-			(at 297.18 111.76 90)
+		(property "Value" "100k"
+			(at 318.77 111.76 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -6876,7 +6850,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
-			(at 297.18 114.3 0)
+			(at 318.77 114.3 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6886,8 +6860,8 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17513"
-			(at 297.18 114.3 0)
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C149504"
+			(at 318.77 114.3 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6898,7 +6872,7 @@
 			)
 		)
 		(property "Description" "Resistor"
-			(at 297.18 114.3 0)
+			(at 318.77 114.3 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6908,8 +6882,8 @@
 				)
 			)
 		)
-		(property "MPN" "0805W8F1001T5E"
-			(at 297.18 114.3 0)
+		(property "MPN" "0805W8F1003T5E"
+			(at 318.77 114.3 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6919,8 +6893,8 @@
 				)
 			)
 		)
-		(property "LCSC" "C17513"
-			(at 297.18 114.3 0)
+		(property "LCSC" "C149504"
+			(at 318.77 114.3 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6931,7 +6905,7 @@
 			)
 		)
 		(property "Manufacturer" "UNI-ROYAL"
-			(at 297.18 114.3 0)
+			(at 318.77 114.3 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6968,25 +6942,25 @@
 		(dnp no)
 		(uuid "c06b97d1-5261-5257-aa9e-96479e62cbf2")
 		(property "Reference" "R13"
-			(at 317.5 45.72 0)
+			(at 313.69 45.72 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
+				(justify right)
 			)
 		)
 		(property "Value" "10k"
-			(at 317.5 48.26 0)
+			(at 313.69 48.26 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
+				(justify right)
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
@@ -7567,132 +7541,6 @@
 		)
 	)
 	(symbol
-		(lib_id "Power_Protection:SRV05-4")
-		(at 311.15 147.32 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "e2028674-99fc-54fb-9238-cf80229e957a")
-		(property "Reference" "D5"
-			(at 326.39 139.7 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "SRV05-4"
-			(at 326.39 141.61 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Package_TO_SOT_SMD:SOT-23-6"
-			(at 311.15 147.32 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/c94a8eedc13753364c00c764db36d52a.pdf?productCode=C7420376"
-			(at 311.15 147.32 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "ESD Protection Diodes with Low Clamping Voltage, SOT-23-6"
-			(at 311.15 147.32 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MPN" "SRV05-4"
-			(at 311.15 147.32 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" "C7420376"
-			(at 311.15 147.32 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Manufacturer" "R+O"
-			(at 311.15 147.32 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(body_style 1)
-		(in_pos_files yes)
-		(pin "1"
-			(uuid "1a3ad5b0-9d2f-5f34-bd91-967c2a39eb41")
-		)
-		(pin "2"
-			(uuid "e0a3dbbf-8a25-57b9-a8fb-08946349d9f4")
-		)
-		(pin "3"
-			(uuid "42c793f4-860a-5958-9525-3723b8798ba3")
-		)
-		(pin "4"
-			(uuid "fdd76d5d-f2ac-5ac6-a68f-60e42526b080")
-		)
-		(pin "5"
-			(uuid "fe190549-0a52-5fd4-a79c-8c9c2c5ee108")
-		)
-		(pin "6"
-			(uuid "0e958b4b-7b9d-5fd1-8651-ef90a114608b")
-		)
-		(instances
-			(project "bisque-controller"
-				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
-					(reference "D5")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "power:+5V")
 		(at 55.88 35.56 0)
 		(unit 1)
@@ -7770,7 +7618,7 @@
 	)
 	(symbol
 		(lib_id "Device:R")
-		(at 297.18 53.34 90)
+		(at 318.77 53.34 90)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -7778,7 +7626,7 @@
 		(dnp no)
 		(uuid "efeba222-0cb5-5fa4-9f6f-a6b841cc4892")
 		(property "Reference" "R12"
-			(at 297.18 48.26 90)
+			(at 318.77 48.26 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -7787,8 +7635,8 @@
 				)
 			)
 		)
-		(property "Value" "1k"
-			(at 297.18 50.8 90)
+		(property "Value" "100k"
+			(at 318.77 50.8 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -7798,7 +7646,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
-			(at 297.18 53.34 0)
+			(at 318.77 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7808,8 +7656,8 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17513"
-			(at 297.18 53.34 0)
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C149504"
+			(at 318.77 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7820,7 +7668,7 @@
 			)
 		)
 		(property "Description" "Resistor"
-			(at 297.18 53.34 0)
+			(at 318.77 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7830,8 +7678,8 @@
 				)
 			)
 		)
-		(property "MPN" "0805W8F1001T5E"
-			(at 297.18 53.34 0)
+		(property "MPN" "0805W8F1003T5E"
+			(at 318.77 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7841,8 +7689,8 @@
 				)
 			)
 		)
-		(property "LCSC" "C17513"
-			(at 297.18 53.34 0)
+		(property "LCSC" "C149504"
+			(at 318.77 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7853,7 +7701,7 @@
 			)
 		)
 		(property "Manufacturer" "UNI-ROYAL"
-			(at 297.18 53.34 0)
+			(at 318.77 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8103,6 +7951,570 @@
 			(project "bisque-controller"
 				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
 					(reference "#PWR0120")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:D_TVS")
+		(at 297.18 147.32 90)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "5383500f-6162-400e-9703-644dfbd02cd3")
+		(property "Reference" "D15"
+			(at 303.53 146.05 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "SMF30CA"
+			(at 303.53 148.59 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123F"
+			(at 297.18 147.32 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/84d6c6ec87898465fcb747c8ed9c5364.pdf?productCode=C2943771"
+			(at 297.18 147.32 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Bidirectional TVS diode, 30 V standoff, 33.3 V breakdown, 200 W, SOD-123FL"
+			(at 297.18 147.32 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "SMF30CA"
+			(at 297.18 147.32 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C2943771"
+			(at 297.18 147.32 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "GOODWORK"
+			(at 297.18 147.32 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(body_style 1)
+		(in_pos_files yes)
+		(pin "1"
+			(uuid "a02c3ae0-8398-530c-94e1-6b49674d6240")
+		)
+		(pin "2"
+			(uuid "16e60e17-492a-5641-a8f5-6ac198a1519d")
+		)
+		(instances
+			(project "bisque-controller"
+				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
+					(reference "D15")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:D_TVS")
+		(at 312.42 147.32 90)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "df31914a-f7fc-4634-bea6-8e30fff6349b")
+		(property "Reference" "D16"
+			(at 318.77 146.05 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "SMF30CA"
+			(at 318.77 148.59 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123F"
+			(at 312.42 147.32 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/84d6c6ec87898465fcb747c8ed9c5364.pdf?productCode=C2943771"
+			(at 312.42 147.32 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Bidirectional TVS diode, 30 V standoff, 33.3 V breakdown, 200 W, SOD-123FL"
+			(at 312.42 147.32 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "SMF30CA"
+			(at 312.42 147.32 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C2943771"
+			(at 312.42 147.32 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "GOODWORK"
+			(at 312.42 147.32 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(body_style 1)
+		(in_pos_files yes)
+		(pin "1"
+			(uuid "82241dd2-667d-5224-a0b4-c69f5d16b40d")
+		)
+		(pin "2"
+			(uuid "d73dc5fd-15ce-52d6-9205-79ac220b2669")
+		)
+		(instances
+			(project "bisque-controller"
+				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
+					(reference "D16")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:D_TVS")
+		(at 327.66 147.32 90)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "bbbb43c3-9cb3-46e6-b5d4-6a4d59eb48fc")
+		(property "Reference" "D17"
+			(at 334.01 146.05 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "SMF30CA"
+			(at 334.01 148.59 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123F"
+			(at 327.66 147.32 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/84d6c6ec87898465fcb747c8ed9c5364.pdf?productCode=C2943771"
+			(at 327.66 147.32 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Bidirectional TVS diode, 30 V standoff, 33.3 V breakdown, 200 W, SOD-123FL"
+			(at 327.66 147.32 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "SMF30CA"
+			(at 327.66 147.32 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C2943771"
+			(at 327.66 147.32 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "GOODWORK"
+			(at 327.66 147.32 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(body_style 1)
+		(in_pos_files yes)
+		(pin "1"
+			(uuid "c5f2a569-2a2b-5bb7-887c-f2e374c12457")
+		)
+		(pin "2"
+			(uuid "dc27d9c3-33d6-5c71-b115-c181350514ef")
+		)
+		(instances
+			(project "bisque-controller"
+				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
+					(reference "D17")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 297.18 151.13 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "37ad55b0-4d75-47ac-b2c8-f2419fbbbbb0")
+		(property "Reference" "#PWR0243"
+			(at 297.18 151.13 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 297.18 154.9495 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 297.18 151.13 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 297.18 151.13 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 297.18 151.13 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(body_style 1)
+		(in_pos_files yes)
+		(pin "1"
+			(uuid "2c79c86d-848f-5750-89f3-b2ddff5d73f8")
+		)
+		(instances
+			(project "bisque-controller"
+				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
+					(reference "#PWR0243")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 312.42 151.13 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "93032f1e-8197-4d28-8af6-b625eb9d19e2")
+		(property "Reference" "#PWR0242"
+			(at 312.42 151.13 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 312.42 154.9495 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 312.42 151.13 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 312.42 151.13 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 312.42 151.13 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(body_style 1)
+		(in_pos_files yes)
+		(pin "1"
+			(uuid "f9fb85ea-8630-5b88-9a74-68b48516646b")
+		)
+		(instances
+			(project "bisque-controller"
+				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
+					(reference "#PWR0242")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 327.66 151.13 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "4bbbd397-5c47-4736-a5ad-a7dde52c2748")
+		(property "Reference" "#PWR0241"
+			(at 327.66 151.13 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 327.66 154.9495 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 327.66 151.13 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 327.66 151.13 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 327.66 151.13 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(body_style 1)
+		(in_pos_files yes)
+		(pin "1"
+			(uuid "37d77a95-9a7d-577a-ac16-7cec23d27c9b")
+		)
+		(instances
+			(project "bisque-controller"
+				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
+					(reference "#PWR0241")
 					(unit 1)
 				)
 			)

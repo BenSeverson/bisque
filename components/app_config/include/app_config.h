@@ -120,6 +120,17 @@
    open and fails safe. See the Kconfig help. The Kconfig symbol only exists when
    a lid pin is configured, so default it here for the -1 case rather than making
    every consumer #ifdef. */
+/* True when the firmware must supply the lid input's pull-up itself. The
+   Bisque PCB pulls the terminal side up and feeds the GPIO through 100k, where
+   the internal ~45k pull-up would read a closed lid as open, so it stays off
+   there (KILN_LID_SWITCH_EXTERNAL_PULLUP, default y). Like the polarity
+   option, the Kconfig symbol only exists when a lid pin is configured. */
+#if defined(CONFIG_KILN_PIN_LID_SWITCH) && CONFIG_KILN_PIN_LID_SWITCH >= 0 && \
+    !defined(CONFIG_KILN_LID_SWITCH_EXTERNAL_PULLUP)
+#define APP_LID_SWITCH_INTERNAL_PULLUP 1
+#else
+#define APP_LID_SWITCH_INTERNAL_PULLUP 0
+#endif
 #ifdef CONFIG_KILN_LID_SWITCH_OPEN_IS_LOW
 #define APP_LID_SWITCH_OPEN_IS_LOW 1
 #else

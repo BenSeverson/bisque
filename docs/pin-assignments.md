@@ -105,15 +105,22 @@ don't have.
 > J11's GND pin, or set `KILN_PIN_LID_SWITCH=-1`.** Do neither and the kiln
 > will not heat.
 
-The reason is the pull-up. `IN1` is held high by R13 (10 kΩ to +3V3) plus the
-ESP32's internal pull-up, which `safety_init_io()` enables. A shut lid closes
-a dry contact from J11.1 to GND, and the R12/R13 divider puts the pin at
-~0.30 V — inside the ESP32's 0.83 V V_IL, so **closed contact = LOW = lid
-shut**. Nothing connected means HIGH, which is **lid open**. A jumper to GND
-is electrically identical to a permanently shut lid.
+The reason is the pull-up. `IN1` is held high by R13 (10 kΩ to +3V3) on the
+terminal side, and reaches the pin through R12 (100 kΩ, rev B.5). A shut lid
+closes a dry contact from J11.1 to GND, which takes the terminal node, and
+through R12 the pin, to 0 V: **closed contact = LOW = lid shut**. Nothing
+connected means HIGH, which is **lid open**. A jumper to GND is electrically
+identical to a permanently shut lid.
 
-On a board with the J11 terminal left empty, the pull-ups alone produce the
-same HIGH, so a build with no lid switch must set `-1` or fit the jumper.
+`safety_init_io()` leaves the ESP32's internal pull-up **off** on this board
+(`KILN_LID_SWITCH_EXTERNAL_PULLUP`, default on): that ~45 kΩ against R12's
+100 kΩ would hold a closed lid at about 2.3 V, a HIGH, and read it as open
+forever. A build that wires a switch straight to the GPIO with no pull-up of
+its own must turn that option off, so the internal pull-up keeps an unwired
+input HIGH.
+
+On a board with the J11 terminal left empty, R13 alone produces the same
+HIGH, so a build with no lid switch must set `-1` or fit the jumper.
 
 With the lid reading open, and the default `lid_mode` of `pause`,
 `lid_blocks_output()` holds the SSR low in `ssr_window_apply()` and

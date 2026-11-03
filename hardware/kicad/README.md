@@ -305,20 +305,28 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   reference-transfer caps, with 29 GND stitch vias beside the rest (and 31 more, since 2026-10-30, beside the I2C and display/touch transitions). The
   honest coverage figures are in `DESIGN-NOTES.md` §C51; the 40 MHz
   waveforms are a bench check, not a proof. The XPT2046 touch controller itself lives on the display
-  module, not this PCB. VCC runs from +5V rather than +3V3, per the
+  module, not this PCB. Since rev B.5 three SRV05-4 arrays (D19–D21) clamp
+  all twelve J5 signal lines at the connector, and `LCD_RST`/`LCD_BL`, the
+  two that had no series resistor, got 33 Ω (R79/R80). VCC runs from +5V rather than +3V3, per the
   module's own manual and reference wiring diagrams, with no level shifter
   needed on CS/RESET/DC/MOSI/SCK.
 - **Nav switch**: 6-pin KK-254 friction-lock header **J6** for the
   panel-mounted 5-way switch (`UP DN LT RT OK GND`, active-low, ESP32
   internal pull-ups) — now on five contiguous module pads, moved from the
   split pins rev A used (routing simplification, see the hardware-design
-  spec §3.1).
+  spec §3.1). Since rev B.5 an **ESDA6V1-5SC6** five-line array (D18)
+  clamps the five switch lines to GND. There is no series resistor on
+  them: ten more pad escapes did not fit beside J6 (`DESIGN-NOTES.md`
+  §"Connector protection").
 - **Aux header J7** (8-pin KK-254): `3V3 GND TX RX SDA SCL 3V3 GND` — UART0
   plus a 0.1" I2C tap (pins 5–8), alongside the Qwiic/STEMMA-QT connector
   **J14**. Rev A's `VENT`/`LID_SW`/`AUX_A`/`AUX_B` nets are gone from this
   header entirely: nothing on the board ever sourced `AUX_A`/`AUX_B` here
   (the real aux outputs are on J10, below), and the lid switch has its own
-  terminal (J11).
+  terminal (J11). Since rev B.5 the 3V3 pins of J7 and J14 come from
+  **U13**, an AP2331SA-7 current-limited switch (0.3–0.5 A short-circuit
+  limit), so a shorted peripheral no longer drags the ESP32's rail down,
+  and an SRV05-4 (D22) clamps TX, RX, SDA and SCL.
 - **Aux output bank — J10** (4-pin terminal): **AUX_VP** (external coil
   rail) plus three switched low sides (`AUX1_OUT` = vent, `AUX2_OUT`,
   `AUX3_OUT`), driven by a shared **ULN2003ADR** Darlington array (U6) with
@@ -331,9 +339,14 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   channels 2/3 are routed and declared in Kconfig (`KILN_PIN_AUX2`/`AUX3`)
   but undriven.
 - **Protected inputs — J11** (4-pin terminal): `IN1`/`IN2`/`IN3` (lid, gas
-  flow, spare) plus GND, each with the same conditioning rev A used for its
-  single lid input — 1 kΩ series, 10 kΩ pull-up to 3V3, 100 nF to ground,
-  dry-contact to GND — generalized to three channels. `IN1` is the
+  flow, spare) plus GND, for dry contacts to GND. Since rev B.5 each channel
+  survives a 24 V wire landed on its terminal: a 10 kΩ pull-up to 3V3 and an
+  **SMF30CA** bidirectional TVS (D15–D17, 30 V standoff, above the supply's
+  29 V trim) sit on the terminal side, and the GPIO sees it through **100 kΩ**
+  (R12/R26/R28) with 100 nF to ground, so a miswire puts 0.25 mA into the pin
+  and 2.6 mA into the 3V3 rail instead of a short through a rail clamp.
+  Firmware leaves the lid pin's internal pull-up off to match
+  (`KILN_LID_SWITCH_EXTERNAL_PULLUP`, default on). `IN1` is the
   lid switch and defaults to enabled, matching this board; see
   `docs/pin-assignments.md` §1 for the fail-safe wiring requirement if no
   switch is fitted. `IN2` (gas flow) and `IN3` (spare) are routed but have
@@ -575,7 +588,10 @@ lists the 13 of them you could fit by hand instead. Selected parts worth calling
 | U6 | ULN2003ADR | SOIC-16 |
 | U7 | ADE7953ACPZ-RL | LFCSP-28 (QFN-28, 5×5 mm) |
 | Y1 | 3.579545 MHz crystal | HC-49S-SMD |
-| D5, D6 | SRV05-4 TVS array (same part as U4) | SOT-23-6 |
+| D6, D19–D22 | SRV05-4 TVS array (same part as U4) | SOT-23-6 |
+| D15–D17 | SMF30CA 30 V bidirectional TVS (J11 terminals) | SOD-123FL |
+| D18 | ESDA6V1-5SC6 5-line ESD array (J6 nav loom) | SOT-23-6 |
+| U13 | AP2331SA-7 200 mA current-limited switch (J7/J14 3V3) | SOT-23 |
 | U10 | SN74LVC1G123 retriggerable monostable | VSSOP-8 |
 | Q2, Q3, Q5, Q6 | AO3400A N-MOSFET | SOT-23 |
 | Q4 | AO3401A P-MOSFET (watchdog high-side switch) | SOT-23 |
@@ -789,7 +805,7 @@ power mux** (U12, C3235557), the Qwiic connector (C160404) and the USB-C
 receptacle (C165948) — **$55.26 in feeder fees** at $3.07 each (the
 generator prints the current list and the Economic bill every run).
 On Standard, where this BOM is (see the correction above), the count that
-matters is the **50 BOM lines at $1.53 = $76.50 (rev B.4 adds the LP2309LT1G line; 49 and $74.97 before it)**, and the 129 fee-free
+matters is the **68 BOM lines at $1.53 = $104.04 (rev B.5's connector protection adds the SMF30CA, ESDA6V1-5SC6 and AP2331SA-7 lines; 65 and $99.45 before it)**, and the 129 fee-free
 placements are fee-free in name only.
 
 The last three of those are recent and worth attributing: the optos and the
@@ -1438,7 +1454,7 @@ constraint rather than a weight: see **per-terminal legends** below.
 
 **The nameplate is the one silk item that is placed rather than anchored**,
 and the place is *measured at build time*.
-`BISQUE / KILN CONTROLLER / REV B.4 / © 2026 Ben Severson`, under the project's
+`BISQUE / KILN CONTROLLER / REV B.5 / © 2026 Ben Severson`, under the project's
 flame, goes wherever `gen_pcb.largest_empty_rect()` finds the most empty
 board: every part's keep-out (drawn body ∪ copper, grown by
 `TITLE_MARGIN`) is rasterised on a 0.25 mm lattice inside the outline and the

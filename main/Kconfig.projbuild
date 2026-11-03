@@ -164,11 +164,12 @@ menu "Bisque Configuration"
                   * set this option to -1.
 
                 Do neither and the kiln will not heat. The input is pulled up
-                (R13 10k on the PCB, plus the ESP32's internal pull-up), so an
-                unconnected pin reads HIGH — which is "lid open" — and the
-                interlock holds the SSR off for as long as it stays that way.
-                On a perfboard build with nothing wired to this GPIO, the same
-                thing happens via the internal pull-up alone.
+                (R13 10k on the PCB), so an unconnected terminal reads HIGH —
+                which is "lid open" — and the interlock holds the SSR off for as
+                long as it stays that way. On a perfboard build with nothing
+                wired to this GPIO the same thing happens via the ESP32's
+                internal pull-up, provided KILN_LID_SWITCH_EXTERNAL_PULLUP is
+                turned off (see that option).
 
                 That is deliberate fail-safe behaviour for OPEN-CIRCUIT faults,
                 not a bug: a broken wire, a pulled connector or a switch that
@@ -199,6 +200,27 @@ menu "Bisque Configuration"
 
                 Set to -1 to disable.
 
+        config KILN_LID_SWITCH_EXTERNAL_PULLUP
+            bool "Lid input has an external pull-up (Bisque PCB)"
+            default y
+            depends on KILN_PIN_LID_SWITCH >= 0
+            help
+                Leave this ON for the Bisque PCB. Its lid input is pulled up
+                on the terminal side (R13 10k at J11) and reaches the GPIO
+                through a 100k series resistor (R12) that limits a 24 V wire
+                landed on the terminal by mistake to a fraction of a
+                milliamp. The firmware therefore leaves the ESP32's internal
+                pull-up OFF: that ~45k pull-up against the 100k would hold a
+                closed lid at about 2.3 V, a logic HIGH, and the kiln would
+                read "lid open" forever.
+
+                Turn it OFF on a perfboard or other build where the switch
+                goes straight to the GPIO with no pull-up of its own. The
+                firmware then enables the internal pull-up, so an unwired
+                input still reads HIGH ("open") and fails safe. Leaving this
+                ON with no external pull-up lets an unwired input FLOAT, and a
+                floating input can read "lid closed".
+
         config KILN_LID_SWITCH_OPEN_IS_LOW
             bool "Lid-open reads LOW"
             default n
@@ -210,7 +232,7 @@ menu "Bisque Configuration"
 
                 Leave this OFF for normally-closed wiring, the recommended
                 arrangement: the shut lid holds the contact closed and pulls the
-                input LOW against the internal pull-up, so lid-open is the
+                input LOW against the pull-up, so lid-open is the
                 pulled-up HIGH. A broken wire, a pulled connector or a failed
                 switch all read HIGH, i.e. OPEN, and fail safe.
 

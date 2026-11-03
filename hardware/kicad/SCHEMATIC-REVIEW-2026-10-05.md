@@ -277,6 +277,18 @@ insulation rating. For a current-output CT, specify how an open secondary is
 prevented or limited when the PCB connector is disconnected; the board burden
 cannot protect a CT once its wires are removed.
 
+> **Status 2026-11-02 (rev B.5):** the J11 half is fixed by redesign, the J12
+> half is open. J11 now survives a 24 V wire: the SRV05-4 rail clamp (D5) is
+> gone, each terminal has a 10k pull-up and an SMF30CA bidirectional TVS
+> (30 V standoff, above the 29 V trim) to GND, and the GPIO sees it through
+> 100k, so a miswire is 2.6 mA into +3V3 and 0.25 mA into the pin. Firmware
+> leaves the lid pin's internal pull-up off to match
+> (`KILN_LID_SWITCH_EXTERNAL_PULLUP`). It is still a dry-contact interface: a
+> powered 24 V sensor no longer damages it but does not read correctly.
+> J12/D6 against the ADE7953's input limit, and the CT type/ratio/open-
+> secondary specification, are not addressed. DESIGN-NOTES §"Connector
+> protection".
+
 ### 7. P2 — Aux outputs are outside the hardware watchdog and need a load specification
 
 **Confirmed architectural limitation; importance depends on auxiliary function.**
@@ -437,6 +449,17 @@ References: J5–J7/J14, LED1/D3/R3, `generator/design.py:1696–1729`.
   not show a current assembly error, but make substitutions/reviews easier
   to get wrong. Use accurate symbols, datasheet links, and separate supplier
   and manufacturer identities where available.
+
+> **Status 2026-11-02 (rev B.5):** the connector bullet is done except for a
+> series resistor on J6. J6 has an ESDA6V1-5SC6 five-line array (D18); its
+> 1k series resistors did not route beside J6 and were dropped (DESIGN-NOTES
+> §"Connector protection"). J5 has three SRV05-4s (D19–D21) on all twelve
+> signal lines, plus 33R on LCD_RST/LCD_BL (R79/R80). J7/J14 have an SRV05-4
+> on TX/RX/SDA/SCL (D22), and their 3V3 pins come from an AP2331SA-7
+> current-limited switch (U13), so a header short no longer pulls U1's rail
+> down. The 40 MHz bullet is PCB review item 5 and its bench check. The RGB
+> bullet is closed by the silicon D3 and the WS2812B-V5/W (VIH 0.63 x VDD).
+> The metadata bullet was closed on 2026-10-22.
 
 ## Checks completed and limitations
 

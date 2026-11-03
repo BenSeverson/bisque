@@ -932,8 +932,11 @@ TITLE_ROWS = [("BISQUE", 2.6, 0.7),
               # it did again at B.4, where the terminals went from "24 V
               # always live, - switched" to "+ switched, - on GND": a B.2
               # wiring diagram applied to a B.4 board grounds the switched
-              # side. Keep this in step with the schematic title blocks.
-              ("REV B.4", 1.0, 0.7),
+              # side. B.5 is the connector-protection round: J11 is pulled
+              # up on the terminal side behind 100k, which is why firmware
+              # leaves that pin's internal pull-up off. Keep this in step
+              # with the schematic title blocks.
+              ("REV B.5", 1.0, 0.7),
               ("© 2026 Ben Severson", 0.9, 0.0)]
 # Clear board the nameplate keeps around itself and from the outline, mm. The
 # first is not slack: the parts bounding the pocket still have to put their

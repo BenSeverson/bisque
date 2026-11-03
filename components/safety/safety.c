@@ -176,10 +176,17 @@ void safety_init_io(int alarm_gpio, int vent_gpio, int lid_gpio)
     }
 
     if (lid_gpio >= 0) {
+        /* The Bisque PCB pulls the terminal side up (10k at J11) and reaches
+           this pin through 100k, so the internal ~45k pull-up must stay off
+           there: against that 100k it would hold a closed lid at ~2.3 V, a
+           logic high, i.e. "open", forever. A build with no pull-up of its own
+           turns KILN_LID_SWITCH_EXTERNAL_PULLUP off and gets the internal one,
+           so an unwired input still reads open (hardware/kicad/DESIGN-NOTES.md
+           at R12). */
         gpio_config_t io = {
             .pin_bit_mask = (1ULL << lid_gpio),
             .mode = GPIO_MODE_INPUT,
-            .pull_up_en = GPIO_PULLUP_ENABLE,
+            .pull_up_en = APP_LID_SWITCH_INTERNAL_PULLUP ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE,
             .pull_down_en = GPIO_PULLDOWN_DISABLE,
             .intr_type = GPIO_INTR_DISABLE,
         };
