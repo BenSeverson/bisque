@@ -9,8 +9,11 @@ is how a stale layer set reaches a fab.
     python3 generator/gen_gerber_zip.py            # write jlcpcb/gerbers.zip
     python3 generator/gen_gerber_zip.py --check    # verify it matches gerbers/
 
-The zip is **byte-reproducible**: every entry is stamped with a fixed date,
-stored in sorted order with fixed permissions, and deflated at a fixed level.
+The zip is **byte-reproducible** for a given zlib: every entry is stamped with
+a fixed date, stored in sorted order with fixed permissions, and deflated at a
+fixed level. `--check` compares the unpacked members rather than the archive
+bytes, because a different zlib (zlib-ng on Fedora) deflates identically
+ordered input to different bytes.
 A zip that carried real mtimes would differ on every single rebuild of an
 otherwise byte-identical board, which would make it noise in `git diff` and
 useless as evidence that the fab package matches the board — the same property
@@ -59,6 +62,30 @@ def build(dest):
                 z.writestr(info, fh.read(), compresslevel=9)
 
 
+def stale(path):
+    """None if the zip at `path` holds exactly gerbers/, else the first reason.
+
+    Compares what a fab unpacks - member names and order, each member's bytes,
+    and the fixed stamp - not the archive bytes. Deflate output is not stable
+    across zlib builds: Fedora's zlib-ng compresses the same input to
+    different bytes than stock zlib, so a byte compare of a rebuild failed on
+    any such machine while every member was identical.
+    """
+    want = members()
+    with zipfile.ZipFile(path) as z:
+        infos = z.infolist()
+        names = [i.filename for i in infos]
+        if names != [arc for arc, _ in want]:
+            return "member list differs"
+        for info, (arc, src) in zip(infos, want):
+            if info.date_time != EPOCH or info.external_attr != 0o644 << 16:
+                return "%s: date or permissions differ" % arc
+            with open(src, "rb") as fh:
+                if z.read(info) != fh.read():
+                    return "%s differs" % arc
+    return None
+
+
 def main(argv):
     checking = "--check" in argv
     if checking:
@@ -66,16 +93,10 @@ def main(argv):
             print("check_gerber_zip: %s missing — run `make pcb-fab`"
                   % os.path.relpath(ZIP, KICAD))
             return 1
-        with open(ZIP, "rb") as fh:
-            have = fh.read()
-        tmp = ZIP + ".check"
-        build(tmp)
-        with open(tmp, "rb") as fh:
-            want = fh.read()
-        os.remove(tmp)
-        if have != want:
-            print("check_gerber_zip: %s does not match gerbers/ — it is stale; "
-                  "run `make pcb-fab`" % os.path.relpath(ZIP, KICAD))
+        why = stale(ZIP)
+        if why:
+            print("check_gerber_zip: %s does not match gerbers/ (%s) — it is "
+                  "stale; run `make pcb-fab`" % (os.path.relpath(ZIP, KICAD), why))
             return 1
         with zipfile.ZipFile(ZIP) as z:
             print("check_gerber_zip: OK — %s matches gerbers/ (%d files)"
