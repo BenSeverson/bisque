@@ -15,6 +15,24 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from sexp import parse, find, find_all, num
 
 
+# Parts whose courtyard may cross the board outline, and by how much (mm).
+# J1 is a top-mount USB-C receptacle: HRO's recommended layout (TYPE-C-31-M-12,
+# LCSC C165948) puts the board edge 5.79 mm from its locating-post holes, so the
+# shell front - and the courtyard with it - sits ~0.46 mm (~1.0 mm) past the edge.
+# That is the point: a plug overmold then clears the board edge. Anything else
+# outside the outline is still a part left parked by `make pcb-sync`.
+EDGE_OVERHANG = {"J1": 1.1}
+
+
+def outside(ref, box, edge):
+    """True when `box` crosses `edge` by more than `ref` is allowed to."""
+    x0, y0, x1, y1 = box
+    bx0, by0, bx1, by1 = edge
+    tol = EDGE_OVERHANG.get(ref, 0.0)
+    return (x0 < bx0 - tol or y0 < by0 - tol or
+            x1 > bx1 + tol or y1 > by1 + tol)
+
+
 class Board:
     """fps:    {ref: {"fpid", "fpname", "x", "y", "rot", "layer", "value",
                      "locked", "dnp", "pads": {num: net|None}, "uuid"}}

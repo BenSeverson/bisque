@@ -126,7 +126,13 @@ def V(x, y):
 # an untestable claim; C318884's is "0,0,0".
 MODEL_FIXUP = {
     "U1": dict(file="ESP32-S3-WROOM-1U", offset=(-9.0, -9.6, 0.0)),
-    "J1": dict(file="USB_C_Receptacle_HRO_TYPE-C-31-M-12", rotate=(0, 0, 180)),
+    # J1 - c_rotation 180 (see 3dmodels/README.md), and after it a residual
+    # 1.05 mm along the mating axis: rotated alone, the plastic posts, both
+    # shell-leg pairs and the front face all sit 1.05 mm behind the
+    # footprint's NPTH holes, SH slots and F.Fab outline. -1.05 is 3D +Y
+    # (Y up), i.e. toward the mating face; measured from a STEP export.
+    "J1": dict(file="USB_C_Receptacle_HRO_TYPE-C-31-M-12", rotate=(0, 0, 180),
+               offset=(0.0, -1.05, 0.0)),
     "U7": dict(file="QFN-28-1EP_5x5mm_P0.5mm_EP3.1x3.1mm"),
     "SW1": dict(file="SW_Push_1P1T_XKB_TS-1187A"),
     "SW2": dict(file="SW_Push_1P1T_XKB_TS-1187A"),

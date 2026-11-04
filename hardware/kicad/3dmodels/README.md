@@ -62,7 +62,13 @@ beside the geometry and authors the STEP in the *unrotated* frame, so a part
 with a non-zero `c_rotation` lands wrong with no offset that can fix it. J1 is
 the case here: unrotated its shell sits ~8.9 mm north of its own pads, which
 looks like a translation error and is not one. `MODEL_FIXUP` carries the 180°
-as `rotate`. C515890's `c_rotation` is `0,0,90` and is deliberately not
+as `rotate`. The rotation is not the whole correction, though: rotated alone, the
+model still sat 1.05 mm behind its pads along the mating axis. The plastic posts,
+both shell-leg pairs and the front face were all off by the same amount, so the
+posts missed the NPTH holes and the face rendered 1.8 mm back from the board
+edge. `MODEL_FIXUP` adds `offset=(0, -1.05, 0)` for that (2026-11-04). The way to
+check is to export STEP and compare post and leg centres with the footprint's
+holes. A render shows the error but cannot measure it. C515890's `c_rotation` is `0,0,90` and is deliberately not
 applied — a square QFN is invariant under it, so honouring it would be an
 untestable claim in the table.
 

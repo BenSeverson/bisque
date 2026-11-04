@@ -89,12 +89,13 @@ def main():
         b = bbox(ref, d)
         if b is None: missing.append((ref, d["fp"])); continue
         boxes[ref] = b
+    import board as B   # on sys.path once load_design() has run
     BX0, BY0, BX1, BY1 = m.BX0, m.BY0, m.BX1, m.BY1
     bad = 0
     refs = sorted(boxes)
     for i, a in enumerate(refs):
         ax0, ay0, ax1, ay1 = boxes[a]
-        if ax0 < BX0 or ay0 < BY0 or ax1 > BX1 or ay1 > BY1:
+        if B.outside(a, (ax0, ay0, ax1, ay1), (BX0, BY0, BX1, BY1)):
             print("OFF-BOARD %-6s x %7.2f..%7.2f y %7.2f..%7.2f" % (a, ax0, ax1, ay0, ay1)); bad += 1
         for b in refs[i+1:]:
             bx0, by0, bx1, by1 = boxes[b]
