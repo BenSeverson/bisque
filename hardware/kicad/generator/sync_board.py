@@ -448,11 +448,29 @@ def ensure_zones(board, net, group):
     return made
 
 
-def set_title_block(board):
+def schematic_title(net_path):
+    """(rev, date) from the root sheet's title block in the exported netlist.
+
+    The board's title block used to hard-code both, and the date went stale
+    while the rev was kept current: the board PDF read "Rev B.5, 2026-09-19"
+    against the schematic's 2026-10-22. Taking them from the schematic makes
+    the schematic the one place a release bumps them.
+    """
+    from sexp import parse, find, find_all
+    doc = parse(open(net_path).read())[0]
+    for sheet in find_all(find(doc, "design"), "sheet"):
+        if str(find(sheet, "name")[1]) == "/":
+            tb = find(sheet, "title_block")
+            return str(find(tb, "rev")[1]), str(find(tb, "date")[1])
+    sys.exit("%s: no root sheet title block" % net_path)
+
+
+def set_title_block(board, net_path):
+    rev, date = schematic_title(net_path)
     tb = pcbnew.TITLE_BLOCK()
     tb.SetTitle("Bisque Kiln Controller")
-    tb.SetDate("2026-09-19")
-    tb.SetRevision("B.5")
+    tb.SetDate(date)
+    tb.SetRevision(rev)
     tb.SetCompany("Bisque project")
     tb.SetComment(0, "ESP32-S3-WROOM-1U-N16R2 + 2x MAX31856 + dual SSR + ADE7953")
     tb.SetComment(1, "4-layer, 100 x 100 mm, JLCPCB standard process")
@@ -516,7 +534,7 @@ def sync(out, net_path, adopt_legacy=False):
     labels = regenerate_group(board, fps, adopt_legacy)
     made = ensure_zones(board, net, find_group(board))
     apply_layer_types(board)
-    set_title_block(board)
+    set_title_block(board, net_path)
     return board, rep, labels, made
 
 
