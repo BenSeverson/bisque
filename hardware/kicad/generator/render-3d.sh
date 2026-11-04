@@ -51,6 +51,10 @@ if [ "$FORCE" -eq 0 ] && [ -f "$STAMP" ] && [ "$(cat "$STAMP")" = "$WANT" ] &&
   exit 0
 fi
 
+# A render without KiCad's 3D library still exits 0 and draws every library
+# part as bare pads, and the stamp above would then call it up to date.
+python3 generator/check_3dmodels.py --strict "$BOARD" || exit 1
+
 R() { kicad-cli pcb render -o "$OUT/$1" --width 1600 --height 1200 \
   --quality high --floor "${@:2}" "$BOARD"; }
 # Straight orthographic top and bottom only - no --perspective, no rotation.

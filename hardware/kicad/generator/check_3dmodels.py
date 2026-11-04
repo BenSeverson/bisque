@@ -13,7 +13,12 @@ checkers. A model path is a string in the board file and resolving it is
 string work; needing KiCad to answer "does this file exist" would have kept
 the check out of CI, which is where the drift happens.
 
-Usage: python3 check_3dmodels.py <board.kicad_pcb>
+With no KiCad 3D library on the machine (CI), `${KICAD10_3DMODEL_DIR}` paths
+cannot be resolved and are reported as unchecked rather than failed. A render
+is different: there an unresolved library model is a bare footprint in the
+image, so render-3d.sh runs this with --strict, which fails on them.
+
+Usage: python3 check_3dmodels.py [--strict] <board.kicad_pcb>
 """
 import os
 import re
@@ -46,14 +51,14 @@ def kicad_3dmodel_dir():
     return None
 
 
-def main(board_path):
+def main(board_path, strict=False):
     proj = os.path.dirname(os.path.abspath(board_path))
     k3d = kicad_3dmodel_dir()
     text = open(board_path, errors="ignore").read()
 
     # Walk balanced (footprint ...) blocks; each holds its reference in a
     # property and zero or more (model "path" ...) children.
-    missing, nobody, checked = [], [], 0
+    missing, nobody, unchecked, checked = [], [], [], 0
     for m in re.finditer(r'\(footprint\s+"([^"]+)"', text):
         i = m.start()
         depth, j = 0, i
@@ -81,7 +86,8 @@ def main(board_path):
                 if k3d:
                     real = real.replace("${%s}" % v, k3d)
             if "${" in real:
-                continue                       # unresolvable var, not our call
+                unchecked.append(path)         # no library here; see --strict
+                continue
             if not os.path.exists(real):
                 missing.append((ref, fp, path))
 
@@ -95,10 +101,20 @@ def main(board_path):
               "footprint to NO_BODY_EXPECTED if nothing is fitted"
               % (len(missing), len(nobody)))
         return 1
-    print("check_3dmodels: OK - %d model reference(s) resolve, "
-          "%d footprint(s) legitimately bodyless" % (checked, len(NO_BODY_EXPECTED)))
+    if unchecked and strict:
+        print("check_3dmodels: no KiCad 3D model library found (%s unset, none "
+              "installed) - %d library model reference(s) cannot resolve, and a "
+              "render here would draw those parts as bare pads. Install KiCad's "
+              "3D library or set KICAD10_3DMODEL_DIR." % (VARS[0], len(unchecked)))
+        return 1
+    note = (", %d library reference(s) NOT checked - no KiCad 3D library on this "
+            "machine" % len(unchecked)) if unchecked else ""
+    print("check_3dmodels: OK - %d model reference(s) resolve%s, "
+          "%d footprint(s) legitimately bodyless"
+          % (checked - len(unchecked), note, len(NO_BODY_EXPECTED)))
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1]))
+    args = [a for a in sys.argv[1:] if a != "--strict"]
+    sys.exit(main(args[0], strict="--strict" in sys.argv[1:]))
