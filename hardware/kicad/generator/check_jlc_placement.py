@@ -51,6 +51,13 @@ PIN_REMAP = {
     # LED symbols: LCSC pin 1 is the anode ("A" / "+"), KiCad's is the cathode.
     "C2296": {"1": "2", "2": "1"},   # 17-21SUYC/TR8, pins named +/-
     "C2297": {"1": "2", "2": "1"},   # 0805G green, pins named A/K
+    # WJ500V-5.08-2P screw terminal. Symmetric, so the numbers carry no
+    # electrical meaning, and the fit cannot see the body. LCSC's land is
+    # drawn with the body's deep (wire-entry) side at +y - its silk arrows
+    # and 3D outline both say so, and the KANGNEX drawing puts the pins
+    # 4.50 mm from the BACK of a 10.00 mm body - while ours enters at -y.
+    # Remapping makes the fit turn it 180 so the wire entry faces out.
+    "C8465": {"1": "2", "2": "1"},
 }
 
 # Parts whose two libraries draw a different-sized land for the same package,

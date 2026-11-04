@@ -254,7 +254,12 @@ JLC_PLACEMENT = {
     "C61063":   (270,  0.000,  0.000),   # U11   SOIC-8_3.9x4.9mm_P1.27mm             resid 0.230 (8 pin#)
     "C19077547": (  0,  0.000,  0.000),   # D8    D_SMA                                resid 0.404 (2 pin#)
     "C7420367": (  0,  0.000,  0.000),   # D7    D_SMA                                resid 0.150 (2 pin#)
-    "C8465":    (  0,  2.540,  0.000),   # J2    TerminalBlock_Phoenix_MKDS-1,5-2-5.0 resid 0.000 (2 pin#)
+    # J2/J3/J4/J8/J9. A pad fit alone reads this as the identity, but LCSC
+    # numbers the WJ500V-5.08-2P from the other end of the body: at 0 its
+    # wire entry faces the back of our footprint. See PIN_REMAP in
+    # check_jlc_placement.py. (The 4P, C42377749, is drawn the other way
+    # round and is correct at 0.)
+    "C8465":    (180,  2.540,  0.000),   # J2    TerminalBlock_Phoenix_MKDS-1,5-2-5.0 resid 0.000 (2 pin#)
     "C96093":   (  0,  3.800,  0.000),   # BZ1   Buzzer_12x9.5RM7.6                   resid 0.000 (2 pin#)
 }
 
