@@ -453,10 +453,10 @@ narrows the spread (check the one-shot's Rext range first).
 |---|---|---|
 | 1 | TVS clamp (48 V) above XL1509/SS34/AO3401A ratings | **Coordinated 2026-10-27** — envelope written at F1 (rail ≤ 38 V sustained under the in-box supply, ≤ 40 V to F1's trip); D7 → SS36 60 V, D9/D10 → 1N4007W 1 kV; D8 stays (supply trims to 29 V, so no lower standoff fits); AO3401A was never stressed. Open residue: SSR input rating (A4), field surge / 60 V buck (rev C) |
 | 2 | CT channel A pseudo-differential (R33 to GND) | **Fixed 2026-10-26** — R65 1 k from CTA_P to GND mirrors R33; pin swing is now ±V/2 each side |
-| 3 | Grounded SSR return bypasses Q7 | **Open** — architecture unchanged |
+| 3 | Grounded SSR return bypasses Q7 | **Fixed in rev B.4** (`c70480b`, after this table's `e5dcc7a`) — the SSR outputs switch the + side (Q5/Q6) with the − pin on GND and the watchdog cutoff Q9 in the 24 V rail, so a − lead on ground is the wiring diagram rather than a fault, and a + lead on the chassis is a short that fails safe (DESIGN-NOTES §"REV B.4 (2026-10-28): HIGH SIDE, GROUND-REFERENCED", points (a) and (b)) |
 | 4 | Watchdog timing not guaranteed at 100 k/22 µF | **Fixed** (d46b4c6, review E5) — X7R timing pair |
 | 5 | 17 EP vias in paste | **Fixed 2026-10-26** — 0 left: U1's nine deleted, U2's four moved out of the tab, U7's four under a mask web (PCB review item 4 status) |
-| 11 | Failed Q5 can over-stress Q6 gate | **Open** |
+| 11 | Failed Q5 can over-stress Q6 gate | **Fixed in rev B.4** (`c70480b`) — with Q9 open nothing pulls SSR_24V, and Q5/Q6's gates ride their sources through R7/R20, so a failed channel cannot stress the healthy one (same DESIGN-NOTES section, point (d)) |
 | 12 | D8/U2 symbol honesty, MPN = C-number | **Fixed** — folded into findings 6 and 8 above, both closed |
 | ERC | 4 errors | **Fixed** — 0 errors (U11/U12 power flags added, PWR_FLAG on VOUT removed, SDO excluded) |
 
