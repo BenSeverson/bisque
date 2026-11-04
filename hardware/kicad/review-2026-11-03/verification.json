@@ -1,0 +1,43 @@
+{
+  "review_date": "2026-11-03",
+  "kicad_version": "10.0.7",
+  "board_sha256": "a6b2de37ecca3f6ffb7fcb54d766ef9a851e52e876ea077c403ea32f1306db10",
+  "erc_violations": 0,
+  "drc_violations": 0,
+  "drc_unconnected": 0,
+  "make_pcb_check": "pass",
+  "fresh_bom_equal": true,
+  "fresh_cpl_equal": true,
+  "gerbers_and_drill": "all geometry matches after timestamps removed",
+  "render_stamp": "current",
+  "terminal_hole_trial": {
+    "source_changed": false,
+    "holes_changed": 22,
+    "diameter_mm": 1.5,
+    "drc_violations": 0,
+    "unconnected": 0,
+    "minimum_drill_web_mm": 0.3
+  },
+  "reroute_trial": {
+    "source_changed": false,
+    "SSR2_OC": {
+      "old_length_mm": 43.553,
+      "new_length_mm": 43.199,
+      "old_vias": 6,
+      "new_vias": 6
+    },
+    "CTB_F": {
+      "old_length_mm": 46.442,
+      "new_length_mm": 43.716,
+      "old_vias": 2,
+      "new_vias": 2
+    },
+    "drc_violations": 0
+  },
+  "limitations": [
+    "No physical assembled board or mated-harness/enclosure inspection",
+    "No thermal, EMC/ESD/surge, hot-plug or watchdog timing measurements",
+    "No complete live stock allocation or authenticated JLC quote",
+    "No design/fabrication files modified"
+  ]
+}
