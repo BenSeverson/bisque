@@ -2051,8 +2051,11 @@ terminal to 24 V when active and leaves it to R13 when not: both read
 HIGH. The board now survives that sensor; it does not read it.
 
 Placement: the nine filter parts moved from two rows west of J11 into
-one row (y 113.4) under J5, and the TVS row (y 117.6) sits between it
-and J11's terminals. The band they vacated is what D19-D21 needed.
+one row (y 113.4) under J5. The band they vacated is what D19-D21 needed.
+
+Clamp placement (2026-11-04): D15 stays at the east end of the old TVS row (y 117.6), 5.6 mm from J11.1. D16 and D17 moved out of that row into the pocket between J5/J6's courtyards and the filter row, stacked at x 58.5 (y 108.7 and 111.15), the nearest free copper to J11.2/J11.3 that is not under the terminal block's body. Pin-to-clamp distance went from 14.5/24.1 mm to 10.6/14.5 mm, and the raw nets no longer run the bottom edge to reach their clamp. The clamp still sits ahead of the pull-up and the 100k on every channel.
+
+Routing after the move (`make pcb-route`, then BTN_UP / I2C_SDA / +3V3_HDR ripped up and re-routed): every clamp moved here has its own GND via within ~1 mm of its GND pad (D16, D17, D18, D22 - the two under D16's and D22's bodies are tented), and D22's VP and R53's pull-up each get a +3V3 via. Copper distance connector -> clamp is now 11.3 / 15.2 mm for IN2 / IN3 (31 / 46 mm of trace before), ~10 mm on J6, 4-8 mm on J7/J14. The router builds trees, so the clamps hang on branches: IN2/IN3 are effectively in series, D22's four lines branch at the J7 pin with 4-8 mm stubs. A strict pass-through layout would need hand routing.
 
 --- J6: an array, no series resistors ---------------------------------
 D18, an ESDA6V1-5SC6 (five unidirectional lines to a common GND, 6.1 V,
@@ -2068,6 +2071,8 @@ Stacked beside U1's button pins instead, their inner pads were
 unreachable. The loom carries only switch contacts against the ESP32's
 internal pull-ups; the array is the protection the review asked for,
 and a series R is the thing to add if an ESD test says otherwise.
+
+D18 placement (2026-11-04): moved from (82, 92), 15-25 mm east of J6, to (66.6, 97.15) rot 180 in the strip directly above J6, 8.0-8.9 mm from every J6 pin. The strip was R53's (the T_CS pull-up, now at (65.75, 85.25) beside T_CS's B.Cu run; a pull-up's position is electrically free). The position was searched, not picked. D18's south courtyard edge is held to y 98.9 so J6's pin legends (UP/DN/LT/RT/SEL, y 99.67) keep their row. Pads clear VIN_P's 0.8 mm diagonal by at least 0.27 mm (`check_pcb.py` measures pads square-cornered and read 0.17 mm at the first try). The SSR_24V jog at x 64.2 and the locked BTN_LEFT via at (67.29, 95.04) are both untouched.
 
 --- J5: three low-capacitance arrays and two resistors ----------------
 D19-D21 are SRV05-4s (the U4/D6 part), each on four adjacent J5 pins in
@@ -2095,6 +2100,8 @@ reach +3V3 directly). Nothing documented relied on that.
 
 D22 (SRV05-4) clamps TXD0, RXD0, I2C_SDA and I2C_SCL at J7; J14 shares
 the I2C pair.
+
+D22 placement (2026-11-04): moved from (97.1, 95.3), north of the VIN_P trunk, to (88.9, 109.55) rot 90, between J7 and J14, so both connectors' pins are 3.4-7.3 mm from it (were 9.7-19.1 mm). C55 gave up that spot and moved to (94.6, 108.5), in the strip under J7 and above C46: next to D22 its reference designator had nowhere to go and printed over U13's outline. C55 is U13's output bypass on +3V3_HDR, a 0.3-0.5 A rail, so 6 mm of trace to it changes nothing.
 
 --- Tooling notes -----------------------------------------------------
 Placement was a search, not a choice: a 0.1 mm occupancy grid of every
