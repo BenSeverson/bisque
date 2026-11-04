@@ -45,7 +45,10 @@ PITCH_TOL = 0.05        # mm; "side by side" means centre spacing within this of
 #     column offset that the inner one does not. That is ~18 ps against a
 #     Full-Speed bit of 83 ns and an edge of 4 ns or more; the pair it
 #     replaces measured 10.2 mm pad to pad.
-UNCOUPLED_MAX = 16.0    # mm per net
+#   2026-11-04: +1.5 mm when J1 moved 1.21 mm to HRO's board-edge position -
+#     the lead-in grew by exactly that on both nets (USB_DP 15.0 -> 16.2 mm);
+#     at Full Speed it is ~8 ps more, nothing next to an 83 ns bit.
+UNCOUPLED_MAX = 17.5    # mm per net
 SKEW_MAX = 3.5          # mm pad to pad
 COUPLED_MIN = 0.40      # fraction of each net's copper running at the pair pitch (47 / 53 % measured)
 

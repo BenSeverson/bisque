@@ -2656,6 +2656,20 @@ drove them (the real VENT output is AUX1, on U6). Task 11
 re-points 5-8 to I2C, giving the bus a 0.1" tap alongside
 the Qwiic connector (J14) and finally retiring AUX_A/AUX_B.
 
+## J1 board-edge position (2026-11-04)
+
+HRO's recommended layout for the TYPE-C-31-M-12 (LCSC C165948 datasheet, "RECOMMEND P.C.B LAYOUT") dimensions the board edge as a chain: 1.64 mm from the top of the signal pads to the two locating-post holes, then 5.79 mm from those holes to "PCB EDGE", ±0.05. That puts the shell front ~0.46 mm past the edge, which is the point. J1 is top-mount, so its centreline is ~1.6 mm above the board surface, and a full-size USB-C plug overmold reaches below the board's top surface. With the face set back, the overmold meets the PCB edge before the plug seats.
+
+Rev B.5 had J1 at y 24.4, holes 7.00 mm from the edge and the face 0.75 mm *behind* it. J1 now sits at y 23.19: holes at y 25.79 (5.79 mm), face at y 19.54. A STEP export confirms both, model and footprint, with the corrected MODEL_FIXUP offset.
+
+What moved with it:
+- the USB pair's hand-drawn lead-in (both bridges) moved rigidly, and the two runs to U4 each grew 1.21 mm - skew unchanged at 2.52 mm, `check_usb_pair`'s uncoupled budget raised 16.0 -> 17.5 mm with that note;
+- CC1/CC2/VBUS/shell escapes were stretched at their J1 ends;
+- IN3, which ran along y 25.95 behind the connector, was re-routed because the rear shell pads now land there;
+- J1's front silk line, now off the board, is removed and its side ticks stop at y 20.5.
+
+`board.EDGE_OVERHANG` lets J1's courtyard cross the outline by up to 1.1 mm, and both placement checkers read it. Any other part outside the outline still fails, as a part left parked by `make pcb-sync`. An overhanging connector also matters for panelisation and JLCPCB's process edge (README); check the order preview.
+
 ## J14 (design.py line 2259)
 
 --- I2C expansion (Task 11) ------------------------------------------
