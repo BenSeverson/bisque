@@ -16,14 +16,22 @@ joined by the outer pours' thermal spokes, and a new +3V3 pad wants one via
 to the In2.Cu plane, which is a two-second job in the GUI.
 
 freerouting (--router freerouting, EXPERIMENTAL): the board goes out as a
-Specctra DSN with every non-target net in a `frozen` class that Freerouting
-is told to ignore (-inc); the session comes back into a SCRATCH copy and
-only the target nets' copper is lifted from it onto the real board, so
-untouched copper is identical by construction. On this board Freerouting
-reads the fixed copper as hundreds of violations and spends four minutes a
-pass without converging (2026-10-06, v2.3.0); it is kept as a backend for
-boards it handles, not as the default. Needs ~/freerouting*.jar or
-$FREEROUTING_JAR.
+Specctra DSN with every non-target track and via locked, so it is written
+as `(type fix)` copper Freerouting must route around; the session comes
+back into a SCRATCH copy and only the target nets' copper is lifted from
+it onto the real board, so untouched copper is identical by construction.
+(It used to put the other nets in a class passed to -inc; Freerouting then
+ignores that copper as an obstacle too and routes through it.) The price
+is that nothing scopes the run to the targets: Freerouting also chases the
+~100 GND/+3V3 pad connections the pours make, so even three nets take more
+than fifteen minutes (emptying the other nets' pin lists instead leaves
+their pads netless, colliding with their own copper, and nothing routes).
+On this board it does not finish: with all 106 signal nets ripped up,
+v2.3.0 left ~19 nets unrouted after eight two-minute passes, gaining
+nothing after the fourth, and v2.5.0 left 17 (and a broken +3V3) after
+twenty one-minute passes (2026-10-30) - where the in-house router leaves
+18 in 50 s. Kept as a backend for boards it handles, not as the default.
+Needs ~/freerouting*.jar (the last by name is picked) or $FREEROUTING_JAR.
 """
 import glob
 import os
@@ -41,7 +49,6 @@ import router as R
 from gen_pcb import ROUTE_ORDER, SIG_W, PLANE_NETS, FID_KEEPOUT, FANOUT
 from kicad_build import V, MM, LAYER, resort_to_kicad_order, read_project, restore_project
 
-FROZEN_CLASS = "frozen"
 _REMOVED = []
 
 
@@ -123,41 +130,6 @@ def rip_up(board, nets, keep_stubs=True):
 
 
 # -------------------------------------------------------------- freerouting
-def _freeze_classes(dsn_text, targets):
-    """Move every non-target net into a `frozen` class Freerouting ignores."""
-    out, pos = [], 0
-    for m in re.finditer(r"\(class\s+(\S+)", dsn_text):
-        start = m.start()
-        # matching close paren of this (class ...) block
-        depth, k = 0, start
-        while True:
-            c = dsn_text[k]
-            if c == "(":
-                depth += 1
-            elif c == ")":
-                depth -= 1
-                if depth == 0:
-                    break
-            k += 1
-        block = dsn_text[start:k + 1]
-        head_end = block.find("(", 1)
-        head = block[:head_end]
-        body = block[head_end:-1]
-        name, nets = head.split()[1], head.split()[2:]
-        keep = [n for n in nets if n in targets]
-        freeze = [n for n in nets if n not in targets]
-        rebuilt = ""
-        if keep:
-            rebuilt += "(class %s %s\n%s)" % (name, " ".join(keep), body)
-        if freeze:
-            rebuilt += "\n    (class %s_%s %s\n%s)" % (FROZEN_CLASS, name, " ".join(freeze), body)
-        out.append(dsn_text[pos:start])
-        out.append(rebuilt)
-        pos = k + 1
-    out.append(dsn_text[pos:])
-    return "".join(out)
-
-
 def route_freerouting(board, board_path, targets, jar, passes=20):
     tmp = tempfile.mkdtemp(prefix="route-")
     dsn, ses = os.path.join(tmp, "board.dsn"), os.path.join(tmp, "board.ses")
@@ -169,15 +141,15 @@ def route_freerouting(board, board_path, targets, jar, passes=20):
     assert pcbnew.ExportSpecctraDSN(board, dsn), "DSN export failed"
     for t in board.GetTracks():
         t.SetLocked(was[t.m_Uuid.AsString()])
-    text = _freeze_classes(open(dsn).read(), set(targets))
-    frozen = sorted(set(re.findall(r"\(class (%s_\S+)" % FROZEN_CLASS, text)))
-    open(dsn, "w").write(text)
+    # The locked copper goes out as `(type fix)`, which Freerouting routes
+    # around. Never -inc those nets' classes instead: an ignored class stops
+    # being an obstacle too, and the session runs straight through it. No
+    # `-l en` either: 2.5.0 takes it as a log location and the job dies
+    # mid-pass without writing a session.
     cmd = ["java", "-jar", jar, "--gui.enabled=false",
            "--usage_and_diagnostic_data.disable_analytics=true",
-           "-de", dsn, "-do", ses, "-mp", str(passes), "-dct", "0", "-l", "en"]
-    if frozen:
-        cmd += ["-inc", ",".join(frozen)]
-    print("  freerouting: %d target net(s), %d class(es) frozen" % (len(targets), len(frozen)))
+           "-de", dsn, "-do", ses, "-mp", str(passes), "-dct", "0"]
+    print("  freerouting: %d target net(s)" % len(targets))
     t0 = time.time()
     p = subprocess.run(cmd, capture_output=True, text=True)
     log = os.path.join(tmp, "freerouting.log")

@@ -331,9 +331,9 @@ pcb-sync: pcb-netlist  ## Apply the schematic's netlist to the board; regenerate
 # UNLOCKED copper. Everything else - every other net, every locked item - is
 # fixed for the run. ROUTER=inhouse (default) is router.py's A* over the
 # board, ~10 s a net, signal nets only; ROUTER=freerouting is experimental -
-# it exports a DSN with the other nets in a class Freerouting ignores and
-# lifts only the targets' copper back off the session, but on this board
-# Freerouting has not converged (see route.py). Fine-pitch escape stubs
+# it exports a DSN with the other nets as fixed copper and lifts only the
+# targets' copper back off the session, but on this board Freerouting is
+# far slower and still does not finish (see route.py). Fine-pitch escape stubs
 # (gen_pcb.FANOUT parts) survive a rip-up: they are the only way onto those
 # pads.
 pcb-route:  ## Route unconnected nets (or NETS=a,b, ripped up first); ROUTER=inhouse|freerouting
