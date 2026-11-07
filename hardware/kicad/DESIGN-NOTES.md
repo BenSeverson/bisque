@@ -2450,6 +2450,9 @@ for that state. 1k to GND on each defines them (REV-B-NOTES.md SS1,
 
 ## D6 (design.py line 2099)
 
+> **Rev B.5:** D5 is gone - D15-D17 (SMF30CA to GND) replace it on J11 - so
+> the "first, D5" below no longer exists. D6's role and pinout are unchanged.
+
 Spec SS5.5's second SRV05-4 (the first, D5, covers the dry-contact
 inputs). NOT on the thermocouple inputs - array leakage into a
 ~40uV/degC source is an accuracy error, not protection. SRV05-4
