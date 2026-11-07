@@ -4580,13 +4580,13 @@
 			(ref "LED1")
 			(value "WS2812B")
 			(footprint "LED_SMD:LED_WS2812B_PLCC4_5.0x5.0mm_P3.2mm")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/3795cfb9d54f7ec8ecc0b043ede3c05a.pdf?productCode=C2874885")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/95221045da86451e076c0bc0d6e62dd0.pdf?productCode=C2920042")
 			(description "RGB LED with integrated controller")
 			(fields
 				(field
-					(name "MPN") "WS2812B-V5/W")
+					(name "MPN") "WS2812E-V5")
 				(field
-					(name "LCSC") "C2874885")
+					(name "LCSC") "C2920042")
 				(field
 					(name "Manufacturer") "Worldsemi")
 				(field
@@ -4594,7 +4594,7 @@
 				(field
 					(name "Footprint") "LED_SMD:LED_WS2812B_PLCC4_5.0x5.0mm_P3.2mm")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/3795cfb9d54f7ec8ecc0b043ede3c05a.pdf?productCode=C2874885")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/95221045da86451e076c0bc0d6e62dd0.pdf?productCode=C2920042")
 				(field
 					(name "Description") "RGB LED with integrated controller")
 			)
@@ -4605,11 +4605,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "WS2812B-V5/W")
+				(value "WS2812E-V5")
 			)
 			(property
 				(name "LCSC")
-				(value "C2874885")
+				(value "C2920042")
 			)
 			(property
 				(name "Manufacturer")

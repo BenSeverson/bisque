@@ -34,7 +34,7 @@
 "CT","J12","TerminalBlock_Phoenix_MKDS-1,5-4-5.08_1x04_P5.08mm_Horizontal","C42377749","WJ500V-5.08-04P-14-00A","KANGNEX","1","Optional hand solder - JLC assembles; untick at JLC to fit by hand"
 "QWIIC","J14","JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal","C160404","SM04B-SRSS-TB(LF)(SN)","JST","1",""
 "47uH/2A","L1","L_Changjiang_FXL0650","C475527","FXL0650-470-M","cjiang","1",""
-"WS2812B","LED1","LED_WS2812B_PLCC4_5.0x5.0mm_P3.2mm","C2874885","WS2812B-V5/W","Worldsemi","1","Optional hand solder - JLC assembles; untick at JLC to fit by hand"
+"WS2812B","LED1","LED_WS2812B_PLCC4_5.0x5.0mm_P3.2mm","C2920042","WS2812E-V5","Worldsemi","1","Optional hand solder - JLC assembles; untick at JLC to fit by hand"
 "green","LED2","LED_0805_2012Metric","C2297","KT-0805G","Hubei KENTO Elec","1",""
 "amber","LED3,LED4","LED_0805_2012Metric","C2296","KT-0805Y","Hubei KENTO Elec","2",""
 "AO3400A","Q2,Q3","SOT-23","C20917","AO3400A","AOS","2",""

@@ -781,10 +781,13 @@ since JLCPCB's upload rejects a CPL carrying designators the BOM does not
 have. Test points, solder jumpers, fiducials and mounting holes are marked
 "Exclude from BOM" on the symbol and appear in neither file.
 
-LED1 is a WS2812B-V5/W (C2874885) since the same day: the WS2812B-B/T
-(C2761795) was out of stock at LCSC and JLCPCB. Same pinout; its VIH is
-0.63 × VDD, ~2.6 V at the ~4.15 V VLED that D3 sets (see D3 in
-`DESIGN-NOTES.md`), under the -B/T's fixed 2.7 V.
+LED1 is a WS2812E-V5 (C2920042) since 2026-11-07. The WS2812B-B/T
+(C2761795) went out of stock at LCSC and JLCPCB on 2026-10-30, and the
+WS2812B-V5/W (C2874885) that replaced it followed a week later. All three are
+Worldsemi 5050s with the same pinout and land pattern, so the footprint is
+unchanged. The -E's VIH is a fixed 2.7 V like the -B/T's (the -V5/W's was
+0.63 × VDD), under the ESP32's 3.3 V with D3 holding VLED at ~4.15 V (see D3
+in `DESIGN-NOTES.md`), and its 3.7–5.3 V VDD range takes that VLED.
 
 | Formerly hand-fitted | Why |
 |---|---|
@@ -891,7 +894,7 @@ which connector is which.
 | J2, J3, J4, J8, J9 | C8465 | Phoenix Contact **1715721** (MKDS 1,5/2-5,08) — the part this footprint is named for |
 | J10, J11, J12 | C42377749 | Phoenix Contact **1715747** (MKDS 1,5/4-5,08) — the part this footprint is named for |
 | BZ1 | C96093 | Same Sky **CMI-1295-0585T** — Ø12 × 9.5 mm, 7.6 mm pitch, 5 V THT active |
-| LED1 | C2874885 | **none** — no bare Worldsemi 5050 in Mouser's catalog; use LCSC, DigiKey, Adafruit or SparkFun |
+| LED1 | C2920042 | **none** — no bare Worldsemi 5050 in Mouser's catalog; use LCSC, DigiKey, Adafruit or SparkFun |
 
 Several of these LCSC lines are Chinese generics and the Mouser column is the
 genuine part each footprint was drawn from where one exists, so it fits at

@@ -14849,7 +14849,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/3795cfb9d54f7ec8ecc0b043ede3c05a.pdf?productCode=C2874885"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/95221045da86451e076c0bc0d6e62dd0.pdf?productCode=C2920042"
 			(at 163.83 207.01 0)
 			(hide yes)
 			(show_name no)
@@ -14871,7 +14871,7 @@
 				)
 			)
 		)
-		(property "MPN" "WS2812B-V5/W"
+		(property "MPN" "WS2812E-V5"
 			(at 163.83 207.01 0)
 			(hide yes)
 			(show_name no)
@@ -14882,7 +14882,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C2874885"
+		(property "LCSC" "C2920042"
 			(at 163.83 207.01 0)
 			(hide yes)
 			(show_name no)

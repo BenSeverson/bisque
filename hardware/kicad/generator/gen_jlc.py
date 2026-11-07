@@ -216,7 +216,7 @@ JLC_PLACEMENT = {
     # only the pad NUMBERING carries the polarity, and on a 100 uF
     # electrolytic getting it wrong vents the part on first power-up.
     "C178540":  (  0,  0.000,  0.000),   # C46   CP_Elec_6.3x5.8                      resid 0.030 (2 pin#)
-    "C2874885": (  0,  0.000,  0.000),   # LED1  LED_WS2812B_PLCC4_5.0x5.0mm_P3.2mm   resid 0.071 (4 pin#)
+    "C2920042": (  0,  0.000,  0.000),   # LED1  LED_WS2812B_PLCC4_5.0x5.0mm_P3.2mm   resid 0.100 (4 pin#)
     "C3013945": (  0,  0.000, -0.477),   # U1    ESP32-S3-WROOM-1U                    resid 0.022 (40 pin#)
     "C318884":  (  0,  0.000,  0.000),   # SW1   SW_Push_1P1T_XKB_TS-1187A            resid 0.025 (4 shape)
     "C42377749": (  0,  7.620,  0.000),   # J10   TerminalBlock_Phoenix_MKDS-1,5-4-5.0 resid 0.000 (4 pin#)
@@ -446,10 +446,12 @@ LCSC = {
     "J11": ("C42377749", "WJ500V-5.08-04P 5.08mm screw terminal 1x04", False, True),
     "J12": ("C42377749", "WJ500V-5.08-04P 5.08mm screw terminal 1x04", False, True),
     "J14": ("C160404", "JST SM04B-SRSS-TB(LF)(SN) SH 1x04", False, True),
-    # WS2812B-V5/W since 2026-10-30: the -B/T (C2761795) was out of stock at
-    # LCSC and JLCPCB alike. Same 1 VDD / 2 DOUT / 3 VSS / 4 DIN pinout; VIH
-    # is 0.63*VDD rather than a fixed 2.7 V, ~2.6 V at D3's ~4.15 V VLED.
-    "LED1": ("C2874885", "WS2812B-V5/W 5050 RGB", False, True),
+    # WS2812E-V5 since 2026-11-07. The -B/T (C2761795) went out of stock on
+    # 2026-10-30 and its replacement, the -V5/W (C2874885), followed it a
+    # week later. Same Worldsemi 5050 outline and 1 VDD / 2 DOUT / 3 VSS /
+    # 4 DIN pinout; VIH is a fixed 2.7 V again (the -V5/W's was 0.63*VDD),
+    # and VDD 3.7-5.3 V takes D3's ~4.15 V VLED.
+    "LED1": ("C2920042", "WS2812E-V5 5050 RGB", False, True),
     "LED2": ("C2297", "KT-0805G green LED 0805", True, True),
     "LED3": ("C2296", "KT-0805Y amber LED 0805", True, True),
     "LED4": ("C2296", "KT-0805Y amber LED 0805", True, True),
@@ -755,7 +757,7 @@ MOUSER_ALT = {
                "12x9.5mm body, 7.6mm pitch, 5V THT active - datasheet-verified"),
     # Mouser hosts WS2812B datasheets and sells third-party modules built on
     # it, but no bare Worldsemi 5050 could be found in their catalog.
-    "C2874885": ("", "", "",
+    "C2920042": ("", "", "",
                  "NOT AT MOUSER - source from LCSC, DigiKey, Adafruit or SparkFun"),
 }
 

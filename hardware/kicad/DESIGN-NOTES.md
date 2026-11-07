@@ -1998,6 +1998,13 @@ What regulating removed is the TRADE, not the drop. The review's
 is now a real fix rather than a hedge, and the 74AHCT1G125 the review
 offered as the alternative is not needed.
 
+The 0.7*VLED above is the generic WS2812B's threshold, the worst case
+the drop was sized for. The part actually ordered is the WS2812E-V5
+(C2920042, since 2026-11-07): VIH a fixed 2.7 V, VDD 3.7-5.3 V, so
+~4.15 V VLED sits inside its range with 0.6 V of data margin. Any
+replacement has to clear both numbers at ~4.15 V. Parts whose threshold
+is 0.75*VDD or higher (the SK6805-EC15's 0.78*VDD is 3.24 V) do not.
+
 ## Connector protection (rev B.5, 2026-11-02)
 
 The rev-C connector list, pulled into B.5 because nothing has been built.
