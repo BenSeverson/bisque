@@ -48,7 +48,7 @@ if __name__ == "__main__":
     print("--- outside board ---")
     n_out = 0
     for ref,(x0,y0,x1,y1) in sorted(b.items()):
-        if x0 < BX0 or y0 < BY0 or x1 > BX1 or y1 > BY1:
+        if B.outside(ref, (x0, y0, x1, y1), (BX0, BY0, BX1, BY1)):
             print("OUT %-6s %.2f %.2f %.2f %.2f" % (ref,x0,y0,x1,y1))
             n_out += 1
     print("--- overlaps ---")
