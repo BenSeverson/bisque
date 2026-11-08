@@ -4459,7 +4459,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
 			(at 99.06 212.09 0)
 			(hide yes)
 			(show_name no)
@@ -4470,7 +4470,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663"
 			(at 99.06 212.09 0)
 			(hide yes)
 			(show_name no)
@@ -4492,7 +4492,7 @@
 				)
 			)
 		)
-		(property "MPN" "CC0805KRX7R9BB104"
+		(property "MPN" "CC0603KRX7R9BB104"
 			(at 99.06 212.09 0)
 			(hide yes)
 			(show_name no)
@@ -4503,7 +4503,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C49678"
+		(property "LCSC" "C14663"
 			(at 99.06 212.09 0)
 			(hide yes)
 			(show_name no)
@@ -8802,7 +8802,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
 			(at 124.46 123.19 0)
 			(hide yes)
 			(show_name no)
@@ -8813,7 +8813,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663"
 			(at 124.46 123.19 0)
 			(hide yes)
 			(show_name no)
@@ -8835,7 +8835,7 @@
 				)
 			)
 		)
-		(property "MPN" "CC0805KRX7R9BB104"
+		(property "MPN" "CC0603KRX7R9BB104"
 			(at 124.46 123.19 0)
 			(hide yes)
 			(show_name no)
@@ -8846,7 +8846,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C49678"
+		(property "LCSC" "C14663"
 			(at 124.46 123.19 0)
 			(hide yes)
 			(show_name no)
@@ -9487,7 +9487,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
 			(at 41.91 212.09 0)
 			(hide yes)
 			(show_name no)
@@ -9498,7 +9498,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663"
 			(at 41.91 212.09 0)
 			(hide yes)
 			(show_name no)
@@ -9520,7 +9520,7 @@
 				)
 			)
 		)
-		(property "MPN" "CC0805KRX7R9BB104"
+		(property "MPN" "CC0603KRX7R9BB104"
 			(at 41.91 212.09 0)
 			(hide yes)
 			(show_name no)
@@ -9531,7 +9531,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C49678"
+		(property "LCSC" "C14663"
 			(at 41.91 212.09 0)
 			(hide yes)
 			(show_name no)

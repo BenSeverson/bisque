@@ -4,9 +4,9 @@ Everything an order uploads is in this directory. `gerbers.zip` goes to the PCB
 order form; `BOM.csv` + `CPL.csv` go to the SMT assembly step.
 
 **`BOM.csv` lists every part on the board, and JLCPCB fits all of them** -
-leave every line ticked. The 13 lines whose `Notes` read `Optional hand
-solder - JLC assembles; untick at JLC to fit by hand` (BZ1, J2-J12, LED1) are
-the ones you *could* fit yourself: untick one on JLCPCB's BOM confirmation
+leave every line ticked. The 6 lines whose `Notes` read `Optional hand
+solder - JLC assembles; untick at JLC to fit by hand` (BZ1, J2-J12, J15-J17,
+LED1) are the ones you *could* fit yourself: untick one on JLCPCB's BOM confirmation
 page and it arrives unfitted. Their CPL rows are rotation-corrected like the
 rest, so a ticked line is placed right. (A line whose note reads `HAND SOLDER
 - uncheck at JLC` is hand-fitted for good: untick it, and its CPL row is not
@@ -16,8 +16,8 @@ the mating connectors for the board's headers, which you need whoever fits
 the headers.
 
 Its first column, `Kind`, splits it in two. `board` rows are parts that get
-soldered down — one row per **orderable part**, so the five identical
-2-position screw terminals are one line of `Qty 5` rather than five lines of
+soldered down — one row per **orderable part**, so the eleven identical
+2-position screw terminals are one line of `Qty 11` rather than eleven lines of
 one (their schematic names are joined in the `Comment` cell, in designator
 order, so nothing is lost). `mating` rows are the female crimp housings and
 terminals that go on the far end of the loom: they are not on the board, so

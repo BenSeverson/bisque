@@ -2763,3 +2763,44 @@ because the pad fits and its LABEL does not. See
 gen_pcb.TP_LEGEND_OK for what that costs and what would
 actually fix it.
 
+
+## BOM-line merge (2026-11-07)
+
+The order is Standard PCBA (U1 is "Standard Only"), and on Standard every
+`BOM.csv` row pays a $1.53 feeder whatever its library tier. This round cut
+the rows from 68 to 54, $137.81 to $116.39 fixed per order, without touching
+any value a circuit depends on:
+
+- `BOM.csv` groups by LCSC part (`--group-by 'LCSC,Assembly'`), so the 2-pos
+  screw terminals and SW1/SW2 are one row each instead of one per name.
+- 100 nF: the twenty 0805s (C49678) joined C51-C55 on the 0603 line (C14663,
+  also 50 V X7R, so C43 on VIN_P and C12/C23/C24 on the protected inputs keep
+  their rating). 33 R: R39-R43/R54-R58 joined R72/R73/R79/R80 on the 0603
+  line (C23140). 0603 rather than the other way round because the 0603s sit
+  where an 0805 does not fit, and an 0603 fits anywhere an 0805 did.
+- R3 330 R -> 220 R (WS2812B data series; any 100-470 R does the job).
+  R44/R45 4.7 k -> 5.1 k (I2C pull-ups; R4/R5's line).
+- LED3/LED4 amber -> green (LED2's line). They hang off 24 V through 10 k,
+  so the Vf difference moves the current by ~5 %.
+- D3/D4 1N4148W -> 1N4007W (D9/D10's line). D3's job is a silicon drop
+  under VLED (see D3); the 1N4007W drops the same 0.7-0.85 V across the
+  WS2812B's current range, a hair more if anything, which only widens the
+  VIH margin. D4 is the buzzer freewheel, where 1 A / 1 kV is overkill.
+- J10/J11/J12 4-pos (C42377749) -> pairs of the 2-pos block (C8465):
+  J10+J15, J11+J16, J12+J17, pins 1-2 unchanged and old pins 3-4 now the
+  second block's 1-2. The two blocks of a pair do NOT abut at 5.08 mm: the
+  stock footprint's courtyard overhangs its body by 0.5 mm, so a pair sits
+  ~6.2 mm across the gap, and the J11/J16 row is fitted to the hundredth
+  between D16/D17 and U13 (check_placement measures courtyards with their
+  line width). C39 is turned 90 deg beside AUX2 rather than threaded by it,
+  with its own +3V3 via, because the 0603's pads leave no room between them.
+
+Two merges in the 2026-11-07 cost review were NOT taken, and why matters:
+
+- J6 6-pin -> the J7 8-pin Molex line. The J5/J6/J7 row is full edge to
+  edge and J7 already touches U11; an 8-pin J6 needs 5 mm the row does not
+  have.
+- D18 ESDA6V1-5SC6 -> 2x SRV05-4. Five nav lines need two 4-line parts, and
+  no SOT-23-6 site within 8 mm of J6 is free of the VIN_P 24 V track or
+  routed nets. One feeder is not worth re-routing a 24 V rail through the
+  densest corner of the board.

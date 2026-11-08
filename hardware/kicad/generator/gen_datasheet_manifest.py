@@ -99,7 +99,6 @@ DOC_FOR = {
     "CL32B475KBUYNNE_C170099.pdf": "4.7uF/50V",
     "FXL0650-470-M_C475527.pdf": "47uH/2A",
     "EEEFK1E101SP_C178540.pdf": "100uF/25V",
-    "1N4148W_C81598.pdf": "1N4148W",
     "1N4007W_C3018540.pdf": "1N4007W",
     "0805W8F2200T5E_220R_C17557.pdf": "220R",
     "0805W8F3002T5E_30k_C17621.pdf": "30k",
@@ -126,6 +125,10 @@ RETIRED = {
         "D7 before the 60 V SS36",
     "B5819W_C8598.pdf":
         "D9/D10 for one day (2026-10-26) between the 1N4148W and the 1N4007W",
+    # The 2026-11-07 BOM-line merge: D3/D4 moved onto D9/D10's 1N4007W line,
+    # so the board no longer carries the 1N4148W at all.
+    "1N4148W_C81598.pdf":
+        "D3/D4 before they joined the 1N4007W line",
     "USBLC6-2SC6_ST.pdf":
         "U4 before it became an SRV05-4",
     # U8/U9 are optocouplers again in rev B.2, but not THIS optocoupler: the

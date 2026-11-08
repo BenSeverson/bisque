@@ -9418,7 +9418,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "4.7k"
+		(property "Value" "5.1k"
 			(at 325.77 224.79 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9440,7 +9440,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17673"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C27834"
 			(at 323.85 223.52 0)
 			(hide yes)
 			(show_name no)
@@ -9462,7 +9462,7 @@
 				)
 			)
 		)
-		(property "MPN" "0805W8F4701T5E"
+		(property "MPN" "0805W8F5101T5E"
 			(at 323.85 223.52 0)
 			(hide yes)
 			(show_name no)
@@ -9473,7 +9473,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C17673"
+		(property "LCSC" "C27834"
 			(at 323.85 223.52 0)
 			(hide yes)
 			(show_name no)
@@ -9543,7 +9543,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
 			(at 146.05 53.34 0)
 			(hide yes)
 			(show_name no)
@@ -9554,7 +9554,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663"
 			(at 146.05 53.34 0)
 			(hide yes)
 			(show_name no)
@@ -9576,7 +9576,7 @@
 				)
 			)
 		)
-		(property "MPN" "CC0805KRX7R9BB104"
+		(property "MPN" "CC0603KRX7R9BB104"
 			(at 146.05 53.34 0)
 			(hide yes)
 			(show_name no)
@@ -9587,7 +9587,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C49678"
+		(property "LCSC" "C14663"
 			(at 146.05 53.34 0)
 			(hide yes)
 			(show_name no)
@@ -9733,7 +9733,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
 			(at 358.14 180.34 0)
 			(hide yes)
 			(show_name no)
@@ -9744,7 +9744,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17634"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140"
 			(at 358.14 180.34 0)
 			(hide yes)
 			(show_name no)
@@ -9766,7 +9766,7 @@
 				)
 			)
 		)
-		(property "MPN" "0805W8F330JT5E"
+		(property "MPN" "0603WAF330JT5E"
 			(at 358.14 180.34 0)
 			(hide yes)
 			(show_name no)
@@ -9777,7 +9777,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C17634"
+		(property "LCSC" "C23140"
 			(at 358.14 180.34 0)
 			(hide yes)
 			(show_name no)
@@ -10037,7 +10037,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
 			(at 358.14 224.79 0)
 			(hide yes)
 			(show_name no)
@@ -10048,7 +10048,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17634"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140"
 			(at 358.14 224.79 0)
 			(hide yes)
 			(show_name no)
@@ -10070,7 +10070,7 @@
 				)
 			)
 		)
-		(property "MPN" "0805W8F330JT5E"
+		(property "MPN" "0603WAF330JT5E"
 			(at 358.14 224.79 0)
 			(hide yes)
 			(show_name no)
@@ -10081,7 +10081,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C17634"
+		(property "LCSC" "C23140"
 			(at 358.14 224.79 0)
 			(hide yes)
 			(show_name no)
@@ -10303,7 +10303,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
 			(at 358.14 199.39 0)
 			(hide yes)
 			(show_name no)
@@ -10314,7 +10314,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17634"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140"
 			(at 358.14 199.39 0)
 			(hide yes)
 			(show_name no)
@@ -10336,7 +10336,7 @@
 				)
 			)
 		)
-		(property "MPN" "0805W8F330JT5E"
+		(property "MPN" "0603WAF330JT5E"
 			(at 358.14 199.39 0)
 			(hide yes)
 			(show_name no)
@@ -10347,7 +10347,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C17634"
+		(property "LCSC" "C23140"
 			(at 358.14 199.39 0)
 			(hide yes)
 			(show_name no)
@@ -11896,7 +11896,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
 			(at 173.99 203.2 0)
 			(hide yes)
 			(show_name no)
@@ -11907,7 +11907,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663"
 			(at 173.99 203.2 0)
 			(hide yes)
 			(show_name no)
@@ -11929,7 +11929,7 @@
 				)
 			)
 		)
-		(property "MPN" "CC0805KRX7R9BB104"
+		(property "MPN" "CC0603KRX7R9BB104"
 			(at 173.99 203.2 0)
 			(hide yes)
 			(show_name no)
@@ -11940,7 +11940,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C49678"
+		(property "LCSC" "C14663"
 			(at 173.99 203.2 0)
 			(hide yes)
 			(show_name no)
@@ -12162,7 +12162,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
 			(at 358.14 212.09 0)
 			(hide yes)
 			(show_name no)
@@ -12173,7 +12173,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17634"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140"
 			(at 358.14 212.09 0)
 			(hide yes)
 			(show_name no)
@@ -12195,7 +12195,7 @@
 				)
 			)
 		)
-		(property "MPN" "0805W8F330JT5E"
+		(property "MPN" "0603WAF330JT5E"
 			(at 358.14 212.09 0)
 			(hide yes)
 			(show_name no)
@@ -12206,7 +12206,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C17634"
+		(property "LCSC" "C23140"
 			(at 358.14 212.09 0)
 			(hide yes)
 			(show_name no)
@@ -12494,7 +12494,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "330R"
+		(property "Value" "220R"
 			(at 144.15 203.2 270)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12516,7 +12516,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17630"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17557"
 			(at 143.51 207.01 0)
 			(hide yes)
 			(show_name no)
@@ -12538,7 +12538,7 @@
 				)
 			)
 		)
-		(property "MPN" "0805W8F3300T5E"
+		(property "MPN" "0805W8F2200T5E"
 			(at 143.51 207.01 0)
 			(hide yes)
 			(show_name no)
@@ -12549,7 +12549,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C17630"
+		(property "LCSC" "C17557"
 			(at 143.51 207.01 0)
 			(hide yes)
 			(show_name no)
@@ -12818,7 +12818,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
 			(at 358.14 237.49 0)
 			(hide yes)
 			(show_name no)
@@ -12829,7 +12829,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17634"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140"
 			(at 358.14 237.49 0)
 			(hide yes)
 			(show_name no)
@@ -12851,7 +12851,7 @@
 				)
 			)
 		)
-		(property "MPN" "0805W8F330JT5E"
+		(property "MPN" "0603WAF330JT5E"
 			(at 358.14 237.49 0)
 			(hide yes)
 			(show_name no)
@@ -12862,7 +12862,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C17634"
+		(property "LCSC" "C23140"
 			(at 358.14 237.49 0)
 			(hide yes)
 			(show_name no)
@@ -13085,7 +13085,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
 			(at 358.14 231.14 0)
 			(hide yes)
 			(show_name no)
@@ -13096,7 +13096,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17634"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140"
 			(at 358.14 231.14 0)
 			(hide yes)
 			(show_name no)
@@ -13118,7 +13118,7 @@
 				)
 			)
 		)
-		(property "MPN" "0805W8F330JT5E"
+		(property "MPN" "0603WAF330JT5E"
 			(at 358.14 231.14 0)
 			(hide yes)
 			(show_name no)
@@ -13129,7 +13129,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C17634"
+		(property "LCSC" "C23140"
 			(at 358.14 231.14 0)
 			(hide yes)
 			(show_name no)
@@ -13188,7 +13188,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "1N4148W"
+		(property "Value" "1N4007W"
 			(at 182.88 190.5 270)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13210,7 +13210,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/8abd7fc00ebe41ffb03ad1383c10753b.pdf?productCode=C81598"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/a7dbd01177530af63da342fa61873c89.pdf?productCode=C3018540"
 			(at 180.34 189.23 0)
 			(hide yes)
 			(show_name no)
@@ -13232,7 +13232,7 @@
 				)
 			)
 		)
-		(property "MPN" "1N4148W"
+		(property "MPN" "1N4007W"
 			(at 180.34 189.23 0)
 			(hide yes)
 			(show_name no)
@@ -13243,7 +13243,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C81598"
+		(property "LCSC" "C3018540"
 			(at 180.34 189.23 0)
 			(hide yes)
 			(show_name no)
@@ -13254,7 +13254,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "ST(Semtech)"
+		(property "Manufacturer" "FUXINSEMI"
 			(at 180.34 189.23 0)
 			(hide yes)
 			(show_name no)
@@ -13530,7 +13530,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "4.7k"
+		(property "Value" "5.1k"
 			(at 313.07 224.79 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13552,7 +13552,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17673"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C27834"
 			(at 311.15 223.52 0)
 			(hide yes)
 			(show_name no)
@@ -13574,7 +13574,7 @@
 				)
 			)
 		)
-		(property "MPN" "0805W8F4701T5E"
+		(property "MPN" "0805W8F5101T5E"
 			(at 311.15 223.52 0)
 			(hide yes)
 			(show_name no)
@@ -13585,7 +13585,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C17673"
+		(property "LCSC" "C27834"
 			(at 311.15 223.52 0)
 			(hide yes)
 			(show_name no)
@@ -14038,7 +14038,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
 			(at 358.14 193.04 0)
 			(hide yes)
 			(show_name no)
@@ -14049,7 +14049,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17634"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140"
 			(at 358.14 193.04 0)
 			(hide yes)
 			(show_name no)
@@ -14071,7 +14071,7 @@
 				)
 			)
 		)
-		(property "MPN" "0805W8F330JT5E"
+		(property "MPN" "0603WAF330JT5E"
 			(at 358.14 193.04 0)
 			(hide yes)
 			(show_name no)
@@ -14082,7 +14082,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C17634"
+		(property "LCSC" "C23140"
 			(at 358.14 193.04 0)
 			(hide yes)
 			(show_name no)
@@ -14304,7 +14304,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
 			(at 358.14 186.69 0)
 			(hide yes)
 			(show_name no)
@@ -14315,7 +14315,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17634"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140"
 			(at 358.14 186.69 0)
 			(hide yes)
 			(show_name no)
@@ -14337,7 +14337,7 @@
 				)
 			)
 		)
-		(property "MPN" "0805W8F330JT5E"
+		(property "MPN" "0603WAF330JT5E"
 			(at 358.14 186.69 0)
 			(hide yes)
 			(show_name no)
@@ -14348,7 +14348,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C17634"
+		(property "LCSC" "C23140"
 			(at 358.14 186.69 0)
 			(hide yes)
 			(show_name no)
@@ -14967,7 +14967,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
 			(at 358.14 218.44 0)
 			(hide yes)
 			(show_name no)
@@ -14978,7 +14978,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17634"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140"
 			(at 358.14 218.44 0)
 			(hide yes)
 			(show_name no)
@@ -15000,7 +15000,7 @@
 				)
 			)
 		)
-		(property "MPN" "0805W8F330JT5E"
+		(property "MPN" "0603WAF330JT5E"
 			(at 358.14 218.44 0)
 			(hide yes)
 			(show_name no)
@@ -15011,7 +15011,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C17634"
+		(property "LCSC" "C23140"
 			(at 358.14 218.44 0)
 			(hide yes)
 			(show_name no)
@@ -16115,7 +16115,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
 			(at 358.14 205.74 0)
 			(hide yes)
 			(show_name no)
@@ -16126,7 +16126,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17634"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140"
 			(at 358.14 205.74 0)
 			(hide yes)
 			(show_name no)
@@ -16148,7 +16148,7 @@
 				)
 			)
 		)
-		(property "MPN" "0805W8F330JT5E"
+		(property "MPN" "0603WAF330JT5E"
 			(at 358.14 205.74 0)
 			(hide yes)
 			(show_name no)
@@ -16159,7 +16159,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C17634"
+		(property "LCSC" "C23140"
 			(at 358.14 205.74 0)
 			(hide yes)
 			(show_name no)

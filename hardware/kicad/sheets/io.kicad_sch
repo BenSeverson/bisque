@@ -13,7 +13,7 @@
 		(comment 2 "4-layer, 100 x 100 mm, JLCPCB standard process")
 	)
 	(lib_symbols
-		(symbol "Connector:Screw_Terminal_01x04"
+		(symbol "Connector:Screw_Terminal_01x02"
 			(pin_names
 				(offset 1.016)
 				(hide yes)
@@ -24,7 +24,7 @@
 			(in_pos_files yes)
 			(duplicate_pin_numbers_are_jumpers no)
 			(property "Reference" "J"
-				(at 0 5.08 0)
+				(at 0 2.54 0)
 				(show_name no)
 				(do_not_autoplace no)
 				(effects
@@ -33,8 +33,8 @@
 					)
 				)
 			)
-			(property "Value" "Screw_Terminal_01x04"
-				(at 0 -7.62 0)
+			(property "Value" "Screw_Terminal_01x02"
+				(at 0 -5.08 0)
 				(show_name no)
 				(do_not_autoplace no)
 				(effects
@@ -65,7 +65,7 @@
 					)
 				)
 			)
-			(property "Description" "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)"
+			(property "Description" "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)"
 				(at 0 0 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -98,29 +98,16 @@
 					)
 				)
 			)
-			(symbol "Screw_Terminal_01x04_1_1"
+			(symbol "Screw_Terminal_01x02_1_1"
 				(rectangle
-					(start -1.27 3.81)
-					(end 1.27 -6.35)
+					(start -1.27 1.27)
+					(end 1.27 -3.81)
 					(stroke
 						(width 0.254)
 						(type default)
 					)
 					(fill
 						(type background)
-					)
-				)
-				(polyline
-					(pts
-						(xy -0.5334 2.8702)
-						(xy 0.3302 2.032)
-					)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
 					)
 				)
 				(polyline
@@ -140,32 +127,6 @@
 					(pts
 						(xy -0.5334 -2.2098)
 						(xy 0.3302 -3.048)
-					)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy -0.5334 -4.7498)
-						(xy 0.3302 -5.588)
-					)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy -0.3556 3.048)
-						(xy 0.508 2.2098)
 					)
 					(stroke
 						(width 0.1524)
@@ -201,30 +162,6 @@
 						(type none)
 					)
 				)
-				(polyline
-					(pts
-						(xy -0.3556 -4.572)
-						(xy 0.508 -5.4102)
-					)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(circle
-					(center 0 2.54)
-					(radius 0.635)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
 				(circle
 					(center 0 0)
 					(radius 0.635)
@@ -247,19 +184,8 @@
 						(type none)
 					)
 				)
-				(circle
-					(center 0 -5.08)
-					(radius 0.635)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
 				(pin passive line
-					(at -5.08 2.54 0)
+					(at -5.08 0 0)
 					(length 3.81)
 					(name "Pin_1"
 						(effects
@@ -277,7 +203,7 @@
 					)
 				)
 				(pin passive line
-					(at -5.08 0 0)
+					(at -5.08 -2.54 0)
 					(length 3.81)
 					(name "Pin_2"
 						(effects
@@ -287,42 +213,6 @@
 						)
 					)
 					(number "2"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at -5.08 -2.54 0)
-					(length 3.81)
-					(name "Pin_3"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "3"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at -5.08 -5.08 0)
-					(length 3.81)
-					(name "Pin_4"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "4"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -4381,8 +4271,8 @@
 		)
 	)
 	(symbol
-		(lib_id "Connector:Screw_Terminal_01x04")
-		(at 78.74 48.26 0)
+		(lib_id "Connector:Screw_Terminal_01x02")
+		(at 78.74 45.72 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -4390,7 +4280,7 @@
 		(dnp no)
 		(uuid "0a897537-3486-5e27-9182-bfb221dfbe40")
 		(property "Reference" "J10"
-			(at 73.66 40.64 0)
+			(at 73.66 38.1 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -4401,7 +4291,7 @@
 			)
 		)
 		(property "Value" "AUX"
-			(at 73.66 42.54 0)
+			(at 73.66 40 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -4411,8 +4301,8 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-4-5.08_1x04_P5.08mm_Horizontal"
-			(at 78.74 48.26 0)
+		(property "Footprint" "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal"
+			(at 78.74 45.72 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4422,8 +4312,8 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/5a3d038c44f6e3872ef57456c5bdf975.pdf?productCode=C42377749"
-			(at 78.74 48.26 0)
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/5a3d038c44f6e3872ef57456c5bdf975.pdf?productCode=C8465"
+			(at 78.74 45.72 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4434,7 +4324,7 @@
 			)
 		)
 		(property "Description" "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)"
-			(at 78.74 48.26 0)
+			(at 78.74 45.72 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4444,8 +4334,8 @@
 				)
 			)
 		)
-		(property "MPN" "WJ500V-5.08-04P-14-00A"
-			(at 78.74 48.26 0)
+		(property "MPN" "WJ500V-5.08-2P"
+			(at 78.74 45.72 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4455,8 +4345,8 @@
 				)
 			)
 		)
-		(property "LCSC" "C42377749"
-			(at 78.74 48.26 0)
+		(property "LCSC" "C8465"
+			(at 78.74 45.72 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4467,7 +4357,7 @@
 			)
 		)
 		(property "Manufacturer" "KANGNEX"
-			(at 78.74 48.26 0)
+			(at 78.74 45.72 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4478,7 +4368,7 @@
 			)
 		)
 		(property "Assembly" "Optional hand solder - JLC assembles; untick at JLC to fit by hand"
-			(at 78.74 48.26 0)
+			(at 78.74 45.72 0)
 			(hide yes)
 			(effects
 				(font
@@ -4494,16 +4384,134 @@
 		(pin "2"
 			(uuid "efd21d99-827d-5f76-b8ea-6715db958d55")
 		)
-		(pin "3"
-			(uuid "f017b9a3-fa0e-5dff-af3e-44b327bba346")
-		)
-		(pin "4"
-			(uuid "03a746c5-2c94-5243-a8ec-0cdc4773eead")
-		)
 		(instances
 			(project "bisque-controller"
 				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
 					(reference "J10")
+					(unit 1)
+				)
+			)
+		)
+	)
+
+	(symbol
+		(lib_id "Connector:Screw_Terminal_01x02")
+		(at 78.74 50.8 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "347ef91e-a402-497d-88b8-dcb977aff8d8")
+		(property "Reference" "J15"
+			(at 73.66 57.15 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "AUX"
+			(at 73.66 59.05 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal"
+			(at 78.74 50.8 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/5a3d038c44f6e3872ef57456c5bdf975.pdf?productCode=C8465"
+			(at 78.74 50.8 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)"
+			(at 78.74 50.8 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "WJ500V-5.08-2P"
+			(at 78.74 50.8 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C8465"
+			(at 78.74 50.8 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "KANGNEX"
+			(at 78.74 50.8 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Assembly" "Optional hand solder - JLC assembles; untick at JLC to fit by hand"
+			(at 78.74 50.8 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(body_style 1)
+		(in_pos_files yes)
+		(pin "1"
+			(uuid "c6f8568b-160a-496b-a3a4-622e7f3edfc0")
+		)
+		(pin "2"
+			(uuid "95e451fe-351d-4432-9144-75dfb1a5a405")
+		)
+		(instances
+			(project "bisque-controller"
+				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
+					(reference "J15")
 					(unit 1)
 				)
 			)
@@ -4958,7 +4966,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
 			(at 322.58 59.69 0)
 			(hide yes)
 			(show_name no)
@@ -4969,7 +4977,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663"
 			(at 322.58 59.69 0)
 			(hide yes)
 			(show_name no)
@@ -4991,7 +4999,7 @@
 				)
 			)
 		)
-		(property "MPN" "CC0805KRX7R9BB104"
+		(property "MPN" "CC0603KRX7R9BB104"
 			(at 322.58 59.69 0)
 			(hide yes)
 			(show_name no)
@@ -5002,7 +5010,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C49678"
+		(property "LCSC" "C14663"
 			(at 322.58 59.69 0)
 			(hide yes)
 			(show_name no)
@@ -6233,8 +6241,8 @@
 		)
 	)
 	(symbol
-		(lib_id "Connector:Screw_Terminal_01x04")
-		(at 276.86 55.88 0)
+		(lib_id "Connector:Screw_Terminal_01x02")
+		(at 276.86 53.34 0)
 		(mirror y)
 		(unit 1)
 		(exclude_from_sim no)
@@ -6243,7 +6251,7 @@
 		(dnp no)
 		(uuid "8f1a512e-008f-5110-83aa-6c9f2b4fb2cb")
 		(property "Reference" "J11"
-			(at 276.86 47.63 0)
+			(at 276.86 45.09 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -6253,7 +6261,7 @@
 			)
 		)
 		(property "Value" "INPUTS"
-			(at 276.86 49.53 0)
+			(at 276.86 46.99 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -6262,8 +6270,8 @@
 				)
 			)
 		)
-		(property "Footprint" "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-4-5.08_1x04_P5.08mm_Horizontal"
-			(at 276.86 55.88 0)
+		(property "Footprint" "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal"
+			(at 276.86 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6273,8 +6281,8 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/5a3d038c44f6e3872ef57456c5bdf975.pdf?productCode=C42377749"
-			(at 276.86 55.88 0)
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/5a3d038c44f6e3872ef57456c5bdf975.pdf?productCode=C8465"
+			(at 276.86 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6285,7 +6293,7 @@
 			)
 		)
 		(property "Description" "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)"
-			(at 276.86 55.88 0)
+			(at 276.86 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6295,8 +6303,8 @@
 				)
 			)
 		)
-		(property "MPN" "WJ500V-5.08-04P-14-00A"
-			(at 276.86 55.88 0)
+		(property "MPN" "WJ500V-5.08-2P"
+			(at 276.86 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6306,8 +6314,8 @@
 				)
 			)
 		)
-		(property "LCSC" "C42377749"
-			(at 276.86 55.88 0)
+		(property "LCSC" "C8465"
+			(at 276.86 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6318,7 +6326,7 @@
 			)
 		)
 		(property "Manufacturer" "KANGNEX"
-			(at 276.86 55.88 0)
+			(at 276.86 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6329,7 +6337,7 @@
 			)
 		)
 		(property "Assembly" "Optional hand solder - JLC assembles; untick at JLC to fit by hand"
-			(at 276.86 55.88 0)
+			(at 276.86 53.34 0)
 			(hide yes)
 			(effects
 				(font
@@ -6345,16 +6353,133 @@
 		(pin "2"
 			(uuid "fcb823b0-e060-560f-b56c-8749d560cb69")
 		)
-		(pin "3"
-			(uuid "a3fdbb52-3253-5819-b77b-8c1a10764cf2")
-		)
-		(pin "4"
-			(uuid "eccd1d5e-7b83-5363-b21e-f8bb8183db44")
-		)
 		(instances
 			(project "bisque-controller"
 				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
 					(reference "J11")
+					(unit 1)
+				)
+			)
+		)
+	)
+
+	(symbol
+		(lib_id "Connector:Screw_Terminal_01x02")
+		(at 276.86 58.42 0)
+		(mirror y)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "7705d7df-f29b-462b-80ee-5bc8eafa4797")
+		(property "Reference" "J16"
+			(at 276.86 64.77 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "INPUTS"
+			(at 276.86 66.67 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal"
+			(at 276.86 58.42 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/5a3d038c44f6e3872ef57456c5bdf975.pdf?productCode=C8465"
+			(at 276.86 58.42 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)"
+			(at 276.86 58.42 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "WJ500V-5.08-2P"
+			(at 276.86 58.42 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C8465"
+			(at 276.86 58.42 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "KANGNEX"
+			(at 276.86 58.42 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Assembly" "Optional hand solder - JLC assembles; untick at JLC to fit by hand"
+			(at 276.86 58.42 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(body_style 1)
+		(in_pos_files yes)
+		(pin "1"
+			(uuid "3fb85ce8-7ae3-4eeb-bce7-f250f538b4fc")
+		)
+		(pin "2"
+			(uuid "20e12ff1-2555-418b-a5e4-5e986a1a4a71")
+		)
+		(instances
+			(project "bisque-controller"
+				(path "/f24e0cd2-71c5-510c-9d15-562ab64c4388/e1ee3407-47a9-5cbf-8d5f-32505726bf00"
+					(reference "J16")
 					(unit 1)
 				)
 			)
@@ -6623,7 +6748,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
 			(at 322.58 90.17 0)
 			(hide yes)
 			(show_name no)
@@ -6634,7 +6759,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663"
 			(at 322.58 90.17 0)
 			(hide yes)
 			(show_name no)
@@ -6656,7 +6781,7 @@
 				)
 			)
 		)
-		(property "MPN" "CC0805KRX7R9BB104"
+		(property "MPN" "CC0603KRX7R9BB104"
 			(at 322.58 90.17 0)
 			(hide yes)
 			(show_name no)
@@ -6667,7 +6792,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C49678"
+		(property "LCSC" "C14663"
 			(at 322.58 90.17 0)
 			(hide yes)
 			(show_name no)
@@ -7191,7 +7316,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
 			(at 322.58 120.65 0)
 			(hide yes)
 			(show_name no)
@@ -7202,7 +7327,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663"
 			(at 322.58 120.65 0)
 			(hide yes)
 			(show_name no)
@@ -7224,7 +7349,7 @@
 				)
 			)
 		)
-		(property "MPN" "CC0805KRX7R9BB104"
+		(property "MPN" "CC0603KRX7R9BB104"
 			(at 322.58 120.65 0)
 			(hide yes)
 			(show_name no)
@@ -7235,7 +7360,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C49678"
+		(property "LCSC" "C14663"
 			(at 322.58 120.65 0)
 			(hide yes)
 			(show_name no)
@@ -7294,7 +7419,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "1N4148W"
+		(property "Value" "1N4007W"
 			(at 172.72 46.99 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7316,7 +7441,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/8abd7fc00ebe41ffb03ad1383c10753b.pdf?productCode=C81598"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/a7dbd01177530af63da342fa61873c89.pdf?productCode=C3018540"
 			(at 175.26 45.72 0)
 			(hide yes)
 			(show_name no)
@@ -7338,7 +7463,7 @@
 				)
 			)
 		)
-		(property "MPN" "1N4148W"
+		(property "MPN" "1N4007W"
 			(at 175.26 45.72 0)
 			(hide yes)
 			(show_name no)
@@ -7349,7 +7474,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C81598"
+		(property "LCSC" "C3018540"
 			(at 175.26 45.72 0)
 			(hide yes)
 			(show_name no)
@@ -7360,7 +7485,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "ST(Semtech)"
+		(property "Manufacturer" "FUXINSEMI"
 			(at 175.26 45.72 0)
 			(hide yes)
 			(show_name no)

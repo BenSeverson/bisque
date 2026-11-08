@@ -94,7 +94,9 @@ def main(board_path):
     with tempfile.TemporaryDirectory() as tmp:
         b = scratch(src_dir, base, tmp, synced=True)
         net = os.path.join(tmp, base + ".net")
-        ref, old_fp, new_fp = "C30", "C_0805_2012Metric", "C_0603_1608Metric"
+        # C30 is a 0603 since the 2026-11-07 BOM-line merge, so the swap runs
+        # the other way: any real footprint change exercises the same path.
+        ref, old_fp, new_fp = "C30", "C_0603_1608Metric", "C_0805_2012Metric"
         before = B.load(b).fps[ref]
         text = open(b).read()
         # lock C30 by hand

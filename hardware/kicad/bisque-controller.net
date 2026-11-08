@@ -733,20 +733,20 @@
 		(comp
 			(ref "C2")
 			(value "100nF")
-			(footprint "Capacitor_SMD:C_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 			(description "Unpolarized capacitor")
 			(fields
 				(field
-					(name "MPN") "CC0805KRX7R9BB104")
+					(name "MPN") "CC0603KRX7R9BB104")
 				(field
-					(name "LCSC") "C49678")
+					(name "LCSC") "C14663")
 				(field
 					(name "Manufacturer") "YAGEO")
 				(field
-					(name "Footprint") "Capacitor_SMD:C_0805_2012Metric")
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 				(field
 					(name "Description") "Unpolarized capacitor")
 			)
@@ -757,11 +757,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "CC0805KRX7R9BB104")
+				(value "CC0603KRX7R9BB104")
 			)
 			(property
 				(name "LCSC")
-				(value "C49678")
+				(value "C14663")
 			)
 			(property
 				(name "Manufacturer")
@@ -877,20 +877,20 @@
 		(comp
 			(ref "C4")
 			(value "100nF")
-			(footprint "Capacitor_SMD:C_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 			(description "Unpolarized capacitor")
 			(fields
 				(field
-					(name "MPN") "CC0805KRX7R9BB104")
+					(name "MPN") "CC0603KRX7R9BB104")
 				(field
-					(name "LCSC") "C49678")
+					(name "LCSC") "C14663")
 				(field
 					(name "Manufacturer") "YAGEO")
 				(field
-					(name "Footprint") "Capacitor_SMD:C_0805_2012Metric")
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 				(field
 					(name "Description") "Unpolarized capacitor")
 			)
@@ -901,11 +901,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "CC0805KRX7R9BB104")
+				(value "CC0603KRX7R9BB104")
 			)
 			(property
 				(name "LCSC")
-				(value "C49678")
+				(value "C14663")
 			)
 			(property
 				(name "Manufacturer")
@@ -1093,20 +1093,20 @@
 		(comp
 			(ref "C43")
 			(value "100nF")
-			(footprint "Capacitor_SMD:C_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 			(description "Unpolarized capacitor")
 			(fields
 				(field
-					(name "MPN") "CC0805KRX7R9BB104")
+					(name "MPN") "CC0603KRX7R9BB104")
 				(field
-					(name "LCSC") "C49678")
+					(name "LCSC") "C14663")
 				(field
 					(name "Manufacturer") "YAGEO")
 				(field
-					(name "Footprint") "Capacitor_SMD:C_0805_2012Metric")
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 				(field
 					(name "Description") "Unpolarized capacitor")
 			)
@@ -1117,11 +1117,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "CC0805KRX7R9BB104")
+				(value "CC0603KRX7R9BB104")
 			)
 			(property
 				(name "LCSC")
-				(value "C49678")
+				(value "C14663")
 			)
 			(property
 				(name "Manufacturer")
@@ -2941,20 +2941,20 @@
 		(comp
 			(ref "C6")
 			(value "100nF")
-			(footprint "Capacitor_SMD:C_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 			(description "Unpolarized capacitor")
 			(fields
 				(field
-					(name "MPN") "CC0805KRX7R9BB104")
+					(name "MPN") "CC0603KRX7R9BB104")
 				(field
-					(name "LCSC") "C49678")
+					(name "LCSC") "C14663")
 				(field
 					(name "Manufacturer") "YAGEO")
 				(field
-					(name "Footprint") "Capacitor_SMD:C_0805_2012Metric")
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 				(field
 					(name "Description") "Unpolarized capacitor")
 			)
@@ -2965,11 +2965,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "CC0805KRX7R9BB104")
+				(value "CC0603KRX7R9BB104")
 			)
 			(property
 				(name "LCSC")
-				(value "C49678")
+				(value "C14663")
 			)
 			(property
 				(name "Manufacturer")
@@ -3085,20 +3085,20 @@
 		(comp
 			(ref "C10")
 			(value "100nF")
-			(footprint "Capacitor_SMD:C_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 			(description "Unpolarized capacitor")
 			(fields
 				(field
-					(name "MPN") "CC0805KRX7R9BB104")
+					(name "MPN") "CC0603KRX7R9BB104")
 				(field
-					(name "LCSC") "C49678")
+					(name "LCSC") "C14663")
 				(field
 					(name "Manufacturer") "YAGEO")
 				(field
-					(name "Footprint") "Capacitor_SMD:C_0805_2012Metric")
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 				(field
 					(name "Description") "Unpolarized capacitor")
 			)
@@ -3109,11 +3109,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "CC0805KRX7R9BB104")
+				(value "CC0603KRX7R9BB104")
 			)
 			(property
 				(name "LCSC")
-				(value "C49678")
+				(value "C14663")
 			)
 			(property
 				(name "Manufacturer")
@@ -3588,21 +3588,21 @@
 		)
 		(comp
 			(ref "D3")
-			(value "1N4148W")
+			(value "1N4007W")
 			(footprint "Diode_SMD:D_SOD-123")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/8abd7fc00ebe41ffb03ad1383c10753b.pdf?productCode=C81598")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/a7dbd01177530af63da342fa61873c89.pdf?productCode=C3018540")
 			(description "Diode")
 			(fields
 				(field
-					(name "MPN") "1N4148W")
+					(name "MPN") "1N4007W")
 				(field
-					(name "LCSC") "C81598")
+					(name "LCSC") "C3018540")
 				(field
-					(name "Manufacturer") "ST(Semtech)")
+					(name "Manufacturer") "FUXINSEMI")
 				(field
 					(name "Footprint") "Diode_SMD:D_SOD-123")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/8abd7fc00ebe41ffb03ad1383c10753b.pdf?productCode=C81598")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/a7dbd01177530af63da342fa61873c89.pdf?productCode=C3018540")
 				(field
 					(name "Description") "Diode")
 			)
@@ -3613,15 +3613,15 @@
 			)
 			(property
 				(name "MPN")
-				(value "1N4148W")
+				(value "1N4007W")
 			)
 			(property
 				(name "LCSC")
-				(value "C81598")
+				(value "C3018540")
 			)
 			(property
 				(name "Manufacturer")
-				(value "ST(Semtech)")
+				(value "FUXINSEMI")
 			)
 			(property
 				(name "Sheetname")
@@ -4806,21 +4806,21 @@
 		)
 		(comp
 			(ref "R3")
-			(value "330R")
+			(value "220R")
 			(footprint "Resistor_SMD:R_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17630")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17557")
 			(description "Resistor")
 			(fields
 				(field
-					(name "MPN") "0805W8F3300T5E")
+					(name "MPN") "0805W8F2200T5E")
 				(field
-					(name "LCSC") "C17630")
+					(name "LCSC") "C17557")
 				(field
 					(name "Manufacturer") "UNI-ROYAL")
 				(field
 					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17630")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17557")
 				(field
 					(name "Description") "Resistor")
 			)
@@ -4831,11 +4831,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "0805W8F3300T5E")
+				(value "0805W8F2200T5E")
 			)
 			(property
 				(name "LCSC")
-				(value "C17630")
+				(value "C17557")
 			)
 			(property
 				(name "Manufacturer")
@@ -5023,20 +5023,20 @@
 		(comp
 			(ref "R39")
 			(value "33")
-			(footprint "Resistor_SMD:R_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17634")
+			(footprint "Resistor_SMD:R_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140")
 			(description "Resistor")
 			(fields
 				(field
-					(name "MPN") "0805W8F330JT5E")
+					(name "MPN") "0603WAF330JT5E")
 				(field
-					(name "LCSC") "C17634")
+					(name "LCSC") "C23140")
 				(field
 					(name "Manufacturer") "UNI-ROYAL")
 				(field
-					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+					(name "Footprint") "Resistor_SMD:R_0603_1608Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17634")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140")
 				(field
 					(name "Description") "Resistor")
 			)
@@ -5047,11 +5047,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "0805W8F330JT5E")
+				(value "0603WAF330JT5E")
 			)
 			(property
 				(name "LCSC")
-				(value "C17634")
+				(value "C23140")
 			)
 			(property
 				(name "Manufacturer")
@@ -5095,20 +5095,20 @@
 		(comp
 			(ref "R40")
 			(value "33")
-			(footprint "Resistor_SMD:R_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17634")
+			(footprint "Resistor_SMD:R_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140")
 			(description "Resistor")
 			(fields
 				(field
-					(name "MPN") "0805W8F330JT5E")
+					(name "MPN") "0603WAF330JT5E")
 				(field
-					(name "LCSC") "C17634")
+					(name "LCSC") "C23140")
 				(field
 					(name "Manufacturer") "UNI-ROYAL")
 				(field
-					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+					(name "Footprint") "Resistor_SMD:R_0603_1608Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17634")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140")
 				(field
 					(name "Description") "Resistor")
 			)
@@ -5119,11 +5119,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "0805W8F330JT5E")
+				(value "0603WAF330JT5E")
 			)
 			(property
 				(name "LCSC")
-				(value "C17634")
+				(value "C23140")
 			)
 			(property
 				(name "Manufacturer")
@@ -5167,20 +5167,20 @@
 		(comp
 			(ref "R41")
 			(value "33")
-			(footprint "Resistor_SMD:R_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17634")
+			(footprint "Resistor_SMD:R_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140")
 			(description "Resistor")
 			(fields
 				(field
-					(name "MPN") "0805W8F330JT5E")
+					(name "MPN") "0603WAF330JT5E")
 				(field
-					(name "LCSC") "C17634")
+					(name "LCSC") "C23140")
 				(field
 					(name "Manufacturer") "UNI-ROYAL")
 				(field
-					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+					(name "Footprint") "Resistor_SMD:R_0603_1608Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17634")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140")
 				(field
 					(name "Description") "Resistor")
 			)
@@ -5191,11 +5191,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "0805W8F330JT5E")
+				(value "0603WAF330JT5E")
 			)
 			(property
 				(name "LCSC")
-				(value "C17634")
+				(value "C23140")
 			)
 			(property
 				(name "Manufacturer")
@@ -5239,20 +5239,20 @@
 		(comp
 			(ref "R42")
 			(value "33")
-			(footprint "Resistor_SMD:R_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17634")
+			(footprint "Resistor_SMD:R_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140")
 			(description "Resistor")
 			(fields
 				(field
-					(name "MPN") "0805W8F330JT5E")
+					(name "MPN") "0603WAF330JT5E")
 				(field
-					(name "LCSC") "C17634")
+					(name "LCSC") "C23140")
 				(field
 					(name "Manufacturer") "UNI-ROYAL")
 				(field
-					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+					(name "Footprint") "Resistor_SMD:R_0603_1608Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17634")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140")
 				(field
 					(name "Description") "Resistor")
 			)
@@ -5263,11 +5263,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "0805W8F330JT5E")
+				(value "0603WAF330JT5E")
 			)
 			(property
 				(name "LCSC")
-				(value "C17634")
+				(value "C23140")
 			)
 			(property
 				(name "Manufacturer")
@@ -5311,20 +5311,20 @@
 		(comp
 			(ref "R43")
 			(value "33")
-			(footprint "Resistor_SMD:R_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17634")
+			(footprint "Resistor_SMD:R_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140")
 			(description "Resistor")
 			(fields
 				(field
-					(name "MPN") "0805W8F330JT5E")
+					(name "MPN") "0603WAF330JT5E")
 				(field
-					(name "LCSC") "C17634")
+					(name "LCSC") "C23140")
 				(field
 					(name "Manufacturer") "UNI-ROYAL")
 				(field
-					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+					(name "Footprint") "Resistor_SMD:R_0603_1608Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17634")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140")
 				(field
 					(name "Description") "Resistor")
 			)
@@ -5335,11 +5335,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "0805W8F330JT5E")
+				(value "0603WAF330JT5E")
 			)
 			(property
 				(name "LCSC")
-				(value "C17634")
+				(value "C23140")
 			)
 			(property
 				(name "Manufacturer")
@@ -5382,21 +5382,21 @@
 		)
 		(comp
 			(ref "R44")
-			(value "4.7k")
+			(value "5.1k")
 			(footprint "Resistor_SMD:R_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17673")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C27834")
 			(description "Resistor")
 			(fields
 				(field
-					(name "MPN") "0805W8F4701T5E")
+					(name "MPN") "0805W8F5101T5E")
 				(field
-					(name "LCSC") "C17673")
+					(name "LCSC") "C27834")
 				(field
 					(name "Manufacturer") "UNI-ROYAL")
 				(field
 					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17673")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C27834")
 				(field
 					(name "Description") "Resistor")
 			)
@@ -5407,11 +5407,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "0805W8F4701T5E")
+				(value "0805W8F5101T5E")
 			)
 			(property
 				(name "LCSC")
-				(value "C17673")
+				(value "C27834")
 			)
 			(property
 				(name "Manufacturer")
@@ -5454,21 +5454,21 @@
 		)
 		(comp
 			(ref "R45")
-			(value "4.7k")
+			(value "5.1k")
 			(footprint "Resistor_SMD:R_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17673")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C27834")
 			(description "Resistor")
 			(fields
 				(field
-					(name "MPN") "0805W8F4701T5E")
+					(name "MPN") "0805W8F5101T5E")
 				(field
-					(name "LCSC") "C17673")
+					(name "LCSC") "C27834")
 				(field
 					(name "Manufacturer") "UNI-ROYAL")
 				(field
 					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17673")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C27834")
 				(field
 					(name "Description") "Resistor")
 			)
@@ -5479,11 +5479,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "0805W8F4701T5E")
+				(value "0805W8F5101T5E")
 			)
 			(property
 				(name "LCSC")
-				(value "C17673")
+				(value "C27834")
 			)
 			(property
 				(name "Manufacturer")
@@ -5815,20 +5815,20 @@
 		(comp
 			(ref "R54")
 			(value "33")
-			(footprint "Resistor_SMD:R_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17634")
+			(footprint "Resistor_SMD:R_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140")
 			(description "Resistor")
 			(fields
 				(field
-					(name "MPN") "0805W8F330JT5E")
+					(name "MPN") "0603WAF330JT5E")
 				(field
-					(name "LCSC") "C17634")
+					(name "LCSC") "C23140")
 				(field
 					(name "Manufacturer") "UNI-ROYAL")
 				(field
-					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+					(name "Footprint") "Resistor_SMD:R_0603_1608Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17634")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140")
 				(field
 					(name "Description") "Resistor")
 			)
@@ -5839,11 +5839,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "0805W8F330JT5E")
+				(value "0603WAF330JT5E")
 			)
 			(property
 				(name "LCSC")
-				(value "C17634")
+				(value "C23140")
 			)
 			(property
 				(name "Manufacturer")
@@ -5887,20 +5887,20 @@
 		(comp
 			(ref "R55")
 			(value "33")
-			(footprint "Resistor_SMD:R_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17634")
+			(footprint "Resistor_SMD:R_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140")
 			(description "Resistor")
 			(fields
 				(field
-					(name "MPN") "0805W8F330JT5E")
+					(name "MPN") "0603WAF330JT5E")
 				(field
-					(name "LCSC") "C17634")
+					(name "LCSC") "C23140")
 				(field
 					(name "Manufacturer") "UNI-ROYAL")
 				(field
-					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+					(name "Footprint") "Resistor_SMD:R_0603_1608Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17634")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140")
 				(field
 					(name "Description") "Resistor")
 			)
@@ -5911,11 +5911,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "0805W8F330JT5E")
+				(value "0603WAF330JT5E")
 			)
 			(property
 				(name "LCSC")
-				(value "C17634")
+				(value "C23140")
 			)
 			(property
 				(name "Manufacturer")
@@ -5959,20 +5959,20 @@
 		(comp
 			(ref "R56")
 			(value "33")
-			(footprint "Resistor_SMD:R_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17634")
+			(footprint "Resistor_SMD:R_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140")
 			(description "Resistor")
 			(fields
 				(field
-					(name "MPN") "0805W8F330JT5E")
+					(name "MPN") "0603WAF330JT5E")
 				(field
-					(name "LCSC") "C17634")
+					(name "LCSC") "C23140")
 				(field
 					(name "Manufacturer") "UNI-ROYAL")
 				(field
-					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+					(name "Footprint") "Resistor_SMD:R_0603_1608Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17634")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140")
 				(field
 					(name "Description") "Resistor")
 			)
@@ -5983,11 +5983,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "0805W8F330JT5E")
+				(value "0603WAF330JT5E")
 			)
 			(property
 				(name "LCSC")
-				(value "C17634")
+				(value "C23140")
 			)
 			(property
 				(name "Manufacturer")
@@ -6031,20 +6031,20 @@
 		(comp
 			(ref "R57")
 			(value "33")
-			(footprint "Resistor_SMD:R_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17634")
+			(footprint "Resistor_SMD:R_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140")
 			(description "Resistor")
 			(fields
 				(field
-					(name "MPN") "0805W8F330JT5E")
+					(name "MPN") "0603WAF330JT5E")
 				(field
-					(name "LCSC") "C17634")
+					(name "LCSC") "C23140")
 				(field
 					(name "Manufacturer") "UNI-ROYAL")
 				(field
-					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+					(name "Footprint") "Resistor_SMD:R_0603_1608Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17634")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140")
 				(field
 					(name "Description") "Resistor")
 			)
@@ -6055,11 +6055,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "0805W8F330JT5E")
+				(value "0603WAF330JT5E")
 			)
 			(property
 				(name "LCSC")
-				(value "C17634")
+				(value "C23140")
 			)
 			(property
 				(name "Manufacturer")
@@ -6103,20 +6103,20 @@
 		(comp
 			(ref "R58")
 			(value "33")
-			(footprint "Resistor_SMD:R_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17634")
+			(footprint "Resistor_SMD:R_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140")
 			(description "Resistor")
 			(fields
 				(field
-					(name "MPN") "0805W8F330JT5E")
+					(name "MPN") "0603WAF330JT5E")
 				(field
-					(name "LCSC") "C17634")
+					(name "LCSC") "C23140")
 				(field
 					(name "Manufacturer") "UNI-ROYAL")
 				(field
-					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+					(name "Footprint") "Resistor_SMD:R_0603_1608Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17634")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C23140")
 				(field
 					(name "Description") "Resistor")
 			)
@@ -6127,11 +6127,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "0805W8F330JT5E")
+				(value "0603WAF330JT5E")
 			)
 			(property
 				(name "LCSC")
-				(value "C17634")
+				(value "C23140")
 			)
 			(property
 				(name "Manufacturer")
@@ -7271,20 +7271,20 @@
 		(comp
 			(ref "C13")
 			(value "100nF")
-			(footprint "Capacitor_SMD:C_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 			(description "Unpolarized capacitor")
 			(fields
 				(field
-					(name "MPN") "CC0805KRX7R9BB104")
+					(name "MPN") "CC0603KRX7R9BB104")
 				(field
-					(name "LCSC") "C49678")
+					(name "LCSC") "C14663")
 				(field
 					(name "Manufacturer") "YAGEO")
 				(field
-					(name "Footprint") "Capacitor_SMD:C_0805_2012Metric")
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 				(field
 					(name "Description") "Unpolarized capacitor")
 			)
@@ -7295,11 +7295,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "CC0805KRX7R9BB104")
+				(value "CC0603KRX7R9BB104")
 			)
 			(property
 				(name "LCSC")
-				(value "C49678")
+				(value "C14663")
 			)
 			(property
 				(name "Manufacturer")
@@ -7343,20 +7343,20 @@
 		(comp
 			(ref "C14")
 			(value "100nF")
-			(footprint "Capacitor_SMD:C_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 			(description "Unpolarized capacitor")
 			(fields
 				(field
-					(name "MPN") "CC0805KRX7R9BB104")
+					(name "MPN") "CC0603KRX7R9BB104")
 				(field
-					(name "LCSC") "C49678")
+					(name "LCSC") "C14663")
 				(field
 					(name "Manufacturer") "YAGEO")
 				(field
-					(name "Footprint") "Capacitor_SMD:C_0805_2012Metric")
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 				(field
 					(name "Description") "Unpolarized capacitor")
 			)
@@ -7367,11 +7367,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "CC0805KRX7R9BB104")
+				(value "CC0603KRX7R9BB104")
 			)
 			(property
 				(name "LCSC")
-				(value "C49678")
+				(value "C14663")
 			)
 			(property
 				(name "Manufacturer")
@@ -7415,20 +7415,20 @@
 		(comp
 			(ref "C15")
 			(value "100nF")
-			(footprint "Capacitor_SMD:C_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 			(description "Unpolarized capacitor")
 			(fields
 				(field
-					(name "MPN") "CC0805KRX7R9BB104")
+					(name "MPN") "CC0603KRX7R9BB104")
 				(field
-					(name "LCSC") "C49678")
+					(name "LCSC") "C14663")
 				(field
 					(name "Manufacturer") "YAGEO")
 				(field
-					(name "Footprint") "Capacitor_SMD:C_0805_2012Metric")
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 				(field
 					(name "Description") "Unpolarized capacitor")
 			)
@@ -7439,11 +7439,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "CC0805KRX7R9BB104")
+				(value "CC0603KRX7R9BB104")
 			)
 			(property
 				(name "LCSC")
-				(value "C49678")
+				(value "C14663")
 			)
 			(property
 				(name "Manufacturer")
@@ -7631,20 +7631,20 @@
 		(comp
 			(ref "C18")
 			(value "100nF")
-			(footprint "Capacitor_SMD:C_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 			(description "Unpolarized capacitor")
 			(fields
 				(field
-					(name "MPN") "CC0805KRX7R9BB104")
+					(name "MPN") "CC0603KRX7R9BB104")
 				(field
-					(name "LCSC") "C49678")
+					(name "LCSC") "C14663")
 				(field
 					(name "Manufacturer") "YAGEO")
 				(field
-					(name "Footprint") "Capacitor_SMD:C_0805_2012Metric")
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 				(field
 					(name "Description") "Unpolarized capacitor")
 			)
@@ -7655,11 +7655,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "CC0805KRX7R9BB104")
+				(value "CC0603KRX7R9BB104")
 			)
 			(property
 				(name "LCSC")
-				(value "C49678")
+				(value "C14663")
 			)
 			(property
 				(name "Manufacturer")
@@ -7703,20 +7703,20 @@
 		(comp
 			(ref "C19")
 			(value "100nF")
-			(footprint "Capacitor_SMD:C_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 			(description "Unpolarized capacitor")
 			(fields
 				(field
-					(name "MPN") "CC0805KRX7R9BB104")
+					(name "MPN") "CC0603KRX7R9BB104")
 				(field
-					(name "LCSC") "C49678")
+					(name "LCSC") "C14663")
 				(field
 					(name "Manufacturer") "YAGEO")
 				(field
-					(name "Footprint") "Capacitor_SMD:C_0805_2012Metric")
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 				(field
 					(name "Description") "Unpolarized capacitor")
 			)
@@ -7727,11 +7727,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "CC0805KRX7R9BB104")
+				(value "CC0603KRX7R9BB104")
 			)
 			(property
 				(name "LCSC")
-				(value "C49678")
+				(value "C14663")
 			)
 			(property
 				(name "Manufacturer")
@@ -7775,20 +7775,20 @@
 		(comp
 			(ref "C20")
 			(value "100nF")
-			(footprint "Capacitor_SMD:C_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 			(description "Unpolarized capacitor")
 			(fields
 				(field
-					(name "MPN") "CC0805KRX7R9BB104")
+					(name "MPN") "CC0603KRX7R9BB104")
 				(field
-					(name "LCSC") "C49678")
+					(name "LCSC") "C14663")
 				(field
 					(name "Manufacturer") "YAGEO")
 				(field
-					(name "Footprint") "Capacitor_SMD:C_0805_2012Metric")
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 				(field
 					(name "Description") "Unpolarized capacitor")
 			)
@@ -7799,11 +7799,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "CC0805KRX7R9BB104")
+				(value "CC0603KRX7R9BB104")
 			)
 			(property
 				(name "LCSC")
-				(value "C49678")
+				(value "C14663")
 			)
 			(property
 				(name "Manufacturer")
@@ -8063,20 +8063,20 @@
 		(comp
 			(ref "C39")
 			(value "100nF")
-			(footprint "Capacitor_SMD:C_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 			(description "Unpolarized capacitor")
 			(fields
 				(field
-					(name "MPN") "CC0805KRX7R9BB104")
+					(name "MPN") "CC0603KRX7R9BB104")
 				(field
-					(name "LCSC") "C49678")
+					(name "LCSC") "C14663")
 				(field
 					(name "Manufacturer") "YAGEO")
 				(field
-					(name "Footprint") "Capacitor_SMD:C_0805_2012Metric")
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 				(field
 					(name "Description") "Unpolarized capacitor")
 			)
@@ -8087,11 +8087,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "CC0805KRX7R9BB104")
+				(value "CC0603KRX7R9BB104")
 			)
 			(property
 				(name "LCSC")
-				(value "C49678")
+				(value "C14663")
 			)
 			(property
 				(name "Manufacturer")
@@ -8878,21 +8878,21 @@
 		)
 		(comp
 			(ref "LED3")
-			(value "amber")
+			(value "green")
 			(footprint "LED_SMD:LED_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/3f6a14f9ea2fc39f6e05d2ab0fa53e2b.pdf?productCode=C2296")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/de342fde3322df0797012cd7a04e2194.pdf?productCode=C2297")
 			(description "Light emitting diode")
 			(fields
 				(field
-					(name "MPN") "KT-0805Y")
+					(name "MPN") "KT-0805G")
 				(field
-					(name "LCSC") "C2296")
+					(name "LCSC") "C2297")
 				(field
 					(name "Manufacturer") "Hubei KENTO Elec")
 				(field
 					(name "Footprint") "LED_SMD:LED_0805_2012Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/3f6a14f9ea2fc39f6e05d2ab0fa53e2b.pdf?productCode=C2296")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/de342fde3322df0797012cd7a04e2194.pdf?productCode=C2297")
 				(field
 					(name "Description") "Light emitting diode")
 			)
@@ -8903,11 +8903,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "KT-0805Y")
+				(value "KT-0805G")
 			)
 			(property
 				(name "LCSC")
-				(value "C2296")
+				(value "C2297")
 			)
 			(property
 				(name "Manufacturer")
@@ -8950,21 +8950,21 @@
 		)
 		(comp
 			(ref "LED4")
-			(value "amber")
+			(value "green")
 			(footprint "LED_SMD:LED_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/3f6a14f9ea2fc39f6e05d2ab0fa53e2b.pdf?productCode=C2296")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/de342fde3322df0797012cd7a04e2194.pdf?productCode=C2297")
 			(description "Light emitting diode")
 			(fields
 				(field
-					(name "MPN") "KT-0805Y")
+					(name "MPN") "KT-0805G")
 				(field
-					(name "LCSC") "C2296")
+					(name "LCSC") "C2297")
 				(field
 					(name "Manufacturer") "Hubei KENTO Elec")
 				(field
 					(name "Footprint") "LED_SMD:LED_0805_2012Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/3f6a14f9ea2fc39f6e05d2ab0fa53e2b.pdf?productCode=C2296")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/de342fde3322df0797012cd7a04e2194.pdf?productCode=C2297")
 				(field
 					(name "Description") "Light emitting diode")
 			)
@@ -8975,11 +8975,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "KT-0805Y")
+				(value "KT-0805G")
 			)
 			(property
 				(name "LCSC")
-				(value "C2296")
+				(value "C2297")
 			)
 			(property
 				(name "Manufacturer")
@@ -11497,20 +11497,20 @@
 		(comp
 			(ref "C12")
 			(value "100nF")
-			(footprint "Capacitor_SMD:C_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 			(description "Unpolarized capacitor")
 			(fields
 				(field
-					(name "MPN") "CC0805KRX7R9BB104")
+					(name "MPN") "CC0603KRX7R9BB104")
 				(field
-					(name "LCSC") "C49678")
+					(name "LCSC") "C14663")
 				(field
 					(name "Manufacturer") "YAGEO")
 				(field
-					(name "Footprint") "Capacitor_SMD:C_0805_2012Metric")
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 				(field
 					(name "Description") "Unpolarized capacitor")
 			)
@@ -11521,11 +11521,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "CC0805KRX7R9BB104")
+				(value "CC0603KRX7R9BB104")
 			)
 			(property
 				(name "LCSC")
-				(value "C49678")
+				(value "C14663")
 			)
 			(property
 				(name "Manufacturer")
@@ -11569,20 +11569,20 @@
 		(comp
 			(ref "C23")
 			(value "100nF")
-			(footprint "Capacitor_SMD:C_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 			(description "Unpolarized capacitor")
 			(fields
 				(field
-					(name "MPN") "CC0805KRX7R9BB104")
+					(name "MPN") "CC0603KRX7R9BB104")
 				(field
-					(name "LCSC") "C49678")
+					(name "LCSC") "C14663")
 				(field
 					(name "Manufacturer") "YAGEO")
 				(field
-					(name "Footprint") "Capacitor_SMD:C_0805_2012Metric")
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 				(field
 					(name "Description") "Unpolarized capacitor")
 			)
@@ -11593,11 +11593,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "CC0805KRX7R9BB104")
+				(value "CC0603KRX7R9BB104")
 			)
 			(property
 				(name "LCSC")
-				(value "C49678")
+				(value "C14663")
 			)
 			(property
 				(name "Manufacturer")
@@ -11641,20 +11641,20 @@
 		(comp
 			(ref "C24")
 			(value "100nF")
-			(footprint "Capacitor_SMD:C_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 			(description "Unpolarized capacitor")
 			(fields
 				(field
-					(name "MPN") "CC0805KRX7R9BB104")
+					(name "MPN") "CC0603KRX7R9BB104")
 				(field
-					(name "LCSC") "C49678")
+					(name "LCSC") "C14663")
 				(field
 					(name "Manufacturer") "YAGEO")
 				(field
-					(name "Footprint") "Capacitor_SMD:C_0805_2012Metric")
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 				(field
 					(name "Description") "Unpolarized capacitor")
 			)
@@ -11665,11 +11665,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "CC0805KRX7R9BB104")
+				(value "CC0603KRX7R9BB104")
 			)
 			(property
 				(name "LCSC")
-				(value "C49678")
+				(value "C14663")
 			)
 			(property
 				(name "Manufacturer")
@@ -11712,21 +11712,21 @@
 		)
 		(comp
 			(ref "D4")
-			(value "1N4148W")
+			(value "1N4007W")
 			(footprint "Diode_SMD:D_SOD-123")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/8abd7fc00ebe41ffb03ad1383c10753b.pdf?productCode=C81598")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/a7dbd01177530af63da342fa61873c89.pdf?productCode=C3018540")
 			(description "Diode")
 			(fields
 				(field
-					(name "MPN") "1N4148W")
+					(name "MPN") "1N4007W")
 				(field
-					(name "LCSC") "C81598")
+					(name "LCSC") "C3018540")
 				(field
-					(name "Manufacturer") "ST(Semtech)")
+					(name "Manufacturer") "FUXINSEMI")
 				(field
 					(name "Footprint") "Diode_SMD:D_SOD-123")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/8abd7fc00ebe41ffb03ad1383c10753b.pdf?productCode=C81598")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/a7dbd01177530af63da342fa61873c89.pdf?productCode=C3018540")
 				(field
 					(name "Description") "Diode")
 			)
@@ -11737,15 +11737,15 @@
 			)
 			(property
 				(name "MPN")
-				(value "1N4148W")
+				(value "1N4007W")
 			)
 			(property
 				(name "LCSC")
-				(value "C81598")
+				(value "C3018540")
 			)
 			(property
 				(name "Manufacturer")
-				(value "ST(Semtech)")
+				(value "FUXINSEMI")
 			)
 			(property
 				(name "Sheetname")
@@ -12001,37 +12001,37 @@
 		(comp
 			(ref "J10")
 			(value "AUX")
-			(footprint "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-4-5.08_1x04_P5.08mm_Horizontal")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/5a3d038c44f6e3872ef57456c5bdf975.pdf?productCode=C42377749")
+			(footprint "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/5a3d038c44f6e3872ef57456c5bdf975.pdf?productCode=C8465")
 			(description "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
 			(fields
 				(field
-					(name "MPN") "WJ500V-5.08-04P-14-00A")
+					(name "MPN") "WJ500V-5.08-2P")
 				(field
-					(name "LCSC") "C42377749")
+					(name "LCSC") "C8465")
 				(field
 					(name "Manufacturer") "KANGNEX")
 				(field
 					(name "Assembly") "Optional hand solder - JLC assembles; untick at JLC to fit by hand")
 				(field
-					(name "Footprint") "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-4-5.08_1x04_P5.08mm_Horizontal")
+					(name "Footprint") "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/5a3d038c44f6e3872ef57456c5bdf975.pdf?productCode=C42377749")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/5a3d038c44f6e3872ef57456c5bdf975.pdf?productCode=C8465")
 				(field
 					(name "Description") "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
 			)
 			(libsource
 				(lib "Connector")
-				(part "Screw_Terminal_01x04")
-				(description "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
+				(part "Screw_Terminal_01x02")
+				(description "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
 			)
 			(property
 				(name "MPN")
-				(value "WJ500V-5.08-04P-14-00A")
+				(value "WJ500V-5.08-2P")
 			)
 			(property
 				(name "LCSC")
-				(value "C42377749")
+				(value "C8465")
 			)
 			(property
 				(name "Manufacturer")
@@ -12072,12 +12072,6 @@
 						(pin
 							(num "2")
 						)
-						(pin
-							(num "3")
-						)
-						(pin
-							(num "4")
-						)
 					)
 				)
 			)
@@ -12085,37 +12079,37 @@
 		(comp
 			(ref "J11")
 			(value "INPUTS")
-			(footprint "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-4-5.08_1x04_P5.08mm_Horizontal")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/5a3d038c44f6e3872ef57456c5bdf975.pdf?productCode=C42377749")
+			(footprint "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/5a3d038c44f6e3872ef57456c5bdf975.pdf?productCode=C8465")
 			(description "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
 			(fields
 				(field
-					(name "MPN") "WJ500V-5.08-04P-14-00A")
+					(name "MPN") "WJ500V-5.08-2P")
 				(field
-					(name "LCSC") "C42377749")
+					(name "LCSC") "C8465")
 				(field
 					(name "Manufacturer") "KANGNEX")
 				(field
 					(name "Assembly") "Optional hand solder - JLC assembles; untick at JLC to fit by hand")
 				(field
-					(name "Footprint") "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-4-5.08_1x04_P5.08mm_Horizontal")
+					(name "Footprint") "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/5a3d038c44f6e3872ef57456c5bdf975.pdf?productCode=C42377749")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/5a3d038c44f6e3872ef57456c5bdf975.pdf?productCode=C8465")
 				(field
 					(name "Description") "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
 			)
 			(libsource
 				(lib "Connector")
-				(part "Screw_Terminal_01x04")
-				(description "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
+				(part "Screw_Terminal_01x02")
+				(description "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
 			)
 			(property
 				(name "MPN")
-				(value "WJ500V-5.08-04P-14-00A")
+				(value "WJ500V-5.08-2P")
 			)
 			(property
 				(name "LCSC")
-				(value "C42377749")
+				(value "C8465")
 			)
 			(property
 				(name "Manufacturer")
@@ -12156,11 +12150,161 @@
 						(pin
 							(num "2")
 						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "J15")
+			(value "AUX")
+			(footprint "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/5a3d038c44f6e3872ef57456c5bdf975.pdf?productCode=C8465")
+			(description "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			(fields
+				(field
+					(name "MPN") "WJ500V-5.08-2P")
+				(field
+					(name "LCSC") "C8465")
+				(field
+					(name "Manufacturer") "KANGNEX")
+				(field
+					(name "Assembly") "Optional hand solder - JLC assembles; untick at JLC to fit by hand")
+				(field
+					(name "Footprint") "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal")
+				(field
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/5a3d038c44f6e3872ef57456c5bdf975.pdf?productCode=C8465")
+				(field
+					(name "Description") "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			)
+			(libsource
+				(lib "Connector")
+				(part "Screw_Terminal_01x02")
+				(description "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			)
+			(property
+				(name "MPN")
+				(value "WJ500V-5.08-2P")
+			)
+			(property
+				(name "LCSC")
+				(value "C8465")
+			)
+			(property
+				(name "Manufacturer")
+				(value "KANGNEX")
+			)
+			(property
+				(name "Assembly")
+				(value "Optional hand solder - JLC assembles; untick at JLC to fit by hand")
+			)
+			(property
+				(name "Sheetname")
+				(value "io")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheets/io.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "screw terminal")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "TerminalBlock*:*")
+			)
+			(sheetpath
+				(names "/io/")
+				(tstamps "/e1ee3407-47a9-5cbf-8d5f-32505726bf00/")
+			)
+			(tstamps "347ef91e-a402-497d-88b8-dcb977aff8d8")
+			(units
+				(unit
+					(name "A")
+					(pins
 						(pin
-							(num "3")
+							(num "1")
 						)
 						(pin
-							(num "4")
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "J16")
+			(value "INPUTS")
+			(footprint "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/5a3d038c44f6e3872ef57456c5bdf975.pdf?productCode=C8465")
+			(description "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			(fields
+				(field
+					(name "MPN") "WJ500V-5.08-2P")
+				(field
+					(name "LCSC") "C8465")
+				(field
+					(name "Manufacturer") "KANGNEX")
+				(field
+					(name "Assembly") "Optional hand solder - JLC assembles; untick at JLC to fit by hand")
+				(field
+					(name "Footprint") "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal")
+				(field
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/5a3d038c44f6e3872ef57456c5bdf975.pdf?productCode=C8465")
+				(field
+					(name "Description") "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			)
+			(libsource
+				(lib "Connector")
+				(part "Screw_Terminal_01x02")
+				(description "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			)
+			(property
+				(name "MPN")
+				(value "WJ500V-5.08-2P")
+			)
+			(property
+				(name "LCSC")
+				(value "C8465")
+			)
+			(property
+				(name "Manufacturer")
+				(value "KANGNEX")
+			)
+			(property
+				(name "Assembly")
+				(value "Optional hand solder - JLC assembles; untick at JLC to fit by hand")
+			)
+			(property
+				(name "Sheetname")
+				(value "io")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheets/io.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "screw terminal")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "TerminalBlock*:*")
+			)
+			(sheetpath
+				(names "/io/")
+				(tstamps "/e1ee3407-47a9-5cbf-8d5f-32505726bf00/")
+			)
+			(tstamps "7705d7df-f29b-462b-80ee-5bc8eafa4797")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
 						)
 					)
 				)
@@ -13207,20 +13351,20 @@
 		(comp
 			(ref "C25")
 			(value "100nF")
-			(footprint "Capacitor_SMD:C_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 			(description "Unpolarized capacitor")
 			(fields
 				(field
-					(name "MPN") "CC0805KRX7R9BB104")
+					(name "MPN") "CC0603KRX7R9BB104")
 				(field
-					(name "LCSC") "C49678")
+					(name "LCSC") "C14663")
 				(field
 					(name "Manufacturer") "YAGEO")
 				(field
-					(name "Footprint") "Capacitor_SMD:C_0805_2012Metric")
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 				(field
 					(name "Description") "Unpolarized capacitor")
 			)
@@ -13231,11 +13375,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "CC0805KRX7R9BB104")
+				(value "CC0603KRX7R9BB104")
 			)
 			(property
 				(name "LCSC")
-				(value "C49678")
+				(value "C14663")
 			)
 			(property
 				(name "Manufacturer")
@@ -13351,20 +13495,20 @@
 		(comp
 			(ref "C28")
 			(value "100nF")
-			(footprint "Capacitor_SMD:C_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 			(description "Unpolarized capacitor")
 			(fields
 				(field
-					(name "MPN") "CC0805KRX7R9BB104")
+					(name "MPN") "CC0603KRX7R9BB104")
 				(field
-					(name "LCSC") "C49678")
+					(name "LCSC") "C14663")
 				(field
 					(name "Manufacturer") "YAGEO")
 				(field
-					(name "Footprint") "Capacitor_SMD:C_0805_2012Metric")
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 				(field
 					(name "Description") "Unpolarized capacitor")
 			)
@@ -13375,11 +13519,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "CC0805KRX7R9BB104")
+				(value "CC0603KRX7R9BB104")
 			)
 			(property
 				(name "LCSC")
-				(value "C49678")
+				(value "C14663")
 			)
 			(property
 				(name "Manufacturer")
@@ -13495,20 +13639,20 @@
 		(comp
 			(ref "C30")
 			(value "100nF")
-			(footprint "Capacitor_SMD:C_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 			(description "Unpolarized capacitor")
 			(fields
 				(field
-					(name "MPN") "CC0805KRX7R9BB104")
+					(name "MPN") "CC0603KRX7R9BB104")
 				(field
-					(name "LCSC") "C49678")
+					(name "LCSC") "C14663")
 				(field
 					(name "Manufacturer") "YAGEO")
 				(field
-					(name "Footprint") "Capacitor_SMD:C_0805_2012Metric")
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 				(field
 					(name "Description") "Unpolarized capacitor")
 			)
@@ -13519,11 +13663,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "CC0805KRX7R9BB104")
+				(value "CC0603KRX7R9BB104")
 			)
 			(property
 				(name "LCSC")
-				(value "C49678")
+				(value "C14663")
 			)
 			(property
 				(name "Manufacturer")
@@ -13783,20 +13927,20 @@
 		(comp
 			(ref "C34")
 			(value "100nF")
-			(footprint "Capacitor_SMD:C_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 			(description "Unpolarized capacitor")
 			(fields
 				(field
-					(name "MPN") "CC0805KRX7R9BB104")
+					(name "MPN") "CC0603KRX7R9BB104")
 				(field
-					(name "LCSC") "C49678")
+					(name "LCSC") "C14663")
 				(field
 					(name "Manufacturer") "YAGEO")
 				(field
-					(name "Footprint") "Capacitor_SMD:C_0805_2012Metric")
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 				(field
 					(name "Description") "Unpolarized capacitor")
 			)
@@ -13807,11 +13951,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "CC0805KRX7R9BB104")
+				(value "CC0603KRX7R9BB104")
 			)
 			(property
 				(name "LCSC")
-				(value "C49678")
+				(value "C14663")
 			)
 			(property
 				(name "Manufacturer")
@@ -13927,20 +14071,20 @@
 		(comp
 			(ref "C36")
 			(value "100nF")
-			(footprint "Capacitor_SMD:C_0805_2012Metric")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 			(description "Unpolarized capacitor")
 			(fields
 				(field
-					(name "MPN") "CC0805KRX7R9BB104")
+					(name "MPN") "CC0603KRX7R9BB104")
 				(field
-					(name "LCSC") "C49678")
+					(name "LCSC") "C14663")
 				(field
 					(name "Manufacturer") "YAGEO")
 				(field
-					(name "Footprint") "Capacitor_SMD:C_0805_2012Metric")
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C49678")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/23ccee80ee542e7cf156a772bb589942.pdf?productCode=C14663")
 				(field
 					(name "Description") "Unpolarized capacitor")
 			)
@@ -13951,11 +14095,11 @@
 			)
 			(property
 				(name "MPN")
-				(value "CC0805KRX7R9BB104")
+				(value "CC0603KRX7R9BB104")
 			)
 			(property
 				(name "LCSC")
-				(value "C49678")
+				(value "C14663")
 			)
 			(property
 				(name "Manufacturer")
@@ -14227,37 +14371,37 @@
 		(comp
 			(ref "J12")
 			(value "CT")
-			(footprint "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-4-5.08_1x04_P5.08mm_Horizontal")
-			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/5a3d038c44f6e3872ef57456c5bdf975.pdf?productCode=C42377749")
+			(footprint "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/5a3d038c44f6e3872ef57456c5bdf975.pdf?productCode=C8465")
 			(description "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
 			(fields
 				(field
-					(name "MPN") "WJ500V-5.08-04P-14-00A")
+					(name "MPN") "WJ500V-5.08-2P")
 				(field
-					(name "LCSC") "C42377749")
+					(name "LCSC") "C8465")
 				(field
 					(name "Manufacturer") "KANGNEX")
 				(field
 					(name "Assembly") "Optional hand solder - JLC assembles; untick at JLC to fit by hand")
 				(field
-					(name "Footprint") "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-4-5.08_1x04_P5.08mm_Horizontal")
+					(name "Footprint") "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal")
 				(field
-					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/5a3d038c44f6e3872ef57456c5bdf975.pdf?productCode=C42377749")
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/5a3d038c44f6e3872ef57456c5bdf975.pdf?productCode=C8465")
 				(field
 					(name "Description") "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
 			)
 			(libsource
 				(lib "Connector")
-				(part "Screw_Terminal_01x04")
-				(description "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
+				(part "Screw_Terminal_01x02")
+				(description "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
 			)
 			(property
 				(name "MPN")
-				(value "WJ500V-5.08-04P-14-00A")
+				(value "WJ500V-5.08-2P")
 			)
 			(property
 				(name "LCSC")
-				(value "C42377749")
+				(value "C8465")
 			)
 			(property
 				(name "Manufacturer")
@@ -14298,11 +14442,83 @@
 						(pin
 							(num "2")
 						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "J17")
+			(value "CT")
+			(footprint "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal")
+			(datasheet "https://datasheet.lcsc.com/datasheet/pdf/5a3d038c44f6e3872ef57456c5bdf975.pdf?productCode=C8465")
+			(description "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			(fields
+				(field
+					(name "MPN") "WJ500V-5.08-2P")
+				(field
+					(name "LCSC") "C8465")
+				(field
+					(name "Manufacturer") "KANGNEX")
+				(field
+					(name "Assembly") "Optional hand solder - JLC assembles; untick at JLC to fit by hand")
+				(field
+					(name "Footprint") "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal")
+				(field
+					(name "Datasheet") "https://datasheet.lcsc.com/datasheet/pdf/5a3d038c44f6e3872ef57456c5bdf975.pdf?productCode=C8465")
+				(field
+					(name "Description") "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			)
+			(libsource
+				(lib "Connector")
+				(part "Screw_Terminal_01x02")
+				(description "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			)
+			(property
+				(name "MPN")
+				(value "WJ500V-5.08-2P")
+			)
+			(property
+				(name "LCSC")
+				(value "C8465")
+			)
+			(property
+				(name "Manufacturer")
+				(value "KANGNEX")
+			)
+			(property
+				(name "Assembly")
+				(value "Optional hand solder - JLC assembles; untick at JLC to fit by hand")
+			)
+			(property
+				(name "Sheetname")
+				(value "ct")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheets/ct.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "screw terminal")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "TerminalBlock*:*")
+			)
+			(sheetpath
+				(names "/ct/")
+				(tstamps "/6c704e24-0c23-5bb2-a84e-a8ccbf5f5ca5/")
+			)
+			(tstamps "6902ea48-280f-41b8-8bf9-c01a521141aa")
+			(units
+				(unit
+					(name "A")
+					(pins
 						(pin
-							(num "3")
+							(num "1")
 						)
 						(pin
-							(num "4")
+							(num "2")
 						)
 					)
 				)
@@ -15574,50 +15790,6 @@
 				(pin
 					(num "2")
 					(name "Pin_2")
-					(type "passive")
-				)
-			)
-		)
-		(libpart
-			(lib "Connector")
-			(part "Screw_Terminal_01x04")
-			(description "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
-			(footprints
-				(fp "TerminalBlock*:*")
-			)
-			(fields
-				(field
-					(name "Reference") "J")
-				(field
-					(name "Value") "Screw_Terminal_01x04")
-				(field
-					(name "Footprint")
-				)
-				(field
-					(name "Datasheet")
-				)
-				(field
-					(name "Description") "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
-			)
-			(pins
-				(pin
-					(num "1")
-					(name "Pin_1")
-					(type "passive")
-				)
-				(pin
-					(num "2")
-					(name "Pin_2")
-					(type "passive")
-				)
-				(pin
-					(num "3")
-					(name "Pin_3")
-					(type "passive")
-				)
-				(pin
-					(num "4")
-					(name "Pin_4")
 					(type "passive")
 				)
 			)
@@ -18500,9 +18672,9 @@
 				(pintype "passive")
 			)
 			(node
-				(ref "J12")
-				(pin "4")
-				(pinfunction "Pin_4_4")
+				(ref "J17")
+				(pin "2")
+				(pinfunction "Pin_2_2")
 				(pintype "passive")
 			)
 			(node
@@ -18527,9 +18699,9 @@
 				(pintype "passive")
 			)
 			(node
-				(ref "J12")
-				(pin "3")
-				(pinfunction "Pin_3_3")
+				(ref "J17")
+				(pin "1")
+				(pinfunction "Pin_1_1")
 				(pintype "passive")
 			)
 			(node
@@ -18625,9 +18797,9 @@
 			(name "/io/AUX2_OUT")
 			(class "Default")
 			(node
-				(ref "J10")
-				(pin "3")
-				(pinfunction "Pin_3_3")
+				(ref "J15")
+				(pin "1")
+				(pinfunction "Pin_1_1")
 				(pintype "passive")
 			)
 			(node
@@ -18664,9 +18836,9 @@
 			(name "/io/AUX3_OUT")
 			(class "Default")
 			(node
-				(ref "J10")
-				(pin "4")
-				(pinfunction "Pin_4_4")
+				(ref "J15")
+				(pin "2")
+				(pinfunction "Pin_2_2")
 				(pintype "passive")
 			)
 			(node
@@ -18871,9 +19043,9 @@
 				(pintype "passive")
 			)
 			(node
-				(ref "J11")
-				(pin "3")
-				(pinfunction "Pin_3_3")
+				(ref "J16")
+				(pin "1")
+				(pinfunction "Pin_1_1")
 				(pintype "passive")
 			)
 			(node
@@ -21211,12 +21383,6 @@
 				(pintype "passive")
 			)
 			(node
-				(ref "J11")
-				(pin "4")
-				(pinfunction "Pin_4_4")
-				(pintype "passive")
-			)
-			(node
 				(ref "J14")
 				(pin "1")
 				(pinfunction "Pin_1_1")
@@ -21226,6 +21392,12 @@
 				(ref "J14")
 				(pin "MP")
 				(pinfunction "MountPin_MP")
+				(pintype "passive")
+			)
+			(node
+				(ref "J16")
+				(pin "2")
+				(pinfunction "Pin_2_2")
 				(pintype "passive")
 			)
 			(node

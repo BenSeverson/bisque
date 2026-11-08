@@ -149,8 +149,8 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   **10 kΩ** (R69/R70), an **8.2 V zener** (D13/D14) gate-to-source sets the
   drive from the rail, and **10 kΩ** (R7/R20) gate-to-source holds it off.
   Both sources hang off **`SSR_24V`**, which is `VIN_P` through **Q9**, a
-  third LP2309LT1G that is the watchdog's cutoff (see below). An amber
-  indicator LED + 10 kΩ sits across each terminal pair, so it lights only
+  third LP2309LT1G that is the watchdog's cutoff (see below). A green
+  indicator LED (LED3/LED4, amber before the 2026-11-07 BOM-line merge) + 10 kΩ sits across each terminal pair, so it lights only
   when the channel is actually conducting. **D9**/**D10** freewheel each
   terminal for inductive loads. The board supplies the SSR control loop.
   (The SSRs themselves and all mains wiring stay outside this board.)
@@ -327,9 +327,9 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   **U13**, an AP2331SA-7 current-limited switch (0.3–0.5 A short-circuit
   limit), so a shorted peripheral no longer drags the ESP32's rail down,
   and an SRV05-4 (D22) clamps TX, RX, SDA and SCL.
-- **Aux output bank — J10** (4-pin terminal): **AUX_VP** (external coil
-  rail) plus three switched low sides (`AUX1_OUT` = vent, `AUX2_OUT`,
-  `AUX3_OUT`), driven by a shared **ULN2003ADR** Darlington array (U6) with
+- **Aux output bank — J10 + J15** (two 2-pin terminals, side by side):
+  **AUX_VP** (external coil rail) and `AUX1_OUT` (vent) on J10, `AUX2_OUT`
+  and `AUX3_OUT` on J15, driven by a shared **ULN2003ADR** Darlington array (U6) with
   integrated freewheel diodes returning to `AUX_VP` — not the board's own
   +5V rail. A gas purge solenoid is realistically 12 V or 24 V DC; the
   ULN2003 is rated 50 V / 500 mA per channel, so `AUX_VP` is meant to be fed
@@ -338,8 +338,8 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   channel 1 (vent) is driven by firmware today (`safety_update_vent()`);
   channels 2/3 are routed and declared in Kconfig (`KILN_PIN_AUX2`/`AUX3`)
   but undriven.
-- **Protected inputs — J11** (4-pin terminal): `IN1`/`IN2`/`IN3` (lid, gas
-  flow, spare) plus GND, for dry contacts to GND. Since rev B.5 each channel
+- **Protected inputs — J11 + J16** (two 2-pin terminals): `IN1`/`IN2` (lid,
+  gas flow) on J11, `IN3` (spare) and GND on J16, for dry contacts to GND. Since rev B.5 each channel
   survives a 24 V wire landed on its terminal: a 10 kΩ pull-up to 3V3 and an
   **SMF30CA** bidirectional TVS (D15–D17, 30 V standoff, above the supply's
   29 V trim) sit on the terminal side, and the GPIO sees it through **100 kΩ**
@@ -351,8 +351,8 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   `docs/pin-assignments.md` §1 for the fail-safe wiring requirement if no
   switch is fitted. `IN2` (gas flow) and `IN3` (spare) are routed but have
   no firmware consumer yet.
-- **CT current sensing — J12** (4-pin terminal, `CTA_P`/`CTA_N`/`CTB_P`/
-  `CTB_N`): two current-transformer inputs into an **ADE7953** energy
+- **CT current sensing — J12 + J17** (two 2-pin terminals, `CTA_P`/`CTA_N`
+  on J12, `CTB_P`/`CTB_N` on J17): two current-transformer inputs into an **ADE7953** energy
   metering IC (U7, LFCSP-28, current-only — the voltage channel is unused),
   on the I2C bus with its own 3.579545 MHz crystal (Y1). Burden resistors
   (R31/R34, 5.1 Ω — full scale ~139 A rms, see `DESIGN-NOTES.md`), anti-alias RC
@@ -575,9 +575,9 @@ the three disagree. Nothing else restates a GPIO number, this README included.
 
 ## Bill of materials
 
-141 components, 92 nets. Full machine-readable BOM: `jlcpcb/BOM.csv` (40
-lines covering 109 machine-placed parts); `jlcpcb/hand-solder-parts.csv`
-lists the 13 of them you could fit by hand instead. Selected parts worth calling out:
+141 components, 92 nets. Full machine-readable BOM: `jlcpcb/BOM.csv` (54
+lines, one per LCSC part, covering 192 placements); `jlcpcb/hand-solder-parts.csv`
+lists the 16 of them you could fit by hand instead. Selected parts worth calling out:
 
 | Ref | Value / Part | Package |
 |---|---|---|
@@ -596,8 +596,7 @@ lists the 13 of them you could fit by hand instead. Selected parts worth calling
 | Q2, Q3, Q5, Q6 | AO3400A N-MOSFET | SOT-23 |
 | Q4 | AO3401A P-MOSFET (watchdog high-side switch) | SOT-23 |
 | J1 | USB-C 16-pin receptacle | HRO TYPE-C-31-M-12 |
-| J2, J3, J4, J8, J9 | Phoenix MKDS 1,5/2 (or clone) | 5.08 mm screw terminal, 2-pos |
-| J10, J11, J12 | Phoenix MKDS 1,5/4 (or clone) | 5.08 mm screw terminal, 4-pos |
+| J2–J4, J8–J12, J15–J17 | Phoenix MKDS 1,5/2 (or clone) | 5.08 mm screw terminal, 2-pos; J10/J15, J11/J16 and J12/J17 are pairs standing in for one 4-pos block (see the BOM-line merge in `DESIGN-NOTES.md`) |
 | J5 | Molex KK-254 friction-lock header 1×14 | 2.54 mm THT |
 | J6 | Molex KK-254 friction-lock header 1×6 | 2.54 mm THT |
 | J7 | Molex KK-254 friction-lock header 1×8 | 2.54 mm THT |
@@ -762,8 +761,8 @@ Standard". One Standard-only part is enough, so the hand-solder split below
 never bought Economic, and the fee-free substitutions further down have been
 saving a fee the order does not pay. `gen_jlc.STANDARD_ONLY` records it, and the
 generator's summary names the tier the BOM actually lands on and the fixed
-bill for it (`assembly tier: Standard -> … $108.74 fixed per order`, against
-$52.69 on Economic). The way back to Economic is to hand-fit U1 and C46 as
+bill for it (`assembly tier: Standard -> … $116.39 fixed per order` since the
+2026-11-07 BOM-line merge, $137.81 before it). The way back to Economic is to hand-fit U1 and C46 as
 well — the electrolytic is trivial, the module's edge pads are routinely
 hand-soldered with the centre thermal pad left dry — and that is a decision
 for the next order, not something the generator makes for you.
@@ -791,7 +790,7 @@ in `DESIGN-NOTES.md`), and its 3.7–5.3 V VDD range takes that VLED.
 
 | Formerly hand-fitted | Why |
 |---|---|
-| J2, J3, J4, J8, J9 (2-pos screw terminals), J10, J11, J12 (4-pos screw terminals), J5, J6, J7 (KK-254 wafers), BZ1 (buzzer) | 5.08 mm and 2.54 mm pitch — the easiest joints on the board, but the ones that would force Standard assembly |
+| J2–J4, J8–J12, J15–J17 (2-pos screw terminals), J5, J6, J7 (KK-254 wafers), BZ1 (buzzer) | 5.08 mm and 2.54 mm pitch — the easiest joints on the board, but the ones that would force Standard assembly |
 | LED1 (WS2812B, PLCC-4 5050) | No addressable RGB LED at LCSC is a Basic part (checked across WS2812/SK6812/XL-xxxx), so its $3 buys nothing an iron can't do to four edge-accessible pads |
 
 What's left goes down the SMT line. **18 unique Extended parts** would pay
@@ -808,8 +807,11 @@ power mux** (U12, C3235557), the Qwiic connector (C160404) and the USB-C
 receptacle (C165948) — **$55.26 in feeder fees** at $3.07 each (the
 generator prints the current list and the Economic bill every run).
 On Standard, where this BOM is (see the correction above), the count that
-matters is the **68 BOM lines at $1.53 = $104.04 (rev B.5's connector protection adds the SMF30CA, ESDA6V1-5SC6 and AP2331SA-7 lines; 65 and $99.45 before it)**, and the 129 fee-free
-placements are fee-free in name only.
+matters is the **54 BOM lines at $1.53 = $82.62** - 68 and $104.04 before
+the 2026-11-07 BOM-line merge (`DESIGN-NOTES.md`), which grouped `BOM.csv` by
+LCSC part and folded six passive values and the 4-position terminal onto
+lines the board already had. Fee-free placements are fee-free in name only
+here, so on Standard the lever is the line count, not the library tier.
 
 The last three of those are recent and worth attributing: the optos and the
 CJ2310s arrived with the 24 V SSR rework, and U12 with the power-mux swap
@@ -880,9 +882,10 @@ so the shopping list works against either supplier. It is **one row per
 orderable part**, not one per designator: J2/J3/J4/J8/J9 are five identical
 WJ500V-5.08-2P blocks that happen to be called 24V_IN, TC1_K, SSR1, TC2_K and
 SSR2, and a shopping list wants `Qty 5` on one line rather than five lines of
-one. `BOM.csv` still keys on the schematic value as well, because JLCPCB's
-`Comment` column is per line; the two use `group_by_orderable()` and
-`group_by_part()` respectively. The values are joined in designator order into
+one. Since 2026-11-07 `BOM.csv` groups the same way (`--group-by
+'LCSC,Assembly'` in the Makefile, `group_by_part()` for the fee estimate),
+because on Standard PCBA every row is a $1.53 feeder whatever its Comment
+says. The values are joined in designator order into
 the `Comment` cell, so collapsing the rows loses nothing — the line still says
 which connector is which.
 
@@ -891,8 +894,7 @@ which connector is which.
 | J5 | C17701004 | Molex **22-27-2141** — genuine KK-254 1×14 (LCSC line is an XD-2510-14A clone) |
 | J6 | C239381 | Molex **22-27-2061** — genuine KK-254 1×06 (LCSC line is an A2547WV clone) |
 | J7 | C240822 | Molex **22-27-2081** — identical, the LCSC line is already genuine Molex |
-| J2, J3, J4, J8, J9 | C8465 | Phoenix Contact **1715721** (MKDS 1,5/2-5,08) — the part this footprint is named for |
-| J10, J11, J12 | C42377749 | Phoenix Contact **1715747** (MKDS 1,5/4-5,08) — the part this footprint is named for |
+| J2–J4, J8–J12, J15–J17 | C8465 | Phoenix Contact **1715721** (MKDS 1,5/2-5,08) — the part this footprint is named for |
 | BZ1 | C96093 | Same Sky **CMI-1295-0585T** — Ø12 × 9.5 mm, 7.6 mm pitch, 5 V THT active |
 | LED1 | C2920042 | **none** — no bare Worldsemi 5050 in Mouser's catalog; use LCSC, DigiKey, Adafruit or SparkFun |
 

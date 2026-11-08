@@ -191,15 +191,11 @@ JLC_PLACEMENT = {
     "C17513":   (  0,  0.000,  0.000),   # R9    R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17514":   (  0,  0.000,  0.000),   # R46   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17557":   (  0,  0.000,  0.000),   # R6    R_0805_2012Metric                    resid 0.088 (2 pin#)
-    "C17630":   (  0,  0.000,  0.000),   # R3    R_0805_2012Metric                    resid 0.088 (2 pin#)
-    "C17634":   (  0,  0.000,  0.000),   # R39   R_0805_2012Metric                    resid 0.088 (2 pin#)
-    "C17673":   (  0,  0.000,  0.000),   # R44   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17701004": (  0, 16.510,  0.000),   # J5    Molex_KK-254_AE-6410-14A_1x14_P2.54m resid 0.000 (14 pin#)
     "C17724":   (  0,  0.000,  0.000),   # R31   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C1779":    (  0,  0.000,  0.000),   # C27   C_0805_2012Metric                    resid 0.050 (2 pin#)
     "C20917":   (180,  0.000,  0.000),   # Q5    SOT-23                               resid 0.083 (3 pin#)
     "C22375294": (  0,  0.000,  0.000),   # D11   D_SOD-323                            resid 0.089 (2 pin#)
-    "C2296":    (  0,  0.000,  0.000),   # LED3  LED_0805_2012Metric                  resid 0.113 (2 pin#)
     "C2297":    (  0,  0.000,  0.000),   # LED2  LED_0805_2012Metric                  resid 0.113 (2 pin#)
     "C239381":  (  0,  6.350,  0.000),   # J6    Molex_KK-254_AE-6410-06A_1x06_P2.54m resid 0.000 (6 pin#)
     "C240822":  (180,  8.890,  0.000),   # J7    Molex_KK-254_AE-6410-08A_1x08_P2.54m resid 0.000 (8 pin#)
@@ -219,8 +215,6 @@ JLC_PLACEMENT = {
     "C2920042": (  0,  0.000,  0.000),   # LED1  LED_WS2812B_PLCC4_5.0x5.0mm_P3.2mm   resid 0.100 (4 pin#)
     "C3013945": (  0,  0.000, -0.477),   # U1    ESP32-S3-WROOM-1U                    resid 0.022 (40 pin#)
     "C318884":  (  0,  0.000,  0.000),   # SW1   SW_Push_1P1T_XKB_TS-1187A            resid 0.025 (4 shape)
-    "C42377749": (  0,  7.620,  0.000),   # J10   TerminalBlock_Phoenix_MKDS-1,5-4-5.0 resid 0.000 (4 pin#)
-    "C49678":   (  0,  0.000,  0.000),   # C2    C_0805_2012Metric                    resid 0.050 (2 pin#)
     "C14663":   (  0,  0.000,  0.000),   # C51   C_0603_1608Metric                    fitted by check_jlc_placement
     "C23140":   (  0,  0.000,  0.000),   # R72   R_0603_1608Metric                    fitted by check_jlc_placement
     "C123302":  (180,  0.000,  0.000),   # U10   SSOP-8_2.95x2.8mm_P0.65mm            fitted by check_jlc_placement
@@ -240,7 +234,6 @@ JLC_PLACEMENT = {
     "C7512":    (270,  0.000,  0.000),   # U6    SOIC-16_3.9x9.9mm_P1.27mm            resid 0.261 (16 pin#)
     "C383253":  (180,  0.000,  0.000),   # Q5    SOT-23                               resid 0.083 (3 pin#)
     "C75882":   (180,  0.000,  0.000),   # Q7    SOT-23                               resid 0.397 (3 pin#)
-    "C81598":   (  0,  0.000,  0.000),   # D4    D_SOD-123                            resid 0.085 (2 pin#)
     "C3018540": (  0,  0.000,  0.000),   # D9    D_SOD-123                            resid 0.023 (2 pin#)
     "C170099":  (  0,  0.000,  0.000),   # C41   C_1210_3225Metric                    resid 0.042 (2 pin#)
     # U12. A QUARTER TURN, and the one row here that could not have been
@@ -257,8 +250,8 @@ JLC_PLACEMENT = {
     # J2/J3/J4/J8/J9. A pad fit alone reads this as the identity, but LCSC
     # numbers the WJ500V-5.08-2P from the other end of the body: at 0 its
     # wire entry faces the back of our footprint. See PIN_REMAP in
-    # check_jlc_placement.py. (The 4P, C42377749, is drawn the other way
-    # round and is correct at 0.)
+    # check_jlc_placement.py. J10/J11/J12 are pairs of this part too since
+    # the 4P (C42377749, drawn the other way round) left the BOM.
     "C8465":    (180,  2.540,  0.000),   # J2    TerminalBlock_Phoenix_MKDS-1,5-2-5.0 resid 0.000 (2 pin#)
     "C96093":   (  0,  3.800,  0.000),   # BZ1   Buzzer_12x9.5RM7.6                   resid 0.000 (2 pin#)
 }
@@ -307,48 +300,48 @@ def jlc_placement(lcsc, kicad_rot, hand=False):
 LCSC = {
     "BZ1": ("C96093", "TMB12A05 active magnetic buzzer 5V 12mm THT P7.6", False, True),
     "C1": ("C12891", "CL31A226KAHNNNE 22uF 25V X5R 1206", True, True),
-    "C2": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
+    "C2": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
     "C3": ("C12891", "CL31A226KAHNNNE 22uF 25V X5R 1206", True, True),
-    "C4": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
+    "C4": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
     "C5": ("C28323", "CL21B105KBFNNNE 1uF 50V X7R 0805", True, True),
-    "C6": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
+    "C6": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
     "C7": ("C15850", "CL21A106KAYNNNE 10uF 25V X5R 0805", True, True),
-    "C10": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
+    "C10": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
     "C11": ("C15850", "CL21A106KAYNNNE 10uF 25V X5R 0805", True, True),
-    "C12": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
-    "C13": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
-    "C14": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
-    "C15": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
+    "C12": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
+    "C13": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
+    "C14": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
+    "C15": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
     "C16": ("C1710", "CL21B103KBANNNC 10nF 50V X7R 0805", True, True),
     "C17": ("C1710", "CL21B103KBANNNC 10nF 50V X7R 0805", True, True),
-    "C18": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
-    "C19": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
-    "C20": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
+    "C18": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
+    "C19": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
+    "C20": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
     "C21": ("C1710", "CL21B103KBANNNC 10nF 50V X7R 0805", True, True),
     "C22": ("C1710", "CL21B103KBANNNC 10nF 50V X7R 0805", True, True),
-    "C23": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
-    "C24": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
-    "C25": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
+    "C23": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
+    "C24": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
+    "C25": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
     "C27": ("C1779", "CL21A475KAQNNNE 4.7uF 25V X5R 0805", True, True),
-    "C28": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
+    "C28": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
     "C29": ("C1779", "CL21A475KAQNNNE 4.7uF 25V X5R 0805", True, True),
-    "C30": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
+    "C30": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
     "C31": ("C1739", "0805B333K500NT 33nF 50V X7R 0805", True, True),
     "C32": ("C1739", "0805B333K500NT 33nF 50V X7R 0805", True, True),
     "C33": ("C1779", "CL21A475KAQNNNE 4.7uF 25V X5R 0805", True, True),
-    "C34": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
+    "C34": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
     "C35": ("C15850", "CL21A106KAYNNNE 10uF 25V X5R 0805", True, True),
-    "C36": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
+    "C36": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
     "C37": ("C28323", "CL21B105KBFNNNE 1uF 50V X7R 0805", True, True),
     "C38": ("C28323", "CL21B105KBFNNNE 1uF 50V X7R 0805", True, True),
-    "C39": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
+    "C39": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
     "C40": ("C1739", "0805B333K500NT 33nF 50V X7R 0805", True, True),
     # Buck input, chosen on Samsung's DC-bias curve, not the nominal: a 1210
     # X7R 4.7 uF holds 3.1 uF at 24 V and 2.7 uF at 29 V, where the 1206 X5R
     # 10 uF it replaced held 1.35 uF (PCB review 2026-10-05 item 3).
     "C41": ("C170099", "CL32B475KBUYNNE 4.7uF 50V X7R 1210 - buck input, 3.1uF at 24V", False, True),
     "C42": ("C170099", "CL32B475KBUYNNE 4.7uF 50V X7R 1210 - buck input, 3.1uF at 24V", False, True),
-    "C43": ("C49678", "CC0805KRX7R9BB104 100nF 50V X7R 0805", True, True),
+    "C43": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
     # Buck output ceramic: ONE 22 uF (13.7 uF at 5 V), not two. The ceramic
     # shorts out C46's ESR zero above 1/(2*pi*ESR*C_cer); one part keeps that
     # at 32 kHz, two put it at 16 kHz, inside the loop's working band. C45 is
@@ -383,8 +376,8 @@ LCSC = {
     "C54": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603 - SPI return path", True, True),
     "C55": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603 - U13 output", True, True),
     "C49": ("C28323", "CL21B105KBFNNNE 1uF 50V X7R 0805", True, True),
-    "D3": ("C81598", "1N4148W SOD-123 - VLED drop diode, silicon on purpose", True, True),
-    "D4": ("C81598", "1N4148W SOD-123", True, True),
+    "D3": ("C3018540", "1N4007W SOD-123 - VLED drop diode, silicon on purpose", False, True),
+    "D4": ("C3018540", "1N4007W SOD-123 - buzzer freewheel", False, True),
     "D6": ("C7420376", "SRV05-4 TVS array SOT-23-6", True, True),
     # 60 V, not the SS34's 40 V: the catch diode sees the input rail in
     # reverse every cycle, and D8 holds a sustained fault at up to ~38 V
@@ -442,10 +435,13 @@ LCSC = {
     "J7": ("C240822", "Molex 22-27-2081 KK-254 friction-lock wafer 1x08", False, True),
     "J8": ("C8465", "WJ500V-5.08-2P 5.08mm screw terminal 1x02", False, True),
     "J9": ("C8465", "WJ500V-5.08-2P 5.08mm screw terminal 1x02", False, True),
-    "J10": ("C42377749", "WJ500V-5.08-04P 5.08mm screw terminal 1x04", False, True),
-    "J11": ("C42377749", "WJ500V-5.08-04P 5.08mm screw terminal 1x04", False, True),
-    "J12": ("C42377749", "WJ500V-5.08-04P 5.08mm screw terminal 1x04", False, True),
+    "J10": ("C8465", "WJ500V-5.08-2P 5.08mm screw terminal 1x02", False, True),
+    "J11": ("C8465", "WJ500V-5.08-2P 5.08mm screw terminal 1x02", False, True),
+    "J12": ("C8465", "WJ500V-5.08-2P 5.08mm screw terminal 1x02", False, True),
     "J14": ("C160404", "JST SM04B-SRSS-TB(LF)(SN) SH 1x04", False, True),
+    "J15": ("C8465", "WJ500V-5.08-2P 5.08mm screw terminal 1x02", False, True),
+    "J16": ("C8465", "WJ500V-5.08-2P 5.08mm screw terminal 1x02", False, True),
+    "J17": ("C8465", "WJ500V-5.08-2P 5.08mm screw terminal 1x02", False, True),
     # WS2812E-V5 since 2026-11-07. The -B/T (C2761795) went out of stock on
     # 2026-10-30 and its replacement, the -V5/W (C2874885), followed it a
     # week later. Same Worldsemi 5050 outline and 1 VDD / 2 DOUT / 3 VSS /
@@ -453,8 +449,8 @@ LCSC = {
     # and VDD 3.7-5.3 V takes D3's ~4.15 V VLED.
     "LED1": ("C2920042", "WS2812E-V5 5050 RGB", False, True),
     "LED2": ("C2297", "KT-0805G green LED 0805", True, True),
-    "LED3": ("C2296", "KT-0805Y amber LED 0805", True, True),
-    "LED4": ("C2296", "KT-0805Y amber LED 0805", True, True),
+    "LED3": ("C2297", "KT-0805G green LED 0805", True, True),
+    "LED4": ("C2297", "KT-0805G green LED 0805", True, True),
     "Q2": ("C20917", "AO3400A SOT-23", True, True),
     "Q3": ("C20917", "AO3400A SOT-23", True, True),
     # Watchdog high-side switch for the 5 V gate-drive rail (SSR_EN).
@@ -480,7 +476,7 @@ LCSC = {
     "Q8": ("C15127", "AO3401A P-channel SOT-23 - reverse polarity", True, True),
     "R1": ("C17414", "10k 0805 1%", True, True),
     "R2": ("C17414", "10k 0805 1%", True, True),
-    "R3": ("C17630", "330R 0805 1%", True, True),
+    "R3": ("C17557", "220R 0805 1%", True, True),
     "R4": ("C27834", "5.1k 0805 1%", True, True),
     "R5": ("C27834", "5.1k 0805 1%", True, True),
     "R6": ("C17557", "220R 0805 1%", True, True),
@@ -516,13 +512,13 @@ LCSC = {
     "R36": ("C17513", "1k 0805 1%", True, True),
     "R37": ("C17414", "10k 0805 1%", True, True),
     "R38": ("C17414", "10k 0805 1%", True, True),
-    "R39": ("C17634", "33R 0805 1%", True, True),
-    "R40": ("C17634", "33R 0805 1%", True, True),
-    "R41": ("C17634", "33R 0805 1%", True, True),
-    "R42": ("C17634", "33R 0805 1%", True, True),
-    "R43": ("C17634", "33R 0805 1%", True, True),
-    "R44": ("C17673", "4.7k 0805 1%", True, True),
-    "R45": ("C17673", "4.7k 0805 1%", True, True),
+    "R39": ("C23140", "33R 0603 5%", True, True),
+    "R40": ("C23140", "33R 0603 5%", True, True),
+    "R41": ("C23140", "33R 0603 5%", True, True),
+    "R42": ("C23140", "33R 0603 5%", True, True),
+    "R43": ("C23140", "33R 0603 5%", True, True),
+    "R44": ("C27834", "5.1k 0805 1%", True, True),
+    "R45": ("C27834", "5.1k 0805 1%", True, True),
     "R46": ("C17514", "1M 0805 1%", True, True),
     "R47": ("C149504", "100k 0805 1%", True, True),
     "R48": ("C149504", "100k 0805 1%", True, True),
@@ -531,11 +527,11 @@ LCSC = {
     "R51": ("C17414", "10k 0805 1%", True, True),
     "R52": ("C17414", "10k 0805 1%", True, True),
     "R53": ("C17414", "10k 0805 1%", True, True),
-    "R54": ("C17634", "33R 0805 1%", True, True),
-    "R55": ("C17634", "33R 0805 1%", True, True),
-    "R56": ("C17634", "33R 0805 1%", True, True),
-    "R57": ("C17634", "33R 0805 1%", True, True),
-    "R58": ("C17634", "33R 0805 1%", True, True),
+    "R54": ("C23140", "33R 0603 5%", True, True),
+    "R55": ("C23140", "33R 0603 5%", True, True),
+    "R56": ("C23140", "33R 0603 5%", True, True),
+    "R57": ("C23140", "33R 0603 5%", True, True),
+    "R58": ("C23140", "33R 0603 5%", True, True),
     "R59": ("C17513", "1k 0805 1%", True, True),
     "R60": ("C17513", "1k 0805 1%", True, True),
     "R61": ("C17513", "1k 0805 1%", True, True),
@@ -748,10 +744,6 @@ MOUSER_ALT = {
     "C8465": ("1715721", "Phoenix Contact",
               "MKDS 1,5/2-5,08 screw terminal block, 1x02, 5.08mm, horizontal",
               "MKDS 1,5/2-5,08 - the part this footprint is named for"),
-    "C42377749": ("1715747", "Phoenix Contact",
-                  "MKDS 1,5/4-5,08 screw terminal block, 1x04, 5.08mm, "
-                  "horizontal",
-                  "MKDS 1,5/4-5,08 - the part this footprint is named for"),
     "C96093": ("CMI-1295-0585T", "Same Sky",
                "active magnetic buzzer, 5V, 12x9.5mm THT, 7.6mm pitch",
                "12x9.5mm body, 7.6mm pitch, 5V THT active - datasheet-verified"),
@@ -857,12 +849,17 @@ def ref_key(ref):
 
 
 def group_by_part(refs):
-    """refs -> {(value, footprint, lcsc): [ref, ...]}"""
+    """refs -> {(footprint, lcsc): [ref, ...]} - one entry per BOM.csv row.
+
+    Keyed the way the Makefile's `--group-by 'LCSC,Assembly'` keys BOM.csv:
+    by part, not by schematic value. JLCPCB loads one feeder per part number,
+    so five identical terminals named 24V_IN/TC1_K/... are one line, one fee.
+    """
     groups = {}
     for ref in refs:
         c = COMPONENTS[ref]
         part = LCSC.get(ref)
-        key = (c["value"], c["fp"], part[0] if part else "")
+        key = (c["fp"], part[0] if part else "")
         groups.setdefault(key, []).append(ref)
     return groups
 
@@ -870,9 +867,8 @@ def group_by_part(refs):
 def group_by_orderable(refs):
     """[(values, footprint, lcsc, [ref, ...])] - ONE entry per orderable part.
 
-    group_by_part() keys on the schematic value as well, which is right for
-    BOM.csv (JLCPCB's Comment column is per line) and wrong for a shopping
-    list: J2/J3/J4/J8/J9 are five identical WJ500V-5.08-2P blocks that happen
+    group_by_part() keys on what JLCPCB loads, which today is the same set;
+    this one exists for the shopping list's shape: J2/J3/J4/J8/J9 are five identical WJ500V-5.08-2P blocks that happen
     to be called 24V_IN, TC1_K, SSR1, TC2_K and SSR2, and you buy five of one
     part, not one each of five. Keying on (footprint, LCSC) collapses them.
 

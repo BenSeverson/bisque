@@ -121,7 +121,7 @@ menu "Bisque Configuration"
                 General-purpose auxiliary output. On the Bisque PCB this net is
                 AUX2, driven through the ULN2003 aux bank (U6, the same
                 Darlington array as AUX1/VENT) and brought out on aux
-                terminal J10 pin 3, sharing J10's AUX_VP coil rail
+                terminal J15 pin 1, sharing J10's AUX_VP coil rail
                 and GND with the other aux channels.
 
                 Reserved for the auxiliary output bank in docs/application-
@@ -141,7 +141,7 @@ menu "Bisque Configuration"
             help
                 Third general-purpose auxiliary output. On the Bisque PCB this
                 net is AUX3, driven through the same ULN2003 aux bank (U6)
-                and brought out on aux terminal J10 pin 4.
+                and brought out on aux terminal J15 pin 2.
 
                 See KILN_PIN_AUX2. NOTHING DRIVES THIS PIN YET either.
 
@@ -153,12 +153,12 @@ menu "Bisque Configuration"
             help
                 GPIO input for a lid/door interlock switch. On the Bisque PCB
                 this net is IN1, one of three protected dry-contact inputs
-                brought out on terminal J11 pin 1, with +3V3 and GND
-                on the same connector. The default matches that board.
+                brought out on terminal J11 pin 1, with GND on the
+                neighbouring block, J16 pin 2. The default matches that board.
 
                 IF YOU DO NOT FIT A LID SWITCH, YOU MUST DO ONE OF THESE:
 
-                  * Fit a jumper between J11 pin 1 and J11's GND pin. That is
+                  * Fit a jumper between J11 pin 1 and J16 pin 2 (GND). That is
                     the same connection a shut lid makes, so the firmware reads
                     "lid closed" permanently, or
                   * set this option to -1.

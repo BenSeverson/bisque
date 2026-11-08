@@ -49,7 +49,6 @@ from gen_jlc import (JLC_PLACEMENT, LCSC, hand_solder, not_assembled,
 # physical pin differently. Read off the LCSC symbol's pin names.
 PIN_REMAP = {
     # LED symbols: LCSC pin 1 is the anode ("A" / "+"), KiCad's is the cathode.
-    "C2296": {"1": "2", "2": "1"},   # 17-21SUYC/TR8, pins named +/-
     "C2297": {"1": "2", "2": "1"},   # 0805G green, pins named A/K
     # WJ500V-5.08-2P screw terminal. Symmetric, so the numbers carry no
     # electrical meaning, and the fit cannot see the body. LCSC's land is

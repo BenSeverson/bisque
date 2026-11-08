@@ -1149,13 +1149,13 @@ BLOCK_LEGENDS = {
     "J4": _bl("N", 0.9),
     "J9": _bl("N", 0.9),
     "J10": _bl("N", 0.9),
-    "J12": _bl("N", 0.9),
+    "J17": _bl("N", 0.9),
     # The one entry that asks for more than the standoff. J14's own
     # designator wants the gap directly above the connector, and this label
     # has the whole 5 mm band between J7 and J14 to sit in, so it gives way
     # rather than crowding the reference out of the one spot that is not the
     # connector body.
-    "J14": _bl("N", 0.9, gap=3.6),
+    "J14": _bl("N", 0.9, gap=3.6, shift=1.6),
 }
 # The Value IS the name, with underscores read as spaces, unless an entry
 # here says otherwise - and each exception is one for a reason.
@@ -1304,7 +1304,8 @@ PIN_LEGENDS = {
     # commons to - an INPUT on a block named `AUX OUT`, which is exactly the
     # terminal a reader would otherwise guess wrong. `V+` says supply; the
     # three switched low sides are just numbered.
-    "J10": ("E", 0.8, ("V+", "1", "2", "3")),
+    "J10": ("E", 0.8, ("V+", "1")),
+    "J15": ("E", 0.8, ("2", "3")),
     # Both SSR blocks are "switched 24 V on the + pin, board GND on the -"
     # since rev B.4 (the B.2/B.3 boards switched the low side and kept pin 1
     # always live). Pin 1 is still where the SSR's control + goes and pin 2
@@ -1316,14 +1317,16 @@ PIN_LEGENDS = {
     # east-edge screw terminals, legends in the interior strip west of them
     "J3": ("W", 0.8, ("K+", "K-")),
     "J8": ("W", 0.8, ("K+", "K-")),
-    "J12": ("W", 0.8, ("A+", "A-", "B+", "B-")),
+    "J12": ("W", 0.8, ("A+", "A-")),
+    "J17": ("W", 0.8, ("B+", "B-")),
     # J11's screws stack horizontally, so its legends go north, one per
     # screw. `IN1/IN2/IN3` rather than `1/2/3` because those are the names
     # the firmware, docs/pin-assignments.md and the Kconfig options use.
     # There is no separate `INPUTS` block name any more - it does not fit
     # (see the note on the standoff below) and four self-describing marks
     # make it redundant.
-    "J11": ("N", 0.8, ("IN1", "IN2", "IN3", "GND")),
+    "J11": ("N", 0.8, ("IN1", "IN2")),
+    "J16": ("N", 0.8, ("IN3", "GND")),
     # 0.1" headers: pin names north of the body, as before.
     "J5": ("N", 0.8, J5_PINS),
     "J6": ("N", 0.8, J6_PINS),
@@ -1579,7 +1582,7 @@ def bind(comps, edge):
         # names and 8.38 mm from the one it does not. J8's bottom is 55.59 and
         # J12's top is 74.17, so there is an 18 mm strip here and nothing else
         # wants it.
-        block_legend("J12"),
+        block_legend("J17"),
         # LED1's legend, and it follows LED1 (design.py). North of the LED: south
         # is D3, and further south is J5's pin-name row, where a stray word reads
         # as a fifteenth display pin - the mistake `SSR2` made from TP10 before

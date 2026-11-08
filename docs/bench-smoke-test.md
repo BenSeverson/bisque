@@ -59,7 +59,7 @@ None of them is a firmware bug.
       Bridging it with an external 24 V coil rail present puts 24 V on `+5V`.
 - [ ] **The lid input is satisfied.** `IN1` (J11 pin 1) is pulled up, so an
       unwired terminal reads *lid open* and the kiln will not heat. Fit the
-      lid switch, jumper J11 pin 1 to J11 pin 4 (GND), or build with
+      lid switch, jumper J11 pin 1 to J16 pin 2 (GND), or build with
       `KILN_PIN_LID_SWITCH=-1`.
 - [ ] **Channel 2 is not driven by firmware yet.** Zone 2 support has not
       landed ([#310](https://github.com/BenSeverson/bisque/issues/310)), and
@@ -72,7 +72,7 @@ None of them is a firmware bug.
 
 The 24 V front end, the buck, the reverse-polarity FET (Q8) and the
 USB/buck power mux (U12) have never been built. Work through this section
-with **J4/J9/J10 empty** and a current-limited bench supply at 24 V, with the
+with **J4/J9/J10/J15 empty** and a current-limited bench supply at 24 V, with the
 limit set around 300 mA.
 
 **Test points:** TP3 GND, TP9 `SSR1_CTRL`, TP10 `SSR2_CTRL`, TP12 the
@@ -175,7 +175,7 @@ the buck's own output ahead of the mux, is not `+5V`; probe it at C44.
 
 - [ ] **Lid input levels.** With `KILN_LID_SWITCH_EXTERNAL_PULLUP` on (the
       default), meter `IN1` at C12: ~3.3 V with J11 pin 1 open, under 0.1 V
-      with it jumpered to J11 GND, and the dashboard follows (open / shut).
+      with it jumpered to J16 GND, and the dashboard follows (open / shut).
       ~2.3 V closed means the internal pull-up is on - wrong config.
 - [ ] **Header 3V3 short.** Short J14 pin 2 (or J7 pin 1) to GND for one
       second while watching `+3V3` at C3: it stays above 3.0 V and the

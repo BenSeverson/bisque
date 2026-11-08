@@ -49,8 +49,8 @@ configurable pin's Kconfig default is the GPIO in the first column.
 | 11 | 19 | ADC2_0 | `SPI_MOSI_U1` | SPI2 shared bus, through R73 (33 Ω) onto `SPI_MOSI` | `KILN_PIN_SPI_MOSI` | active |
 | 12 | 20 | ADC2_1 | `SPI_SCLK_U1` | SPI2 shared bus, through R72 (33 Ω) onto `SPI_SCLK` | `KILN_PIN_SPI_SCLK` | active |
 | 13 | 21 | ADC2_2 | `SPI_MISO` | SPI2 shared bus | `KILN_PIN_SPI_MISO` | active |
-| 14 | 22 | ADC2_3 | `AUX3` | Aux channel 3, via U6 → J10.4 | `KILN_PIN_AUX3` | routed, **no driver** |
-| 15 | 8 | ADC2_4 | `AUX2` | Aux channel 2, via U6 → J10.3 | `KILN_PIN_AUX2` | routed, **no driver** |
+| 14 | 22 | ADC2_3 | `AUX3` | Aux channel 3, via U6 → J15.2 | `KILN_PIN_AUX3` | routed, **no driver** |
+| 15 | 8 | ADC2_4 | `AUX2` | Aux channel 2, via U6 → J15.1 | `KILN_PIN_AUX2` | routed, **no driver** |
 | 16 | 9 | ADC2_5 | `AUX1` | Vent relay, via ULN2003 (U6) → J10.2 | `KILN_PIN_VENT` | **active** |
 | 17 | 10 | ADC2_6 | `SSR1_CTRL` | SSR zone 1 opto LED (U8) → Q5 gate | `KILN_PIN_SSR1` | active |
 | 18 | 11 | ADC2_7 | `I2C_SDA` | I2C data | `KILN_PIN_I2C_SDA` | routed, **no driver** |
@@ -102,7 +102,7 @@ don't have.
 **`LID_SWITCH` will stop the kiln heating.** This one is not cosmetic:
 
 > **If you do not fit a lid switch, either fit a jumper between J11 pin 1 and
-> J11's GND pin, or set `KILN_PIN_LID_SWITCH=-1`.** Do neither and the kiln
+> J16 pin 2 (GND), or set `KILN_PIN_LID_SWITCH=-1`.** Do neither and the kiln
 > will not heat.
 
 The reason is the pull-up. `IN1` is held high by R13 (10 kΩ to +3V3) on the
@@ -220,14 +220,18 @@ The lid switch that used to occupy J7.6 in earlier drafts of this plan now
 has its own terminal — J11 — along with the other two protected inputs;
 see §5.4 of the hardware-design spec and the table below.
 
-### J11 — protected inputs
+### J11 + J16 — protected inputs
 
-| J11 pin | Net | Role |
+Two 2-position blocks side by side (one 4-position block before
+2026-11-07; same order, same screws, see the BOM-line merge in
+`hardware/kicad/DESIGN-NOTES.md`).
+
+| Pin | Net | Role |
 |---|---|---|
-| 1 | `IN1` | Lid/door switch |
-| 2 | `IN2` | Gas-flow interlock |
-| 3 | `IN3` | Spare |
-| 4 | `GND` | |
+| J11.1 | `IN1` | Lid/door switch |
+| J11.2 | `IN2` | Gas-flow interlock |
+| J16.1 | `IN3` | Spare |
+| J16.2 | `GND` | |
 
 ## 4. (deleted — the re-map has happened)
 
@@ -246,7 +250,8 @@ resistance-monitored interlock possible without another respin.
 ## 5. Aux output roles
 
 The three aux channels (`AUX1`/`AUX2`/`AUX3`) are driven through a shared
-ULN2003ADR Darlington array (U6) onto screw terminal J10, whose common return
+ULN2003ADR Darlington array (U6) onto screw terminals J10/J15 (`AUX_VP`, `AUX1` on J10; `AUX2`, `AUX3` on
+J15), whose common return
 is the externally-supplied `AUX_VP` rail (solder jumper `SJ1` ties it to
 board +5V for plain 5V relays; leave it open for a 12V/24V solenoid supply).
 Electrically the three channels are identical, so which one is "the vent" is

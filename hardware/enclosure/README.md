@@ -109,11 +109,11 @@ the hinge with a strain-relieved slack loop.
 ```
 
 Board orientation on the door: rotate the PCB so its **south edge
-(J5/J6/J7/J11) faces up**, toward the display — the 14-pin display loom
+(J5/J6/J7/J11/J16) faces up**, toward the display — the 14-pin display loom
 and the nav loom stay short (SPI runs at 40 MHz; keep the display loom
 under ~150 mm). That puts USB-C (J1) at the bottom, reachable with the
-door open, the SSR/power terminals (J2/J10/J4/J9) on one side facing the
-hinge loom, and the TC/CT terminals (J3/J8/J12) on the other.
+door open, the SSR/power terminals (J2/J10/J15/J4/J9) on one side facing the
+hinge loom, and the TC/CT terminals (J3/J8/J12/J17) on the other.
 
 **Thermocouple routing.** J3/J8's screw terminals are the cold junction
 reference — the MAX31856s compensate on-die a few mm away. Door mounting
@@ -160,7 +160,8 @@ bond board GND to the earthed door.
   and ≥ 25 mm from the panel edges. Load-side wiring in the bottom-right
   quadrant only.
 - **CTs** clamp each zone's load conductor right at the SSR output
-  terminal block; twist each secondary pair to J12.
+  terminal block; twist each secondary pair to its CT terminal (zone 1 → J12,
+  zone 2 → J17).
 - **Cable glands** through the bottom wall (never the top of a NEMA
   box): mains in (M25), zone 1 out (M25), zone 2 out (M25), TC1 (M16),
   TC2 (M16), spare M16 for lid switch / aux / inputs.
@@ -233,7 +234,7 @@ maximum input is **40 V**. Two consequences worth knowing:
    **Leave `SJ2` open in a finished install** — bridging it defeats the
    only heat cutoff that survives firmware death. It is a bench-debug
    jumper, not a build step.
-2. **No lid switch fitted?** Jumper J11 pin 1 to J11 GND or set
+2. **No lid switch fitted?** Jumper J11 pin 1 to J16 GND or set
    `KILN_PIN_LID_SWITCH=-1`, or the kiln will never heat — see
    `docs/pin-assignments.md` §1.
 3. Verify the SSR control polarity: J4/J9 pin 1 (`OUT`) is the switched
