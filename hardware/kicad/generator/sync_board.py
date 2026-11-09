@@ -11,8 +11,8 @@ the derived layers the generator still owns:
   * copper: never touched. Tracks or vias left on a net the schematic no
     longer has are reported, not deleted;
   * the `generated` group: every board text and silk graphic the sync owns
-    (per-terminal legends, block names, test-point labels, the nameplate and
-    its flame). Members are deleted and re-derived from where the parts ARE
+    (per-terminal legends, block names, test-point labels, the front
+    nameplate, and the flame and wordmark on B.Silkscreen). Members are deleted and re-derived from where the parts ARE
     each run, unless locked - a locked member is a person's decision and is
     kept, and the entry it stands for is not re-emitted. Texts outside the
     group are the user's and are never touched;
@@ -334,10 +334,29 @@ def regenerate_group(board, fps, adopt_legacy=False):
         board.Add(t)
         g.AddItem(t)
         anchors.append((t, x, y, lock))
-    for k, (pts, width) in enumerate(G.SILK_GRAPHICS):
+    # The back brand mark. Not placer anchors: `silk.place` packs the front
+    # only, and nothing on the back is crowded enough to need packing - the
+    # pocket search in gen_pcb already kept it off every through-hole pad.
+    for (txt, x, y, rot, size) in G.SILK_BACK:
+        if pinned(txt, x, y):
+            continue
+        t = pcbnew.PCB_TEXT(board)
+        t.SetText(txt)
+        t.SetPosition(V(x, y))
+        t.SetLayer(pcbnew.B_SilkS)
+        # KiCad draws the back as seen through the board; a back-side text
+        # that is not mirrored reads backwards on the finished board.
+        t.SetMirrored(True)
+        t.SetTextSize(pcbnew.VECTOR2I(MM(size), MM(size)))
+        t.SetTextThickness(MM(max(SILK_MIN_STROKE, size * 0.15)))
+        t.SetTextAngleDegrees(rot)
+        t.SetUuid(kiid("silkb", txt, "%.3f" % x, "%.3f" % y))
+        board.Add(t)
+        g.AddItem(t)
+    for k, (pts, width, layer) in enumerate(G.SILK_GRAPHICS):
         sh = pcbnew.PCB_SHAPE(board)
         sh.SetShape(pcbnew.SHAPE_T_POLY)
-        sh.SetLayer(pcbnew.F_SilkS)
+        sh.SetLayer(board.GetLayerID(layer))
         sh.SetPolyPoints([V(x, y) for x, y in pts])
         sh.SetFilled(False)
         sh.SetWidth(MM(width))

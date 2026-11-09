@@ -170,27 +170,50 @@ def points(d=FLAME_PATH, n=SEGMENTS):
     return out
 
 
-def flame(cx, cy, height, d=FLAME_PATH, n=SEGMENTS):
-    """The flame centred on (cx, cy), `height` mm tall.
+def _bounds(pts):
+    xs = [q[0] for q in pts]
+    ys = [q[1] for q in pts]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def extent(height, d=FLAME_PATH, n=SEGMENTS):
+    """(width, height) in mm of the INKED flame `height` mm tall.
+
+    Inked means what prints: the centreline outline plus half a stroke on
+    every side. A layout that boxes the centreline instead overhangs its own
+    pocket by half a stroke - 0.58 mm at 11 mm, but 2 mm at the size the back
+    of the board reaches.
+    """
+    x0, y0, x1, y1 = _bounds(points(d, n))
+    k = height / (y1 - y0 + STROKE_UNITS)
+    return (x1 - x0 + STROKE_UNITS) * k, height
+
+
+def flame(cx, cy, height, mirror=False, d=FLAME_PATH, n=SEGMENTS):
+    """The flame centred on (cx, cy), `height` mm tall INKED (see extent).
 
     Returns `(points_mm, stroke_width_mm)` - a closed polyline and the width
     it wants to be stroked at. The glyph's extent is measured off the
     flattened path rather than hard-coded, so the mark can be restyled
     without a second constant going stale.
+
+    `mirror` flips it left-to-right about cx, for B.Silkscreen: KiCad draws
+    the back layers as seen through the board from the front, and mirrors
+    back-side TEXT itself but never a polygon.
     """
     pts = points(d, n)
-    xs = [q[0] for q in pts]
-    ys = [q[1] for q in pts]
-    scale = height / (max(ys) - min(ys))
-    ox, oy = (min(xs) + max(xs)) / 2.0, (min(ys) + max(ys)) / 2.0
-    return ([(cx + (x - ox) * scale, cy + (y - oy) * scale) for x, y in pts],
+    x0, y0, x1, y1 = _bounds(pts)
+    scale = height / (y1 - y0 + STROKE_UNITS)
+    ox, oy = (x0 + x1) / 2.0, (y0 + y1) / 2.0
+    sx = -scale if mirror else scale
+    return ([(cx + (x - ox) * sx, cy + (y - oy) * scale) for x, y in pts],
             STROKE_UNITS * scale)
 
 
 if __name__ == "__main__":
     pts, w = flame(0.0, 0.0, 11.0)
-    xs = [q[0] for q in pts]
-    ys = [q[1] for q in pts]
-    print("%d points, %.2f x %.2f mm, stroke %.3f mm, closed=%s"
-          % (len(pts), max(xs) - min(xs), max(ys) - min(ys), w,
-             all(abs(a - b) < 1e-9 for a, b in zip(pts[0], pts[-1]))))
+    x0, y0, x1, y1 = _bounds(pts)
+    print("%d points, centreline %.2f x %.2f mm, inked %.2f x %.2f mm, "
+          "stroke %.3f mm, closed=%s"
+          % ((len(pts), x1 - x0, y1 - y0) + extent(11.0)
+             + (w, all(abs(a - b) < 1e-9 for a, b in zip(pts[0], pts[-1])))))
