@@ -882,8 +882,9 @@ def sync_netclasses(pro_path):
 
 
 # ----------------------------------------------------------- the nameplate
-# The board's own title block: the flame, the wordmark, the revision and the
-# copyright, as one centred stack.
+# The board's own title block on the FRONT: name, revision and copyright, as
+# one centred stack of text. The flame and the big wordmark are on the back
+# (see "the back brand mark" below).
 #
 # It used to be two texts at (62.5, 62.0) and (62.5, 65.5), in what the
 # comment here called "the large clear band between the switching region and
@@ -913,8 +914,6 @@ def sync_netclasses(pro_path):
 # sizes and the gaps stays tight when a size changes - four typed
 # y-coordinates do not, and a nameplate drifting apart one row at a time is
 # how the old two-line one ended up with its subtitle 3.5 mm below it.
-TITLE_LOGO_H = 11.0                          # flame height, mm
-TITLE_LOGO_GAP = 2.0                         # flame to wordmark, mm
 TEXT_BOX_RATIO = 1.7                         # KiCad text bbox height / size
 # KiCad stroke-font advance / (glyph size x character count), measured with
 # pcbnew over this nameplate's own rows: 0.918-0.961 for the multi-character
@@ -922,8 +921,12 @@ TEXT_BOX_RATIO = 1.7                         # KiCad text bbox height / size
 # pocket has to clear.
 TEXT_WIDTH_RATIO = 0.98
 # (text, glyph size, gap below)
-TITLE_ROWS = [("BISQUE", 2.6, 0.7),
-              ("KILN CONTROLLER", 1.2, 1.3),
+# The name takes two rows because the pocket it lands in is a portrait one
+# (~18 x 32 mm between the switching and analog columns): on one row, at
+# 1.2 mm, "BISQUE KILN CONTROLLER" is 26 mm wide and scaled the whole block
+# to 67 %.
+TITLE_ROWS = [("BISQUE", 1.6, 0.4),
+              ("KILN CONTROLLER", 1.0, 0.7),
               # B.2, not B: the SSR terminals went from +5 V to 24 V. A
               # board that still said REV B would be indistinguishable on a
               # bench from one whose pin 1 is 5 V, and the failure mode is a
@@ -936,6 +939,11 @@ TITLE_ROWS = [("BISQUE", 2.6, 0.7),
               # up on the terminal side behind 100k, which is why firmware
               # leaves that pin's internal pull-up off. Keep this in step
               # with the schematic title blocks.
+              #
+              # It stays on the FRONT when the brand mark moves to the back:
+              # the board is mounted back-to-the-door, so the front is the
+              # only face anyone wiring it can read, and this is the line
+              # that has to be read at wiring time.
               ("REV B.5", 1.0, 0.7),
               ("© 2026 Ben Severson", 0.9, 0.0)]
 # Clear board the nameplate keeps around itself and from the outline, mm. The
@@ -961,6 +969,44 @@ TITLE_MIN_SCALE = 0.60
 # than by one division.
 TITLE_MIN_TEXT = 0.8
 
+# ------------------------------------------------------- the back brand mark
+# The flame and the wordmark live on B.Silkscreen, as large as the back will
+# hold. They used to be the top of the front nameplate, and the front could
+# only spare them the leftover pocket between the switching and analog
+# columns: by rev B.5 that pocket had them at 62 % (a 6.8 mm flame) against a
+# 60 % floor, one placement change from not printing at all.
+#
+# The back is the opposite problem. Every part is on the front (JLC assembles
+# one side), so the only things that reach the back are through-hole pads and
+# the mounting holes, almost all of them on the perimeter. JLC prices
+# two-sided silkscreen the same as one-sided, so the move costs nothing at
+# fab; what it costs is visibility in service, since the board mounts
+# back-to-the-door - which is why the revision and copyright stay on the
+# front (TITLE_ROWS above).
+#
+# The proportions are the old nameplate's, unchanged; only the scale is free.
+# BACK_LOGO_H is the INKED height of the flame - its stroke included - so the
+# stack is laid out from what actually prints. (The front version measured
+# the stroke's centreline and so overhung its own pocket by half a stroke,
+# 0.58 mm at full size: invisible at 11 mm, 2 mm at the size the back reaches.)
+BACK_LOGO_H = 11.0
+BACK_LOGO_GAP = 2.0
+BACK_ROWS = [("BISQUE", 2.6, 0.7),
+             ("KILN CONTROLLER", 1.2, 0.0)]
+# Clear board kept between the mark and any through-hole pad. More than the
+# front's TITLE_MARGIN, because a stroke 4 mm wide running up to a solder
+# fillet is how a logo ends up looking like it was printed around the pins
+# rather than on the board.
+BACK_MARGIN = 2.0
+# The scale below which the back mark is not worth having moved: the old
+# front nameplate's own full size. If the back cannot hold that, something
+# has gone wrong with the placement and a person should look.
+BACK_MIN_SCALE = 1.0
+# ... and the most it may grow. Not a design constraint - the point is to
+# fill the board - but it keeps a pathological empty board from producing a
+# 90 mm wordmark that then fails DRC somewhere surprising.
+BACK_MAX_SCALE = 6.0
+
 
 def _keepout_box(comp, margin):
     """(x0, y0, x1, y1) a free-standing graphic must stay out of, in mm.
@@ -980,21 +1026,51 @@ def _keepout_box(comp, margin):
     return (box[0] - margin, box[1] - margin, box[2] + margin, box[3] + margin)
 
 
-def largest_empty_rect(min_w, min_h, margin=TITLE_MARGIN, edge=TITLE_EDGE,
-                       grid=POCKET_GRID):
-    """The biggest empty (x0, y0, x1, y1) on the board that fits min_w/min_h.
+def _front_keepouts(margin):
+    return [b for b in (_keepout_box(c, margin) for c in COMPS.values()) if b]
 
-    Rasterise every part's keep-out onto a `grid` mm lattice inside the board
-    outline, then take the largest all-free axis-aligned rectangle by the
-    standard largest-rectangle-in-histogram sweep, considering only
-    rectangles at least min_w x min_h. Ties break on area, then on the
-    topmost then leftmost corner, so the answer is a function of the
-    placement and nothing else - the sync's idempotence requires that much.
+
+def _back_keepouts(margin):
+    """One box per pad that reaches the back copper, grown by `margin`.
+
+    Per PAD rather than per part, unlike the front: a part body is on the
+    front and casts no shadow here, so the 14-pin header's row of pads is a
+    row of obstacles, not a 36 mm slab. Every through-hole pad counts whether
+    or not its back is mask-open - the module's thermal vias are tented, but
+    a logo stroked across a via field reads as noise, not as ink.
+    """
+    out = []
+    for comp in COMPS.values():
+        for (_n, kind, gx, gy, w, h, _c, layers, hole) in pad_geometry(comp):
+            if kind not in ("thru_hole", "np_thru_hole") and 1 not in layers:
+                continue
+            w, h = max(w, hole[1]), max(h, hole[1])
+            out.append((gx - w / 2.0 - margin, gy - h / 2.0 - margin,
+                        gx + w / 2.0 + margin, gy + h / 2.0 + margin))
+    return out
+
+
+def largest_empty_rect(min_w, min_h, margin=TITLE_MARGIN, edge=TITLE_EDGE,
+                       grid=POCKET_GRID, obstacles=None, score=None):
+    """The best empty (x0, y0, x1, y1) on the board that fits min_w/min_h.
+
+    Rasterise every obstacle box onto a `grid` mm lattice inside the board
+    outline, then sweep every maximal all-free axis-aligned rectangle by the
+    standard largest-rectangle-in-histogram method, considering only
+    rectangles at least min_w x min_h. "Best" is the largest area unless
+    `score(w_mm, h_mm)` is given; ties break on area, then on the topmost
+    then leftmost corner, so the answer is a function of the placement and nothing else -
+    the sync's idempotence requires that much.
+
+    `obstacles` defaults to the front keep-outs (part bodies and pads, grown
+    by `margin`).
 
     Copper is deliberately NOT an obstacle. Silkscreen over a track is
     covered by soldermask and prints perfectly; only exposed pads matter, and
     those are in the keep-out already.
     """
+    if obstacles is None:
+        obstacles = _front_keepouts(margin)
     nx = int((BX1 - BX0) / grid)
     ny = int((BY1 - BY0) / grid)
     free = [bytearray(b"\1") * nx for _ in range(ny)]
@@ -1013,14 +1089,12 @@ def largest_empty_rect(min_w, min_h, margin=TITLE_MARGIN, edge=TITLE_EDGE,
     block(BX0, BY1 - edge, BX1, BY1)
     block(BX0, BY0, BX0 + edge, BY1)
     block(BX1 - edge, BY0, BX1, BY1)
-    for comp in COMPS.values():
-        box = _keepout_box(comp, margin)
-        if box:
-            block(*box)
+    for box in obstacles:
+        block(*box)
 
     need_c = int(math.ceil(min_w / grid))
     need_r = int(math.ceil(min_h / grid))
-    best = None                          # (area, -r0, -c0, c0, r0, c1, r1)
+    best = None                          # (key, c0, r0, c1, r1)
     height = [0] * nx
     for r in range(ny):
         row = free[r]
@@ -1036,7 +1110,9 @@ def largest_empty_rect(min_w, min_h, margin=TITLE_MARGIN, edge=TITLE_EDGE,
                 start, sh = stack.pop()
                 w = c - start
                 if sh >= need_r and w >= need_c:
-                    key = (sh * w, -(r - sh + 1), -start)
+                    val = (sh * w if score is None
+                           else round(score(w * grid, sh * grid), 9))
+                    key = (val, sh * w, -(r - sh + 1), -start)
                     if best is None or key > best[0]:
                         best = (key, start, r - sh + 1, c - 1, r)
             stack.append((start, h))
@@ -1050,46 +1126,85 @@ def largest_empty_rect(min_w, min_h, margin=TITLE_MARGIN, edge=TITLE_EDGE,
             BX0 + (c1 + 1) * grid, BY0 + (r1 + 1) * grid)
 
 
-def _title_extent(k):
-    """(width, height, [row size]) of the nameplate at scale `k`."""
-    sizes = [max(TITLE_MIN_TEXT, s * k) for _t, s, _g in TITLE_ROWS]
-    h = TITLE_LOGO_H * k + TITLE_LOGO_GAP * k
-    for (txt, _s, gap), size in zip(TITLE_ROWS, sizes):
+def _stack_extent(k, rows, logo_h=0.0, logo_gap=0.0, floor=TITLE_MIN_TEXT):
+    """(width, height, [row size]) of a centred stack at scale `k`: an
+    optional flame `logo_h` tall (inked), `logo_gap` above the text rows."""
+    sizes = [max(floor, s * k) for _t, s, _g in rows]
+    lw, lh = logo.extent(logo_h * k) if logo_h else (0.0, 0.0)
+    h = lh + (logo_gap * k if logo_h else 0.0)
+    for (txt, _s, gap), size in zip(rows, sizes):
         h += size * TEXT_BOX_RATIO + gap * k
-    w = max([TITLE_LOGO_H * k] +
-            [len(t) * size * TEXT_WIDTH_RATIO
-             for (t, _s, _g), size in zip(TITLE_ROWS, sizes)])
+    w = max([lw] + [len(t) * size * TEXT_WIDTH_RATIO
+                    for (t, _s, _g), size in zip(rows, sizes)])
     return w, h, sizes
 
 
-def _title_block():
-    """([(text, x, y, rot, size)], (logo_cx, logo_cy), logo_h, scale)."""
-    x0, y0, x1, y1 = largest_empty_rect(*_title_extent(TITLE_MIN_SCALE)[:2])
-    box_w, box_h = x1 - x0, y1 - y0
-    # Fit, then stop at full size: the sizes in TITLE_ROWS are the design, and
-    # a big empty board is not a reason to print a bigger wordmark. Iterating
-    # rather than dividing once, because TITLE_MIN_TEXT stops the small rows
-    # shrinking with the rest and so makes the answer non-linear in k.
-    k = 1.0
-    for _ in range(12):
-        w, h, sizes = _title_extent(k)
-        if w <= box_w and h <= box_h:
-            break
-        k *= min(box_w / w, box_h / h) * 0.999
-    else:
-        raise SystemExit("nameplate does not fit its %.1f x %.1f mm pocket "
-                         "even at the minimum scale" % (box_w, box_h))
+def _lay_out(box, k, rows, logo_h=0.0, logo_gap=0.0):
+    """([(text, x, y, rot, size)], logo centre, logo inked height) for the
+    stack at scale `k`, centred in `box`."""
+    x0, y0, x1, y1 = box
+    _w, h, sizes = _stack_extent(k, rows, logo_h, logo_gap)
     cx = (x0 + x1) / 2.0
-    logo_h = TITLE_LOGO_H * k
-    y = y0 + (box_h - h) / 2.0
-    logo_at = (cx, y + logo_h / 2.0)
-    y += logo_h + TITLE_LOGO_GAP * k
-    rows = []
-    for (txt, _s, gap), size in zip(TITLE_ROWS, sizes):
-        rows.append((txt, cx, y + size * TEXT_BOX_RATIO / 2.0, 0,
-                     round(size, 3)))
+    y = y0 + (y1 - y0 - h) / 2.0
+    logo_at, lh = None, logo_h * k
+    if logo_h:
+        logo_at = (cx, y + lh / 2.0)
+        y += lh + logo_gap * k
+    out = []
+    for (txt, _s, gap), size in zip(rows, sizes):
+        out.append((txt, cx, y + size * TEXT_BOX_RATIO / 2.0, 0,
+                    round(size, 3)))
         y += size * TEXT_BOX_RATIO + gap * k
-    return rows, logo_at, logo_h, k
+    return out, logo_at, lh
+
+
+def _fit(box, rows, logo_h, logo_gap, k_max, what):
+    """The largest scale <= k_max at which the stack fits `box`."""
+    box_w, box_h = box[2] - box[0], box[3] - box[1]
+    # Iterating rather than dividing once, because TITLE_MIN_TEXT stops the
+    # small rows shrinking with the rest and so makes the answer non-linear
+    # in k.
+    k = k_max
+    for _ in range(12):
+        w, h, _s = _stack_extent(k, rows, logo_h, logo_gap)
+        if w <= box_w and h <= box_h:
+            return k
+        k *= min(box_w / w, box_h / h) * 0.999
+    raise SystemExit("%s does not fit its %.1f x %.1f mm pocket even at the "
+                     "minimum scale" % (what, box_w, box_h))
+
+
+def _title_block():
+    """([(text, x, y, rot, size)], scale) - the front nameplate."""
+    w1, h1, _s = _stack_extent(1.0, TITLE_ROWS)
+    # Scored by the scale a pocket allows, capped at full size, so a pocket
+    # that holds the block at 100 % beats a bigger one that does not; among
+    # those that all reach 100 % the largest wins, as it always did.
+    box = largest_empty_rect(*_stack_extent(TITLE_MIN_SCALE, TITLE_ROWS)[:2],
+                             score=lambda w, h: min(w / w1, h / h1, 1.0))
+    # Fit, then stop at full size: the sizes in TITLE_ROWS are the design, and
+    # a big empty board is not a reason to print a bigger revision line.
+    k = _fit(box, TITLE_ROWS, 0.0, 0.0, 1.0, "nameplate")
+    rows, _at, _h = _lay_out(box, k, TITLE_ROWS)
+    return rows, k
+
+
+def _back_mark():
+    """([(text, x, y, rot, size)], logo centre, logo inked height, scale)
+    for the back brand mark, in BOARD coordinates (unmirrored: the sync
+    mirrors on the way to B.Silkscreen, as KiCad itself does)."""
+    w1, h1, _s = _stack_extent(1.0, BACK_ROWS, BACK_LOGO_H, BACK_LOGO_GAP)
+    # Score a pocket by the scale the stack would reach in it, not by area:
+    # the mark is taller than it is wide, so the largest-AREA rectangle - a
+    # wide band between two terminal rows - is not the one it fills best.
+    box = largest_empty_rect(
+        w1 * BACK_MIN_SCALE, h1 * BACK_MIN_SCALE, edge=TITLE_EDGE,
+        obstacles=_back_keepouts(BACK_MARGIN),
+        score=lambda w, h: min(w / w1, h / h1, BACK_MAX_SCALE))
+    k = _fit(box, BACK_ROWS, BACK_LOGO_H, BACK_LOGO_GAP, BACK_MAX_SCALE,
+             "back brand mark")
+    rows, at, lh = _lay_out(box, k, BACK_ROWS, BACK_LOGO_H, BACK_LOGO_GAP)
+    return rows, at, lh, k
 
 
 # ------------------------------------------ connector block legends
@@ -1458,8 +1573,8 @@ TP_LEGEND_OK = set()
 
 
 COMPS = {}          # ref -> {"fpf", "at", "value", "pins"}: the placement the legends derive from
-SILK, SILK_GRAPHICS, LEGEND_OWNER, TP_LABEL_TEXTS = [], [], {}, set()
-_TITLE_TEXTS, TITLE_LOGO_AT, TITLE_LOGO_SIZE, TITLE_SCALE = [], (0.0, 0.0), 0.0, 1.0
+SILK, SILK_BACK, SILK_GRAPHICS, LEGEND_OWNER, TP_LABEL_TEXTS = [], [], [], {}, set()
+_TITLE_TEXTS, TITLE_SCALE, BACK_SCALE = [], 1.0, 1.0
 _BLOCK_EMITTED = set()
 
 
@@ -1484,29 +1599,38 @@ def bind(comps, edge):
 
     The legends, the nameplate pocket and the test-point labels all follow
     the parts, so they are a function of where the parts ARE - on the board -
-    not of a table. Rebinds the module globals SILK, SILK_GRAPHICS,
-    LEGEND_OWNER and TP_LABEL_TEXTS; read them through the module.
+    not of a table. Rebinds the module globals SILK, SILK_BACK,
+    SILK_GRAPHICS, LEGEND_OWNER and TP_LABEL_TEXTS; read them through the
+    module.
     """
-    global COMPS, BX0, BY0, BX1, BY1, SILK, SILK_GRAPHICS, LEGEND_OWNER
-    global TP_LABEL_TEXTS, _TITLE_TEXTS, TITLE_LOGO_AT, TITLE_LOGO_SIZE
-    global TITLE_SCALE, _BLOCK_EMITTED
+    global COMPS, BX0, BY0, BX1, BY1, SILK, SILK_BACK, SILK_GRAPHICS
+    global LEGEND_OWNER, TP_LABEL_TEXTS, _TITLE_TEXTS, TITLE_SCALE
+    global BACK_SCALE, _BLOCK_EMITTED
     COMPS = comps
     BX0, BY0, BX1, BY1 = edge
     LEGEND_OWNER = {}
     TP_LABEL_TEXTS = set()
     _BLOCK_EMITTED = set()
-    _TITLE_TEXTS, TITLE_LOGO_AT, TITLE_LOGO_SIZE, TITLE_SCALE = _title_block()
+    _TITLE_TEXTS, TITLE_SCALE = _title_block()
     if TITLE_SCALE < 1.0:
         print("nameplate scaled to %.0f%% to fit the free space at (%.1f, %.1f)"
-              % (TITLE_SCALE * 100, TITLE_LOGO_AT[0], TITLE_LOGO_AT[1]))
+              % (TITLE_SCALE * 100, _TITLE_TEXTS[0][1], _TITLE_TEXTS[0][2]))
+    SILK_BACK, back_at, back_h, BACK_SCALE = _back_mark()
+    print("back brand mark at %.0f%%: %.1f mm flame, centred on (%.1f, %.1f)"
+          % (BACK_SCALE * 100, back_h, back_at[0], back_at[1]))
 
-    # Free-standing silk GRAPHICS, as [(closed polyline in mm, stroke width mm)].
-    # Unlike the texts below these are not anchors: `silk.py` does not move a
-    # graphic, it routes labels around one, so what is written here is where it
-    # prints. The flame is the project's own mark, carried as an SVG path in
-    # `logo.py` rather than traced into a point table here.
-    SILK_GRAPHICS = [logo.flame(TITLE_LOGO_AT[0], TITLE_LOGO_AT[1],
-                                TITLE_LOGO_SIZE)]
+    # Free-standing silk GRAPHICS, as [(closed polyline in mm, stroke width mm,
+    # layer)]. Unlike the texts below these are not anchors: `silk.py` does not
+    # move a graphic, it routes labels around one, so what is written here is
+    # where it prints. The flame is the project's own mark, carried as an SVG
+    # path in `logo.py` rather than traced into a point table here.
+    #
+    # Mirrored, because it is on the back: B.Silkscreen is drawn as seen from
+    # the front, so an unmirrored flame would read correctly in the editor and
+    # backwards on the board in your hand. KiCad mirrors back-side TEXT for you
+    # (the sync sets it); a polygon it leaves exactly as given.
+    SILK_GRAPHICS = [logo.flame(back_at[0], back_at[1], back_h, mirror=True)
+                     + ("B.SilkS",)]
     SILK = _TITLE_TEXTS + [
         _rel("USB", "J1", -7.5, -2.4, 0.9),
         # The two button legends, south of their buttons and level with each

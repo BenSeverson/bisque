@@ -1,5 +1,16 @@
 #!/usr/bin/env python3
-"""Assert the front silkscreen is printable, legible and net-independent.
+"""Assert the silkscreen is printable, legible and net-independent.
+
+Both sides. The front carries every legend; the back carries the brand mark
+(gen_pcb's "back brand mark"), and the first four classes below apply to it
+exactly as they do to the front - against the BACK mask openings, which on
+this board are the through-hole pads. Silk-on-silk is counted within a layer
+only, since ink on opposite faces cannot touch. SILK UNDER A PART is front
+only: there are no parts on the back. One more class is back only:
+
+  SILK NOT MIRRORED  a B.Silkscreen text that is not mirrored. KiCad draws
+                     the back as seen through the board, so such a text
+                     looks right in the editor and prints backwards.
 
 Three classes, checked with KiCad's own geometry (the same effective shapes
 DRC collides), so a finding here is a finding pcbnew's DRC would also raise:
@@ -130,8 +141,9 @@ def _name(owner, item):
     return "%s%s" % (("%s:" % owner) if owner else "", txt)
 
 
-def collect(board):
-    """[(label, footprint-ref-or-None, shape, bbox)] for every F.SilkS item."""
+def collect(board, layer=pcbnew.F_SilkS):
+    """[(label, footprint-ref-or-None, shape, bbox)] for every item on the
+    silk `layer`."""
     out = []
 
     def add(owner, item, is_text):
@@ -142,36 +154,37 @@ def collect(board):
                     is_text))
 
     for d in board.GetDrawings():
-        if d.GetLayer() == pcbnew.F_SilkS:
+        if d.GetLayer() == layer:
             add(None, d, hasattr(d, "GetText"))
     for fp in board.GetFootprints():
         ref = fp.GetReference()
         for it in fp.GraphicalItems():
-            if it.GetLayer() == pcbnew.F_SilkS:
+            if it.GetLayer() == layer:
                 add(ref, it, hasattr(it, "GetText"))
         for t in (fp.Reference(), fp.Value()):
-            if t.GetLayer() == pcbnew.F_SilkS and t.IsVisible():
+            if t.GetLayer() == layer and t.IsVisible():
                 add(ref, t, True)
     out.sort(key=lambda t: (t[0], t[3]))
     return out
 
 
-def exposed_pads(board):
-    """Pads with a front mask opening - the opening silk must never touch."""
+def exposed_pads(board, cu=pcbnew.F_Cu, mask=pcbnew.F_Mask):
+    """Pads with a mask opening on one side - the opening silk on that side
+    must never touch."""
     out = []
     for fp in board.GetFootprints():
         for pad in fp.Pads():
             ls = pad.GetLayerSet()
-            if not (ls.Contains(pcbnew.F_Mask) and ls.Contains(pcbnew.F_Cu)):
+            if not (ls.Contains(mask) and ls.Contains(cu)):
                 continue
             # The mask opening, i.e. copper grown by the pad's solder-mask
             # expansion: nonzero only on the fiducials (1 mm copper in a 2 mm
             # window), and the copper-only test is how C44's designator sat
             # 0.21 mm inside FID3's window with this check reporting 0.
             out.append(("%s pad %s" % (fp.GetReference(), pad.GetNumber()),
-                        pad.GetEffectiveShape(pcbnew.F_Cu),
+                        pad.GetEffectiveShape(cu),
                         pad.GetBoundingBox(),
-                        max(0, pad.GetSolderMaskExpansion(pcbnew.F_Mask))))
+                        max(0, pad.GetSolderMaskExpansion(mask))))
     out.sort(key=lambda t: t[0])
     return out
 
@@ -260,17 +273,35 @@ def _bb_hit(a, b, slack=0):
                 or a[3] + slack < b[1] or b[3] + slack < a[1])
 
 
+SIDES = (("F.Silkscreen", pcbnew.F_SilkS, pcbnew.F_Cu, pcbnew.F_Mask),
+         ("B.Silkscreen", pcbnew.B_SilkS, pcbnew.B_Cu, pcbnew.B_Mask))
+
+
 def main(pcb):
     board = pcbnew.LoadBoard(pcb)
-    silk = collect(board)
-    pads = exposed_pads(board)
     edge = edges(board)
     bbox_board = board_box(board)
-    print("check_silk: %d F.Silkscreen items, %d exposed pads in %s"
-          % (len(silk), len(pads), os.path.basename(pcb)))
+    over, off, onsilk, unmirrored = [], [], [], []
+    for side, layer, cu, mask in SIDES:
+        s_silk = collect(board, layer)
+        s_pads = exposed_pads(board, cu, mask)
+        print("check_silk: %d %s items, %d exposed pads in %s"
+              % (len(s_silk), side, len(s_pads), os.path.basename(pcb)))
+        _check_side(s_silk, s_pads, edge, bbox_board, over, off, onsilk)
+        if layer == pcbnew.F_SilkS:
+            silk = s_silk
+        else:
+            for d in board.GetDrawings():
+                if (d.GetLayer() == layer and hasattr(d, "GetText")
+                        and not d.IsMirrored()):
+                    b = d.GetBoundingBox()
+                    unmirrored.append((d.GetText(), "", (
+                        b.GetLeft(), b.GetTop(), b.GetRight(), b.GetBottom())))
+    return _report(board, silk, over, off, onsilk, unmirrored)
 
-    over, off, onsilk = [], [], []
 
+def _check_side(silk, pads, edge, bbox_board, over, off, onsilk):
+    """Append this side's findings; every pair compared is on one layer."""
     for label, owner, sh, bb, _t in silk:
         for pname, psh, pbb, exp in pads:
             if not _bb_hit(bb, (pbb.GetLeft() - exp, pbb.GetTop() - exp,
@@ -305,6 +336,8 @@ def main(pcb):
             if sa.Collide(sb, 0):
                 onsilk.append((la, lb, ba))
 
+
+def _report(board, silk, over, off, onsilk, unmirrored):
     def show(kind, hits, limit=30):
         print("\n%s: %d" % (kind, len(hits)))
         for h in hits[:limit]:
@@ -320,6 +353,7 @@ def main(pcb):
     show("SILK OFF BOARD", off)
     show("SILK ON SILK", onsilk)
     show("SILK UNDER A PART", buried)
+    show("SILK NOT MIRRORED", unmirrored)
 
     bad = check_logo()
     # Compared as a SET, both ways. A new burial is the regression this
@@ -334,6 +368,10 @@ def main(pcb):
     for lbl, ref in sorted(ON_PART_OK - seen):
         print("\nFAIL: ON_PART_OK lists %r under %s, which no longer happens "
               "- remove it" % (lbl, ref))
+        bad = 1
+    if unmirrored:
+        print("\nFAIL: %d back-side text(s) not mirrored - they print "
+              "backwards" % len(unmirrored))
         bad = 1
     if over:
         print("\nFAIL: %d silk item(s) printed on exposed copper" % len(over))

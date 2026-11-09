@@ -1100,7 +1100,7 @@ the board:
 
 It never moves a footprint and never touches a track or via. The silk it
 owns - per-terminal legends, connector names, test-point labels, the
-nameplate and its flame - lives in a PCB group called **`generated`**, and
+front nameplate, and the flame and wordmark on the back - lives in a PCB group called **`generated`**, and
 each run deletes the group's members and re-derives them from where the
 parts now are, then runs `silk.py`'s placer. Three things are off limits to
 it, and they are how a person's work survives:
@@ -1457,16 +1457,29 @@ screw terminal it is the perpendicular slide that renames the screw. So a
 label that knows its own axis now declares it, and the declaration is a hard
 constraint rather than a weight: see **per-terminal legends** below.
 
-**The nameplate is the one silk item that is placed rather than anchored**,
-and the place is *measured at build time*.
-`BISQUE / KILN CONTROLLER / REV B.5 / © 2026 Ben Severson`, under the project's
-flame, goes wherever `gen_pcb.largest_empty_rect()` finds the most empty
-board: every part's keep-out (drawn body ∪ copper, grown by
-`TITLE_MARGIN`) is rasterised on a 0.25 mm lattice inside the outline and the
-largest all-free rectangle taken by the standard
-largest-rectangle-in-histogram sweep. The whole block then **scales to fit**
-what it found, down to `TITLE_MIN_SCALE`; below that the build stops rather
-than printing a nameplate nobody can read.
+**The nameplate and the back brand mark are the silk items that are placed
+rather than anchored**, and the place is *measured at build time*.
+
+* **Front:** `BISQUE / KILN CONTROLLER / REV B.5 / © 2026 Ben Severson`, text
+  only, goes wherever `gen_pcb.largest_empty_rect()` finds room: every part's
+  keep-out (drawn body ∪ copper, grown by `TITLE_MARGIN`) is rasterised on a
+  0.25 mm lattice inside the outline and every maximal all-free rectangle is
+  swept by the standard largest-rectangle-in-histogram method, scored by the
+  scale the block would reach in it (capped at 100 %), then by area. The block
+  **scales to fit**, down to `TITLE_MIN_SCALE`; below that the build stops
+  rather than printing a nameplate nobody can read. The revision stays on the
+  front on purpose: the board mounts back-to-the-door, and `REV` is the line
+  someone wiring it has to be able to read.
+* **Back:** the flame over `BISQUE / KILN CONTROLLER` on B.Silkscreen, as big
+  as the back holds (`_back_mark()`, 313 % of the old nameplate - a 34.5 mm
+  flame - at rev B.5). The same search runs with the through-hole pads as the
+  only obstacles (grown by `BACK_MARGIN`; every part is on the front), and is
+  scored by the scale the mark reaches rather than by area, since the mark is
+  taller than it is wide. Back texts are written mirrored and the flame
+  polygon is mirrored in x, so both read correctly from the back;
+  `check_silk.py` fails on an unmirrored back text. Until rev B.5 the flame
+  was the top of the front nameplate and had been squeezed to 62 % against a
+  60 % floor; JLC prices two-sided silkscreen the same as one-sided.
 
 This used to be the hand-measured constant `TITLE_POCKET = (68, 63, 86, 95)`,
 and the search reproduces exactly that rectangle from the placement it was
@@ -1498,8 +1511,9 @@ Two properties of that block are worth knowing before editing it:
   table — and `check_silk.py` fails if the two have drifted apart. Silkscreen
   is one colour and a KiCad polygon has no holes, so the gradient tile the
   web mark sits on cannot come along; what ports is Lucide's outline, stroked
-  at its own 2-units-in-24 proportion (1.16 mm at an 11 mm glyph), which is
-  `(fill no)` plus a scaled stroke width. Filling it instead closes the inner
+  at its own 2-units-in-24 proportion, which is `(fill no)` plus a scaled
+  stroke width. Sizes are the **inked** height, stroke included
+  (`logo.extent()`), so the layout boxes what actually prints. Filling it instead closes the inner
   curl up and stops being the brand mark.
 
 That last point needed one change in the packer. `silk.py` collected only
