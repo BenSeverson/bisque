@@ -33,7 +33,7 @@ what differs.
 | SSR × 2 | Omron **G3NA-240B** (40 A) or Crydom D2440-class | DC input 5–24 V, zero-cross, **with a datasheet control↔load isolation rating** — this is the only mains barrier to the board, see the KiCad README |
 | SSR heatsinks × 2 | Omron **Y92B-N100** (1.63 K/W) or per vendor pairing table | See "Thermal design" — the sizing rule, not the part number, is the requirement |
 | Mains distribution | DIN terminal blocks, 2× DIN fuse holder or MCB (controller feed + aux), PE block | On the same DIN rail as the PSU |
-| Contactor (strongly recommended) | Definite-purpose contactor sized for total element current | In series with both SSR outputs, dropped by the mechanical over-temp cutout / E-stop loop |
+| Contactor (strongly recommended) | Definite-purpose contactor sized for total element current | In series with both SSR outputs, dropped by the mechanical over-temp cutout / E-stop loop. Not fitting one? See [One SSR per hot leg](#one-ssr-per-hot-leg-no-contactor) for what a second SSR does and does not replace |
 | CT × 2 | Split-core CT matched to the board's 5.1 Ω burden (full scale ≈ 139 A rms) | Clamped on each zone's load conductor inside the box, twisted pair to J12 |
 | Wi-Fi antenna | U.FL → SMA bulkhead pigtail + 2.4 GHz antenna | Off-BOM accessory from the KiCad README; the steel box is exactly why the 1U module was chosen |
 | Enclosure | Generic 16 × 12 × 6 in IP66 steel wall-mount box with inner plate | See below |
@@ -171,6 +171,73 @@ bond board GND to the earthed door.
   ground screw; every gland on the
   mains side metallic and seated on bare metal or star washers.
 
+## One SSR per hot leg (no contactor)
+
+The board drives an SSR's control input directly and needs nothing else to
+fire a kiln. The contactor in the parts table is there for one reason: an
+SSR usually fails **shorted**, and everything this controller can do —
+firmware over-temp trip, lid interlock, the hardware watchdog — works by
+removing the SSR's control signal, which a shorted SSR ignores. If you are
+not fitting a contactor, this is the layout that still survives a single
+shorted SSR.
+
+**The wiring.** On a 240 V element fed line-to-line, put one SSR in each
+hot leg and drive both from the same output: both SSR inputs in parallel
+on `J4`, `+` to `OUT` and `−` to `GND`. The element current has to pass
+through both, so either one opening stops the heat. Two inputs and the
+board indicators draw about 40 mA against the 280 mA the terminals have
+at 50 °C (`DESIGN-NOTES.md`, the SSR block). The CT still goes on one
+load conductor per zone.
+
+- Use two SSRs of the same model. A zero-cross SSR decides when to fire
+  from the voltage across itself, so at first power check with a clamp
+  meter that the pair draws full element current at 100 % output.
+- Use `J4` for both. `J9` is zone 2's output and firmware does not drive
+  it yet (`KILN_PIN_SSR2` in `main/Kconfig.projbuild`), which also means
+  the two SSR positions on the back panel are one zone's pair, not two
+  zones. A two-zone kiln built this way is four SSRs and the larger box.
+- This only holds when the element is the only path between the two legs.
+  On a 120 V kiln, or one with a neutral-connected load, put both SSRs in
+  the hot conductor and never switch the neutral.
+
+**Why one per leg rather than both in one leg.** Either arrangement breaks
+the circuit with one SSR shorted. One per leg also opens both conductors
+when healthy, so an element that sags onto the grounded shell is not left
+fed from an unswitched leg — with both SSRs in one leg that fault heats
+part of the element continuously, at a current a breaker may never see as
+a fault. After one SSR has shorted, the element sits at 120 V to ground
+with the kiln idle, which is where every single-SSR kiln sits all the
+time.
+
+**What it does not do.** It is redundancy on the switch and nothing more:
+
+- **Both can fail together.** The two SSRs carry the same fault current
+  and sit in the same hot box, so one element short or one cooked heatsink
+  can short both. Fuse each zone with a fast semiconductor fuse whose I²t
+  is below the SSR's — a breaker does not protect an SSR — and keep to the
+  70 % derating in "Thermal design".
+- **The first failure is silent.** With one SSR shorted the kiln fires
+  normally, and you are back to a single SSR without knowing it. Nothing
+  on the board detects this: current metering is not implemented (RB-10 in
+  `docs/firmware-backlog.md`). Check by hand — mains disconnected and
+  locked out, an ohmmeter across each SSR's load terminals reads open on a
+  healthy part and near zero on a shorted one. Do it at commissioning,
+  after any breaker trip or element failure, and on a schedule you will
+  actually keep.
+- **A wrong heat command passes straight through.** Both SSRs obey the same
+  output, so a thermocouple reading low or a firmware fault that asks for
+  heat gets heat. Only a cutout with its own sensor covers that. If the
+  kiln still has its Kiln Sitter, leave it in series with the elements,
+  set a cone above the hottest firing you run.
+- **There is no off switch that works without the controller**, and an SSR
+  leaks when off, so the elements are never safe to touch on the SSRs
+  alone. Fit a lockable disconnect ahead of the box and use it before
+  opening the kiln's wiring.
+
+This is a real improvement on a single SSR and it is not equivalent to a
+contactor on an independent over-temperature loop, which covers all four
+of the points above.
+
 ## Thermal design
 
 The SSRs are the only significant heat source. A hockey-puck SSR drops
@@ -190,6 +257,11 @@ full-power firing; if it exceeds 80 °C, add the fan. Always follow the
 SSR vendor's own derating curve for the specific SSR/heatsink pairing
 (Omron publishes G3NA ↔ Y92B charts), and derate the SSR itself to
 ≤ 70 % of nameplate.
+
+With [one SSR per hot leg](#one-ssr-per-hot-leg-no-contactor) each SSR
+still dissipates the table's figure, but there are two per zone, so one
+zone heats the box like two: give each SSR its own heatsink and size the
+airflow for the total.
 
 **Ventilation.** For the passive chimney: a louvred vent low on the
 right (mains) side wall and another high on the same wall, both with
@@ -249,8 +321,9 @@ maximum input is **40 V**. Two consequences worth knowing:
    excursion during a clamped supply fault does not destroy it. The
    amber board LEDs show true drive state.
 4. Megger/continuity-check the mains side with the SELV loom
-   disconnected, prove the over-temp cutout drops the contactor, then
-   fire the bench smoke test (`docs/bench-smoke-test.md`) before the
+   disconnected, prove the over-temp cutout drops the contactor (on a
+   one-SSR-per-leg build, do the shorted-SSR ohmmeter check from that
+   section instead), then fire the bench smoke test (`docs/bench-smoke-test.md`) before the
    first real firing.
 
 ## Revision 2 — touch-only door
