@@ -134,7 +134,7 @@ fi
 
 if [ -z "$_idf_root" ]; then
     echo "idf-env: no ESP-IDF install found." >&2
-    echo "  Install it (https://docs.espressif.com/projects/esp-idf/en/v6.1/esp32s3/get-started/)" >&2
+    echo "  Install it (https://docs.espressif.com/projects/esp-idf/en/v6.1.1/esp32s3/get-started/)" >&2
     echo "  or point IDF_PATH at an existing one, then re-run." >&2
     unset _idf_root
     _idf_cleanup
