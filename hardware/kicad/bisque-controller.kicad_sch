@@ -6,10 +6,10 @@
 	(paper "A3")
 	(title_block
 		(title "Bisque Kiln Controller")
-		(date "2026-10-22")
-		(rev "B.5")
+		(date "2026-11-26")
+		(rev "C")
 		(company "Bisque project")
-		(comment 1 "ESP32-S3-WROOM-1U-N16R2 + 2x MAX31856 + dual SSR + ADE7953")
+		(comment 1 "ESP32-S3-WROOM-1U-N16R2 + 2x MAX31856 + dual SSR + CT (ADC)")
 		(comment 2 "4-layer, 100 x 100 mm, JLCPCB standard process")
 	)
 	(lib_symbols
@@ -421,17 +421,6 @@
 	)
 	(wire
 		(pts
-			(xy 58.42 106.68)
-			(xy 93.98 106.68)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "5101253b-d19c-5385-8935-0ff2ed273a8e")
-	)
-	(wire
-		(pts
 			(xy 139.7 68.58)
 			(xy 154.94 68.58)
 		)
@@ -539,17 +528,6 @@
 			(type default)
 		)
 		(uuid "ce9d66c2-3a39-5ae2-981f-a5e219c96c02")
-	)
-	(wire
-		(pts
-			(xy 58.42 109.22)
-			(xy 93.98 109.22)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "d7f3e32e-a0e7-5e5c-874f-c6651b6f8483")
 	)
 	(wire
 		(pts
@@ -741,26 +719,6 @@
 			)
 			(uuid "0804d66b-c5d6-50f2-a914-f31a32d5418b")
 		)
-		(pin "I2C_SDA" bidirectional
-			(at 93.98 106.68 180)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-			(uuid "7cd8af82-29ac-5737-9dcb-f4a42458631c")
-		)
-		(pin "I2C_SCL" bidirectional
-			(at 93.98 109.22 180)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-			(uuid "54e7ea67-b3e8-5c24-84ac-03e8e6863927")
-		)
 		(pin "SSR1_CTRL" output
 			(at 139.7 30.48 0)
 			(effects
@@ -861,7 +819,7 @@
 			)
 			(uuid "231b8230-4936-5d9b-9948-71805170b8d9")
 		)
-		(pin "ADE_RESET" output
+		(pin "CT_SENSE" input
 			(at 93.98 111.76 180)
 			(effects
 				(font
@@ -926,27 +884,7 @@
 				(justify left top)
 			)
 		)
-		(pin "I2C_SDA" bidirectional
-			(at 58.42 106.68 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-			(uuid "ba3443ac-e5c0-53b3-923f-c2d157920fbf")
-		)
-		(pin "I2C_SCL" bidirectional
-			(at 58.42 109.22 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-			(uuid "450c10e4-7e1e-5ad7-a0a9-bfe49958731c")
-		)
-		(pin "ADE_RESET" input
+		(pin "CT_SENSE" output
 			(at 58.42 111.76 0)
 			(effects
 				(font
