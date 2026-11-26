@@ -107,7 +107,8 @@ everything about zones is firmware.
 
 - **Input.** `CT_SENSE` (`KILN_PIN_CT`, an ADC1 pin). It sits at about 1.65 V
   with the burden voltage riding on it. Use the continuous (DMA) ADC driver
-  at about 2 kHz, subtract the measured mean, and take the RMS over a whole
+  at 4 kHz or faster (the board's R32/C58 filter corner is 1.6 kHz, so a
+  slower rate folds noise back in), subtract the measured mean, and take the RMS over a whole
   number of mains cycles. One per-board calibration constant turns counts
   into amps. No dependency on RB-9.
 - **Single zone.** The reading is the kiln's total current. While the SSR is

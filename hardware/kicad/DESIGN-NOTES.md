@@ -2878,7 +2878,7 @@ one of the three pads an octal-PSRAM module keeps for itself, so a later
 move to that module has one signal fewer to relocate. The table is
 `docs/pin-assignments.md` section 1.
 
-**C58 is 5.6 mm from the module pad, not beside it.** The plan was within
+**C58 is 6.3 mm from the module pad, not beside it.** The plan was within
 3 mm. West of the pad row R64, C48 and C6 fill the board and EN runs on F.Cu
 between them and the pads; east of it is under the module. C58 sits in the
 last free patch, under R9, on a hand-routed and LOCKED link: F.Cu from the
@@ -2892,8 +2892,10 @@ closer, the fix is to move EN's F.Cu leg and open a lane west of the pad.
 **The run.** `CT_SENSE` is 77 mm, from the CT corner to the module's west
 side, mostly down the corridor `LED_DATA` used to occupy. It stays out of
 the thermocouple front-end area (nothing east of x = 88 mm above y = 66 mm),
-is 27 mm from the buck's switch node at its nearest, and has about 3 mm of
-same-layer neighbours within 0.75 mm along its whole length. It crosses the
+is 27 mm from the buck's switch node at its nearest. Its only real same-layer
+company is in the escape fan under the module, where it runs between `T_CS`
+and `ALARM` for 8 to 9 mm at 0.6 mm gaps; both are quasi-static. Elsewhere
+nothing shares its layer within 0.75 mm for more than a millimetre. It crosses the
 SPI bus on the opposite outer layer with both planes between. No checker
 knows this net is analog; `gen_pcb.ROUTE_ORDER` routes it as an ordinary
 module escape, so re-check these three things after any re-route.

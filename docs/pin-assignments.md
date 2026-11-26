@@ -82,6 +82,13 @@ and the touch controller is polled instead) and `IN3` (an unassigned input).
 `KILN_PIN_STATUS_LED` still exists for perfboard and dev-kit builds and
 defaults to −1, so it has no row here.
 
+**Coming from a rev B build tree? Delete `sdkconfig` and rebuild.** A changed
+Kconfig default does not rewrite an existing `sdkconfig`, so a tree configured
+before rev C still has the touch interrupt on the pin that is now the CT input
+and the status LED on the pin that is now the touch interrupt. `main.c`
+refuses to compile when two of those three share a GPIO (`app_pin_checks.h`),
+which catches that tree; `rm sdkconfig` (it is untracked) and a rebuild picks up the rev C map.
+
 ### Defaults now match the board
 
 Every `KILN_PIN_*` defaults to the GPIO the PCB wires its net to

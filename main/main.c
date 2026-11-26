@@ -14,6 +14,7 @@
 #include "esp_sntp.h"
 
 #include "app_config.h"
+#include "app_pin_checks.h"
 #include "thermocouple.h"
 #include "firing_engine.h"
 #include "safety.h"

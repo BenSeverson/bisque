@@ -79,7 +79,7 @@ trivially:
 | Situation | Box |
 |---|---|
 | ≤ 25 A per zone, no contactor | 16 × 12 × 6 in generic (baseline), ~$60 |
-| Up to 40 A per zone, contactor + aux PSU fitted | 20 × 16 × 6 in generic (~$80–100); Hammond EN4SD20166GY + EP2016 if listed gear is required |
+| Up to 40 A per zone, contactor + aux PSU fitted | 20 × 16 × 6 in generic (~$80–100); Hammond EN4SD20166GY + EP2016 if listed gear is required. Two zones at this size total more than the CT input's 68 A full scale: refit the burden (see the CT bullet under the back panel) |
 | Inspected / commercial install | Hammond EN4SD16126GY + EP1612 (UL listed, ~$275 all-in) |
 
 ## Layout
@@ -336,7 +336,7 @@ maximum input is **40 V**. Two consequences worth knowing:
 
 A v2 door with **no buttons at all**: the 5-way nav switch is gone and the
 MSP4021's own resistive touch panel is the only local input. Everything on
-the back panel — PSU, SSRs, heatsinks, mains distribution, CTs, thermal
+the back panel — PSU, SSRs, heatsinks, mains distribution, the CT, thermal
 design, grounding — is **unchanged**. Only the door changes.
 
 Drill from **`door-template-touch.svg`**, not `door-template.svg`.
