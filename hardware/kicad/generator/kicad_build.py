@@ -133,15 +133,14 @@ MODEL_FIXUP = {
     # (Y up), i.e. toward the mating face; measured from a STEP export.
     "J1": dict(file="USB_C_Receptacle_HRO_TYPE-C-31-M-12", rotate=(0, 0, 180),
                offset=(0.0, -1.05, 0.0)),
-    "U7": dict(file="QFN-28-1EP_5x5mm_P0.5mm_EP3.1x3.1mm"),
     "SW1": dict(file="SW_Push_1P1T_XKB_TS-1187A"),
     "SW2": dict(file="SW_Push_1P1T_XKB_TS-1187A"),
-    # Y1 - the fifth footprint KiCad 10 ships no model for. It DECLARES one at
+    # Y1 (the ADE7953's oscillator; the part and its entry left in rev C) was
+    # the fifth footprint KiCad 10 ships no model for. It DECLARES one at
     # ${KICAD10_3DMODEL_DIR}/Oscillator.3dshapes/..., and that directory exists
     # with nine other parts in it, so the reference looks satisfied right up
     # until the render quietly omits the part. c_rotation is "0,0,0", so unlike
     # J1 there is nothing to correct.
-    "Y1": dict(file="Oscillator_SMD_Abracon_ASE-4Pin_3.2x2.5mm"),
     # F1 - the sixth, and the one that proves the trap is still live. The
     # footprint declares ${KICAD10_3DMODEL_DIR}/Fuse.3dshapes/
     # Fuse_1812_4532Metric.step and that directory exists with 0402, 0603,

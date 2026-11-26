@@ -166,7 +166,8 @@ VERIFIED_ON = "2026-09-09"    # C75882, C55144 and C17557 added 2026-09-21
 # built from and wrong here in two ways that reached the assembly preview:
 # `^SOT-23 -> 180` also matches SOT-23-**6**, whose LCSC land is drawn across
 # the pins rather than along them (270, not 180), and `^QFN- -> 90` is 180 out
-# for the ADE7953's LFCSP-28. A per-part fit cannot make that class of mistake.
+# for the ADE7953's LFCSP-28 (a part rev C has since removed). A per-part fit
+# cannot make that class of mistake.
 #
 # dx/dy are millimetres in the CPL's frame (x right, y up), applied after the
 # part's own board rotation. They are zero for all but two parts: KiCad anchors
@@ -184,7 +185,6 @@ JLC_PLACEMENT = {
     "C160404":  (  0,  0.000,  0.000),   # J14   JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00m resid 0.000 (4 pin#)
     "C165948":  (  0,  0.000,  1.571),   # J1    USB_C_Receptacle_HRO_TYPE-C-31-M-12  resid 0.000 (8 pin#)
     "C1710":    (  0,  0.000,  0.000),   # C16   C_0805_2012Metric                    resid 0.050 (2 pin#)
-    "C1739":    (  0,  0.000,  0.000),   # C31   C_0805_2012Metric                    resid 0.050 (2 pin#)
     "C17408":   (  0,  0.000,  0.000),   # R14   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17414":   (  0,  0.000,  0.000),   # R1    R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17621":   (  0,  0.000,  0.000),   # R63   R_0805_2012Metric                    resid 0.088 (2 pin#)
@@ -192,14 +192,12 @@ JLC_PLACEMENT = {
     "C17514":   (  0,  0.000,  0.000),   # R46   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17557":   (  0,  0.000,  0.000),   # R6    R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C17701004": (  0, 16.510,  0.000),   # J5    Molex_KK-254_AE-6410-14A_1x14_P2.54m resid 0.000 (14 pin#)
-    "C17724":   (  0,  0.000,  0.000),   # R31   R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C1779":    (  0,  0.000,  0.000),   # C27   C_0805_2012Metric                    resid 0.050 (2 pin#)
     "C20917":   (180,  0.000,  0.000),   # Q5    SOT-23                               resid 0.083 (3 pin#)
     "C22375294": (  0,  0.000,  0.000),   # D11   D_SOD-323                            resid 0.089 (2 pin#)
     "C2297":    (  0,  0.000,  0.000),   # LED2  LED_0805_2012Metric                  resid 0.113 (2 pin#)
     "C239381":  (  0,  6.350,  0.000),   # J6    Molex_KK-254_AE-6410-06A_1x06_P2.54m resid 0.000 (6 pin#)
     "C240822":  (180,  8.890,  0.000),   # J7    Molex_KK-254_AE-6410-08A_1x08_P2.54m resid 0.000 (8 pin#)
-    "C2838127": (  0,  0.000,  0.000),   # Y1    Oscillator_SMD_Abracon_ASE-4Pin_3.2x resid 0.071 (4 pin#)
     "C2653162": (270,  0.000,  0.000),   # U3    TSSOP-14_4.4x5mm_P0.65mm             resid 0.062 (14 pin#)
     "C27834":   (  0,  0.000,  0.000),   # R4    R_0805_2012Metric                    resid 0.088 (2 pin#)
     "C28323":   (  0,  0.000,  0.000),   # C5    C_0805_2012Metric                    resid 0.050 (2 pin#)
@@ -212,7 +210,6 @@ JLC_PLACEMENT = {
     # only the pad NUMBERING carries the polarity, and on a 100 uF
     # electrolytic getting it wrong vents the part on first power-up.
     "C178540":  (  0,  0.000,  0.000),   # C46   CP_Elec_6.3x5.8                      resid 0.030 (2 pin#)
-    "C2920042": (  0,  0.000,  0.000),   # LED1  LED_WS2812B_PLCC4_5.0x5.0mm_P3.2mm   resid 0.100 (4 pin#)
     "C3013945": (  0,  0.000, -0.477),   # U1    ESP32-S3-WROOM-1U                    resid 0.022 (40 pin#)
     "C318884":  (  0,  0.000,  0.000),   # SW1   SW_Push_1P1T_XKB_TS-1187A            resid 0.025 (4 shape)
     "C14663":   (  0,  0.000,  0.000),   # C51   C_0603_1608Metric                    fitted by check_jlc_placement
@@ -223,7 +220,6 @@ JLC_PLACEMENT = {
     # the half turn that a 2-pad land never can.
     "C52923":   (  0,  0.000,  0.000),   # C47   C_0402_1005Metric                    resid 0.060 (2 pin#)
     "C55144":   (180,  0.000,  0.000),   # U8    SOP-4_4.4x2.6mm_P1.27mm              resid 0.312 (4 pin#)
-    "C515890":  (270,  0.000,  0.000),   # U7    QFN-28-1EP_5x5mm_P0.5mm_EP3.1x3.1mm  resid 0.075 (29 pin#)
     "C48937499": (270, -0.287, -0.000),  # U2    SOT-223-3_TabPin2                    resid 0.000 (2 pin#)
     "C7420376": (270,  0.000,  0.000),   # U4    SOT-23-6                             resid 0.062 (6 pin#)
     "C2827672": (270,  0.000,  0.000),   # D18   SOT-23-6                             resid 0.012 (6 pin#)
@@ -306,7 +302,6 @@ LCSC = {
     "C5": ("C28323", "CL21B105KBFNNNE 1uF 50V X7R 0805", True, True),
     "C6": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
     "C7": ("C15850", "CL21A106KAYNNNE 10uF 25V X5R 0805", True, True),
-    "C10": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
     "C11": ("C15850", "CL21A106KAYNNNE 10uF 25V X5R 0805", True, True),
     "C12": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
     "C13": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
@@ -321,21 +316,8 @@ LCSC = {
     "C22": ("C1710", "CL21B103KBANNNC 10nF 50V X7R 0805", True, True),
     "C23": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
     "C24": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
-    "C25": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
-    "C27": ("C1779", "CL21A475KAQNNNE 4.7uF 25V X5R 0805", True, True),
-    "C28": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
-    "C29": ("C1779", "CL21A475KAQNNNE 4.7uF 25V X5R 0805", True, True),
-    "C30": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
-    "C31": ("C1739", "0805B333K500NT 33nF 50V X7R 0805", True, True),
-    "C32": ("C1739", "0805B333K500NT 33nF 50V X7R 0805", True, True),
-    "C33": ("C1779", "CL21A475KAQNNNE 4.7uF 25V X5R 0805", True, True),
-    "C34": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
-    "C35": ("C15850", "CL21A106KAYNNNE 10uF 25V X5R 0805", True, True),
-    "C36": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
-    "C37": ("C28323", "CL21B105KBFNNNE 1uF 50V X7R 0805", True, True),
     "C38": ("C28323", "CL21B105KBFNNNE 1uF 50V X7R 0805", True, True),
     "C39": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603", True, True),
-    "C40": ("C1739", "0805B333K500NT 33nF 50V X7R 0805", True, True),
     # Buck input, chosen on Samsung's DC-bias curve, not the nominal: a 1210
     # X7R 4.7 uF holds 3.1 uF at 24 V and 2.7 uF at 29 V, where the 1206 X5R
     # 10 uF it replaced held 1.35 uF (PCB review 2026-10-05 item 3).
@@ -375,8 +357,10 @@ LCSC = {
     "C53": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603 - SPI return path", True, True),
     "C54": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603 - SPI return path", True, True),
     "C55": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603 - U13 output", True, True),
+    "C56": ("C15850", "CL21A106KAYNNNE 10uF 25V X5R 0805 - CT bias bypass", True, True),
+    "C57": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603 - CT bias bypass", True, True),
+    "C58": ("C14663", "CC0603KRX7R9BB104 100nF 50V X7R 0603 - CT_SENSE filter, at U1", True, True),
     "C49": ("C28323", "CL21B105KBFNNNE 1uF 50V X7R 0805", True, True),
-    "D3": ("C3018540", "1N4007W SOD-123 - VLED drop diode, silicon on purpose", False, True),
     "D4": ("C3018540", "1N4007W SOD-123 - buzzer freewheel", False, True),
     "D6": ("C7420376", "SRV05-4 TVS array SOT-23-6", True, True),
     # 60 V, not the SS34's 40 V: the catch diode sees the input rail in
@@ -441,13 +425,6 @@ LCSC = {
     "J14": ("C160404", "JST SM04B-SRSS-TB(LF)(SN) SH 1x04", False, True),
     "J15": ("C8465", "WJ500V-5.08-2P 5.08mm screw terminal 1x02", False, True),
     "J16": ("C8465", "WJ500V-5.08-2P 5.08mm screw terminal 1x02", False, True),
-    "J17": ("C8465", "WJ500V-5.08-2P 5.08mm screw terminal 1x02", False, True),
-    # WS2812E-V5 since 2026-11-07. The -B/T (C2761795) went out of stock on
-    # 2026-10-30 and its replacement, the -V5/W (C2874885), followed it a
-    # week later. Same Worldsemi 5050 outline and 1 VDD / 2 DOUT / 3 VSS /
-    # 4 DIN pinout; VIH is a fixed 2.7 V again (the -V5/W's was 0.63*VDD),
-    # and VDD 3.7-5.3 V takes D3's ~4.15 V VLED.
-    "LED1": ("C2920042", "WS2812E-V5 5050 RGB", False, True),
     "LED2": ("C2297", "KT-0805G green LED 0805", True, True),
     "LED3": ("C2297", "KT-0805G green LED 0805", True, True),
     "LED4": ("C2297", "KT-0805G green LED 0805", True, True),
@@ -476,7 +453,6 @@ LCSC = {
     "Q8": ("C15127", "AO3401A P-channel SOT-23 - reverse polarity", True, True),
     "R1": ("C17414", "10k 0805 1%", True, True),
     "R2": ("C17414", "10k 0805 1%", True, True),
-    "R3": ("C17557", "220R 0805 1%", True, True),
     "R4": ("C27834", "5.1k 0805 1%", True, True),
     "R5": ("C27834", "5.1k 0805 1%", True, True),
     "R6": ("C17557", "220R 0805 1%", True, True),
@@ -503,15 +479,8 @@ LCSC = {
     "R27": ("C17414", "10k 0805 1%", True, True),
     "R28": ("C149504", "100k 0805 1% - J11 series, limits a 24 V miswire to 0.25 mA", True, True),
     "R29": ("C17414", "10k 0805 1%", True, True),
-    "R30": ("C17414", "10k 0805 1%", True, True),
-    "R31": ("C17724", "0805W8F510KT5E 5.1R 0805 1%", True, True),
+    "R31": ("C17408", "100R 0805 1% - CT burden, in parallel with R81", True, True),
     "R32": ("C17513", "1k 0805 1%", True, True),
-    "R33": ("C17513", "1k 0805 1%", True, True),
-    "R34": ("C17724", "0805W8F510KT5E 5.1R 0805 1%", True, True),
-    "R35": ("C17513", "1k 0805 1%", True, True),
-    "R36": ("C17513", "1k 0805 1%", True, True),
-    "R37": ("C17414", "10k 0805 1%", True, True),
-    "R38": ("C17414", "10k 0805 1%", True, True),
     "R39": ("C23140", "33R 0603 5%", True, True),
     "R40": ("C23140", "33R 0603 5%", True, True),
     "R41": ("C23140", "33R 0603 5%", True, True),
@@ -532,16 +501,12 @@ LCSC = {
     "R56": ("C23140", "33R 0603 5%", True, True),
     "R57": ("C23140", "33R 0603 5%", True, True),
     "R58": ("C23140", "33R 0603 5%", True, True),
-    "R59": ("C17513", "1k 0805 1%", True, True),
-    "R60": ("C17513", "1k 0805 1%", True, True),
-    "R61": ("C17513", "1k 0805 1%", True, True),
     "R62": ("C149504", "100k 0805 1%", True, True),
     # 30k is the one new passive value this board gained. Basic, so fee-free;
     # with R64 it sets U12's buck-priority threshold at 4.0V - see DESIGN-NOTES.md
     # at U12 for why that number is pinned from both ends rather than rounded.
     "R63": ("C17621", "30k 0805 1%", True, True),
     "R64": ("C17414", "10k 0805 1%", True, True),
-    "R65": ("C17513", "1k 0805 1%", True, True),
     "R66": ("C149504", "100k 0805 1%", True, True),
     "R67": ("C149504", "100k 0805 1%", True, True),
     "R68": ("C17621", "30k 0805 1%", True, True),
@@ -559,6 +524,9 @@ LCSC = {
     "R73": ("C23140", "33R 0603 1%", True, True),
     "R79": ("C23140", "33R 0603 1% - LCD_RST series", True, True),
     "R80": ("C23140", "33R 0603 1% - LCD_BL series", True, True),
+    "R81": ("C23140", "33R 0603 1% - CT burden, in parallel with R31", True, True),
+    "R82": ("C17414", "10k 0805 1% - CT bias divider", True, True),
+    "R83": ("C17414", "10k 0805 1% - CT bias divider", True, True),
     "SW1": ("C318884", "TS-1187A-B-A-B 5.1x5.1mm SMD tactile switch", True, True),
     "SW2": ("C318884", "TS-1187A-B-A-B 5.1x5.1mm SMD tactile switch", True, True),
     # Containment, not isolation - see DESIGN-NOTES.md's SSR block. SOP-4 rather
@@ -577,7 +545,6 @@ LCSC = {
     "U4": ("C7420376", "SRV05-4 TVS array SOT-23-6", True, True),
     "U5": ("C2653162", "MAX31856MUD+T TSSOP-14", False, True),
     "U6": ("C7512", "ULN2003ADR SOIC-16 Darlington array", True, True),
-    "U7": ("C515890", "ADE7953ACPZ-RL LFCSP-28 energy metering", False, True),
     "U10": ("C123302", "SN74LVC1G123DCTR retriggerable monostable SSOP-8", False, True),
     "U11": ("C61063", "XL1509-5.0E1 4.5-40Vin 5V fixed 2A 150kHz buck SOIC-8", True, True),
     # The +5V source select, replacing the SS34 ORing diode that was D2.
@@ -588,7 +555,6 @@ LCSC = {
     # hand the rail to whichever input happened to be higher.
     "U12": ("C3235557", "TPS2116DRLR 2.5A power mux SOT-583", False, True),
     "U13": ("C500764", "AP2331SA-7 200mA current-limited switch SOT-23 - J7/J14 3V3", False, True),
-    "Y1": ("C2838127", "TFOM3.579545M4RHKCNT2T 3.579545MHz XO SMD3225-4P", False, True),
 }
 
 # LCSC part -> what it is. The parts JLCPCB's part page marks "Standard Only".
@@ -652,7 +618,7 @@ def hand_solder():
     are also written to mouser-order.csv.
 
     Empty since 2026-10-30: JLCPCB fits every part. The through-hole parts
-    and LED1 cost ~$22 for 5 boards fitted there (LCSC parts, $0.0164 a
+    (and, until rev C removed it, LED1) cost ~$22 for 5 boards fitted there (LCSC parts, $0.0164 a
     manual joint, $3.58 hand-soldering labor per order) against ~$110 for the
     genuine Phoenix/Molex parts from Mouser with US tariff, so the soldering
     iron saves nothing. Their Assembly field now reads `Optional hand solder
@@ -664,10 +630,9 @@ def hand_solder():
     any through-hole part forces the whole order onto Standard assembly
     (Economic is SMD, top-side only), where EVERY line pays a feeder fee. The
     through-hole parts are connectors and a buzzer on 2.54 mm and 5.08 mm
-    pitch - the easiest joints on the board. LED1 is there for cost, not
-    solderability: no addressable RGB LED at LCSC is a Basic part (checked
-    across WS2812/SK6812/XL-xxxx), so its feeder buys nothing a soldering iron
-    can't do to a 5050 with four edge-accessible pads.
+    pitch - the easiest joints on the board. (LED1, the status LED rev C
+    removed, was on the list for cost: no addressable RGB LED at LCSC is a
+    Basic part.)
 
     This was meant to take the order from Standard assembly to Economic, and
     it does not: U1 is a "Standard Only" part (STANDARD_ONLY), so the order is
@@ -747,10 +712,6 @@ MOUSER_ALT = {
     "C96093": ("CMI-1295-0585T", "Same Sky",
                "active magnetic buzzer, 5V, 12x9.5mm THT, 7.6mm pitch",
                "12x9.5mm body, 7.6mm pitch, 5V THT active - datasheet-verified"),
-    # Mouser hosts WS2812B datasheets and sells third-party modules built on
-    # it, but no bare Worldsemi 5050 could be found in their catalog.
-    "C2920042": ("", "", "",
-                 "NOT AT MOUSER - source from LCSC, DigiKey, Adafruit or SparkFun"),
 }
 
 # Cable-side parts: the female crimp housings and terminals that mate with the

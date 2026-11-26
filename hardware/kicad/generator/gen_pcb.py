@@ -179,7 +179,8 @@ def fp_body_box(comp):
 # History, since the three pads each went a different way (2026-10-26, the
 # "17 exposed-pad vias in paste" item of the 2026-10-05 PCB review):
 #
-#   U7 pad 29 - the ADE7953's exposed pad. Datasheet Table 5 is explicit:
+#   U7 pad 29 - the ADE7953's exposed pad (the part and its entry left with
+#     rev C; kept here because it is why the table exists). Datasheet Table 5:
 #     "Connect the pad to AGND and DGND". It is the part's analog ground
 #     reference, not a heatsink, and it had ZERO vias - nearest GND via
 #     3.36 mm away. STILL has vias in the pad, four of them, but the pad is
@@ -213,11 +214,9 @@ def fp_body_box(comp):
 # A value is either n, for a symmetric n x n grid spanning the pad, or an
 # explicit list of (fx, fy) offsets in [-1, 1] as fractions of the usable
 # half-span, for a pad that cannot be filled symmetrically. Nothing has
-# regenerated the board from this table since 2026-10-06; U7's entry below
-# describes the pre-2026-10-26 placement and is kept for the exemption.
-EP_VIA_GRID = {
-    ("U7", "29"): [(0.15, -1.0), (1.0, -1.0), (0.15, 1.0), (1.0, 1.0)],
-}
+# regenerated the board from this table since 2026-10-06. Empty since rev C:
+# U7 (the ADE7953) was its last entry, so no pad on the board may carry a via.
+EP_VIA_GRID = {}
 
 # A pin number does NOT identify the exposed pad. Several footprints here give
 # one number to several separate pieces of copper - the SOT-223's tab and its
@@ -256,11 +255,11 @@ def is_ep_pad(num, want, w_mm, h_mm):
 # without a seeded escape its pads report "0 goal nodes, free neighbours F=0"
 # - the front layer between 0.5 mm-pitch pads is entirely clearance, and
 # via-in-pad is forbidden, so a pad with no lane cannot start a route at all.
-# 1.75 mm, the same length U7 needs: at 0.5 mm pitch four parallel stubs
+# 1.75 mm, the length U7 (the ADE7953, gone in rev C) needed: at 0.5 mm pitch four parallel stubs
 # leave only a 0.2 mm gap between them, so they need to run clear of the
 # pad row before they can fan out at all. 1.25 mm was not enough - pin 2
 # never got a lane and WDT_KICK could not leave the part.
-FANOUT = {"U7": 1.75, "U3": 1.5, "U5": 1.5, "U10": 1.75, "U12": 1.75}
+FANOUT = {"U3": 1.5, "U5": 1.5, "U10": 1.75, "U12": 1.75}
 SIG_W = 0.3           # default signal track width; see ROUTE_ORDER
 FANOUT_WIDTH = 0.25   # fine-pitch escapes only; see the ROUTE_ORDER comment
 
@@ -455,8 +454,10 @@ def stackup_sexp(indent="\t\t"):
     # A real finish, not "None": KiCad copies this into the .gbrjob's Finish
     # field, and "None" told the fab nothing — the order form was the only
     # place the finish existed, so a mis-click there had nothing to disagree
-    # with. ENIG for the flat pads: the ADE7953 is a 0.5 mm-pitch QFN with a
-    # 3.1 mm exposed pad, and HASL's crown is worst exactly under a large EP.
+    # with. ENIG for the flat pads: U10 (VSSOP-8) and U12 (SOT-583) are
+    # 0.5 mm-pitch parts, where HASL's uneven crown is what bridges or opens
+    # a joint. (Until rev C the reason was the ADE7953's QFN and its 3.1 mm
+    # exposed pad.)
     # Change this string and the order form together, or the check below is
     # worthless.
     out.append('%s\t(copper_finish "ENIG")' % indent)
@@ -592,7 +593,7 @@ ROUTE_ORDER = [
     # short distribution downstream of the mux. It goes first of the two for
     # exactly that reason: it is the longer run and the harder to reroute.
     ("BUCK_5V", 0.7),
-    ("+5V", 0.7), ("VLED", 0.7), ("VBUS", 0.5),
+    ("+5V", 0.7), ("VBUS", 0.5),
     ("AUX_VP", 0.7),
     # U11's switch node. Wide because it carries the full inductor current,
     # but deliberately SHORT rather than generous: SW_5V swings the whole
@@ -611,26 +612,13 @@ ROUTE_ORDER = [
     ("SPI_MOSI", SIG_W), ("SPI_SCLK", SIG_W), ("SPI_MISO", SIG_W),
     ("TC1_CS", SIG_W), ("TC2_CS", SIG_W),
     ("I2C_SDA", SIG_W), ("I2C_SCL", SIG_W),
-    # ADE_RESET escapes U7 pin 2 through the same one-track-wide band as the
-    # I2C pair and has to take it while the band is still empty. It used to
-    # get there by luck, sitting back with the other "ADE7953 locals" below;
-    # adding 25 parts re-rolled the order and it came out unroutable, exactly
-    # the way SDA/SCL did before ADE_I2C_SEEDS existed. Promoting it is the
-    # cheap half of that same fix - if it ever fails while routed FIRST, the
-    # lane is genuinely blocked and it needs a seed, not an earlier turn.
-    ("ADE_RESET", SIG_W),
-    # ADE_REF and the channel-2 filtered legs, promoted out of the analog
-    # groups below. Both are SHORT local analog nets and both came out as the
-    # two worst routes on the board by going last: ADE_REF measured 103.1 mm
-    # over 9 vias between U7 pin 13 and its own decoupling (C33/C34), and
-    # TC2_P_F 47.6 mm over 6 against channel 1's 16.3 mm over 2.
-    #
-    # Neither length is a capacity problem and both are accuracy ones. ADE_REF
-    # is the ADE7953's voltage reference - datasheet p.68 wants its ceramics
-    # "closest to the ADE7953", and 103 mm of loop is the opposite. TC2_P_F is
-    # a filtered thermocouple node where 40 uV is a degree. Short nets cost
-    # almost nothing to route first, so being late bought nothing either.
-    ("ADE_REF", SIG_W), ("TC2_P_F", SIG_W), ("TC2_N_F", SIG_W),
+    # The channel-2 filtered legs, promoted out of the analog groups below.
+    # They are SHORT local analog nets and came out among the worst routes on
+    # the board by going last: TC2_P_F measured 47.6 mm over 6 vias against
+    # channel 1's 16.3 mm over 2. That is an accuracy problem, not a capacity
+    # one - TC2_P_F is a filtered thermocouple node where 40 uV is a degree -
+    # and a short net costs almost nothing to route first.
+    ("TC2_P_F", SIG_W), ("TC2_N_F", SIG_W),
     # TC2_P/TC2_N come up with the filtered legs for the same reason, and the
     # reason is now measured rather than assumed: with the filter columns
     # mirrored (design.py R16/R17) TC2_P fell to 8.1 mm over one via, while
@@ -640,26 +628,6 @@ ROUTE_ORDER = [
     # the pair was routed early and the other last. Channel 1 is the control:
     # TC1_P/TC1_N route 35.2 mm over zero vias and do not move.
     ("TC2_P", SIG_W), ("TC2_N", SIG_W),
-    # ADE_SCLK and ADE_CS leave U7 pins 25 and 28 through the same north-edge
-    # fan, and both are two-pad STRAPS to a pull-up 10 mm north (R37, R38).
-    # Left in the "ADE7953 locals" tail, ADE_SCLK routed 136.5 mm over 8 vias
-    # for a 12.5 mm net, taking a lap to y 106 and back.
-    #
-    # They belong here and NOT above ADE_REF, which is where they were tried
-    # first. THAT FAN IS ZERO-SUM: promoted ahead of the reference, ADE_SCLK
-    # fell to 14.7 mm over no vias and ADE_REF rose from 16.8 mm over 2 vias
-    # to 74.6 mm over 8, ADE_VN from 21.5 mm to 61.2 mm over ten, and the
-    # nine-net block as a whole did not move (281.6 -> 274.7 mm, 20 -> 24
-    # vias). Measure the BLOCK, not the net being promoted. Where two nets in
-    # this fan want the same lane the analog one takes it: ADE_REF is the
-    # ADE7953's voltage reference and the datasheet (p.68) wants its ceramics
-    # closest to the chip, while ADE_SCLK is a DC strap that only has to
-    # arrive.
-    ("ADE_SCLK", SIG_W), ("ADE_CS", SIG_W),
-    # The two voltage-channel inputs, for the same reason and with the same
-    # ranking: both are one resistor to one U7 pin, and ADE_VN going last cost
-    # it 61.2 mm over 10 vias for a 21 mm net.
-    ("ADE_VP", SIG_W), ("ADE_VN", SIG_W),
     # Same argument, two more blocks that were paying it. The SSR gate nets
     # are 16 and 19 mm chains from each MOSFET's gate to its 100R/10k pair,
     # entirely inside the switching block, and going last cost them 100.7 mm
@@ -678,25 +646,11 @@ ROUTE_ORDER = [
     ("BUZZ_GATE", SIG_W),
     ("LCD_DC_R", SIG_W), ("LCD_MOSI_R", SIG_W), ("LCD_SCLK_R", SIG_W),
     ("LCD_CS_R", SIG_W), ("LCD_SDO_R", SIG_W),
-    # CTA_N comes with them, and not by choice: promoting the three above took
-    # its lane and it failed. It is the net A10 made longer - the differential
-    # return now reaches R59 as well as R33 and J12 - so it is competing in
-    # the same block for the same reason they are.
-    ("CTA_N", 0.4),
-    # CTA_F and CTA_FN follow CTA_N for the same reason it is here: they are
-    # the same five-part chain and leaving them behind just moves the problem.
-    # Promoting CTA_N alone took the block from 251.0 mm to 279.8 mm - CTA_N
-    # itself fell from 57.5 mm over 6 vias to 25.0 mm over none, and CTA_F and
-    # CTA_FN paid for it, CTA_FN going from 2 vias to 12. Both are analog legs
-    # into U7's current channel; CTA_FN is the filtered one and can afford
-    # distance, but not twelve layer changes.
-    ("CTA_F", SIG_W), ("CTA_FN", SIG_W),
-    # And channel B with it. The two CT front-ends are one circuit placed
-    # twice, so splitting them across this list just moves the congestion from
-    # one to the other: promoting channel A alone took B from 96.4 mm over 8
-    # vias to 109.8 mm over 15 while A went 251.0 -> 129.3 mm. Promote the
-    # pair or neither.
-    ("CTB_P", 0.4), ("CTB_N", 0.4), ("CTB_F", SIG_W),
+    # The CT front end (rev C: one channel on the ESP32's ADC). CT_P and
+    # CT_BIAS are the burden loop between J12, R31/R81 and D6, kept at 0.4 mm
+    # like the terminal nets they replaced. CT_SENSE is NOT here: it is a
+    # module escape and takes its turn with U1's left column below.
+    ("CT_P", 0.4), ("CT_BIAS", 0.4),
     # The two switched + sides and the watchdog-gated 24 V rail they hang
     # off (rev B.4: the - pins are GND). The SSR loop current (~20 mA/channel
     # with its indicator, up to the ~200 mA per channel F1's budget allows)
@@ -722,10 +676,10 @@ ROUTE_ORDER = [
     # other way round makes the near pins climb over the far ones' copper.
     # bottom row, west -> east (all of these leave southward)
     ("LCD_BL", SIG_W), ("LCD_RST", SIG_W), ("LCD_DC", SIG_W),
-    ("AUX1", SIG_W), ("SSR2_CTRL", SIG_W), ("LED_DATA", SIG_W),
+    ("AUX1", SIG_W), ("SSR2_CTRL", SIG_W), ("T_IRQ", SIG_W),
     # left column, south (nearest the southern exit) -> north
     ("LCD_CS", SIG_W), ("SSR1_CTRL", SIG_W), ("AUX3", SIG_W), ("AUX2", SIG_W),
-    ("ALARM", SIG_W), ("T_IRQ", SIG_W), ("T_CS", SIG_W), ("IN1", SIG_W),
+    ("ALARM", SIG_W), ("CT_SENSE", SIG_W), ("T_CS", SIG_W), ("IN1", SIG_W),
     # right column, south -> north
     ("WDT_KICK", SIG_W), ("BTN_UP", SIG_W), ("BTN_DOWN", SIG_W),
     ("BTN_LEFT", SIG_W), ("BTN_RIGHT", SIG_W), ("BTN_SEL", SIG_W),
@@ -745,16 +699,8 @@ ROUTE_ORDER = [
     ("SSR1_LED_A", SIG_W), ("SSR2_LED_A", SIG_W),
     ("WDT_OK", SIG_W), ("WDT_CT_P", SIG_W),
     ("WDT_CT_N", SIG_W),
-    # status LED
-    ("WS_DIN", SIG_W),
     # thermocouple front-ends (short, local, kept matched)
     ("TC1_P", SIG_W), ("TC1_N", SIG_W), ("TC1_P_F", SIG_W), ("TC1_N_F", SIG_W),
-    # CT front-end and its terminal
-    # CT front-end and its terminal
-    ("CTA_P", 0.4),
-    # ADE7953 locals
-    ("ADE_CLKIN", SIG_W),
-    ("ADE_VINTA", SIG_W), ("ADE_VINTD", SIG_W),
     # protected inputs
     ("IN1_RAW", SIG_W), ("IN2_RAW", SIG_W), ("IN3_RAW", SIG_W),
     # touch series damping (header side of R39-R43)
@@ -937,14 +883,18 @@ TITLE_ROWS = [("BISQUE", 1.6, 0.4),
               # wiring diagram applied to a B.4 board grounds the switched
               # side. B.5 is the connector-protection round: J11 is pulled
               # up on the terminal side behind 100k, which is why firmware
-              # leaves that pin's internal pull-up off. Keep this in step
-              # with the schematic title blocks.
+              # leaves that pin's internal pull-up off. C is the first
+              # revision to change the pin map since B: the status LED and
+              # the ADE7953 are gone, one CT reads into the ESP32's ADC, and
+              # the touch interrupt moved - B.x firmware on a C board (or the
+              # reverse) drives the wrong pins. Keep this in step with the
+              # schematic title blocks.
               #
               # It stays on the FRONT when the brand mark moves to the back:
               # the board is mounted back-to-the-door, so the front is the
               # only face anyone wiring it can read, and this is the line
               # that has to be read at wiring time.
-              ("REV B.5", 1.0, 0.7),
+              ("REV C", 1.0, 0.7),
               ("© 2026 Ben Severson", 0.9, 0.0)]
 # Clear board the nameplate keeps around itself and from the outline, mm. The
 # first is not slack: the parts bounding the pocket still have to put their
@@ -1264,7 +1214,7 @@ BLOCK_LEGENDS = {
     "J4": _bl("N", 0.9),
     "J9": _bl("N", 0.9),
     "J10": _bl("N", 0.9),
-    "J17": _bl("N", 0.9),
+    "J12": _bl("N", 0.9),
     # The one entry that asks for more than the standoff. J14's own
     # designator wants the gap directly above the connector, and this label
     # has the whole 5 mm band between J7 and J14 to sit in, so it gives way
@@ -1432,8 +1382,7 @@ PIN_LEGENDS = {
     # east-edge screw terminals, legends in the interior strip west of them
     "J3": ("W", 0.8, ("K+", "K-")),
     "J8": ("W", 0.8, ("K+", "K-")),
-    "J12": ("W", 0.8, ("A+", "A-")),
-    "J17": ("W", 0.8, ("B+", "B-")),
+    "J12": ("W", 0.8, ("+", "-")),
     # J11's screws stack horizontally, so its legends go north, one per
     # screw. `IN1/IN2/IN3` rather than `1/2/3` because those are the names
     # the firmware, docs/pin-assignments.md and the Kconfig options use.
@@ -1512,8 +1461,7 @@ def _pin_legends():
 # so there is a single place to look.
 TP_BUS_PREFIX = ("SPI", "I2C", "UART", "USB")
 TP_FUNC_SUFFIX = ("CTRL", "HOLD", "EN", "SEL")
-TP_LABEL_SPECIAL = {"CTA_P": "CT A+", "CTA_N": "CT A-",
-                    "CTB_P": "CT B+", "CTB_N": "CT B-",
+TP_LABEL_SPECIAL = {"CT_P": "CT +", "CT_BIAS": "CT -",
                     # The rule would print WDT_CT_P verbatim: CT is not a bus
                     # prefix and P is not a function suffix, and adding either
                     # to those tables would collide with the current-transformer
@@ -1567,7 +1515,7 @@ TP_LABEL_TEXTS = set()
 # `CT A+` / J12 was review A2: TP11's label printed in the strip J12's four
 # screw legends own, 0.4 mm above `A-`, and three attempts to move the test
 # point each left a different net in the ADE/CT block unroutable. Rev B.3
-# took the other way out and dropped TP11 - CTA_P is probed at J12 pin 1 -
+# took the other way out and dropped TP11 - the CT's + side (CT_P since rev C) is probed at J12 pin 1 -
 # so the set is empty again.
 TP_LEGEND_OK = set()
 
@@ -1698,20 +1646,10 @@ def bind(comps, edge):
         # split that fixes it is declared in BLOCK_LEGENDS above.
         block_legend("J3"),
         block_legend("J8"),
-        # In the free band above J12 and centred on the block, which is what a
-        # derived anchor gives for free. The hand-typed one was (96, 76): 6.5 mm
-        # west of J12 with `AC SENSE - DNP` already in the same 1 mm of board, so
-        # the placer took the far end of its ring - all 14 mm of it - and printed
-        # the CT legend directly under `TC2  K+/K-`, 12.98 mm from the block it
-        # names and 8.38 mm from the one it does not. J8's bottom is 55.59 and
-        # J12's top is 74.17, so there is an 18 mm strip here and nothing else
-        # wants it.
-        block_legend("J17"),
-        # LED1's legend, and it follows LED1 (design.py). North of the LED: south
-        # is D3, and further south is J5's pin-name row, where a stray word reads
-        # as a fifteenth display pin - the mistake `SSR2` made from TP10 before
-        # that test point moved.
-        _rel("STATUS", "LED1", 0.0, -4.0, 0.9),
+        # The CT terminal's name, in the free band north of J12. Until rev C
+        # this hung off J17, the second CT terminal, which sat in that band;
+        # with one CT input the band is empty and the name belongs to J12.
+        block_legend("J12"),
         # There is deliberately no `I2C` zone label. One used to sit over R44/R45
         # - correctly, after a move; it started life 6.1 mm from the parts it
         # named - and it was still the wrong label, because naming two pull-up

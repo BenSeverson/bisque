@@ -169,19 +169,19 @@ def main(board_path):
     with tempfile.TemporaryDirectory() as tmp:
         b = scratch(src_dir, base, tmp, synced=True)
         net = os.path.join(tmp, base + ".net")
-        t = open(net).read().replace('(name "/ct/ADE_CS")', '(name "/ct/ADE_CSX")')
+        t = open(net).read().replace('(name "/ct/CT_BIAS")', '(name "/ct/CT_BIASX")')
         open(net, "w").write(t)
-        before = sum(1 for x in B.load(b).tracks + B.load(b).vias if x["net"] == "ADE_CS")
+        before = sum(1 for x in B.load(b).tracks + B.load(b).vias if x["net"] == "CT_BIAS")
         out = run_sync(tmp, b)
         bd = B.load(b)
-        after = sum(1 for x in bd.tracks + bd.vias if x["net"] == "ADE_CSX")
-        pads = [r for r, f in bd.fps.items() if "ADE_CSX" in f["pads"].values()]
-        if not pads or after != before or "ADE_CS" in bd.nets:
+        after = sum(1 for x in bd.tracks + bd.vias if x["net"] == "CT_BIASX")
+        pads = [r for r, f in bd.fps.items() if "CT_BIASX" in f["pads"].values()]
+        if not pads or after != before or "CT_BIAS" in bd.nets:
             sys.exit("SYNC IDEMPOTENT: FAIL - renamed net: pads %s, copper %d -> %d"
                      % (pads, before, after))
-        if "!!" in out and "ADE_CS" in out:
+        if "!!" in out and "CT_BIAS" in out:
             sys.exit("SYNC IDEMPOTENT: FAIL - copper that followed the rename was reported dead")
-        print("  5. ADE_CS -> ADE_CSX: %d pad(s) re-netted, %d copper item(s) followed, none reported dead"
+        print("  5. CT_BIAS -> CT_BIASX: %d pad(s) re-netted, %d copper item(s) followed, none reported dead"
               % (len(pads), after))
 
     # 6. a netlist pin the footprint has no pad for is a loud failure, not
@@ -249,7 +249,7 @@ def main(board_path):
         # the local label on the sheet (so SPI_MISO is "/mcu/SPI_MISO", the
         # sheet pins on the root notwithstanding) - a bare "SPI_MISO" no
         # longer exists, which is exactly the case this test guards.
-        victims = ('(name "/ct/ADE_CS")', '(name "/mcu/SPI_MISO")')
+        victims = ('(name "/ct/CT_BIAS")', '(name "/mcu/SPI_MISO")')
         for v in victims:
             if v not in t:
                 sys.exit("SYNC IDEMPOTENT: fixture net %s is not in %s - update victims" % (v, base_net))
