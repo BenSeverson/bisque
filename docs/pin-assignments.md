@@ -26,7 +26,7 @@ Elsewhere, a GPIO number is only appropriate for a property of the silicon
 (strapping pins, the USB pair, the pins octal PSRAM would consume) — never
 for which function sits on it.
 
-## 1. Current assignment (as-built, rev B)
+## 1. Current assignment (as-built, rev C)
 
 Board: ESP32-S3-**WROOM-1U-N16R2** (16 MB flash, **quad** PSRAM, U.FL external
 antenna). ADC1 = GPIO 1–10, ADC2 = GPIO 11–20 (ADC2 is unreliable while Wi-Fi
@@ -41,7 +41,7 @@ configurable pin's Kconfig default is the GPIO in the first column.
 | 3 | 15 | ADC1_2 | `LCD_BL` | Display backlight | `KILN_PIN_LCD_BL` | active, strapping |
 | 4 | 4 | ADC1_3 | `IN1` | Protected input 1 (lid) | `KILN_PIN_LID_SWITCH` | **active** — [needs a switch or a jumper](#if-you-do-not-fit-a-lid-switch) |
 | 5 | 5 | ADC1_4 | `T_CS` | Touch controller CS | `KILN_PIN_TOUCH_CS` | routed, **no driver** |
-| 6 | 6 | ADC1_5 | `T_IRQ` | Touch pen-down interrupt | `KILN_PIN_TOUCH_IRQ` | routed, **no driver** |
+| 6 | 6 | ADC1_5 | `CT_SENSE` | CT burden voltage (J12, via R32/C58) | `KILN_PIN_CT` | routed, **no driver** |
 | 7 | 7 | ADC1_6 | `ALARM` | Buzzer BZ1 | `KILN_PIN_ALARM` | active — plain DC level; BZ1 is an *active* buzzer (TMB12A05) and makes its own tone |
 | 8 | 12 | ADC1_7 | `LCD_CS` | Display CS | `KILN_PIN_LCD_CS` | active |
 | 9 | 17 | ADC1_8 | `LCD_DC` | Display D/C | `KILN_PIN_LCD_DC` | active |
@@ -59,7 +59,7 @@ configurable pin's Kconfig default is the GPIO in the first column.
 | 21 | 23 | — | `SSR2_CTRL` | SSR zone 2 opto LED (U9) → Q6 gate | `KILN_PIN_SSR2` | routed, **no driver** |
 | 35 | 28 | — | `TC2_CS` | Thermocouple 2 (MAX31856) CS | `KILN_PIN_TC2_CS` | routed, **no driver** |
 | 36 | 29 | — | `WDT_KICK` | Hardware watchdog kick | `KILN_PIN_WDT_KICK` | firmware kicks at 5 Hz; **hardware not yet resized — see [WDT DEFEAT](#the-watchdog-jumper)** |
-| 37 | 30 | — | `ADE_RESET` | ADE7953 reset (U7, via the R30/C37 RC) | `KILN_PIN_ADE_RESET` | routed, **no driver** |
+| 37 | 30 | — | — | Spare | — | **unconnected** |
 | 38 | 31 | — | `BTN_UP` | Nav Up | `KILN_PIN_BTN_UP` | active |
 | 39 | 32 | — | `BTN_DOWN` | Nav Down | `KILN_PIN_BTN_DOWN` | active |
 | 40 | 33 | — | `BTN_LEFT` | Nav Left | `KILN_PIN_BTN_LEFT` | active |
@@ -70,21 +70,24 @@ configurable pin's Kconfig default is the GPIO in the first column.
 | 45 | 26 | — | `PWR_STATUS` | 24 V present: `BUCK_5V` via R66/R67/R68 divider, high on buck, low on USB-only | `KILN_PIN_PWR_STATUS` | routed, **no driver**; strapping (ignored on PSRAM modules) |
 | 46 | 16 | — | `LCD_RST` | Display reset | `KILN_PIN_LCD_RST` | active, strapping |
 | 47 | 24 | — | `I2C_SCL` | I2C clock | `KILN_PIN_I2C_SCL` | routed, **no driver** |
-| 48 | 25 | — | `LED_DATA` | WS2812B status LED | `KILN_PIN_STATUS_LED` | active |
+| 48 | 25 | — | `T_IRQ` | Touch pen-down interrupt | `KILN_PIN_TOUCH_IRQ` | routed, **no driver** |
 
-**All 30 usable GPIOs are assigned.** The last two went on 2026-10-26: GPIO37
-to `ADE_RESET` and GPIO45 to `PWR_STATUS`, so the next function needs an I²C
-expander or one of the two cheap-to-free pins: `T_IRQ` (`KILN_PIN_TOUCH_IRQ`
-accepts −1 and the touch controller is polled instead) or `IN3` (an
-unassigned input). Quad PSRAM frees GPIO 35/36/37 versus the
-octal-PSRAM module rev A's original plan assumed — see §2 below.
+**One pin is spare.** Rev C removed the WS2812 status LED and the ADE7953
+energy meter, which freed two pins, and the single CT input took one back. The
+spare is the module pin the meter's reset used; it is left unconnected, and it
+is one of the three pins an octal-PSRAM module keeps for itself (§2), so a
+later move to that module has one signal fewer to relocate. After the spare,
+the two cheap pins to free are still `T_IRQ` (`KILN_PIN_TOUCH_IRQ` accepts −1
+and the touch controller is polled instead) and `IN3` (an unassigned input).
+`KILN_PIN_STATUS_LED` still exists for perfboard and dev-kit builds and
+defaults to −1, so it has no row here.
 
 ### Defaults now match the board
 
 Every `KILN_PIN_*` defaults to the GPIO the PCB wires its net to
 (`check_pinmap.py` enforces it), so a board build works without
 hand-configuration. `AUX2`, `AUX3`, `SSR2`, `TC2_CS`, `IN2`/`IN3`,
-`I2C_SDA/SCL` and `TOUCH_CS/IRQ` are routed and default to a real GPIO (not
+`I2C_SDA/SCL`, `TOUCH_CS/IRQ` and `CT` are routed and default to a real GPIO (not
 `-1`, unlike rev A's `AUX_A`/`AUX_B`), but **nothing in firmware drives or
 reads any of them yet** — each is declared so the board and the firmware agree
 on what is routed, per the individual Kconfig help text.
@@ -183,15 +186,16 @@ for the timing node) before blaming the SSRs or the lid interlock.
 1. **GPIO 1–10 (ADC1) carry mostly digital functions on rev B**, same as rev A —
    buttons moved off this range in the re-map (see §3.1 below), but three
    protected inputs, touch CS/IRQ, LCD BL/CS/DC and TC1 CS now occupy it
-   instead (§1). The board's one current-sense input (the ADE7953 CT front-end,
-   §3.6 of the roadmap) is a **digital I2C part**, not an ADC1 consumer, so
-   this row of GPIO 1–10 no longer doubles as an analog-input rescue plan the
-   way the pre-rev-B roadmap draft assumed.
+   instead (§1). Since rev C one of them is analog: `CT_SENSE`, the board's
+   current-sense input (§3.6 of the roadmap), is read by ADC1, which is the
+   only ADC usable while Wi-Fi is on. Every other ADC1 pin is taken by a
+   digital function, so a second analog input means moving one of those.
 2. **Strapping pins**: 0, 3, 45, 46. Two of them already carry nets (§1);
    do not add new functions to the others.
 3. **USB**: 19/20 are the native USB peripheral — leave them alone.
 4. **PSRAM**: the WROOM-1U-N16R2 uses **quad** PSRAM, which frees GPIO 35, 36
-   and 37 for board use (§1 has what took them). The octal-PSRAM WROOM-1-N16R8 module rev A's original roadmap draft assumed
+   and 37 for board use (§1 has what took the first two; the third is rev C's
+   spare). The octal-PSRAM WROOM-1-N16R8 module rev A's original roadmap draft assumed
    would have consumed all three internally instead.
 5. **GPIO 33 and 34 are not broken out on ESP32-S3-WROOM-1/1U at all.** The
    module's signal pins are enumerated in `check_pinmap.py`'s
@@ -297,8 +301,8 @@ channels are addressed rather than chip-selected:
 | Both channels on the shared I2C bus | 0 pins per channel, scales to 8 devices |
 
 Against that: I2C puts the primary safety sensor on a bus with a stuck-low
-failure mode, and there is no I2C driver in the firmware today (the on-board
-ADE7953 and the Qwiic/STEMMA-QT header are both wired but undriven as of this
-respin). The existing 5-second stale-reading trip in `safety_task()` degrades
+failure mode, and there is no I2C driver in the firmware today (the
+Qwiic/STEMMA-QT header and J7 are wired but undriven, and since rev C nothing
+on the board itself is an I2C device). The existing 5-second stale-reading trip in `safety_task()` degrades
 a wedged bus to a safe emergency stop rather than a stale reading, which is
 the main mitigation were this ever taken.

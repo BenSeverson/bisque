@@ -234,8 +234,11 @@ void app_main(void)
     }
 
     /* ── Status LED Init ────────────────────────────── */
-    bool status_led_initialized = (status_led_init() == ESP_OK);
-    if (!status_led_initialized) {
+    esp_err_t status_led_err = status_led_init();
+    bool status_led_initialized = (status_led_err == ESP_OK);
+    if (status_led_err == ESP_ERR_NOT_SUPPORTED) {
+        ESP_LOGI(TAG, "Status LED not fitted");
+    } else if (!status_led_initialized) {
         ESP_LOGW(TAG, "Status LED init failed (non-fatal)");
     }
 

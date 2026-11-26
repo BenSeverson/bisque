@@ -87,7 +87,7 @@
 #define APP_PIN_BTN_LEFT   CONFIG_KILN_PIN_BTN_LEFT
 #define APP_PIN_BTN_RIGHT  CONFIG_KILN_PIN_BTN_RIGHT
 
-/* --- Status LED (WS2812B) --- */
+/* --- Status LED (WS2812B; -1 = not fitted, as on the rev C PCB) --- */
 #define APP_PIN_STATUS_LED CONFIG_KILN_PIN_STATUS_LED
 
 /* --- Optional GPIOs (-1 = disabled) --- */
@@ -105,13 +105,16 @@
 #define APP_PIN_IN_GASFLOW CONFIG_KILN_PIN_IN_GASFLOW
 #define APP_PIN_IN_SPARE   CONFIG_KILN_PIN_IN_SPARE
 
-/* I2C bus: on-board ADE7953 current metering + Qwiic expansion header. */
+/* I2C bus: Qwiic expansion header and the aux header. No on-board device. */
 #define APP_PIN_I2C_SDA CONFIG_KILN_PIN_I2C_SDA
 #define APP_PIN_I2C_SCL CONFIG_KILN_PIN_I2C_SCL
 
 /* XPT2046 touch controller (on the display module, shared SPI bus). */
 #define APP_PIN_TOUCH_CS  CONFIG_KILN_PIN_TOUCH_CS
 #define APP_PIN_TOUCH_IRQ CONFIG_KILN_PIN_TOUCH_IRQ
+
+/* CT burden voltage on an ADC1 pin (-1 = not fitted). NOTHING READS IT YET. */
+#define APP_PIN_CT CONFIG_KILN_PIN_CT
 
 /* Hardware watchdog kick — gates both SSR opto channels. */
 #define APP_PIN_WDT_KICK CONFIG_KILN_PIN_WDT_KICK

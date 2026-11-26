@@ -17,6 +17,12 @@ static led_strip_handle_t s_strip;
 
 esp_err_t status_led_init(void)
 {
+    if (APP_PIN_STATUS_LED < 0) {
+        /* No LED on this hardware: leave RMT alone and let the caller skip
+           the task. */
+        return ESP_ERR_NOT_SUPPORTED;
+    }
+
     led_strip_config_t strip_cfg = {
         .strip_gpio_num = APP_PIN_STATUS_LED,
         .max_leds = 1,
