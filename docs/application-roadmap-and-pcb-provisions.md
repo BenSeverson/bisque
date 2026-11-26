@@ -59,7 +59,7 @@ That run shipped as the rev B respin
 of the assumptions below turned out wrong once the design was actually laid
 out — most importantly, the module variant changed and the CT current-sense
 input that motivated freeing ADC1 turned out to want a digital I2C chip, not
-an analog pin. This section is rewritten to the as-built state rather than
+an analog pin (on rev B; rev C went back to one ADC1 pin, §3.6). This section is rewritten to the as-built state rather than
 left as a stale proposal; see §3.1 and §3.6 below for the two provisions this
 affects most.
 
@@ -92,7 +92,8 @@ Consequences on an ESP32-S3:
    future-interlock reasons, not to free analog input, because the CT
    current-sense provision (§3.6) turned out to want a digital I2C part with
    no analog demand at all. ADC1 is not "reclaimed" by this design; it just
-   never needed reclaiming for the reason originally assumed.
+   never needed reclaiming for the reason originally assumed. (Rev C does
+   use one ADC1 pin for the CT, the one the touch interrupt had - §3.6.)
 2. The clean digital pins available for the re-map were **14, 15, 16, 18, 21,
    38–42, 47**, plus **GPIO 35, 36, 37**, freed by the module's **quad** PSRAM
    (not consumed the way they would be on the octal-PSRAM N16R8 this roadmap
@@ -112,7 +113,7 @@ and flipping Kconfig defaults** — no respin. Roughly in priority order:
 **Done, as part of the rev B respin.** This section originally proposed
 moving the five nav buttons and the alarm output off GPIO 1–10 to free ADC1
 for analog sensing. The re-map happened — the buttons moved — but not
-for that reason: the CT current-sense provision (§3.6) turned out to be a
+for that reason: on rev B the CT current-sense provision (§3.6) was a
 digital I2C part, so there was no analog demand left to free ADC1 *for*. The
 re-map survived on two different grounds instead:
 
@@ -145,7 +146,8 @@ comfortable during the design:
   budget had no room for its pen-down interrupt. Once the CT went digital
   and the module went quad-PSRAM, the budget had enough slack (one full
   spare pin, plus the ADC1 pins the re-map no longer needed for
-  analog sensing) to give `T_IRQ` its own line. See §3.7.
+  analog sensing) to give `T_IRQ` its own line. See §3.7. (It still has
+  one on rev C, on the pin the status LED used; the CT took its old pin.)
 - **The DNP PCA9554 I2C GPIO expander from §3.5/§3.8 was retired.** It
   existed as the escape valve for a pin budget with zero slack; once the
   module swap left a real spare pin and the digital CT removed a demand, the
@@ -199,27 +201,42 @@ armed), gas-flow interlock for the purge line, one spare. Dry-contact friendly.
 
 One connector with on-board pull-ups unlocks a whole class of Tier B/C features with
 zero board changes: SHT4x RH sensor (wood kiln), an RTC breakout for offline audit
-timestamps, ADS1115 external ADC. The bus also now carries the on-board ADE7953
-CT front-end (§3.6). **The DNP I2C GPIO expander footprint (e.g. PCA9554) that
+timestamps, ADS1115 external ADC. On rev B the bus also carried the on-board
+ADE7953 CT front-end; rev C removed it (§3.6), so the header and J7 are the
+bus's only users. **The DNP I2C GPIO expander footprint (e.g. PCA9554) that
 this section originally specified as the escape valve for a zero-slack pin
 budget was retired** — the module swap to quad PSRAM left a real spare pin
 and the CT going digital removed a demand that would otherwise have
 eaten into the budget, so the expander stopped earning its board area before
 layout. See §3.1.
 
-### 3.6 CT current sensing: digital I2C front-end (shipped, rev B)
+### 3.6 CT current sensing: one ADC1 input (rev C)
 
-**Not an analog ADC1 channel.** This section originally specified a
-current-transformer input as a burden resistor + divider feeding a freed
-ADC1 pin. The design that shipped instead puts both current channels on a
-dedicated ADE7953 metering IC (LFCSP-28, current-only — the mains voltage
-channel is unused and routed to a DNP SELV header for a possible future
-off-board isolated-AC accessory) on the I2C bus from §3.5. This costs zero
-GPIOs beyond the bus that already exists, keeps ESP32 ADC noise out of the
-measurement entirely, and gives one channel per SSR zone instead of one
-channel total. `Irms × configured nominal mains voltage` estimates power to
-within roughly ±3–5%, adequate for element-health diagnosis and cost
-estimation. Both channels are populated on rev B, not DNP.
+**One current transformer, read by the ESP32's own ADC.** This is the
+approach this section originally specified - a burden resistor and a mid-rail
+bias feeding an ADC1 pin - after a detour: rev B put two current channels on
+a dedicated ADE7953 metering IC on the I2C bus. Rev C took the chip, its
+oscillator and 25 supporting parts back out. No firmware ever talked to it,
+it was the only reason the board needed an I2C driver, and what the
+controller wants from a current reading (is the element drawing roughly what
+it should, and is it drawing anything when it should not) does not need a
+0.1 % meter.
+
+The front end is a 24.8 Ω burden (100 Ω in parallel with 33 Ω), a 10 k/10 k
+divider that centres the signal on 1.65 V, and a 1 kΩ / 100 nF filter into
+`CT_SENSE` (`KILN_PIN_CT`). With a 2000:1 CT, full scale is 68 A rms.
+Firmware subtracts the measured mean and takes the RMS over whole mains
+cycles; expect roughly ±2-5 % after a one-point calibration, against the
+ADE7953's ±0.1 %. `Irms x configured nominal mains voltage` still estimates
+power well enough for element-health diagnosis and cost estimation.
+
+**One channel, not one per zone.** The CT clamps the conductor that feeds
+every zone, so it reads the kiln's total. Telling zones apart is firmware's
+job, because firmware knows which SSR is on: it samples in windows where
+exactly one zone is commanded on. What that gives up, and the driver's
+specification, are in `docs/firmware-backlog.md` (RB-10). The installer's
+side of it - one clamp, on the shared feed - is in
+`hardware/enclosure/README.md`.
 
 ### 3.7 Touch-screen enablement on the LCD header
 
@@ -242,7 +259,9 @@ Provision for run 1:
   by default, routing the interrupt line to the spare header instead. Once
   the CT went digital and the module went quad-PSRAM (§2), the budget had
   enough slack for a dedicated interrupt pin, so `T_IRQ` did not need the
-  spare-header/solder-jumper workaround after all.
+  spare-header/solder-jumper workaround after all. Rev C keeps the dedicated
+  pin and moves it: the CT's analog input needed an ADC1 pin, so `T_IRQ`
+  went to the pin the removed status LED had used.
 - **Series resistor / solder-jumper on the touch lines** so an untouched build (or a
   touchless module variant) is unaffected.
 - **Capacitive variant escape hatch:** some ST7796S modules ship with capacitive
@@ -272,8 +291,8 @@ planned; the spare is simply the one line in the full pin map
 
 **The DNP PCA9554 I2C GPIO expander this section originally described as "the
 real spare-capacity story for run 1" was retired before layout** (§3.1, §3.5)
-— the quad-PSRAM spare pin and the digital CT together removed the pin
-pressure the expander existed to relieve. Any future slow, non-timing-critical
+— the quad-PSRAM spare pin and (on rev B) the digital CT together removed
+the pin pressure the expander existed to relieve. Any future slow, non-timing-critical
 signal (relay coils, dry-contact interlocks, indicator LEDs) can still ride
 the I2C bus via an off-board expander breakout on the Qwiic/STEMMA-QT header
 (§3.5) — that option didn't disappear, only the on-board DNP footprint for it.

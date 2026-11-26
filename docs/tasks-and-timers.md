@@ -52,8 +52,9 @@ is 25.
 
 Three are conditional, and their absence is logged rather than fatal: `display`
 (skipped if `display_init()` fails — the controller runs headless), `status_led`
-(skipped if the LED did not initialize), and `ota_confirm` (only after an OTA
-boot). `display` is the one exception to "non-fatal": if `xTaskCreatePinnedToCore`
+(skipped if the LED did not initialize, or is not fitted: `KILN_PIN_STATUS_LED`
+defaults to −1 since rev C, which has no status LED, so on the PCB this task
+is never created), and `ota_confirm` (only after an OTA boot). `display` is the one exception to "non-fatal": if `xTaskCreatePinnedToCore`
 itself fails for it, `main.c` calls `abort()`, because a 16 KiB stack allocation
 failure otherwise produces a UI that silently never starts.
 

@@ -2804,3 +2804,108 @@ Two merges in the 2026-11-07 cost review were NOT taken, and why matters:
   no SOT-23-6 site within 8 mm of J6 is free of the VIN_P 24 V track or
   routed nets. One feeder is not worth re-routing a 24 V rail through the
   densest corner of the board.
+
+## Rev C (2026-11-26): no status LED, one CT on the ESP32's ADC
+
+Rev C takes two blocks off the unbuilt B.5 board and, for the first time
+since rev B, changes the pin map. 31 parts leave and 6 arrive: 192 placements
+become 167, 54 BOM lines become 49 (the ADE7953, its oscillator, the WS2812,
+and the 33 nF and 5.1 R lines only they used), and the fixed assembly bill
+goes from $116.39 to $108.74 an order.
+
+**What went, and why.**
+
+- LED1 with R3, C10 and D3. The LED repeated what the LCD and the web UI
+  already show, on a board that lives behind an enclosure door. It cost a
+  module pin, an Extended feeder, and a part that changed LCSC number three
+  times in two weeks (see LED1). LED2, the plain power LED, stays. The
+  firmware keeps `status_led` for perfboard builds and defaults its pin to
+  -1.
+- U7 (ADE7953), Y1, the reset RC, the reference and rail decoupling, both
+  anti-alias networks, R60/R61 and the whole of CT channel B with J17: 27
+  parts. Nothing in firmware ever talked to the chip, it was the only reason
+  the board needed an I2C driver, and it was the one fine-pitch QFN with an
+  exposed pad. What the controller wants from a current reading is coarse:
+  is the element drawing roughly what it should, and is it drawing anything
+  when it should not. A 0.1 % energy meter is not needed to answer that.
+
+**The front end** (all on the `ct` sheet; every value is an existing BOM
+line).
+
+- Burden: R31 100 R (0805) in parallel with R81 33 R (0603) = 24.8 R,
+  across J12. The ADC's usable swing around mid-rail is about +/-1.2 V, so
+  full scale is 1.2 V / 24.8 R = 48.4 mA peak = 34.2 mA rms in the
+  secondary, which is **68 A rms** in the primary of a 2000:1 CT. At full
+  scale the burden dissipates 29 mW. The one CT sees every zone at once, so
+  it is the kiln's TOTAL that must stay under 68 A. For a bigger kiln fit
+  33 R in both positions: 16.5 R, 103 A rms.
+- Bias: R82/R83, 10 k/10 k from +3V3, put `CT_BIAS` at 1.65 V so both
+  half-cycles are inside the ADC's range (0.45 V to 2.85 V at full scale).
+  C56 (10 uF) and C57 (100 nF) hold the node still. The exact voltage does
+  not matter, because firmware subtracts the measured mean.
+- Filter: R32 (1 k) at the terminal end, C58 (100 nF) at the module end.
+  Corner 1.6 kHz; 60 Hz passes at 0.999. The CT is floating, so C58's
+  current returns through the bias capacitors: C58 and C56 are in series
+  across the burden and the ADC sees about 1 % less than the burden
+  voltage. That is a fixed gain error and the one-point calibration absorbs
+  it.
+- Protection: D6 (SRV05-4) still clamps both CT leads to the rails, now with
+  two of its four channels on each lead. The burden is always fitted, so an
+  unplugged CT cannot develop an open-circuit voltage on the board, and
+  with nothing on J12 the ADC pin sits at the bias through the burden and
+  R32 rather than floating.
+
+Expect +/-2 to 5 % after calibration, against the ADE7953's +/-0.1 %.
+
+**One channel, not two.** A CT on the conductor that feeds every zone reads
+the total for any number of zones, and firmware already knows which SSR is
+on. Per-zone attribution is therefore a sampling problem, not a hardware
+one: sample only while exactly one zone is commanded on. What that gives up:
+zone 2 normally follows zone 1's duty, so the scheduler has to offset the
+zones or insert a short single-zone test pulse to get such a window; current
+that flows with both zones off is detected but not attributed without one;
+and a three-phase kiln is not covered by one CT. The driver specification
+is `docs/firmware-backlog.md`, RB-10. The installation consequence is that
+the clamp goes on the SHARED feed, upstream of the SSRs: on one zone's wire
+it reads half the kiln and looks like a working measurement.
+
+**The pins.** ADC2 is unusable while Wi-Fi is on, so the CT needs an ADC1
+pin, and every ADC1 pin was assigned. `T_IRQ` was the cheapest to move (no
+driver, and the touch controller can be polled), so `CT_SENSE` took its
+module pad and `T_IRQ` took the pad `LED_DATA` freed. `T_CS` did not move.
+The pad `ADE_RESET` used is left unconnected as the board's one spare: it is
+one of the three pads an octal-PSRAM module keeps for itself, so a later
+move to that module has one signal fewer to relocate. The table is
+`docs/pin-assignments.md` section 1.
+
+**C58 is 5.6 mm from the module pad, not beside it.** The plan was within
+3 mm. West of the pad row R64, C48 and C6 fill the board and EN runs on F.Cu
+between them and the pads; east of it is under the module. C58 sits in the
+last free patch, under R9, on a hand-routed and LOCKED link: F.Cu from the
+pad to a via just inside the module outline, B.Cu under EN and R64, a second
+via, F.Cu to the capacitor (9.5 mm of copper). The long run from the CT
+corner joins at the first via, so the capacitor hangs off the pad on a short
+branch rather than sitting in line. Over an unbroken ground plane that is
+the same thing electrically below about 100 MHz. If it ever needs to be
+closer, the fix is to move EN's F.Cu leg and open a lane west of the pad.
+
+**The run.** `CT_SENSE` is 77 mm, from the CT corner to the module's west
+side, mostly down the corridor `LED_DATA` used to occupy. It stays out of
+the thermocouple front-end area (nothing east of x = 88 mm above y = 66 mm),
+is 27 mm from the buck's switch node at its nearest, and has about 3 mm of
+same-layer neighbours within 0.75 mm along its whole length. It crosses the
+SPI bus on the opposite outer layer with both planes between. No checker
+knows this net is analog; `gen_pcb.ROUTE_ORDER` routes it as an ordinary
+module escape, so re-check these three things after any re-route.
+
+**Left behind on purpose.** The four GND vias that were in U7's exposed pad
+stay as stitching. LED2 and R9 are locked footprints now: C58 shares the
+band their designators sit in, and unlocked, the silk placer drops `LED2` on
+top of the `PWR` legend. The schematic's `ct` sheet keeps its circuit where
+channel A was, low on the page, with the top of the sheet empty.
+
+**Not decided here.** ENIG was chosen for the ADE7953. U10 and U12 are
+still 0.5 mm pitch, so the finish stays, but HASL is worth pricing at order
+time. Hand-fitting U1 and the through-hole parts would put the order on
+Economic assembly ($64.97 fixed against $108.74); that is an order-time
+choice on the `Assembly` field, unchanged by this revision.

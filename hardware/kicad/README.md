@@ -6,13 +6,24 @@ incompatible part, added a second SSR zone and a digital current-sense chip,
 moved most GPIOs, and swapped the module variant.
 4-layer, 100 × 100 mm, built for **JLCPCB assembly**: 0805 passives,
 QFN/TSSOP/SOIC/SOT ICs, SMD tact switches and the ESP32-S3-WROOM-1U module's
-castellated pads all go down the SMT line, and JLCPCB hand-solders the twelve
+castellated pads all go down the SMT line, and JLCPCB hand-solders the fourteen
 through-hole parts (terminals, wafers, buzzer) on the same order — see
 "Fabrication & assembly" below for why that is cheaper than fitting them
 yourself. The design record for
 this respin, including the routing escalation that forced the layer count,
 is `docs/superpowers/specs/2026-08-10-pcb-rev-b-hardware-design.md`; the
 fab-readiness sign-off is `FAB-READINESS-REVIEW-REVB.md`.
+
+**Rev C (2026-11-26)** is the current revision. It removes two blocks from
+B.5 and changes the pin map for the first time since rev B: the WS2812 status
+LED is gone (its indications live on the LCD and the web UI), and the ADE7953
+metering chip, its oscillator and the second CT terminal are replaced by one
+current-transformer input read by the ESP32's own ADC. 31 parts out, 6 in, 167
+placed, 49 BOM lines. The reasoning is the rev C section of `DESIGN-NOTES.md`.
+Much of this README is a record of how the board got here, so U7, Y1, LED1 and
+J17 still appear below wherever the story involves them; the sections that
+describe the board as it is (features, bill of materials, fabrication) are
+current.
 
 Built and validated with **real KiCad** (10.0.5, pcbnew Python API +
 kicad-cli): footprints come from KiCad's installed libraries, ground/power
@@ -351,24 +362,27 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   `docs/pin-assignments.md` §1 for the fail-safe wiring requirement if no
   switch is fitted. `IN2` (gas flow) and `IN3` (spare) are routed but have
   no firmware consumer yet.
-- **CT current sensing — J12 + J17** (two 2-pin terminals, `CTA_P`/`CTA_N`
-  on J12, `CTB_P`/`CTB_N` on J17): two current-transformer inputs into an **ADE7953** energy
-  metering IC (U7, LFCSP-28, current-only — the voltage channel is unused),
-  on the I2C bus with its own 3.579545 MHz crystal (Y1). Burden resistors
-  (R31/R34, 5.1 Ω — full scale ~139 A rms, see `DESIGN-NOTES.md`), anti-alias RC
-  and an SRV05-4 TVS array (D5/D6) per
-  channel protect the externally-exposed CT leads. One channel per SSR
-  zone, so each element bank gets an independent current reading; with no
+- **CT current sensing — J12** (one 2-pin terminal, `CT_P` on pin 1 and
+  `CT_BIAS` on pin 2): one current-transformer input read by the ESP32's
+  ADC1 on `CT_SENSE`. The CT's secondary current develops a voltage across a
+  24.8 Ω burden (R31 100 Ω in parallel with R81 33 Ω - full scale 68 A rms
+  with a 2000:1 CT, see `DESIGN-NOTES.md`), riding on a 1.65 V bias from
+  R82/R83 (10 k/10 k, bypassed by C56/C57) so the ADC sees both half-cycles.
+  R32 (1 kΩ) at the terminal end and C58 (100 nF) at the module end are the
+  anti-alias filter, and an SRV05-4 TVS array (D6) clamps the externally
+  exposed CT leads to the rails. **One CT, on the conductor that feeds every
+  zone**: it reads the kiln's total, and firmware attributes current to a
+  zone from which SSR is on (`docs/firmware-backlog.md`, RB-10). With no
   mains voltage sensing on this board, power is estimated as
-  `Irms × configured nominal mains voltage` (±3–5%), adequate for
-  element-health diagnosis and cost estimation. The voltage-channel pins
-  (VP/VN) are held at GND by R60/R61 and go nowhere else: no mains anywhere
-  on this PCB, and no provision for an AC-sense accessory (rev B.3 dropped
-  the DNP header that used to bring them out).
+  `Irms × configured nominal mains voltage`; expect ±2–5 % after a one-point
+  calibration, adequate for element-health diagnosis and cost estimation.
+  No firmware reads the pin yet. Until rev C this was two channels into an
+  ADE7953 metering IC (U7) on the I2C bus.
 - **I2C expansion — J7 pins 5–8 and J14 (Qwiic/STEMMA-QT)**: `I2C_SDA`
   / `I2C_SCL`, on-board pull-ups (R44/R45, 4.7 kΩ).
-  Carries the on-board ADE7953 today; open for an RTC breakout, an SHT4x RH
-  sensor, or an external ADC without board changes. No I2C driver exists in
+  Nothing on the board itself is an I2C device since rev C removed the
+  ADE7953; the bus is open for an RTC breakout, an SHT4x RH sensor, or an
+  external ADC without board changes. No I2C driver exists in
   firmware yet.
 - **USB-C (J1)** for native-USB flashing: 5.1 kΩ CC resistors, SRV05-4 (U4)
   ESD steering, VBUS into +5 V through the U12 power mux. RESET (SW1) and
@@ -379,14 +393,11 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   bench port: IEC 61000-4-2 level 4 contact is the exposure it is coordinated
   against, a sustained over-voltage from a defective host is not covered
   (rev C: an OVP load switch), and the smoke test scopes VBUS on hot-plug.
-- **Status LED**: WS2812B on `LED_DATA`; its VDD comes through a 1N4148W drop
-  diode (D3), putting VLED at ≈4.15 V so V_IH = 0.7·VLED ≈ 2.9 V stays
-  comfortably under the 3.3 V data level. The diode is *silicon*, not the
-  SS14 Schottky it replaced, and the reason is the buck: on a regulated
-  5.0 V rail an SS14's ~0.3 V leaves VLED at 4.7 V and V_IH at 3.29 V —
-  a 10 mV margin. The old rail sagged enough to hide that. What the
-  regulator removes is the trade, not the drop: VLED no longer moves with
-  the PSU, so a fixed drop is now a real fix rather than a hedge.
+- **No status LED** since rev C. LED1 (a WS2812B on `LED_DATA`, fed through
+  the D3 drop diode) repeated what the LCD and the web UI already show, and
+  cost a module pin, an Extended feeder and three passives. The green power
+  LED (LED2) stays. Firmware keeps the `status_led` component for perfboard
+  builds; `KILN_PIN_STATUS_LED` defaults to −1.
 - **Alarm**: 12 mm active 5 V buzzer (BZ1) on `ALARM`, its own discrete AO3400A
   (Q2) low-side driver with flyback diode — kept separate from the ULN2003
   aux bank on purpose, so a 5 V buzzer and a 24 V solenoid never share a
@@ -395,7 +406,7 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   no BOM/assembly cost) on GND, the SPI bus, both SSR gate nets and the
   watchdog hold node: the nets no connector reaches. The rails, I2C and the
   CT burden node are probed at connector pins instead (J7/J14 for `+3V3` and
-  I2C, J5 pin 1 or C2 for `+5V`, J12 pin 1 for `CTA_P`); TP1, TP2, TP7, TP8
+  I2C, J5 pin 1 or C2 for `+5V`, J12 pin 1 for `CT_P`); TP1, TP2, TP7, TP8
   and TP11 duplicated those and went in rev B.3. Rev A shipped with none,
   which its fab review flagged as awkward for bring-up; at ~141 components
   and eleven subsystems, they stopped being optional.
@@ -491,7 +502,7 @@ its own turn:
 `generator/gen_pcb.py` carries two tables of hand-seeded copper —
 `USB_SEEDS` for J1's D+/D- links and CC lines (the pair's own escapes come
 from `usb_pair_seeds()`), and **`ADE_I2C_SEEDS` for the ADE7953's SDA and
-SCL**. Both exist for the same reason: a lane one track wide, in a place the
+SCL** (history: that table and its copper left with the chip in rev C). Both exist for the same reason: a lane one track wide, in a place the
 greedy router's answer is not stable.
 
 U7's I2C pins leave a 0.5 mm-pitch QFN into the densest neighbourhood on the
@@ -575,9 +586,9 @@ the three disagree. Nothing else restates a GPIO number, this README included.
 
 ## Bill of materials
 
-141 components, 92 nets. Full machine-readable BOM: `jlcpcb/BOM.csv` (54
-lines, one per LCSC part, covering 192 placements); `jlcpcb/hand-solder-parts.csv`
-lists the 16 of them you could fit by hand instead. Selected parts worth calling out:
+183 components, 103 nets. Full machine-readable BOM: `jlcpcb/BOM.csv` (49
+lines, one per LCSC part, covering 167 placements); `jlcpcb/hand-solder-parts.csv`
+lists the 14 of them you could fit by hand instead. Selected parts worth calling out:
 
 | Ref | Value / Part | Package |
 |---|---|---|
@@ -586,8 +597,6 @@ lists the 16 of them you could fit by hand instead. Selected parts worth calling
 | U3, U5 | MAX31856MUD+T | TSSOP-14 |
 | U4 | SRV05-4 TVS array | SOT-23-6 |
 | U6 | ULN2003ADR | SOIC-16 |
-| U7 | ADE7953ACPZ-RL | LFCSP-28 (QFN-28, 5×5 mm) |
-| Y1 | 3.579545 MHz crystal | HC-49S-SMD |
 | D6, D19–D22 | SRV05-4 TVS array (same part as U4) | SOT-23-6 |
 | D15–D17 | SMF30CA 30 V bidirectional TVS (J11 terminals) | SOD-123FL |
 | D18 | ESDA6V1-5SC6 5-line ESD array (J6 nav loom) | SOT-23-6 |
@@ -596,7 +605,7 @@ lists the 16 of them you could fit by hand instead. Selected parts worth calling
 | Q2, Q3, Q5, Q6 | AO3400A N-MOSFET | SOT-23 |
 | Q4 | AO3401A P-MOSFET (watchdog high-side switch) | SOT-23 |
 | J1 | USB-C 16-pin receptacle | HRO TYPE-C-31-M-12 |
-| J2–J4, J8–J12, J15–J17 | Phoenix MKDS 1,5/2 (or clone) | 5.08 mm screw terminal, 2-pos; J10/J15, J11/J16 and J12/J17 are pairs standing in for one 4-pos block (see the BOM-line merge in `DESIGN-NOTES.md`) |
+| J2–J4, J8–J12, J15, J16 | Phoenix MKDS 1,5/2 (or clone) | 5.08 mm screw terminal, 2-pos; J10/J15 and J11/J16 are pairs standing in for one 4-pos block (see the BOM-line merge in `DESIGN-NOTES.md`) |
 | J5 | Molex KK-254 friction-lock header 1×14 | 2.54 mm THT |
 | J6 | Molex KK-254 friction-lock header 1×6 | 2.54 mm THT |
 | J7 | Molex KK-254 friction-lock header 1×8 | 2.54 mm THT |
@@ -633,8 +642,10 @@ file is the one that states them: `gen_pcb.py` writes **ENIG** into the
 stack-up (`copper_finish`), and `kicad-cli` copies it into
 `gerbers/bisque-controller-job.gbrjob` as `"Finish": "ENIG"` — but JLC takes
 the finish from the order form, so **select ENIG when ordering** or the board
-arrives HASL. ENIG was chosen deliberately: U7 is a 0.5 mm-pitch QFN-28 with a
-3.1 mm exposed pad and HASL's crown is worst exactly under a large EP.
+arrives HASL. ENIG was chosen deliberately, for the ADE7953's 0.5 mm-pitch
+QFN-28 and its 3.1 mm exposed pad. Rev C removed that part; U10 (VSSOP-8) and
+U12 (SOT-583) are still 0.5 mm pitch, so the finish stays ENIG for now and is
+worth pricing against HASL at order time.
 
 `"ImpedanceControlled": true` in the same file declares the stack-up the 93.1 Ω
 figure is computed against; it is not an instruction to buy JLC's impedance-
@@ -761,13 +772,13 @@ Standard". One Standard-only part is enough, so the hand-solder split below
 never bought Economic, and the fee-free substitutions further down have been
 saving a fee the order does not pay. `gen_jlc.STANDARD_ONLY` records it, and the
 generator's summary names the tier the BOM actually lands on and the fixed
-bill for it (`assembly tier: Standard -> … $116.39 fixed per order` since the
-2026-11-07 BOM-line merge, $137.81 before it). The way back to Economic is to hand-fit U1 and C46 as
+bill for it (`assembly tier: Standard -> … $108.74 fixed per order` since
+rev C; $116.39 after the 2026-11-07 BOM-line merge, $137.81 before it). The way back to Economic is to hand-fit U1 and C46 as
 well — the electrolytic is trivial, the module's edge pads are routinely
 hand-soldered with the centre thermal pad left dry — and that is a decision
 for the next order, not something the generator makes for you.
 
-Thirteen symbols carry `Assembly` = `Optional hand solder - JLC assembles;
+Fourteen symbols carry `Assembly` = `Optional hand solder - JLC assembles;
 untick at JLC to fit by hand`, which shows up in the BOM's `Notes` column.
 JLCPCB fits them like everything else and their CPL rows are rotation-
 corrected (`JLC_PLACEMENT`); the note marks the lines you can untick on
@@ -780,35 +791,30 @@ since JLCPCB's upload rejects a CPL carrying designators the BOM does not
 have. Test points, solder jumpers, fiducials and mounting holes are marked
 "Exclude from BOM" on the symbol and appear in neither file.
 
-LED1 is a WS2812E-V5 (C2920042) since 2026-11-07. The WS2812B-B/T
-(C2761795) went out of stock at LCSC and JLCPCB on 2026-10-30, and the
-WS2812B-V5/W (C2874885) that replaced it followed a week later. All three are
-Worldsemi 5050s with the same pinout and land pattern, so the footprint is
-unchanged. The -E's VIH is a fixed 2.7 V like the -B/T's (the -V5/W's was
-0.63 × VDD), under the ESP32's 3.3 V with D3 holding VLED at ~4.15 V (see D3
-in `DESIGN-NOTES.md`), and its 3.7–5.3 V VDD range takes that VLED.
+LED1, the WS2812 status LED, was on this list until rev C removed it from the
+board; its sourcing history (three Worldsemi 5050 variants in two weeks) is in
+`DESIGN-NOTES.md`.
 
 | Formerly hand-fitted | Why |
 |---|---|
-| J2–J4, J8–J12, J15–J17 (2-pos screw terminals), J5, J6, J7 (KK-254 wafers), BZ1 (buzzer) | 5.08 mm and 2.54 mm pitch — the easiest joints on the board, but the ones that would force Standard assembly |
-| LED1 (WS2812B, PLCC-4 5050) | No addressable RGB LED at LCSC is a Basic part (checked across WS2812/SK6812/XL-xxxx), so its $3 buys nothing an iron can't do to four edge-accessible pads |
+| J2–J4, J8–J12, J15, J16 (2-pos screw terminals), J5, J6, J7 (KK-254 wafers), BZ1 (buzzer) | 5.08 mm and 2.54 mm pitch — the easiest joints on the board, but the ones that would force Standard assembly |
 
-What's left goes down the SMT line. **18 unique Extended parts** would pay
-a feeder on Economic — the module
+What's left goes down the SMT line. **24 unique Extended parts** would pay
+a feeder on Economic — among them the module
 (ESP32-S3-WROOM-1U-N16R2, C3013945), both MAX31856MUD+T (C2653162, one
-designator, two placements), the ADE7953 (C515890), its 3.579545 MHz
-oscillator (C2838127), the watchdog monostable (SN74LVC1G123, C123302), the
+designator, two placements), the watchdog monostable (SN74LVC1G123, C123302), the
 LDO (TLV1117LV33, C48937499), the buck's inductor (C475527), its input
 ceramics (1210 X7R, C170099) and bulk electrolytic (Panasonic FK, C178540),
 its SS36 catch diode (C7420367), the input PPTC (C369169), the two SSR
 optocouplers (TLP291, C55144), the CJ2310 (C75882) and the three LP2309LT1G
 P-FETs (C383253) of the SSR stage, the 1N4007W (C3018540), the **TPS2116
 power mux** (U12, C3235557), the Qwiic connector (C160404) and the USB-C
-receptacle (C165948) — **$55.26 in feeder fees** at $3.07 each (the
+receptacle (C165948) — **$73.68 in feeder fees** at $3.07 each (the
 generator prints the current list and the Economic bill every run).
 On Standard, where this BOM is (see the correction above), the count that
-matters is the **54 BOM lines at $1.53 = $82.62** - 68 and $104.04 before
-the 2026-11-07 BOM-line merge (`DESIGN-NOTES.md`), which grouped `BOM.csv` by
+matters is the **49 BOM lines at $1.53 = $74.97** - 54 and $82.62 before
+rev C took five lines out with the ADE7953 and the status LED, 68 and $104.04
+before the 2026-11-07 BOM-line merge (`DESIGN-NOTES.md`), which grouped `BOM.csv` by
 LCSC part and folded six passive values and the 4-position terminal onto
 lines the board already had. Fee-free placements are fee-free in name only
 here, so on Standard the lever is the line count, not the library tier.
@@ -868,8 +874,7 @@ off the SMT BOM, and they were all better parts regardless):
 
 **Sourcing flags:** the thinnest stock on the BOM is `C19077547` (D8, ~651
 units — the price of that last substitution, and a one-string revert to
-`C908776` if it runs dry), then `C3013945` (the module, ~3.5 k), `C515890`
-(the ADE7953, ~4.8 k) and `C2838127` (the oscillator, ~6.6 k) — all
+`C908776` if it runs dry), then `C3013945` (the module, ~3.5 k) — both
 single-sourced with no fee-free alternative. Re-check immediately before
 ordering — see `FAB-READINESS-REVIEW-REVB.md`.
 
@@ -894,9 +899,8 @@ which connector is which.
 | J5 | C17701004 | Molex **22-27-2141** — genuine KK-254 1×14 (LCSC line is an XD-2510-14A clone) |
 | J6 | C239381 | Molex **22-27-2061** — genuine KK-254 1×06 (LCSC line is an A2547WV clone) |
 | J7 | C240822 | Molex **22-27-2081** — identical, the LCSC line is already genuine Molex |
-| J2–J4, J8–J12, J15–J17 | C8465 | Phoenix Contact **1715721** (MKDS 1,5/2-5,08) — the part this footprint is named for |
+| J2–J4, J8–J12, J15, J16 | C8465 | Phoenix Contact **1715721** (MKDS 1,5/2-5,08) — the part this footprint is named for |
 | BZ1 | C96093 | Same Sky **CMI-1295-0585T** — Ø12 × 9.5 mm, 7.6 mm pitch, 5 V THT active |
-| LED1 | C2920042 | **none** — no bare Worldsemi 5050 in Mouser's catalog; use LCSC, DigiKey, Adafruit or SparkFun |
 
 Several of these LCSC lines are Chinese generics and the Mouser column is the
 genuine part each footprint was drawn from where one exists, so it fits at
@@ -986,11 +990,10 @@ mating parts are one list, and the `Description` is the **Mouser** part's, not
 the LCSC one's — a row reading `22-27-2141 … XD-2510-14A` is the kind of thing
 that makes you think the import matched the wrong part.
 
-Two deliberate differences from the shopping list, both in `jlcpcb/README.md`
-at more length: `LED1` is dropped (Mouser has no bare Worldsemi 5050, and an
-unmatched line you must notice and delete is worse than one named on stdout),
-and the crimp-terminal line is ordered at **35** rather than the board's exact
-28. `SPARES` adds 25 % to consumable lines only — a miscrimp is cut off and
+One deliberate difference from the shopping list, in `jlcpcb/README.md` at
+more length: the crimp-terminal line is ordered at **35** rather than the
+board's exact 28. (Until rev C there was a second: `LED1` was dropped, Mouser
+having no bare Worldsemi 5050.) `SPARES` adds 25 % to consumable lines only — a miscrimp is cut off and
 thrown away, and running out mid-loom stops the build for a week over $0.16 —
 while `hand-solder-parts.csv` keeps saying 28, because the two files answer
 different questions.
@@ -1167,8 +1170,8 @@ in-house router leaves 18 nets in 50 s; Freerouting 2.3.0 leaves 19 after
 not the default.
 
 The copper the old pipeline could only produce from hand seeds - the USB
-pair, the ADE7953 I2C escapes, the U12 escapes, the manual and stitch vias
-- is **locked** on the board. Lock anything else you have routed by hand
+pair, the U12 escapes, the manual and stitch vias - is **locked** on the
+board, and so is the hand-routed `CT_SENSE` link from U1 to C58 (rev C). Lock anything else you have routed by hand
 and no tool here will take it.
 
 ### Checking
@@ -1460,7 +1463,7 @@ constraint rather than a weight: see **per-terminal legends** below.
 **The nameplate and the back brand mark are the silk items that are placed
 rather than anchored**, and the place is *measured at build time*.
 
-* **Front:** `BISQUE / KILN CONTROLLER / REV B.5 / © 2026 Ben Severson`, text
+* **Front:** `BISQUE / KILN CONTROLLER / REV C / © 2026 Ben Severson`, text
   only, goes wherever `gen_pcb.largest_empty_rect()` finds room: every part's
   keep-out (drawn body ∪ copper, grown by `TITLE_MARGIN`) is rasterised on a
   0.25 mm lattice inside the outline and every maximal all-free rectangle is

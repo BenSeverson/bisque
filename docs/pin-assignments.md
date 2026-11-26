@@ -246,7 +246,8 @@ GPIO. There is nothing left to plan here — see §1 for the current map, and
 `docs/superpowers/specs/2026-08-10-pcb-rev-b-hardware-design.md` §3 for the
 design record of how it was chosen, including §3.1's explanation of *why*
 the re-map still happened even though its original ADC1-rescue rationale
-(§2 above) turned out not to apply once the CT sense input went digital: the
+(§2 above) turned out not to apply once the CT sense input went digital on
+rev B (rev C reads the CT on one ADC1 pin again - §1): the
 five nav buttons moved to contiguous module pads to simplify routing, and
 the three protected inputs stayed on ADC1-capable pins to leave a future
 resistance-monitored interlock possible without another respin.
