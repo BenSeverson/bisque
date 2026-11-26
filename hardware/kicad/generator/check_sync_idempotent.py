@@ -94,12 +94,13 @@ def main(board_path):
     with tempfile.TemporaryDirectory() as tmp:
         b = scratch(src_dir, base, tmp, synced=True)
         net = os.path.join(tmp, base + ".net")
-        # C30 is a 0603 since the 2026-11-07 BOM-line merge, so the swap runs
-        # the other way: any real footprint change exercises the same path.
-        ref, old_fp, new_fp = "C30", "C_0603_1608Metric", "C_0805_2012Metric"
+        # The fixture is a 0603 (C57, a CT bias bypass cap; until rev C removed
+        # it the fixture was another 0603), so the swap runs 0603 -> 0805: any
+        # real footprint change exercises the same path.
+        ref, old_fp, new_fp = "C57", "C_0603_1608Metric", "C_0805_2012Metric"
         before = B.load(b).fps[ref]
         text = open(b).read()
-        # lock C30 by hand
+        # lock C57 by hand
         key = '(property "Reference" "%s"' % ref
         i = text.index(key)
         j = text.rfind("\t(footprint ", 0, i)
@@ -151,8 +152,8 @@ def main(board_path):
         b = scratch(src_dir, base, tmp, synced=True)
         net = os.path.join(tmp, base + ".net")
         t = open(net).read()
-        i, j = comp_block(t, "C30")
-        blk = t[i:j].replace('(ref "C30")', '(ref "C999")')
+        i, j = comp_block(t, "C57")
+        blk = t[i:j].replace('(ref "C57")', '(ref "C999")')
         t = t[:j] + "\n" + blk + t[j:]
         open(net, "w").write(t)
         out = run_sync(tmp, b)
