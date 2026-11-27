@@ -3,7 +3,7 @@ name: Bisque CodeQL config
 # Vendored third-party code. Warnings here are upstream's to fix, not
 # ours: the stb single-header libraries used by the desktop simulator,
 # and managed_components/ — IDF component-manager dependencies (cJSON,
-# LVGL, mdns, led_strip, st7796, cmake_utilities) pulled in at build time.
+# LVGL, mdns, st7796, cmake_utilities) pulled in at build time.
 paths-ignore:
   - simulator/stb_image.h
   - simulator/stb_image_write.h

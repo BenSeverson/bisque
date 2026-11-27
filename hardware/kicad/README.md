@@ -396,8 +396,8 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
 - **No status LED** since rev C. LED1 (a WS2812B on `LED_DATA`, fed through
   the D3 drop diode) repeated what the LCD and the web UI already show, and
   cost a module pin, an Extended feeder and three passives. The green power
-  LED (LED2) stays. Firmware keeps the `status_led` component for perfboard
-  builds; `KILN_PIN_STATUS_LED` defaults to −1.
+  LED (LED2) stays. The firmware's `status_led` component and
+  `KILN_PIN_STATUS_LED` were removed with it.
 - **Alarm**: 12 mm active 5 V buzzer (BZ1) on `ALARM`, its own discrete AO3400A
   (Q2) low-side driver with flyback diode — kept separate from the ULN2003
   aux bank on purpose, so a 5 V buzzer and a 24 V solenoid never share a

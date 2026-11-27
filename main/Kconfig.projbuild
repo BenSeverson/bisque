@@ -77,16 +77,6 @@ menu "Bisque Configuration"
             int "LCD Backlight GPIO"
             default 3
 
-        config KILN_PIN_STATUS_LED
-            int "Status LED GPIO (WS2812B, -1 = not fitted)"
-            default -1
-            help
-                GPIO driving a WS2812B status LED. The rev C PCB has no
-                status LED (its indications are on the LCD and the web UI),
-                so the default is -1 and the status_led task is not started.
-                A perfboard or dev-kit build with an LED sets its own pin
-                here.
-
         config KILN_PIN_ALARM
             int "Alarm output GPIO (-1 = disabled)"
             default 7

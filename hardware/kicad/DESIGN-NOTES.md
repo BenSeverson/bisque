@@ -2819,8 +2819,9 @@ goes from $116.39 to $108.74 an order.
   already show, on a board that lives behind an enclosure door. It cost a
   module pin, an Extended feeder, and a part that changed LCSC number three
   times in two weeks (see LED1). LED2, the plain power LED, stays. The
-  firmware keeps `status_led` for perfboard builds and defaults its pin to
-  -1.
+  firmware's `status_led` component and `KILN_PIN_STATUS_LED` were deleted
+  with it: no board had been built, so there was no hardware to stay
+  compatible with.
 - U7 (ADE7953), Y1, the reset RC, the reference and rail decoupling, both
   anti-alias networks, R60/R61 and the whole of CT channel B with J17: 27
   parts. Nothing in firmware ever talked to the chip, it was the only reason

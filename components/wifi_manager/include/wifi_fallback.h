@@ -76,8 +76,8 @@ wifi_retry_action_t wifi_fallback_service(wifi_fallback_t *fb, bool sta_connecte
 bool wifi_fallback_ap_active(const wifi_fallback_t *fb);
 
 /* Is the AP the *only* way in? During APSTA recovery the AP is briefly still up
-   while the STA already has an IP, and callers (status LED, boot banner,
-   /api/v1/wifi) mean this narrower question. */
+   while the STA already has an IP, and callers (boot banner, /api/v1/wifi)
+   mean this narrower question. */
 bool wifi_fallback_ap_only(const wifi_fallback_t *fb, bool sta_connected);
 
 /* The address callers should be told to use. Derived rather than cached, so a

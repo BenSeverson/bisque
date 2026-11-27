@@ -171,7 +171,6 @@ failed on CI. Avoid overriding them — set fixtures up inside each test instead
 components/
   app_config/       # Pin definitions, hardware constants
   display/          # LVGL UI — all screens, init, task loop
-  status_led/       # WS2812B status LED driver (optional; not fitted on the rev C PCB, pin defaults to -1)
   firing_engine/    # Firing profile execution, PID integration
   pid_control/      # PID temperature controller
   thermocouple/     # MAX31856 SPI thermocouple driver (2 channels)

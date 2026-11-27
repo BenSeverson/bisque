@@ -79,14 +79,12 @@ is one of the three pins an octal-PSRAM module keeps for itself (§2), so a
 later move to that module has one signal fewer to relocate. After the spare,
 the two cheap pins to free are still `T_IRQ` (`KILN_PIN_TOUCH_IRQ` accepts −1
 and the touch controller is polled instead) and `IN3` (an unassigned input).
-`KILN_PIN_STATUS_LED` still exists for perfboard and dev-kit builds and
-defaults to −1, so it has no row here.
+The firmware's status LED driver and `KILN_PIN_STATUS_LED` went with the part.
 
 **Coming from a rev B build tree? Delete `sdkconfig` and rebuild.** A changed
 Kconfig default does not rewrite an existing `sdkconfig`, so a tree configured
-before rev C still has the touch interrupt on the pin that is now the CT input
-and the status LED on the pin that is now the touch interrupt. `main.c`
-refuses to compile when two of those three share a GPIO (`app_pin_checks.h`),
+before rev C still has the touch interrupt on the pin that is now the CT input.
+`main.c` refuses to compile when those two share a GPIO (`app_pin_checks.h`),
 which catches that tree; `rm sdkconfig` (it is untracked) and a rebuild picks up the rev C map.
 
 ### Defaults now match the board

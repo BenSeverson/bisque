@@ -393,8 +393,8 @@ bool wifi_manager_is_connected(void)
 bool wifi_manager_is_ap_mode(void)
 {
     /* During APSTA recovery the AP is briefly still up while the STA already
-       has an IP. Callers (status LED, boot banner, /api/wifi) mean "the AP is
-       the only way in", so a live STA link wins. */
+       has an IP. Callers (boot banner, /api/wifi) mean "the AP is the only
+       way in", so a live STA link wins. */
     return wifi_fallback_ap_only(&s_fb, s_sta_connected);
 }
 

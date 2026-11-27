@@ -87,9 +87,6 @@
 #define APP_PIN_BTN_LEFT   CONFIG_KILN_PIN_BTN_LEFT
 #define APP_PIN_BTN_RIGHT  CONFIG_KILN_PIN_BTN_RIGHT
 
-/* --- Status LED (WS2812B; -1 = not fitted, as on the rev C PCB) --- */
-#define APP_PIN_STATUS_LED CONFIG_KILN_PIN_STATUS_LED
-
 /* --- Optional GPIOs (-1 = disabled) --- */
 #define APP_PIN_ALARM      CONFIG_KILN_PIN_ALARM
 #define APP_PIN_VENT       CONFIG_KILN_PIN_VENT
