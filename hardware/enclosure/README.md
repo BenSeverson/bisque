@@ -1,8 +1,8 @@
 # Bisque Kiln Controller — Enclosure Design
 
 A build-it-from-catalog-parts enclosure for the complete controller: the
-rev B PCB, the 4.0" display, the 5-way nav switch, the 24 V supply, both
-SSRs and their heatsinks, the mains distribution, and the CT sensors. The
+rev C PCB, the 4.0" display, the 5-way nav switch, the 24 V supply, both
+SSRs and their heatsinks, the mains distribution, and the CT sensor. The
 enclosure itself is an **off-the-shelf wall-mount steel box** — no custom
 sheet-metal fabrication, only drilling and one rectangular cutout (the
 display window), all of which is covered by printable 1:1 templates
@@ -34,7 +34,7 @@ what differs.
 | SSR heatsinks × 2 | Omron **Y92B-N100** (1.63 K/W) or per vendor pairing table | See "Thermal design" — the sizing rule, not the part number, is the requirement |
 | Mains distribution | DIN terminal blocks, 2× DIN fuse holder or MCB (controller feed + aux), PE block | On the same DIN rail as the PSU |
 | Contactor (strongly recommended) | Definite-purpose contactor sized for total element current | In series with both SSR outputs, dropped by the mechanical over-temp cutout / E-stop loop. Not fitting one? See [One SSR per hot leg](#one-ssr-per-hot-leg-no-contactor) for what a second SSR does and does not replace |
-| CT × 2 | Split-core CT matched to the board's 5.1 Ω burden (full scale ≈ 139 A rms) | Clamped on each zone's load conductor inside the box, twisted pair to J12 |
+| CT × 1 | Split-core 2000:1 current-output CT (no built-in burden); the board's 24.8 Ω burden makes full scale ≈ 68 A rms | **One** clamp, on the conductor that feeds every zone, upstream of the SSRs; twisted pair to J12 |
 | Wi-Fi antenna | U.FL → SMA bulkhead pigtail + 2.4 GHz antenna | Off-BOM accessory from the KiCad README; the steel box is exactly why the 1U module was chosen |
 | Enclosure | Generic 16 × 12 × 6 in IP66 steel wall-mount box with inner plate | See below |
 
@@ -79,14 +79,14 @@ trivially:
 | Situation | Box |
 |---|---|
 | ≤ 25 A per zone, no contactor | 16 × 12 × 6 in generic (baseline), ~$60 |
-| Up to 40 A per zone, contactor + aux PSU fitted | 20 × 16 × 6 in generic (~$80–100); Hammond EN4SD20166GY + EP2016 if listed gear is required |
+| Up to 40 A per zone, contactor + aux PSU fitted | 20 × 16 × 6 in generic (~$80–100); Hammond EN4SD20166GY + EP2016 if listed gear is required. Two zones at this size total more than the CT input's 68 A full scale: refit the burden (see the CT bullet under the back panel) |
 | Inspected / commercial install | Hammond EN4SD16126GY + EP1612 (UL listed, ~$275 all-in) |
 
 ## Layout
 
 Two zones, hard-segregated: **everything SELV lives on the door,
 everything mains lives on the back panel.** The only things that cross
-are the SSR control pairs, the CT twisted pairs, the 24 V feed to J2, and (if
+are the SSR control pairs, the CT twisted pair, the 24 V feed to J2, and (if
 fitted) the aux coil feed — all SELV, all in one loomed bundle across
 the hinge with a strain-relieved slack loop.
 
@@ -113,7 +113,7 @@ Board orientation on the door: rotate the PCB so its **south edge
 and the nav loom stay short (SPI runs at 40 MHz; keep the display loom
 under ~150 mm). That puts USB-C (J1) at the bottom, reachable with the
 door open, the SSR/power terminals (J2/J10/J15/J4/J9) on one side facing the
-hinge loom, and the TC/CT terminals (J3/J8/J12/J17) on the other.
+hinge loom, and the TC/CT terminals (J3/J8/J12) on the other.
 
 **Thermocouple routing.** J3/J8's screw terminals are the cold junction
 reference — the MAX31856s compensate on-die a few mm away. Door mounting
@@ -159,9 +159,14 @@ bond board GND to the earthed door.
 - **SSRs** on the lower half, one per zone, fins vertical, ≥ 25 mm apart
   and ≥ 25 mm from the panel edges. Load-side wiring in the bottom-right
   quadrant only.
-- **CTs** clamp each zone's load conductor right at the SSR output
-  terminal block; twist each secondary pair to its CT terminal (zone 1 → J12,
-  zone 2 → J17).
+- **The CT** clamps the one conductor that feeds every zone, **upstream of
+  the SSRs** (between the fuse or contactor and the point where the feed
+  splits to the zones); twist its secondary pair to J12. The rev C board has
+  one CT input and reads the kiln's total current - firmware works out which
+  zone is drawing it from which SSR is on. A CT clamped on a single zone's
+  wire still produces a plausible reading, of half the kiln, so check this
+  one with both zones heating. If the kiln's total exceeds 68 A rms, refit
+  the burden first (`hardware/kicad/DESIGN-NOTES.md`, rev C).
 - **Cable glands** through the bottom wall (never the top of a NEMA
   box): mains in (M25), zone 1 out (M25), zone 2 out (M25), TC1 (M16),
   TC2 (M16), spare M16 for lid switch / aux / inputs.
@@ -186,8 +191,8 @@ hot leg and drive both from the same output: both SSR inputs in parallel
 on `J4`, `+` to `OUT` and `−` to `GND`. The element current has to pass
 through both, so either one opening stops the heat. Two inputs and the
 board indicators draw about 40 mA against the 280 mA the terminals have
-at 50 °C (`DESIGN-NOTES.md`, the SSR block). The CT still goes on one
-load conductor per zone.
+at 50 °C (`DESIGN-NOTES.md`, the SSR block). The CT still goes on the one
+conductor every zone shares, upstream of both SSRs.
 
 - Use two SSRs of the same model. A zero-cross SSR decides when to fire
   from the voltage across itself, so at first power check with a clamp
@@ -283,8 +288,8 @@ then Q8 for reverse polarity, then U11 — an XL1509-5.0 buck whose absolute
 maximum input is **40 V**. Two consequences worth knowing:
 
 - **The trim pot no longer matters.** +5V used to be literally the input
-  minus a series Schottky, so every turn of the PSU's trim landed on the
-  WS2812B logic threshold, the SSR drive voltage and the relay coil at once.
+  minus a series Schottky, so every turn of the PSU's trim landed on the SSR
+  drive voltage and the relay coil at once.
   It is now a regulated 5.0 V across the HDR-15-24's whole +/-10% travel.
   Reverse polarity is a P-channel MOSFET rather than that Schottky, so the
   24 V SSR terminals — which hang off the protected input, not off the
@@ -330,7 +335,7 @@ maximum input is **40 V**. Two consequences worth knowing:
 
 A v2 door with **no buttons at all**: the 5-way nav switch is gone and the
 MSP4021's own resistive touch panel is the only local input. Everything on
-the back panel — PSU, SSRs, heatsinks, mains distribution, CTs, thermal
+the back panel — PSU, SSRs, heatsinks, mains distribution, the CT, thermal
 design, grounding — is **unchanged**. Only the door changes.
 
 Drill from **`door-template-touch.svg`**, not `door-template.svg`.

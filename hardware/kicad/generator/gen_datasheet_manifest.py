@@ -54,7 +54,6 @@ SCHEMATIC = "bisque-controller.kicad_sch"
 # None means the file documents no single BOM line: supporting material kept on
 # purpose (the SoC manual behind the module) rather than an orphan.
 DOC_FOR = {
-    "ADE7953_Analog_Devices.pdf": "ADE7953ACPZ",
     "TLV1117LV_TI.pdf": "TLV1117LV33",
     # Read for the U12 swap: pin table (5-1), abs max / recommended VINx
     # (6.1/6.2), VREF and the priority-mode divider (7.6.1.1), break-before-
@@ -66,10 +65,8 @@ DOC_FOR = {
     "AO3401A_-4.0A_Id_-30V_Vds_P-Channel_MOSFET_SOT-23.pdf": "AO3401A",
     "SN74LVC1G123_TI.pdf": "SN74LVC1G123",
     "MAX31856.pdf": "MAX31856MUD+",
-    "TFOM_3.579545M_XO_C2838127.pdf": "3.579545MHz XO",
     "ULN2003A.pdf": "ULN2003A",
     "TLP291_Toshiba_Photocoupler.pdf": "TLP291",
-    "WS2812B_RGB_LED_with_integrated_controller.pdf": "WS2812B",
     # The module's own datasheet is the WROOM-1 sheet; Espressif documents the
     # -1 and -1U together and the pinout is identical (check_pinmap.py's
     # MODULE_PIN_GPIO is built from it). Kept against the fitted -1U value.
@@ -137,6 +134,13 @@ RETIRED = {
     # evidence behind the opto-isolation reversal, which still stands.
     "LTV-817_LiteOn_Photocoupler_M_S_S-TA_S-TA1_S-TP_RevC.pdf":
         "U8/U9 before the SOP-4 repackage; also the opto-isolation reversal",
+    # Rev C (2026-11-26) removed the metering chip and its oscillator: one CT
+    # now reads into the ESP32's ADC. Kept as the evidence for what the B.x
+    # CT front end was (DESIGN-NOTES, rev C section).
+    "ADE7953_Analog_Devices.pdf":
+        "U7 until rev C replaced it with an ADC front end",
+    "TFOM_3.579545M_XO_C2838127.pdf":
+        "Y1, the ADE7953's clock, until rev C",
 }
 
 # Values that are real parts but for which no datasheet is expected: generic

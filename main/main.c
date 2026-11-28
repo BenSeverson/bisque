@@ -14,6 +14,7 @@
 #include "esp_sntp.h"
 
 #include "app_config.h"
+#include "app_pin_checks.h"
 #include "thermocouple.h"
 #include "firing_engine.h"
 #include "safety.h"
@@ -22,7 +23,6 @@
 #include "display.h"
 #include "boot_status.h"
 #include "firing_history.h"
-#include "status_led.h"
 #include "device_log.h"
 
 static const char *TAG = "main";
@@ -233,12 +233,6 @@ void app_main(void)
         boot_status_set("Wi-Fi: access point mode");
     }
 
-    /* ── Status LED Init ────────────────────────────── */
-    bool status_led_initialized = (status_led_init() == ESP_OK);
-    if (!status_led_initialized) {
-        ESP_LOGW(TAG, "Status LED init failed (non-fatal)");
-    }
-
     /* ── mDNS ─────────────────────────────────────── */
     {
         esp_err_t mdns_err = mdns_init();
@@ -269,17 +263,9 @@ void app_main(void)
     ESP_ERROR_CHECK(web_server_start());
     ESP_LOGI(TAG, "Web server started at http://%s/", wifi_manager_get_ip());
 
-    /* ── Create Remaining Tasks (Core 0: UI + network) ── */
+    /* ── Remaining Core 0 workers: firing-engine notifications + WS broadcast timer ── */
     /* The Core 1 control tasks and display_task were created earlier — see the
      * ordering note above safety_task's creation. */
-
-    if (status_led_initialized) {
-        xTaskCreatePinnedToCore(status_led_task, "status_led", 2048, NULL, 1, NULL, 0);
-    } else {
-        ESP_LOGW(TAG, "Status LED task skipped");
-    }
-
-    /* ── Workers driven off firing engine + WS broadcast timer ── */
     ESP_ERROR_CHECK(ws_handler_start());
     ESP_ERROR_CHECK(notification_task_start());
 

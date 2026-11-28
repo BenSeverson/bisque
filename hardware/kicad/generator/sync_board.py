@@ -491,7 +491,7 @@ def set_title_block(board, net_path):
     tb.SetDate(date)
     tb.SetRevision(rev)
     tb.SetCompany("Bisque project")
-    tb.SetComment(0, "ESP32-S3-WROOM-1U-N16R2 + 2x MAX31856 + dual SSR + ADE7953")
+    tb.SetComment(0, "ESP32-S3-WROOM-1U-N16R2 + 2x MAX31856 + dual SSR + CT (ADC)")
     tb.SetComment(1, "4-layer, 100 x 100 mm, JLCPCB standard process")
     board.SetTitleBlock(tb)
 

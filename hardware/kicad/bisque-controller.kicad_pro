@@ -665,19 +665,11 @@
       },
       {
         "netclass": "Track_0.40mm",
-        "pattern": "CTA_N"
+        "pattern": "CT_BIAS"
       },
       {
         "netclass": "Track_0.40mm",
-        "pattern": "CTA_P"
-      },
-      {
-        "netclass": "Track_0.40mm",
-        "pattern": "CTB_N"
-      },
-      {
-        "netclass": "Track_0.40mm",
-        "pattern": "CTB_P"
+        "pattern": "CT_P"
       },
       {
         "netclass": "Track_0.40mm",
@@ -726,10 +718,6 @@
       {
         "netclass": "Track_0.70mm",
         "pattern": "BUCK_5V"
-      },
-      {
-        "netclass": "Track_0.70mm",
-        "pattern": "VLED"
       },
       {
         "netclass": "Track_0.80mm",

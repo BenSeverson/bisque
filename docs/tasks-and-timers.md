@@ -22,8 +22,8 @@ is UI and network.** Real-time supervision must not be scheduled behind a Wi-Fi
 stack that can stall for tens of seconds (#250).
 
 - **Core 1** — `safety`, `temp_read`, `firing`, created via `start_control_task()`
-  ([`main.c:33`](../main/main.c#L33)), which hardcodes core 1.
-- **Core 0** — `display`, `status_led`, `notify`, `ws_broadcast`, `wifi_worker`,
+  ([`main.c:34`](../main/main.c#L34)), which hardcodes core 1.
+- **Core 0** — `display`, `notify`, `ws_broadcast`, `wifi_worker`,
   **and the `esp_timer` task**.
 - **Unpinned** (`tskNO_AFFINITY`, scheduler picks) — `httpd`, `ota_install`,
   `ota_confirm`.
@@ -38,22 +38,20 @@ is 25.
 
 | Task | Prio | Core | Stack | Cadence | Created |
 |---|---|---|---|---|---|
-| `safety` | 6 | 1 | 4096 | 500 ms, `xTaskDelayUntil` | [`main.c:116`](../main/main.c#L116) |
+| `safety` | 6 | 1 | 4096 | 500 ms, `xTaskDelayUntil` | [`main.c:172`](../main/main.c#L172) |
 | `httpd` | **5** | any | 12288 | event-driven | [`web_server.c:188`](../components/web_server/web_server.c#L188) |
-| `temp_read` | 5 | 1 | 4096 | 250 ms, `xTaskDelayUntil` | [`main.c:117`](../main/main.c#L117) |
+| `temp_read` | 5 | 1 | 4096 | 250 ms, `xTaskDelayUntil` | [`main.c:173`](../main/main.c#L173) |
 | `ota_install` | 5 | any | 8192 | transient — one per update, then exits | [`ota_manager.c:343`](../components/ota/ota_manager.c#L343) |
-| `firing` | 4 | 1 | 8192 | 1000 ms, **interruptible** (see below) | [`main.c:118`](../main/main.c#L118) |
+| `firing` | 4 | 1 | 8192 | 1000 ms, **interruptible** (see below) | [`main.c:174`](../main/main.c#L174) |
 | `ota_confirm` | 3 | any | 4096 | transient — one healthy-uptime window after an OTA boot | [`ota_confirm.c:83`](../components/ota/ota_confirm.c#L83) |
-| `display` | 2 | 0 | 16384 | ~30 ms LVGL loop | [`main.c:133`](../main/main.c#L133) |
+| `display` | 2 | 0 | 16384 | ~30 ms LVGL loop | [`main.c:189`](../main/main.c#L189) |
 | `ws_broadcast` | 2 | 0 | 4096 | blocks on `ulTaskNotifyTake(portMAX_DELAY)` | [`ws_handler.c:300`](../components/web_server/ws_handler.c#L300) |
-| `status_led` | 1 | 0 | 2048 | 250 ms | [`main.c:221`](../main/main.c#L221) |
 | `notify` | 1 | 0 | 6144 | blocks on `xQueueReceive(portMAX_DELAY)` | [`notification_task.c:46`](../components/web_server/notification_task.c#L46) |
 | `wifi_worker` | 1 | 0 | 4096 | 1000 ms queue timeout | [`wifi_manager.c:359`](../components/wifi_manager/wifi_manager.c#L359) |
 
-Three are conditional, and their absence is logged rather than fatal: `display`
-(skipped if `display_init()` fails — the controller runs headless), `status_led`
-(skipped if the LED did not initialize), and `ota_confirm` (only after an OTA
-boot). `display` is the one exception to "non-fatal": if `xTaskCreatePinnedToCore`
+Two are conditional, and their absence is logged rather than fatal: `display`
+(skipped if `display_init()` fails — the controller runs headless) and
+`ota_confirm` (only after an OTA boot). `display` is the one exception to "non-fatal": if `xTaskCreatePinnedToCore`
 itself fails for it, `main.c` calls `abort()`, because a 16 KiB stack allocation
 failure otherwise produces a UI that silently never starts.
 
@@ -74,7 +72,7 @@ non-blocking.
 | Timer | Period | Callback | Created |
 |---|---|---|---|
 | `ssr_window` | 100 ms | `ssr_timer_cb` → `ssr_window_apply()` (time-proportional SSR window) then `wdt_kick_step()` (toggles the watchdog kick, so a 5 Hz square wave) | [`safety.c:280`](../components/safety/safety.c#L280) |
-| `ws_broadcast` | 1000 ms | `ws_broadcast_timer_cb` → notifies the `ws_broadcast` task | [`main.c:230`](../main/main.c#L230) |
+| `ws_broadcast` | 1000 ms | `ws_broadcast_timer_cb` → notifies the `ws_broadcast` task | [`main.c:272`](../main/main.c#L272) |
 
 ## LVGL timer
 

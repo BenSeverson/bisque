@@ -1,12 +1,12 @@
-# JLCPCB order package — rev B
+# JLCPCB order package — rev C
 
 Everything an order uploads is in this directory. `gerbers.zip` goes to the PCB
 order form; `BOM.csv` + `CPL.csv` go to the SMT assembly step.
 
 **`BOM.csv` lists every part on the board, and JLCPCB fits all of them** -
-leave every line ticked. The 6 lines whose `Notes` read `Optional hand
-solder - JLC assembles; untick at JLC to fit by hand` (BZ1, J2-J12, J15-J17,
-LED1) are the ones you *could* fit yourself: untick one on JLCPCB's BOM confirmation
+leave every line ticked. The 5 lines whose `Notes` read `Optional hand
+solder - JLC assembles; untick at JLC to fit by hand` (BZ1, J2-J12, J15, J16)
+are the ones you *could* fit yourself: untick one on JLCPCB's BOM confirmation
 page and it arrives unfitted. Their CPL rows are rotation-corrected like the
 rest, so a ticked line is placed right. (A line whose note reads `HAND SOLDER
 - uncheck at JLC` is hand-fitted for good: untick it, and its CPL row is not
@@ -63,10 +63,6 @@ Three deliberate differences from `hand-solder-parts.csv`:
 * **The optional board parts are not in it.** JLCPCB fits them; it lists a
   board part only when its note says `HAND SOLDER`.
 
-* **`LED1` is not in it.** No bare Worldsemi 5050 is in Mouser's catalog, and
-  an unmatched line you have to notice and delete is worse than one the
-  generator names on stdout. Source the WS2812B from LCSC, DigiKey, Adafruit
-  or SparkFun.
 * **35 crimp terminals, not 28.** A miscrimp is not un-done — it is cut off
   and thrown away — and running out halfway through a 14-way loom stops the
   build for a week over $0.16, so `SPARES` adds 25 % to that line alone.
@@ -115,7 +111,7 @@ relays are 5 V parts and you want the board to feed them.
 external supply is landed on J10.1.** The enclosure design runs 24 V relay
 coils off the same HDR-15-24 that feeds the board, so `AUX_VP` is fed
 externally at 24 V — and bridging `SJ1` then connects that 24 V straight
-onto `+5V`, whose loads include `U2` (6 V absolute maximum), `LED1`, the
+onto `+5V`, whose loads include `U2` (6 V absolute maximum), the
 buzzer and the SSR gate rail. It is a one-jumper way to destroy most of the
 low-voltage side of the board.
 

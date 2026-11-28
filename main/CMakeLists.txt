@@ -11,7 +11,6 @@ idf_component_register(
         safety
         wifi_manager
         history
-        status_led
         ota
         mdns
         esp_netif

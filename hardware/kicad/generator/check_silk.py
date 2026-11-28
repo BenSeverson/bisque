@@ -81,10 +81,10 @@ SILK_ON_SILK_MAX = 0
 #                was the switch's own designator, not the absence of board.
 #                The buttons have since been placed as a pair with their
 #                legends south of both.
-#   SDA/SCL/3V3  LED1, a 5 x 5 mm WS2812B, sat squarely in J7's pin-name band
-#                on top of the labels for pins 5-7. That one really was
-#                unsolvable in silk, and the fix was the one the entry named:
-#                LED1 moved to the band south of the module.
+#   SDA/SCL/3V3  A 5 x 5 mm part sat squarely in J7's pin-name band on top
+#                of the labels for pins 5-7. That one really was unsolvable
+#                in silk, and the fix was the one the entry named: the part
+#                moved out of the band.
 #
 # So an addition here should be argued hard. A buried legend is printable,
 # DRC-clean and gone the moment the part is fitted, which is precisely why

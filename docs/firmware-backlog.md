@@ -95,9 +95,37 @@ and `make fixtures`.
 
 | ID | Task | Net | Notes |
 |---|---|---|---|
-| **[RB-9](https://github.com/BenSeverson/bisque/issues/314)** | **I2C bus driver** | `I2C_SDA`, `I2C_SCL` | Nothing exists yet. Carries the on-board ADE7953 *and* the Qwiic/STEMMA-QT expansion header, so this unlocks RB-10, RM-B5 and RM-B6 together. |
-| **[RB-10](https://github.com/BenSeverson/bisque/issues/315)** | **ADE7953 current metering** | (I2C) | RB-9. Unlocks element-health monitoring and verifies `element_watts` for cost estimates. |
+| **[RB-9](https://github.com/BenSeverson/bisque/issues/314)** | **I2C bus driver** | `I2C_SDA`, `I2C_SCL` | Nothing exists yet. Since rev C the bus has no on-board device (the ADE7953 is gone), so this serves only the Qwiic/STEMMA-QT header and J7: it unlocks RM-B5 and RM-B6, and RB-10 no longer waits on it. |
+| **[RB-10](https://github.com/BenSeverson/bisque/issues/315)** | **CT current sensing on ADC1** | `CT_SENSE` (`KILN_PIN_CT`) | Nothing (no longer RB-9). Unlocks element-health monitoring and verifies `element_watts` for cost estimates. Specification below the table. The linked issue still describes the ADE7953. |
 | **[RB-11](https://github.com/BenSeverson/bisque/issues/316)** | **XPT2046 touch driver** + LVGL input device | `T_CS`, `T_IRQ` | The controller is on the LCD module, not the Bisque PCB; clock/data are the shared SPI bus. IRQ lets you skip polling. **Interaction risk:** the display UI is built entirely around the 5-way encoder model (focus/activate, Cancel buttons rather than a back gesture). Touch is not a drop-in — decide whether it supplements or replaces that model before writing the driver. |
+
+#### RB-10 specification: CT current sensing on ADC1
+
+Rev C replaced the ADE7953 with one current transformer read by the ESP32's
+ADC (`hardware/kicad/DESIGN-NOTES.md`, rev C). The hardware is one channel;
+everything about zones is firmware.
+
+- **Input.** `CT_SENSE` (`KILN_PIN_CT`, an ADC1 pin). It sits at about 1.65 V
+  with the burden voltage riding on it. Use the continuous (DMA) ADC driver
+  at 4 kHz or faster (the board's R32/C58 filter corner is 1.6 kHz, so a
+  slower rate folds noise back in), subtract the measured mean, and take the RMS over a whole
+  number of mains cycles. One per-board calibration constant turns counts
+  into amps. No dependency on RB-9.
+- **Single zone.** The reading is the kiln's total current. While the SSR is
+  commanded on, compare it with the expected current (a dead element or an
+  SSR failed open reads low). While it is commanded off, compare it with zero
+  (an SSR stuck on reads high).
+- **Two zones.** Attribute current to a zone by sampling only in SSR windows
+  where exactly one zone is commanded on. Zone 2 otherwise follows zone 1's
+  duty, so such windows do not occur by themselves: the scheduler has to
+  offset the two zones' on-times, or insert a short single-zone test pulse.
+- **Limits.** With both zones off, current that should not be there is
+  detected but not attributed to a zone without a test pulse. Three-phase
+  kilns are not covered by one CT. Full scale is 68 A rms for the whole kiln
+  with the fitted burden and a 2000:1 CT.
+- **Contract.** New fields go through a `build_*_json()` in `api_json.c`,
+  omitted entirely when `KILN_PIN_CT` is -1, as `lidOpen` and `ventActive`
+  are for their hardware.
 
 ### Housekeeping
 
@@ -142,7 +170,7 @@ Each of these is a real application unlocked by a Part 1 task.
 | **[RM-B2](https://github.com/BenSeverson/bisque/issues/332)** | **Controlled-atmosphere heat treat** (reduce scale/decarb) | RB-6, RB-7 | Purge solenoid on AUX2, gas-flow interlock, aux policy per process type |
 | **[RM-B3](https://github.com/BenSeverson/bisque/issues/333)** | **Two-zone kilns / larger chambers** | RB-4, RB-5 | Second PID instance or master/slave offset control |
 | **[RM-B4](https://github.com/BenSeverson/bisque/issues/334)** | **Forced-cool / crash-cool assist** (glass fuse-to-anneal) | RB-6 | "Cool output" active on negative error during designated segments |
-| **[RM-B5](https://github.com/BenSeverson/bisque/issues/335)** | **Element health monitoring** | RB-9, RB-10 | Compare expected vs. actual current at known duty. Makes `FIRING_ERR_NOT_RISING` *diagnosable* — distinguishes a failed element from a thermal stall. |
+| **[RM-B5](https://github.com/BenSeverson/bisque/issues/335)** | **Element health monitoring** | RB-10 | Compare expected vs. actual current at known duty. Makes `FIRING_ERR_NOT_RISING` *diagnosable* — distinguishes a failed element from a thermal stall. |
 | **[RM-B6](https://github.com/BenSeverson/bisque/issues/336)** | **Offline-accurate audit timestamps** | RB-9 | I2C RTC (DS3231) + coin cell on the Qwiic header; history timestamps valid without NTP |
 | **[RM-B7](https://github.com/BenSeverson/bisque/issues/337)** | **Quench transfer-window policy** | RM-6 | Gate stays armed across the transfer |
 | **[RM-B8](https://github.com/BenSeverson/bisque/issues/338)** | **Two-point TC calibration** | RB-1 | Current calibration is a single offset |

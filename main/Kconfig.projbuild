@@ -77,12 +77,6 @@ menu "Bisque Configuration"
             int "LCD Backlight GPIO"
             default 3
 
-        config KILN_PIN_STATUS_LED
-            int "Status LED GPIO (WS2812B)"
-            default 48
-            help
-                GPIO connected to the on-board WS2812B status LED.
-
         config KILN_PIN_ALARM
             int "Alarm output GPIO (-1 = disabled)"
             default 7
@@ -322,8 +316,9 @@ menu "Bisque Configuration"
             int "I2C SDA GPIO (-1 = disabled)"
             default 18
             help
-                I2C data. Carries the on-board ADE7953 current-metering IC and
-                the Qwiic/STEMMA-QT expansion header.
+                I2C data. Serves the Qwiic/STEMMA-QT expansion header (J14)
+                and the aux header (J7); nothing on the board itself is an
+                I2C device since rev C.
 
                 NO I2C DRIVER EXISTS YET.
 
@@ -345,7 +340,7 @@ menu "Bisque Configuration"
 
         config KILN_PIN_TOUCH_IRQ
             int "Touch pen-down interrupt GPIO (-1 = disabled)"
-            default 6
+            default 48
             help
                 Pen-down interrupt from the XPT2046. Lets the firmware skip
                 touch reads until a press occurs rather than polling.
@@ -382,21 +377,24 @@ menu "Bisque Configuration"
                 working watchdog hardware will not heat.
 
                 Set to -1 on hardware without the watchdog circuit.
-        config KILN_PIN_ADE_RESET
-            int "ADE7953 reset GPIO (-1 = not wired)"
-            default 37
+        config KILN_PIN_CT
+            int "CT ADC input GPIO (-1 = not fitted)"
+            default 6
             help
-                Drives the energy meter's active-low RESET through its
-                R30/C37 power-on RC. Leave the pin as an input (or driven
-                high) in normal operation; drive it low for >= 10 us only to
-                re-initialise U7 after an I2C fault, then release it. The RC
-                still handles the power-on reset on its own, so a build that
-                never touches this pin loses nothing.
+                Analog input for the current transformer on the CT terminal.
+                Must be an ADC1 pin: ADC2 is unusable while Wi-Fi is on. The
+                pin sees the CT's burden voltage riding on a mid-rail bias,
+                through an RC anti-alias filter, so firmware subtracts the
+                measured mean and takes the RMS of what is left.
 
-                NOTHING DRIVES THIS PIN YET. Wired on the rev B.3 board
-                (schematic review 2026-10-22, E3).
+                One CT, clamped on the conductor that feeds every zone
+                (upstream of the SSRs), so the reading is the kiln's total
+                element current. Telling zones apart is firmware's job - it
+                knows which SSR is on.
 
-                Set to -1 on hardware without the ADE7953 or the wire.
+                NOTHING READS THIS PIN YET.
+
+                Set to -1 on hardware without the CT front end.
 
         config KILN_PIN_PWR_STATUS
             int "24 V power-present sense GPIO (-1 = not wired)"
