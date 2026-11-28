@@ -134,16 +134,13 @@ RETIRED = {
     # evidence behind the opto-isolation reversal, which still stands.
     "LTV-817_LiteOn_Photocoupler_M_S_S-TA_S-TA1_S-TP_RevC.pdf":
         "U8/U9 before the SOP-4 repackage; also the opto-isolation reversal",
-    # Rev C (2026-11-26) removed the metering chip, its oscillator and the
-    # status LED: one CT now reads into the ESP32's ADC and the indications
-    # live on the LCD and the web UI. Kept as the evidence for what the
-    # B.x CT front end was (DESIGN-NOTES, rev C section).
+    # Rev C (2026-11-26) removed the metering chip and its oscillator: one CT
+    # now reads into the ESP32's ADC. Kept as the evidence for what the B.x
+    # CT front end was (DESIGN-NOTES, rev C section).
     "ADE7953_Analog_Devices.pdf":
         "U7 until rev C replaced it with an ADC front end",
     "TFOM_3.579545M_XO_C2838127.pdf":
         "Y1, the ADE7953's clock, until rev C",
-    "WS2812B_RGB_LED_with_integrated_controller.pdf":
-        "LED1, the status LED, until rev C",
 }
 
 # Values that are real parts but for which no datasheet is expected: generic

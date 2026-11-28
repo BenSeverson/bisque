@@ -630,9 +630,7 @@ def hand_solder():
     any through-hole part forces the whole order onto Standard assembly
     (Economic is SMD, top-side only), where EVERY line pays a feeder fee. The
     through-hole parts are connectors and a buzzer on 2.54 mm and 5.08 mm
-    pitch - the easiest joints on the board. (LED1, the status LED rev C
-    removed, was on the list for cost: no addressable RGB LED at LCSC is a
-    Basic part.)
+    pitch - the easiest joints on the board.
 
     This was meant to take the order from Standard assembly to Economic, and
     it does not: U1 is a "Standard Only" part (STANDARD_ONLY), so the order is

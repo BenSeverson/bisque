@@ -486,9 +486,9 @@ class _Obstacles:
         Getting a designator off its own part is only half the job. Evicting
         it is what the courtyard penalty above did to the board texts, and
         the first version of the reference rule reproduced the same failure
-        one part class down: LED1's designator cleared the WS2812 and landed
-        0.18 mm off Y1's can, 1.49 mm from the LED it names, and R36's ended
-        up 5 mm from R36 and 1.5 mm from R31. A label reading as the wrong
+        one part class down: one designator cleared its own part and landed
+        0.18 mm off a neighbour's can, 1.49 mm from the part it names, and
+        R36's ended up 5 mm from R36 and 1.5 mm from R31. A label reading as the wrong
         part is worse than one hidden under the right part, so a candidate
         whose nearest body is not the owner's is refused and the fallback
         takes the hidden spot instead.

@@ -106,8 +106,7 @@ re-dumps byte for byte; do not replace it with a hand-rolled text patch.
   (U2, SOT-223) drops that to 3V3.
   Regulating rather than dropping is the point: +5V used to be literally the
   input minus a Schottky, so every diode drop and every turn of the
-  installer's trim pot landed on the WS2812B threshold, the SSR drive and the
-  relay coil at once. Both of the board's remaining series diodes are now
+  installer's trim pot landed on the SSR drive and the relay coil at once. Both of the board's remaining series diodes are now
   gone with it — the reverse-polarity SS34 is Q8 (~39 mV instead of ~0.4 V,
   which matters because `VIN_P` feeds both 24 V SSR terminals as well as the
   buck) and the USB ORing SS34 is U12 (~40 mΩ).
@@ -790,10 +789,6 @@ hand-fitted for good, set its field back to `HAND SOLDER - uncheck at JLC`:
 since JLCPCB's upload rejects a CPL carrying designators the BOM does not
 have. Test points, solder jumpers, fiducials and mounting holes are marked
 "Exclude from BOM" on the symbol and appear in neither file.
-
-LED1, the WS2812 status LED, was on this list until rev C removed it from the
-board; its sourcing history (three Worldsemi 5050 variants in two weeks) is in
-`DESIGN-NOTES.md`.
 
 | Formerly hand-fitted | Why |
 |---|---|
@@ -1490,9 +1485,8 @@ measured against — which is the point of replacing it. The constant was not
 wrong, it was *un-remeasured*: the nameplate is the only thing on the board
 with no reason to be anywhere in particular, so it is the thing that should
 give way when a part wants the space, and a stale pocket gives way to nothing
-because it cannot tell that anything moved. The WS2812 status cluster moved
-into that lane in the same revision; the nameplate shrank to 75% and slid
-north, with no edit.
+because it cannot tell that anything moved. When a part cluster later moved
+into that lane, the nameplate shrank to 75% and slid north, with no edit.
 
 (Before the constant it was two texts at (62.5, 62.0), in what the comment
 there called the clear band between the switching and analog regions — a band

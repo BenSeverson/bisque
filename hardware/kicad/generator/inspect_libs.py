@@ -31,7 +31,6 @@ WANT = [
     ("power", "+5V"),
     ("power", "PWR_FLAG"),
     ("Power_Protection", "SRV05-4"),
-    ("LED", "WS2812B"),
     ("Mechanical", "MountingHole_Pad"),
 ]
 

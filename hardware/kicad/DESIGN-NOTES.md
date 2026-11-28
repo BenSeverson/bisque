@@ -101,8 +101,7 @@ digital    x 20..120  y 20..48   module, USB-C, power in, RESET + BOOT
 switching  x 20..60   y 48..95   ULN2003, SSR drivers, watchdog, buzzer
 analog     x 88..120  y 33..92   MAX31856 x2 (north), ADE7953 + CT (south)
 headers    x 20..120  y 94..120  LCD / nav / aux / I2C, input terminal
-(unzoned)  x 60..92   y 48..94   buzzer driver, TP4-TP10, status LED,
-the nameplate
+(unzoned)  x 60..92   y 48..94   buzzer driver, TP4-TP10, the nameplate
 
 Two corrections against §6.2, both found by measuring:
 
@@ -120,15 +119,15 @@ cluster from the front-ends.
 The 32 x 46 mm band between the switching column and the analog column
 belongs to no region at all. It is the lowest-density area on the board
 (~1.1 parts/cm2 against 2.30 in the analog column), which is why the
-nameplate search (gen_pcb.largest_empty_rect) keeps landing in it, why the
-WS2812 status cluster moved into it, and also why the ADE7953 block, boxed
-in at 2.30, had to push its crystal 19.5 mm south. If something needs room,
+nameplate search (gen_pcb.largest_empty_rect) keeps landing in it, and also
+why the ADE7953 block, boxed in at 2.30, had to push its crystal 19.5 mm
+south. If something needs room,
 this band is where the room is.
 
 But do not mistake it for the ONLY room, and above all do not mistake the
 band just south of the module (x 60..88, y 44..56) for room at all. It
 measures emptier than anywhere else on the board and it is the escape path
-for forty castellated pads: putting the status LED there cost SPI_MOSI and
+for forty castellated pads: putting a part there once cost SPI_MOSI and
 SPI_SCLK their test-point terminals and left TC1_CS unrouted. Clear board
 beside a big part is not free board.
 
@@ -268,8 +267,7 @@ check_pinmap.py asserts the first two agree and CI runs it.
 The board makes its own 5 V rail from a 24 V input (U11 below). Two revs
 ago it took 5 V directly and +5V was literally VIN minus a series
 Schottky, so every drop and every turn of the installer's trim pot
-landed on the WS2812B threshold, the SSR drive and the relay coil at
-once. Regulating after the protection is what stopped that, and this
+landed on the SSR drive and the relay coil at once. Regulating after the protection is what stopped that, and this
 rev finishes the job by taking the drop out of the protection as well:
 reverse polarity is now Q8, a P-FET at ~33 mV, and the USB OR is U12,
 a power mux at ~40 mOhm. Between them they deleted the board's last two
@@ -588,9 +586,8 @@ is 4.75-5.25 V so this is 250 mV inside the recommendation and 750 mV
 inside the rating, and U4 (the SRV05-4 on VBUS) clamps the transients
 either way - but a non-compliant charger sitting at 5.6 V would now be
 out of the recommended range where the Schottky used to hide it. Judged
-acceptable: the same charger already puts 5.6 V on the SSR gate rail,
-the WS2812B and the display, none of which had a diode in front of them
-either.
+acceptable: the same charger already puts 5.6 V on the SSR gate rail
+and the display, neither of which had a diode in front of it either.
 
 +$3, the one feeder this change adds. Nothing fee-free does this job:
 the Basic and Preferred libraries hold no power mux and no ideal-diode
@@ -827,8 +824,8 @@ output ceramic is gone (see C44).
 50 C in-box ambient, and "~250 mA at 24 V" elsewhere in these notes is
 that figure at 80% efficiency. Where it goes: the module's Wi-Fi TX
 peaks (~0.5 A through U2), the display and its backlight (~0.15 A, on
-+5V directly), LED1 (0.06 A), the buzzer (0.03 A) and the small
-loads (~0.05 A) - about 0.8 A, leaving ~0.2 A for aux relays if SJ1
++5V directly), the buzzer (0.03 A) and the small loads (~0.05 A) -
+about 0.75 A, leaving ~0.25 A for aux relays if SJ1
 ties AUX_VP to +5V. At 1.0 A and 24 V, U11 dissipates ~0.6 W (1.2 V
 saturation x 0.24 duty, 5 mA quiescent, ~0.18 W switching at 100 ns
 edges) - +59 C at the datasheet's 100 C/W free-air figure, so Tj ~110 C
@@ -1928,83 +1925,6 @@ Designators: the task brief called these R20-R22, but Task 7 (SSR
 optocoupler channels) already consumed R20-R22 - verified against the
 live COMPONENTS dict before adding these. Using R23-R25 instead.
 
-## LED1 (design.py line 1646)
-
---- WS2812B status LED ---------------------------------------------
-R3 / LED1 / C10 west to east with D3 below, in the quietest part-free
-window this board has: 0.26 mm/mm2 of track and zero vias, against
-0.53 mm/mm2 and eight vias where the cluster used to sit. Measured, and
-measuring it correctly is the whole story of where this went.
-
-It moved out of the strip above J7 because a 5 x 5 mm PLCC4 is wider
-than three pin pitches and was sitting squarely on the label band for
-J7's pins 5, 6 and 7: `SDA` and `3V3` were pushed 2.60 mm onto the
-connector body and `SCL` onto LED1's own outline, so the row printed as
-`3V3 GND TX RX . . . GND` and counting from either end gave the wrong
-pin - on the one header carrying I2C and a 3.3 V rail. No silk placer
-can fix that (analysis/silkscreen-review.md §B); the part had to move.
-
-Two candidate homes measured as EMPTY and were not, and both cost a
-full re-route to find out:
-
-the band south of the module (x 60..88, y 44..56) is U1's escape.
-Forty castellated pads fan through it to the test-point row at y 57.
-SPI_MOSI and SPI_SCLK could not reach TP4/TP5 and TC1_CS finished
-unrouted.
-
-the lane at the middle of the board (x 67..80, y 63..95) is the
-nameplate's, and it is also the I2C corridor from the test-point row
-down to the pull-ups and J7 - 220 mm of track through it. I2C_SDA and
-I2C_SCL could not reach the ADE7953.
-
-The reason both looked free is a measurement bug worth not repeating:
-the density probe counted a track only if an ENDPOINT fell inside the
-window, so a corridor - which by definition is traces passing straight
-through - read as zero. Worse, it was run against the board from the
-failed build, where the very nets in question were missing. Measure
-against a FULLY ROUTED board, and clip each segment to the window
-(Liang-Barsky) rather than testing its endpoints.
-
-It was at (92.25, 97.45) until this revision, in the 5 mm strip above
-J7 - which is J7's PIN-NAME strip. A 5 x 5 mm PLCC4 is wider than three
-pin pitches, so LED1 and its 330R covered the label band for pins 5, 6
-and 7 outright: `SDA` and `3V3` were pushed 2.60 mm onto the connector
-body and `SCL` onto LED1's own outline, and the row printed as
-`3V3 GND TX RX . . . GND` - a 10 mm hole, so counting from either end
-gives the wrong pin on the one header carrying I2C and a 3.3 V rail.
-No silk placer can fix that; the part had to move. See
-analysis/silkscreen-review.md §B.
-
-So it lands one lane west and one band north of where it was: x 66..82,
-y 85..95, which is toward the centre of the board (the old spot was
-22 mm east and 27 mm south of it), in front of the panel rather than
-behind a connector housing, and clear of every pin-name band. The
-800 kHz single-wire protocol does not care about the run from LED_DATA's GPIO.
-
-## D3 (design.py line 1704)
-
-Silicon, not the SS14 Schottky this was, and the buck is the reason.
-VLED = +5V - Vf, and the WS2812B needs 0.7*VLED to stay under the 3.3V
-the ESP32 drives. On the old unregulated rail an SS14's ~0.3 V left
-VLED at 4.3 V (VIH 3.01 V) only because the input sagged; on a regulated
-5.0 V rail the same diode gives VLED 4.7 V and VIH 3.29 V - a 10 mV
-margin, i.e. none. A 1N4148W drops 0.65-0.85 V across the WS2812B's
-5-60 mA range, putting VLED at ~4.15 V and VIH at ~2.9 V, comfortably
-under 3.3 V and still well above the part's 3.5 V VDD minimum.
-
-What regulating removed is the TRADE, not the drop. The review's
-"trimming the PSU up to help the SSR/relay drops hurts the LED" is gone
-- VLED no longer moves with the installer's trim pot - so a fixed drop
-is now a real fix rather than a hedge, and the 74AHCT1G125 the review
-offered as the alternative is not needed.
-
-The 0.7*VLED above is the generic WS2812B's threshold, the worst case
-the drop was sized for. The part actually ordered is the WS2812E-V5
-(C2920042, since 2026-11-07): VIH a fixed 2.7 V, VDD 3.7-5.3 V, so
-~4.15 V VLED sits inside its range with 0.6 V of data margin. Any
-replacement has to clear both numbers at ~4.15 V. Parts whose threshold
-is 0.75*VDD or higher (the SK6805-EC15's 0.78*VDD is 3.24 V) do not.
-
 ## Connector protection (rev B.5, 2026-11-02)
 
 The rev-C connector list, pulled into B.5 because nothing has been built.
@@ -2170,7 +2090,7 @@ COMPONENTS dict before reusing numbers near here - a duplicate key
 silently overwrites the earlier component.
 
 Placement: R12/R13/C12 (channel 1, née rev A's lid filter) keep their
-original spot in the free band between LED1 and J7. Channels 2 and 3
+original spot in the free band beside J7. Channels 2 and 3
 extend the same schematic row/PCB band eastward; D5 and J11 sit just
 past them. See gen_sch.py SCH_AT for the >=20mm spacing rule that
 keeps facing pin-label stubs from merging nets (Tasks 7, 8).
@@ -2778,14 +2698,11 @@ any value a circuit depends on:
   their rating). 33 R: R39-R43/R54-R58 joined R72/R73/R79/R80 on the 0603
   line (C23140). 0603 rather than the other way round because the 0603s sit
   where an 0805 does not fit, and an 0603 fits anywhere an 0805 did.
-- R3 330 R -> 220 R (WS2812B data series; any 100-470 R does the job).
-  R44/R45 4.7 k -> 5.1 k (I2C pull-ups; R4/R5's line).
+- R44/R45 4.7 k -> 5.1 k (I2C pull-ups; R4/R5's line).
 - LED3/LED4 amber -> green (LED2's line). They hang off 24 V through 10 k,
   so the Vf difference moves the current by ~5 %.
-- D3/D4 1N4148W -> 1N4007W (D9/D10's line). D3's job is a silicon drop
-  under VLED (see D3); the 1N4007W drops the same 0.7-0.85 V across the
-  WS2812B's current range, a hair more if anything, which only widens the
-  VIH margin. D4 is the buzzer freewheel, where 1 A / 1 kV is overkill.
+- D4 1N4148W -> 1N4007W (D9/D10's line). D4 is the buzzer freewheel, where
+  1 A / 1 kV is overkill.
 - J10/J11/J12 4-pos (C42377749) -> pairs of the 2-pos block (C8465):
   J10+J15, J11+J16, J12+J17, pins 1-2 unchanged and old pins 3-4 now the
   second block's 1-2. The two blocks of a pair do NOT abut at 5.08 mm: the
@@ -2818,7 +2735,7 @@ goes from $116.39 to $108.74 an order.
 - LED1 with R3, C10 and D3. The LED repeated what the LCD and the web UI
   already show, on a board that lives behind an enclosure door. It cost a
   module pin, an Extended feeder, and a part that changed LCSC number three
-  times in two weeks (see LED1). LED2, the plain power LED, stays. The
+  times in two weeks. LED2, the plain power LED, stays. The
   firmware's `status_led` component and `KILN_PIN_STATUS_LED` were deleted
   with it: no board had been built, so there was no hardware to stay
   compatible with.

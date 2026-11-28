@@ -109,7 +109,6 @@ MATS = {
     "esp_pcb":     dict(color=0x16265c, metalness=0.1, roughness=0.7),
     "led_green":   dict(color=0x53c05e, metalness=0.1, roughness=0.4),
     "led_amber":   dict(color=0xe0a020, metalness=0.1, roughness=0.4),
-    "led_lens":    dict(color=0xcfd4d6, metalness=0.3, roughness=0.25),
     "band_white":  dict(color=0xdddddd, metalness=0.0, roughness=0.8),
     "buzzer":      dict(color=0x111114, metalness=0.1, roughness=0.6),
 }
@@ -254,9 +253,6 @@ def body(B, fpname, value, fx, fy, frot, pads):
         box(0, 0, T + 0.05, T + H, L, W, "tan")
         box(-L / 2 + 0.2, 0, T + 0.05, T + H + 0.02, 0.4, W, "silver")
         box(L / 2 - 0.2, 0, T + 0.05, T + H + 0.02, 0.4, W, "silver")
-    elif "LED_WS2812B" in fpname:
-        box(0, 0, T + 0.05, T + 1.6, 5.0, 5.0, "white")
-        cyl(0, 0, T + 1.6, T + 1.7, 1.9, "led_lens")
     elif "LED_0805" in fpname:
         key = "led_amber" if "amber" in value else "led_green"
         box(0, 0, T + 0.05, T + 0.7, 2.0, 1.25, key)

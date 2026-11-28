@@ -288,9 +288,8 @@ then Q8 for reverse polarity, then U11 — an XL1509-5.0 buck whose absolute
 maximum input is **40 V**. Two consequences worth knowing:
 
 - **The trim pot no longer matters.** +5V used to be literally the input
-  minus a series Schottky, so every turn of the PSU's trim landed on the
-  status LED's logic threshold (the LED rev C removed), the SSR drive voltage
-  and the relay coil at once.
+  minus a series Schottky, so every turn of the PSU's trim landed on the SSR
+  drive voltage and the relay coil at once.
   It is now a regulated 5.0 V across the HDR-15-24's whole +/-10% travel.
   Reverse polarity is a P-channel MOSFET rather than that Schottky, so the
   24 V SSR terminals — which hang off the protected input, not off the

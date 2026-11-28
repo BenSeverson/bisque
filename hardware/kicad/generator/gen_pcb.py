@@ -884,9 +884,9 @@ TITLE_ROWS = [("BISQUE", 1.6, 0.4),
               # side. B.5 is the connector-protection round: J11 is pulled
               # up on the terminal side behind 100k, which is why firmware
               # leaves that pin's internal pull-up off. C is the first
-              # revision to change the pin map since B: the status LED and
-              # the ADE7953 are gone, one CT reads into the ESP32's ADC, and
-              # the touch interrupt moved - B.x firmware on a C board (or the
+              # revision to change the pin map since B: the ADE7953 is
+              # gone, one CT reads into the ESP32's ADC, and the touch
+              # interrupt moved - B.x firmware on a C board (or the
               # reverse) drives the wrong pins. Keep this in step with the
               # schematic title blocks.
               #
